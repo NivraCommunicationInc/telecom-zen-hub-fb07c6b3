@@ -169,6 +169,29 @@ const ClientMyServices = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch V2 billing subscriptions + services (add-ons etc.)
+  const { data: billingSubscriptions } = useQuery({
+    queryKey: ["client-billing-subscriptions", user?.id],
+    queryFn: async () => {
+      // Get billing customer for this user
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+      if (!customer) return [];
+      
+      const { data, error } = await portalSupabase
+        .from("billing_subscriptions")
+        .select("*, billing_subscription_services(*)")
+        .eq("customer_id", customer.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
   // Fetch orders with equipment - exclude cancelled from client view
   const { data: orders } = useQuery({
     queryKey: ["client-services-orders", user?.id],
@@ -501,8 +524,44 @@ const ClientMyServices = () => {
     return "other";
   };
 
-  // Active subscriptions
-  const activeSubscriptions = subscriptions?.filter((s: any) => s.status === "active" || s.status === "paused") || [];
+  // Active subscriptions (legacy)
+  const activeSubscriptions = subscriptions?.filter((s: any) => 
+    ["active", "paused", "pending", "suspended"].includes(s.status)
+  ) || [];
+  
+  // V2 billing subscriptions mapped to unified format
+  const v2Services = (billingSubscriptions || []).flatMap((sub: any) => {
+    const services = sub.billing_subscription_services || [];
+    if (services.length === 0) {
+      // Subscription with no service lines — show the plan itself
+      return [{
+        id: sub.id,
+        source: "billing_v2",
+        plan_name: sub.plan_name,
+        amount: sub.plan_price,
+        billing_cycle: "monthly",
+        status: sub.status || "active",
+        service_type: sub.service_category || sub.plan_code,
+        created_at: sub.created_at,
+        cycle_start_date: sub.cycle_start_date,
+        cycle_end_date: sub.cycle_end_date,
+      }];
+    }
+    return services.filter((svc: any) => svc.is_active).map((svc: any) => ({
+      id: svc.id,
+      source: "billing_v2_service",
+      plan_name: svc.service_name,
+      amount: svc.unit_price * svc.quantity,
+      billing_cycle: "monthly",
+      status: sub.status || "active",
+      service_type: svc.service_type,
+      created_at: svc.added_at || svc.created_at,
+      cycle_start_date: sub.cycle_start_date,
+      cycle_end_date: sub.cycle_end_date,
+      parent_subscription_id: sub.id,
+      parent_plan_name: sub.plan_name,
+    }));
+  });
   
   // Processed/completed orders that represent active services
   const activeOrderServices = orders?.filter((o: any) => 
@@ -529,9 +588,10 @@ const ClientMyServices = () => {
     };
   }) || [];
 
-  // Combine subscriptions and order-based services
+  // Combine all services, deduplicating by plan name where possible
   const allActiveServices = [
     ...activeSubscriptions.map((s: any) => ({ ...s, source: "subscription" })),
+    ...v2Services,
     ...activeOrderServices,
   ];
 
@@ -776,33 +836,46 @@ const ClientMyServices = () => {
               {allActiveServices.map((service: any) => {
                 const Icon = getServiceIcon(service.plan_name || service.service_type);
                 const category = getServiceCategory(service.plan_name || service.service_type);
-                const isPaused = service.status === "paused";
+                const isPaused = service.status === "paused" || service.status === "suspended";
                 const isMobile = category === "mobile";
+                const isCancelled = service.status === "cancelled" || service.status === "expired";
+                const isPending = service.status === "pending";
+                
+                const statusBadge = (() => {
+                  switch (service.status) {
+                    case "active": return <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>;
+                    case "pending": return <Badge className="bg-amber-500/20 text-amber-500"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
+                    case "paused":
+                    case "suspended": return <Badge className="bg-amber-500/20 text-amber-500"><Pause className="w-3 h-3 mr-1" />Suspendu</Badge>;
+                    case "cancelled":
+                    case "expired": return <Badge className="bg-red-500/20 text-red-500">Annulé</Badge>;
+                    default: return <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>;
+                  }
+                })();
                 
                 return (
-                  <Card key={service.id} className="bg-card border-border">
+                  <Card key={service.id} className={cn("bg-card border-border", isCancelled && "opacity-60")}>
                     <CardContent className="p-4">
                       <div className="flex flex-col gap-4">
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                           <div className="flex items-start gap-4">
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              isPaused ? "bg-amber-500/20" : "bg-cyan-500/20"
+                              isPaused || isCancelled ? "bg-amber-500/20" : isPending ? "bg-sky-500/20" : "bg-accent/20"
                             }`}>
-                              <Icon className={`w-6 h-6 ${isPaused ? "text-amber-500" : "text-cyan-500"}`} />
+                              <Icon className={`w-6 h-6 ${isPaused || isCancelled ? "text-amber-500" : isPending ? "text-sky-500" : "text-accent"}`} />
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-semibold text-foreground">{service.plan_name}</h4>
-                                <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>
-                                {isPaused && (
-                                  <Badge className="bg-amber-500/20 text-amber-500">
-                                    <Pause className="w-3 h-3 mr-1" />
-                                    Suspendu
-                                  </Badge>
-                                )}
+                                {statusBadge}
                                 {service.source === "order" && (
                                   <span className="text-xs text-muted-foreground">
                                     #{service.order_number}
+                                  </span>
+                                )}
+                                {service.source === "billing_v2_service" && service.parent_plan_name && (
+                                  <span className="text-xs text-muted-foreground">
+                                    ({service.parent_plan_name})
                                   </span>
                                 )}
                               </div>
@@ -810,6 +883,18 @@ const ClientMyServices = () => {
                                 {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/
                                 {service.billing_cycle === "monthly" ? "mois" : "an"}
                               </p>
+                              {/* Effective dates */}
+                              {service.cycle_start_date && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Période: {format(new Date(service.cycle_start_date), "d MMM yyyy", { locale: fr })}
+                                  {service.cycle_end_date && ` — ${format(new Date(service.cycle_end_date), "d MMM yyyy", { locale: fr })}`}
+                                </p>
+                              )}
+                              {!service.cycle_start_date && service.created_at && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Depuis le {format(new Date(service.created_at), "d MMM yyyy", { locale: fr })}
+                                </p>
+                              )}
                               
                               {/* Service Tags */}
                               <div className="flex gap-1 mt-2">
