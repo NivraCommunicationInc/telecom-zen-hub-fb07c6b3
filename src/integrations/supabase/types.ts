@@ -1004,6 +1004,57 @@ export type Database = {
           },
         ]
       }
+      billing_automation_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          errors: Json | null
+          errors_count: number | null
+          id: string
+          invoices_voided: number | null
+          processed_items: Json | null
+          reminders_queued: number | null
+          renewals_generated: number | null
+          run_type: string
+          started_at: string
+          status: string
+          subscriptions_expired: number | null
+          summary: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          errors?: Json | null
+          errors_count?: number | null
+          id?: string
+          invoices_voided?: number | null
+          processed_items?: Json | null
+          reminders_queued?: number | null
+          renewals_generated?: number | null
+          run_type: string
+          started_at?: string
+          status?: string
+          subscriptions_expired?: number | null
+          summary?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          errors?: Json | null
+          errors_count?: number | null
+          id?: string
+          invoices_voided?: number | null
+          processed_items?: Json | null
+          reminders_queued?: number | null
+          renewals_generated?: number | null
+          run_type?: string
+          started_at?: string
+          status?: string
+          subscriptions_expired?: number | null
+          summary?: string | null
+        }
+        Relationships: []
+      }
       billing_customers: {
         Row: {
           created_at: string | null
@@ -10504,6 +10555,8 @@ export type Database = {
         | "cancelled"
         | "refunded"
         | "overdue"
+        | "void"
+        | "not_renewed"
       billing_invoice_type: "initial" | "renewal" | "adjustment" | "credit"
       billing_payment_method: "interac" | "manual" | "paypal"
       billing_payment_status: "pending" | "confirmed" | "failed"
@@ -10512,6 +10565,8 @@ export type Database = {
         | "pending"
         | "suspended"
         | "cancelled"
+        | "expired"
+        | "not_renewed"
       cancellation_reason_code:
         | "price"
         | "moving"
@@ -10802,6 +10857,8 @@ export const Constants = {
         "cancelled",
         "refunded",
         "overdue",
+        "void",
+        "not_renewed",
       ],
       billing_invoice_type: ["initial", "renewal", "adjustment", "credit"],
       billing_payment_method: ["interac", "manual", "paypal"],
@@ -10811,6 +10868,8 @@ export const Constants = {
         "pending",
         "suspended",
         "cancelled",
+        "expired",
+        "not_renewed",
       ],
       cancellation_reason_code: [
         "price",
