@@ -1,27 +1,28 @@
 /**
  * Mobile Identity Verification Page (/verify-id)
  * Accessed via QR code scan from checkout.
- * Validates token, shows consent, allows ID document upload, submits.
+ * Validates token, shows consent, allows ID document + selfie upload, submits.
+ * Includes: recto/verso logic, selfie (recommended), consent, 20-min timer, max 3 attempts.
  */
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, Camera, Upload, CheckCircle2, XCircle, AlertCircle, Loader2, FileCheck, ArrowRight } from "lucide-react";
+import { Shield, Camera, Upload, CheckCircle2, XCircle, AlertCircle, Loader2, FileCheck, ArrowRight, Clock, User } from "lucide-react";
 import { toast } from "sonner";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const ID_TYPES = [
-  { value: "drivers_license", label: "Permis de conduire" },
-  { value: "health_card", label: "Carte d'assurance maladie" },
-  { value: "passport", label: "Passeport" },
-  { value: "residency_card", label: "Carte de résident permanent" },
+  { value: "drivers_license", label: "Permis de conduire", needsBack: false },
+  { value: "health_card", label: "Carte d'assurance maladie", needsBack: true },
+  { value: "passport", label: "Passeport", needsBack: false },
+  { value: "residency_card", label: "Carte de résident permanent", needsBack: true },
 ];
 
 const PROVINCES = [
@@ -50,8 +51,12 @@ const VerifyIdentityPage = () => {
   const [idProvince, setIdProvince] = useState("QC");
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [frontPreview, setFrontPreview] = useState<string | null>(null);
   const [backPreview, setBackPreview] = useState<string | null>(null);
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [timeLeft, setTimeLeft] = useState("");
 
   const idempotencyKeyRef = useRef(crypto.randomUUID());
 
@@ -65,14 +70,14 @@ const VerifyIdentityPage = () => {
 
     const validateToken = async () => {
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/identity_verification_sessions?public_token=eq.${publicToken}&select=id,status,expires_at`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/identity_verification_sessions?public_token=eq.${encodeURIComponent(publicToken)}&select=id,status,expires_at,submission_attempts,max_attempts`, {
           headers: {
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
           },
         });
         const data = await res.json();
-        
+
         if (!data || data.length === 0) {
           setPageState("error");
           setErrorMessage("Lien de vérification invalide ou expiré.");
@@ -80,9 +85,16 @@ const VerifyIdentityPage = () => {
         }
 
         const session = data[0];
-        
-        if (new Date(session.expires_at) < new Date()) {
+        const expiry = new Date(session.expires_at);
+
+        if (expiry < new Date()) {
           setPageState("expired");
+          return;
+        }
+
+        if (session.submission_attempts >= (session.max_attempts || 3)) {
+          setPageState("error");
+          setErrorMessage("Nombre maximum de tentatives atteint. Veuillez régénérer un nouveau code QR.");
           return;
         }
 
@@ -97,6 +109,7 @@ const VerifyIdentityPage = () => {
           return;
         }
 
+        setExpiresAt(expiry);
         setPageState("consent");
       } catch (err) {
         console.error("Token validation error:", err);
@@ -108,28 +121,45 @@ const VerifyIdentityPage = () => {
     validateToken();
   }, [publicToken]);
 
-  const handleFileSelect = (side: "front" | "back", file: File | null) => {
+  // Countdown timer
+  useEffect(() => {
+    if (!expiresAt) return;
+    const update = () => {
+      const diff = expiresAt.getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("00:00");
+        setPageState("expired");
+        return;
+      }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  const selectedIdType = ID_TYPES.find((t) => t.value === idType);
+  const needsBack = selectedIdType?.needsBack ?? true;
+
+  const handleFileSelect = (side: "front" | "back" | "selfie", file: File | null) => {
     if (!file) return;
-    
-    // Validate file
     if (file.size > 10 * 1024 * 1024) {
       toast.error("Fichier trop volumineux. Maximum 10 Mo.");
       return;
     }
-    if (!["image/jpeg", "image/png", "image/webp", "image/heic"].includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic)$/i)) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp)$/i)) {
       toast.error("Format non supporté. Utilisez JPG, PNG ou WebP.");
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      if (side === "front") {
-        setFrontFile(file);
-        setFrontPreview(e.target?.result as string);
-      } else {
-        setBackFile(file);
-        setBackPreview(e.target?.result as string);
-      }
+      const result = e.target?.result as string;
+      if (side === "front") { setFrontFile(file); setFrontPreview(result); }
+      else if (side === "back") { setBackFile(file); setBackPreview(result); }
+      else { setSelfieFile(file); setSelfiePreview(result); }
     };
     reader.readAsDataURL(file);
   };
@@ -137,6 +167,11 @@ const VerifyIdentityPage = () => {
   const handleSubmit = async () => {
     if (!frontFile || !idType || !consentGiven || !publicToken) {
       toast.error("Veuillez compléter tous les champs obligatoires.");
+      return;
+    }
+
+    if (needsBack && !backFile) {
+      toast.error("Le verso de la pièce est obligatoire pour ce type de document.");
       return;
     }
 
@@ -150,6 +185,7 @@ const VerifyIdentityPage = () => {
       formData.append("consent", "true");
       formData.append("document_front", frontFile);
       if (backFile) formData.append("document_back", backFile);
+      if (selfieFile) formData.append("selfie", selfieFile);
       formData.append("idempotency_key", idempotencyKeyRef.current);
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-id-verification`, {
@@ -175,6 +211,17 @@ const VerifyIdentityPage = () => {
     }
   };
 
+  // Timer badge component
+  const TimerBadge = () => (
+    expiresAt && pageState !== "success" && pageState !== "error" ? (
+      <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800">
+        <Clock className="w-4 h-4" />
+        <span className="text-sm font-mono font-bold">{timeLeft || "20:00"}</span>
+        <span className="text-xs">restant</span>
+      </div>
+    ) : null
+  );
+
   // Loading state
   if (pageState === "loading") {
     return (
@@ -196,7 +243,7 @@ const VerifyIdentityPage = () => {
             <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
             <h1 className="text-xl font-bold text-slate-900 mb-2">Session expirée</h1>
             <p className="text-slate-600 text-sm">
-              Ce lien de vérification a expiré. Veuillez retourner à la caisse et régénérer un nouveau code QR.
+              Ce lien de vérification a expiré (20 minutes). Veuillez retourner à la caisse et régénérer un nouveau code QR.
             </p>
           </CardContent>
         </Card>
@@ -228,11 +275,11 @@ const VerifyIdentityPage = () => {
             <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
             <h1 className="text-xl font-bold text-slate-900 mb-2">Documents soumis avec succès</h1>
             <p className="text-slate-600 text-sm mb-4">
-              Vos documents ont été soumis pour vérification. Vous pouvez retourner à la caisse sur votre ordinateur.
+              Vos documents ont été soumis pour vérification manuelle. Un administrateur les examinera sous peu.
             </p>
             <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
               <p className="text-sm text-emerald-700 font-medium">
-                ✓ La page de caisse se mettra à jour automatiquement.
+                ✓ La page de caisse se mettra à jour automatiquement une fois la vérification terminée.
               </p>
             </div>
           </CardContent>
@@ -258,12 +305,15 @@ const VerifyIdentityPage = () => {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-4">
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          <Shield className="w-6 h-6 text-slate-700" />
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">Nivra — Vérification d'identité</h1>
-            <p className="text-xs text-slate-500">Vérification sécurisée pour votre commande</p>
+        <div className="max-w-lg mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="w-6 h-6 text-slate-700" />
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">Nivra — Vérification d'identité</h1>
+              <p className="text-xs text-slate-500">Vérification sécurisée pour votre commande</p>
+            </div>
           </div>
+          <TimerBadge />
         </div>
       </div>
 
@@ -280,8 +330,16 @@ const VerifyIdentityPage = () => {
                   En poursuivant, vous consentez à ce que Nivra collecte et vérifie votre pièce d'identité
                   gouvernementale avec photo aux fins de validation de votre identité. Aucune vérification
                   de crédit ne sera effectuée. Vos documents seront traités de manière confidentielle et
-                  ne seront conservés que pour la durée requise par la loi.
+                  supprimés automatiquement après 90 jours.
                 </p>
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-800 font-medium flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5" />
+                    Ce QR expire dans {timeLeft || "20:00"}. Complétez la vérification avant l'expiration.
+                  </p>
+                </div>
+
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="consent"
@@ -290,7 +348,7 @@ const VerifyIdentityPage = () => {
                   />
                   <label htmlFor="consent" className="text-sm text-slate-700 cursor-pointer">
                     J'accepte que mes documents d'identité soient collectés et vérifiés par Nivra conformément
-                    à la politique de confidentialité.
+                    à la politique de confidentialité. Je comprends que mes documents seront supprimés après 90 jours.
                   </label>
                 </div>
               </CardContent>
@@ -328,19 +386,21 @@ const VerifyIdentityPage = () => {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Province d'émission *</Label>
-                  <Select value={idProvince} onValueChange={setIdProvince}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROVINCES.map((p) => (
-                        <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {idType && idType !== "passport" && (
+                  <div className="space-y-2">
+                    <Label>Province d'émission *</Label>
+                    <Select value={idProvince} onValueChange={setIdProvince}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROVINCES.map((p) => (
+                          <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -367,7 +427,7 @@ const VerifyIdentityPage = () => {
                     <span className="text-xs text-slate-400 mt-1">JPG, PNG — max 10 Mo</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       capture="environment"
                       className="hidden"
                       onChange={(e) => handleFileSelect("front", e.target.files?.[0] || null)}
@@ -377,16 +437,20 @@ const VerifyIdentityPage = () => {
               </CardContent>
             </Card>
 
-            {/* Back of ID (optional) */}
+            {/* Back of ID - required or optional based on ID type */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Camera className="w-4 h-4" />
-                  Verso de la pièce d'identité (optionnel)
+                  Verso de la pièce d'identité {needsBack ? "*" : "(optionnel)"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {backPreview ? (
+                {!needsBack && idType === "passport" ? (
+                  <p className="text-sm text-slate-500 text-center py-4">
+                    Non requis pour un passeport.
+                  </p>
+                ) : backPreview ? (
                   <div className="space-y-3">
                     <img src={backPreview} alt="Verso" className="w-full rounded-lg border border-slate-200" />
                     <Button variant="outline" size="sm" onClick={() => { setBackFile(null); setBackPreview(null); }}>
@@ -399,7 +463,7 @@ const VerifyIdentityPage = () => {
                     <span className="text-sm text-slate-600">Ajouter le verso</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       capture="environment"
                       className="hidden"
                       onChange={(e) => handleFileSelect("back", e.target.files?.[0] || null)}
@@ -409,10 +473,45 @@ const VerifyIdentityPage = () => {
               </CardContent>
             </Card>
 
+            {/* Selfie (recommended) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Selfie (recommandé)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-slate-500 mb-3">
+                  Un selfie aide à accélérer la validation de votre identité.
+                </p>
+                {selfiePreview ? (
+                  <div className="space-y-3">
+                    <img src={selfiePreview} alt="Selfie" className="w-full rounded-lg border border-slate-200" />
+                    <Button variant="outline" size="sm" onClick={() => { setSelfieFile(null); setSelfiePreview(null); }}>
+                      Reprendre le selfie
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg p-6 cursor-pointer hover:border-slate-400 transition-colors">
+                    <Camera className="w-6 h-6 text-slate-400 mb-2" />
+                    <span className="text-sm text-slate-600">Prendre un selfie</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      capture="user"
+                      className="hidden"
+                      onChange={(e) => handleFileSelect("selfie", e.target.files?.[0] || null)}
+                    />
+                  </label>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Submit */}
             <Button
               className="w-full bg-slate-900 hover:bg-slate-800 text-white py-6 text-base"
-              disabled={!frontFile || !idType}
+              disabled={!frontFile || !idType || (needsBack && !backFile)}
               onClick={handleSubmit}
             >
               <FileCheck className="w-5 h-5 mr-2" />
@@ -422,7 +521,7 @@ const VerifyIdentityPage = () => {
             {/* Security notice */}
             <div className="flex items-center gap-2 justify-center text-xs text-slate-400">
               <Shield className="w-3 h-3" />
-              Chiffrement 256 bits — Vos données sont protégées
+              Chiffrement 256 bits — Documents supprimés après 90 jours
             </div>
           </>
         )}
