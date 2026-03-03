@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { User, Save, Loader2, Lock, CreditCard, DollarSign, Calendar, Eye, EyeOff, Settings, ArrowRight, MapPin, Plus, CheckCircle2, XCircle } from "lucide-react";
@@ -46,6 +47,7 @@ const ClientProfile = () => {
   const { user } = useClientAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: accountIdentity } = useClientAccountIdentity(user?.id);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -386,6 +388,9 @@ const ClientProfile = () => {
     suspended: "Suspendu",
   };
 
+  const resolvedAccountNumber = accountIdentity?.accountNumber || profile?.account_number || null;
+  const resolvedClientNumber = accountIdentity?.clientNumber || profile?.client_number || null;
+
   return (
     <ClientLayout>
       <div className="space-y-6">
@@ -399,11 +404,11 @@ const ClientProfile = () => {
         <h1 className="text-3xl font-bold text-slate-900">Coordonnées et Facturation</h1>
 
         {/* Client Number Display - Prominent for support */}
-        {(profile?.client_number || profile?.account_number) && (
+        {(resolvedClientNumber || resolvedAccountNumber) && (
           <ClientNumberDisplay 
-            clientNumber={profile.client_number} 
-            accountNumber={profile.account_number}
-            clientName={profile.full_name || formData.full_name}
+            clientNumber={resolvedClientNumber}
+            accountNumber={resolvedAccountNumber}
+            clientName={profile?.full_name || formData.full_name}
           />
         )}
 
