@@ -46,6 +46,7 @@ import { fr } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
+import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { 
@@ -242,6 +243,10 @@ const ClientInternetOrder = () => {
   
   // Order result
   const [createdOrder, setCreatedOrder] = useState<any>(null);
+  
+  // QR Identity Verification state
+  const [verificationSessionId, setVerificationSessionId] = useState<string | null>(null);
+  const [idVerificationApproved, setIdVerificationApproved] = useState(false);
   
   // Phone field for checkout
   const [checkoutPhone, setCheckoutPhone] = useState("");
@@ -634,7 +639,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
       }
       
       setCreatedOrder(data);
-      setStep(5);
+      setStep(6);
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -647,6 +652,12 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
   });
 
   const handleSubmit = async () => {
+    // Block if identity verification not approved
+    if (!idVerificationApproved || !verificationSessionId) {
+      toast.error(isFrench ? "Vérification d'identité requise avant de soumettre la commande." : "Identity verification required before submitting order.");
+      return;
+    }
+    
     // Prevent double-click race condition with synchronous guard
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -791,9 +802,10 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
   const checkoutSteps = [
     { id: 1, labelFr: "Adresse", labelEn: "Address" },
     { id: 2, labelFr: "Forfait", labelEn: "Plan" },
-    { id: 3, labelFr: "Options", labelEn: "Options" },
-    { id: 4, labelFr: "Paiement", labelEn: "Payment" },
-    { id: 5, labelFr: "Confirmation", labelEn: "Confirmation" },
+    { id: 3, labelFr: "Identité", labelEn: "Identity" },
+    { id: 4, labelFr: "Options", labelEn: "Options" },
+    { id: 5, labelFr: "Paiement", labelEn: "Payment" },
+    { id: 6, labelFr: "Confirmation", labelEn: "Confirmation" },
   ];
 
   // Sidebar content for Rogers-style layout
@@ -841,7 +853,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
         />
 
         {/* Rogers-style Two-Column Layout for Steps 1-4 */}
-        {step < 5 && (
+        {step < 6 && (
           <>
           {/* Mobile Summary Toggle - Rogers style */}
           <div className="lg:hidden border-b border-slate-200 pb-4 mb-6">
@@ -1063,7 +1075,40 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
           </div>
         )}
 
-        {/* Step 4: Terms & Final Confirmation */}
+        {/* Step 3: QR Identity Verification */}
+        {step === 3 && (
+          <div className="space-y-6">
+            <QRVerificationStep
+              userId={user?.id || ""}
+              checkoutType="internet"
+              isFrench={isFrench}
+              onVerified={(sessionId) => {
+                setVerificationSessionId(sessionId);
+                setIdVerificationApproved(true);
+              }}
+              orderContext={{ plan: selectedPlan?.id, address }}
+            />
+
+            {/* Navigation */}
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {isFrench ? "Retour" : "Back"}
+              </Button>
+              <Button 
+                variant="hero" 
+                size="lg" 
+                onClick={() => setStep(4)}
+                disabled={!idVerificationApproved}
+              >
+                {isFrench ? "Continuer" : "Continue"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Details & Options */}
         {step === 4 && (
           <div className="space-y-6">
             {/* Terms & Conditions - French First */}
@@ -1150,7 +1195,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
 
             {/* Navigation */}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(3)}>
+              <Button variant="outline" onClick={() => setStep(4)}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {isFrench ? "Retour" : "Back"}
               </Button>
@@ -1185,8 +1230,8 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
           </>
         )}
 
-        {/* Step 5: Professional Order Confirmation */}
-        {step === 5 && createdOrder && (
+        {/* Step 6: Professional Order Confirmation */}
+        {step === 6 && createdOrder && (
           <div className="space-y-6 max-w-3xl mx-auto">
             {/* Success Header */}
             <Card className="bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-cyan-500/10 border-emerald-500/30 overflow-hidden relative">
@@ -1448,7 +1493,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
         )}
 
         {/* Delivery Notice - Always visible before footer */}
-        {step !== 5 && (
+        {step !== 6 && (
           <Card className="bg-accent/30 border-border mt-8">
             <CardContent className="py-4">
               <p className="text-sm text-muted-foreground text-center">

@@ -4241,6 +4241,125 @@ export type Database = {
           },
         ]
       }
+      identity_verification_events: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          idempotency_key: string | null
+          ip_address: string | null
+          session_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          idempotency_key?: string | null
+          ip_address?: string | null
+          session_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          idempotency_key?: string | null
+          ip_address?: string | null
+          session_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_verification_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "identity_verification_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      identity_verification_sessions: {
+        Row: {
+          checkout_type: string | null
+          created_at: string
+          document_back_path: string | null
+          document_front_path: string | null
+          expires_at: string
+          id: string
+          id_province: string | null
+          id_type: string | null
+          idempotency_key: string | null
+          order_context: Json | null
+          public_token: string
+          qr_regeneration_count: number
+          result_payload: Json | null
+          review_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          selfie_path: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checkout_type?: string | null
+          created_at?: string
+          document_back_path?: string | null
+          document_front_path?: string | null
+          expires_at: string
+          id?: string
+          id_province?: string | null
+          id_type?: string | null
+          idempotency_key?: string | null
+          order_context?: Json | null
+          public_token: string
+          qr_regeneration_count?: number
+          result_payload?: Json | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checkout_type?: string | null
+          created_at?: string
+          document_back_path?: string | null
+          document_front_path?: string | null
+          expires_at?: string
+          id?: string
+          id_province?: string | null
+          id_type?: string | null
+          idempotency_key?: string | null
+          order_context?: Json | null
+          public_token?: string
+          qr_regeneration_count?: number
+          result_payload?: Json | null
+          review_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       influencer_audit_log: {
         Row: {
           action: string
@@ -5373,6 +5492,7 @@ export type Database = {
           id_verified_at: string | null
           id_verified_by: string | null
           identity_snapshot: Json | null
+          identity_verification_session_id: string | null
           imei_number: string | null
           installation_credit: number | null
           installation_fee: number | null
@@ -5466,6 +5586,7 @@ export type Database = {
           id_verified_at?: string | null
           id_verified_by?: string | null
           identity_snapshot?: Json | null
+          identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null
           installation_fee?: number | null
@@ -5559,6 +5680,7 @@ export type Database = {
           id_verified_at?: string | null
           id_verified_by?: string | null
           identity_snapshot?: Json | null
+          identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null
           installation_fee?: number | null
@@ -5620,6 +5742,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_identity_verification_session_id_fkey"
+            columns: ["identity_verification_session_id"]
+            isOneToOne: false
+            referencedRelation: "identity_verification_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -10424,7 +10553,9 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
-      is_admin_user: { Args: never; Returns: boolean }
+      is_admin_user:
+        | { Args: never; Returns: boolean }
+        | { Args: { check_user_id: string }; Returns: boolean }
       is_assigned_technician: {
         Args: { _work_order_id: string }
         Returns: boolean

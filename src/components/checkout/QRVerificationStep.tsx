@@ -1,0 +1,268 @@
+/**
+ * QR Identity Verification Component for Checkout
+ * Rogers-style design: shows QR code, live status polling, 20-min countdown, regenerate button.
+ * Used in both ClientNewOrder and ClientInternetOrder checkouts.
+ */
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Shield, RefreshCw, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, QrCode } from "lucide-react";
+import { portalClient as dbClient } from "@/integrations/backend";
+import { toast } from "sonner";
+
+interface QRVerificationStepProps {
+  userId: string;
+  checkoutType: "mobile" | "internet" | "tv";
+  isFrench: boolean;
+  onVerified: (sessionId: string) => void;
+  orderContext?: Record<string, unknown>;
+}
+
+type SessionStatus = "created" | "submitted" | "approved" | "rejected" | "manual_review" | "expired";
+
+const STATUS_CONFIG: Record<SessionStatus, { icon: typeof CheckCircle2; color: string; labelFr: string; labelEn: string }> = {
+  created: { icon: QrCode, color: "text-blue-500", labelFr: "En attente de soumission", labelEn: "Awaiting submission" },
+  submitted: { icon: Loader2, color: "text-amber-500", labelFr: "Documents soumis — en révision", labelEn: "Documents submitted — under review" },
+  approved: { icon: CheckCircle2, color: "text-emerald-600", labelFr: "Identité vérifiée ✓", labelEn: "Identity verified ✓" },
+  rejected: { icon: XCircle, color: "text-red-500", labelFr: "Vérification refusée", labelEn: "Verification rejected" },
+  manual_review: { icon: AlertCircle, color: "text-amber-600", labelFr: "Révision manuelle en cours", labelEn: "Manual review in progress" },
+  expired: { icon: Clock, color: "text-slate-400", labelFr: "Session expirée", labelEn: "Session expired" },
+};
+
+export const QRVerificationStep = ({
+  userId,
+  checkoutType,
+  isFrench,
+  onVerified,
+  orderContext,
+}: QRVerificationStepProps) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [status, setStatus] = useState<SessionStatus>("created");
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const generateQR = useCallback(async (regenerateSessionId?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: fnError } = await dbClient.functions.invoke("generate-verification-qr", {
+        body: {
+          checkout_type: checkoutType,
+          order_context: orderContext || {},
+          regenerate_session_id: regenerateSessionId,
+        },
+      });
+
+      if (fnError) throw new Error(fnError.message || "Failed to generate QR");
+      if (data?.error) throw new Error(data.error);
+
+      setQrDataUrl(data.qr_data_url);
+      setSessionId(data.session_id);
+      setStatus("created");
+      setExpiresAt(new Date(data.expires_at));
+    } catch (err: any) {
+      console.error("QR generation error:", err);
+      setError(err.message || "Erreur lors de la génération du QR");
+      toast.error(isFrench ? "Erreur lors de la génération du code QR" : "Error generating QR code");
+    } finally {
+      setLoading(false);
+    }
+  }, [checkoutType, orderContext, isFrench]);
+
+  // Generate QR on mount
+  useEffect(() => {
+    generateQR();
+  }, [generateQR]);
+
+  // Poll session status every 3 seconds
+  useEffect(() => {
+    if (!sessionId) return;
+    
+    const poll = async () => {
+      const { data } = await dbClient
+        .from("identity_verification_sessions")
+        .select("status")
+        .eq("id", sessionId)
+        .single();
+
+      if (data && data.status !== status) {
+        setStatus(data.status as SessionStatus);
+        if (data.status === "approved") {
+          onVerified(sessionId);
+          toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
+        } else if (data.status === "rejected") {
+          toast.error(isFrench ? "Vérification refusée. Veuillez réessayer." : "Verification rejected. Please try again.");
+        }
+      }
+    };
+
+    pollRef.current = setInterval(poll, 3000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [sessionId, status, onVerified, isFrench]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const updateTimer = () => {
+      const now = new Date();
+      const diff = expiresAt.getTime() - now.getTime();
+      if (diff <= 0) {
+        setTimeLeft("00:00");
+        setStatus("expired");
+        return;
+      }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`);
+    };
+
+    updateTimer();
+    timerRef.current = setInterval(updateTimer, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [expiresAt]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const handleRegenerate = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    generateQR(sessionId || undefined);
+  };
+
+  const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.created;
+  const StatusIcon = statusConfig.icon;
+  const isTerminal = status === "approved" || status === "rejected";
+  const isExpired = status === "expired";
+
+  return (
+    <div className="space-y-6">
+      {/* Section header - Rogers style */}
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">
+          {isFrench ? "Renseignements personnels" : "Personal Information"}
+        </h2>
+        <p className="text-sm text-slate-600 mt-2 leading-relaxed max-w-2xl">
+          {isFrench
+            ? "Avant de procéder, nous devons effectuer une vérification d'identité pour confirmer votre identité et approuver votre commande. Nous protégerons la confidentialité de vos renseignements."
+            : "Before proceeding, we need to verify your identity to confirm who you are and approve your order. We will protect the confidentiality of your information."}
+        </p>
+      </div>
+
+      {/* Verification de votre identité */}
+      <Card className="bg-white border border-slate-200">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-bold text-slate-900">
+            {isFrench ? "Vérification de votre identité" : "Identity Verification"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Instructions + QR side by side */}
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Instructions */}
+            <div className="flex-1 space-y-4">
+              <h3 className="font-semibold text-slate-900">Instructions</h3>
+              <ol className="list-decimal list-inside space-y-3 text-sm text-slate-700">
+                <li>{isFrench ? "Vérifiez que votre appareil est connecté à Internet." : "Verify your device is connected to the Internet."}</li>
+                <li>{isFrench ? "Balayez le code QR avec l'appareil photo de votre téléphone." : "Scan the QR code with your phone camera."}</li>
+                <li>{isFrench ? "Suivez les instructions pour soumettre votre pièce d'identité." : "Follow the instructions to submit your ID."}</li>
+                <li>
+                  {isFrench
+                    ? <>Une fois votre pièce d'identité soumise, sélectionnez <strong>Continuer</strong>.</>
+                    : <>Once your ID is submitted, select <strong>Continue</strong>.</>}
+                </li>
+              </ol>
+
+              {/* Timer warning */}
+              {!isTerminal && !isExpired && (
+                <p className="text-sm font-bold text-slate-900">
+                  {isFrench
+                    ? `Ce code QR expire dans ${timeLeft || "20:00"}. Ne fermez pas et n'actualisez pas votre navigateur.`
+                    : `This QR code expires in ${timeLeft || "20:00"}. Do not close or refresh your browser.`}
+                </p>
+              )}
+            </div>
+
+            {/* QR Code */}
+            <div className="flex flex-col items-center gap-4">
+              {loading ? (
+                <div className="w-[200px] h-[200px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                  <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+                </div>
+              ) : error ? (
+                <div className="w-[200px] h-[200px] flex flex-col items-center justify-center bg-red-50 rounded-lg border border-red-200 p-4 text-center">
+                  <XCircle className="w-8 h-8 text-red-400 mb-2" />
+                  <p className="text-xs text-red-600">{error}</p>
+                </div>
+              ) : qrDataUrl ? (
+                <div className={`p-2 bg-white rounded-lg border-2 ${isExpired ? "border-slate-300 opacity-50" : "border-slate-200"}`}>
+                  <img src={qrDataUrl} alt="QR Code" className="w-[200px] h-[200px]" />
+                </div>
+              ) : null}
+
+              {/* Countdown */}
+              {!isTerminal && (
+                <div className="flex items-center gap-2">
+                  <Clock className={`w-4 h-4 ${isExpired ? "text-red-500" : "text-slate-500"}`} />
+                  <span className={`text-sm font-mono font-bold ${isExpired ? "text-red-500" : "text-slate-700"}`}>
+                    {isExpired ? (isFrench ? "Expiré" : "Expired") : timeLeft}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Status indicator */}
+          <div className={`flex items-center gap-3 p-4 rounded-lg ${
+            status === "approved" ? "bg-emerald-50 border border-emerald-200" :
+            status === "rejected" ? "bg-red-50 border border-red-200" :
+            status === "submitted" ? "bg-amber-50 border border-amber-200" :
+            "bg-slate-50 border border-slate-200"
+          }`}>
+            <StatusIcon className={`w-5 h-5 ${statusConfig.color} ${status === "submitted" ? "animate-spin" : ""}`} />
+            <span className={`text-sm font-medium ${statusConfig.color}`}>
+              {isFrench ? statusConfig.labelFr : statusConfig.labelEn}
+            </span>
+          </div>
+
+          {/* Regenerate button */}
+          {(isExpired || status === "rejected") && (
+            <Button
+              onClick={handleRegenerate}
+              variant="outline"
+              className="w-full border-slate-300"
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              {isFrench ? "Régénérer le code QR" : "Regenerate QR Code"}
+            </Button>
+          )}
+
+          {/* Security badge - Rogers style */}
+          <div className="flex items-center gap-3 pt-2">
+            <Shield className="w-4 h-4 text-slate-500" />
+            <span className="text-xs text-slate-500">
+              {isFrench
+                ? "Protégé par un chiffrement sécurisé 256 bits pour garantir la sécurité de vos données."
+                : "Protected by 256-bit encryption to ensure the security of your data."}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default QRVerificationStep;
