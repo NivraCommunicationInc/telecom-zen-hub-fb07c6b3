@@ -27,13 +27,22 @@ import {
 
 const COLORS = {
   navy: { r: 15, g: 23, b: 42 },      // #0F172A
-  teal: { r: 20, g: 184, b: 166 },     // #14B8A6
+  accent: { r: 0, g: 102, b: 204 },   // #0066CC (matching approved PDFs)
   white: { r: 255, g: 255, b: 255 },
   gray: { r: 100, g: 116, b: 139 },    // #64748B
   lightGray: { r: 241, g: 245, b: 249 }, // #F1F5F9
   dark: { r: 30, g: 41, b: 59 },       // #1E293B
   success: { r: 34, g: 197, b: 94 },   // #22C55E
   error: { r: 239, g: 68, b: 68 },     // #EF4444
+};
+
+const COMPANY_INFO = {
+  name: "Nivra Telecom",
+  legalName: "9477-4922 Québec inc. (Nivra Telecom)",
+  address: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
+  email: "Support@nivra-telecom.ca",
+  gstNumber: "713971764RT0001",
+  qstNumber: "1232379195TQ0001",
 };
 
 // ============================================================================
@@ -139,45 +148,24 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     let y = margin;
 
     // ========================================================================
-    // HEADER BAR (Navy with Teal accent) — Telecom-grade
+    // HEADER BAR — Matching approved PDF style (compact Navy bar)
     // ========================================================================
     doc.setFillColor(COLORS.navy.r, COLORS.navy.g, COLORS.navy.b);
-    doc.rect(0, 0, pageWidth, 52, "F");
-    
-    // Teal accent line
-    doc.setFillColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
-    doc.rect(0, 52, pageWidth, 3, "F");
+    doc.rect(0, 0, pageWidth, 22, "F");
 
-    // Company info (left side)
     doc.setTextColor(COLORS.white.r, COLORS.white.g, COLORS.white.b);
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text(NIVRA_COMPANY.company_legal_name, margin, 13);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.text(NIVRA_COMPANY.company_department, margin, 18);
-    doc.text(NIVRA_COMPANY.company_tagline, margin, 22.5);
-    doc.text(NIVRA_COMPANY.company_address, margin, 27);
-    doc.text(`${NIVRA_COMPANY.company_support}  |  Tél. : ${NIVRA_COMPANY.company_phone}`, margin, 31.5);
-    doc.text(`Web : ${NIVRA_COMPANY.company_website}  |  NEQ : ${NIVRA_COMPANY.company_neq}`, margin, 36);
-    doc.setFontSize(6.5);
-    doc.text(`${NIVRA_COMPANY.company_tps}  |  ${NIVRA_COMPANY.company_tvq}`, margin, 40.5);
-
-    // Document type (right side)
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("Document de facturation", pageWidth - margin, 13, { align: "right" });
-    
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("FACTURE MENSUELLE", pageWidth - margin, 23, { align: "right" });
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(`Devise : ${data.currency || "CAD"}`, pageWidth - margin, 31, { align: "right" });
+    doc.text("NIVRA TELECOM", margin, 11);
 
-    y = 62;
+    doc.setFontSize(12);
+    doc.text("FACTURE", pageWidth - margin, 11, { align: "right" });
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(COMPANY_INFO.email, margin, 18);
+
+    y = 32;
 
     // ========================================================================
     // CLIENT INFO + INVOICE DETAILS (Two columns - FIXED LAYOUT)
@@ -282,7 +270,7 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     
     // Total à payer - as separate row in table (NOT overlay)
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
+    doc.setTextColor(COLORS.accent.r, COLORS.accent.g, COLORS.accent.b);
     doc.text("Total à payer", invLabelX, invoiceY);
     doc.setFontSize(11);
     doc.text(`${formatCurrency(data.balance_due)} $`, invValueX, invoiceY);
@@ -374,7 +362,7 @@ export function generateInvoiceMonthlyV2PDF(data: InvoiceDataV2): PDFGenerationR
     
     doc.setFillColor(248, 250, 252);
     doc.rect(margin, y, contentWidth, 18, "F");
-    doc.setDrawColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
+    doc.setDrawColor(COLORS.accent.r, COLORS.accent.g, COLORS.accent.b);
     doc.rect(margin, y, contentWidth, 18, "S");
     
     doc.setFont("helvetica", "bold");
