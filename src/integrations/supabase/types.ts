@@ -4304,6 +4304,7 @@ export type Database = {
           max_attempts: number
           order_context: Json | null
           public_token: string
+          public_token_hash: string | null
           qr_regeneration_count: number
           result_payload: Json | null
           retention_delete_after: string | null
@@ -4332,6 +4333,7 @@ export type Database = {
           max_attempts?: number
           order_context?: Json | null
           public_token: string
+          public_token_hash?: string | null
           qr_regeneration_count?: number
           result_payload?: Json | null
           retention_delete_after?: string | null
@@ -4360,6 +4362,7 @@ export type Database = {
           max_attempts?: number
           order_context?: Json | null
           public_token?: string
+          public_token_hash?: string | null
           qr_regeneration_count?: number
           result_payload?: Json | null
           retention_delete_after?: string | null
