@@ -42,7 +42,12 @@ type PageState = "loading" | "consent" | "capture" | "submitting" | "success" | 
 
 const VerifyIdentityPage = () => {
   const [searchParams] = useSearchParams();
-  const publicToken = searchParams.get("t");
+  const publicToken = (
+    searchParams.get("t") ||
+    searchParams.get("token") ||
+    searchParams.get("public_token") ||
+    ""
+  ).trim() || null;
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [errorMessage, setErrorMessage] = useState("");
