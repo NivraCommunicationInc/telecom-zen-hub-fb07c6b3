@@ -59,7 +59,7 @@ export const QRVerificationStep = ({
     setLoading(true);
     setError(null);
     setErrorDetail(null);
-    
+
     // Clear old QR immediately on regenerate for visual feedback
     if (regenerateSessionId) {
       setQrDataUrl(null);
@@ -69,6 +69,7 @@ export const QRVerificationStep = ({
     }
 
     const payload = {
+      user_id: userId,
       checkout_type: checkoutType,
       order_context: orderContext || {},
       checkout_fields: checkoutFields || {},
@@ -76,51 +77,85 @@ export const QRVerificationStep = ({
       _cache_bust: Date.now(),
     };
 
-    console.log(`[QR] Calling generate-verification-qr`, {
-      endpoint: "generate-verification-qr",
-      payload: { ...payload, checkout_fields: "..." },
-      regenerateFrom: regenerateSessionId || "none",
-    });
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const requestUrl = `${baseUrl}/functions/v1/generate-verification-qr?_cb=${Date.now()}`;
 
     try {
-      const { data, error: fnError } = await dbClient.functions.invoke("generate-verification-qr", {
-        body: payload,
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-        },
+      const { data: sessionData } = await dbClient.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+      } else {
+        console.warn("[QR][REQUEST] No auth token found, using strict public mode with user_id payload");
+      }
+
+      console.log("[QR][REQUEST]", {
+        request_url: requestUrl,
+        method: "POST",
+        has_authorization: !!accessToken,
+        payload,
       });
 
-      // Log full response for debugging
-      console.log(`[QR] Response received:`, {
-        hasData: !!data,
-        hasError: !!fnError,
-        errorMessage: fnError?.message,
-        dataKeys: data ? Object.keys(data) : [],
-        requestId: data?.request_id,
-        errorCode: data?.error_code,
+      const response = await fetch(requestUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        cache: "no-store",
       });
 
-      if (fnError) {
-        console.error(`[QR] Function invoke error:`, fnError);
-        throw new Error(fnError.message || "Failed to call verification service");
+      const requestIdHeader =
+        response.headers.get("request-id") ||
+        response.headers.get("x-request-id") ||
+        response.headers.get("x-correlation-id");
+
+      const rawBody = await response.text();
+      let responseBody: any = rawBody;
+      try {
+        responseBody = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        // keep raw text body
       }
-      
-      if (data?.error) {
-        console.error(`[QR] Server error response:`, {
-          error_code: data.error_code,
-          error: data.error,
-          request_id: data.request_id,
-        });
-        throw new Error(data.error);
+
+      console.log("[QR][RESPONSE]", {
+        request_url: requestUrl,
+        http_status: response.status,
+        request_id_header: requestIdHeader,
+        response_body: responseBody,
+      });
+
+      if (!response.ok) {
+        const serverMessage =
+          responseBody?.message ||
+          responseBody?.error ||
+          responseBody?.detail ||
+          (typeof responseBody === "string" ? responseBody : `HTTP ${response.status}`);
+
+        const error = new Error(serverMessage || `HTTP ${response.status}`) as Error & {
+          httpStatus?: number;
+          requestIdHeader?: string | null;
+          requestUrl?: string;
+          responseBody?: unknown;
+        };
+        error.httpStatus = response.status;
+        error.requestIdHeader = requestIdHeader;
+        error.requestUrl = requestUrl;
+        error.responseBody = responseBody;
+        throw error;
       }
+
+      const data = responseBody || {};
 
       // Use server-side QR PNG if available, otherwise generate client-side
       const verifyUrl = data.verify_url;
-      let qrImage = data.qr_data_url;
-      
+      let qrImage = data.qr_png || data.qr_data_url;
+
       if (!qrImage && verifyUrl) {
-        console.warn("[QR] Server QR PNG failed, generating client-side fallback");
+        console.warn("[QR] Server QR PNG missing, generating client-side fallback");
         try {
           qrImage = await QRCode.toDataURL(verifyUrl, {
             width: 280,
@@ -130,7 +165,7 @@ export const QRVerificationStep = ({
           });
           console.log("[QR] Client-side QR generated successfully");
         } catch (qrErr) {
-          console.error("[QR] Client-side QR fallback also failed:", qrErr);
+          console.error("[QR] Client-side QR fallback failed:", qrErr);
         }
       }
 
@@ -141,24 +176,27 @@ export const QRVerificationStep = ({
       setRegenCount(data.qr_regeneration_count || 0);
       setMaxRegen(data.max_regen_allowed || 3);
 
-      console.log(`[QR] ✅ Session created successfully`, {
-        request_id: data.request_id,
+      console.log("[QR] ✅ Session created successfully", {
+        request_id: data.request_id || requestIdHeader,
         session_id: data.session_id,
         expires_at: data.expires_at,
-        has_qr_png: !!data.qr_data_url,
+        has_qr_png: !!(data.qr_png || data.qr_data_url),
         regen_count: `${data.qr_regeneration_count || 0}/${data.max_regen_allowed || 3}`,
         regenerated_from: regenerateSessionId || "none",
       });
     } catch (err: any) {
-      console.error("[QR] ❌ Generation failed:", {
-        message: err.message,
-        name: err.name,
-        stack: err.stack?.slice(0, 200),
+      console.error("[QR] ❌ Generation failed", {
+        request_url: err?.requestUrl || requestUrl,
+        http_status: err?.httpStatus || null,
+        request_id_header: err?.requestIdHeader || null,
+        response_body: err?.responseBody || null,
+        message: err?.message,
+        stack: err?.stack,
       });
-      
-      const userMessage = err.message || (isFrench ? "Erreur lors de la génération du QR" : "Error generating QR code");
+
+      const userMessage = err?.message || (isFrench ? "Erreur lors de la génération du QR" : "Error generating QR code");
       setError(userMessage);
-      setErrorDetail(err.message);
+      setErrorDetail(err?.message || null);
       toast.error(isFrench ? "Erreur lors de la génération du code QR" : "Error generating QR code");
     } finally {
       setLoading(false);
