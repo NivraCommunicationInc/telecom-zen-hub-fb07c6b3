@@ -695,7 +695,7 @@ const ClientInvoices = () => {
           open={payDialogOpen}
           onOpenChange={setPayDialogOpen}
           invoice={payingInvoice}
-          totalDue={payingInvoice ? calculateTotal(payingInvoice) : 0}
+          totalDue={payingInvoice ? getBalanceDue(payingInvoice) : 0}
           profile={profile}
           onPaymentSuccess={handlePaymentSuccess}
         />
