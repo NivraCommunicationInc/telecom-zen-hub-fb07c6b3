@@ -46,6 +46,10 @@
 /kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
 /api/kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
 
+# Explicit SPA rewrites for QR identity verification route
+/verify-id /index.html 200
+/verify-id/* /index.html 200
+
 # SPA catch-all - must be LAST
 /* /index.html 200
 

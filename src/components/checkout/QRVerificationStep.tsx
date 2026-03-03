@@ -79,8 +79,9 @@ export const QRVerificationStep = ({
   const hasInitializedRef = useRef(false);
 
   const kycDebugEnv = import.meta.env.VITE_KYC_DEBUG === "true";
-  const debugQueryEnabled = kycDebugEnv && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
-  const showDebugPanel = kycDebugEnv && (isAdmin || debugQueryEnabled);
+  const isProductionCustomerDomain = typeof window !== "undefined" && window.location.hostname === "nivra-telecom.ca";
+  const debugQueryEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
+  const showDebugPanel = kycDebugEnv && !isProductionCustomerDomain && (isAdmin || debugQueryEnabled);
   const checkoutMode: QRDebugState["checkoutMode"] = "portal_checkout";
 
   const [debugState, setDebugState] = useState<QRDebugState>({
