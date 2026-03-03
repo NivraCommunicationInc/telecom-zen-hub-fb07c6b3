@@ -2615,24 +2615,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   return (
     <ClientLayout>
-      <div className="space-y-6">
+      <div className="min-h-screen bg-white -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
         {/* Show loading while hydrating to prevent step guards from triggering */}
         {!isHydrated ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-            <span className="ml-3 text-muted-foreground">Chargement...</span>
+            <div className="w-8 h-8 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+            <span className="ml-3 text-slate-500">Chargement...</span>
           </div>
         ) : (
           <>
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">Nouvelle commande</h1>
-              <p className="text-muted-foreground mt-1">Sélectionnez les services que vous souhaitez commander</p>
+            <div className="mb-6">
+              <h1 className="text-3xl lg:text-4xl font-bold text-slate-900">Caisse</h1>
             </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        {/* Progress Steps - Rogers style */}
+        <div className="flex items-center gap-2 sm:gap-3 mb-8">
           {(() => {
-            // Determine steps based on selected services
             const steps = [{ num: 1, label: "Services" }];
             let stepNum = 2;
             
@@ -2643,22 +2641,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               steps.push({ num: stepNum++, label: "Transfert" });
             }
             steps.push({ num: stepNum++, label: "Vérification" });
+            steps.push({ num: stepNum++, label: "Paiement" });
             steps.push({ num: stepNum++, label: "Confirmation" });
-            steps.push({ num: stepNum++, label: "Terminé" });
             
             return steps.map((s, i, arr) => (
               <React.Fragment key={s.num}>
-                <div className={`flex items-center gap-2 ${step >= s.num ? "text-cyan-500" : "text-muted-foreground"}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step > s.num ? "bg-emerald-500 text-white" : step === s.num ? "bg-cyan-500 text-white" : "bg-muted"
+                <div className={`flex items-center gap-2 ${step >= s.num ? "text-slate-900" : "text-slate-400"}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 ${
+                    step > s.num ? "bg-emerald-500 border-emerald-500 text-white" : step === s.num ? "bg-white border-slate-900 text-slate-900" : "bg-white border-slate-300 text-slate-400"
                   }`}>
                     {step > s.num ? <Check className="w-4 h-4" /> : s.num}
                   </div>
                   <span className="text-xs font-medium hidden md:inline">{s.label}</span>
                 </div>
                 {i < arr.length - 1 && (
-                  <div className="flex-1 h-0.5 bg-muted">
-                    <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : step === s.num ? "bg-cyan-500 w-1/2" : "w-0"}`} />
+                  <div className="flex-1 h-0.5 bg-slate-200">
+                    <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : "w-0"}`} />
                   </div>
                 )}
               </React.Fragment>

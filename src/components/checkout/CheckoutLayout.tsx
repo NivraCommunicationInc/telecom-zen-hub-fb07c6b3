@@ -1,7 +1,10 @@
+/**
+ * Rogers-style Checkout Layout
+ * Two-column: form left, sticky summary right
+ * Clean white background, minimal borders
+ */
 import { ReactNode, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 
 interface CheckoutLayoutProps {
   children: ReactNode;
@@ -13,36 +16,43 @@ export const CheckoutLayout = ({ children, sidebar, isFrench = true }: CheckoutL
   const [showMobileSummary, setShowMobileSummary] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile Summary Toggle */}
-      <div className="lg:hidden sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border p-4">
-        <Button
-          variant="outline"
-          className="w-full justify-between"
+    <div className="min-h-screen bg-white">
+      {/* Mobile Summary Toggle - Rogers style */}
+      <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 text-slate-900"
           onClick={() => setShowMobileSummary(!showMobileSummary)}
         >
-          <span className="font-medium">
-            {isFrench ? "Afficher le résumé" : "Show summary"}
-          </span>
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5 text-slate-600" />
+            <span className="font-semibold text-base">
+              {isFrench ? "Sommaire du panier" : "Cart summary"}
+            </span>
+          </div>
           {showMobileSummary ? (
-            <ChevronUp className="w-4 h-4" />
+            <ChevronUp className="w-5 h-5 text-slate-500" />
           ) : (
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="w-5 h-5 text-slate-500" />
           )}
-        </Button>
+        </button>
         
         {showMobileSummary && (
-          <div className="mt-4 animate-fade-in">
+          <div className="px-4 pb-4 border-t border-slate-100 bg-slate-50 animate-fade-in">
             {sidebar}
           </div>
         )}
       </div>
 
-      {/* Desktop Two-Column Layout */}
-      <div className="container max-w-7xl mx-auto px-4 py-6 lg:py-10">
+      {/* Desktop Two-Column Layout - Rogers style */}
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+        {/* Page Title - Rogers "Caisse" */}
+        <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-8">
+          {isFrench ? "Caisse" : "Checkout"}
+        </h1>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* Left Column - Form/Steps */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+          <div className="lg:col-span-7 xl:col-span-8">
             {children}
           </div>
           

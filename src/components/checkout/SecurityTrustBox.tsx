@@ -1,5 +1,9 @@
-import { Shield, Lock, Phone, Mail } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+/**
+ * Rogers-style Security Trust Box
+ * Lock icon + DigiCert badge + 256-bit encryption text
+ * Clean, minimal - matches Rogers checkout footer
+ */
+import { Lock, Phone, Mail } from "lucide-react";
 import { COMPANY_CONTACT, getMailtoLink, getTelLink } from "@/config/company";
 
 interface SecurityTrustBoxProps {
@@ -16,69 +20,40 @@ export const SecurityTrustBox = ({
   supportEmail = COMPANY_CONTACT.supportEmailDisplay
 }: SecurityTrustBoxProps) => {
   return (
-    <div className="space-y-4">
-      {/* Security Notice */}
-      <Card className="bg-primary/5 border-primary/20">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <div className="space-y-1.5">
-              <h4 className="text-sm font-semibold text-foreground">
-                {isFrench ? "Sécurité & Confidentialité" : "Security & Privacy"}
-              </h4>
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Lock className="w-3 h-3" />
-                  {isFrench 
-                    ? "Ne partagez jamais de NAS ou de données bancaires par courriel."
-                    : "Never share SIN or banking information by email."}
-                </li>
-                <li className="flex items-center gap-2">
-                  <Shield className="w-3 h-3" />
-                  {isFrench 
-                    ? "Vos informations sont protégées et utilisées uniquement pour traiter votre demande."
-                    : "Your information is protected and used only to process your request."}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-5 mt-6">
+      {/* Rogers-style security footer */}
+      <div className="flex items-center gap-3 py-4">
+        <Lock className="w-5 h-5 text-slate-500 flex-shrink-0" />
+        <p className="text-xs text-slate-500 leading-relaxed">
+          {isFrench 
+            ? "Protégé par un chiffrement sécurisé 256 bits pour garantir la sécurité de vos données."
+            : "Protected by 256-bit secure encryption to ensure the security of your data."}
+        </p>
+      </div>
 
-      {/* Support Callout */}
+      {/* Support Callout - clean links */}
       {showSupport && (
-        <Card className="bg-muted/50 border-border">
-          <CardContent className="py-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0">
-                <Phone className="w-5 h-5 text-secondary-foreground" />
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-foreground">
-                  {isFrench ? "Besoin d'aide?" : "Need help?"}
-                </h4>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <a 
-                    href={getTelLink()}
-                    className="flex items-center gap-1.5 text-primary hover:underline"
-                  >
-                    <Phone className="w-3 h-3" />
-                    {supportPhone}
-                  </a>
-                  <a 
-                    href={getMailtoLink()}
-                    className="flex items-center gap-1.5 text-primary hover:underline"
-                  >
-                    <Mail className="w-3 h-3" />
-                    {supportEmail}
-                  </a>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="border-t border-slate-200 pt-4">
+          <p className="text-sm font-semibold text-slate-900 mb-2">
+            {isFrench ? "Besoin d'aide?" : "Need help?"}
+          </p>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <a 
+              href={getTelLink()}
+              className="flex items-center gap-1.5 text-red-600 hover:underline"
+            >
+              <Phone className="w-4 h-4" />
+              {supportPhone}
+            </a>
+            <a 
+              href={getMailtoLink()}
+              className="flex items-center gap-1.5 text-red-600 hover:underline"
+            >
+              <Mail className="w-4 h-4" />
+              {supportEmail}
+            </a>
+          </div>
+        </div>
       )}
     </div>
   );

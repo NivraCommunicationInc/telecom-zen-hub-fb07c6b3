@@ -1,3 +1,8 @@
+/**
+ * Rogers-style Checkout Progress
+ * Minimal step indicator - horizontal numbered steps
+ * Green checkmark for completed, bold for current
+ */
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,9 +20,9 @@ interface CheckoutProgressProps {
 }
 
 const defaultSteps: Step[] = [
-  { id: 1, labelFr: "Adresse", labelEn: "Address" },
-  { id: 2, labelFr: "Forfait", labelEn: "Plan" },
-  { id: 3, labelFr: "Options", labelEn: "Options" },
+  { id: 1, labelFr: "Coordonnées", labelEn: "Contact" },
+  { id: 2, labelFr: "Renseignements", labelEn: "Details" },
+  { id: 3, labelFr: "Forfait", labelEn: "Plan" },
   { id: 4, labelFr: "Paiement", labelEn: "Payment" },
   { id: 5, labelFr: "Confirmation", labelEn: "Confirmation" },
 ];
@@ -29,83 +34,68 @@ export const CheckoutProgress = ({
   onStepClick 
 }: CheckoutProgressProps) => {
   return (
-    <div className="w-full">
-      {/* Desktop Progress */}
-      <div className="hidden md:block">
-        <div className="flex items-center justify-between">
-          {steps.map((step, index) => {
-            const isCompleted = currentStep > step.id;
-            const isCurrent = currentStep === step.id;
-            const isClickable = onStepClick && (isCompleted || isCurrent);
+    <div className="w-full mb-8">
+      {/* Desktop Progress - Rogers style horizontal line */}
+      <div className="hidden md:flex items-center">
+        {steps.map((step, index) => {
+          const isCompleted = currentStep > step.id;
+          const isCurrent = currentStep === step.id;
+          const isClickable = onStepClick && (isCompleted || isCurrent);
 
-            return (
-              <div key={step.id} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <button
-                    onClick={() => isClickable && onStepClick?.(step.id)}
-                    disabled={!isClickable}
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200",
-                      isCompleted && "bg-primary text-primary-foreground",
-                      isCurrent && "bg-primary text-primary-foreground ring-4 ring-primary/20",
-                      !isCompleted && !isCurrent && "bg-muted text-muted-foreground",
-                      isClickable && "cursor-pointer hover:scale-105"
-                    )}
-                  >
-                    {isCompleted ? (
-                      <Check className="w-5 h-5" />
-                    ) : (
-                      step.id
-                    )}
-                  </button>
-                  <span 
-                    className={cn(
-                      "mt-2 text-xs font-medium transition-colors",
-                      (isCompleted || isCurrent) ? "text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {isFrench ? step.labelFr : step.labelEn}
-                  </span>
-                </div>
-                
-                {/* Connector Line */}
-                {index < steps.length - 1 && (
-                  <div 
-                    className={cn(
-                      "h-0.5 flex-1 mx-2 transition-colors",
-                      currentStep > step.id ? "bg-primary" : "bg-muted"
-                    )}
-                  />
-                )}
+          return (
+            <div key={step.id} className="flex items-center flex-1">
+              <div className="flex flex-col items-center flex-1">
+                <button
+                  onClick={() => isClickable && onStepClick?.(step.id)}
+                  disabled={!isClickable}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all border-2",
+                    isCompleted && "bg-emerald-500 border-emerald-500 text-white",
+                    isCurrent && "bg-white border-slate-900 text-slate-900",
+                    !isCompleted && !isCurrent && "bg-white border-slate-300 text-slate-400",
+                    isClickable && "cursor-pointer hover:scale-105"
+                  )}
+                >
+                  {isCompleted ? <Check className="w-4 h-4" /> : step.id}
+                </button>
+                <span className={cn(
+                  "mt-1.5 text-xs font-medium",
+                  (isCompleted || isCurrent) ? "text-slate-900" : "text-slate-400"
+                )}>
+                  {isFrench ? step.labelFr : step.labelEn}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              
+              {index < steps.length - 1 && (
+                <div className={cn(
+                  "h-0.5 flex-1 mx-1 -mt-5",
+                  currentStep > step.id ? "bg-emerald-500" : "bg-slate-200"
+                )} />
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Mobile Progress - contained horizontal scroll, no page-level overflow */}
-      <div className="md:hidden w-full max-w-full">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      {/* Mobile Progress - pill chips */}
+      <div className="md:hidden w-full">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" 
+             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {steps.map((step) => {
             const isCompleted = currentStep > step.id;
             const isCurrent = currentStep === step.id;
-
             return (
               <div 
                 key={step.id}
                 className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium flex-shrink-0 transition-all",
-                  isCompleted && "bg-primary/10 text-primary",
-                  isCurrent && "bg-primary text-primary-foreground",
-                  !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
+                  "flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium flex-shrink-0",
+                  isCompleted && "bg-emerald-50 text-emerald-700",
+                  isCurrent && "bg-slate-900 text-white",
+                  !isCompleted && !isCurrent && "bg-slate-100 text-slate-400"
                 )}
               >
-                {isCompleted ? (
-                  <Check className="w-3.5 h-3.5 flex-shrink-0" />
-                ) : (
-                  <span>{step.id}</span>
-                )}
-                <span className="truncate max-w-[60px]">{isFrench ? step.labelFr : step.labelEn}</span>
+                {isCompleted ? <Check className="w-3.5 h-3.5" /> : <span>{step.id}</span>}
+                <span className="truncate max-w-[70px]">{isFrench ? step.labelFr : step.labelEn}</span>
               </div>
             );
           })}

@@ -1,9 +1,13 @@
-import { Receipt, Edit2, Calendar, Shield, Info } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+/**
+ * Rogers-style "Sommaire du panier" (Cart Summary)
+ * Collapsible sections: Frais mensuels, Frais uniques
+ * "Ce qu'il faut savoir" checklist at bottom
+ */
+import { Receipt, Calendar, Shield, Info, Check, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface LineItem {
   label: string;
@@ -11,6 +15,8 @@ interface LineItem {
   description?: string;
   isMonthly?: boolean;
   isDiscount?: boolean;
+  isFree?: boolean;
+  strikethroughAmount?: number;
 }
 
 interface OrderSummaryCardProps {
@@ -27,6 +33,8 @@ interface OrderSummaryCardProps {
   showTrustBadges?: boolean;
   className?: string;
   children?: React.ReactNode;
+  /** Rogers "Ce qu'il faut savoir" items */
+  infoItems?: string[];
 }
 
 export const OrderSummaryCard = ({
@@ -43,198 +51,198 @@ export const OrderSummaryCard = ({
   showTrustBadges = true,
   className,
   children,
+  infoItems = [],
 }: OrderSummaryCardProps) => {
+  const [expanded, setExpanded] = useState(true);
+
+  // Calculate monthly subtotal with taxes
+  const monthlyTPS = monthlyTotal * 0.05;
+  const monthlyTVQ = monthlyTotal * 0.09975;
+  const monthlyTotalAfterTax = monthlyTotal + monthlyTPS + monthlyTVQ;
+
+  // Calculate one-time subtotal
+  const oneTimeSubtotal = oneTimeItems.reduce((sum, item) => {
+    return sum + (item.isDiscount ? -Math.abs(item.amount) : item.amount);
+  }, 0);
+  const oneTimeTPS = Math.max(0, oneTimeSubtotal) * 0.05;
+  const oneTimeTVQ = Math.max(0, oneTimeSubtotal) * 0.09975;
+  const oneTimeTotalAfterTax = Math.max(0, oneTimeSubtotal + oneTimeTPS + oneTimeTVQ);
+
   return (
-    <Card className={cn("bg-card border shadow-lg", className)}>
-      <CardHeader className="border-b border-border pb-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Receipt className="w-5 h-5 text-primary" />
-          {isFrench ? "Résumé de commande" : "Order Summary"}
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="pt-4 space-y-5">
-        {/* Monthly Recurring Section */}
-        {monthlyItems.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {isFrench ? "Mensuel" : "Monthly"}
-              </h4>
-              {onEditSection && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 text-xs text-primary hover:text-primary/80"
-                  onClick={() => onEditSection("plan")}
-                >
-                  <Edit2 className="w-3 h-3 mr-1" />
-                  {isFrench ? "Modifier" : "Edit"}
-                </Button>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              {monthlyItems.map((item, index) => (
-                <div key={index} className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    )}
-                  </div>
-                  <span className={cn(
-                    "text-sm font-medium",
-                    item.isDiscount ? "text-emerald-600" : "text-foreground"
-                  )}>
-                    {item.isDiscount && "-"}${item.amount.toFixed(2)}/{isFrench ? "mois" : "mo"}
-                  </span>
-                </div>
-              ))}
-            </div>
-            
-            {monthlyTotal > 0 && (
-              <div className="flex justify-between items-center pt-2 border-t border-dashed">
-                <span className="text-sm font-medium text-muted-foreground">
-                  {isFrench ? "Sous-total mensuel" : "Monthly subtotal"}
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  ${monthlyTotal.toFixed(2)}/{isFrench ? "mois" : "mo"}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {monthlyItems.length > 0 && oneTimeItems.length > 0 && (
-          <Separator />
-        )}
-
-        {/* One-Time Fees Section */}
-        {oneTimeItems.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {isFrench ? "Frais uniques" : "One-Time Fees"}
-              </h4>
-              {onEditSection && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 text-xs text-primary hover:text-primary/80"
-                  onClick={() => onEditSection("equipment")}
-                >
-                  <Edit2 className="w-3 h-3 mr-1" />
-                  {isFrench ? "Modifier" : "Edit"}
-                </Button>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              {oneTimeItems.map((item, index) => (
-                <div key={index} className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{item.label}</p>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    )}
-                  </div>
-                  <span className={cn(
-                    "text-sm",
-                    item.isDiscount ? "text-emerald-600 font-medium" : "text-foreground"
-                  )}>
-                    {item.isDiscount && "-"}${Math.abs(item.amount).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <Separator />
-
-        {/* Taxes */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isFrench ? "Taxes" : "Taxes"}
-          </h4>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">TPS (5%)</span>
-            <span>${tpsAmount.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">TVQ (9.975%)</span>
-            <span>${tvqAmount.toFixed(2)}</span>
-          </div>
+    <div className={cn("bg-white border border-slate-200 rounded-lg", className)}>
+      {/* Header - Rogers style */}
+      <button
+        className="w-full flex items-center justify-between px-6 py-4 text-left"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="w-5 h-5 text-slate-700" />
+          <h3 className="text-lg font-bold text-slate-900">
+            {isFrench ? "Sommaire du panier" : "Cart summary"}
+          </h3>
         </div>
+        {expanded ? (
+          <ChevronUp className="w-5 h-5 text-slate-500" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-slate-500" />
+        )}
+      </button>
 
-        <Separator />
+      {expanded && (
+        <div className="px-6 pb-6">
+          {/* ── Frais mensuels ── */}
+          {monthlyItems.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-bold text-slate-900 mb-3">
+                {isFrench ? "Frais mensuels" : "Monthly charges"}
+              </h4>
+              <div className="space-y-2">
+                {monthlyItems.map((item, i) => (
+                  <div key={i} className="flex justify-between items-start">
+                    <div className="flex-1 pr-4">
+                      <p className="text-sm text-slate-700">{item.label}</p>
+                      {item.description && (
+                        <p className="text-xs text-slate-500">{item.description}</p>
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-sm text-slate-900 whitespace-nowrap",
+                      item.isDiscount && "text-emerald-600"
+                    )}>
+                      {item.isDiscount && "-"}{item.amount.toFixed(2)} $/{isFrench ? "mois" : "mo"}
+                    </span>
+                  </div>
+                ))}
+              </div>
 
-        {/* Total Due Now */}
-        <div className="bg-primary/5 -mx-6 px-6 py-4 rounded-b-lg">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {isFrench ? "Total à payer aujourd'hui" : "Total due today"}
+              <Separator className="my-3" />
+
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">{isFrench ? "Sous-total" : "Subtotal"}</span>
+                <span className="text-slate-900">{monthlyTotal.toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
+              </div>
+
+              {/* Tax breakdown */}
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-slate-500">{isFrench ? "TPS/TVH sur le forfait et les options" : "GST/HST"}</span>
+                <span className="text-slate-700">{monthlyTPS.toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-slate-500">{isFrench ? "TVP/TVQ sur le forfait et les options" : "PST/QST"}</span>
+                <span className="text-slate-700">{monthlyTVQ.toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
+              </div>
+
+              {/* Monthly total after taxes - Rogers big number style */}
+              <div className="flex justify-between items-baseline mt-4">
+                <span className="text-sm font-bold text-slate-900">
+                  {isFrench ? "Frais mensuels totaux après taxes" : "Total monthly after taxes"}
+                </span>
+                <div className="text-right">
+                  <span className="text-3xl font-bold text-slate-900">
+                    {Math.floor(monthlyTotalAfterTax).toLocaleString("fr-CA")}
+                  </span>
+                  <span className="text-sm font-bold text-slate-900 align-top">
+                    ,{((monthlyTotalAfterTax % 1) * 100).toFixed(0).padStart(2, "0")} $
+                  </span>
+                  <span className="text-sm text-slate-500 ml-0.5">
+                    /{isFrench ? "mois" : "mo"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Frais uniques ── */}
+          {oneTimeItems.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-bold text-slate-900 mb-3">
+                {isFrench ? "Frais uniques" : "One-time charges"}
+              </h4>
+              <div className="space-y-2">
+                {oneTimeItems.map((item, i) => (
+                  <div key={i} className="flex justify-between items-start">
+                    <div className="flex-1 pr-4">
+                      <p className="text-sm text-slate-700">{item.label}</p>
+                      {item.description && (
+                        <p className="text-xs text-slate-500">{item.description}</p>
+                      )}
+                    </div>
+                    <div className="text-right whitespace-nowrap">
+                      {item.strikethroughAmount !== undefined && (
+                        <span className="text-xs text-slate-400 line-through mr-1">
+                          {item.strikethroughAmount.toFixed(2)} $
+                        </span>
+                      )}
+                      <span className={cn(
+                        "text-sm text-slate-900",
+                        item.isDiscount && "text-emerald-600",
+                        item.isFree && "text-slate-600"
+                      )}>
+                        {item.isFree ? (isFrench ? "Gratuite" : "Free") : 
+                         `${item.isDiscount ? "-" : ""}${item.amount.toFixed(2)} $`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Separator className="my-3" />
+
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">{isFrench ? "Sous-total" : "Subtotal"}</span>
+                <span className="text-slate-900">{Math.max(0, oneTimeSubtotal).toFixed(2)} $</span>
+              </div>
+
+              {/* One-time total - Rogers big number */}
+              <div className="flex justify-between items-baseline mt-4">
+                <span className="text-sm font-bold text-slate-900">
+                  {isFrench ? "Total des frais uniques après taxes" : "Total one-time after taxes"}
+                </span>
+                <div className="text-right">
+                  <span className="text-3xl font-bold text-slate-900">
+                    {Math.floor(oneTimeTotalAfterTax).toLocaleString("fr-CA")}
+                  </span>
+                  <span className="text-sm font-bold text-slate-900 align-top">
+                    ,{((oneTimeTotalAfterTax % 1) * 100).toFixed(0).padStart(2, "0")} $
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Ce qu'il faut savoir ── */}
+          {infoItems.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <h4 className="text-sm font-bold text-slate-900 mb-3">
+                {isFrench ? "Ce qu'il faut savoir" : "Good to know"}
+              </h4>
+              <ul className="space-y-2.5">
+                {infoItems.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <Check className="w-5 h-5 text-slate-700 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-slate-700 leading-snug">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* ── Return policy ── */}
+          {showTrustBadges && (
+            <div className="mt-5 pt-4 border-t border-slate-200">
+              <p className="text-sm text-slate-600">
+                {isFrench 
+                  ? "Retours sans souci, sans frais dans les 15 jours" 
+                  : "Hassle-free returns within 15 days"}
               </p>
             </div>
-            <span className="text-2xl font-bold text-primary">
-              ${totalDueNow.toFixed(2)}
-            </span>
-          </div>
-          
-          {/* Next Billing Info */}
-          {(nextBillingDate || billingCycleDay) && (
-            <div className="mt-3 pt-3 border-t border-primary/10">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>
-                  {isFrench ? "Prochaine facturation" : "Next billing"}:
-                  {nextBillingDate && ` ${nextBillingDate}`}
-                  {billingCycleDay && ` (${isFrench ? "jour" : "day"} ${billingCycleDay})`}
-                </span>
-              </div>
-            </div>
           )}
-          
-          {monthlyTotal > 0 && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-              <Info className="w-3.5 h-3.5" />
-              <span>
-                {isFrench 
-                  ? `Mensualité: $${monthlyTotal.toFixed(2)}/mois (après activation)`
-                  : `Monthly: $${monthlyTotal.toFixed(2)}/mo (after activation)`}
-              </span>
-            </div>
-          )}
+
+          {/* Additional content */}
+          {children}
         </div>
-
-        {/* Trust Badges */}
-        {showTrustBadges && (
-          <div className="pt-4 space-y-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Shield className="w-4 h-4 text-emerald-500" />
-              <span>
-                {isFrench 
-                  ? "Paiement sécurisé et crypté" 
-                  : "Secure and encrypted payment"}
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <Badge variant="outline" className="text-xs">
-                {isFrench ? "Aucune vérification de crédit" : "No credit check"}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {isFrench ? "Garantie 1 an" : "1-year warranty"}
-              </Badge>
-            </div>
-          </div>
-        )}
-
-        {/* Additional content (terms checkbox, buttons, etc.) */}
-        {children}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
 
