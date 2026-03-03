@@ -159,6 +159,22 @@ const ClientInvoices = () => {
     return base + fees + lateFee - credits;
   };
 
+  const getBalanceDue = (inv: any) => {
+    if (inv?.balance_due !== null && inv?.balance_due !== undefined) {
+      const explicit = Number(inv.balance_due);
+      if (Number.isFinite(explicit)) return Math.max(0, explicit);
+    }
+    const total = Number(inv?.total ?? inv?.amount) || 0;
+    const amountPaid = Number(inv?.amount_paid) || 0;
+    return Math.max(0, total - amountPaid);
+  };
+
+  const isInvoiceOpen = (inv: any) => {
+    const status = String(inv?.status || "").toLowerCase();
+    if (["paid", "void", "cancelled", "refunded"].includes(status)) return false;
+    return getBalanceDue(inv) > 0;
+  };
+
   // Create invoice data for PDF generation
   const createInvoiceData = useCallback((inv: any): InvoiceDataV2 => {
     const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
@@ -273,11 +289,19 @@ const ClientInvoices = () => {
   };
 
   // Pending invoices for summary section
-  const pendingInvoices = invoices?.filter((inv: any) => inv.status === "pending" || inv.status === "overdue") || [];
-  const totalDue = pendingInvoices.reduce((sum: number, inv: any) => sum + calculateTotal(inv), 0);
+  const pendingInvoices = invoices?.filter((inv: any) => isInvoiceOpen(inv)) || [];
+  const totalDue = pendingInvoices.reduce((sum: number, inv: any) => sum + getBalanceDue(inv), 0);
 
   // Last payment info
   const lastPayment = invoices?.find((inv: any) => inv.status === "paid");
+  const accountStatus =
+    profile?.account_status === "deactivated"
+      ? "deactivated"
+      : profile?.account_status === "frozen"
+        ? "frozen"
+        : profile?.account_status === "hold"
+          ? "hold"
+          : "active";
 
   return (
     <ClientLayout>
@@ -374,7 +398,7 @@ const ClientInvoices = () => {
                           </Badge>
                         </div>
                         <span className="font-medium text-slate-900">
-                          {calculateTotal(inv).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          {getBalanceDue(inv).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </span>
                       </div>
                     ))}
@@ -406,26 +430,26 @@ const ClientInvoices = () => {
             <CardContent className="p-5">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  profile?.account_status === 'active' ? 'bg-emerald-50' :
-                  profile?.account_status === 'frozen' ? 'bg-blue-50' :
-                  profile?.account_status === 'hold' ? 'bg-amber-50' : 'bg-red-50'
+                  accountStatus === 'active' ? 'bg-emerald-50' :
+                  accountStatus === 'frozen' ? 'bg-blue-50' :
+                  accountStatus === 'hold' ? 'bg-amber-50' : 'bg-red-50'
                 }`}>
                   <CheckCircle className={`w-5 h-5 ${
-                    profile?.account_status === 'active' ? 'text-emerald-600' :
-                    profile?.account_status === 'frozen' ? 'text-blue-600' :
-                    profile?.account_status === 'hold' ? 'text-amber-600' : 'text-red-600'
+                    accountStatus === 'active' ? 'text-emerald-600' :
+                    accountStatus === 'frozen' ? 'text-blue-600' :
+                    accountStatus === 'hold' ? 'text-amber-600' : 'text-red-600'
                   }`} />
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">STATUT DU COMPTE</p>
                   <p className={`text-2xl font-bold ${
-                    profile?.account_status === 'active' ? 'text-emerald-600' :
-                    profile?.account_status === 'frozen' ? 'text-blue-600' :
-                    profile?.account_status === 'hold' ? 'text-amber-600' : 'text-red-600'
+                    accountStatus === 'active' ? 'text-emerald-600' :
+                    accountStatus === 'frozen' ? 'text-blue-600' :
+                    accountStatus === 'hold' ? 'text-amber-600' : 'text-red-600'
                   }`}>
-                    {profile?.account_status === 'active' ? 'Actif' :
-                     profile?.account_status === 'frozen' ? 'Gelé' :
-                     profile?.account_status === 'hold' ? 'En attente' : 'Désactivé'}
+                    {accountStatus === 'active' ? 'Actif' :
+                     accountStatus === 'frozen' ? 'Gelé' :
+                     accountStatus === 'hold' ? 'En attente' : 'Désactivé'}
                   </p>
                 </div>
               </div>
@@ -513,7 +537,7 @@ const ClientInvoices = () => {
                         </thead>
                         <tbody>
                           {filteredInvoices.map((inv: any) => {
-                            const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && inv.status !== "paid";
+                            const isOverdue = inv.due_date && isPast(parseISO(inv.due_date)) && isInvoiceOpen(inv);
                             const total = calculateTotal(inv);
                             const lateFeeAmount = isOverdue && !inv.late_fee_applied ? Number(inv.amount) * 0.05 : 0;
 
@@ -551,19 +575,15 @@ const ClientInvoices = () => {
                                   {total.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                                 </td>
                                 <td className="py-3 px-4 text-sm">
-                                  {inv.balance_due !== null && inv.balance_due !== undefined ? (
-                                    Number(inv.balance_due) <= 0 ? (
-                                      <span className="text-emerald-600 font-medium flex items-center gap-1">
-                                        <CheckCircle className="w-3 h-3" />
-                                        0,00 $
-                                      </span>
-                                    ) : (
-                                      <span className="text-amber-600 font-medium">
-                                        {Number(inv.balance_due).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                                      </span>
-                                    )
+                                  {getBalanceDue(inv) <= 0 ? (
+                                    <span className="text-emerald-600 font-medium flex items-center gap-1">
+                                      <CheckCircle className="w-3 h-3" />
+                                      0,00 $
+                                    </span>
                                   ) : (
-                                    <span className="text-slate-400">—</span>
+                                    <span className="text-amber-600 font-medium">
+                                      {getBalanceDue(inv).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                    </span>
                                   )}
                                 </td>
                                 <td className="py-3 px-4 text-sm text-slate-600">
@@ -573,14 +593,14 @@ const ClientInvoices = () => {
                                   </span>
                                 </td>
                                 <td className="py-3 px-4">
-                                  <Badge className={statusColors[isOverdue && inv.status !== "paid" ? "overdue" : inv.status] || "bg-slate-100 text-slate-600"}>
-                                    {isOverdue && inv.status !== "paid" ? statusLabels.overdue : statusLabels[inv.status] || inv.status}
+                                  <Badge className={statusColors[isOverdue ? "overdue" : inv.status] || "bg-slate-100 text-slate-600"}>
+                                    {isOverdue ? statusLabels.overdue : statusLabels[inv.status] || inv.status}
                                   </Badge>
                                 </td>
                                 <td className="py-3 px-4">
                                   <div className="flex gap-1.5">
                                     {/* Pay — only for unpaid invoices */}
-                                    {inv.status !== "paid" && inv.status !== "void" && (
+                                    {isInvoiceOpen(inv) && (
                                       <Button
                                         size="sm"
                                         className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"

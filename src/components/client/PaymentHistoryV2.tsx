@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { backendClient } from "@/integrations/backend/client";
+import { portalClient } from "@/integrations/backend/portalClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,7 +40,7 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
     queryKey: ["ledger-history-v2", userId],
     queryFn: async () => {
       // Get customer_id first
-      const { data: customer } = await backendClient
+      const { data: customer } = await portalClient
         .from('billing_customers')
         .select('id')
         .eq('user_id', userId)
@@ -49,7 +49,7 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
       if (!customer) return [];
 
       // Fetch invoices (debits)
-      const { data: invoices } = await backendClient
+      const { data: invoices } = await portalClient
         .from('billing_invoices')
         .select('id, invoice_number, created_at, total, status, type')
         .eq('customer_id', customer.id)
@@ -58,7 +58,7 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
         .limit(50);
 
       // Fetch payments (credits)
-      const { data: payments } = await backendClient
+      const { data: payments } = await portalClient
         .from('billing_payments')
         .select('id, reference, created_at, amount, status, method')
         .eq('customer_id', customer.id)
