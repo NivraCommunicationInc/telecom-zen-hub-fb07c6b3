@@ -117,6 +117,8 @@ export interface InvoiceData {
     quantity?: number;
   }>;
   subtotal: number;
+  discount_label?: string;
+  discount_amount?: number;
   tps: number;
   tvq: number;
   total: number;
@@ -125,8 +127,10 @@ export interface InvoiceData {
     date: string;
     method: string;
     amount: number;
+    reference?: string;
   }>;
   balance_due: number;
+  status?: string;
 }
 
 export function generateInvoicePDF(data: InvoiceData): string {
@@ -237,11 +241,19 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.line(pageWidth / 2, y, pageWidth - margin, y);
   
   y += 8;
-  const totals = [
+  const totals: Array<{ label: string; value: string; highlight?: boolean }> = [
     { label: "Sous-total", value: formatCurrency(data.subtotal) },
+  ];
+  
+  // Discount line (if present)
+  if (data.discount_label && data.discount_amount) {
+    totals.push({ label: data.discount_label, value: formatCurrency(data.discount_amount), highlight: true });
+  }
+  
+  totals.push(
     { label: "TPS (5%)", value: formatCurrency(data.tps) },
     { label: "TVQ (9.975%)", value: formatCurrency(data.tvq) },
-  ];
+  );
   
   if (data.previous_balance) {
     totals.push({ label: "Solde précédent", value: formatCurrency(data.previous_balance) });
@@ -250,7 +262,11 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setFontSize(10);
   totals.forEach((item) => {
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...COLORS.text);
+    if (item.highlight) {
+      doc.setTextColor(...COLORS.success);
+    } else {
+      doc.setTextColor(...COLORS.text);
+    }
     doc.text(item.label, pageWidth / 2 + 10, y);
     doc.text(item.value, pageWidth - margin - 5, y, { align: "right" });
     y += 7;
@@ -265,29 +281,83 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL À PAYER", pageWidth / 2 + 8, y + 9);
-  doc.text(formatCurrency(data.balance_due), pageWidth - margin - 5, y + 9, { align: "right" });
+  doc.text("TOTAL", pageWidth / 2 + 8, y + 9);
+  doc.text(formatCurrency(data.total), pageWidth - margin - 5, y + 9, { align: "right" });
   
-  y += 25;
+  y += 20;
   
-  // Payment instructions
-  doc.setFillColor(...COLORS.lightGray);
-  doc.roundedRect(margin, y, pageWidth - margin * 2, 28, 3, 3, "F");
+  // Payment history section (if payments exist)
+  if (data.payments && data.payments.length > 0) {
+    doc.setFillColor(...COLORS.lightGray);
+    const paymentHeight = 10 + data.payments.length * 8 + 12;
+    doc.roundedRect(margin, y, pageWidth - margin * 2, paymentHeight, 3, 3, "F");
+    
+    doc.setTextColor(...COLORS.primary);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Historique de paiement", margin + 5, y + 8);
+    y += 12;
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.text);
+    
+    data.payments.forEach((payment) => {
+      doc.text(formatDate(payment.date), margin + 5, y + 4);
+      doc.text(payment.method, margin + 60, y + 4);
+      if (payment.reference) {
+        doc.text(payment.reference, margin + 95, y + 4);
+      }
+      doc.setFont("helvetica", "bold");
+      doc.text(formatCurrency(payment.amount), pageWidth - margin - 5, y + 4, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      y += 8;
+    });
+    
+    // Balance due
+    y += 4;
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(data.balance_due <= 0 ? COLORS.success[0] : COLORS.accent[0], data.balance_due <= 0 ? COLORS.success[1] : COLORS.accent[1], data.balance_due <= 0 ? COLORS.success[2] : COLORS.accent[2]);
+    doc.text("Solde dû:", margin + 5, y);
+    doc.text(data.balance_due <= 0 ? "0,00 $ — Payé" : formatCurrency(data.balance_due), pageWidth - margin - 5, y, { align: "right" });
+    
+    y += 15;
+  }
   
-  doc.setTextColor(...COLORS.primary);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("💳 Paiement par Virement Interac", margin + 5, y + 8);
+  // Payment instructions (only if balance due > 0)
+  if (data.balance_due > 0) {
+    doc.setFillColor(...COLORS.lightGray);
+    doc.roundedRect(margin, y, pageWidth - margin * 2, 28, 3, 3, "F");
+    
+    doc.setTextColor(...COLORS.primary);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Paiement par Virement Interac", margin + 5, y + 8);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.text);
+    doc.setFontSize(9);
+    doc.text("Courriel: support@nivra-telecom.ca", margin + 5, y + 16);
+    doc.text("Question secrète: Numéro de facture", margin + 5, y + 23);
+    doc.text(`Réponse: ${data.invoice_number}`, margin + 90, y + 23);
+    
+    y += 35;
+  }
   
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...COLORS.text);
-  doc.setFontSize(9);
-  doc.text("Courriel: support@nivra-telecom.ca", margin + 5, y + 16);
-  doc.text("Question secrète: Numéro de facture", margin + 5, y + 23);
-  doc.text(`Réponse: ${data.invoice_number}`, margin + 90, y + 23);
+  // Prepaid legal note
+  y = Math.max(y, pageHeight - 45);
+  doc.setDrawColor(...COLORS.border);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(...COLORS.textLight);
+  doc.text("Service prépayé — aucun montant dû n'est créé en cas de non-renouvellement normal.", margin, y);
+  doc.text("En cas de non-renouvellement, le service est suspendu à la fin de la période payée.", margin, y + 4);
   
   // Footer
-  drawFooter(doc, 1, 1);
+  const totalPdfPages = 1;
+  drawFooter(doc, 1, totalPdfPages);
   
   return doc.output("datauristring").split(",")[1];
 }
