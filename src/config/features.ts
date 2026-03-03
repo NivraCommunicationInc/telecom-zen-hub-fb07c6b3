@@ -4,5 +4,5 @@
  * Set to false to bypass KYC/QR verification step entirely.
  */
 export const FEATURES = {
-  KYC_ENABLED: false,
+  KYC_ENABLED: true,
 } as const;
