@@ -8,7 +8,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "https://nivra-telecom.ca",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "content-type, authorization",
+  "Access-Control-Allow-Headers": "content-type, authorization, x-nivra-debug",
   "Cache-Control": "no-store",
 };
 
@@ -60,12 +60,17 @@ Deno.serve(async (req) => {
     }));
   };
 
-  const jsonResponse = (body: Record<string, unknown>, status: number) =>
+  const jsonResponse = (
+    body: Record<string, unknown>,
+    status: number,
+    extraHeaders: Record<string, string> = {},
+  ) =>
     new Response(JSON.stringify({ ...body, request_id: requestId }), {
       status,
       headers: {
         ...responseHeaders,
         "Content-Type": "application/json",
+        ...extraHeaders,
       },
     });
 
@@ -85,7 +90,15 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { user_id: bodyUserId, checkout_type, order_context, regenerate_session_id, checkout_fields } = body;
+    const {
+      user_id: bodyUserId,
+      checkout_type,
+      checkout_mode,
+      is_admin,
+      order_context,
+      regenerate_session_id,
+      checkout_fields,
+    } = body;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -134,51 +147,160 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const normalizedCheckoutMode = checkout_mode === "portal_checkout" ? "portal_checkout" : "public_checkout";
+    const requestedAdminBypass = is_admin === true;
+
     logInfo("payload_received", {
       checkout_type: checkout_type || "mobile",
+      checkout_mode: normalizedCheckoutMode,
+      requested_admin_bypass: requestedAdminBypass,
       has_regenerate_session_id: !!regenerate_session_id,
     });
 
     // Rate limiting windows
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const oneHourMs = 60 * 60 * 1000;
+    const oneHourAgo = new Date(Date.now() - oneHourMs).toISOString();
+    const nowIso = new Date().toISOString();
     const clientIp = (req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "")
       .split(",")[0]
       .trim() || null;
 
-    // Mobile anti-abuse IP throttle
-    if ((checkout_type || "mobile") === "mobile" && clientIp) {
+    const toRetryMeta = (oldestCreatedAt?: string | null) => {
+      const nowMs = Date.now();
+      const oldestMs = oldestCreatedAt ? new Date(oldestCreatedAt).getTime() : nowMs;
+      const resetMs = oldestMs + oneHourMs;
+      const retryAfterSeconds = Math.max(1, Math.ceil((resetMs - nowMs) / 1000));
+      return {
+        retryAfterSeconds,
+        resetAt: new Date(resetMs).toISOString(),
+      };
+    };
+
+    const userRateLimitKey = `kyc_qr_user:${normalizedCheckoutMode}:${userId}`;
+    const ipRateLimitKey = clientIp ? `kyc_qr_ip:${clientIp}` : null;
+
+    let isAdminUser = false;
+    if (normalizedCheckoutMode === "portal_checkout" && authPresent) {
+      const { data: adminRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle();
+      isAdminUser = !!adminRole;
+    }
+
+    const debugHeaderEnabled = req.headers.get("x-nivra-debug") === "1";
+    const isLovablePublishedOrigin = origin.includes("telecom-zen-hub.lovable.app");
+    const adminBypassEnabled = normalizedCheckoutMode === "portal_checkout" && requestedAdminBypass && isAdminUser;
+    const skipIpRateLimit = isLovablePublishedOrigin || debugHeaderEnabled || adminBypassEnabled;
+    const isPublicFlow = normalizedCheckoutMode !== "portal_checkout" || !authPresent;
+    const shouldApplyIpLimit = isPublicFlow && !skipIpRateLimit && !!ipRateLimitKey;
+
+    if (shouldApplyIpLimit && ipRateLimitKey) {
+      const ipLimitPerHour = 10;
+
       const { count: ipRecentCount } = await supabase
-        .from("identity_verification_sessions")
+        .from("rate_limit_attempts")
         .select("id", { count: "exact", head: true })
-        .eq("client_ip", clientIp)
+        .eq("key", ipRateLimitKey)
         .gte("created_at", oneHourAgo);
 
-      if ((ipRecentCount || 0) >= 10) {
-        logInfo("ip_rate_limited", { client_ip: clientIp, recent_count: ipRecentCount, limit: 10 });
+      if ((ipRecentCount || 0) >= ipLimitPerHour) {
+        const { data: oldestIpAttempt } = await supabase
+          .from("rate_limit_attempts")
+          .select("created_at")
+          .eq("key", ipRateLimitKey)
+          .gte("created_at", oneHourAgo)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        const { retryAfterSeconds, resetAt } = toRetryMeta(oldestIpAttempt?.created_at);
+
+        logInfo("ip_rate_limited", {
+          client_ip: clientIp,
+          recent_count: ipRecentCount,
+          limit: ipLimitPerHour,
+          retry_after: retryAfterSeconds,
+          reset_at: resetAt,
+        });
+
         return jsonResponse(
-          { error_code: "ip_rate_limited", message: "Too many requests from this IP. Please try again later." },
+          {
+            error_code: "ip_rate_limited",
+            message: "Too many requests from this IP. Please try again later.",
+            reset_at: resetAt,
+          },
           429,
+          { "Retry-After": String(retryAfterSeconds) },
         );
       }
     }
 
-    // Per-user rate limiting: max 5 sessions per user per hour
+    const userLimitPerHour = normalizedCheckoutMode === "portal_checkout" ? 30 : 5;
+
     const { count: recentCount } = await supabase
-      .from("identity_verification_sessions")
+      .from("rate_limit_attempts")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
+      .eq("key", userRateLimitKey)
       .gte("created_at", oneHourAgo);
 
-    if ((recentCount || 0) >= 5) {
-      logInfo("rate_limited", { recent_count: recentCount, limit: 5 });
+    if ((recentCount || 0) >= userLimitPerHour) {
+      const { data: oldestUserAttempt } = await supabase
+        .from("rate_limit_attempts")
+        .select("created_at")
+        .eq("key", userRateLimitKey)
+        .gte("created_at", oneHourAgo)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      const { retryAfterSeconds, resetAt } = toRetryMeta(oldestUserAttempt?.created_at);
+
+      logInfo("rate_limited", {
+        recent_count: recentCount,
+        limit: userLimitPerHour,
+        checkout_mode: normalizedCheckoutMode,
+        retry_after: retryAfterSeconds,
+        reset_at: resetAt,
+      });
+
       return jsonResponse(
         {
           error_code: "rate_limited",
-          message: "Rate limit exceeded. Max 5 verification sessions per hour.",
+          message: `Rate limit exceeded. Max ${userLimitPerHour} verification sessions per hour.`,
+          reset_at: resetAt,
         },
         429,
+        { "Retry-After": String(retryAfterSeconds) },
       );
     }
+
+    const throttleRows = [
+      { key: userRateLimitKey, created_at: nowIso },
+      ...(shouldApplyIpLimit && ipRateLimitKey ? [{ key: ipRateLimitKey, created_at: nowIso }] : []),
+    ];
+
+    const { error: throttleInsertError } = await supabase
+      .from("rate_limit_attempts")
+      .insert(throttleRows);
+
+    if (throttleInsertError) {
+      logError("throttle_insert_failed", throttleInsertError, { key_count: throttleRows.length });
+    }
+
+    logInfo("throttle_eval", {
+      checkout_mode: normalizedCheckoutMode,
+      user_limit_per_hour: userLimitPerHour,
+      is_public_flow: isPublicFlow,
+      skip_ip_rate_limit: skipIpRateLimit,
+      bypass_origin: isLovablePublishedOrigin,
+      bypass_debug_header: debugHeaderEnabled,
+      bypass_admin: adminBypassEnabled,
+      is_admin_user: isAdminUser,
+      client_ip_present: !!clientIp,
+    });
 
     // Regeneration: expire old session and increment counter
     const MAX_REGEN = 3;
