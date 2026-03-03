@@ -284,8 +284,14 @@ const ClientInvoices = () => {
   };
 
   const handlePaymentSuccess = () => {
+    // Invalidate all billing-related caches globally
     queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
     queryClient.invalidateQueries({ queryKey: ["client-profile"] });
+    queryClient.invalidateQueries({ queryKey: ["client-profile-dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
+    queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
+    queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
+    toast.success("Paiement enregistré! La page se met à jour...");
   };
 
   // Pending invoices for summary section
