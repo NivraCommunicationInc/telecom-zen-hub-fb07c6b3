@@ -42,22 +42,22 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().split("T")[0];
 }
 
-/**
- * STEP 1 — Expire subscriptions with cycle_end_date in the past
- * Scenario A: No debt. Set subscription=expired, invoice=void (never "overdue").
- */
+// ========================================
+// STEP 1 — Expire subscriptions past cycle_end_date
+// Handles BOTH 'active' AND 'pending' statuses
+// Scenario A: No debt. subscription=expired, invoice=void
+// ========================================
 async function processExpirations(
   supabase: ReturnType<typeof createClient>,
   stats: RunStats,
-  isBackfill = false,
 ) {
   const today = todayStr();
 
-  // Find active subscriptions with cycle_end_date <= today (past due)
+  // Find subscriptions with cycle_end_date <= today in active OR pending status
   const { data: expired, error } = await supabase
     .from("billing_subscriptions")
     .select("*, customer:billing_customers(id, email, first_name, last_name)")
-    .eq("status", "active")
+    .in("status", ["active", "pending"])
     .lte("cycle_end_date", today);
 
   if (error) {
@@ -66,7 +66,7 @@ async function processExpirations(
     return;
   }
 
-  console.log(`[lifecycle] Found ${expired?.length || 0} expired subscriptions`);
+  console.log(`[lifecycle] Found ${expired?.length || 0} expired subscriptions (active + pending)`);
 
   for (const sub of expired || []) {
     try {
@@ -82,7 +82,7 @@ async function processExpirations(
         .maybeSingle();
 
       if (paidRenewal) {
-        // Renewal was paid — extend the subscription instead of expiring
+        // Renewal was paid — extend the subscription
         const newEnd = addDays(nextCycleStart, 30);
         await supabase
           .from("billing_subscriptions")
@@ -103,13 +103,11 @@ async function processExpirations(
         continue;
       }
 
-      // No paid renewal → Scenario A: expire (no debt)
-      // 1. Set subscription to expired
-      const { error: expErr, data: expData } = await supabase
+      // No paid renewal → Scenario A: expire (no debt, never "overdue")
+      const { error: expErr } = await supabase
         .from("billing_subscriptions")
         .update({ status: "expired", updated_at: new Date().toISOString() })
-        .eq("id", sub.id)
-        .select("id, status");
+        .eq("id", sub.id);
 
       if (expErr) {
         console.error(`[lifecycle] Failed to expire sub ${sub.id}:`, expErr);
@@ -117,41 +115,55 @@ async function processExpirations(
         stats.errors_count++;
         continue;
       }
-      console.log(`[lifecycle] Expiration update result for ${sub.id}:`, JSON.stringify(expData));
 
       stats.subscriptions_expired++;
 
-      // 2. Void any pending/overdue invoices for this subscription (NEVER "overdue")
-      const { data: pendingInvoices } = await supabase
+      // Void ALL unpaid invoices for this subscription (pending, overdue, draft)
+      const { data: unpaidInvoices } = await supabase
         .from("billing_invoices")
         .select("id, status")
         .eq("subscription_id", sub.id)
-        .in("status", ["pending", "overdue"]);
+        .in("status", ["pending", "overdue", "draft"]);
 
-      for (const inv of pendingInvoices || []) {
+      for (const inv of unpaidInvoices || []) {
         const { error: voidErr } = await supabase
           .from("billing_invoices")
           .update({ status: "void" })
           .eq("id", inv.id);
-        if (voidErr) {
-          console.error(`[lifecycle] Failed to void invoice ${inv.id}:`, voidErr);
+        if (!voidErr) stats.invoices_voided++;
+        else {
           stats.errors.push(`Failed to void ${inv.id}: ${voidErr.message}`);
           stats.errors_count++;
-        } else {
-          stats.invoices_voided++;
         }
+      }
+
+      // Also void any invoices linked by customer_id (for subs without subscription_id on invoice)
+      const { data: customerUnpaid } = await supabase
+        .from("billing_invoices")
+        .select("id, status")
+        .eq("customer_id", sub.customer_id)
+        .in("status", ["pending", "overdue", "draft"])
+        .is("subscription_id", null);
+
+      for (const inv of customerUnpaid || []) {
+        const { error: voidErr } = await supabase
+          .from("billing_invoices")
+          .update({ status: "void" })
+          .eq("id", inv.id);
+        if (!voidErr) stats.invoices_voided++;
       }
 
       stats.processed_items.push({
         action: "expired",
         subscription_id: sub.id,
+        previous_status: sub.status,
         plan: sub.plan_name,
         customer: sub.customer?.email,
-        invoices_voided: pendingInvoices?.length || 0,
+        invoices_voided: (unpaidInvoices?.length || 0) + (customerUnpaid?.length || 0),
       });
 
       console.log(
-        `[lifecycle] Expired subscription ${sub.id} (${sub.plan_name}), voided ${pendingInvoices?.length || 0} invoices`,
+        `[lifecycle] Expired subscription ${sub.id} (${sub.plan_name}, was: ${sub.status}), voided ${(unpaidInvoices?.length || 0) + (customerUnpaid?.length || 0)} invoices`,
       );
     } catch (err: unknown) {
       const msg = `Expiration error for ${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
@@ -162,9 +174,9 @@ async function processExpirations(
   }
 }
 
-/**
- * STEP 2 — Generate renewal invoices at J-3
- */
+// ========================================
+// STEP 2 — Generate renewal invoices at J-3
+// ========================================
 async function processRenewals(
   supabase: ReturnType<typeof createClient>,
   stats: RunStats,
@@ -192,7 +204,7 @@ async function processRenewals(
       const newCycleStart = sub.cycle_end_date;
       const newCycleEnd = addDays(newCycleStart, 30);
 
-      // Idempotency: check if renewal already exists
+      // Idempotency: check if renewal already exists for this period
       const { data: existing } = await supabase
         .from("billing_invoices")
         .select("id")
@@ -202,7 +214,7 @@ async function processRenewals(
         .maybeSingle();
 
       if (existing) {
-        console.log(`[lifecycle] Renewal already exists for ${sub.id}`);
+        console.log(`[lifecycle] Renewal already exists for ${sub.id}, skipping`);
         continue;
       }
 
@@ -212,7 +224,7 @@ async function processRenewals(
       );
       const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
 
-      // Calculate amounts
+      // Calculate amounts with QC taxes
       const subtotal = sub.plan_price;
       const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
       const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
@@ -239,14 +251,14 @@ async function processRenewals(
           status: "pending",
           cycle_start_date: newCycleStart,
           cycle_end_date: newCycleEnd,
-          due_date: sub.cycle_end_date,
+          due_date: sub.cycle_end_date, // Due at end of current cycle (J0)
         })
         .select()
         .single();
 
       if (invErr) throw invErr;
 
-      // Invoice line
+      // Create invoice line
       await supabase.from("billing_invoice_lines").insert({
         invoice_id: invoice.id,
         description: `${sub.plan_name} – Renouvellement 30 jours`,
@@ -278,6 +290,7 @@ async function processRenewals(
         invoice_number: invoiceNumber,
         total,
         plan: sub.plan_name,
+        customer: sub.customer?.email,
       });
 
       console.log(
@@ -292,19 +305,19 @@ async function processRenewals(
   }
 }
 
-/**
- * STEP 3 — Queue payment reminder emails at J-7, J-3, J-1, J0
- */
+// ========================================
+// STEP 3 — Queue payment reminder emails at J-7, J-3, J-1, J0
+// ========================================
 async function processReminders(
   supabase: ReturnType<typeof createClient>,
   stats: RunStats,
 ) {
   const today = todayStr();
   const reminderOffsets = [
-    { days: 7, label: "J-7" },
-    { days: 3, label: "J-3" },
-    { days: 1, label: "J-1" },
-    { days: 0, label: "J0" },
+    { days: 7, label: "J-7", template: "payment_reminder" },
+    { days: 3, label: "J-3", template: "payment_reminder" },
+    { days: 1, label: "J-1", template: "payment_reminder_urgent" },
+    { days: 0, label: "J0", template: "payment_due_today" },
   ];
 
   for (const offset of reminderOffsets) {
@@ -314,7 +327,7 @@ async function processReminders(
     const { data: invoices, error } = await supabase
       .from("billing_invoices")
       .select(
-        "*, customer:billing_customers(id, email, first_name, last_name)",
+        "*, customer:billing_customers(id, email, first_name, last_name), subscription:billing_subscriptions(plan_name)",
       )
       .eq("status", "pending")
       .eq("due_date", targetDate);
@@ -328,46 +341,62 @@ async function processReminders(
     for (const inv of invoices || []) {
       if (!inv.customer?.email) continue;
 
-      const eventKey = `billing_reminder_${inv.id}_${offset.label}_${today}`;
+      // Idempotency key: unique per invoice + reminder type + date
+      const idempotencyKey = `billing_reminder_${inv.id}_${offset.label}_${today}`;
 
-      // Idempotency check
+      // Check if already queued (by event_key OR idempotency_key)
       const { data: existing } = await supabase
         .from("email_queue")
         .select("id")
-        .eq("event_key", eventKey)
+        .or(`event_key.eq.${idempotencyKey},idempotency_key.eq.${idempotencyKey}`)
         .maybeSingle();
 
       if (existing) continue;
 
-      const templateKey =
-        offset.days === 0 ? "payment_due_today" : "payment_reminder";
+      const planName = inv.subscription?.plan_name || inv.notes || "Service Nivra";
+      const clientName = `${inv.customer.first_name} ${inv.customer.last_name}`;
+
+      const subjectMap: Record<string, string> = {
+        "J-7": `Nivra — Rappel: votre service expire dans 7 jours (#${inv.invoice_number})`,
+        "J-3": `Nivra — Rappel: renouvellement dans 3 jours (#${inv.invoice_number})`,
+        "J-1": `Nivra — Dernier rappel: paiement requis demain (#${inv.invoice_number})`,
+        "J0": `Nivra — Action requise aujourd'hui: renouvelez votre service (#${inv.invoice_number})`,
+      };
 
       const { error: queueErr } = await supabase.from("email_queue").insert({
-        event_key: eventKey,
+        event_key: idempotencyKey,
+        idempotency_key: idempotencyKey,
         to_email: inv.customer.email,
-        template_key: templateKey,
+        from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+        subject: subjectMap[offset.label] || `Nivra — Rappel de paiement (#${inv.invoice_number})`,
+        template_key: offset.template,
         template_vars: {
-          client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
+          client_name: clientName,
           invoice_number: inv.invoice_number,
-          plan_name: inv.notes || "Service Nivra",
+          plan_name: planName,
           total: inv.total?.toFixed(2),
           amount: inv.total?.toFixed(2),
           due_date: inv.due_date,
           days_remaining: offset.days,
           reminder_type: offset.label,
+          cycle_start: inv.cycle_start_date,
+          cycle_end: inv.cycle_end_date,
+          payment_link: "https://nivra-telecom.ca/portail/facturation",
         },
         status: "queued",
         attempts: 0,
         max_attempts: 3,
+        max_retries: 3,
       });
 
       if (queueErr) {
         stats.errors.push(
-          `Reminder queue error for ${inv.invoice_number}: ${queueErr.message}`,
+          `Reminder queue error for ${inv.invoice_number} (${offset.label}): ${queueErr.message}`,
         );
         stats.errors_count++;
       } else {
         stats.reminders_queued++;
+        console.log(`[lifecycle] Queued ${offset.label} reminder for ${inv.invoice_number} → ${inv.customer.email}`);
       }
     }
 
@@ -377,9 +406,44 @@ async function processReminders(
   }
 }
 
-/**
- * Main handler
- */
+// ========================================
+// STEP 4 — Cleanup: void any leftover "overdue" invoices (prepaid = no overdue)
+// ========================================
+async function cleanupOverdueInvoices(
+  supabase: ReturnType<typeof createClient>,
+  stats: RunStats,
+) {
+  const today = todayStr();
+
+  // Find all overdue invoices with due_date in the past — prepaid model never has overdue
+  const { data: overdueInvoices, error } = await supabase
+    .from("billing_invoices")
+    .select("id, invoice_number, due_date")
+    .eq("status", "overdue")
+    .lt("due_date", today);
+
+  if (error) {
+    stats.errors.push(`Overdue cleanup error: ${error.message}`);
+    stats.errors_count++;
+    return;
+  }
+
+  for (const inv of overdueInvoices || []) {
+    const { error: voidErr } = await supabase
+      .from("billing_invoices")
+      .update({ status: "void" })
+      .eq("id", inv.id);
+
+    if (!voidErr) {
+      stats.invoices_voided++;
+      console.log(`[lifecycle] Voided overdue invoice ${inv.invoice_number} (prepaid cleanup)`);
+    }
+  }
+}
+
+// ========================================
+// Main handler
+// ========================================
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -412,10 +476,10 @@ serve(async (req) => {
   console.log(`[lifecycle] Starting ${mode} run (id: ${runId})`);
 
   try {
-    // STEP 1: Always process expirations first
-    await processExpirations(supabase, stats, mode === "backfill");
+    // STEP 1: Process expirations (active + pending with past cycle_end)
+    await processExpirations(supabase, stats);
 
-    // STEP 2: Generate renewals (not for backfill — only daily)
+    // STEP 2: Generate renewals at J-3 (not for backfill)
     if (mode !== "backfill") {
       await processRenewals(supabase, stats);
     }
@@ -424,6 +488,9 @@ serve(async (req) => {
     if (mode !== "backfill") {
       await processReminders(supabase, stats);
     }
+
+    // STEP 4: Cleanup any leftover overdue invoices (prepaid model)
+    await cleanupOverdueInvoices(supabase, stats);
 
     // Update run record
     const summary = [
