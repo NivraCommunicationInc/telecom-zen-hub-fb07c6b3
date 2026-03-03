@@ -28,64 +28,168 @@ interface ExtractedFields {
 
 interface MatchResult {
   match_score: number;
-  status: "match" | "mismatch" | "partial_match" | "extraction_failed";
-  mismatch_fields: Record<string, { expected: string; extracted: string }>;
+  status: "approved_candidate" | "partial_match" | "mismatch" | "extraction_failed";
+  mismatch_fields: Record<string, { expected: string; extracted: string; severity: "strict" | "fuzzy" | "normalized" }>;
   extracted_fields: ExtractedFields;
+  policy_notes: string[];
 }
 
+/** Normalize: lowercase, strip accents, remove non-alphanumeric */
 function normalize(val: string | undefined | null): string {
   if (!val) return "";
   return val.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
-function compareDates(a: string | undefined, b: string | undefined): boolean {
+/** Normalize document number: uppercase, strip dashes/spaces/dots */
+function normalizeDocNum(val: string | undefined | null): string {
+  if (!val) return "";
+  return val.trim().toUpperCase().replace(/[\s\-\.]/g, "");
+}
+
+/** Normalize date to YYYY-MM-DD for strict comparison */
+function normalizeDate(d: string): string {
+  const parts = d.replace(/[\/\.\-]/g, "-").split("-");
+  if (parts.length !== 3) return d;
+  if (parts[0].length === 4) return parts.join("-");
+  if (parts[2].length === 4) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  return parts.join("-");
+}
+
+function compareDatesStrict(a: string | undefined, b: string | undefined): boolean {
   if (!a || !b) return false;
-  // Normalize date formats to YYYY-MM-DD
-  const normalizeDate = (d: string) => {
-    const parts = d.replace(/[\/\.\-]/g, "-").split("-");
-    if (parts.length !== 3) return d;
-    // Handle DD-MM-YYYY or MM-DD-YYYY → YYYY-MM-DD
-    if (parts[0].length === 4) return parts.join("-");
-    if (parts[2].length === 4) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    return parts.join("-");
-  };
   return normalizeDate(a) === normalizeDate(b);
 }
 
+/** Levenshtein distance for fuzzy name matching */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/** Fuzzy name match: normalize + allow Levenshtein ≤ 2 for OCR typos */
+function fuzzyNameMatch(extracted: string | undefined, expected: string | undefined): boolean {
+  if (!extracted || !expected) return false;
+  const a = normalize(extracted);
+  const b = normalize(expected);
+  if (a === b) return true;
+  // Allow up to 2 edit distance for OCR typos (e.g. TREMBLAI vs TREMBLAY)
+  return levenshtein(a, b) <= 2;
+}
+
+/** Document number match: normalize (strip dashes/spaces) then compare */
+function docNumMatch(extracted: string | undefined, expected: string | undefined): boolean {
+  if (!extracted || !expected) return false;
+  return normalizeDocNum(extracted) === normalizeDocNum(expected);
+}
+
+/**
+ * 3-tier matching policy:
+ * - DOB + expiry: STRICT match (mandatory, blocks on fail)
+ * - Names: FUZZY tolerance (accents/case + Levenshtein ≤ 2)
+ * - Document number: NORMALIZED (strip dashes/spaces) + limited tolerance
+ * 
+ * Result statuses:
+ *   approved_candidate: all fields match → ready for admin approval
+ *   partial_match: names fuzzy mismatch but dates OK → urgent admin review
+ *   mismatch: strict field (DOB/expiry) fails → block + urgent notification
+ */
 function computeMatch(extracted: ExtractedFields, checkout: Record<string, unknown>): MatchResult {
-  const mismatches: Record<string, { expected: string; extracted: string }> = {};
-  let totalFields = 0;
-  let matchedFields = 0;
+  const mismatches: Record<string, { expected: string; extracted: string; severity: "strict" | "fuzzy" | "normalized" }> = {};
+  const notes: string[] = [];
+  let hasStrictFail = false;
+  let hasFuzzyFail = false;
 
-  const comparisons: [string, string | undefined, string | undefined, boolean][] = [
-    ["first_name", extracted.first_name, checkout.first_name as string, false],
-    ["last_name", extracted.last_name, checkout.last_name as string, false],
-    ["date_of_birth", extracted.date_of_birth, checkout.date_of_birth as string, true],
-    ["document_number", extracted.document_number, checkout.document_number as string, false],
-    ["expiry_date", extracted.expiry_date, checkout.expiry_date as string, true],
-  ];
-
-  for (const [field, extractedVal, expectedVal, isDate] of comparisons) {
-    if (!expectedVal) continue; // Skip fields not provided by client
-    totalFields++;
-    const match = isDate
-      ? compareDates(extractedVal, expectedVal)
-      : normalize(extractedVal) === normalize(expectedVal);
-    if (match) {
-      matchedFields++;
-    } else {
-      mismatches[field] = { expected: expectedVal || "", extracted: extractedVal || "" };
+  // STRICT: date_of_birth (mandatory)
+  const expectedDob = checkout.date_of_birth as string;
+  if (expectedDob) {
+    if (!compareDatesStrict(extracted.date_of_birth, expectedDob)) {
+      mismatches.date_of_birth = { expected: expectedDob, extracted: extracted.date_of_birth || "", severity: "strict" };
+      hasStrictFail = true;
+      notes.push("DOB mismatch (strict) — BLOQUANT");
     }
   }
 
-  const score = totalFields > 0 ? Math.round((matchedFields / totalFields) * 100) : 0;
-  const hasMismatches = Object.keys(mismatches).length > 0;
+  // STRICT: expiry_date (mandatory if provided)
+  const expectedExpiry = checkout.expiry_date as string;
+  if (expectedExpiry) {
+    if (!compareDatesStrict(extracted.expiry_date, expectedExpiry)) {
+      mismatches.expiry_date = { expected: expectedExpiry, extracted: extracted.expiry_date || "", severity: "strict" };
+      hasStrictFail = true;
+      notes.push("Expiry mismatch (strict) — BLOQUANT");
+    }
+  }
+
+  // FUZZY: first_name
+  const expectedFirst = checkout.first_name as string;
+  if (expectedFirst) {
+    if (!fuzzyNameMatch(extracted.first_name, expectedFirst)) {
+      mismatches.first_name = { expected: expectedFirst, extracted: extracted.first_name || "", severity: "fuzzy" };
+      hasFuzzyFail = true;
+      notes.push(`Prénom fuzzy mismatch (Levenshtein > 2): "${extracted.first_name}" vs "${expectedFirst}"`);
+    }
+  }
+
+  // FUZZY: last_name
+  const expectedLast = checkout.last_name as string;
+  if (expectedLast) {
+    if (!fuzzyNameMatch(extracted.last_name, expectedLast)) {
+      mismatches.last_name = { expected: expectedLast, extracted: extracted.last_name || "", severity: "fuzzy" };
+      hasFuzzyFail = true;
+      notes.push(`Nom fuzzy mismatch (Levenshtein > 2): "${extracted.last_name}" vs "${expectedLast}"`);
+    }
+  }
+
+  // NORMALIZED: document_number
+  const expectedDocNum = checkout.document_number as string;
+  if (expectedDocNum) {
+    if (!docNumMatch(extracted.document_number, expectedDocNum)) {
+      mismatches.document_number = { expected: expectedDocNum, extracted: extracted.document_number || "", severity: "normalized" };
+      hasFuzzyFail = true;
+      notes.push(`Numéro document mismatch après normalisation: "${normalizeDocNum(extracted.document_number)}" vs "${normalizeDocNum(expectedDocNum)}"`);
+    }
+  }
+
+  const totalChecked = Object.keys(mismatches).length + 
+    (expectedDob && !mismatches.date_of_birth ? 1 : 0) +
+    (expectedExpiry && !mismatches.expiry_date ? 1 : 0) +
+    (expectedFirst && !mismatches.first_name ? 1 : 0) +
+    (expectedLast && !mismatches.last_name ? 1 : 0) +
+    (expectedDocNum && !mismatches.document_number ? 1 : 0);
+
+  const matchedCount = totalChecked - Object.keys(mismatches).length;
+  const score = totalChecked > 0 ? Math.round((matchedCount / totalChecked) * 100) : 0;
+
+  let status: MatchResult["status"];
+  if (totalChecked === 0) {
+    status = "extraction_failed";
+    notes.push("Aucun champ extrait pour comparaison");
+  } else if (hasStrictFail) {
+    status = "mismatch";
+    notes.push("BLOQUÉ: champ strict (DOB/expiry) ne correspond pas");
+  } else if (hasFuzzyFail) {
+    status = "partial_match";
+    notes.push("Révision urgente: champs fuzzy ne correspondent pas");
+  } else {
+    status = "approved_candidate";
+    notes.push("Tous les champs correspondent — candidat à l'approbation admin");
+  }
 
   return {
     match_score: score,
-    status: !totalFields ? "extraction_failed" : hasMismatches ? (score >= 60 ? "partial_match" : "mismatch") : "match",
+    status,
     mismatch_fields: mismatches,
     extracted_fields: extracted,
+    policy_notes: notes,
   };
 }
 
