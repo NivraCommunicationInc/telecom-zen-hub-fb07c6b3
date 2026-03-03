@@ -36,7 +36,8 @@ import {
   Sparkles,
   Truck,
   Wrench,
-  Receipt
+  Receipt,
+  ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -795,11 +796,37 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
     { id: 5, labelFr: "Confirmation", labelEn: "Confirmation" },
   ];
 
+  // Sidebar content for Rogers-style layout
+  const sidebarContent = (
+    <div className="space-y-6">
+      <OrderSummaryCard
+        isFrench={isFrench}
+        monthlyItems={getMonthlyItems()}
+        oneTimeItems={getOneTimeItems()}
+        tpsAmount={tpsAmount}
+        tvqAmount={tvqAmount}
+        totalDueNow={totalDueNow}
+        monthlyTotal={planPrice}
+        nextBillingDate={getNextBillingDate()}
+        onEditSection={(section) => {
+          if (section === "plan") setStep(2);
+        }}
+        infoItems={[
+          isFrench ? "Aucune vérification de crédit" : "No credit check",
+          isFrench ? "Pièce d'identité gouvernementale requise" : "Government ID required",
+          isFrench ? "Retours sans souci dans les 15 jours" : "Hassle-free returns within 15 days",
+          isFrench ? "Annulation en tout temps" : "Cancel anytime",
+        ]}
+      />
+      <SecurityTrustBox isFrench={isFrench} />
+    </div>
+  );
+
   return (
     <ClientLayout>
-      <div className="min-h-screen bg-white space-y-6">
+      <div className="min-h-screen bg-white">
         {/* Header - Rogers "Caisse" style */}
-        <div className="pb-4">
+        <div className="pb-6">
           <h1 className="text-3xl lg:text-4xl font-bold text-slate-900">
             {isFrench ? "Caisse" : "Checkout"}
           </h1>
@@ -812,6 +839,28 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
           isFrench={isFrench}
           onStepClick={(s) => s < step && setStep(s)}
         />
+
+        {/* Rogers-style Two-Column Layout for Steps 1-4 */}
+        {step < 5 && (
+          <>
+          {/* Mobile Summary Toggle - Rogers style */}
+          <div className="lg:hidden border-b border-slate-200 pb-4 mb-6">
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <span className="font-semibold text-slate-900">
+                  {isFrench ? "Voir le sommaire du panier" : "View cart summary"}
+                </span>
+                <ChevronDown className="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform" />
+              </summary>
+              <div className="mt-4">
+                {sidebarContent}
+              </div>
+            </details>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            {/* Left Column - Form Content */}
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
 
         {/* Step 1: Address Validation */}
         {step === 1 && (
@@ -1014,353 +1063,9 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
           </div>
         )}
 
-        {/* Step 3: Equipment & Verification */}
-        {step === 3 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Router Information */}
-              <Card className="bg-card border-cyan-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Router className="w-5 h-5 text-cyan-500" />
-                    {isFrench ? "Équipement requis" : "Required Equipment"}
-                  </CardTitle>
-                  <CardDescription>
-                    {isFrench 
-                      ? "Le routeur doit être acheté avant l'installation."
-                      : "The router must be purchased before installation."}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-4 p-4 bg-accent/30 rounded-lg">
-                    <div className="w-16 h-16 bg-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Router className="w-8 h-8 text-cyan-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-foreground">{ROUTER_DETAILS.name}</h4>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {isFrench ? ROUTER_DETAILS.warranty.fr : ROUTER_DETAILS.warranty.en}
-                      </p>
-                      <Badge className="bg-cyan-500/20 text-cyan-500 border-0">
-                        ${ROUTER_DETAILS.price} ({isFrench ? "frais unique" : "one-time fee"})
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-                    <Shield className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {isFrench ? "Garantie incluse" : "Warranty included"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {isFrench 
-                          ? "Garantie de 1 an couvrant les défauts de fabrication uniquement."
-                          : "1-year warranty covering manufacturer defects only."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="router-acknowledged"
-                      checked={routerAcknowledged}
-                      onCheckedChange={(checked) => setRouterAcknowledged(checked as boolean)}
-                    />
-                    <Label htmlFor="router-acknowledged" className="text-sm text-muted-foreground cursor-pointer">
-                      {isFrench 
-                        ? `Je comprends que je dois payer ${ROUTER_DETAILS.price}$ pour le routeur ${ROUTER_DETAILS.name} avant l'installation.`
-                        : `I understand that I must pay $${ROUTER_DETAILS.price} for the ${ROUTER_DETAILS.name} router before installation.`}
-                    </Label>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Installation Method */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wrench className="w-5 h-5 text-amber-500" />
-                    {isFrench ? "Méthode d'installation" : "Installation Method"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RadioGroup value={installationMethod} onValueChange={(v) => setInstallationMethod(v as "auto" | "technician")}>
-                    <div className="space-y-4">
-                      <div className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        installationMethod === "auto" ? "border-emerald-500 bg-emerald-500/5" : "border-border"
-                      }`} onClick={() => setInstallationMethod("auto")}>
-                        <RadioGroupItem value="auto" id="auto" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="auto" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                            <Truck className="w-4 h-4 text-emerald-500" />
-                            {isFrench ? "Auto-installation" : "Self-installation"}
-                          </Label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {isFrench 
-                              ? "Recevez votre équipement par la poste et installez-le vous-même. Frais de livraison: $30"
-                              : "Receive your equipment by mail and install it yourself. Delivery fee: $30"}
-                          </p>
-                        </div>
-                        <Badge className="bg-emerald-500">{isFrench ? "Économique" : "Economical"}</Badge>
-                      </div>
-
-                      <div className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        installationMethod === "technician" ? "border-cyan-500 bg-cyan-500/5" : "border-border"
-                      }`} onClick={() => setInstallationMethod("technician")}>
-                        <RadioGroupItem value="technician" id="technician" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="technician" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                            <Wrench className="w-4 h-4 text-cyan-500" />
-                            {isFrench ? "Installation par technicien Nivra" : "Nivra Technician Installation"}
-                          </Label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {isFrench 
-                              ? "Un technicien Nivra se déplace chez vous pour l'installation. Frais d'installation: $50"
-                              : "A Nivra technician comes to your home for installation. Installation fee: $50"}
-                          </p>
-                        </div>
-                        <Badge className="bg-cyan-500">{isFrench ? "Recommandé" : "Recommended"}</Badge>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </CardContent>
-              </Card>
-              {/* Client ID Verification Form */}
-              <ClientIDVerificationForm
-                isFrench={isFrench}
-                data={clientIdData}
-                onChange={setClientIdData}
-                showServiceAddress={false}
-                existingProfile={profile}
-              />
-
-              {/* Installation Scheduling */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-cyan-500" />
-                    {isFrench ? "Planifier l'installation" : "Schedule Installation"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{isFrench ? "Date d'installation" : "Installation date"}</Label>
-                      <select
-                        className="w-full p-3 bg-background border border-border rounded-lg text-foreground"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                      >
-                        <option value="">{isFrench ? "Sélectionner une date" : "Select a date"}</option>
-                        {getInstallationDates().map((date) => (
-                          <option key={date.toISOString()} value={date.toISOString()}>
-                            {format(date, "EEEE d MMMM yyyy", { locale: isFrench ? fr : undefined })}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{isFrench ? "Plage horaire" : "Time slot"}</Label>
-                      <select
-                        className="w-full p-3 bg-background border border-border rounded-lg text-foreground"
-                        value={selectedTime}
-                        onChange={(e) => setSelectedTime(e.target.value)}
-                      >
-                        <option value="">{isFrench ? "Sélectionner une plage" : "Select a time"}</option>
-                        {timeSlots.map((slot) => (
-                          <option key={slot.value} value={slot.value}>{slot.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Discount Code */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-cyan-500" />
-                    {isFrench ? "Code promotionnel" : "Promo Code"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={isFrench ? "Entrer le code" : "Enter code"}
-                      value={discountCode}
-                      onChange={(e) => setDiscountCode(e.target.value)}
-                    />
-                    <Button onClick={applyDiscountCode} variant="outline">
-                      {isFrench ? "Appliquer" : "Apply"}
-                    </Button>
-                  </div>
-                  {installationCredit > 0 && (
-                    <p className="text-sm text-emerald-500 mt-2">
-                      ✓ {isFrench ? `Rabais de ${installationCredit}$ sur l'installation appliqué!` : `$${installationCredit} installation discount applied!`}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Notes */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-cyan-500" />
-                    {isFrench ? "Notes additionnelles" : "Additional Notes"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    placeholder={isFrench ? "Instructions spéciales, accès, etc." : "Special instructions, access, etc."}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Phone Number Field */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-cyan-500" />
-                    {isFrench ? "Coordonnées de contact" : "Contact Information"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CheckoutPhoneField
-                    isFrench={isFrench}
-                    phone={checkoutPhone}
-                    onChange={setCheckoutPhone}
-                    error={phoneError}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* PIN Setup for New Clients */}
-              <PortalPinSetupSection
-                userId={user?.id}
-                pin={clientPin}
-                onPinChange={setClientPin}
-                confirmPin={confirmClientPin}
-                onConfirmPinChange={setConfirmClientPin}
-                isFrench={isFrench}
-                checkFirstOrder={true}
-              />
-
-              {/* Auto-Billing PayPal Option - $5/month discount */}
-              <AutoPayPalOption
-                isFrench={isFrench}
-                isEnabled={enableAutoBilling}
-                onEnabledChange={(enabled) => {
-                  setEnableAutoBilling(enabled);
-                  if (enabled) {
-                    setSelectedPaymentMethod("paypal");
-                  }
-                }}
-                monthlyAmount={planPrice}
-                discountAmount={AUTO_BILLING_DISCOUNT}
-              />
-
-              {/* Essential Terms - Before Payment */}
-              <CheckoutEssentialTerms
-                isFrench={isFrench}
-                acknowledged={essentialTermsAcknowledged}
-                onAcknowledgeChange={setEssentialTermsAcknowledged}
-                paymentMethod={selectedPaymentMethod}
-              />
-
-              {/* Payment Section */}
-              <CheckoutPaymentSection
-                isFrench={isFrench}
-                savedCards={savedCards || []}
-                selectedPaymentMethod={selectedPaymentMethod}
-                onPaymentMethodChange={setSelectedPaymentMethod}
-                selectedCardId={selectedCardId}
-                onSelectedCardChange={setSelectedCardId}
-                cvv={savedCardCvv}
-                onCvvChange={setSavedCardCvv}
-                newCardData={newCardData}
-                onNewCardChange={setNewCardData}
-                saveNewCard={saveNewCard}
-                onSaveNewCardChange={setSaveNewCard}
-                totalAmount={totalDueNow}
-                cvvError={cvvError}
-                onPayPalSuccess={(captureId) => {
-                  setPaypalCaptureId(captureId);
-                  toast.success(isFrench ? "Paiement PayPal réussi!" : "PayPal payment successful!");
-                  // Invalidate all billing-related caches for instant UI updates
-                  queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
-                  queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
-                  queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
-                  queryClient.invalidateQueries({ queryKey: ["client-balance"] });
-                  queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
-                  setStep(4); // Move to final confirmation
-                }}
-              />
-            </div>
-
-            {/* Order Summary Sidebar - Professional Telecom Style */}
-            <div className="lg:col-span-1">
-              <OrderSummaryCard
-                isFrench={isFrench}
-                monthlyItems={getMonthlyItems()}
-                oneTimeItems={getOneTimeItems()}
-                tpsAmount={tpsAmount}
-                tvqAmount={tvqAmount}
-                totalDueNow={totalDueNow}
-                monthlyTotal={planPrice}
-                nextBillingDate={getNextBillingDate()}
-                onEditSection={(section) => {
-                  if (section === "plan") setStep(2);
-                }}
-                className="border-primary/20"
-              >
-                <div className="pt-4 space-y-4">
-                  <Button
-                    variant="hero"
-                    className="w-full"
-                    size="lg"
-                    onClick={() => setStep(4)}
-                    disabled={
-                      !routerAcknowledged || 
-                      !essentialTermsAcknowledged ||
-                      !validateIDData(clientIdData, false).valid || 
-                      !selectedDate || 
-                      !selectedTime || 
-                      !validateCanadianPhone(checkoutPhone) ||
-                      // Only require card data if using saved/new card, not for PayPal/Interac
-                      (selectedPaymentMethod === "saved" 
-                        ? (!selectedCardId || savedCardCvv.length < 3) 
-                        : selectedPaymentMethod === "new" 
-                          ? (!newCardData.cardNumber || !newCardData.cvv)
-                          : false) // PayPal and Interac don't require card data
-                    }
-                  >
-                    {isFrench ? "Continuer" : "Continue"}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                  <Button variant="outline" className="w-full" onClick={() => setStep(2)}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    {isFrench ? "Modifier le forfait" : "Change plan"}
-                  </Button>
-                </div>
-              </OrderSummaryCard>
-
-              {/* Security & Trust Box */}
-              <div className="mt-6">
-                <SecurityTrustBox isFrench={isFrench} />
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Step 4: Terms & Final Confirmation */}
         {step === 4 && (
-          <div className="space-y-6 max-w-3xl mx-auto">
+          <div className="space-y-6">
             {/* Terms & Conditions - French First */}
             <Card className="bg-card border-border">
               <CardHeader>
@@ -1466,6 +1171,18 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
               </BlockedActionWrapper>
             </div>
           </div>
+        )}
+
+            </div>{/* END Left Column */}
+
+            {/* Right Column - Rogers Sticky Sidebar */}
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
+              <div className="sticky top-6">
+                {sidebarContent}
+              </div>
+            </div>
+          </div>
+          </>
         )}
 
         {/* Step 5: Professional Order Confirmation */}
