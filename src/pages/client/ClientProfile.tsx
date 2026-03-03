@@ -389,12 +389,14 @@ const ClientProfile = () => {
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Mon profil</h1>
-            <p className="text-muted-foreground mt-1">Gérez vos informations personnelles et votre compte</p>
-          </div>
+        {/* Rogers-style breadcrumb */}
+        <div className="text-sm text-slate-500">
+          <Link to="/portal" className="text-teal-700 hover:text-teal-800">Paramètres</Link>
+          <span className="mx-2">/</span>
+          <span>Coordonnées et Facturation</span>
         </div>
+
+        <h1 className="text-3xl font-bold text-slate-900">Coordonnées et Facturation</h1>
 
         {/* Client Number Display - Prominent for support */}
         {(profile?.client_number || profile?.account_number) && (
@@ -405,75 +407,9 @@ const ClientProfile = () => {
           />
         )}
 
-        {/* Account Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                accountStatusColors[profile?.account_status || "active"]?.replace("text-", "bg-").replace("/20", "/20")
-              } bg-emerald-500/20`}>
-                <User className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <Badge className={accountStatusColors[profile?.account_status || "active"]}>
-                  {accountStatusLabels[profile?.account_status || "active"]}
-                </Badge>
-                <p className="text-xs text-muted-foreground mt-1">Statut</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                (ledgerBalance?.balance ?? 0) > 0 ? "bg-amber-500/20" : "bg-emerald-500/20"
-              }`}>
-                <DollarSign className={`w-5 h-5 ${
-                  (ledgerBalance?.balance ?? 0) > 0 ? "text-amber-500" : "text-emerald-500"
-                }`} />
-              </div>
-              <div>
-                <p className={`text-lg font-bold ${
-                  (ledgerBalance?.balance ?? 0) > 0 ? "text-amber-500" : "text-emerald-500"
-                }`}>
-                  {((ledgerBalance?.balance ?? 0) > 0)
-                    ? Number(ledgerBalance?.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
-                    : "0,00 $"}
-                </p>
-                <p className="text-xs text-muted-foreground">Solde dû</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-emerald-500">
-                  {Number(ledgerBalance?.availableCredit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                </p>
-                <p className="text-xs text-muted-foreground">Crédit</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-foreground">
-                  {profile?.created_at ? format(new Date(profile.created_at), "MMM yyyy", { locale: fr }) : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">Membre depuis</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Personal Information */}
-          <Card className="bg-card border-border">
+          {/* Personal Information - Rogers style with left border */}
+          <Card className="bg-white border border-slate-200 rounded-lg overflow-hidden border-l-4 border-l-teal-600">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
@@ -588,7 +524,7 @@ const ClientProfile = () => {
           </Card>
 
           {/* Service Locations */}
-          <Card className="bg-card border-border">
+          <Card className="bg-white border border-slate-200 rounded-lg overflow-hidden border-l-4 border-l-teal-600">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-primary" />
@@ -623,7 +559,7 @@ const ClientProfile = () => {
           {/* Account Details */}
           <div className="space-y-6">
             {/* Security Card with PIN Management */}
-            <Card className="bg-card border-border">
+            <Card className="bg-white border border-slate-200 rounded-lg overflow-hidden border-l-4 border-l-teal-600">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="w-5 h-5 text-primary" />
@@ -649,7 +585,7 @@ const ClientProfile = () => {
             </Card>
 
             {/* Quick Stats */}
-            <Card className="bg-card border-border">
+            <Card className="bg-white border border-slate-200 rounded-lg overflow-hidden">
               <CardHeader>
                 <CardTitle>Aperçu du compte</CardTitle>
               </CardHeader>

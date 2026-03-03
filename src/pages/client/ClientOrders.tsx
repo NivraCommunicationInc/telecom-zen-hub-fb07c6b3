@@ -12,10 +12,11 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
-import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard, FileText } from "lucide-react";
+import { Package, Eye, Truck, Clock, CheckCircle, XCircle, AlertCircle, Copy, Phone, Shield, CreditCard, FileText, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import ClientEquipmentOrderDetails from "@/components/client/ClientEquipmentOrderDetails";
 import OrderStatusTimeline from "@/components/client/OrderStatusTimeline";
 import { ContractSummaryDialog } from "@/components/contract/ContractSummaryDialog";
@@ -142,105 +143,43 @@ const ClientOrders = () => {
   return (
     <ClientLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Mes commandes</h1>
-          <p className="text-muted-foreground mt-1">Suivez vos commandes et services</p>
-        </div>
+        <h1 className="text-3xl font-bold text-slate-900">Mes commandes</h1>
+        <p className="text-slate-500">Suivez les commandes expédiées à domicile. Le traitement des nouvelles commandes peut prendre quelques jours.</p>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{activeOrders}</p>
-                <p className="text-xs text-muted-foreground">En cours</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{completedOrders}</p>
-                <p className="text-xs text-muted-foreground">Terminées</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                <Package className="w-5 h-5 text-purple-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {totalSpent.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                </p>
-                <p className="text-xs text-muted-foreground">Total dépensé</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              Historique des commandes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
+        {/* Rogers-style order list */}
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          {isLoading ? (
+            <div className="p-8">
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
+                  <div key={i} className="h-20 bg-slate-100 animate-pulse rounded-lg" />
                 ))}
               </div>
-            ) : orders && orders.length > 0 ? (
-              <div className="space-y-4">
-                {orders.map((order: any) => {
-                  const StatusIcon = statusIcons[order.status] || Clock;
-                  const isEquip = isEquipmentOrder(order);
-                  const showPaymentBadge = needsPayment(order);
-                  return (
-                    <div
-                      key={order.id}
-                      className={`p-4 bg-secondary/50 rounded-lg border transition-colors ${
-                        showPaymentBadge ? "border-amber-500/50 hover:border-amber-500" : "border-border hover:border-primary/40"
-                      }`}
-                    >
+            </div>
+          ) : orders && orders.length > 0 ? (
+            <>
+              {orders.map((order: any) => {
+                const StatusIcon = statusIcons[order.status] || Clock;
+                const isEquip = isEquipmentOrder(order);
+                const showPaymentBadge = needsPayment(order);
+                return (
+                  <div
+                    key={order.id}
+                    className={`border-b border-slate-100 last:border-b-0 ${
+                      showPaymentBadge ? "border-l-4 border-l-amber-500" : "border-l-4 border-l-teal-600"
+                    }`}
+                  >
+                    <div className="px-6 py-5">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              order.status === "completed" ? "bg-emerald-500/15" :
-                              order.status === "shipped" ? "bg-primary/15" :
-                              order.status === "cancel" || order.status === "cancelled" ? "bg-red-500/15" : 
-                              order.status === "paid" ? "bg-blue-500/15" : "bg-amber-500/15"
-                            }`}>
-                              <StatusIcon className={`w-4 h-4 ${
-                                order.status === "completed" ? "text-emerald-600" :
-                                order.status === "shipped" ? "text-primary" :
-                                order.status === "cancel" || order.status === "cancelled" ? "text-red-600" : 
-                                order.status === "paid" ? "text-blue-600" : "text-amber-600"
-                              }`} />
-                            </div>
-                            <div>
-                              <h3 className="font-medium text-foreground">{order.service_type}</h3>
-                              <p className="text-sm text-muted-foreground font-mono">
-                                {order.order_number || `#${order.id.slice(0, 8)}`}
-                              </p>
-                            </div>
+                            <h3 className="font-semibold text-slate-900">{order.service_type}</h3>
                             {isEquip && (
-                              <Badge variant="outline" className="border-purple-500/50 text-purple-500">
+                              <Badge variant="outline" className="border-purple-300 text-purple-700 bg-purple-50">
                                 Équipement
                               </Badge>
                             )}
-                            <Badge className={statusColors[order.status] || "bg-muted"}>
+                            <Badge className={statusColors[order.status] || "bg-slate-100 text-slate-700"}>
                               {statusLabels[order.status] || order.status}
                             </Badge>
                             {showPaymentBadge && (
@@ -250,43 +189,43 @@ const ClientOrders = () => {
                               </Badge>
                             )}
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm mt-3">
+                          <p className="text-sm text-slate-500 font-mono mb-3">
+                            {order.order_number || `#${order.id.slice(0, 8)}`}
+                          </p>
+                          <div className="flex flex-wrap gap-x-8 gap-y-1 text-sm">
                             <div>
-                              <p className="text-muted-foreground">Date</p>
-                              <p className="text-foreground">
+                              <span className="text-slate-500">Date: </span>
+                              <span className="text-slate-900">
                                 {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
-                              </p>
+                              </span>
                             </div>
                             {order.total_amount && (
                               <div>
-                                <p className="text-muted-foreground">Montant</p>
-                                <p className="text-foreground font-medium">
-                                  {Number(order.total_amount).toLocaleString("fr-CA", {
-                                    style: "currency",
-                                    currency: "CAD",
-                                  })}
-                                </p>
+                                <span className="text-slate-500">Montant: </span>
+                                <span className="text-slate-900 font-medium">
+                                  {Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                </span>
                               </div>
                             )}
                             {order.tracking_number && (
-                              <div className="col-span-2">
-                                <p className="text-muted-foreground">Suivi</p>
-                                <p className="text-primary font-mono text-sm flex items-center gap-2">
+                              <div>
+                                <span className="text-slate-500">Suivi: </span>
+                                <span className="text-teal-700 font-mono text-sm">
                                   {order.tracking_number}
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-6 p-0"
+                                    className="h-5 w-5 p-0 ml-1"
                                     onClick={() => copyToClipboard(order.tracking_number, "Numéro de suivi")}
                                   >
                                     <Copy className="w-3 h-3" />
                                   </Button>
-                                </p>
+                                </span>
                               </div>
                             )}
                           </div>
                           {/* Status Timeline */}
-                          <div className="mt-4 pt-4 border-t border-border">
+                          <div className="mt-4 pt-4 border-t border-slate-100">
                             <OrderStatusTimeline currentStatus={order.status} />
                           </div>
                         </div>
@@ -294,24 +233,32 @@ const ClientOrders = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => handleViewDetails(order)}
-                          className="shrink-0"
+                          className="shrink-0 border-teal-600 text-teal-700 hover:bg-teal-50"
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           Détails
                         </Button>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            <div className="border-l-4 border-l-blue-500 px-6 py-5">
+              <div className="flex items-start gap-3">
+                <Package className="w-5 h-5 text-blue-500 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-slate-900">Aucune commande active</p>
+                  <p className="text-sm text-slate-500 mt-1">Suivez les commandes expédiées à domicile. Le traitement des nouvelles commandes peut prendre quelques jours.</p>
+                </div>
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Aucune commande pour le moment</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              <Link to="/portal" className="text-sm text-teal-700 hover:text-teal-800 font-medium inline-flex items-center gap-1 mt-3 ml-8">
+                Retour à l'aperçu du compte <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Order Details Dialog */}
