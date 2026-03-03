@@ -212,3 +212,6 @@ verify_jwt = false
 
 [functions.validate-verification-token]
 verify_jwt = false
+
+[functions.kyc-health]
+verify_jwt = false
