@@ -28,7 +28,7 @@ import {
 
 const COLORS = {
   navy: { r: 15, g: 23, b: 42 },
-  teal: { r: 20, g: 184, b: 166 },
+  accent: { r: 0, g: 102, b: 204 },
   white: { r: 255, g: 255, b: 255 },
   gray: { r: 100, g: 116, b: 139 },
   lightGray: { r: 241, g: 245, b: 249 },
@@ -139,44 +139,24 @@ export function generateInvoiceOneTimeV2PDF(data: InvoiceDataV2): PDFGenerationR
     let y = margin;
 
     // ========================================================================
-    // HEADER BAR — Telecom-grade
+    // HEADER BAR — Matching approved PDF style (compact Navy bar)
     // ========================================================================
     doc.setFillColor(COLORS.navy.r, COLORS.navy.g, COLORS.navy.b);
-    doc.rect(0, 0, pageWidth, 52, "F");
-    
-    doc.setFillColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
-    doc.rect(0, 52, pageWidth, 3, "F");
+    doc.rect(0, 0, pageWidth, 22, "F");
 
-    // Company info
     doc.setTextColor(COLORS.white.r, COLORS.white.g, COLORS.white.b);
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text(NIVRA_COMPANY.company_legal_name, margin, 13);
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.text(NIVRA_COMPANY.company_department, margin, 18);
-    doc.text(NIVRA_COMPANY.company_tagline, margin, 22.5);
-    doc.text(NIVRA_COMPANY.company_address, margin, 27);
-    doc.text(`${NIVRA_COMPANY.company_support}  |  Tél. : ${NIVRA_COMPANY.company_phone}`, margin, 31.5);
-    doc.text(`Web : ${NIVRA_COMPANY.company_website}  |  NEQ : ${NIVRA_COMPANY.company_neq}`, margin, 36);
-    doc.setFontSize(6.5);
-    doc.text(`${NIVRA_COMPANY.company_tps}  |  ${NIVRA_COMPANY.company_tvq}`, margin, 40.5);
-
-    // Document type
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("Document de facturation", pageWidth - margin, 13, { align: "right" });
-    
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("FACTURE UNIQUE", pageWidth - margin, 23, { align: "right" });
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(`Devise : ${data.currency || "CAD"}`, pageWidth - margin, 31, { align: "right" });
+    doc.text("NIVRA TELECOM", margin, 11);
 
-    y = 62;
+    doc.setFontSize(12);
+    doc.text("FACTURE", pageWidth - margin, 11, { align: "right" });
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Support@nivra-telecom.ca", margin, 18);
+
+    y = 32;
 
     // ========================================================================
     // CLIENT + INVOICE INFO - FIXED LAYOUT
@@ -278,7 +258,7 @@ export function generateInvoiceOneTimeV2PDF(data: InvoiceDataV2): PDFGenerationR
     
     // Total à payer - as separate row in table (NOT overlay)
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
+    doc.setTextColor(COLORS.accent.r, COLORS.accent.g, COLORS.accent.b);
     doc.text("Total à payer", invLabelX, invoiceY);
     doc.setFontSize(11);
     doc.text(`${formatCurrency(data.balance_due)} $`, invValueX, invoiceY);
@@ -362,7 +342,7 @@ export function generateInvoiceOneTimeV2PDF(data: InvoiceDataV2): PDFGenerationR
     
     doc.setFillColor(248, 250, 252);
     doc.rect(margin, y, contentWidth, 14, "F");
-    doc.setDrawColor(COLORS.teal.r, COLORS.teal.g, COLORS.teal.b);
+    doc.setDrawColor(COLORS.accent.r, COLORS.accent.g, COLORS.accent.b);
     doc.rect(margin, y, contentWidth, 14, "S");
     
     doc.setFont("helvetica", "bold");
