@@ -215,3 +215,6 @@ verify_jwt = false
 
 [functions.kyc-health]
 verify_jwt = false
+
+[functions.process-id-ocr]
+verify_jwt = false

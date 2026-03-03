@@ -652,7 +652,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
   });
 
   const handleSubmit = async () => {
-    // Block if identity verification not approved
+    // Block if identity verification docs not submitted for review
     if (!idVerificationApproved || !verificationSessionId) {
       toast.error(isFrench ? "Vérification d'identité requise avant de soumettre la commande." : "Identity verification required before submitting order.");
       return;

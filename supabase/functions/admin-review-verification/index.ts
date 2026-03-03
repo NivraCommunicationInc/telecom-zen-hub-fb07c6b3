@@ -198,6 +198,66 @@ Deno.serve(async (req) => {
       user_agent: req.headers.get("user-agent"),
     });
 
+    // On approval: update linked orders to confirmed, activate services
+    if (decision === "approved") {
+      const { data: linkedOrders } = await serviceClient
+        .from("orders")
+        .select("id, status")
+        .eq("identity_verification_session_id", session_id)
+        .in("status", ["pending_verification", "pending"]);
+
+      if (linkedOrders && linkedOrders.length > 0) {
+        for (const order of linkedOrders) {
+          await serviceClient
+            .from("orders")
+            .update({ status: "confirmed" })
+            .eq("id", order.id);
+
+          // Log order activation
+          await serviceClient.from("identity_verification_events").insert({
+            session_id,
+            event_type: "order_activated_on_approval",
+            actor_id: adminUserId,
+            actor_role: "admin",
+            details: { order_id: order.id },
+          });
+        }
+      }
+
+      // Queue confirmation email
+      await serviceClient.from("admin_notification_logs").insert({
+        event_type: "kyc_approved",
+        event_id: session_id,
+        client_email: null,
+        priority: "normal",
+      });
+    }
+
+    // On rejection: cancel linked orders
+    if (decision === "rejected") {
+      const { data: linkedOrders } = await serviceClient
+        .from("orders")
+        .select("id, status")
+        .eq("identity_verification_session_id", session_id)
+        .in("status", ["pending_verification", "pending"]);
+
+      if (linkedOrders && linkedOrders.length > 0) {
+        for (const order of linkedOrders) {
+          await serviceClient
+            .from("orders")
+            .update({ status: "cancelled", cancellation_reason: `KYC rejected: ${reason}` })
+            .eq("id", order.id);
+        }
+      }
+
+      // Queue rejection notification
+      await serviceClient.from("admin_notification_logs").insert({
+        event_type: "kyc_rejected",
+        event_id: session_id,
+        priority: "normal",
+      });
+    }
+
     return new Response(
       JSON.stringify({ message: `Session ${decision}`, session_id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -18,11 +18,14 @@ Deno.serve(async (req) => {
       version: "1.1.0",
       status: "healthy",
       timestamp: new Date().toISOString(),
+      session_flow: "created → submitted → manual_review → approved/rejected",
+      auto_approve: false,
       functions: [
         "generate-verification-qr",
         "validate-verification-token",
         "submit-id-verification",
         "admin-review-verification",
+        "process-id-ocr",
       ],
     }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

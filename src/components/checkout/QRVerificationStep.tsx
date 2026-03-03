@@ -119,7 +119,13 @@ export const QRVerificationStep = ({
 
         if (data && data.status !== status) {
           setStatus(data.status as SessionStatus);
-          if (data.status === "approved") {
+          // Allow checkout to proceed once docs are submitted for manual review
+          if (data.status === "manual_review" || data.status === "submitted") {
+            onVerified(sessionId);
+            toast.success(isFrench 
+              ? "Documents soumis! Un agent vérifiera votre identité sous peu." 
+              : "Documents submitted! An agent will verify your identity shortly.");
+          } else if (data.status === "approved") {
             onVerified(sessionId);
             toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
           } else if (data.status === "rejected") {

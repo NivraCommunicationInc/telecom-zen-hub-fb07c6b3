@@ -195,11 +195,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Update session to submitted
+    // Update session to manual_review (always requires admin approval)
     const { error: updateError } = await supabase
       .from("identity_verification_sessions")
       .update({
-        status: "submitted",
+        status: "manual_review",
         submitted_at: new Date().toISOString(),
         id_type: idType || null,
         id_province: idProvince || null,
@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
     // Log event
     await supabase.from("identity_verification_events").insert({
       session_id: session.id,
-      event_type: "documents_submitted",
+      event_type: "documents_submitted_for_review",
       actor_id: session.user_id,
       actor_role: "client",
       details: {
@@ -236,8 +236,31 @@ Deno.serve(async (req) => {
       user_agent: clientUa,
     });
 
+    // Create admin notification for manual review
+    await supabase.from("admin_notification_logs").insert({
+      event_type: "kyc_manual_review_required",
+      event_id: session.id,
+      client_email: null,
+      priority: "high",
+    });
+
+    // Trigger OCR processing asynchronously (fire-and-forget)
+    try {
+      const ocrUrl = `${supabaseUrl}/functions/v1/process-id-ocr`;
+      fetch(ocrUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ session_id: session.id }),
+      }).catch(err => console.error("OCR trigger error:", err));
+    } catch (ocrErr) {
+      console.error("OCR trigger exception:", ocrErr);
+    }
+
     return new Response(
-      JSON.stringify({ message: "Documents submitted successfully", status: "submitted" }),
+      JSON.stringify({ message: "Documents submitted for review", status: "manual_review" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
