@@ -1,7 +1,7 @@
 /**
  * Mobile Identity Verification Page (/verify-id)
  * Accessed via QR code scan from checkout.
- * Validates token, shows consent, allows ID document + selfie upload, submits.
+ * SECURITY: Token validated via edge function (no direct DB access for anon).
  * Includes: recto/verso logic, selfie (recommended), consent, 20-min timer, max 3 attempts.
  */
 import { useState, useEffect, useRef } from "react";
@@ -60,7 +60,7 @@ const VerifyIdentityPage = () => {
 
   const idempotencyKeyRef = useRef(crypto.randomUUID());
 
-  // Validate token on mount
+  // Validate token via EDGE FUNCTION (no direct anon DB access)
   useEffect(() => {
     if (!publicToken) {
       setPageState("error");
@@ -70,46 +70,46 @@ const VerifyIdentityPage = () => {
 
     const validateToken = async () => {
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/identity_verification_sessions?public_token=eq.${encodeURIComponent(publicToken)}&select=id,status,expires_at,submission_attempts,max_attempts`, {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/validate-verification-token`, {
+          method: "POST",
           headers: {
+            "Content-Type": "application/json",
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
           },
+          body: JSON.stringify({ public_token: publicToken }),
         });
         const data = await res.json();
 
-        if (!data || data.length === 0) {
+        if (!res.ok || !data.valid) {
           setPageState("error");
           setErrorMessage("Lien de vérification invalide ou expiré.");
           return;
         }
 
-        const session = data[0];
-        const expiry = new Date(session.expires_at);
-
-        if (expiry < new Date()) {
+        if (data.status === "expired") {
           setPageState("expired");
           return;
         }
 
-        if (session.submission_attempts >= (session.max_attempts || 3)) {
+        if (data.submission_attempts >= (data.max_attempts || 3)) {
           setPageState("error");
           setErrorMessage("Nombre maximum de tentatives atteint. Veuillez régénérer un nouveau code QR.");
           return;
         }
 
-        if (session.status === "submitted") {
+        if (data.status === "submitted") {
           setPageState("success");
           return;
         }
 
-        if (session.status !== "created") {
+        if (data.status !== "created") {
           setPageState("error");
-          setErrorMessage(`Cette session est déjà en statut: ${session.status}`);
+          setErrorMessage(`Cette session est déjà en statut: ${data.status}`);
           return;
         }
 
-        setExpiresAt(expiry);
+        setExpiresAt(new Date(data.expires_at));
         setPageState("consent");
       } catch (err) {
         console.error("Token validation error:", err);
@@ -169,7 +169,6 @@ const VerifyIdentityPage = () => {
       toast.error("Veuillez compléter tous les champs obligatoires.");
       return;
     }
-
     if (needsBack && !backFile) {
       toast.error("Le verso de la pièce est obligatoire pour ce type de document.");
       return;
@@ -198,10 +197,7 @@ const VerifyIdentityPage = () => {
       });
 
       const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.error || "Submission failed");
-      }
+      if (!res.ok) throw new Error(result.error || "Submission failed");
 
       setPageState("success");
     } catch (err: any) {
@@ -211,7 +207,6 @@ const VerifyIdentityPage = () => {
     }
   };
 
-  // Timer badge component
   const TimerBadge = () => (
     expiresAt && pageState !== "success" && pageState !== "error" ? (
       <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800">
@@ -222,7 +217,6 @@ const VerifyIdentityPage = () => {
     ) : null
   );
 
-  // Loading state
   if (pageState === "loading") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -234,7 +228,6 @@ const VerifyIdentityPage = () => {
     );
   }
 
-  // Expired state
   if (pageState === "expired") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -251,7 +244,6 @@ const VerifyIdentityPage = () => {
     );
   }
 
-  // Error state
   if (pageState === "error") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -266,7 +258,6 @@ const VerifyIdentityPage = () => {
     );
   }
 
-  // Success state
   if (pageState === "success") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -288,7 +279,6 @@ const VerifyIdentityPage = () => {
     );
   }
 
-  // Submitting state
   if (pageState === "submitting") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -303,7 +293,6 @@ const VerifyIdentityPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -318,7 +307,6 @@ const VerifyIdentityPage = () => {
       </div>
 
       <div className="max-w-lg mx-auto p-4 space-y-6">
-        {/* Consent step */}
         {pageState === "consent" && (
           <>
             <Card>
@@ -332,14 +320,12 @@ const VerifyIdentityPage = () => {
                   de crédit ne sera effectuée. Vos documents seront traités de manière confidentielle et
                   supprimés automatiquement après 90 jours.
                 </p>
-
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <p className="text-xs text-amber-800 font-medium flex items-center gap-2">
                     <Clock className="w-3.5 h-3.5" />
                     Ce QR expire dans {timeLeft || "20:00"}. Complétez la vérification avant l'expiration.
                   </p>
                 </div>
-
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="consent"
@@ -353,7 +339,6 @@ const VerifyIdentityPage = () => {
                 </div>
               </CardContent>
             </Card>
-
             <Button
               className="w-full bg-slate-900 hover:bg-slate-800 text-white"
               disabled={!consentGiven}
@@ -364,7 +349,6 @@ const VerifyIdentityPage = () => {
           </>
         )}
 
-        {/* Capture step */}
         {pageState === "capture" && (
           <>
             <Card>
@@ -385,7 +369,6 @@ const VerifyIdentityPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-
                 {idType && idType !== "passport" && (
                   <div className="space-y-2">
                     <Label>Province d'émission *</Label>
@@ -404,12 +387,10 @@ const VerifyIdentityPage = () => {
               </CardContent>
             </Card>
 
-            {/* Front of ID */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Camera className="w-4 h-4" />
-                  Recto de la pièce d'identité *
+                  <Camera className="w-4 h-4" /> Recto de la pièce d'identité *
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -425,31 +406,21 @@ const VerifyIdentityPage = () => {
                     <Upload className="w-8 h-8 text-slate-400 mb-2" />
                     <span className="text-sm text-slate-600 font-medium">Prendre une photo ou choisir un fichier</span>
                     <span className="text-xs text-slate-400 mt-1">JPG, PNG — max 10 Mo</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => handleFileSelect("front", e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => handleFileSelect("front", e.target.files?.[0] || null)} />
                   </label>
                 )}
               </CardContent>
             </Card>
 
-            {/* Back of ID - required or optional based on ID type */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Camera className="w-4 h-4" />
-                  Verso de la pièce d'identité {needsBack ? "*" : "(optionnel)"}
+                  <Camera className="w-4 h-4" /> Verso de la pièce d'identité {needsBack ? "*" : "(optionnel)"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {!needsBack && idType === "passport" ? (
-                  <p className="text-sm text-slate-500 text-center py-4">
-                    Non requis pour un passeport.
-                  </p>
+                  <p className="text-sm text-slate-500 text-center py-4">Non requis pour un passeport.</p>
                 ) : backPreview ? (
                   <div className="space-y-3">
                     <img src={backPreview} alt="Verso" className="w-full rounded-lg border border-slate-200" />
@@ -461,30 +432,20 @@ const VerifyIdentityPage = () => {
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg p-6 cursor-pointer hover:border-slate-400 transition-colors">
                     <Upload className="w-6 h-6 text-slate-400 mb-2" />
                     <span className="text-sm text-slate-600">Ajouter le verso</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => handleFileSelect("back", e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(e) => handleFileSelect("back", e.target.files?.[0] || null)} />
                   </label>
                 )}
               </CardContent>
             </Card>
 
-            {/* Selfie (recommended) */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Selfie (recommandé)
+                  <User className="w-4 h-4" /> Selfie (recommandé)
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-slate-500 mb-3">
-                  Un selfie aide à accélérer la validation de votre identité.
-                </p>
+                <p className="text-xs text-slate-500 mb-3">Un selfie aide à accélérer la validation de votre identité.</p>
                 {selfiePreview ? (
                   <div className="space-y-3">
                     <img src={selfiePreview} alt="Selfie" className="w-full rounded-lg border border-slate-200" />
@@ -496,29 +457,20 @@ const VerifyIdentityPage = () => {
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg p-6 cursor-pointer hover:border-slate-400 transition-colors">
                     <Camera className="w-6 h-6 text-slate-400 mb-2" />
                     <span className="text-sm text-slate-600">Prendre un selfie</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      capture="user"
-                      className="hidden"
-                      onChange={(e) => handleFileSelect("selfie", e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" capture="user" className="hidden" onChange={(e) => handleFileSelect("selfie", e.target.files?.[0] || null)} />
                   </label>
                 )}
               </CardContent>
             </Card>
 
-            {/* Submit */}
             <Button
               className="w-full bg-slate-900 hover:bg-slate-800 text-white py-6 text-base"
               disabled={!frontFile || !idType || (needsBack && !backFile)}
               onClick={handleSubmit}
             >
-              <FileCheck className="w-5 h-5 mr-2" />
-              Soumettre mes documents
+              <FileCheck className="w-5 h-5 mr-2" /> Soumettre mes documents
             </Button>
 
-            {/* Security notice */}
             <div className="flex items-center gap-2 justify-center text-xs text-slate-400">
               <Shield className="w-3 h-3" />
               Chiffrement 256 bits — Documents supprimés après 90 jours

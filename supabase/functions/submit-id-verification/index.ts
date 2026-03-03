@@ -1,9 +1,10 @@
 /**
  * Edge Function: submit-id-verification
  * Mobile page submits ID documents via this endpoint.
+ * SECURITY: Token lookup via SHA-256 hash (never stored in plaintext).
  * Validates token, checks expiration, uploads docs to PRIVATE bucket, marks session as submitted.
  * Includes: rate limiting (max 3 attempts), selfie support, IP/UA logging.
- * No auth required (anon access via public_token).
+ * No auth required (anon access via public_token → hash lookup).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -12,6 +13,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+/** SHA-256 hash a string and return hex */
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -84,11 +94,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Look up session by token
+    // SECURITY: Hash the token and lookup by hash (token is NEVER stored in DB)
+    const tokenHash = await hashToken(publicToken);
+
     const { data: session, error: sessionError } = await supabase
       .from("identity_verification_sessions")
       .select("*")
-      .eq("public_token", publicToken)
+      .eq("public_token_hash", tokenHash)
       .single();
 
     if (sessionError || !session) {
@@ -130,7 +142,7 @@ Deno.serve(async (req) => {
     // Increment attempt count
     await supabase
       .from("identity_verification_sessions")
-      .update({ 
+      .update({
         submission_attempts: (session.submission_attempts || 0) + 1,
         client_ip: clientIp,
         client_user_agent: clientUa,

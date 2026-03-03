@@ -209,3 +209,6 @@ verify_jwt = false
 
 [functions.admin-review-verification]
 verify_jwt = false
+
+[functions.validate-verification-token]
+verify_jwt = false

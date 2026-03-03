@@ -71,6 +71,7 @@ import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems
 import { AuditNotes } from "@/lib/clientAuditNotes";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
+import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 
 interface Service {
   id: string;
@@ -527,11 +528,15 @@ const ClientNewOrder = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   
   
-  // ID verification state
+  // ID verification state (legacy fields)
   const [idType, setIdType] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [idExpiration, setIdExpiration] = useState("");
   const [idProvince, setIdProvince] = useState("");
+  
+  // QR Identity Verification state (Rogers-grade)
+  const [verificationSessionId, setVerificationSessionId] = useState<string | null>(null);
+  const [idVerificationApproved, setIdVerificationApproved] = useState(false);
   
   // Customer info fields (DOB, name)
   const [firstName, setFirstName] = useState("");
@@ -2582,6 +2587,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       toast.error("Veuillez remplir tous les champs d'identification");
       return;
     }
+    // BLOCK if QR identity verification not approved (Rogers-grade gating)
+    if (!idVerificationApproved || !verificationSessionId) {
+      submittingRef.current = false;
+      toast.error("Vérification d'identité QR requise avant de soumettre la commande.");
+      return;
+    }
     // Validate delivery/installation choice based on order type
     if (isDeliveryOnlyOrder) {
       if (!deliveryChoice) {
@@ -4264,6 +4275,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
                         <CheckCircle2 className="w-4 h-4" />
                         Informations d'identité complétées
+                      </div>
+                    )}
+
+                    {/* QR Identity Verification (Rogers-grade) */}
+                    {isIdComplete && (
+                      <div className="border-t border-border pt-6 mt-4">
+                        <QRVerificationStep
+                          userId={user?.id || ""}
+                          checkoutType="mobile"
+                          isFrench={true}
+                          onVerified={(sessionId) => {
+                            setVerificationSessionId(sessionId);
+                            setIdVerificationApproved(true);
+                          }}
+                          orderContext={{ services: selectedServices.map(s => s.id) }}
+                        />
                       </div>
                     )}
                   </CardContent>
