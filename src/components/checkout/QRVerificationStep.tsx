@@ -54,13 +54,26 @@ export const QRVerificationStep = ({
   const generateQR = useCallback(async (regenerateSessionId?: string) => {
     setLoading(true);
     setError(null);
+    // Clear old QR immediately on regenerate for visual feedback
+    if (regenerateSessionId) {
+      setQrDataUrl(null);
+      setSessionId(null);
+      setExpiresAt(null);
+      setTimeLeft("");
+    }
     try {
+      // Cache-busting: use fetch with no-store to avoid stale responses
       const { data, error: fnError } = await dbClient.functions.invoke("generate-verification-qr", {
         body: {
           checkout_type: checkoutType,
           order_context: orderContext || {},
           checkout_fields: checkoutFields || {},
           regenerate_session_id: regenerateSessionId,
+          _cache_bust: Date.now(), // Force unique request body
+        },
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
         },
       });
 
@@ -68,11 +81,13 @@ export const QRVerificationStep = ({
       if (data?.error) throw new Error(data.error);
 
       // Use server-side QR PNG if available, otherwise generate client-side
+      // Append cache-bust param to verify_url for client-side QR
+      const verifyUrl = data.verify_url;
       let qrImage = data.qr_data_url;
-      if (!qrImage && data.verify_url) {
+      if (!qrImage && verifyUrl) {
         console.warn("[QR] Server QR PNG failed, generating client-side fallback");
         try {
-          qrImage = await QRCode.toDataURL(data.verify_url, {
+          qrImage = await QRCode.toDataURL(verifyUrl, {
             width: 280,
             margin: 2,
             color: { dark: "#000000", light: "#FFFFFF" },
@@ -89,7 +104,7 @@ export const QRVerificationStep = ({
       setExpiresAt(new Date(data.expires_at));
 
       if (data.request_id) {
-        console.log(`[QR] Session created. request_id=${data.request_id}, session=${data.session_id}`);
+        console.log(`[QR] NEW session created. request_id=${data.request_id}, session=${data.session_id}, regenerated_from=${regenerateSessionId || 'none'}`);
       }
     } catch (err: any) {
       console.error("QR generation error:", err);
@@ -172,9 +187,13 @@ export const QRVerificationStep = ({
   }, []);
 
   const handleRegenerate = () => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    if (timerRef.current) clearInterval(timerRef.current);
-    generateQR(sessionId || undefined);
+    // Stop all timers before regenerating
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    // MUST pass current sessionId so edge function creates a NEW row and expires the old one
+    const oldSessionId = sessionId;
+    console.log(`[QR] Regenerating. Old session=${oldSessionId} will be expired, new session will be created.`);
+    generateQR(oldSessionId || undefined);
   };
 
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.created;
