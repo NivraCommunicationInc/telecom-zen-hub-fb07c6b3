@@ -1,130 +1,141 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Wifi, Smartphone, Tv, Monitor, Radio } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
+import { usePublicServices } from "@/hooks/usePublicServices";
 
 const Hero = () => {
   const { t, language } = useLanguage();
   const isFr = language === 'fr';
+  const { data: services } = usePublicServices();
 
-  const highlights = [
-    isFr ? "Sans contrat" : "No contract",
-    isFr ? "Support 7j/7" : "24/7 Support",
-    isFr ? "Activation rapide" : "Fast activation",
+  // Get Internet starting price
+  const internetPrice = (() => {
+    if (!services) return "--";
+    const internetServices = services.filter(s => s.category === "Internet");
+    if (internetServices.length === 0) return "--";
+    return Math.min(...internetServices.map(s => Number(s.price))).toFixed(0);
+  })();
+
+  const quickCategories = [
+    { icon: Smartphone, label: isFr ? "Forfaits mobile" : "Mobility plans", link: "/mobile" },
+    { icon: Wifi, label: "Internet", link: "/internet" },
+    { icon: Tv, label: isFr ? "Télévision" : "TV", link: "/tv" },
+    { icon: Monitor, label: "Streaming+", link: "/streaming" },
+    { icon: Radio, label: isFr ? "Combos" : "Bundles", link: "/compare" },
   ];
 
   return (
-    <section className="relative bg-gradient-to-b from-primary to-navy-700 overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-accent/5 to-transparent" />
-        <div className="absolute bottom-0 left-0 w-1/3 h-1/2 bg-gradient-to-tr from-accent/3 to-transparent" />
+    <section className="bg-white">
+      {/* Promo banner */}
+      <div className="bg-slate-50 border-b border-slate-200">
+        <div className="container mx-auto px-4 max-w-7xl py-3 text-center">
+          <p className="text-sm text-slate-700">
+            <span className="inline-block w-4 h-4 mr-1.5 align-middle">🏷️</span>
+            {isFr 
+              ? "Nouveau client? Obtenez 50% de rabais sur votre première facture • Offre exclusive — Aucun contrat requis" 
+              : "New customer? Get 50% off your first bill • Exclusive offer — No contract required"}
+          </p>
+        </div>
       </div>
 
-      <div className="relative container mx-auto px-4 pt-24 pb-16 lg:pt-32 lg:pb-24 max-w-6xl">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          
-          {/* Left Content */}
-          <div className="text-center lg:text-left">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 mb-6">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
-              </span>
-              <span className="text-sm font-medium text-white">{t('hero.badge')}</span>
-            </div>
-
-            {/* Headline */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-[1.1] tracking-tight text-white mb-5">
-              {t('hero.title1')}
-              <br />
-              <span className="text-accent">{t('hero.title2')}</span>
-            </h1>
-
-            {/* Subheadline */}
-            <p className="text-lg text-white/80 max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed">
-              {t('hero.subtitle')}
-            </p>
-
-            {/* Highlights */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-8">
-              {highlights.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-white/90">
-                  <Check className="w-4 h-4 text-accent" />
-                  <span className="text-sm font-medium">{item}</span>
+      {/* Main Hero */}
+      <div className="container mx-auto px-4 max-w-7xl">
+        <div className="py-12 lg:py-16">
+          <div className="bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 rounded-3xl overflow-hidden">
+            <div className="grid lg:grid-cols-2 gap-8 items-center p-8 lg:p-14">
+              {/* Left Content */}
+              <div>
+                <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold leading-[1.15] text-slate-900 mb-4">
+                  {isFr 
+                    ? "Internet haute vitesse. Sans contrat. Sans surprise." 
+                    : "High-speed Internet. No contract. No surprises."}
+                </h1>
+                <p className="text-lg text-slate-600 mb-3">
+                  {isFr 
+                    ? "Internet fibre optique illimité pour toute la famille." 
+                    : "Unlimited fibre optic Internet for the whole family."}
+                </p>
+                <div className="mb-6">
+                  <span className="text-sm text-slate-500">{isFr ? "À partir de" : "Starting at"}</span>
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-5xl font-bold text-slate-900">{internetPrice}$</span>
+                    <span className="text-lg text-slate-500">/{isFr ? "mois" : "mo."}</span>
+                  </div>
                 </div>
-              ))}
-            </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button 
+                    className="bg-[#003366] hover:bg-[#002244] text-white rounded-full px-8 h-12 text-base font-semibold"
+                    asChild
+                  >
+                    <Link to="/internet">
+                      {isFr ? "Voir les forfaits" : "Shop now"}
+                    </Link>
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="border-slate-300 text-slate-700 rounded-full px-8 h-12 text-base font-medium hover:bg-slate-50"
+                    asChild
+                  >
+                    <Link to="/contact">
+                      {isFr ? "Nous joindre" : "Contact us"}
+                    </Link>
+                  </Button>
+                </div>
+              </div>
 
-            {/* CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-              <Button 
-                variant="hero" 
-                size="lg" 
-                className="group w-full sm:w-auto text-base px-8 h-12"
-                asChild
-              >
-                <Link 
-                  to="/contact"
-                  aria-label={isFr ? "Commander un service Nivra" : "Order a Nivra service"}
-                >
-                  {t('hero.cta.order')}
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-                </Link>
-              </Button>
-              <Button 
-                variant="heroOutline" 
-                size="lg" 
-                className="w-full sm:w-auto text-base h-12"
-                asChild
-              >
-                <Link 
-                  to="/mobile"
-                  aria-label={isFr ? "Découvrir nos forfaits mobile" : "Discover our mobile plans"}
-                >
-                  {isFr ? "Voir les forfaits" : "View Plans"}
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          {/* Right - Stats Cards */}
-          <div className="hidden lg:block">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <div className="text-4xl font-bold text-white mb-2">1 Gbps</div>
-                <div className="text-sm text-white/70">{isFr ? "Vitesse Internet max" : "Max Internet Speed"}</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <div className="text-4xl font-bold text-accent mb-2">5G</div>
-                <div className="text-sm text-white/70">{isFr ? "Réseau mobile" : "Mobile Network"}</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <div className="text-4xl font-bold text-white mb-2">200+</div>
-                <div className="text-sm text-white/70">{isFr ? "Chaînes TV" : "TV Channels"}</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <div className="text-4xl font-bold text-accent mb-2">7j/7</div>
-                <div className="text-sm text-white/70">{isFr ? "Support local" : "Local Support"}</div>
+              {/* Right - Stats/Visual */}
+              <div className="hidden lg:flex items-center justify-center">
+                <div className="relative">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                      <div className="text-4xl font-bold text-[#003366] mb-1">1 Gbps</div>
+                      <div className="text-sm text-slate-500">{isFr ? "Vitesse max" : "Max speed"}</div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                      <div className="text-4xl font-bold text-[#003366] mb-1">5G</div>
+                      <div className="text-sm text-slate-500">{isFr ? "Réseau mobile" : "Mobile network"}</div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                      <div className="text-4xl font-bold text-[#003366] mb-1">200+</div>
+                      <div className="text-sm text-slate-500">{isFr ? "Chaînes TV" : "TV channels"}</div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                      <div className="text-4xl font-bold text-[#003366] mb-1">7j/7</div>
+                      <div className="text-sm text-slate-500">{isFr ? "Support local" : "Local support"}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Stats Row */}
-        <div className="lg:hidden mt-10 grid grid-cols-3 gap-3">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
-            <div className="text-xl font-bold text-white">1 Gbps</div>
-            <div className="text-xs text-white/60 mt-1">{isFr ? "Internet" : "Internet"}</div>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
-            <div className="text-xl font-bold text-accent">5G</div>
-            <div className="text-xs text-white/60 mt-1">{isFr ? "Mobile" : "Mobile"}</div>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center">
-            <div className="text-xl font-bold text-white">7j/7</div>
-            <div className="text-xs text-white/60 mt-1">{isFr ? "Support" : "Support"}</div>
+      {/* Quick category buttons - Bell-style */}
+      <div className="border-t border-slate-200 bg-white">
+        <div className="container mx-auto px-4 max-w-7xl py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+            <div className="shrink-0">
+              <p className="text-sm font-medium text-slate-900">
+                {isFr ? "Déjà client Nivra?" : "Already a Nivra customer?"}
+              </p>
+              <Link to="/portal/auth" className="text-sm text-blue-700 hover:underline font-medium">
+                {isFr ? "Connexion à MonNivra" : "Log in to MyNivra"} →
+              </Link>
+            </div>
+            <div className="flex flex-wrap gap-3 flex-1">
+              {quickCategories.map((cat) => (
+                <Link
+                  key={cat.link}
+                  to={cat.link}
+                  className="flex items-center gap-2.5 px-5 py-3 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50/50 transition-all shadow-sm"
+                >
+                  <cat.icon className="w-4 h-4" />
+                  {cat.label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>
