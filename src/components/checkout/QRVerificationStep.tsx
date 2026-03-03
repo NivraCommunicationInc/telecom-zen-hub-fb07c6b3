@@ -2,14 +2,16 @@
  * QR Identity Verification Component for Checkout
  * Rogers-style design: shows QR code, live status polling, 20-min countdown, regenerate button.
  * Used in both ClientNewOrder and ClientInternetOrder checkouts.
+ * 
+ * Includes client-side QR fallback if edge function QR PNG generation fails.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Shield, RefreshCw, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, QrCode } from "lucide-react";
 import { portalClient as dbClient } from "@/integrations/backend";
 import { toast } from "sonner";
+import QRCode from "qrcode";
 
 interface QRVerificationStepProps {
   userId: string;
@@ -17,6 +19,7 @@ interface QRVerificationStepProps {
   isFrench: boolean;
   onVerified: (sessionId: string) => void;
   orderContext?: Record<string, unknown>;
+  checkoutFields?: Record<string, unknown>;
 }
 
 type SessionStatus = "created" | "submitted" | "approved" | "rejected" | "manual_review" | "expired";
@@ -36,6 +39,7 @@ export const QRVerificationStep = ({
   isFrench,
   onVerified,
   orderContext,
+  checkoutFields,
 }: QRVerificationStepProps) => {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -55,6 +59,7 @@ export const QRVerificationStep = ({
         body: {
           checkout_type: checkoutType,
           order_context: orderContext || {},
+          checkout_fields: checkoutFields || {},
           regenerate_session_id: regenerateSessionId,
         },
       });
@@ -62,10 +67,30 @@ export const QRVerificationStep = ({
       if (fnError) throw new Error(fnError.message || "Failed to generate QR");
       if (data?.error) throw new Error(data.error);
 
-      setQrDataUrl(data.qr_data_url);
+      // Use server-side QR PNG if available, otherwise generate client-side
+      let qrImage = data.qr_data_url;
+      if (!qrImage && data.verify_url) {
+        console.warn("[QR] Server QR PNG failed, generating client-side fallback");
+        try {
+          qrImage = await QRCode.toDataURL(data.verify_url, {
+            width: 280,
+            margin: 2,
+            color: { dark: "#000000", light: "#FFFFFF" },
+            errorCorrectionLevel: "H",
+          });
+        } catch (qrErr) {
+          console.error("[QR] Client-side QR fallback also failed:", qrErr);
+        }
+      }
+
+      setQrDataUrl(qrImage || null);
       setSessionId(data.session_id);
       setStatus("created");
       setExpiresAt(new Date(data.expires_at));
+
+      if (data.request_id) {
+        console.log(`[QR] Session created. request_id=${data.request_id}, session=${data.session_id}`);
+      }
     } catch (err: any) {
       console.error("QR generation error:", err);
       setError(err.message || "Erreur lors de la génération du QR");
@@ -73,7 +98,7 @@ export const QRVerificationStep = ({
     } finally {
       setLoading(false);
     }
-  }, [checkoutType, orderContext, isFrench]);
+  }, [checkoutType, orderContext, checkoutFields, isFrench]);
 
   // Generate QR on mount
   useEffect(() => {
@@ -85,20 +110,24 @@ export const QRVerificationStep = ({
     if (!sessionId) return;
     
     const poll = async () => {
-      const { data } = await dbClient
-        .from("identity_verification_sessions")
-        .select("status")
-        .eq("id", sessionId)
-        .single();
+      try {
+        const { data } = await dbClient
+          .from("identity_verification_sessions")
+          .select("status")
+          .eq("id", sessionId)
+          .single();
 
-      if (data && data.status !== status) {
-        setStatus(data.status as SessionStatus);
-        if (data.status === "approved") {
-          onVerified(sessionId);
-          toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
-        } else if (data.status === "rejected") {
-          toast.error(isFrench ? "Vérification refusée. Veuillez réessayer." : "Verification rejected. Please try again.");
+        if (data && data.status !== status) {
+          setStatus(data.status as SessionStatus);
+          if (data.status === "approved") {
+            onVerified(sessionId);
+            toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
+          } else if (data.status === "rejected") {
+            toast.error(isFrench ? "Vérification refusée. Veuillez réessayer." : "Verification rejected. Please try again.");
+          }
         }
+      } catch {
+        // Silently ignore polling errors
       }
     };
 
@@ -149,7 +178,7 @@ export const QRVerificationStep = ({
 
   return (
     <div className="space-y-6">
-      {/* Section header - Rogers style */}
+      {/* Section header */}
       <div>
         <h2 className="text-2xl font-bold text-slate-900">
           {isFrench ? "Renseignements personnels" : "Personal Information"}
@@ -161,7 +190,6 @@ export const QRVerificationStep = ({
         </p>
       </div>
 
-      {/* Verification de votre identité */}
       <Card className="bg-white border border-slate-200">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-bold text-slate-900">
@@ -169,7 +197,6 @@ export const QRVerificationStep = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Instructions + QR side by side */}
           <div className="flex flex-col md:flex-row gap-6">
             {/* Instructions */}
             <div className="flex-1 space-y-4">
@@ -185,7 +212,6 @@ export const QRVerificationStep = ({
                 </li>
               </ol>
 
-              {/* Timer warning */}
               {!isTerminal && !isExpired && (
                 <p className="text-sm font-bold text-slate-900">
                   {isFrench
@@ -205,6 +231,10 @@ export const QRVerificationStep = ({
                 <div className="w-[200px] h-[200px] flex flex-col items-center justify-center bg-red-50 rounded-lg border border-red-200 p-4 text-center">
                   <XCircle className="w-8 h-8 text-red-400 mb-2" />
                   <p className="text-xs text-red-600">{error}</p>
+                  <Button onClick={() => generateQR()} variant="outline" size="sm" className="mt-2">
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    {isFrench ? "Réessayer" : "Retry"}
+                  </Button>
                 </div>
               ) : qrDataUrl ? (
                 <div className={`p-2 bg-white rounded-lg border-2 ${isExpired ? "border-slate-300 opacity-50" : "border-slate-200"}`}>
@@ -250,7 +280,7 @@ export const QRVerificationStep = ({
             </Button>
           )}
 
-          {/* Security badge - Rogers style */}
+          {/* Security badge */}
           <div className="flex items-center gap-3 pt-2">
             <Shield className="w-4 h-4 text-slate-500" />
             <span className="text-xs text-slate-500">

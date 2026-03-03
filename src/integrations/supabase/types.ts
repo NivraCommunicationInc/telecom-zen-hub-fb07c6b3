@@ -4290,20 +4290,24 @@ export type Database = {
       }
       identity_verification_sessions: {
         Row: {
+          checkout_fields: Json | null
           checkout_type: string | null
           client_ip: string | null
           client_user_agent: string | null
           created_at: string
           document_back_path: string | null
           document_front_path: string | null
+          document_type: Database["public"]["Enums"]["id_document_type"] | null
           expires_at: string
+          extracted_fields: Json | null
           id: string
           id_province: string | null
           id_type: string | null
           idempotency_key: string | null
+          match_result: Json | null
           max_attempts: number
           order_context: Json | null
-          public_token: string
+          public_token: string | null
           public_token_hash: string | null
           qr_regeneration_count: number
           result_payload: Json | null
@@ -4319,20 +4323,24 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          checkout_fields?: Json | null
           checkout_type?: string | null
           client_ip?: string | null
           client_user_agent?: string | null
           created_at?: string
           document_back_path?: string | null
           document_front_path?: string | null
+          document_type?: Database["public"]["Enums"]["id_document_type"] | null
           expires_at: string
+          extracted_fields?: Json | null
           id?: string
           id_province?: string | null
           id_type?: string | null
           idempotency_key?: string | null
+          match_result?: Json | null
           max_attempts?: number
           order_context?: Json | null
-          public_token: string
+          public_token?: string | null
           public_token_hash?: string | null
           qr_regeneration_count?: number
           result_payload?: Json | null
@@ -4348,20 +4356,24 @@ export type Database = {
           user_id: string
         }
         Update: {
+          checkout_fields?: Json | null
           checkout_type?: string | null
           client_ip?: string | null
           client_user_agent?: string | null
           created_at?: string
           document_back_path?: string | null
           document_front_path?: string | null
+          document_type?: Database["public"]["Enums"]["id_document_type"] | null
           expires_at?: string
+          extracted_fields?: Json | null
           id?: string
           id_province?: string | null
           id_type?: string | null
           idempotency_key?: string | null
+          match_result?: Json | null
           max_attempts?: number
           order_context?: Json | null
-          public_token?: string
+          public_token?: string | null
           public_token_hash?: string | null
           qr_regeneration_count?: number
           result_payload?: Json | null
@@ -10827,6 +10839,12 @@ export type Database = {
         | "resolved_rejected"
       fraud_flag_level: "none" | "low" | "medium" | "high"
       fulfillment_type: "ship" | "technician" | "pickup"
+      id_document_type:
+        | "drivers_license"
+        | "health_card"
+        | "pr_card"
+        | "passport_ca"
+        | "passport_intl"
       influencer_status: "invited" | "active" | "suspended" | "pending"
       internal_order_status:
         | "draft"
@@ -11139,6 +11157,13 @@ export const Constants = {
       ],
       fraud_flag_level: ["none", "low", "medium", "high"],
       fulfillment_type: ["ship", "technician", "pickup"],
+      id_document_type: [
+        "drivers_license",
+        "health_card",
+        "pr_card",
+        "passport_ca",
+        "passport_intl",
+      ],
       influencer_status: ["invited", "active", "suspended", "pending"],
       internal_order_status: [
         "draft",

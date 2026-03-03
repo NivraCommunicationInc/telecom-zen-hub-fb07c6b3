@@ -1,12 +1,14 @@
 /**
  * Edge Function: generate-verification-qr
- * Creates an identity_verification_session + returns QR code as PNG
+ * Creates an identity_verification_session + returns QR code as data URL
  * SECURITY: Token is hashed (SHA-256) before storage. Only hash is persisted.
  * Rate-limited: max 5 sessions per user per hour
  * QR points to: https://nivra-telecom.ca/verify-id?t=<public_token>
+ * 
+ * Logging: Each request gets a request_id with step-level timing.
+ * Fallback: If QR PNG fails, returns verify_url for client-side QR rendering.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import QRCode from "npm:qrcode@1.5.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,9 +30,22 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const requestId = crypto.randomUUID().slice(0, 8);
+  const startTime = Date.now();
+
+  const log = (step: string, detail?: string) => {
+    const elapsed = Date.now() - startTime;
+    console.log(`[${requestId}] [${elapsed}ms] ${step}${detail ? ': ' + detail : ''}`);
+  };
+
   try {
+    log("START", "generate-verification-qr");
+
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const authPresent = !!authHeader?.startsWith("Bearer ");
+    log("AUTH", `present=${authPresent}`);
+
+    if (!authPresent) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -42,25 +57,28 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: authHeader! } },
     });
 
     // Verify user
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const token = authHeader!.replace("Bearer ", "");
+    const { data: userData, error: userError } = await userClient.auth.getUser(token);
+    if (userError || !userData?.user) {
+      log("AUTH_FAIL", userError?.message || "no user");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub;
+    const userId = userData.user.id;
+    log("AUTH_OK", `user=${userId.slice(0, 8)}...`);
 
-    // Use service role for DB operations (anon RLS is locked down)
+    // Use service role for DB operations
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json().catch(() => ({}));
-    const { checkout_type, order_context, regenerate_session_id } = body;
+    const { checkout_type, order_context, regenerate_session_id, checkout_fields } = body;
+    log("BODY", `type=${checkout_type}, regenerate=${!!regenerate_session_id}`);
 
     // Rate limiting: max 5 sessions per user per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -70,6 +88,8 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .gte("created_at", oneHourAgo);
 
+    log("RATE_LIMIT", `recent=${recentCount}/5`);
+
     if ((recentCount || 0) >= 5) {
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded. Max 5 verification sessions per hour." }),
@@ -77,7 +97,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If regenerating, expire the old session (invalidates old token)
+    // If regenerating, expire the old session
     if (regenerate_session_id) {
       const { data: oldSession } = await supabase
         .from("identity_verification_sessions")
@@ -88,13 +108,13 @@ Deno.serve(async (req) => {
 
       if (oldSession) {
         if (oldSession.qr_regeneration_count >= 3) {
+          log("REGEN_LIMIT", "max 3 reached");
           return new Response(
-            JSON.stringify({ error: "Maximum QR regenerations reached. Please restart checkout." }),
+            JSON.stringify({ error: "Maximum QR regenerations reached (3). Please restart checkout." }),
             { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
-        // Expire old session — this invalidates the old token
         await supabase
           .from("identity_verification_sessions")
           .update({ status: "expired" })
@@ -106,6 +126,8 @@ Deno.serve(async (req) => {
           actor_id: userId,
           actor_role: "client",
         });
+
+        log("REGEN_OK", `expired old=${regenerate_session_id.slice(0, 8)}`);
       }
     }
 
@@ -114,15 +136,18 @@ Deno.serve(async (req) => {
     const publicTokenHash = await hashToken(publicToken);
     const expiresAt = new Date(Date.now() + 20 * 60 * 1000); // 20 minutes
 
-    // Create session — store HASH only, never the raw token
+    // Create session — store HASH only, public_token is NULL
+    log("DB_INSERT", "creating session...");
+    const dbStart = Date.now();
     const { data: session, error: sessionError } = await supabase
       .from("identity_verification_sessions")
       .insert({
-        public_token: "REDACTED", // Never store raw token
+        public_token: null,
         public_token_hash: publicTokenHash,
         user_id: userId,
         checkout_type: checkout_type || "mobile",
         order_context: order_context || {},
+        checkout_fields: checkout_fields || null,
         status: "created",
         expires_at: expiresAt.toISOString(),
         qr_regeneration_count: regenerate_session_id ? 1 : 0,
@@ -130,10 +155,12 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
+    log("DB_INSERT", `done in ${Date.now() - dbStart}ms, success=${!sessionError}`);
+
     if (sessionError) {
       console.error("Session creation error:", sessionError);
       return new Response(
-        JSON.stringify({ error: "Failed to create verification session" }),
+        JSON.stringify({ error: "Failed to create verification session", detail: sessionError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -151,12 +178,25 @@ Deno.serve(async (req) => {
 
     // Generate QR code as data URL
     const verifyUrl = `https://nivra-telecom.ca/verify-id?t=${publicToken}`;
-    const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
-      width: 280,
-      margin: 2,
-      color: { dark: "#000000", light: "#FFFFFF" },
-      errorCorrectionLevel: "H",
-    });
+
+    let qrDataUrl: string | null = null;
+    try {
+      const QRCode = (await import("npm:qrcode@1.5.4")).default;
+      const qrStart = Date.now();
+      qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+        width: 280,
+        margin: 2,
+        color: { dark: "#000000", light: "#FFFFFF" },
+        errorCorrectionLevel: "H",
+      });
+      log("QR_RENDER", `done in ${Date.now() - qrStart}ms`);
+    } catch (qrErr) {
+      console.error("QR render error (returning URL fallback):", qrErr);
+      log("QR_RENDER", `FAILED - returning URL fallback`);
+    }
+
+    const totalTime = Date.now() - startTime;
+    log("DONE", `total=${totalTime}ms, qr=${qrDataUrl ? 'png' : 'fallback_url'}`);
 
     return new Response(
       JSON.stringify({
@@ -165,13 +205,15 @@ Deno.serve(async (req) => {
         verify_url: verifyUrl,
         expires_at: expiresAt.toISOString(),
         status: "created",
+        request_id: requestId,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    log("ERROR", String(err));
     console.error("QR generation error:", err);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: "Internal server error", request_id: requestId }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
