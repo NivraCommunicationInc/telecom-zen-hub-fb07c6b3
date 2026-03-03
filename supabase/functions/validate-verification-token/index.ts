@@ -31,15 +31,16 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const { public_token } = body;
+    const normalizedToken = typeof public_token === "string" ? public_token.trim() : "";
 
-    if (!public_token || typeof public_token !== "string" || public_token.length < 10) {
+    if (!normalizedToken || normalizedToken.length < 10) {
       return new Response(
         JSON.stringify({ error: "Invalid token" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const tokenHash = await hashToken(public_token);
+    const tokenHash = await hashToken(normalizedToken);
 
     const { data: session, error } = await supabase
       .from("identity_verification_sessions")
