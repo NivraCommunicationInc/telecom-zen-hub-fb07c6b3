@@ -23,6 +23,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   const [requiresCredentialUpdate, setRequiresCredentialUpdate] = useState(false);
   const hasLoggedBlockedAccess = useRef(false);
   const lastAuthCheck = useRef<number>(0);
+  const hasVerifiedOnce = useRef(false);
 
   // Secret code session verification
   const { isValidSession: isSecretSessionValid, isChecking: isCheckingSecret, clearSession } = useAdminSecretSession();
@@ -51,23 +52,19 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
   useEffect(() => {
     const verifyAdminRole = async () => {
-      console.log("[AdminGuard] verifyAdminRole called", { 
-        hasUser: !!user, 
-        hasSession: !!session,
-        isLoading,
-        isCheckingSecret,
-        isSecretSessionValid
-      });
+      // CRITICAL: If already verified, skip entirely — no re-check on tab switch
+      if (hasVerifiedOnce.current && isAdminVerified) {
+        setIsVerifying(false);
+        return;
+      }
 
       // CRITICAL: Wait for auth and secret code check to finish before making any decisions
       if (isLoading || isCheckingSecret) {
-        console.log("[AdminGuard] Still loading, waiting...");
         return; // Keep isVerifying true, don't make any decisions yet
       }
 
       // Only after auth is done loading, check for user/session
       if (!user || !session) {
-        console.log("[AdminGuard] No user or session after auth loaded");
         setIsVerifying(false);
         return;
       }
@@ -195,7 +192,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
           return;
         }
 
-        console.log("[AdminGuard] Role verified successfully:", roleData.role);
+        hasVerifiedOnce.current = true;
         setIsAdminVerified(true);
         setRequiresCredentialUpdate(
           !!roleData.require_password_change || !!roleData.require_pin_change
