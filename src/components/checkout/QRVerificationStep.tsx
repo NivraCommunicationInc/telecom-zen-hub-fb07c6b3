@@ -120,8 +120,8 @@ export const QRVerificationStep = ({
     generateQR();
   }, [generateQR]);
 
-  // Poll session status every 3 seconds
-  useEffect(() => {
+   // Poll session status every 3 seconds
+    useEffect(() => {
     if (!sessionId) return;
     
     const poll = async () => {
@@ -133,17 +133,27 @@ export const QRVerificationStep = ({
           .single();
 
         if (data && data.status !== status) {
-          setStatus(data.status as SessionStatus);
-          // Allow checkout to proceed once docs are submitted for manual review
-          if (data.status === "manual_review" || data.status === "submitted") {
+          const newStatus = data.status as SessionStatus;
+          setStatus(newStatus);
+          
+          // "submitted" = intermediate state (OCR running), show progress but don't unlock checkout yet
+          if (newStatus === "submitted") {
+            toast.info(isFrench 
+              ? "Documents reçus — analyse en cours..." 
+              : "Documents received — analysis in progress...");
+          }
+          // "manual_review" = OCR done, admin must review. Allow checkout to proceed (order will be pending_verification)
+          else if (newStatus === "manual_review") {
             onVerified(sessionId);
             toast.success(isFrench 
               ? "Documents soumis! Un agent vérifiera votre identité sous peu." 
               : "Documents submitted! An agent will verify your identity shortly.");
-          } else if (data.status === "approved") {
+          } 
+          else if (newStatus === "approved") {
             onVerified(sessionId);
             toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
-          } else if (data.status === "rejected") {
+          } 
+          else if (newStatus === "rejected") {
             toast.error(isFrench ? "Vérification refusée. Veuillez réessayer." : "Verification rejected. Please try again.");
           }
         }
