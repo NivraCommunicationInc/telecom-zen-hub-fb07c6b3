@@ -797,25 +797,15 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
 
   return (
     <ClientLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="border-b border-border pb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Wifi className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-                {isFrench ? "Commander Internet" : "Order Internet"}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                {isFrench ? "Service Internet haute vitesse au Québec" : "High-speed Internet service in Quebec"}
-              </p>
-            </div>
-          </div>
+      <div className="min-h-screen bg-white space-y-6">
+        {/* Header - Rogers "Caisse" style */}
+        <div className="pb-4">
+          <h1 className="text-3xl lg:text-4xl font-bold text-slate-900">
+            {isFrench ? "Caisse" : "Checkout"}
+          </h1>
         </div>
 
-        {/* Progress Steps - Professional Telecom Style */}
+        {/* Progress Steps - Rogers style */}
         <CheckoutProgress
           currentStep={step}
           steps={checkoutSteps}
