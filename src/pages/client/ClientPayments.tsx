@@ -9,6 +9,7 @@ import { portalClient as portalSupabase } from "@/integrations/backend";
 import { CreditCard, Banknote, Wrench, Mail, Copy, Check, Info, ExternalLink, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
+import AutoPayEnrollment from "@/components/client/AutoPayEnrollment";
 
 const ClientPayments = () => {
   const { user } = useClientAuth();
@@ -112,6 +113,9 @@ const ClientPayments = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pre-authorized Payments / Auto-Pay */}
+        <AutoPayEnrollment />
 
         {/* PayPal Section */}
         <Card className="bg-card border-blue-500/30 border-2">
