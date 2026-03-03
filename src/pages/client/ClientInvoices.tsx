@@ -629,15 +629,15 @@ const ClientInvoices = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Facturation & Paiements</h1>
-            <p className="text-muted-foreground mt-1">Consultez vos factures et historique de paiements</p>
+            <h1 className="text-3xl font-bold text-slate-900">Facturation et paiement</h1>
+            <p className="text-slate-500 mt-1">Consultez vos factures et historique de paiements</p>
           </div>
-          <Button variant="hero" onClick={() => {
+          <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={() => {
             setGeneralAmount("");
             setGeneralPaymentOpen(true);
           }}>
             <DollarSign className="w-4 h-4 mr-2" />
-            Envoyer un paiement
+            Faire un paiement
           </Button>
         </div>
 

@@ -6,8 +6,8 @@ const ClientServices = () => {
     <ClientLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Mes services</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos services, équipements et forfaits</p>
+          <h1 className="text-3xl font-bold text-slate-900">Utilisation et services</h1>
+          <p className="text-slate-500 mt-1">Gérez vos services, équipements et forfaits</p>
         </div>
         
         <ClientMyServices />
