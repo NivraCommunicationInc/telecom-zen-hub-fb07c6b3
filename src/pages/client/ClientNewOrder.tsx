@@ -72,6 +72,7 @@ import { AuditNotes } from "@/lib/clientAuditNotes";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
+import { FEATURES } from "@/config/features";
 
 interface Service {
   id: string;
@@ -4279,7 +4280,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
 
                     {/* QR Identity Verification (Rogers-grade) */}
-                    {isIdComplete && (
+                    {isIdComplete && FEATURES.KYC_ENABLED && (
                       <div className="border-t border-border pt-6 mt-4">
                         <QRVerificationStep
                           userId={user?.id || ""}

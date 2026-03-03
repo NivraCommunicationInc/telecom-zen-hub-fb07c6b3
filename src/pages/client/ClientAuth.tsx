@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Mail, CheckCircle, ShieldCheck, Wifi, Lock, Phone } from "lucide-react";
-import { backendClient as supabase } from "@/integrations/backend/client";
+// FIXED: Use portalClient for all portal operations to avoid session mismatch
+// backendClient uses a different auth storage key, causing function invocations to fail
+import { portalClient as portalFunctions } from "@/integrations/backend/portalClient";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { ClientSignupForm } from "@/components/client/ClientSignupForm";
 import ClientPortalBackground from "@/components/client/ClientPortalBackground";
@@ -48,7 +50,9 @@ const ClientAuth = () => {
   // Send PIN via edge function with robust error handling
   const sendPinEmail = async (email: string, userId: string): Promise<{ success: boolean; error?: string; rateLimited?: boolean }> => {
     try {
-      const { data, error } = await supabase.functions.invoke("client-pin-send", {
+      // FIXED: Use portalClient (portalFunctions) instead of backendClient
+      // backendClient has a different auth storage key and causes session mismatch
+      const { data, error } = await portalFunctions.functions.invoke("client-pin-send", {
         body: { email, user_id: userId },
       });
       
@@ -93,7 +97,8 @@ const ClientAuth = () => {
   // Verify PIN via edge function
   const verifyPin = async (email: string, pinCode: string): Promise<{ valid: boolean; error?: string; reason?: string }> => {
     try {
-      const { data, error } = await supabase.functions.invoke("client-pin-verify", {
+      // FIXED: Use portalClient for consistency
+      const { data, error } = await portalFunctions.functions.invoke("client-pin-verify", {
         body: { email, pin: pinCode },
       });
       
@@ -160,7 +165,14 @@ const ClientAuth = () => {
     
     if (error) {
       setIsLoading(false);
-      toast({ title: "Erreur de connexion", description: error.message, variant: "destructive" });
+      console.error("[ClientAuth] Login failed:", { message: error.message, name: error.name });
+      toast({ 
+        title: "Erreur de connexion", 
+        description: error.message === "Invalid login credentials" 
+          ? "Identifiants invalides. Vérifiez votre courriel et mot de passe."
+          : error.message, 
+        variant: "destructive" 
+      });
       return;
     }
     
@@ -217,26 +229,18 @@ const ClientAuth = () => {
     // IMPORTANT: Ne jamais forcer l'étape PIN si l'envoi a réellement échoué.
     // Sinon l'utilisateur est bloqué sur un écran "code" sans code valide.
     if (!pinResult.success && !pinResult.rateLimited) {
-      // Nettoyer l'état de vérification PIN
-      sessionStorage.removeItem("client_pin_pending_email");
-      sessionStorage.removeItem("client_pin_pending_user_id");
-      sessionStorage.removeItem("client_pin_verified");
-      setPendingEmail("");
-      setPendingUserId("");
-
-      // Se déconnecter: on ne veut pas laisser une session ouverte sans 2FA.
-      try {
-        await portalSupabase.auth.signOut();
-      } catch (signOutErr) {
-        console.warn("[handleLogin] signOut failed:", signOutErr);
-      }
+      // FIX: Do NOT sign out on PIN send failure — this was causing the
+      // "nobody can log in" outage. Instead, keep the session alive and
+      // show the PIN step with a retry option.
+      console.warn("[handleLogin] PIN send failed but keeping session alive:", pinResult.error);
 
       toast({
         title: "Erreur d'envoi du code",
-        description: pinResult.error || "Impossible d'envoyer le code de vérification",
+        description: (pinResult.error || "Impossible d'envoyer le code de vérification") +
+          " — Cliquez « Renvoyer le code » pour réessayer.",
         variant: "destructive",
       });
-      return;
+      // Still transition to PIN step so user can retry
     }
 
     setAuthStep("pin");
