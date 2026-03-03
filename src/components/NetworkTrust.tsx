@@ -1,4 +1,5 @@
-import { Shield, Zap, Headphones, MapPin, CheckCircle, Star } from "lucide-react";
+import { Shield, Zap, Headphones, MapPin, CheckCircle, Star, Award, Trophy } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const NetworkTrust = () => {
   const trustPoints = [
@@ -46,91 +47,121 @@ const NetworkTrust = () => {
   ];
 
   return (
-    <section className="py-20 bg-secondary">
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-14">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-semibold mb-4">
-            Pourquoi Nivra
-          </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Un fournisseur qui vous simplifie la vie
+    <section className="bg-white">
+      {/* Trust Points — Bell-style clean white section */}
+      <div className="py-16 border-b border-slate-100">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+            Pourquoi choisir Nivra
           </h2>
-          <p className="text-muted-foreground text-lg">
-            Pas de contrat à long terme, pas de frais cachés, juste des services fiables avec un support humain.
+          <p className="text-slate-500 text-lg mb-10">
+            Pas de contrat à long terme, pas de frais cachés, juste des services fiables.
           </p>
-        </div>
 
-        {/* Trust Points Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-16">
-          {trustPoints.map((point) => (
-            <div 
-              key={point.title}
-              className="bg-card rounded-xl p-6 border border-border hover:border-accent/30 hover:shadow-md transition-all duration-300"
-            >
-              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
-                <point.icon className="w-6 h-6 text-accent" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {trustPoints.map((point) => (
+              <div 
+                key={point.title}
+                className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-300"
+              >
+                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
+                  <point.icon className="w-6 h-6 text-[#003366]" />
+                </div>
+                <h3 className="font-semibold text-slate-900 mb-2">{point.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{point.description}</p>
               </div>
-              <h3 className="font-semibold text-foreground mb-2">{point.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{point.description}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Testimonials */}
-        <div className="mb-16">
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-foreground mb-2">Ce que nos clients disent</h3>
-            <p className="text-muted-foreground">Avis vérifiés de vrais clients Nivra</p>
+            ))}
           </div>
+        </div>
+      </div>
+
+      {/* Awards / Stats — Bell-style highlight tiles */}
+      <div className="py-16 bg-slate-50 border-b border-slate-100">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Award tile 1 */}
+            <div className="bg-white rounded-2xl p-8 border border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Trophy className="w-6 h-6 text-[#003366]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#003366]">Performance réseau</span>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">
+                  Internet fibre optique le plus fiable au Québec.
+                </h3>
+                <p className="text-slate-500 mb-6">
+                  Notre réseau fibre offre une disponibilité de 99.9% et des vitesses allant jusqu'à 1 Gbps pour une expérience sans compromis.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-[#003366]">99.9%</div>
+                  <div className="text-xs text-slate-500">Disponibilité réseau</div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-[#003366]">1 Gbps</div>
+                  <div className="text-xs text-slate-500">Vitesse fibre max</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Award tile 2 */}
+            <div className="bg-white rounded-2xl p-8 border border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Award className="w-6 h-6 text-[#003366]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#003366]">Réseau mobile</span>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">
+                  Réseau 5G/LTE national pour une couverture complète.
+                </h3>
+                <p className="text-slate-500 mb-6">
+                  Profitez du réseau mobile le plus étendu au Canada avec des forfaits prépayés sans engagement et une activation en moins de 24h.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-[#003366]">5G/LTE</div>
+                  <div className="text-xs text-slate-500">Réseau mobile</div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-[#003366]">&lt;24h</div>
+                  <div className="text-xs text-slate-500">Activation mobile</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Testimonials — Bell-style clean */}
+      <div className="py-16">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+            Ce que nos clients disent
+          </h2>
+          <p className="text-slate-500 mb-8">Avis vérifiés de vrais clients Nivra</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {testimonials.map((testimonial) => (
               <div 
                 key={testimonial.name}
-                className="bg-card rounded-xl p-6 border border-border"
+                className="bg-white rounded-2xl p-6 border border-slate-200"
               >
-                {/* Stars */}
                 <div className="flex gap-0.5 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
-                
-                {/* Quote */}
-                <p className="text-foreground mb-4">"{testimonial.text}"</p>
-                
-                {/* Author */}
+                <p className="text-slate-700 mb-4 leading-relaxed">"{testimonial.text}"</p>
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="w-4 h-4 text-accent" />
-                  <span className="font-medium text-foreground">{testimonial.name}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">{testimonial.location}</span>
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  <span className="font-medium text-slate-900">{testimonial.name}</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-500">{testimonial.location}</span>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Stats Bar */}
-        <div className="bg-gradient-to-r from-primary to-navy-700 rounded-2xl p-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-            <div>
-              <div className="text-3xl lg:text-4xl font-bold text-accent mb-1">99.9%</div>
-              <div className="text-sm text-white/80">Disponibilité réseau</div>
-            </div>
-            <div>
-              <div className="text-3xl lg:text-4xl font-bold text-white mb-1">5G/LTE</div>
-              <div className="text-sm text-white/80">Réseau mobile</div>
-            </div>
-            <div>
-              <div className="text-3xl lg:text-4xl font-bold text-white mb-1">1 Gbps</div>
-              <div className="text-sm text-white/80">Vitesse fibre max</div>
-            </div>
-            <div>
-              <div className="text-3xl lg:text-4xl font-bold text-accent mb-1">&lt;24h</div>
-              <div className="text-sm text-white/80">Activation mobile</div>
-            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Wifi, Smartphone, Tv, Monitor, Radio } from "lucide-react";
+import { ArrowRight, Wifi, Smartphone, Tv, Monitor, Radio, Tag } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { usePublicServices } from "@/hooks/usePublicServices";
@@ -27,26 +27,26 @@ const Hero = () => {
 
   return (
     <section className="bg-white">
-      {/* Promo banner */}
-      <div className="bg-slate-50 border-b border-slate-200">
-        <div className="container mx-auto px-4 max-w-7xl py-3 text-center">
-          <p className="text-sm text-slate-700">
-            <span className="inline-block w-4 h-4 mr-1.5 align-middle">🏷️</span>
+      {/* Promo banner — Bell-style blue bar with tag icon */}
+      <div className="bg-[#003366] text-white">
+        <div className="container mx-auto px-4 max-w-7xl py-2.5 flex items-center justify-center gap-2">
+          <Tag className="w-4 h-4 text-white/80 shrink-0" />
+          <p className="text-sm text-center">
             {isFr 
-              ? "Nouveau client? Obtenez 50% de rabais sur votre première facture • Offre exclusive — Aucun contrat requis" 
-              : "New customer? Get 50% off your first bill • Exclusive offer — No contract required"}
+              ? "Nouveau client? Obtenez 50% de rabais sur votre première facture. Offre exclusive — Aucun contrat requis." 
+              : "New customer? Get 50% off your first bill. Exclusive offer — No contract required."}
           </p>
         </div>
       </div>
 
-      {/* Main Hero */}
+      {/* Main Hero — Bell-style large banner */}
       <div className="container mx-auto px-4 max-w-7xl">
-        <div className="py-12 lg:py-16">
-          <div className="bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 rounded-3xl overflow-hidden">
+        <div className="py-8 lg:py-12">
+          <div className="bg-gradient-to-br from-slate-50 via-blue-50/60 to-slate-100 rounded-3xl overflow-hidden">
             <div className="grid lg:grid-cols-2 gap-8 items-center p-8 lg:p-14">
               {/* Left Content */}
               <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold leading-[1.15] text-slate-900 mb-4">
+                <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold leading-[1.12] text-slate-900 mb-4">
                   {isFr 
                     ? "Internet haute vitesse. Sans contrat. Sans surprise." 
                     : "High-speed Internet. No contract. No surprises."}
@@ -69,7 +69,7 @@ const Hero = () => {
                     asChild
                   >
                     <Link to="/internet">
-                      {isFr ? "Voir les forfaits" : "Shop now"}
+                      {isFr ? "Magasiner" : "Shop now"}
                     </Link>
                   </Button>
                   <Button 
@@ -112,15 +112,15 @@ const Hero = () => {
         </div>
       </div>
 
-      {/* Quick category buttons - Bell-style */}
+      {/* Quick category buttons — Bell-style pills row */}
       <div className="border-t border-slate-200 bg-white">
-        <div className="container mx-auto px-4 max-w-7xl py-6">
+        <div className="container mx-auto px-4 max-w-7xl py-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
             <div className="shrink-0">
               <p className="text-sm font-medium text-slate-900">
                 {isFr ? "Déjà client Nivra?" : "Already a Nivra customer?"}
               </p>
-              <Link to="/portal/auth" className="text-sm text-blue-700 hover:underline font-medium">
+              <Link to="/portal/auth" className="text-sm text-[#003366] hover:underline font-medium">
                 {isFr ? "Connexion à MonNivra" : "Log in to MyNivra"} →
               </Link>
             </div>
@@ -129,7 +129,7 @@ const Hero = () => {
                 <Link
                   key={cat.link}
                   to={cat.link}
-                  className="flex items-center gap-2.5 px-5 py-3 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50/50 transition-all shadow-sm"
+                  className="flex items-center gap-2.5 px-5 py-3 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-700 hover:border-[#003366] hover:text-[#003366] hover:bg-blue-50/40 transition-all shadow-sm"
                 >
                   <cat.icon className="w-4 h-4" />
                   {cat.label}
