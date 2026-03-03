@@ -173,6 +173,9 @@
     --sidebar-accent-foreground: 220 14% 96%;
     --sidebar-border: 222 39% 18%;
     --sidebar-ring: 168 76% 42%;
+
+    /* Ensure readable inherited text on dark portal containers */
+    color: hsl(var(--foreground));
   }
 
   /* Client Portal Light Theme - Professional Clean ISP */
@@ -221,6 +224,37 @@
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 220 13% 90%;
     --sidebar-ring: 168 76% 42%;
+
+    /* Ensure readable inherited text on client portal containers */
+    color: hsl(var(--foreground));
+  }
+
+  /* Contrast hardening: low-emphasis text stays readable per portal theme */
+  .admin-dark .text-muted-foreground,
+  .admin-dark .text-slate-400 {
+    color: hsl(220 12% 74%);
+  }
+
+  .admin-dark .text-slate-500 {
+    color: hsl(220 10% 66%);
+  }
+
+  .client-portal-dark .text-muted-foreground,
+  .client-portal-dark .text-slate-400 {
+    color: hsl(220 10% 34%);
+  }
+
+  .client-portal-dark .text-slate-500 {
+    color: hsl(220 10% 30%);
+  }
+
+  /* Dark hero surfaces should default to light text when no explicit class is set */
+  .bg-hero {
+    color: hsl(0 0% 100%);
+  }
+
+  .bg-hero .text-muted-foreground {
+    color: hsl(220 14% 82%);
   }
 }
 

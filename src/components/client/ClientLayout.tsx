@@ -141,7 +141,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   );
 
   return (
-    <div className="min-h-screen flex flex-col relative client-portal-dark">
+    <div className="min-h-screen flex flex-col relative client-portal-dark text-foreground">
       <ClientPortalBackground />
       
       {/* System Status Banner */}

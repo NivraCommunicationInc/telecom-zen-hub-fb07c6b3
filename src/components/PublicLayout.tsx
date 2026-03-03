@@ -7,10 +7,10 @@ interface PublicLayoutProps {
 
 export const PublicLayout = ({ children }: PublicLayoutProps) => {
   return (
-    <>
+    <div className="text-foreground">
       {/* Promotional announcement bar */}
       <AnnouncementBar />
       {children}
-    </>
+    </div>
   );
 };
