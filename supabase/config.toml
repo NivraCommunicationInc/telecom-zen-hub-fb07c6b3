@@ -197,3 +197,6 @@ verify_jwt = false
 
 [functions.send-blank-pdf-templates]
 verify_jwt = false
+
+[functions.billing-lifecycle]
+verify_jwt = false
