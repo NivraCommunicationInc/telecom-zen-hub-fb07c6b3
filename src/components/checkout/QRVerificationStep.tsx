@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Shield, RefreshCw, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, QrCode } from "lucide-react";
 import { portalClient as dbClient } from "@/integrations/backend";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 
@@ -24,6 +25,18 @@ interface QRVerificationStepProps {
 }
 
 type SessionStatus = "created" | "submitted" | "approved" | "rejected" | "manual_review" | "expired";
+
+interface QRDebugState {
+  requestUrl: string;
+  httpStatus: number | null;
+  responseBodyPreview: string;
+  requestId: string | null;
+  authPresent: boolean;
+  hasSession: boolean;
+  tokenLength: number;
+  timestamp: string;
+  checkoutMode: "portal_checkout" | "public_checkout";
+}
 
 const STATUS_CONFIG: Record<SessionStatus, { icon: typeof CheckCircle2; color: string; labelFr: string; labelEn: string }> = {
   created: { icon: QrCode, color: "text-blue-500", labelFr: "En attente de soumission", labelEn: "Awaiting submission" },
@@ -42,6 +55,7 @@ export const QRVerificationStep = ({
   orderContext,
   checkoutFields,
 }: QRVerificationStepProps) => {
+  const { isAdmin } = useClientAuth();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<SessionStatus>("created");
@@ -54,6 +68,32 @@ export const QRVerificationStep = ({
   const [maxRegen, setMaxRegen] = useState(3);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasInitializedRef = useRef(false);
+
+  const debugQueryEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
+  const showDebugPanel = isAdmin || debugQueryEnabled;
+  const checkoutMode: QRDebugState["checkoutMode"] = "portal_checkout";
+
+  const [debugState, setDebugState] = useState<QRDebugState>({
+    requestUrl: "",
+    httpStatus: null,
+    responseBodyPreview: "",
+    requestId: null,
+    authPresent: false,
+    hasSession: false,
+    tokenLength: 0,
+    timestamp: "",
+    checkoutMode,
+  });
+
+  const toPreview = (value: unknown) => {
+    if (typeof value === "string") return value.slice(0, 300);
+    try {
+      return JSON.stringify(value).slice(0, 300);
+    } catch {
+      return String(value).slice(0, 300);
+    }
+  };
 
   const generateQR = useCallback(async (regenerateSessionId?: string) => {
     setLoading(true);
@@ -82,22 +122,57 @@ export const QRVerificationStep = ({
 
     try {
       const { data: sessionData } = await dbClient.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
+      const session = sessionData?.session;
+      const accessToken = session?.access_token || "";
+      const hasSession = !!session;
+      const tokenLength = accessToken.length;
+
+      console.log("[QR][TOKEN_STATE]", {
+        hasSession,
+        tokenLength,
+      });
+
+      setDebugState((prev) => ({
+        ...prev,
+        requestUrl,
+        hasSession,
+        tokenLength,
+        authPresent: tokenLength > 0,
+        timestamp: new Date().toISOString(),
+        checkoutMode,
+      }));
+
+      if (!accessToken) {
+        const blockingMessage = "Session expired / please log in again";
+        setError(blockingMessage);
+        setErrorDetail(blockingMessage);
+        setDebugState((prev) => ({
+          ...prev,
+          requestUrl,
+          httpStatus: 401,
+          responseBodyPreview: blockingMessage,
+          requestId: null,
+          authPresent: false,
+          hasSession,
+          tokenLength,
+          timestamp: new Date().toISOString(),
+          checkoutMode,
+        }));
+        toast.error(blockingMessage);
+        return;
+      }
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       };
-
-      if (accessToken) {
-        headers.Authorization = `Bearer ${accessToken}`;
-      } else {
-        console.warn("[QR][REQUEST] No auth token found, using strict public mode with user_id payload");
-      }
 
       console.log("[QR][REQUEST]", {
         request_url: requestUrl,
         method: "POST",
-        has_authorization: !!accessToken,
+        has_authorization: true,
+        hasSession,
+        tokenLength,
         payload,
       });
 
@@ -114,12 +189,31 @@ export const QRVerificationStep = ({
         response.headers.get("x-correlation-id");
 
       const rawBody = await response.text();
-      let responseBody: any = rawBody;
+      let responseBody: unknown = rawBody;
       try {
         responseBody = rawBody ? JSON.parse(rawBody) : null;
       } catch {
         // keep raw text body
       }
+
+      const responseRequestId =
+        requestIdHeader ||
+        (typeof responseBody === "object" && responseBody !== null && "request_id" in responseBody
+          ? String((responseBody as { request_id?: unknown }).request_id || "") || null
+          : null);
+
+      setDebugState((prev) => ({
+        ...prev,
+        requestUrl,
+        httpStatus: response.status,
+        responseBodyPreview: toPreview(responseBody),
+        requestId: responseRequestId,
+        authPresent: true,
+        hasSession,
+        tokenLength,
+        timestamp: new Date().toISOString(),
+        checkoutMode,
+      }));
 
       console.log("[QR][RESPONSE]", {
         request_url: requestUrl,
@@ -129,26 +223,27 @@ export const QRVerificationStep = ({
       });
 
       if (!response.ok) {
+        const typedBody = responseBody as Record<string, unknown> | string | null;
         const serverMessage =
-          responseBody?.message ||
-          responseBody?.error ||
-          responseBody?.detail ||
-          (typeof responseBody === "string" ? responseBody : `HTTP ${response.status}`);
+          (typedBody && typeof typedBody === "object" && (typedBody.message || typedBody.error || typedBody.detail)) ||
+          (typeof typedBody === "string" ? typedBody : `HTTP ${response.status}`);
 
-        const error = new Error(serverMessage || `HTTP ${response.status}`) as Error & {
+        const error = new Error(String(serverMessage || `HTTP ${response.status}`)) as Error & {
           httpStatus?: number;
           requestIdHeader?: string | null;
+          requestId?: string | null;
           requestUrl?: string;
           responseBody?: unknown;
         };
         error.httpStatus = response.status;
         error.requestIdHeader = requestIdHeader;
+        error.requestId = responseRequestId;
         error.requestUrl = requestUrl;
         error.responseBody = responseBody;
         throw error;
       }
 
-      const data = responseBody || {};
+      const data = (responseBody || {}) as Record<string, any>;
 
       // Use server-side QR PNG if available, otherwise generate client-side
       const verifyUrl = data.verify_url;
@@ -170,14 +265,14 @@ export const QRVerificationStep = ({
       }
 
       setQrDataUrl(qrImage || null);
-      setSessionId(data.session_id);
+      setSessionId(data.session_id || null);
       setStatus("created");
-      setExpiresAt(new Date(data.expires_at));
+      setExpiresAt(data.expires_at ? new Date(data.expires_at) : null);
       setRegenCount(data.qr_regeneration_count || 0);
       setMaxRegen(data.max_regen_allowed || 3);
 
       console.log("[QR] ✅ Session created successfully", {
-        request_id: data.request_id || requestIdHeader,
+        request_id: data.request_id || responseRequestId,
         session_id: data.session_id,
         expires_at: data.expires_at,
         has_qr_png: !!(data.qr_png || data.qr_data_url),
@@ -185,10 +280,23 @@ export const QRVerificationStep = ({
         regenerated_from: regenerateSessionId || "none",
       });
     } catch (err: any) {
+      const debugRequestId = err?.requestId || err?.requestIdHeader || err?.responseBody?.request_id || null;
+      const debugPreview = toPreview(err?.responseBody || err?.message || "Unknown error");
+
+      setDebugState((prev) => ({
+        ...prev,
+        requestUrl: err?.requestUrl || requestUrl,
+        httpStatus: err?.httpStatus || null,
+        responseBodyPreview: debugPreview,
+        requestId: debugRequestId,
+        timestamp: new Date().toISOString(),
+      }));
+
       console.error("[QR] ❌ Generation failed", {
         request_url: err?.requestUrl || requestUrl,
         http_status: err?.httpStatus || null,
         request_id_header: err?.requestIdHeader || null,
+        request_id: debugRequestId,
         response_body: err?.responseBody || null,
         message: err?.message,
         stack: err?.stack,
@@ -201,10 +309,12 @@ export const QRVerificationStep = ({
     } finally {
       setLoading(false);
     }
-  }, [checkoutType, orderContext, checkoutFields, isFrench]);
+  }, [checkoutType, orderContext, checkoutFields, isFrench, userId]);
 
-  // Generate QR on mount
+  // Generate QR once on first render (prevent request storms on object-prop re-renders)
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
     generateQR();
   }, [generateQR]);
 
@@ -408,6 +518,33 @@ export const QRVerificationStep = ({
                 ? (isFrench ? `Limite atteinte (${maxRegen}/${maxRegen})` : `Limit reached (${maxRegen}/${maxRegen})`)
                 : (isFrench ? "Régénérer le code QR" : "Regenerate QR Code")}
             </Button>
+          )}
+
+          {/* Debug QR panel: visible for admin users or when ?debug=1 */}
+          {showDebugPanel && (
+            <Card className="bg-muted/30 border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Debug QR</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  <div><span className="font-medium">checkout_mode:</span> {debugState.checkoutMode}</div>
+                  <div><span className="font-medium">auth_present:</span> {String(debugState.authPresent)}</div>
+                  <div><span className="font-medium">hasSession:</span> {String(debugState.hasSession)}</div>
+                  <div><span className="font-medium">tokenLength:</span> {debugState.tokenLength}</div>
+                  <div className="md:col-span-2 break-all"><span className="font-medium">request_url:</span> {debugState.requestUrl || "-"}</div>
+                  <div><span className="font-medium">HTTP status:</span> {debugState.httpStatus ?? "-"}</div>
+                  <div className="break-all"><span className="font-medium">request_id:</span> {debugState.requestId || "-"}</div>
+                  <div className="md:col-span-2 break-all"><span className="font-medium">response_body (300):</span> {debugState.responseBodyPreview || "-"}</div>
+                  <div className="md:col-span-2"><span className="font-medium">timestamp:</span> {debugState.timestamp || "-"}</div>
+                </div>
+
+                <Button onClick={() => generateQR()} variant="outline" size="sm" disabled={loading}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                  Test Edge Function Now
+                </Button>
+              </CardContent>
+            </Card>
           )}
 
           {/* Security badge */}
