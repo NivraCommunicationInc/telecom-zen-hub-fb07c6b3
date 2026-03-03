@@ -21,6 +21,7 @@ import MobilePlans from "@/pages/MobilePlans";
 import MobileCoverage from "@/pages/MobileCoverage";
 import StreamingPlans from "@/pages/StreamingPlans";
 import NotFound from "@/pages/NotFound";
+import VerifyIdentity from "@/pages/VerifyIdentity";
 import NotAuthorized from "@/pages/NotAuthorized";
 import APropos from "@/pages/APropos";
 import Aide from "@/pages/Aide";
@@ -110,6 +111,7 @@ import AdminContestedPayments from "@/pages/admin/AdminContestedPayments";
 import AdminNotificationsSettings from "@/pages/admin/AdminNotificationsSettings";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminPOS from "@/pages/admin/AdminPOS";
+import AdminIdentityVerification from "@/pages/admin/AdminIdentityVerification";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Influencer Portal
@@ -245,6 +247,9 @@ const AppRoutes = () => {
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
       <Route path="/install" element={<Install />} />
       
+      {/* Identity verification - QR code scan from mobile */}
+      <Route path="/verify-id" element={<VerifyIdentity />} />
+      
       {/* Dynamic pages from site_pages */}
       <Route path="/page/:slug" element={<MaintenanceGuard><PublicLayout><DynamicPage /></PublicLayout></MaintenanceGuard>} />
 
@@ -328,6 +333,9 @@ const AppRoutes = () => {
         <Route path="field-sales" element={<Navigate to="/admin/pos" replace />} />
         <Route path="pos" element={<AdminPOS />} />
         <Route path="payments" element={<AdminPayments />} />
+
+        {/* Identity Verification Admin */}
+        <Route path="identity-verification" element={<AdminIdentityVerification />} />
 
         {/* System Audit - READ-ONLY */}
         <Route path="system-audit" element={<AdminSystemAudit />} />

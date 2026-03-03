@@ -200,3 +200,12 @@ verify_jwt = false
 
 [functions.billing-lifecycle]
 verify_jwt = false
+
+[functions.generate-verification-qr]
+verify_jwt = false
+
+[functions.submit-id-verification]
+verify_jwt = false
+
+[functions.admin-review-verification]
+verify_jwt = false
