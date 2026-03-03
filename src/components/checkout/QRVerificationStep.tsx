@@ -78,8 +78,9 @@ export const QRVerificationStep = ({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasInitializedRef = useRef(false);
 
-  const debugQueryEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
-  const showDebugPanel = isAdmin || debugQueryEnabled;
+  const kycDebugEnv = import.meta.env.VITE_KYC_DEBUG === "true";
+  const debugQueryEnabled = kycDebugEnv && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
+  const showDebugPanel = kycDebugEnv && (isAdmin || debugQueryEnabled);
   const checkoutMode: QRDebugState["checkoutMode"] = "portal_checkout";
 
   const [debugState, setDebugState] = useState<QRDebugState>({
