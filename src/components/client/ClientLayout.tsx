@@ -41,8 +41,8 @@ const navGroups = [
     path: null,
     children: [
       { path: "/portal/invoices", label: "Mes factures" },
-      { path: "/portal/payments", label: "Historique des paiements" },
-      { path: "/portal/monthly-invoices", label: "Factures mensuelles" },
+      { path: "/portal/payments", label: "Moyens de paiement" },
+      { path: "/portal/monthly-invoices", label: "Historique des paiements" },
     ],
   },
   {
