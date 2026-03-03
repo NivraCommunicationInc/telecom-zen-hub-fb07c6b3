@@ -17,6 +17,8 @@ import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
+import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
+import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { 
   ShoppingCart, 
   Smartphone, 
@@ -2613,6 +2615,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   };
 
 
+  // Dynamic checkout steps based on service selection
+  const checkoutSteps = (() => {
+    const steps = [{ id: 1, labelFr: "Services", labelEn: "Services" }];
+    let stepNum = 2;
+    if (hasTVService) {
+      steps.push({ id: stepNum++, labelFr: "Chaînes TV", labelEn: "TV Channels" });
+    }
+    if (hasMobileService) {
+      steps.push({ id: stepNum++, labelFr: "Transfert", labelEn: "Transfer" });
+    }
+    steps.push({ id: stepNum++, labelFr: "Vérification", labelEn: "Verification" });
+    steps.push({ id: stepNum++, labelFr: "Paiement", labelEn: "Payment" });
+    steps.push({ id: stepNum++, labelFr: "Confirmation", labelEn: "Confirmation" });
+    return steps;
+  })();
+
   return (
     <ClientLayout>
       <div className="min-h-screen bg-white -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
@@ -2624,51 +2642,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           </div>
         ) : (
           <>
-            <div className="mb-6">
-              <h1 className="text-3xl lg:text-4xl font-bold text-slate-900">Caisse</h1>
-            </div>
+            {/* Page Title - Rogers "Caisse" */}
+            <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-8">Caisse</h1>
 
-        {/* Progress Steps - Rogers style */}
-        <div className="flex items-center gap-2 sm:gap-3 mb-8">
-          {(() => {
-            const steps = [{ num: 1, label: "Services" }];
-            let stepNum = 2;
-            
-            if (hasTVService) {
-              steps.push({ num: stepNum++, label: "Chaînes TV" });
-            }
-            if (hasMobileService) {
-              steps.push({ num: stepNum++, label: "Transfert" });
-            }
-            steps.push({ num: stepNum++, label: "Vérification" });
-            steps.push({ num: stepNum++, label: "Paiement" });
-            steps.push({ num: stepNum++, label: "Confirmation" });
-            
-            return steps.map((s, i, arr) => (
-              <React.Fragment key={s.num}>
-                <div className={`flex items-center gap-2 ${step >= s.num ? "text-slate-900" : "text-slate-400"}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 ${
-                    step > s.num ? "bg-emerald-500 border-emerald-500 text-white" : step === s.num ? "bg-white border-slate-900 text-slate-900" : "bg-white border-slate-300 text-slate-400"
-                  }`}>
-                    {step > s.num ? <Check className="w-4 h-4" /> : s.num}
-                  </div>
-                  <span className="text-xs font-medium hidden md:inline">{s.label}</span>
-                </div>
-                {i < arr.length - 1 && (
-                  <div className="flex-1 h-0.5 bg-slate-200">
-                    <div className={`h-full transition-all ${step > s.num ? "bg-emerald-500 w-full" : "w-0"}`} />
-                  </div>
-                )}
-              </React.Fragment>
-            ));
-          })()}
-        </div>
+            {/* Progress Steps - Rogers style */}
+            <CheckoutProgress
+              currentStep={step}
+              steps={checkoutSteps}
+              isFrench={true}
+              onStepClick={(s) => s < step && setStep(s)}
+            />
 
         {/* Step 1: Service Selection - Professional 2-Column Layout */}
         {step === 1 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
             {/* Left Column: Service Selection */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
               {isLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -2870,8 +2859,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             </div>
 
             {/* Right Column: Professional Order Summary (Sticky) */}
-            <div className="lg:col-span-1">
-              <div className="hidden lg:block">
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
+              <div className="sticky top-6">
                 <ProfessionalOrderSummary
                   selectedServices={selectedServices}
                   selectedMobileServices={selectedMobileServices}
@@ -2915,56 +2904,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     label: welcomeDiscountHook.label,
                   }}
                 />
-              </div>
-              
-              {/* Mobile: Collapsible summary at bottom */}
-              <div className="lg:hidden">
-                {selectedServices.length > 0 && (
-                  <ProfessionalOrderSummary
-                    selectedServices={selectedServices}
-                    selectedMobileServices={selectedMobileServices}
-                    mobileLineQuantities={mobileLineQuantities}
-                    totalMobileLineQuantity={totalMobileLineQuantity}
-                    selectedPaidChannels={selectedPaidChannels}
-                    paidChannelTotal={paidChannelTotal}
-                    selectedStreamingAddons={selectedStreamingServices}
-                    streamingAddonsTotal={streamingAddonsTotal}
-                    monthlyRecurring={monthlyRecurring}
-                    oneTimeFees={oneTimeFees}
-                    oneTimeFeesGross={oneTimeFeesGross}
-                    activationFee={activationFee}
-                    deliveryFee={deliveryFee}
-                    installationFee={installationFee}
-                    terminalFee={terminalFee}
-                    routerFee={routerFee}
-                    simFee={simFee}
-                    simCreditAmount={simCreditAmount}
-                    simDeliveryCreditAmount={simDeliveryCreditAmount}
-                    terminalQuantity={terminalQuantity}
-                    baseAmount={baseAmount}
-                    tpsAmount={tpsAmount}
-                    tvqAmount={tvqAmount}
-                    totalAmount={totalAmount}
-                    oneTimeFeesWithTax={oneTimeFeesWithTax}
-                    monthlyRecurringWithTax={monthlyRecurringWithTax}
-                    hasMobileService={hasMobileService}
-                    hasTVService={hasTVService}
-                    hasInternetService={hasInternetService}
-                    isEquipmentOnlyOrder={isEquipmentOnlyOrder}
-                    isDeliveryOnlyOrder={isDeliveryOnlyOrder}
-                    deliveryChoice={deliveryChoice}
-                    installationChoice={installationChoice}
-                    onContinue={() => setStep(2)}
-                    continueDisabled={selectedServices.length === 0}
-                    isMobile={true}
-                    welcomeDiscount={{
-                      isNewCustomer: welcomeDiscountHook.isNewCustomer,
-                      discountPercent: welcomeDiscountHook.discountPercent,
-                      discountAmount: welcomeDiscountAmount,
-                      label: welcomeDiscountHook.label,
-                    }}
-                  />
-                )}
+                <SecurityTrustBox isFrench={true} />
               </div>
             </div>
           </div>
@@ -2972,8 +2912,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
         {/* Step 2: Channel Selection (Only for TV orders) */}
         {step === 2 && hasTVService && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
               {/* Global channel loading/error state */}
               {channelsLoading && (
                 <Card className="bg-card border-border">
@@ -3326,8 +3266,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             {/* Equipment is auto-attached based on plan rules - no manual selection */}
 
             {/* Channel Selection Summary */}
-            <div className="lg:col-span-1">
-              <Card className="bg-card border-cyan-500/30 sticky top-4">
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
+              <div className="sticky top-6">
+              <Card className="bg-white border border-slate-200 rounded-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Tv className="w-5 h-5 text-cyan-500" />
@@ -3403,14 +3344,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </div>
                 </CardContent>
               </Card>
+              <SecurityTrustBox isFrench={true} />
+              </div>
             </div>
           </div>
         )}
 
         {/* Step 2 (no TV) or Step 3 (with TV): Mobile Transfer Eligibility */}
         {((step === 2 && !hasTVService && hasMobileService) || (step === 3 && hasTVService && hasMobileService)) && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
               <Card className="bg-card border-blue-500/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -3615,8 +3558,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             </div>
 
             {/* Mobile Transfer Summary */}
-            <div className="lg:col-span-1">
-              <Card className="bg-card border-blue-500/30 sticky top-4">
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
+              <div className="sticky top-6">
+              <Card className="bg-white border border-slate-200 rounded-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Phone className="w-5 h-5 text-blue-500" />
@@ -3675,6 +3619,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </div>
                 </CardContent>
               </Card>
+              <SecurityTrustBox isFrench={true} />
+              </div>
             </div>
           </div>
         )}
@@ -3684,8 +3630,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           (step === 3 && hasMobileService && !hasTVService) ||
           (step === 3 && hasTVService && !hasMobileService) ||
           (step === 4 && hasTVService && hasMobileService)) && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
               {/* Fee Explanation Notice */}
               <Card className="bg-blue-500/10 border-blue-500/30">
                 <CardContent className="py-4 flex items-start gap-3">
@@ -4395,8 +4341,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
             </div>
 
-            <div className="lg:col-span-1">
-              <Card className="bg-card border-cyan-500/30 sticky top-4">
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
+              <div className="sticky top-6">
+              <Card className="bg-white border border-slate-200 rounded-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-cyan-500" />
@@ -4612,6 +4559,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </div>
                 </CardContent>
               </Card>
+              <SecurityTrustBox isFrench={true} />
+              </div>
             </div>
           </div>
         )}
@@ -4620,8 +4569,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         {((step === 3 && !hasTVService && !hasMobileService) ||
           (step === 4 && ((hasTVService && !hasMobileService) || (hasMobileService && !hasTVService))) ||
           (step === 5 && hasTVService && hasMobileService)) && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -5303,8 +5252,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
             </div>
 
-            <div className="lg:col-span-1">
-              <Card className="bg-card border-cyan-500/30 sticky top-4">
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
+              <div className="sticky top-6">
+              <Card className="bg-white border border-slate-200 rounded-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-cyan-500" />
@@ -5393,6 +5343,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </p>
                 </CardContent>
               </Card>
+              <SecurityTrustBox isFrench={true} />
+              </div>
             </div>
           </div>
         )}
