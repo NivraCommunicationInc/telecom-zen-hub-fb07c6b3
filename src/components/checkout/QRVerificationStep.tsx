@@ -38,6 +38,14 @@ interface QRDebugState {
   checkoutMode: "portal_checkout" | "public_checkout";
 }
 
+interface ThrottleResetDebugState {
+  requestUrl: string;
+  httpStatus: number | null;
+  responseBodyPreview: string;
+  requestId: string | null;
+  timestamp: string;
+}
+
 const STATUS_CONFIG: Record<SessionStatus, { icon: typeof CheckCircle2; color: string; labelFr: string; labelEn: string }> = {
   created: { icon: QrCode, color: "text-blue-500", labelFr: "En attente de soumission", labelEn: "Awaiting submission" },
   submitted: { icon: Loader2, color: "text-amber-500", labelFr: "Documents soumis — analyse en cours", labelEn: "Documents submitted — analysis in progress" },
@@ -86,6 +94,15 @@ export const QRVerificationStep = ({
     checkoutMode,
   });
 
+  const [resettingThrottle, setResettingThrottle] = useState(false);
+  const [resetDebugState, setResetDebugState] = useState<ThrottleResetDebugState>({
+    requestUrl: "",
+    httpStatus: null,
+    responseBodyPreview: "",
+    requestId: null,
+    timestamp: "",
+  });
+
   const toPreview = (value: unknown) => {
     if (typeof value === "string") return value.slice(0, 300);
     try {
@@ -95,7 +112,7 @@ export const QRVerificationStep = ({
     }
   };
 
-  const generateQR = useCallback(async (regenerateSessionId?: string) => {
+  const generateQR = useCallback(async (regenerateSessionId?: string, options?: { debugBypass?: boolean }) => {
     setLoading(true);
     setError(null);
     setErrorDetail(null);
@@ -111,6 +128,8 @@ export const QRVerificationStep = ({
     const payload = {
       user_id: userId,
       checkout_type: checkoutType,
+      checkout_mode: checkoutMode,
+      is_admin: isAdmin,
       order_context: orderContext || {},
       checkout_fields: checkoutFields || {},
       regenerate_session_id: regenerateSessionId,
@@ -167,10 +186,15 @@ export const QRVerificationStep = ({
         Authorization: `Bearer ${accessToken}`,
       };
 
+      if (options?.debugBypass) {
+        headers["X-NIVRA-DEBUG"] = "1";
+      }
+
       console.log("[QR][REQUEST]", {
         request_url: requestUrl,
         method: "POST",
         has_authorization: true,
+        has_debug_header: options?.debugBypass === true,
         hasSession,
         tokenLength,
         payload,
@@ -309,7 +333,7 @@ export const QRVerificationStep = ({
     } finally {
       setLoading(false);
     }
-  }, [checkoutType, orderContext, checkoutFields, isFrench, userId]);
+  }, [checkoutType, checkoutMode, isAdmin, orderContext, checkoutFields, isFrench, userId]);
 
   // Generate QR once on first render (prevent request storms on object-prop re-renders)
   useEffect(() => {
@@ -395,6 +419,105 @@ export const QRVerificationStep = ({
     const oldSessionId = sessionId;
     console.log(`[QR] Regenerating. Old session=${oldSessionId} will be expired, new session will be created.`);
     generateQR(oldSessionId || undefined);
+  };
+
+  const handleResetThrottle = async () => {
+    if (!isAdmin) {
+      toast.error(isFrench ? "Action réservée aux administrateurs" : "Admin-only action");
+      return;
+    }
+
+    setResettingThrottle(true);
+
+    try {
+      const { data: sessionData } = await dbClient.auth.getSession();
+      const accessToken = sessionData?.session?.access_token || "";
+
+      if (!accessToken) {
+        const message = "Session expired / please log in again";
+        setError(message);
+        setErrorDetail(message);
+        toast.error(message);
+        return;
+      }
+
+      const primaryUrl = `${window.location.origin}/kyc-reset-throttle`;
+      const fallbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kyc-reset-throttle`;
+
+      let usedUrl = primaryUrl;
+      let response = await fetch(primaryUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ ip: "" }),
+        cache: "no-store",
+      });
+
+      if (response.status === 404 || response.status === 405) {
+        usedUrl = fallbackUrl;
+        response = await fetch(fallbackUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ ip: "" }),
+          cache: "no-store",
+        });
+      }
+
+      const requestIdHeader =
+        response.headers.get("request-id") ||
+        response.headers.get("x-request-id") ||
+        response.headers.get("x-correlation-id");
+
+      const rawBody = await response.text();
+      let responseBody: unknown = rawBody;
+      try {
+        responseBody = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        // keep raw text
+      }
+
+      const responseRequestId =
+        requestIdHeader ||
+        (typeof responseBody === "object" && responseBody !== null && "request_id" in responseBody
+          ? String((responseBody as { request_id?: unknown }).request_id || "") || null
+          : null);
+
+      setResetDebugState({
+        requestUrl: usedUrl,
+        httpStatus: response.status,
+        responseBodyPreview: toPreview(responseBody),
+        requestId: responseRequestId,
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log("[QR][THROTTLE_RESET]", {
+        request_url: usedUrl,
+        http_status: response.status,
+        request_id: responseRequestId,
+        response_body: responseBody,
+      });
+
+      if (!response.ok) {
+        const resetMessage =
+          (responseBody && typeof responseBody === "object" && ((responseBody as Record<string, unknown>).message || (responseBody as Record<string, unknown>).error)) ||
+          `HTTP ${response.status}`;
+        throw new Error(String(resetMessage));
+      }
+
+      toast.success(isFrench ? "Throttle réinitialisé. Nouveau test en cours..." : "Throttle reset. Testing again...");
+      await generateQR(undefined);
+    } catch (err: any) {
+      const message = err?.message || (isFrench ? "Échec de la réinitialisation du throttle" : "Failed to reset throttle");
+      toast.error(message);
+      console.error("[QR][THROTTLE_RESET] Failed", { message, stack: err?.stack });
+    } finally {
+      setResettingThrottle(false);
+    }
   };
 
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.created;
@@ -539,10 +662,27 @@ export const QRVerificationStep = ({
                   <div className="md:col-span-2"><span className="font-medium">timestamp:</span> {debugState.timestamp || "-"}</div>
                 </div>
 
-                <Button onClick={() => generateQR()} variant="outline" size="sm" disabled={loading}>
-                  <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                  Test Edge Function Now
-                </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs border-t border-border pt-3">
+                  <div className="md:col-span-2"><span className="font-medium">reset.request_url:</span> {resetDebugState.requestUrl || "-"}</div>
+                  <div><span className="font-medium">reset.HTTP status:</span> {resetDebugState.httpStatus ?? "-"}</div>
+                  <div className="break-all"><span className="font-medium">reset.request_id:</span> {resetDebugState.requestId || "-"}</div>
+                  <div className="md:col-span-2 break-all"><span className="font-medium">reset.response_body (300):</span> {resetDebugState.responseBodyPreview || "-"}</div>
+                  <div className="md:col-span-2"><span className="font-medium">reset.timestamp:</span> {resetDebugState.timestamp || "-"}</div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => generateQR()} variant="outline" size="sm" disabled={loading || resettingThrottle}>
+                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                    Test Edge Function Now
+                  </Button>
+
+                  {isAdmin && (
+                    <Button onClick={handleResetThrottle} variant="outline" size="sm" disabled={resettingThrottle || loading}>
+                      <RefreshCw className={`w-4 h-4 mr-2 ${resettingThrottle ? "animate-spin" : ""}`} />
+                      {isFrench ? "Reset throttle pour mon IP" : "Reset throttle for my IP"}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

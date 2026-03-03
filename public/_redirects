@@ -42,6 +42,10 @@
 # Public KYC health endpoint proxy
 /api/kyc-health https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-health 200
 
+# Admin KYC throttle reset endpoint proxy
+/kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
+/api/kyc-reset-throttle https://xtgngmtxggascbxnswvb.supabase.co/functions/v1/kyc-reset-throttle 200
+
 # SPA catch-all - must be LAST
 /* /index.html 200
 
