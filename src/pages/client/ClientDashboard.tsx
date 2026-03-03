@@ -2,6 +2,7 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 const ClientDashboard = () => {
   const { user } = useClientAuth();
   const [dismissedBanners, setDismissedBanners] = useState<string[]>([]);
+  const { data: accountIdentity } = useClientAccountIdentity(user?.id);
 
   const { data: profile } = useQuery({
     queryKey: ["client-profile-dashboard", user?.id],
@@ -66,7 +68,7 @@ const ClientDashboard = () => {
 
   const dismiss = (id: string) => setDismissedBanners((prev) => [...prev, id]);
 
-  const accountNumber = profile?.account_number || profile?.client_number || "—";
+  const accountNumber = accountIdentity?.accountNumber || profile?.account_number || profile?.client_number || "Non attribué";
 
   // Group subscriptions by type
   const mobileServices = subscriptions?.filter((s: any) => 
