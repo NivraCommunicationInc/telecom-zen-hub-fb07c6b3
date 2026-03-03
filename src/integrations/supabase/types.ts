@@ -1343,6 +1343,59 @@ export type Database = {
           },
         ]
       }
+      billing_subscription_services: {
+        Row: {
+          added_at: string
+          created_at: string
+          id: string
+          is_active: boolean
+          quantity: number
+          removed_at: string | null
+          service_code: string
+          service_name: string
+          service_type: string
+          subscription_id: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          added_at?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          quantity?: number
+          removed_at?: string | null
+          service_code: string
+          service_name: string
+          service_type?: string
+          subscription_id: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          added_at?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          quantity?: number
+          removed_at?: string | null
+          service_code?: string
+          service_name?: string
+          service_type?: string
+          subscription_id?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscription_services_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_subscriptions: {
         Row: {
           auto_billing_enabled: boolean | null

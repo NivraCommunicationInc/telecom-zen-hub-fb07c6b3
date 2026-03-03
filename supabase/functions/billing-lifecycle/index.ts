@@ -224,8 +224,21 @@ async function processRenewals(
       );
       const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
 
-      // Calculate amounts with QC taxes
-      const subtotal = sub.plan_price;
+      // Fetch active subscription services for multi-line invoice
+      const { data: subServices } = await supabase
+        .from("billing_subscription_services")
+        .select("*")
+        .eq("subscription_id", sub.id)
+        .eq("is_active", true);
+
+      // Calculate subtotal from individual services (or fallback to plan_price)
+      let subtotal: number;
+      const hasServices = subServices && subServices.length > 0;
+      if (hasServices) {
+        subtotal = subServices.reduce((sum, svc) => sum + (Number(svc.unit_price) * (svc.quantity || 1)), 0);
+      } else {
+        subtotal = sub.plan_price;
+      }
       const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
       const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
       const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
@@ -251,21 +264,32 @@ async function processRenewals(
           status: "pending",
           cycle_start_date: newCycleStart,
           cycle_end_date: newCycleEnd,
-          due_date: sub.cycle_end_date, // Due at end of current cycle (J0)
+          due_date: sub.cycle_end_date,
         })
         .select()
         .single();
 
       if (invErr) throw invErr;
 
-      // Create invoice line
-      await supabase.from("billing_invoice_lines").insert({
-        invoice_id: invoice.id,
-        description: `${sub.plan_name} – Renouvellement 30 jours`,
-        unit_price: sub.plan_price,
-        quantity: 1,
-        line_total: sub.plan_price,
-      });
+      // Create invoice lines — one per active service
+      if (hasServices) {
+        const lines = subServices.map((svc) => ({
+          invoice_id: invoice.id,
+          description: `${svc.service_name} – Renouvellement 30 jours`,
+          unit_price: Number(svc.unit_price),
+          quantity: svc.quantity || 1,
+          line_total: Number(svc.unit_price) * (svc.quantity || 1),
+        }));
+        await supabase.from("billing_invoice_lines").insert(lines);
+      } else {
+        await supabase.from("billing_invoice_lines").insert({
+          invoice_id: invoice.id,
+          description: `${sub.plan_name} – Renouvellement 30 jours`,
+          unit_price: sub.plan_price,
+          quantity: 1,
+          line_total: sub.plan_price,
+        });
+      }
 
       // PayPal auto-charge if applicable
       if (hasPayPal) {
@@ -314,9 +338,9 @@ async function processReminders(
 ) {
   const today = todayStr();
   const reminderOffsets = [
-    { days: 7, label: "J-7", template: "payment_reminder" },
-    { days: 3, label: "J-3", template: "payment_reminder" },
-    { days: 1, label: "J-1", template: "payment_reminder_urgent" },
+    { days: 7, label: "J-7", template: "payment_reminder_7days" },
+    { days: 3, label: "J-3", template: "payment_reminder_3days" },
+    { days: 1, label: "J-1", template: "payment_reminder_1day" },
     { days: 0, label: "J0", template: "payment_due_today" },
   ];
 
