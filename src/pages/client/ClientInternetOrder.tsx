@@ -47,6 +47,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { ClientIDVerificationForm, ClientIDData, validateIDData } from "@/components/client/ClientIDVerificationForm";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
+import { FEATURES } from "@/config/features";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { 
@@ -1078,26 +1079,31 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
         {/* Step 3: QR Identity Verification */}
         {step === 3 && (
           <div className="space-y-6">
-            <QRVerificationStep
-              userId={user?.id || ""}
-              checkoutType="internet"
-              isFrench={isFrench}
-              onVerified={(sessionId) => {
-                setVerificationSessionId(sessionId);
-                setIdVerificationApproved(true);
-              }}
-              orderContext={{ plan: selectedPlan?.id, address }}
-              checkoutFields={{
-                first_name: clientIdData.firstName || "",
-                last_name: clientIdData.lastName || "",
-                date_of_birth: clientIdData.dateOfBirth || "",
-                document_number: clientIdData.idNumber || "",
-                expiry_date: clientIdData.idExpiration || "",
-                document_type: clientIdData.idType || "",
-                issuing_region: clientIdData.idProvince || "",
-              }}
-            />
-
+            {FEATURES.KYC_ENABLED ? (
+              <QRVerificationStep
+                userId={user?.id || ""}
+                checkoutType="internet"
+                isFrench={isFrench}
+                onVerified={(sessionId) => {
+                  setVerificationSessionId(sessionId);
+                  setIdVerificationApproved(true);
+                }}
+                orderContext={{ plan: selectedPlan?.id, address }}
+                checkoutFields={{
+                  first_name: clientIdData.firstName || "",
+                  last_name: clientIdData.lastName || "",
+                  date_of_birth: clientIdData.dateOfBirth || "",
+                  document_number: clientIdData.idNumber || "",
+                  expiry_date: clientIdData.idExpiration || "",
+                  document_type: clientIdData.idType || "",
+                  issuing_region: clientIdData.idProvince || "",
+                }}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                {/* KYC disabled via feature flag */}
+              </div>
+            )}
             {/* Navigation */}
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(2)}>
