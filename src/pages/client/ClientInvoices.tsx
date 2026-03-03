@@ -421,15 +421,15 @@ const ClientInvoices = () => {
   });
 
   const statusColors: Record<string, string> = {
-    pending: "bg-amber-500/20 text-amber-500",
-    paid: "bg-emerald-500/20 text-emerald-500",
-    overdue: "bg-red-500/20 text-red-500",
-    pre_authorized: "bg-blue-500/20 text-blue-500",
-    renewal_due: "bg-orange-500/20 text-orange-500",
-    in_verification: "bg-cyan-500/20 text-cyan-500",
-    expired: "bg-red-600/20 text-red-600",
-    suspended: "bg-red-500/20 text-red-500",
-    partial: "bg-orange-500/20 text-orange-500",
+    pending: "bg-amber-100 text-amber-700",
+    paid: "bg-emerald-100 text-emerald-700",
+    overdue: "bg-red-100 text-red-700",
+    pre_authorized: "bg-blue-100 text-blue-700",
+    renewal_due: "bg-orange-100 text-orange-700",
+    in_verification: "bg-teal-100 text-teal-700",
+    expired: "bg-red-100 text-red-700",
+    suspended: "bg-red-100 text-red-700",
+    partial: "bg-orange-100 text-orange-700",
   };
 
   // Using centralized billing labels - prepaid terminology
@@ -762,7 +762,7 @@ const ClientInvoices = () => {
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-cyan-400" />
+                    <FileText className="w-5 h-5 text-primary" />
                     Mes factures
                   </CardTitle>
                   <Tabs value={filterTab} onValueChange={setFilterTab}>

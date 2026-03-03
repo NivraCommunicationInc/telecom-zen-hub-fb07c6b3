@@ -373,10 +373,10 @@ const ClientProfile = () => {
   };
 
   const accountStatusColors: Record<string, string> = {
-    active: "bg-emerald-500/20 text-emerald-500",
-    frozen: "bg-blue-500/20 text-blue-500",
-    hold: "bg-amber-500/20 text-amber-500",
-    suspended: "bg-red-500/20 text-red-500",
+    active: "bg-emerald-100 text-emerald-700",
+    frozen: "bg-blue-100 text-blue-700",
+    hold: "bg-amber-100 text-amber-700",
+    suspended: "bg-red-100 text-red-700",
   };
 
   const accountStatusLabels: Record<string, string> = {
@@ -458,8 +458,8 @@ const ClientProfile = () => {
           </Card>
           <Card className="bg-card border-border">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-cyan-500" />
+              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-lg font-bold text-foreground">
@@ -476,7 +476,7 @@ const ClientProfile = () => {
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5 text-cyan-400" />
+                <User className="w-5 h-5 text-primary" />
                 Informations personnelles
               </CardTitle>
             </CardHeader>
@@ -591,7 +591,7 @@ const ClientProfile = () => {
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-cyan-400" />
+                <MapPin className="w-5 h-5 text-primary" />
                 Adresses de service
               </CardTitle>
               <Button size="sm" variant="outline" onClick={() => setAddLocationDialogOpen(true)}>
@@ -600,7 +600,7 @@ const ClientProfile = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               {accounts && accounts.length > 0 && accounts[0] && (
-                <div className="p-3 border rounded-lg bg-accent/30">
+                <div className="p-3 border rounded-lg bg-secondary">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge>Principal</Badge>
                     <span className="text-xs text-muted-foreground">{accounts[0].account_number}</span>
@@ -626,7 +626,7 @@ const ClientProfile = () => {
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-cyan-400" />
+                  <Lock className="w-5 h-5 text-primary" />
                   Sécurité du compte
                 </CardTitle>
               </CardHeader>
@@ -634,7 +634,7 @@ const ClientProfile = () => {
                 {/* Client PIN Management */}
                 <ClientPinManagement />
                 
-                <div className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
                   <div>
                     <p className="font-medium text-foreground">Mot de passe</p>
                     <p className="text-sm text-muted-foreground">
@@ -654,11 +654,11 @@ const ClientProfile = () => {
                 <CardTitle>Aperçu du compte</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                   <span className="text-muted-foreground">Abonnements actifs</span>
                   <span className="font-bold text-foreground">{subscriptions?.length || 0}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                   <span className="text-muted-foreground">Total commandes</span>
                   <span className="font-bold text-foreground">{orders?.length || 0}</span>
                 </div>
@@ -676,8 +676,8 @@ const ClientProfile = () => {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                      <Settings className="w-5 h-5 text-cyan-400" />
+                    <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
+                      <Settings className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                       <p className="font-medium text-foreground">Mes services</p>
