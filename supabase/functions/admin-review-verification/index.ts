@@ -1,6 +1,7 @@
 /**
  * Edge Function: admin-review-verification
  * Admin approves/rejects identity verification session with mandatory reason.
+ * Also supports generating signed URLs for viewing private documents.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -10,56 +11,116 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function verifyAdmin(req: Request) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { error: "Unauthorized", status: 401 };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const adminClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data: claimsData, error: claimsError } = await adminClient.auth.getClaims(token);
+  if (claimsError || !claimsData?.claims) {
+    return { error: "Unauthorized", status: 401 };
+  }
+  const adminUserId = claimsData.claims.sub;
+
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+  const { data: adminUser } = await serviceClient
+    .from("admin_users")
+    .select("id, is_active")
+    .eq("user_id", adminUserId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!adminUser) {
+    return { error: "Admin access required", status: 403 };
+  }
+
+  return { adminUserId, serviceClient };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
+    const auth = await verifyAdmin(req);
+    if ("error" in auth) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Verify admin JWT
-    const adminClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await adminClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const adminUserId = claimsData.claims.sub;
-
-    // Verify admin role
-    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: adminUser } = await serviceClient
-      .from("admin_users")
-      .select("id, is_active")
-      .eq("user_id", adminUserId)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!adminUser) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    const { adminUserId, serviceClient } = auth;
     const body = await req.json();
+    const { action } = body;
+
+    // Action: get signed URLs for documents
+    if (action === "get_signed_urls") {
+      const { session_id } = body;
+      if (!session_id) {
+        return new Response(
+          JSON.stringify({ error: "session_id is required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: session } = await serviceClient
+        .from("identity_verification_sessions")
+        .select("document_front_path, document_back_path, selfie_path")
+        .eq("id", session_id)
+        .single();
+
+      if (!session) {
+        return new Response(
+          JSON.stringify({ error: "Session not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const urls: Record<string, string | null> = { front: null, back: null, selfie: null };
+      const expiresIn = 300; // 5 minutes
+
+      for (const [key, path] of [
+        ["front", session.document_front_path],
+        ["back", session.document_back_path],
+        ["selfie", session.selfie_path],
+      ] as const) {
+        if (path) {
+          const { data } = await serviceClient.storage
+            .from("id-documents")
+            .createSignedUrl(path, expiresIn);
+          urls[key] = data?.signedUrl || null;
+        }
+      }
+
+      // Log view event
+      await serviceClient.from("identity_verification_events").insert({
+        session_id,
+        event_type: "admin_viewed_documents",
+        actor_id: adminUserId,
+        actor_role: "admin",
+        ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
+        user_agent: req.headers.get("user-agent"),
+      });
+
+      return new Response(
+        JSON.stringify({ urls }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Default action: review decision
     const { session_id, decision, reason, idempotency_key } = body;
 
     if (!session_id || !decision || !reason?.trim()) {

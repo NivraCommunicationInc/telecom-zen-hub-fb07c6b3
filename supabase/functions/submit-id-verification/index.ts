@@ -1,7 +1,8 @@
 /**
  * Edge Function: submit-id-verification
  * Mobile page submits ID documents via this endpoint.
- * Validates token, checks expiration, uploads docs, marks session as submitted.
+ * Validates token, checks expiration, uploads docs to PRIVATE bucket, marks session as submitted.
+ * Includes: rate limiting (max 3 attempts), selfie support, IP/UA logging.
  * No auth required (anon access via public_token).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -20,8 +21,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Use service role for storage operations (since anon can't upload to private buckets easily)
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const formData = await req.formData();
@@ -31,7 +30,11 @@ Deno.serve(async (req) => {
     const consentGiven = formData.get("consent") as string;
     const documentFront = formData.get("document_front") as File | null;
     const documentBack = formData.get("document_back") as File | null;
+    const selfieFile = formData.get("selfie") as File | null;
     const idempotencyKey = formData.get("idempotency_key") as string;
+
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+    const clientUa = req.headers.get("user-agent") || "unknown";
 
     if (!publicToken) {
       return new Response(
@@ -52,6 +55,17 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "At least front document image is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate file sizes (max 10MB each)
+    const maxSize = 10 * 1024 * 1024;
+    for (const [name, file] of [["front", documentFront], ["back", documentBack], ["selfie", selfieFile]] as const) {
+      if (file && file.size > maxSize) {
+        return new Response(
+          JSON.stringify({ error: `File ${name} exceeds 10MB limit` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Idempotency check
@@ -105,12 +119,31 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Upload front document
-    const frontPath = `${session.id}/front_${Date.now()}.${documentFront.name.split(".").pop() || "jpg"}`;
+    // Rate limit: max 3 submission attempts
+    if (session.submission_attempts >= (session.max_attempts || 3)) {
+      return new Response(
+        JSON.stringify({ error: "Maximum submission attempts reached. Please regenerate QR code." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Increment attempt count
+    await supabase
+      .from("identity_verification_sessions")
+      .update({ 
+        submission_attempts: (session.submission_attempts || 0) + 1,
+        client_ip: clientIp,
+        client_user_agent: clientUa,
+      })
+      .eq("id", session.id);
+
+    // Upload front document to private bucket
+    const frontExt = documentFront.name.split(".").pop() || "jpg";
+    const frontPath = `${session.id}/front_${Date.now()}.${frontExt}`;
     const frontBuffer = await documentFront.arrayBuffer();
     const { error: frontUploadError } = await supabase.storage
       .from("id-documents")
-      .upload(frontPath, frontBuffer, { contentType: documentFront.type });
+      .upload(frontPath, frontBuffer, { contentType: documentFront.type, upsert: false });
 
     if (frontUploadError) {
       console.error("Front upload error:", frontUploadError);
@@ -123,14 +156,30 @@ Deno.serve(async (req) => {
     // Upload back document if provided
     let backPath: string | null = null;
     if (documentBack) {
-      backPath = `${session.id}/back_${Date.now()}.${documentBack.name.split(".").pop() || "jpg"}`;
+      const backExt = documentBack.name.split(".").pop() || "jpg";
+      backPath = `${session.id}/back_${Date.now()}.${backExt}`;
       const backBuffer = await documentBack.arrayBuffer();
       const { error: backUploadError } = await supabase.storage
         .from("id-documents")
-        .upload(backPath, backBuffer, { contentType: documentBack.type });
+        .upload(backPath, backBuffer, { contentType: documentBack.type, upsert: false });
 
       if (backUploadError) {
         console.error("Back upload error:", backUploadError);
+      }
+    }
+
+    // Upload selfie if provided
+    let selfiePath: string | null = null;
+    if (selfieFile) {
+      const selfieExt = selfieFile.name.split(".").pop() || "jpg";
+      selfiePath = `${session.id}/selfie_${Date.now()}.${selfieExt}`;
+      const selfieBuffer = await selfieFile.arrayBuffer();
+      const { error: selfieUploadError } = await supabase.storage
+        .from("id-documents")
+        .upload(selfiePath, selfieBuffer, { contentType: selfieFile.type, upsert: false });
+
+      if (selfieUploadError) {
+        console.error("Selfie upload error:", selfieUploadError);
       }
     }
 
@@ -144,6 +193,7 @@ Deno.serve(async (req) => {
         id_province: idProvince || null,
         document_front_path: frontPath,
         document_back_path: backPath,
+        selfie_path: selfiePath,
       })
       .eq("id", session.id);
 
@@ -166,11 +216,12 @@ Deno.serve(async (req) => {
         id_province: idProvince,
         has_front: true,
         has_back: !!documentBack,
+        has_selfie: !!selfieFile,
         consent_given: true,
       },
       idempotency_key: idempotencyKey || null,
-      ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
-      user_agent: req.headers.get("user-agent"),
+      ip_address: clientIp,
+      user_agent: clientUa,
     });
 
     return new Response(

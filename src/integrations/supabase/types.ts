@@ -4291,6 +4291,8 @@ export type Database = {
       identity_verification_sessions: {
         Row: {
           checkout_type: string | null
+          client_ip: string | null
+          client_user_agent: string | null
           created_at: string
           document_back_path: string | null
           document_front_path: string | null
@@ -4299,21 +4301,26 @@ export type Database = {
           id_province: string | null
           id_type: string | null
           idempotency_key: string | null
+          max_attempts: number
           order_context: Json | null
           public_token: string
           qr_regeneration_count: number
           result_payload: Json | null
+          retention_delete_after: string | null
           review_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           selfie_path: string | null
           status: string
+          submission_attempts: number
           submitted_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           checkout_type?: string | null
+          client_ip?: string | null
+          client_user_agent?: string | null
           created_at?: string
           document_back_path?: string | null
           document_front_path?: string | null
@@ -4322,21 +4329,26 @@ export type Database = {
           id_province?: string | null
           id_type?: string | null
           idempotency_key?: string | null
+          max_attempts?: number
           order_context?: Json | null
           public_token: string
           qr_regeneration_count?: number
           result_payload?: Json | null
+          retention_delete_after?: string | null
           review_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           selfie_path?: string | null
           status?: string
+          submission_attempts?: number
           submitted_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           checkout_type?: string | null
+          client_ip?: string | null
+          client_user_agent?: string | null
           created_at?: string
           document_back_path?: string | null
           document_front_path?: string | null
@@ -4345,15 +4357,18 @@ export type Database = {
           id_province?: string | null
           id_type?: string | null
           idempotency_key?: string | null
+          max_attempts?: number
           order_context?: Json | null
           public_token?: string
           qr_regeneration_count?: number
           result_payload?: Json | null
+          retention_delete_after?: string | null
           review_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           selfie_path?: string | null
           status?: string
+          submission_attempts?: number
           submitted_at?: string | null
           updated_at?: string
           user_id?: string
