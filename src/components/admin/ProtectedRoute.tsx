@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
   const { user, session, signOut, isLoading } = useAuth();
