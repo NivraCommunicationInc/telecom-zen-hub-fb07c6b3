@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Film, Music, Tv, Check, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useStreamingCatalogActive, StreamingCatalogItem } from "@/hooks/useStreamingCatalog";
+import { useQuery } from "@tanstack/react-query";
+import { backendClient } from "@/integrations/backend";
+import type { StreamingCatalogItem } from "@/hooks/useStreamingCatalog";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 
 const categoryLabels: Record<string, { en: string; fr: string }> = {
@@ -16,7 +18,18 @@ const categoryLabels: Record<string, { en: string; fr: string }> = {
 
 const StreamingPlans = () => {
   const { language } = useLanguage();
-  const { data: services, isLoading } = useStreamingCatalogActive();
+  const { data: services, isLoading } = useQuery({
+    queryKey: ["public-streaming-catalog"],
+    queryFn: async () => {
+      const { data, error } = await backendClient
+        .from("streaming_catalog_public")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data as StreamingCatalogItem[];
+    },
+    staleTime: 30000,
+  });
 
   const videoServices = services?.filter(s => s.category === "video") || [];
   const musicServices = services?.filter(s => s.category === "music") || [];
