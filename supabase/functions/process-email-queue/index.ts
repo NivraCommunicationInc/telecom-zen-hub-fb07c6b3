@@ -282,7 +282,7 @@ const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEm
                       1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5
                     </p>
                     <p style="margin:8px 0 0; font-size:13px;">
-                      <a href="mailto:${email}" style="color:#9CA3AF; text-decoration:none; white-space:nowrap;">✉️&nbsp;${email}</a>
+                      <a href="mailto:${email}" style="color:#9CA3AF; text-decoration:none; white-space:nowrap;">${email}</a>
                     </p>
                   </td>
                 </tr>
@@ -322,8 +322,8 @@ const detailsCard = (items: Array<{ label: string; value: string }>) => `
     `).join('')}
   </table>`;
 
-// Status badge component
-const statusBadge = (type: 'success' | 'warning' | 'error' | 'info', icon: string, titleFr: string, titleEn: string, messageFr: string, messageEn: string) => {
+// Status badge component — NO emojis (spam trigger for iCloud/Outlook)
+const statusBadge = (type: 'success' | 'warning' | 'error' | 'info', _icon: string, titleFr: string, titleEn: string, messageFr: string, messageEn: string) => {
   const colors = {
     success: { bg: emailStyles.successBg, border: emailStyles.success, text: '#065f46' },
     warning: { bg: emailStyles.warningBg, border: emailStyles.warning, text: '#92400e' },
@@ -339,7 +339,7 @@ const statusBadge = (type: 'success' | 'warning' | 'error' | 'info', icon: strin
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
             <tr>
               <td style="font-size:18px; font-weight:600; color:${c.text};">
-                ${icon} ${titleFr}
+                ${titleFr}
               </td>
             </tr>
             <tr>
@@ -1781,7 +1781,13 @@ Deno.serve(async (req) => {
             reply_to: emailReplyTo,
             to: [testEmail],
             subject,
-          html,
+            html,
+            text: `Nivra Telecom - Test email envoyé avec succès. Ceci est un test du système de courriels.`,
+            headers: {
+              "List-Unsubscribe": `<mailto:unsubscribe@nivra-telecom.ca?subject=unsubscribe>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              "X-Entity-Ref-ID": `test-${Date.now()}`,
+            },
         }),
       });
 
@@ -1955,6 +1961,12 @@ Deno.serve(async (req) => {
           subject,
           html,
           text: plainText,
+          headers: {
+            "List-Unsubscribe": `<mailto:unsubscribe@nivra-telecom.ca?subject=unsubscribe>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            "X-Entity-Ref-ID": email.id,
+            "Precedence": "bulk",
+          },
         };
         
         // Add attachments if we have any
