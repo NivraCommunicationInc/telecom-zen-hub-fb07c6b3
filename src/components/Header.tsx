@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, MessageSquare, User } from "lucide-react";
+import { Menu, X, User, Search, ShoppingCart, ChevronDown } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSelector from "./LanguageSelector";
 import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } from "@/config/navigation";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { COMPANY_CONTACT } from "@/config/company";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 
 const Header = () => {
@@ -18,183 +17,100 @@ const Header = () => {
   const { user } = useOptionalAuth();
   const { t, language } = useLanguage();
   const { data: siteSettings } = useSiteSettings();
-
-  // Phone removed - support via chat/tickets only
+  const isFr = language === 'fr';
 
   const portalLink = user ? "/portal" : "/portal/auth";
 
-  // Track scroll for header styling
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Validate nav targets in development on homepage
   useEffect(() => {
     if (import.meta.env.DEV && location.pathname === '/') {
-      const timer = setTimeout(() => {
-        validateNavTargets();
-      }, 500);
+      const timer = setTimeout(() => validateNavTargets(), 500);
       return () => clearTimeout(timer);
     }
   }, [location.pathname]);
 
-  // Handle hash-based navigation
   useEffect(() => {
     if (location.hash) {
       const sectionId = location.hash.replace("#", "");
-      setTimeout(() => {
-        safeScrollToSection(sectionId);
-      }, 100);
+      setTimeout(() => safeScrollToSection(sectionId), 100);
     }
   }, [location]);
 
-  /**
-   * Safe navigation handler with null checks and fallback
-   */
   const handleNavClick = (target: NavTarget) => {
     try {
       setIsMenuOpen(false);
-
       if (target.type === 'scroll') {
-        // Scroll to section on homepage
         if (location.pathname !== "/") {
           navigate(`/#${target.target}`);
         } else {
           if (!safeScrollToSection(target.target)) {
-            // Fallback if section not found
-            console.warn(`[Nav] Section ${target.target} not found, navigating to fallback`);
             navigate(target.fallbackRoute);
           }
         }
       } else {
-        // Route navigation
         navigate(target.target);
       }
     } catch (error) {
-      console.error('[Nav] Navigation error:', error);
-      // Ultimate fallback - use window.location
       window.location.href = target.fallbackRoute;
     }
   };
 
-  /**
-   * Get localized label for nav target
-   */
   const getLabel = (target: NavTarget): string => {
     return language === 'fr' ? target.labelFr : target.label;
   };
 
   return (
     <>
-      {/* System status alerts shown above header */}
       <PublicSystemStatusBanner />
-      <header className={`sticky top-0 z-50 transition-all duration-200 ${
-        isScrolled 
-          ? 'bg-white/98 backdrop-blur-sm border-b border-border shadow-sm' 
-          : 'bg-white/95 backdrop-blur-sm border-b border-border/50'
-      }`}>
-      <div className="container mx-auto px-4 max-w-6xl">
-        <div className="relative flex items-center justify-between h-16 lg:h-18">
-          {/* Left spacer - matches hamburger width on mobile for centering */}
-          <div className="w-10 lg:hidden" aria-hidden="true" />
-
-          {/* Logo - centered on mobile, left-aligned on desktop */}
-          <Link 
-            to="/" 
-            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2.5 lg:static lg:translate-x-0"
-          >
-            <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
-              <span className="font-bold text-white text-lg">N</span>
-            </div>
-            <span className="font-bold text-lg text-foreground">Nivra</span>
+      
+      {/* Top utility bar - like Bell's gray bar */}
+      <div className="bg-slate-100 border-b border-slate-200 hidden lg:block">
+        <div className="container mx-auto px-4 max-w-7xl flex items-center justify-end gap-6 h-8 text-xs text-slate-600">
+          <Link to="/aide" className="hover:text-blue-700 transition-colors">
+            {isFr ? "Support" : "Support"}
           </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1">
-            {NAV_TARGETS.map((target) => (
-              target.type === 'route' ? (
-                <Link
-                  key={target.id}
-                  to={target.target}
-                  className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
-                    location.pathname === target.target 
-                      ? 'text-foreground bg-muted' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  {getLabel(target)}
-                </Link>
-              ) : (
-                <button
-                  key={target.id}
-                  onClick={() => handleNavClick(target)}
-                  className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors rounded-lg cursor-pointer"
-                  type="button"
-                >
-                  {getLabel(target)}
-                </button>
-              )
-            ))}
-          </nav>
-
-          {/* Desktop CTA */}
-          <div className="hidden lg:flex items-center gap-2">
-            <LanguageSelector />
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
-              <Link to="/contact">
-                <MessageSquare className="w-4 h-4" />
-                <span className="hidden xl:inline">Chat / Tickets</span>
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link to={portalLink}>
-                <User className="w-4 h-4" />
-                <span className="hidden xl:inline ml-1.5">{t('nav.portal')}</span>
-              </Link>
-            </Button>
-            <Button variant="accent" size="sm" asChild>
-              <Link to="/contact">
-                {t('hero.cta.order')}
-              </Link>
-            </Button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="lg:hidden p-2 w-10 h-10 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
-            type="button"
-          >
-            {isMenuOpen ? (
-              <X className="w-5 h-5 text-foreground" />
-            ) : (
-              <Menu className="w-5 h-5 text-foreground" />
-            )}
-          </button>
+          <Link to="/a-propos" className="hover:text-blue-700 transition-colors">
+            {isFr ? "À propos" : "About"}
+          </Link>
+          <Link to="/contact" className="hover:text-blue-700 transition-colors">
+            {isFr ? "Nous joindre" : "Contact Us"}
+          </Link>
+          <LanguageSelector />
         </div>
+      </div>
 
-        {/* Mobile Menu - ensure no overlay blocking when closed */}
-        {isMenuOpen && (
-          <div 
-            className="lg:hidden py-4 border-t border-border animate-fade-in bg-white"
-            style={{ pointerEvents: 'auto' }}
-          >
-            <nav className="flex flex-col gap-1">
-              {NAV_TARGETS.map((target) => (
-                target.type === 'route' ? (
+      {/* Main navigation - Bell blue style */}
+      <header className={`sticky top-0 z-50 bg-[#003366] text-white shadow-md transition-all duration-200`}>
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="flex items-center justify-between h-16 lg:h-[68px]">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                <span className="font-bold text-white text-xl">N</span>
+              </div>
+              <span className="font-bold text-xl text-white tracking-tight hidden sm:block">Nivra</span>
+            </Link>
+
+            {/* Desktop Navigation - Bell-style categories */}
+            <nav className="hidden lg:flex items-center gap-0.5 ml-10">
+              {NAV_TARGETS.map((target) => {
+                const isActive = target.type === 'route' 
+                  ? location.pathname === target.target 
+                  : location.hash === `#${target.target}`;
+                
+                return target.type === 'route' ? (
                   <Link
                     key={target.id}
                     to={target.target}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`px-3 py-2.5 text-sm font-medium transition-colors rounded-lg ${
-                      location.pathname === target.target 
-                        ? 'text-foreground bg-muted' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    className={`px-4 py-2 text-sm font-medium transition-colors rounded-md ${
+                      isActive
+                        ? 'text-white bg-white/15 underline underline-offset-[22px] decoration-2 decoration-white'
+                        : 'text-white/90 hover:text-white hover:bg-white/10'
                     }`}
                   >
                     {getLabel(target)}
@@ -203,38 +119,99 @@ const Header = () => {
                   <button
                     key={target.id}
                     onClick={() => handleNavClick(target)}
-                    className="px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors rounded-lg text-left"
+                    className="px-4 py-2 text-sm font-medium text-white/90 hover:text-white hover:bg-white/10 transition-colors rounded-md"
+                    type="button"
+                  >
+                    {getLabel(target)}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Right side - Bell style */}
+            <div className="hidden lg:flex items-center gap-3">
+              <button className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                <Search className="w-5 h-5" />
+              </button>
+              <Link 
+                to={portalLink}
+                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-white text-[#003366] rounded-full hover:bg-slate-100 transition-colors"
+              >
+                {isFr ? "Connexion" : "Log in"}
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="lg:hidden p-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Toggle menu"
+              type="button"
+            >
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Menu */}
+      {isMenuOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setIsMenuOpen(false)} />
+          <div className="fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-[#003366]">
+              <span className="font-bold text-white text-lg">Nivra</span>
+              <button onClick={() => setIsMenuOpen(false)} className="p-1 text-white/80 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <nav className="p-3">
+              {NAV_TARGETS.map((target) => (
+                target.type === 'route' ? (
+                  <Link
+                    key={target.id}
+                    to={target.target}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`block px-4 py-3 text-sm font-medium rounded-lg mb-0.5 ${
+                      location.pathname === target.target
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {getLabel(target)}
+                  </Link>
+                ) : (
+                  <button
+                    key={target.id}
+                    onClick={() => handleNavClick(target)}
+                    className="block w-full text-left px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg mb-0.5"
                     type="button"
                   >
                     {getLabel(target)}
                   </button>
                 )
               ))}
-              <div className="pt-4 mt-2 border-t border-border flex flex-col gap-2">
-                <LanguageSelector />
-                <Button variant="ghost" size="sm" className="justify-start gap-2" asChild>
-                  <Link to="/contact">
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Chat / Tickets</span>
-                  </Link>
-                </Button>
-                <Button variant="outline" size="sm" className="justify-start" asChild>
-                  <Link to={portalLink}>
-                    <User className="w-4 h-4 mr-2" />
-                    {t('nav.portal')}
-                  </Link>
-                </Button>
-                <Button variant="accent" size="sm" asChild>
-                  <Link to="/contact">
-                    {t('hero.cta.order')}
-                  </Link>
-                </Button>
-              </div>
             </nav>
+
+            <div className="p-4 border-t border-slate-200 space-y-2">
+              <Link to="/aide" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">
+                Support
+              </Link>
+              <Link to="/a-propos" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">
+                {isFr ? "À propos" : "About"}
+              </Link>
+              <LanguageSelector />
+              <Button className="w-full bg-[#003366] hover:bg-[#002244] text-white" asChild>
+                <Link to={portalLink} onClick={() => setIsMenuOpen(false)}>
+                  <User className="w-4 h-4 mr-2" />
+                  {isFr ? "Connexion" : "Log in"}
+                </Link>
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
-    </header>
+        </>
+      )}
     </>
   );
 };
