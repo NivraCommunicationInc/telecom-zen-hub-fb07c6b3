@@ -27,17 +27,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   // Secret code session verification
   const { isValidSession: isSecretSessionValid, isChecking: isCheckingSecret, clearSession } = useAdminSecretSession();
 
-  // DEBUG: Log guard state
-  console.log("[AdminGuard] state", { 
-    loading: isLoading, 
-    hasUser: !!user, 
-    hasSession: !!session,
-    isVerifying,
-    isAdminVerified,
-    isCheckingSecret,
-    isSecretSessionValid,
-    path: location.pathname 
-  });
+  // DEBUG: Only log on first render or significant changes
+  // (removed per-render logging to reduce noise)
 
   // Handle idle timeout - auto logout after 5 minutes of inactivity
   const handleIdleLogout = useCallback(async () => {
@@ -221,7 +212,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     if (!isLoading && !isCheckingSecret) {
       verifyAdminRole();
     }
-  }, [user, session, isLoading, isCheckingSecret, isSecretSessionValid, signOut, navigate, location.pathname, clearSession]);
+  }, [user?.id, isLoading, isCheckingSecret, isSecretSessionValid]);
 
   // Clear session storage on sign out
   useEffect(() => {
