@@ -173,8 +173,8 @@ const AdminClients = () => {
         user_roles: [{ role: rolesMap.get(client.user_id) || 'client' }]
       })) || [];
     },
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+    refetchOnWindowFocus: false,
+    staleTime: 10 * 60 * 1000, // 10 minutes - admin stability standard
   });
 
   // Real-time subscription for instant client visibility

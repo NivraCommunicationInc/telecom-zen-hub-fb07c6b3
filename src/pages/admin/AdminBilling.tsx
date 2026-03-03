@@ -261,27 +261,16 @@ const AdminBilling = () => {
     },
   });
 
-  // Auto-apply late fees only if enabled
-  useEffect(() => {
-    if (billing && autoApplyLateFee) {
-      billing.forEach((bill: any) => {
-        if (
-          bill.status === "pending" &&
-          bill.due_date &&
-          isPast(parseISO(bill.due_date)) &&
-          !bill.late_fee_applied
-        ) {
-          applyLateFeeMutation.mutate(bill);
-        }
-      });
-    }
-  }, [billing, autoApplyLateFee]);
+  // Auto-apply late fees ONLY for Scenario B (disputed/chargeback) — NEVER for normal prepaid non-renewal
+  // Disabled: prepaid model means no automatic fee application on pending invoices
+  // Late fees are applied manually by admin only in dispute cases
+  // useEffect removed to prevent accidental fee application on prepaid invoices
 
   // Filter billing by tab and search query
   const filteredBilling = billing?.filter((bill: any) => {
     // Tab filter - PREPAID MODEL: "renewal_required" replaces "overdue"
     let matchesTab = true;
-    if (activeTab === "renewal_required") matchesTab = bill.status === "renewal_required" || bill.status === "overdue";
+    if (activeTab === "renewal_required") matchesTab = bill.status === "renewal_required";
     else if (activeTab === "pending") matchesTab = bill.status === "pending";
     else if (activeTab === "paid") matchesTab = bill.status === "paid";
     else if (activeTab === "disputed") matchesTab = bill.status === "disputed";
