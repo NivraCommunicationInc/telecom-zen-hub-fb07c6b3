@@ -15,14 +15,24 @@ export interface CompanyInfo {
   company_tagline: string;
   company_address: string;
   company_support: string;
+  company_phone: string;
+  company_website: string;
+  company_neq: string;
+  company_tps: string;
+  company_tvq: string;
 }
 
 export const NIVRA_COMPANY: CompanyInfo = {
   company_legal_name: "NIVRA COMMUNICATIONS INC.",
-  company_department: "Customer Service Agreement Billing Division",
-  company_tagline: "Telecommunications Services Provider — Province of Québec",
-  company_address: "Head Office: 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
-  company_support: "Support: Support@nivra-telecom.ca",
+  company_department: "Service à la clientèle — Division facturation",
+  company_tagline: "Fournisseur de services de télécommunications — Province de Québec",
+  company_address: "Siège social : 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
+  company_support: "Support : Support@nivra-telecom.ca",
+  company_phone: "438-544-2233",
+  company_website: "www.nivra-telecom.ca",
+  company_neq: "2291249786",
+  company_tps: "TPS : 732287291 RT0001",
+  company_tvq: "TVQ : 1229249786 TQ0001",
 };
 
 // Legacy alias for backward compatibility

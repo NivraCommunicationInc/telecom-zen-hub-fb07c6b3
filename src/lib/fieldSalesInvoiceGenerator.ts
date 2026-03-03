@@ -235,8 +235,8 @@ export async function generateFieldSalesInvoicePDF(data: FieldSalesInvoiceData):
   doc.setTextColor(150, 150, 150);
   doc.setFont("helvetica", "normal");
   addText("Merci pour votre confiance!", pageWidth / 2, footerY, { align: "center" });
-  addText("Nivra Telecom • 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5 • 438-544-2233 • support@nivra-telecom.ca", pageWidth / 2, footerY + 6, { align: "center" });
-  addText(`TPS: 123456789 RT0001 • TVQ: 1234567890 TQ0001`, pageWidth / 2, footerY + 12, { align: "center" });
+  addText("Nivra Communications Inc. • 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5 • 438-544-2233 • Support@nivra-telecom.ca", pageWidth / 2, footerY + 6, { align: "center" });
+  addText(`NEQ: 2291249786 • TPS: 732287291 RT0001 • TVQ: 1229249786 TQ0001`, pageWidth / 2, footerY + 12, { align: "center" });
 
   // Download
   doc.save(`Facture-${data.invoiceNumber}.pdf`);
