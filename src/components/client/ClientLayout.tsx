@@ -127,6 +127,16 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     return group.children.some((c) => isActive(c.path));
   };
 
+  // Lock body scroll when mobile menu open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] client-portal-dark text-slate-900">
       {/* System banners */}
@@ -134,7 +144,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       <AccountBlockedBanner />
       {user?.id && <PrepaidUrgentBanner userId={user.id} />}
 
-      {/* Top utility bar - like Rogers gray bar */}
+      {/* Top utility bar — desktop only */}
       <div className="bg-slate-100 border-b border-slate-200 hidden lg:block">
         <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-end gap-6 h-9 text-xs text-slate-600">
           <Link to="/" className="hover:text-teal-700 transition-colors">
@@ -152,20 +162,30 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         </div>
       </div>
 
-      {/* Main navigation bar - teal like Rogers red bar */}
+      {/* Main navigation bar — teal, h-14 mobile / h-16 desktop */}
       <header className="bg-teal-700 text-white shadow-md sticky top-0 z-50">
         <div className="max-w-[1200px] mx-auto px-4 lg:px-6">
-          <div className="flex items-center justify-between h-14 lg:h-16">
-            {/* Logo */}
-            <Link to="/portal" className="flex items-center gap-2.5 shrink-0">
-              <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
-                <span className="font-display font-bold text-white text-lg">N</span>
-              </div>
-              <span className="font-display font-bold text-xl text-white hidden sm:block">Nivra</span>
-            </Link>
+          <div className="flex items-center h-14 lg:h-16">
+            {/* Mobile: hamburger left */}
+            <button
+              className="lg:hidden p-2 -ml-1 text-white/90 hover:text-white hover:bg-white/10 rounded-lg shrink-0"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+
+            {/* Logo — centered on mobile */}
+            <div className="flex-1 flex items-center justify-center lg:justify-start lg:flex-initial">
+              <Link to="/portal" className="flex items-center gap-2 shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
+                  <span className="font-bold text-white text-lg">N</span>
+                </div>
+                <span className="font-bold text-xl text-white hidden sm:block">Nivra</span>
+              </Link>
+            </div>
 
             {/* Desktop nav */}
-            <nav className="hidden lg:flex items-center gap-1 ml-8" ref={dropdownRef}>
+            <nav className="hidden lg:flex items-center gap-1 ml-8 flex-1" ref={dropdownRef}>
               {navGroups.map((group, idx) => {
                 const hasChildren = group.children.length > 0;
                 const active = isGroupActive(group);
@@ -226,22 +246,15 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               })}
             </nav>
 
-            {/* Right side */}
-            <div className="flex items-center gap-2">
+            {/* Right side — notification + mobile account */}
+            <div className="flex items-center gap-1 shrink-0">
               <PortalNotificationBell />
-              {/* Mobile menu toggle */}
-              <button
-                className="lg:hidden p-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Secondary nav bar - MonNivra + account */}
+      {/* Secondary nav bar — desktop */}
       <div className="bg-white border-b border-slate-200 hidden lg:block sticky top-16 z-40">
         <div className="max-w-[1200px] mx-auto px-6 flex items-center h-12 text-sm">
           <span className="font-semibold text-slate-900 mr-4">MonNivra</span>
@@ -252,32 +265,35 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — full-height LEFT drawer */}
       {mobileMenuOpen && (
         <>
           <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed top-0 right-0 h-full w-80 bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <span className="font-semibold text-slate-900">Menu</span>
-              <button onClick={() => setMobileMenuOpen(false)} className="p-1 text-slate-500 hover:text-slate-900">
+          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
+            {/* Drawer header */}
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between h-14">
+              <span className="font-semibold text-slate-900 text-base">MonNivra</span>
+              <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-slate-500 hover:text-slate-900 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
+            {/* User info */}
             <div className="p-4 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-teal-700" />
                 </div>
-                <div>
-                  <p className="font-medium text-slate-900 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-900 text-sm truncate">
                     {user?.user_metadata?.full_name || "Client"}
                   </p>
-                  <p className="text-xs text-slate-500">{user?.email}</p>
+                  <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                 </div>
               </div>
             </div>
 
+            {/* Nav items — min 44px touch targets */}
             <nav className="p-2">
               {navGroups.map((group, idx) => (
                 <div key={idx} className="mb-1">
@@ -286,15 +302,15 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                       to={group.path}
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
-                        "block px-4 py-3 rounded-lg text-sm font-medium",
-                        isActive(group.path) ? "bg-teal-50 text-teal-700" : "text-slate-700 hover:bg-slate-50"
+                        "flex items-center px-4 py-3 rounded-xl text-sm font-medium min-h-[44px]",
+                        isActive(group.path) ? "bg-teal-50 text-teal-700" : "text-slate-700 hover:bg-slate-50 active:bg-slate-100"
                       )}
                     >
                       {group.label}
                     </Link>
                   ) : (
                     <>
-                      <p className="px-4 pt-4 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      <p className="px-4 pt-4 pb-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                         {group.label}
                       </p>
                       {group.children.map((child) => (
@@ -303,8 +319,8 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                           to={child.path}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
-                            "block px-4 py-2.5 rounded-lg text-sm",
-                            isActive(child.path) ? "bg-teal-50 text-teal-700 font-medium" : "text-slate-600 hover:bg-slate-50"
+                            "flex items-center px-4 py-3 rounded-xl text-sm min-h-[44px]",
+                            isActive(child.path) ? "bg-teal-50 text-teal-700 font-medium" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
                           )}
                         >
                           {child.label}
@@ -316,13 +332,14 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               ))}
             </nav>
 
-            <div className="p-4 border-t border-slate-200 mt-2">
-              <Link to="/" className="block px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg mb-1">
+            {/* Bottom actions */}
+            <div className="p-4 border-t border-slate-200 mt-2 space-y-1">
+              <Link to="/" className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
                 Retour au site Nivra
               </Link>
               <button
                 onClick={handleSignOut}
-                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2"
+                className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-2 min-h-[44px]"
               >
                 <LogOut className="w-4 h-4" />
                 Déconnexion
@@ -332,17 +349,24 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         </>
       )}
 
-      {/* Main Content */}
+      {/* Main Content — responsive padding */}
       <main className="flex-1">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 lg:py-8">
           {children}
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-slate-100 border-t border-slate-200 py-6 mt-auto">
-        <div className="max-w-[1200px] mx-auto px-6 text-center text-xs text-slate-500">
+      {/* Portal Footer */}
+      <footer className="bg-slate-100 border-t border-slate-200 py-5 mt-auto">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center text-xs text-slate-500 space-y-1">
           <p>© {new Date().getFullYear()} Nivra Télécom. Tous droits réservés.</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            <Link to="/privacy-policy" className="hover:text-slate-700 transition-colors">Confidentialité</Link>
+            <span className="text-slate-400">·</span>
+            <Link to="/conditions-de-service" className="hover:text-slate-700 transition-colors">Conditions</Link>
+            <span className="text-slate-400">·</span>
+            <Link to="/contact" className="hover:text-slate-700 transition-colors">Support</Link>
+          </div>
         </div>
       </footer>
     </div>

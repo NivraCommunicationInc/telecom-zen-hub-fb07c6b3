@@ -317,12 +317,14 @@
     word-break: normal;
   }
   
-  /* Typography Scale - Professional ISP */
+  /* Typography Scale — Telco-grade (Bell/Rogers) */
+  /* Mobile: H1=22-26px, H2=18-20px, Body=16px, Meta=12-14px */
+  /* Desktop: H1=36-48px, H2=24-34px */
   h1 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 700;
-    font-size: clamp(2.25rem, 5vw, 3rem);
-    line-height: 1.1;
+    font-size: clamp(1.375rem, 4vw, 3rem); /* 22px → 48px */
+    line-height: 1.15;
     letter-spacing: -0.025em;
     color: hsl(var(--foreground));
   }
@@ -330,7 +332,7 @@
   h2 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
-    font-size: clamp(1.5rem, 3.5vw, 2.125rem);
+    font-size: clamp(1.125rem, 3vw, 2.125rem); /* 18px → 34px */
     line-height: 1.2;
     letter-spacing: -0.02em;
     color: hsl(var(--foreground));
@@ -339,7 +341,7 @@
   h3 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
-    font-size: 1.25rem;
+    font-size: clamp(1rem, 2vw, 1.25rem); /* 16px → 20px */
     line-height: 1.35;
     letter-spacing: -0.01em;
     color: hsl(var(--foreground));
@@ -348,13 +350,14 @@
   h4 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
-    font-size: 1.0625rem;
+    font-size: 1rem;
     line-height: 1.4;
   }
   
   h5, h6 {
     font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
+    font-size: 0.875rem;
   }
 
   /* Body text variants */
@@ -364,13 +367,24 @@
   }
 
   .text-body {
-    font-size: 1rem;
-    line-height: 1.65;
+    font-size: 1rem; /* 16px — prevents iOS zoom */
+    line-height: 1.6;
   }
 
   .text-body-sm {
     font-size: 0.875rem;
     line-height: 1.6;
+  }
+
+  /* Prevent iOS zoom on inputs — minimum 16px */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  @media (min-width: 1024px) {
+    input, select, textarea {
+      font-size: inherit !important;
+    }
   }
 }
 
@@ -455,9 +469,9 @@
     @apply bg-accent/5;
   }
   
-  /* Professional Button Base */
+  /* Professional Button Base — min 44px touch target */
   .btn-pro {
-    @apply h-11 px-6 rounded-xl font-medium transition-all duration-200;
+    @apply h-11 min-h-[44px] px-6 rounded-xl font-medium transition-all duration-200;
     @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent;
   }
 
@@ -469,6 +483,26 @@
   .btn-pro-secondary {
     @apply btn-pro bg-primary text-primary-foreground;
     @apply hover:bg-navy-700;
+  }
+
+  /* Telco-grade card — uniform radius, subtle shadow */
+  .card-telco {
+    @apply bg-card rounded-2xl border border-border p-4 sm:p-6;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Status badges — proper contrast */
+  .badge-paid {
+    @apply bg-emerald-100 text-emerald-800 font-semibold text-xs px-2.5 py-1 rounded-full;
+  }
+  .badge-pending {
+    @apply bg-amber-100 text-amber-800 font-semibold text-xs px-2.5 py-1 rounded-full;
+  }
+  .badge-partial {
+    @apply bg-blue-100 text-blue-800 font-semibold text-xs px-2.5 py-1 rounded-full;
+  }
+  .badge-overdue {
+    @apply bg-red-100 text-red-800 font-semibold text-xs px-2.5 py-1 rounded-full;
   }
   
   /* Professional Input Styles */
