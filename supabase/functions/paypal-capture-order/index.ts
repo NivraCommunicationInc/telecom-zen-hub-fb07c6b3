@@ -112,7 +112,7 @@ serve(async (req) => {
 
     const captureData = await captureResponse.json();
 
-    // ── Step 2: Extract & log production-grade proof ──────────────
+    // ── Step 2: Extract & validate capture data ──────────────────
     const capture = captureData.purchase_units?.[0]?.payments?.captures?.[0];
     const captureId = capture?.id;
     const amountValue = capture?.amount?.value;
@@ -121,7 +121,6 @@ serve(async (req) => {
     const amount = parseFloat(amountValue || "0");
     const paypalOrderStatus = captureData.status;
 
-    // ★ PROOF 1: Full PayPal capture proof logged server-side
     const captureProof = {
       paypal_order_id: body.paypal_order_id,
       paypal_order_status: paypalOrderStatus,
@@ -136,12 +135,9 @@ serve(async (req) => {
     console.log("[PayPal Capture] ★ CAPTURE PROOF:", JSON.stringify(captureProof));
 
     if (paypalOrderStatus !== "COMPLETED") {
-      console.error("[PayPal Capture] ✗ Order NOT completed:", paypalOrderStatus);
       throw new Error(`Payment not completed: ${paypalOrderStatus}`);
     }
-
     if (!captureId) {
-      console.error("[PayPal Capture] ✗ No capture_id in response");
       throw new Error("No capture ID in PayPal response");
     }
 
@@ -157,147 +153,86 @@ serve(async (req) => {
       linkedCustomerId = await ensureBillingCustomer(supabase, payerEmail, payerFirstName, payerLastName, payerPhone);
     }
 
-    // Use invoice_id from request body, fallback to custom_id from PayPal
+    // Resolve invoice_id: request body > PayPal custom_id
     const invoiceId = body.invoice_id || customId;
 
-    // ── Step 3: Idempotency check — prevent double processing ────
-    const { data: existingPayment } = await supabase
-      .from("billing_payments")
-      .select("id")
-      .eq("provider_payment_id", captureId)
-      .maybeSingle();
-
-    if (existingPayment) {
-      console.log("[PayPal Capture] ⚡ Already processed (idempotent):", captureId);
-      return new Response(
-        JSON.stringify({
-          success: true,
-          capture_id: captureId,
-          amount,
-          status: "COMPLETED",
-          already_processed: true,
-          capture_proof: captureProof,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // ── Step 4: Update billing system (DB "transaction") ─────────
+    // ── Step 3: Apply payment via transactional DB function ──────
+    let paymentResult: any = null;
     let invoiceUpdated = false;
-    let customerEmail = "";
-    let customerName = "";
-    let invoiceNumber = "";
     let updatedInvoice: any = null;
 
     if (invoiceId) {
-      // ─── Try V2: billing_invoices ───
-      const { data: v2Invoice, error: v2Error } = await supabase
+      // Try V2 billing_invoices first
+      const { data: v2Invoice } = await supabase
         .from("billing_invoices")
-        .select("*, customer:billing_customers(*)")
+        .select("id, invoice_number, total, customer:billing_customers(email, first_name, last_name)")
         .eq("id", invoiceId)
         .maybeSingle();
 
-      if (v2Error) console.error("[PayPal Capture] V2 invoice lookup error:", v2Error);
-
       if (v2Invoice) {
-        console.log("[PayPal Capture] Found V2 invoice:", v2Invoice.id, "total:", v2Invoice.total);
-
-        // 4a. Insert payment record
-        const { data: paymentRecord, error: paymentError } = await supabase
-          .from("billing_payments")
-          .insert({
-            invoice_id: v2Invoice.id,
-            customer_id: v2Invoice.customer_id,
-            amount: amount,
-            method: "paypal",
-            provider: "paypal",
-            provider_payment_id: captureId,
-            status: "confirmed",
-            received_at: new Date().toISOString(),
-            source: "portal",
-            created_by_name: "PayPal Capture",
-            created_by_role: "system",
-          })
-          .select()
-          .single();
-
-        if (paymentError) {
-          console.error("[PayPal Capture] ✗ Payment insert error:", paymentError);
-          // If unique constraint violation, it's a duplicate — still succeed
-          if (paymentError.code === "23505") {
-            console.log("[PayPal Capture] ⚡ Duplicate payment insert (idempotent)");
-          } else {
-            throw new Error(`Failed to record payment: ${paymentError.message}`);
+        // ★ USE THE TRANSACTIONAL DB FUNCTION ★
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          "apply_payment_to_invoice",
+          {
+            p_invoice_id: v2Invoice.id,
+            p_amount: amount,
+            p_method: "paypal",
+            p_provider: "paypal",
+            p_provider_payment_id: captureId,
+            p_provider_order_id: body.paypal_order_id,
+            p_source: "portal",
+            p_created_by_name: "PayPal Capture",
+            p_created_by_role: "system",
+            p_customer_id: linkedCustomerId,
           }
-        } else {
-          console.log("[PayPal Capture] ✓ Payment recorded:", paymentRecord.id);
+        );
+
+        if (rpcError) {
+          console.error("[PayPal Capture] ✗ apply_payment_to_invoice error:", rpcError);
+          throw new Error(`Failed to apply payment: ${rpcError.message}`);
         }
 
-        // 4b. Recalculate invoice amounts
-        const newAmountPaid = (v2Invoice.amount_paid || 0) + amount;
-        const newBalanceDue = Math.max(0, v2Invoice.total - newAmountPaid);
-        const isPaid = newBalanceDue <= 0;
+        paymentResult = rpcResult;
+        invoiceUpdated = paymentResult?.success === true;
 
-        const { error: invoiceUpdateError } = await supabase
-          .from("billing_invoices")
-          .update({
-            amount_paid: newAmountPaid,
-            balance_due: newBalanceDue,
-            status: isPaid ? "paid" : "pending",
-            paid_at: isPaid ? new Date().toISOString() : null,
-            payment_method: "paypal",
-            billing_snapshot_payment: isPaid ? {
-              method: "paypal",
-              paid_at: new Date().toISOString(),
-              transaction_id: captureId,
-              amount: amount,
-              currency: currencyCode,
-            } : null,
-          })
-          .eq("id", v2Invoice.id);
+        if (invoiceUpdated) {
+          console.log("[PayPal Capture] ✓ Payment applied via DB function:", paymentResult);
 
-        if (invoiceUpdateError) {
-          console.error("[PayPal Capture] ✗ Invoice update error:", invoiceUpdateError);
-        } else {
-          console.log("[PayPal Capture] ✓ Invoice updated:", {
-            invoice_id: v2Invoice.id,
-            new_amount_paid: newAmountPaid,
-            new_balance_due: newBalanceDue,
-            status: isPaid ? "paid" : "pending",
-          });
+          updatedInvoice = {
+            id: v2Invoice.id,
+            invoice_number: paymentResult.invoice_number || v2Invoice.invoice_number,
+            total: v2Invoice.total,
+            amount_paid: paymentResult.new_amount_paid,
+            balance_due: paymentResult.new_balance_due,
+            status: paymentResult.invoice_status,
+            paid_at: paymentResult.is_fully_paid ? new Date().toISOString() : null,
+          };
+
+          // Queue confirmation email
+          const customerEmail = v2Invoice.customer?.email;
+          const customerName = `${v2Invoice.customer?.first_name || ""} ${v2Invoice.customer?.last_name || ""}`.trim();
+
+          if (customerEmail && !paymentResult.already_processed) {
+            await supabase.from("email_queue").insert({
+              event_key: `paypal_payment_${captureId}`,
+              to_email: normalizeEmail(customerEmail),
+              template_key: "payment_confirmed",
+              template_vars: {
+                client_name: customerName || "Client",
+                amount: amount.toFixed(2),
+                invoice_number: v2Invoice.invoice_number,
+                payment_method: "PayPal",
+                reference: captureId,
+              },
+              status: "queued",
+              attempts: 0,
+              max_attempts: 5,
+            });
+            console.log("[PayPal Capture] ✓ Confirmation email queued to:", customerEmail);
+          }
         }
-
-        invoiceUpdated = true;
-        invoiceNumber = v2Invoice.invoice_number;
-
-        // 4c. Activate subscription if fully paid
-        if (isPaid && v2Invoice.subscription_id) {
-          await supabase
-            .from("billing_subscriptions")
-            .update({ status: "active", auto_billing_enabled: true })
-            .eq("id", v2Invoice.subscription_id);
-          console.log("[PayPal Capture] ✓ Subscription activated:", v2Invoice.subscription_id);
-        }
-
-        if (v2Invoice.customer) {
-          customerEmail = v2Invoice.customer.email;
-          customerName = `${v2Invoice.customer.first_name} ${v2Invoice.customer.last_name}`;
-        }
-
-        // Return updated invoice data for frontend
-        updatedInvoice = {
-          id: v2Invoice.id,
-          invoice_number: v2Invoice.invoice_number,
-          total: v2Invoice.total,
-          amount_paid: newAmountPaid,
-          balance_due: newBalanceDue,
-          status: isPaid ? "paid" : "pending",
-          paid_at: isPaid ? new Date().toISOString() : null,
-        };
-      }
-
-      // ─── Fallback: Legacy billing table ───
-      if (!invoiceUpdated) {
+      } else {
+        // ─── Fallback: Legacy billing table ───
         const { data: legacyInvoice } = await supabase
           .from("billing")
           .select("*, profile:profiles!billing_user_id_fkey(full_name, email)")
@@ -307,74 +242,61 @@ serve(async (req) => {
         if (legacyInvoice) {
           console.log("[PayPal Capture] Found legacy invoice:", legacyInvoice.id);
 
-          const currentAmountPaid = Number(legacyInvoice.amount_paid) || 0;
-          const newAmountPaid = currentAmountPaid + amount;
-          const invoiceTotal = Number(legacyInvoice.amount) || 0;
-          const newBalanceDue = Math.max(0, invoiceTotal - newAmountPaid);
-          const isPaid = newBalanceDue <= 0;
+          // Idempotency check for legacy
+          const { data: existingLegacy } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("provider_payment_id", captureId)
+            .maybeSingle();
 
-          await supabase
-            .from("billing")
-            .update({
+          if (existingLegacy) {
+            console.log("[PayPal Capture] ⚡ Legacy payment already processed (idempotent)");
+            paymentResult = { success: true, already_processed: true };
+          } else {
+            const currentAmountPaid = Number(legacyInvoice.amount_paid) || 0;
+            const newAmountPaid = currentAmountPaid + amount;
+            const invoiceTotal = Number(legacyInvoice.amount) || 0;
+            const newBalanceDue = Math.max(0, invoiceTotal - newAmountPaid);
+            const isPaid = newBalanceDue <= 0;
+
+            await supabase
+              .from("billing")
+              .update({
+                amount_paid: newAmountPaid,
+                balance_due: newBalanceDue,
+                status: isPaid ? "paid" : "partial",
+                paid_at: isPaid ? new Date().toISOString() : null,
+                payment_method_type: "paypal",
+                payment_reference: captureId,
+                notes: `${legacyInvoice.notes || ""}\n[PayPal] Paiement reçu: ${amount.toFixed(2)}$ - Réf: ${captureId}`.trim(),
+              })
+              .eq("id", invoiceId);
+
+            await supabase.from("payments").insert({
+              user_id: legacyInvoice.user_id,
+              amount: amount,
+              payment_method: "paypal",
+              reference_number: captureId,
+              payment_reference: captureId,
+              provider_payment_id: captureId,
+              notes: `Paiement PayPal automatique - Capture ID: ${captureId}`,
+              billing_id: invoiceId,
+              status: "completed",
+              source: "portal",
+            });
+
+            invoiceUpdated = true;
+            updatedInvoice = {
+              id: invoiceId,
+              invoice_number: legacyInvoice.invoice_number || invoiceId.slice(0, 8),
+              total: invoiceTotal,
               amount_paid: newAmountPaid,
               balance_due: newBalanceDue,
               status: isPaid ? "paid" : "partial",
               paid_at: isPaid ? new Date().toISOString() : null,
-              payment_method_type: "paypal",
-              payment_reference: captureId,
-              notes: `${legacyInvoice.notes || ""}\n[PayPal] Paiement reçu: ${amount.toFixed(2)}$ - Réf: ${captureId}`.trim(),
-            })
-            .eq("id", invoiceId);
-
-          // Insert into legacy payments table with provider_payment_id for idempotency
-          await supabase.from("payments").insert({
-            user_id: legacyInvoice.user_id,
-            amount: amount,
-            payment_method: "paypal",
-            reference_number: captureId,
-            payment_reference: captureId,
-            provider_payment_id: captureId,
-            notes: `Paiement PayPal automatique - Capture ID: ${captureId}`,
-            billing_id: invoiceId,
-            status: "completed",
-            source: "portal",
-          });
-
-          invoiceUpdated = true;
-          invoiceNumber = legacyInvoice.invoice_number || invoiceId.slice(0, 8);
-          customerEmail = legacyInvoice.profile?.email || legacyInvoice.client_email || "";
-          customerName = legacyInvoice.profile?.full_name || "";
-
-          updatedInvoice = {
-            id: invoiceId,
-            invoice_number: invoiceNumber,
-            total: invoiceTotal,
-            amount_paid: newAmountPaid,
-            balance_due: newBalanceDue,
-            status: isPaid ? "paid" : "partial",
-            paid_at: isPaid ? new Date().toISOString() : null,
-          };
+            };
+          }
         }
-      }
-
-      // Queue confirmation email
-      if (invoiceUpdated && customerEmail) {
-        await supabase.from("email_queue").insert({
-          event_key: `paypal_payment_${captureId}`,
-          to_email: normalizeEmail(customerEmail),
-          template_key: "payment_confirmed",
-          template_vars: {
-            client_name: customerName || "Client",
-            amount: amount.toFixed(2),
-            invoice_number: invoiceNumber,
-            payment_method: "PayPal",
-            reference: captureId,
-          },
-          status: "queued",
-          attempts: 0,
-          max_attempts: 5,
-        });
-        console.log("[PayPal Capture] ✓ Confirmation email queued to:", customerEmail);
       }
     }
 
@@ -400,10 +322,10 @@ serve(async (req) => {
         ...captureProof,
         invoice_updated: invoiceUpdated,
         linked_customer_id: linkedCustomerId,
+        db_function_result: paymentResult,
       },
     });
 
-    // ── Step 5: Return enriched response with capture proof ──────
     console.log("[PayPal Capture] ★ COMPLETE — capture_id:", captureId, "invoice_updated:", invoiceUpdated);
 
     return new Response(
@@ -416,6 +338,7 @@ serve(async (req) => {
         payer_email: payerEmail,
         linked_customer_id: linkedCustomerId,
         invoice_updated: invoiceUpdated,
+        already_processed: paymentResult?.already_processed || false,
         updated_invoice: updatedInvoice,
         capture_proof: captureProof,
       }),

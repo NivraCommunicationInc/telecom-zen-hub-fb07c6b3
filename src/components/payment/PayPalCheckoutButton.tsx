@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 
@@ -32,6 +33,7 @@ export const PayPalCheckoutButton = ({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
   const callbacksRef = useRef({ onSuccess, onError });
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     callbacksRef.current = { onSuccess, onError };
@@ -75,6 +77,13 @@ export const PayPalCheckoutButton = ({
           if (mountedRef.current) {
             setIsPolling(false);
             toast.success("Paiement PayPal confirmé!");
+            // Invalidate all billing queries
+            queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
+            queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
+            queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
+            queryClient.invalidateQueries({ queryKey: ["client-invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
+            queryClient.invalidateQueries({ queryKey: ["client-profile-dashboard"] });
             callbacksRef.current.onSuccess?.();
           }
         }
