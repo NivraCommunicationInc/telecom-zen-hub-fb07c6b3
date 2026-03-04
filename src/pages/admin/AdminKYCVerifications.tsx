@@ -22,7 +22,7 @@ import {
   Shield, CheckCircle2, XCircle, Clock, Eye,
   Search, RefreshCw, FileCheck, User, Calendar, Loader2, Camera,
   AlertTriangle, Package, ExternalLink, Copy, RotateCcw, Send,
-  PauseCircle, FileUp, Plus, Trash2, Check, X,
+  PauseCircle, FileUp, Plus, Trash2, Check, X, Lock,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient } from "@/integrations/backend";
@@ -260,6 +260,24 @@ const AdminKYCVerifications = () => {
       toast.success("Document traité");
       refetchDocs();
       queryClient.invalidateQueries({ queryKey: ["admin-kyc-sessions"] });
+    },
+    onError: (err: any) => toast.error(err.message || "Erreur"),
+  });
+
+  // Delete KYC documents mutation
+  const deleteDocsMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { data, error } = await adminClient.functions.invoke("admin-review-verification", {
+        body: { action: "delete_documents", session_id: sessionId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`${data.files_deleted} fichier(s) supprimé(s) du stockage`);
+      queryClient.invalidateQueries({ queryKey: ["admin-kyc-sessions"] });
+      if (selectedSession) fetchSignedUrls(selectedSession.id);
     },
     onError: (err: any) => toast.error(err.message || "Erreur"),
   });
@@ -653,7 +671,46 @@ const AdminKYCVerifications = () => {
                   </CardContent>
                 </Card>
 
-                {/* Client info */}
+                {/* Retention status + Delete button */}
+                {(selectedSession.retention_status === "locked" || selectedSession.retention_status === "deleted") && (
+                  <Card className={selectedSession.retention_status === "deleted" ? "border-destructive/30 bg-destructive/5" : "border-amber-300 bg-amber-50/50"}>
+                    <CardContent className="py-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Lock className="w-4 h-4" />
+                          <span className="font-medium">
+                            {selectedSession.retention_status === "deleted" ? "Documents supprimés" : "Documents verrouillés"}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {selectedSession.retention_status}
+                          </Badge>
+                        </div>
+                        {selectedSession.retention_status === "locked" && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={deleteDocsMutation.isPending}
+                            onClick={() => {
+                              if (confirm("Supprimer définitivement tous les documents KYC du stockage ? Cette action est irréversible.")) {
+                                deleteDocsMutation.mutate(selectedSession.id);
+                              }
+                            }}
+                          >
+                            {deleteDocsMutation.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Trash2 className="w-3 h-3 mr-1" />}
+                            Supprimer les documents
+                          </Button>
+                        )}
+                      </div>
+                      {selectedSession.documents_deleted_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Supprimés le {format(new Date(selectedSession.documents_deleted_at), "d MMM yyyy HH:mm", { locale: fr })}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+
                 {profileMap[selectedSession.user_id] && (
                   <Card>
                     <CardHeader className="py-2 px-4">

@@ -693,12 +693,12 @@ export const QRVerificationStep = ({
           )}
 
           {/* Security badge */}
-          <div className="flex items-center gap-3 pt-2">
-            <Shield className="w-4 h-4 text-slate-500" />
+          <div className="flex items-start gap-3 pt-2">
+            <Shield className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
             <span className="text-xs text-slate-500">
               {isFrench
-                ? "Protégé par un chiffrement sécurisé 256 bits pour garantir la sécurité de vos données."
-                : "Protected by 256-bit encryption to ensure the security of your data."}
+                ? "Confidentialité\u00a0: vos documents sont chiffrés et utilisés uniquement pour compléter la vérification d'identité. L'accès est strictement limité à l'équipe de conformité. Vous pouvez demander la suppression à tout moment."
+                : "Privacy: your documents are encrypted and used solely to complete identity verification. Access is strictly limited to the compliance team. You may request deletion at any time."}
             </span>
           </div>
         </CardContent>
