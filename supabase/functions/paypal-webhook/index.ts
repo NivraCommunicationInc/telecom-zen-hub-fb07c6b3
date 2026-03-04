@@ -237,29 +237,36 @@ serve(async (req) => {
           
           console.log(`[PayPal Webhook] Subscription ${existingSub.id} activated`);
           
-          // Also update the initial invoice to paid
-          const { data: pendingInvoice } = await supabase
-            .from("billing_invoices")
-            .select("*")
-            .eq("subscription_id", existingSub.id)
-            .eq("status", "pending")
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .single();
-          
-          if (pendingInvoice) {
-            await supabase
+            // Also mark the initial invoice as paid via RPC if there's a pending one
+            const { data: pendingInvoice } = await supabase
               .from("billing_invoices")
-              .update({
-                status: "paid",
-                paid_at: new Date().toISOString(),
-                amount_paid: pendingInvoice.total,
-                balance_due: 0,
-              })
-              .eq("id", pendingInvoice.id);
+              .select("id, total")
+              .eq("subscription_id", existingSub.id)
+              .in("status", ["pending", "partially_paid"])
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .single();
             
-            console.log(`[PayPal Webhook] Initial invoice ${pendingInvoice.invoice_number} marked as paid`);
-          }
+            if (pendingInvoice) {
+              const { data: rpcResult, error: rpcError } = await supabase.rpc(
+                "apply_payment_to_invoice",
+                {
+                  p_invoice_id: pendingInvoice.id,
+                  p_amount: pendingInvoice.total,
+                  p_method: "paypal",
+                  p_provider: "paypal",
+                  p_provider_payment_id: `sub_activation_${paypalSubscriptionId}`,
+                  p_source: "webhook_subscription",
+                  p_created_by_name: "PayPal Webhook",
+                  p_created_by_role: "system",
+                }
+              );
+              if (rpcError) {
+                console.error("[PayPal Webhook] RPC error on subscription activation:", rpcError);
+              } else {
+                console.log(`[PayPal Webhook] Initial invoice paid via RPC:`, rpcResult);
+              }
+            }
         } else if (customId && customId.startsWith("order_")) {
           // Fallback: try to find by custom_id pattern
           console.log(`[PayPal Webhook] Looking for subscription with order pattern: ${customId}`);
@@ -399,92 +406,72 @@ serve(async (req) => {
             .single();
           
           if (sub) {
-            // Check for duplicate payment (idempotency)
-            const { data: existingPayment } = await supabase
-              .from("billing_payments")
-              .select("id")
-              .eq("provider_payment_id", paymentId)
-              .single();
-            
-            if (existingPayment) {
-              console.log(`[PayPal Webhook] Payment ${paymentId} already recorded - skipping (idempotent)`);
-              break;
-            }
-            
-            // Find pending invoice for this subscription
+            // Find pending/unpaid invoice for this subscription
             const { data: invoice } = await supabase
               .from("billing_invoices")
-              .select("*")
+              .select("id")
               .eq("subscription_id", sub.id)
-              .eq("status", "pending")
+              .in("status", ["pending", "partially_paid"])
               .order("created_at", { ascending: false })
               .limit(1)
               .single();
             
             if (invoice) {
-              // Record the payment
-              await supabase.from("billing_payments").insert({
-                invoice_id: invoice.id,
-                customer_id: sub.customer_id,
-                amount: amount,
-                method: "paypal",
-                provider: "paypal",
-                provider_payment_id: paymentId,
-                status: "confirmed",
-                received_at: new Date().toISOString(),
-                source: "live",
-              });
-              
-              // Update invoice
-              const newAmountPaid = (invoice.amount_paid || 0) + amount;
-              const newBalanceDue = invoice.total - newAmountPaid;
-              
-              await supabase
-                .from("billing_invoices")
-                .update({
-                  amount_paid: newAmountPaid,
-                  balance_due: newBalanceDue,
-                  status: newBalanceDue <= 0 ? "paid" : "pending",
-                  paid_at: newBalanceDue <= 0 ? new Date().toISOString() : null,
-                })
-                .eq("id", invoice.id);
-              
-              // If fully paid, update subscription cycle
-              if (newBalanceDue <= 0) {
-                const newCycleStart = new Date(invoice.cycle_end_date);
-                const newCycleEnd = new Date(invoice.cycle_end_date);
-                newCycleEnd.setDate(newCycleEnd.getDate() + 30);
-                
-                await supabase
-                  .from("billing_subscriptions")
-                  .update({
-                    status: "active",
-                    cycle_start_date: newCycleStart.toISOString().split('T')[0],
-                    cycle_end_date: newCycleEnd.toISOString().split('T')[0],
-                    last_invoice_id: invoice.id,
-                  })
-                  .eq("id", sub.id);
-              }
-              
-              console.log(`[PayPal Webhook] Payment recorded for invoice ${invoice.invoice_number}`);
-              
-              // Queue confirmation email
-              if (sub.customer) {
-                await supabase.from("email_queue").insert({
-                  event_key: `paypal_payment_${paymentId}`,
-                  to_email: sub.customer.email,
-                  template_key: "payment_confirmed",
-                  template_vars: {
-                    client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
-                    amount: amount.toFixed(2),
-                    invoice_number: invoice.invoice_number,
-                    payment_method: "PayPal (Paiement automatique)",
-                    reference: paymentId,
-                  },
-                  status: "queued",
-                  attempts: 0,
-                  max_attempts: 5,
-                });
+              // ★ USE THE TRANSACTIONAL DB FUNCTION ★
+              const { data: rpcResult, error: rpcError } = await supabase.rpc(
+                "apply_payment_to_invoice",
+                {
+                  p_invoice_id: invoice.id,
+                  p_amount: amount,
+                  p_method: "paypal",
+                  p_provider: "paypal",
+                  p_provider_payment_id: paymentId,
+                  p_source: "webhook_subscription",
+                  p_created_by_name: "PayPal Webhook",
+                  p_created_by_role: "system",
+                  p_customer_id: sub.customer_id,
+                }
+              );
+
+              if (rpcError) {
+                console.error("[PayPal Webhook] apply_payment_to_invoice error:", rpcError);
+              } else {
+                console.log(`[PayPal Webhook] Subscription payment applied via RPC:`, rpcResult);
+
+                // If fully paid, update subscription cycle
+                if (rpcResult?.is_fully_paid) {
+                  const newCycleStart = new Date(sub.cycle_end_date);
+                  const newCycleEnd = new Date(sub.cycle_end_date);
+                  newCycleEnd.setDate(newCycleEnd.getDate() + 30);
+                  
+                  await supabase
+                    .from("billing_subscriptions")
+                    .update({
+                      cycle_start_date: newCycleStart.toISOString().split('T')[0],
+                      cycle_end_date: newCycleEnd.toISOString().split('T')[0],
+                      last_invoice_id: invoice.id,
+                    })
+                    .eq("id", sub.id);
+                }
+
+                // Queue confirmation email
+                if (sub.customer && !rpcResult?.already_processed) {
+                  await supabase.from("email_queue").insert({
+                    event_key: `paypal_payment_${paymentId}`,
+                    to_email: sub.customer.email,
+                    template_key: "payment_confirmed",
+                    template_vars: {
+                      client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
+                      amount: amount.toFixed(2),
+                      invoice_number: rpcResult?.invoice_number || "N/A",
+                      payment_method: "PayPal (Paiement automatique)",
+                      reference: paymentId,
+                    },
+                    status: "queued",
+                    attempts: 0,
+                    max_attempts: 5,
+                  });
+                }
               }
             }
           }

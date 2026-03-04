@@ -1156,6 +1156,7 @@ export type Database = {
           late_fee_amount: number | null
           late_fee_applied: boolean | null
           notes: string | null
+          order_id: string | null
           paid_at: string | null
           payment_method:
             | Database["public"]["Enums"]["billing_payment_method"]
@@ -1187,6 +1188,7 @@ export type Database = {
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
+          order_id?: string | null
           paid_at?: string | null
           payment_method?:
             | Database["public"]["Enums"]["billing_payment_method"]
@@ -1218,6 +1220,7 @@ export type Database = {
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
+          order_id?: string | null
           paid_at?: string | null
           payment_method?:
             | Database["public"]["Enums"]["billing_payment_method"]
@@ -1244,6 +1247,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "billing_invoices_subscription_id_fkey"
@@ -10929,6 +10939,7 @@ export type Database = {
       billing_invoice_status:
         | "draft"
         | "pending"
+        | "partially_paid"
         | "paid"
         | "failed"
         | "cancelled"
@@ -11237,6 +11248,7 @@ export const Constants = {
       billing_invoice_status: [
         "draft",
         "pending",
+        "partially_paid",
         "paid",
         "failed",
         "cancelled",
