@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
@@ -58,6 +58,9 @@ const ClientMonthlyInvoices = () => {
       return data;
     },
     enabled: !!user?.id,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Fetch client's subscriptions to show bill cycle info
@@ -75,6 +78,9 @@ const ClientMonthlyInvoices = () => {
       return data;
     },
     enabled: !!user?.id,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Fetch account info for billing cycle
@@ -92,6 +98,9 @@ const ClientMonthlyInvoices = () => {
       return data;
     },
     enabled: !!user?.id,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Mark invoice as paid (simulated - in reality would integrate with payment gateway)
@@ -132,6 +141,32 @@ const ClientMonthlyInvoices = () => {
           return s.next_invoice_date < earliest ? s.next_invoice_date : earliest;
         }, null as string | null)
       : null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const refreshBillingData = () => {
+      queryClient.invalidateQueries({ queryKey: ["client-subscriptions-billing", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["client-balance", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["client-ledger", user.id] });
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshBillingData();
+      }
+    };
+
+    refreshBillingData();
+    window.addEventListener("focus", refreshBillingData);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", refreshBillingData);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [user?.id, queryClient]);
 
   return (
     <ClientLayout>
@@ -180,12 +215,12 @@ const ClientMonthlyInvoices = () => {
         )}
 
         {/* Active Services Summary */}
-        {subscriptions && subscriptions.length > 0 && (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg">Services actifs</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg">Services actifs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {subscriptions && subscriptions.length > 0 ? (
               <div className="space-y-2">
                 {subscriptions.map((sub) => (
                   <div key={sub.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -202,9 +237,14 @@ const ClientMonthlyInvoices = () => {
                   </span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-muted-foreground font-medium">Aucun service actif</p>
+                <p className="text-sm text-muted-foreground mt-1">Votre total mensuel est actuellement à 0 $.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Invoices List */}
         <Card className="bg-card border-border">
