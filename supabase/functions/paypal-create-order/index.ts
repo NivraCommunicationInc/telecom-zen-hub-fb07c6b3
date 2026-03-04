@@ -92,20 +92,62 @@ serve(async (req) => {
       amount_type: typeof body.amount,
     });
 
-    const rawAmount = (body as any).amount;
-    const parsedAmount =
-      typeof rawAmount === "number"
-        ? rawAmount
-        : typeof rawAmount === "string"
-          ? Number(rawAmount.replace(",", "."))
-          : NaN;
+    // ===================================================================
+    // SECURITY: When invoice_id is provided, fetch the authoritative amount
+    // from the database instead of trusting the frontend value.
+    // ===================================================================
+    let amount: number = NaN;
+    let invoiceNumber: string | undefined;
 
-    // PayPal expects a 2-decimal currency value; normalize first, then validate.
-    const amount = Number.isFinite(parsedAmount) ? Number(parsedAmount.toFixed(2)) : NaN;
+    if (body.invoice_id) {
+      // Try billing_invoices (V2) first
+      const { data: v2Invoice } = await supabase
+        .from("billing_invoices")
+        .select("total, amount_paid, balance_due, invoice_number")
+        .eq("id", body.invoice_id)
+        .maybeSingle();
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      console.warn("[PayPal] Invalid amount received:", { rawAmount, parsedAmount, amount });
-      throw new Error("Montant invalide. Vérifiez le total à payer.");
+      if (v2Invoice) {
+        amount = Number((v2Invoice.balance_due ?? (v2Invoice.total - (v2Invoice.amount_paid || 0))).toFixed(2));
+        invoiceNumber = v2Invoice.invoice_number;
+        console.log("[PayPal] Amount from billing_invoices:", amount, "Invoice:", invoiceNumber);
+      } else {
+        // Try legacy billing table
+        const { data: legacyInvoice } = await supabase
+          .from("billing")
+          .select("amount, amount_paid, balance_due, invoice_number")
+          .eq("id", body.invoice_id)
+          .maybeSingle();
+
+        if (legacyInvoice) {
+          const total = Number(legacyInvoice.amount) || 0;
+          const paid = Number(legacyInvoice.amount_paid) || 0;
+          amount = Number(Math.max(0, legacyInvoice.balance_due ?? (total - paid)).toFixed(2));
+          invoiceNumber = legacyInvoice.invoice_number;
+          console.log("[PayPal] Amount from legacy billing:", amount, "Invoice:", invoiceNumber);
+        }
+      }
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        console.warn("[PayPal] Invoice not found or already paid:", body.invoice_id);
+        throw new Error("Facture introuvable ou déjà payée.");
+      }
+    } else {
+      // Fallback: use the amount from the request (for non-invoice payments like checkout)
+      const rawAmount = (body as any).amount;
+      const parsedAmount =
+        typeof rawAmount === "number"
+          ? rawAmount
+          : typeof rawAmount === "string"
+            ? Number(rawAmount.replace(",", "."))
+            : NaN;
+
+      amount = Number.isFinite(parsedAmount) ? Number(parsedAmount.toFixed(2)) : NaN;
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        console.warn("[PayPal] Invalid amount received:", { rawAmount, parsedAmount, amount });
+        throw new Error("Montant invalide. Vérifiez le total à payer.");
+      }
     }
 
     const accessToken = await getPayPalAccessToken();
@@ -169,6 +211,7 @@ serve(async (req) => {
         },
         description: body.description || "Nivra Telecom - Paiement",
         custom_id: body.invoice_id || body.order_id || `order_${Date.now()}`,
+        ...(invoiceNumber ? { invoice_id: invoiceNumber } : {}),
         // Add shipping info if address is provided
         ...(body.customer?.address ? {
           shipping: {
