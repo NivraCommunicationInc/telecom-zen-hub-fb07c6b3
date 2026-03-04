@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ const ClientInvoices = () => {
   const { data: siteSettings } = useSiteSettings();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("invoices");
   const [filterTab, setFilterTab] = useState("all");
@@ -279,7 +280,7 @@ const ClientInvoices = () => {
     if (firstPending) {
       handlePayInvoice(firstPending);
     } else {
-      navigate("/portal/payments");
+      toast.info("Aucune facture en attente de paiement.");
     }
   };
 
@@ -297,6 +298,14 @@ const ClientInvoices = () => {
   // Pending invoices for summary section
   const pendingInvoices = invoices?.filter((inv: any) => isInvoiceOpen(inv)) || [];
   const totalDue = pendingInvoices.reduce((sum: number, inv: any) => sum + getBalanceDue(inv), 0);
+
+  // Auto-open pay dialog when navigating with ?pay=true
+  useEffect(() => {
+    if (searchParams.get("pay") === "true" && !invoicesLoading && pendingInvoices.length > 0 && !payDialogOpen) {
+      handlePayInvoice(pendingInvoices[0]);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, invoicesLoading, pendingInvoices.length]);
 
   // Last payment info
   const lastPayment = invoices?.find((inv: any) => inv.status === "paid");

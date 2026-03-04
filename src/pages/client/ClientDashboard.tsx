@@ -1,6 +1,6 @@
 import ClientLayout from "@/components/client/ClientLayout";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
+  const navigate = useNavigate();
   const [dismissedBanners, setDismissedBanners] = useState<string[]>([]);
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
 
@@ -140,13 +141,15 @@ const ClientDashboard = () => {
                     <ChevronRight className="w-4 h-4 ml-auto" />
                   </Button>
                 </Link>
-                <Link to="/portal/payments">
-                  <Button variant="outline" className="w-full border-teal-600 text-teal-700 hover:bg-teal-50 rounded-lg h-11">
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Faire un paiement
-                    <ChevronRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full border-teal-600 text-teal-700 hover:bg-teal-50 rounded-lg h-11"
+                  onClick={() => navigate("/portal/invoices?pay=true")}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Faire un paiement
+                  <ChevronRight className="w-4 h-4 ml-auto" />
+                </Button>
               </div>
             </div>
 
