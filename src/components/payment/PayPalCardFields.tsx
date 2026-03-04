@@ -156,6 +156,16 @@ export const PayPalCardFields = ({
             if (error) throw error;
             if (!captureData?.capture_id) throw new Error("No capture ID returned");
 
+            // ★ Log capture proof in console for DevTools validation
+            console.log("[PayPal CardFields] ★ CAPTURE PROOF:", {
+              capture_id: captureData.capture_id,
+              amount: captureData.amount,
+              currency: captureData.currency,
+              status: captureData.status,
+              invoice_updated: captureData.invoice_updated,
+              updated_invoice: captureData.updated_invoice,
+            });
+
             toast.success("Paiement par carte réussi!");
             callbacksRef.current.onSuccess?.(captureData.capture_id);
           } catch (err) {
