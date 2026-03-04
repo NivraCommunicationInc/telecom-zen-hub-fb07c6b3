@@ -2,7 +2,7 @@
  * Admin KYC Verifications Center
  * Telecom-grade identity verification management.
  * Route: /admin/kyc-verifications
- * Features: case numbers, order linking, resubmission with required_docs, approve/reject with mandatory note.
+ * Features: case numbers, order linking, pending_docs with per-doc tracking, approve/reject with mandatory note.
  */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +22,7 @@ import {
   Shield, CheckCircle2, XCircle, Clock, Eye,
   Search, RefreshCw, FileCheck, User, Calendar, Loader2, Camera,
   AlertTriangle, Package, ExternalLink, Copy, RotateCcw, Send,
+  PauseCircle, FileUp, Plus, Trash2, Check, X,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient } from "@/integrations/backend";
@@ -31,7 +33,9 @@ import { fr } from "date-fns/locale";
 const STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof Shield }> = {
   created: { label: "Créée", className: "bg-blue-50 text-blue-700 border-blue-200", icon: Clock },
   submitted: { label: "Soumise", className: "bg-amber-50 text-amber-700 border-amber-200", icon: Send },
+  in_review: { label: "En cours d'examen", className: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: Eye },
   manual_review: { label: "En révision", className: "bg-purple-50 text-purple-700 border-purple-200", icon: Eye },
+  pending_docs: { label: "En attente de documents", className: "bg-orange-50 text-orange-700 border-orange-200", icon: PauseCircle },
   approved: { label: "Approuvée", className: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: CheckCircle2 },
   rejected: { label: "Refusée", className: "bg-red-50 text-red-700 border-red-200", icon: XCircle },
   expired: { label: "Expirée", className: "bg-slate-100 text-slate-500 border-slate-200", icon: Clock },
@@ -44,13 +48,23 @@ const MATCH_CONFIG: Record<string, { label: string; className: string }> = {
   mismatch: { label: "Mismatch ✗", className: "bg-red-50 text-red-700 border-red-200" },
 };
 
-const ADDITIONAL_DOC_TYPES = [
+const DOC_TYPE_OPTIONS = [
   { value: "proof_of_address", label: "Preuve d'adresse" },
   { value: "bank_statement", label: "Relevé bancaire" },
-  { value: "other_invoice", label: "Autre facture" },
   { value: "utility_bill", label: "Facture de services publics" },
   { value: "government_letter", label: "Lettre gouvernementale" },
+  { value: "other_invoice", label: "Autre facture" },
+  { value: "id_front", label: "Recto pièce d'identité" },
+  { value: "id_back", label: "Verso pièce d'identité" },
+  { value: "selfie", label: "Selfie" },
 ];
+
+const DOC_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  requested: { label: "Demandé", className: "bg-orange-50 text-orange-700 border-orange-200" },
+  uploaded: { label: "Téléversé", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  accepted: { label: "Accepté", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  rejected: { label: "Refusé", className: "bg-red-50 text-red-700 border-red-200" },
+};
 
 const OCRDiffTable = ({ matchResult, checkoutFields }: { matchResult: any; checkoutFields: any }) => {
   if (!matchResult) return null;
@@ -61,11 +75,10 @@ const OCRDiffTable = ({ matchResult, checkoutFields }: { matchResult: any; check
     first_name: "Prénom", last_name: "Nom", date_of_birth: "Date de naissance",
     document_number: "N° document", expiry_date: "Expiration",
   };
-
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-muted-foreground border-b pb-2">
-        <span>Champ</span><span>Attendu (checkout)</span><span>Extrait (OCR)</span>
+        <span>Champ</span><span>Attendu</span><span>Extrait (OCR)</span>
       </div>
       {fields.map((f) => {
         const expected = checkoutFields?.[f] || "—";
@@ -87,6 +100,11 @@ const OCRDiffTable = ({ matchResult, checkoutFields }: { matchResult: any; check
   );
 };
 
+interface DocRequest {
+  doc_type: string;
+  instructions: string;
+}
+
 const AdminKYCVerifications = () => {
   const queryClient = useQueryClient();
   const [selectedSession, setSelectedSession] = useState<any>(null);
@@ -97,8 +115,14 @@ const AdminKYCVerifications = () => {
   const [reviewReason, setReviewReason] = useState("");
   const [signedUrls, setSignedUrls] = useState<Record<string, string | null>>({});
   const [loadingUrls, setLoadingUrls] = useState(false);
-  const [requiredDocs, setRequiredDocs] = useState<string[]>([]);
-  const [customDocLabel, setCustomDocLabel] = useState("");
+
+  // Request docs modal
+  const [requestDocsOpen, setRequestDocsOpen] = useState(false);
+  const [docRequests, setDocRequests] = useState<DocRequest[]>([{ doc_type: "proof_of_address", instructions: "" }]);
+  const [requestNote, setRequestNote] = useState("");
+
+  // Per-doc review
+  const [docReviewNote, setDocReviewNote] = useState("");
 
   // Fetch all sessions
   const { data: sessions = [], isLoading, refetch } = useQuery({
@@ -144,6 +168,21 @@ const AdminKYCVerifications = () => {
     enabled: !!selectedSession?.id,
   });
 
+  // Requested docs for selected session
+  const { data: requestedDocs = [], refetch: refetchDocs } = useQuery({
+    queryKey: ["admin-kyc-requested-docs", selectedSession?.id],
+    queryFn: async () => {
+      if (!selectedSession?.id) return [];
+      const { data } = await adminClient
+        .from("kyc_requested_documents")
+        .select("*")
+        .eq("kyc_session_id", selectedSession.id)
+        .order("requested_at", { ascending: true });
+      return data || [];
+    },
+    enabled: !!selectedSession?.id,
+  });
+
   const fetchSignedUrls = async (sessionId: string) => {
     setLoadingUrls(true);
     try {
@@ -159,10 +198,11 @@ const AdminKYCVerifications = () => {
     }
   };
 
+  // Review mutation (approve/reject)
   const reviewMutation = useMutation({
-    mutationFn: async ({ sessionId, decision, reason, required_docs }: { sessionId: string; decision: string; reason: string; required_docs?: string[] }) => {
+    mutationFn: async ({ sessionId, decision, reason }: { sessionId: string; decision: string; reason: string }) => {
       const { data, error } = await adminClient.functions.invoke("admin-review-verification", {
-        body: { session_id: sessionId, decision, reason, required_docs, idempotency_key: `review_${sessionId}_${Date.now()}` },
+        body: { session_id: sessionId, decision, reason, idempotency_key: `review_${sessionId}_${Date.now()}` },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -173,8 +213,51 @@ const AdminKYCVerifications = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-kyc-sessions"] });
       setSheetOpen(false);
       setReviewReason("");
-      setRequiredDocs([]);
-      setCustomDocLabel("");
+    },
+    onError: (err: any) => toast.error(err.message || "Erreur"),
+  });
+
+  // Request docs mutation
+  const requestDocsMutation = useMutation({
+    mutationFn: async ({ sessionId, docs, note }: { sessionId: string; docs: DocRequest[]; note: string }) => {
+      const { data, error } = await adminClient.functions.invoke("admin-review-verification", {
+        body: {
+          action: "request_documents",
+          session_id: sessionId,
+          requested_documents: docs,
+          reason: note,
+          idempotency_key: `reqd_${sessionId}_${Date.now()}`,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Documents demandés — client notifié");
+      queryClient.invalidateQueries({ queryKey: ["admin-kyc-sessions"] });
+      setRequestDocsOpen(false);
+      setDocRequests([{ doc_type: "proof_of_address", instructions: "" }]);
+      setRequestNote("");
+      refetchDocs();
+    },
+    onError: (err: any) => toast.error(err.message || "Erreur"),
+  });
+
+  // Per-doc accept/reject mutation
+  const docReviewMutation = useMutation({
+    mutationFn: async ({ docId, decision, note }: { docId: string; decision: "accepted" | "rejected"; note: string }) => {
+      const { data, error } = await adminClient.functions.invoke("admin-review-verification", {
+        body: { action: "review_document", document_id: docId, decision, review_note: note },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Document traité");
+      refetchDocs();
+      queryClient.invalidateQueries({ queryKey: ["admin-kyc-sessions"] });
     },
     onError: (err: any) => toast.error(err.message || "Erreur"),
   });
@@ -184,8 +267,6 @@ const AdminKYCVerifications = () => {
     setSignedUrls({});
     setReviewReason("");
     setReviewDecision("approved");
-    setRequiredDocs([]);
-    setCustomDocLabel("");
     setSheetOpen(true);
     if (session.document_front_path) fetchSignedUrls(session.id);
   };
@@ -193,10 +274,28 @@ const AdminKYCVerifications = () => {
   const handleReview = () => {
     if (!reviewReason.trim()) { toast.error("Note obligatoire"); return; }
     if (!selectedSession?.id) return;
-    const docs = reviewDecision === "resubmission_required"
-      ? [...requiredDocs, ...(customDocLabel.trim() ? [customDocLabel.trim()] : [])]
-      : undefined;
-    reviewMutation.mutate({ sessionId: selectedSession.id, decision: reviewDecision, reason: reviewReason, required_docs: docs });
+    reviewMutation.mutate({ sessionId: selectedSession.id, decision: reviewDecision, reason: reviewReason });
+  };
+
+  const handleOpenRequestDocs = () => {
+    setDocRequests([{ doc_type: "proof_of_address", instructions: "" }]);
+    setRequestNote("");
+    setRequestDocsOpen(true);
+  };
+
+  const handleSubmitRequestDocs = () => {
+    if (!selectedSession?.id) return;
+    if (docRequests.length === 0) { toast.error("Ajoutez au moins un document"); return; }
+    if (!requestNote.trim()) { toast.error("Note obligatoire"); return; }
+    requestDocsMutation.mutate({ sessionId: selectedSession.id, docs: docRequests, note: requestNote });
+  };
+
+  const addDocRow = () => setDocRequests([...docRequests, { doc_type: "", instructions: "" }]);
+  const removeDocRow = (idx: number) => setDocRequests(docRequests.filter((_, i) => i !== idx));
+  const updateDocRow = (idx: number, field: keyof DocRequest, value: string) => {
+    const updated = [...docRequests];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setDocRequests(updated);
   };
 
   const copyToClipboard = (text: string) => { navigator.clipboard.writeText(text); toast.success("Copié"); };
@@ -215,8 +314,10 @@ const AdminKYCVerifications = () => {
     );
   });
 
-  const pendingCount = sessions.filter((s: any) => s.status === "manual_review").length;
-  const resubCount = sessions.filter((s: any) => s.status === "resubmission_required").length;
+  const pendingCount = sessions.filter((s: any) => ["manual_review", "submitted", "in_review"].includes(s.status)).length;
+  const pendingDocsCount = sessions.filter((s: any) => s.status === "pending_docs").length;
+
+  const canReview = selectedSession && ["manual_review", "submitted", "in_review", "pending_docs"].includes(selectedSession.status);
 
   return (
     <div className="space-y-6">
@@ -230,8 +331,8 @@ const AdminKYCVerifications = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {pendingCount > 0 && <Badge className="bg-purple-100 text-purple-800 border-purple-300">{pendingCount} en révision</Badge>}
-          {resubCount > 0 && <Badge className="bg-orange-100 text-orange-800 border-orange-300">{resubCount} resoumission</Badge>}
+          {pendingCount > 0 && <Badge className="bg-purple-100 text-purple-800 border-purple-300">{pendingCount} à traiter</Badge>}
+          {pendingDocsCount > 0 && <Badge className="bg-orange-100 text-orange-800 border-orange-300">{pendingDocsCount} en attente docs</Badge>}
           <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-4 h-4 mr-1" /> Actualiser</Button>
         </div>
       </div>
@@ -246,9 +347,10 @@ const AdminKYCVerifications = () => {
           <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
-            <SelectItem value="manual_review">En révision</SelectItem>
-            <SelectItem value="resubmission_required">Resoumission requise</SelectItem>
             <SelectItem value="submitted">Soumises</SelectItem>
+            <SelectItem value="in_review">En cours d'examen</SelectItem>
+            <SelectItem value="manual_review">En révision</SelectItem>
+            <SelectItem value="pending_docs">En attente de documents</SelectItem>
             <SelectItem value="approved">Approuvées</SelectItem>
             <SelectItem value="rejected">Refusées</SelectItem>
             <SelectItem value="created">Créées</SelectItem>
@@ -284,11 +386,10 @@ const AdminKYCVerifications = () => {
                 const mc = matchStatus ? MATCH_CONFIG[matchStatus] : null;
                 const isMismatch = matchStatus === "mismatch" || matchStatus === "partial_match";
                 const profile = profileMap[session.user_id];
-
                 return (
                   <TableRow
                     key={session.id}
-                    className={`cursor-pointer ${isMismatch ? "bg-destructive/5 hover:bg-destructive/10" : session.status === "manual_review" ? "bg-purple-50/30 hover:bg-purple-50/50" : "hover:bg-muted/50"}`}
+                    className={`cursor-pointer ${isMismatch ? "bg-destructive/5 hover:bg-destructive/10" : session.status === "pending_docs" ? "bg-orange-50/30 hover:bg-orange-50/50" : session.status === "manual_review" || session.status === "submitted" ? "bg-purple-50/30 hover:bg-purple-50/50" : "hover:bg-muted/50"}`}
                     onClick={() => handleOpenSession(session)}
                   >
                     <TableCell>
@@ -321,7 +422,7 @@ const AdminKYCVerifications = () => {
                     <TableCell className="text-xs text-muted-foreground">{format(new Date(session.created_at), "d MMM yyyy HH:mm", { locale: fr })}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{format(new Date(session.updated_at), "d MMM yyyy HH:mm", { locale: fr })}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant={isMismatch ? "destructive" : session.status === "manual_review" ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); handleOpenSession(session); }}>
+                      <Button size="sm" variant={isMismatch ? "destructive" : ["manual_review", "submitted", "in_review"].includes(session.status) ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); handleOpenSession(session); }}>
                         <Eye className="w-4 h-4 mr-1" /> Ouvrir
                       </Button>
                     </TableCell>
@@ -357,7 +458,6 @@ const AdminKYCVerifications = () => {
                       </Button>
                     )}
                   </div>
-
                   {loadingUrls ? (
                     <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
                   ) : signedUrls.front ? (
@@ -391,6 +491,78 @@ const AdminKYCVerifications = () => {
                 </div>
 
                 <Separator />
+
+                {/* Requested Documents Section */}
+                {requestedDocs.length > 0 && (
+                  <>
+                    <div className="space-y-3">
+                      <h3 className="font-semibold flex items-center gap-2"><FileUp className="w-4 h-4" /> Documents demandés ({requestedDocs.length})</h3>
+                      <div className="space-y-2">
+                        {requestedDocs.map((doc: any) => {
+                          const ds = DOC_STATUS_CONFIG[doc.status] || DOC_STATUS_CONFIG.requested;
+                          const docLabel = DOC_TYPE_OPTIONS.find(d => d.value === doc.doc_type)?.label || doc.doc_type;
+                          return (
+                            <Card key={doc.id} className={`${doc.status === "uploaded" ? "border-blue-300 bg-blue-50/30" : doc.status === "rejected" ? "border-red-300 bg-red-50/30" : ""}`}>
+                              <CardContent className="py-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm">{docLabel}</span>
+                                    <Badge className={ds.className}>{ds.label}</Badge>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">{format(new Date(doc.requested_at), "d MMM HH:mm", { locale: fr })}</span>
+                                </div>
+                                {doc.instructions && <p className="text-xs text-muted-foreground italic">"{doc.instructions}"</p>}
+                                
+                                {/* Show uploaded file preview */}
+                                {doc.uploaded_file_url && doc.status === "uploaded" && (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <FileCheck className="w-3 h-3 text-blue-600" />
+                                    <span className="text-blue-700">Fichier téléversé le {doc.uploaded_at ? format(new Date(doc.uploaded_at), "d MMM HH:mm", { locale: fr }) : "—"}</span>
+                                  </div>
+                                )}
+
+                                {doc.review_note && (
+                                  <p className="text-xs bg-muted p-2 rounded">Note: {doc.review_note}</p>
+                                )}
+
+                                {/* Accept/Reject buttons for uploaded docs */}
+                                {doc.status === "uploaded" && (
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <Input
+                                      placeholder="Note (optionnel)..."
+                                      className="flex-1 text-xs h-8"
+                                      value={docReviewNote}
+                                      onChange={(e) => setDocReviewNote(e.target.value)}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                                      disabled={docReviewMutation.isPending}
+                                      onClick={() => { docReviewMutation.mutate({ docId: doc.id, decision: "accepted", note: docReviewNote }); setDocReviewNote(""); }}
+                                    >
+                                      <Check className="w-3 h-3 mr-1" /> Accepter
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-red-700 border-red-300 hover:bg-red-50"
+                                      disabled={docReviewMutation.isPending}
+                                      onClick={() => { docReviewMutation.mutate({ docId: doc.id, decision: "rejected", note: docReviewNote }); setDocReviewNote(""); }}
+                                    >
+                                      <X className="w-3 h-3 mr-1" /> Refuser
+                                    </Button>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 {/* OCR section */}
                 <div className="space-y-3">
@@ -434,9 +606,7 @@ const AdminKYCVerifications = () => {
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="py-4 text-center text-muted-foreground border border-dashed rounded-lg text-sm">
-                      Aucune commande liée à cette session.
-                    </div>
+                    <div className="py-4 text-center text-muted-foreground border border-dashed rounded-lg text-sm">Aucune commande liée.</div>
                   )}
                 </div>
 
@@ -500,7 +670,7 @@ const AdminKYCVerifications = () => {
                 )}
 
                 {/* Decision Panel */}
-                {(selectedSession.status === "manual_review" || selectedSession.status === "submitted" || selectedSession.status === "resubmission_required") && (
+                {canReview && (
                   <div>
                     <Separator className="mb-4" />
                     <Card className="border-2 border-primary/20">
@@ -515,55 +685,27 @@ const AdminKYCVerifications = () => {
                           </div>
                         )}
 
-                        <Select value={reviewDecision} onValueChange={setReviewDecision}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="approved">✓ Approuver — confirmer commande</SelectItem>
-                            <SelectItem value="rejected">✗ Refuser — bloquer commande</SelectItem>
-                            <SelectItem value="resubmission_required">🔄 Demander resoumission</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        {/* Required docs selector for resubmission */}
-                        {reviewDecision === "resubmission_required" && (
-                          <div className="space-y-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                            <Label className="text-xs font-semibold text-orange-800">Documents requis du client :</Label>
-                            {ADDITIONAL_DOC_TYPES.map((doc) => (
-                              <div key={doc.value} className="flex items-center gap-2">
-                                <Checkbox
-                                  id={doc.value}
-                                  checked={requiredDocs.includes(doc.value)}
-                                  onCheckedChange={(checked) => {
-                                    setRequiredDocs(checked
-                                      ? [...requiredDocs, doc.value]
-                                      : requiredDocs.filter((d) => d !== doc.value)
-                                    );
-                                  }}
-                                />
-                                <label htmlFor={doc.value} className="text-sm">{doc.label}</label>
-                              </div>
-                            ))}
-                            <div className="pt-1">
-                              <Input
-                                placeholder="Autre document (optionnel)..."
-                                value={customDocLabel}
-                                onChange={(e) => setCustomDocLabel(e.target.value)}
-                                className="text-sm"
-                              />
-                            </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Select value={reviewDecision} onValueChange={setReviewDecision}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="approved">✓ Approuver — confirmer commande</SelectItem>
+                                <SelectItem value="rejected">✗ Refuser — bloquer commande</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
+                          <Button variant="outline" className="text-orange-700 border-orange-300 hover:bg-orange-50" onClick={handleOpenRequestDocs}>
+                            <PauseCircle className="w-4 h-4 mr-1" /> Mettre en attente
+                          </Button>
+                        </div>
 
                         <Textarea value={reviewReason} onChange={(e) => setReviewReason(e.target.value)} placeholder="Note interne obligatoire..." rows={2} />
 
                         <Button
                           onClick={handleReview}
                           disabled={!reviewReason.trim() || reviewMutation.isPending}
-                          className={`w-full ${
-                            reviewDecision === "approved" ? "bg-emerald-600 hover:bg-emerald-700" :
-                            reviewDecision === "rejected" ? "bg-destructive hover:bg-destructive/90" :
-                            "bg-orange-600 hover:bg-orange-700"
-                          } text-white`}
+                          className={`w-full ${reviewDecision === "approved" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-destructive hover:bg-destructive/90"} text-white`}
                         >
                           {reviewMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                           Confirmer la décision
@@ -590,6 +732,72 @@ const AdminKYCVerifications = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Request Documents Dialog */}
+      <Dialog open={requestDocsOpen} onOpenChange={setRequestDocsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PauseCircle className="w-5 h-5 text-orange-600" />
+              Mettre en attente — Demander des documents
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Le statut passera à <Badge className="bg-orange-50 text-orange-700 border-orange-200">En attente de documents</Badge> et le client sera notifié.
+            </p>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Documents à demander</Label>
+              {docRequests.map((dr, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <div className="flex-1 space-y-1">
+                    <Select value={dr.doc_type} onValueChange={(v) => updateDocRow(idx, "doc_type", v)}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Type de document" /></SelectTrigger>
+                      <SelectContent>
+                        {DOC_TYPE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                        <SelectItem value="custom">Autre (personnalisé)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Instructions pour le client (ex: Facture Hydro-Québec < 90 jours)"
+                      className="text-xs h-8"
+                      value={dr.instructions}
+                      onChange={(e) => updateDocRow(idx, "instructions", e.target.value)}
+                    />
+                  </div>
+                  {docRequests.length > 1 && (
+                    <Button variant="ghost" size="sm" className="mt-0.5" onClick={() => removeDocRow(idx)}>
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addDocRow}>
+                <Plus className="w-3 h-3 mr-1" /> Ajouter un document
+              </Button>
+            </div>
+
+            <div>
+              <Label className="text-sm font-semibold">Note pour le client (obligatoire)</Label>
+              <Textarea value={requestNote} onChange={(e) => setRequestNote(e.target.value)} placeholder="Expliquez ce qui est nécessaire..." rows={2} className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestDocsOpen(false)}>Annuler</Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              disabled={!requestNote.trim() || docRequests.length === 0 || requestDocsMutation.isPending}
+              onClick={handleSubmitRequestDocs}
+            >
+              {requestDocsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Envoyer la demande
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
