@@ -87,10 +87,15 @@ export const PayPalCardFields = ({
         }
 
         const script = document.createElement("script");
-        script.src = `https://www.paypal.com/sdk/js?components=card-fields&client-id=${clientId}&currency=CAD&locale=fr_CA`;
+        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&components=card-fields&intent=capture&currency=CAD&locale=fr_CA`;
         script.setAttribute("data-client-token", tokenData.client_token);
         script.async = true;
-        script.onload = () => { if (!cancelled) setSdkReady(true); };
+        script.onload = () => {
+          if (cancelled) return;
+          console.log("[PayPal SDK] Loaded. paypal object keys:", Object.keys(window.paypal || {}));
+          console.log("[PayPal SDK] CardFields available:", !!window.paypal?.CardFields);
+          setSdkReady(true);
+        };
         script.onerror = () => { if (!cancelled) setSdkError("Impossible de charger PayPal"); };
         document.body.appendChild(script);
       } catch (err) {
@@ -173,30 +178,28 @@ export const PayPalCardFields = ({
         },
       });
 
-      if (cardField.isEligible()) {
+      const isElig = cardField.isEligible();
+      console.log("[PayPal CardFields] isEligible():", isElig);
+
+      if (isElig) {
         setEligible(true);
         cardFieldRef.current = cardField;
 
         // Listen for validity changes from PayPal iframes
         cardField.on("validityChange", (event: unknown) => {
           console.log("[PayPal CardFields] validityChange event:", JSON.stringify(event, null, 2));
-          // The event contains field-level info; check full state for overall validity
           try {
             const state = cardField.getState();
             console.log("[PayPal CardFields] Full state after validityChange:", JSON.stringify(state, null, 2));
             
-            // PayPal CardFields getState() returns an object with fields property
-            // Each field has { isEmpty, isValid, isPotentiallyValid, isFocused }
-            // We check that all required fields are valid
             const s = state as any;
             const fields = s.fields || s;
             const numberValid = fields?.cardNumberField?.isValid || fields?.cardNumber?.isValid || false;
             const expiryValid = fields?.cardExpiryField?.isValid || fields?.cardExpiry?.isValid || fields?.expirationDate?.isValid || false;
             const cvvValid = fields?.cardCvvField?.isValid || fields?.cardCvv?.isValid || fields?.cvv?.isValid || false;
-            const nameValid = fields?.cardNameField?.isValid || fields?.cardholderName?.isValid || true; // Name may not be tracked
             
             const allValid = numberValid && expiryValid && cvvValid;
-            console.log("[PayPal CardFields] Field validity:", { numberValid, expiryValid, cvvValid, nameValid, allValid });
+            console.log("[PayPal CardFields] Field validity:", { numberValid, expiryValid, cvvValid, allValid });
             
             if (mountedRef.current) setFieldsValid(allValid);
           } catch (e) {
@@ -211,7 +214,7 @@ export const PayPalCardFields = ({
         cardField.CVVField().render("#card-cvv-field");
       } else {
         setEligible(false);
-        console.warn("[PayPal CardFields] Not eligible for card fields");
+        console.warn("[PayPal CardFields] NOT eligible. SDK components:", Object.keys(window.paypal || {}));
       }
     } catch (err) {
       console.error("[PayPal CardFields] Mount error:", err);
