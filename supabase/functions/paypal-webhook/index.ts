@@ -511,84 +511,50 @@ serve(async (req) => {
           break;
         }
 
-        // Idempotency: check if this capture was already recorded
-        const { data: existingCapture } = await supabase
-          .from("billing_payments")
-          .select("id")
-          .eq("provider_payment_id", captureId)
-          .maybeSingle();
-
-        if (existingCapture) {
-          console.log(
-            `[PayPal Webhook] Capture ${captureId} already recorded (idempotent) — skipping`
-          );
-          break;
-        }
-
-        // Also check legacy payments table
-        const { data: existingLegacy } = await supabase
-          .from("payments")
-          .select("id")
-          .eq("provider_payment_id", captureId)
-          .maybeSingle();
-
-        if (existingLegacy) {
-          console.log(
-            `[PayPal Webhook] Capture ${captureId} already in legacy payments — skipping`
-          );
-          break;
-        }
-
-        // Try to find the invoice in billing_invoices (V2)
-        const { data: v2Invoice } = await supabase
+        // Try V2 invoice first — use the transactional DB function
+        const { data: v2Check } = await supabase
           .from("billing_invoices")
-          .select("*, customer:billing_customers(*)")
+          .select("id, status")
           .eq("id", customId)
           .maybeSingle();
 
-        if (v2Invoice && v2Invoice.status !== "paid") {
-          // Record payment
-          await supabase.from("billing_payments").insert({
-            invoice_id: v2Invoice.id,
-            customer_id: v2Invoice.customer_id,
-            amount: captureAmount,
-            method: "paypal",
-            provider: "paypal",
-            provider_payment_id: captureId,
-            status: "confirmed",
-            received_at: new Date().toISOString(),
-            source: "live",
-            created_by_name: "PayPal Webhook",
-            created_by_role: "system",
-          });
+        if (v2Check && v2Check.status !== "paid") {
+          // ★ USE THE TRANSACTIONAL DB FUNCTION ★
+          const { data: rpcResult, error: rpcError } = await supabase.rpc(
+            "apply_payment_to_invoice",
+            {
+              p_invoice_id: v2Check.id,
+              p_amount: captureAmount,
+              p_method: "paypal",
+              p_provider: "paypal",
+              p_provider_payment_id: captureId,
+              p_source: "webhook",
+              p_created_by_name: "PayPal Webhook",
+              p_created_by_role: "system",
+            }
+          );
 
-          // Recalculate
-          const newPaid = (v2Invoice.amount_paid || 0) + captureAmount;
-          const newBalance = Math.max(0, v2Invoice.total - newPaid);
-          const isPaid = newBalance <= 0;
+          if (rpcError) {
+            console.error("[PayPal Webhook] apply_payment_to_invoice error:", rpcError);
+          } else {
+            console.log(`[PayPal Webhook] V2 invoice updated via DB function:`, rpcResult);
+          }
+        } else if (v2Check?.status === "paid") {
+          console.log(`[PayPal Webhook] Invoice ${customId} already paid — skipping`);
+        } else {
+          // Fallback: legacy billing table
+          // Check idempotency first
+          const { data: existingLegacy } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("provider_payment_id", captureId)
+            .maybeSingle();
 
-          await supabase
-            .from("billing_invoices")
-            .update({
-              amount_paid: newPaid,
-              balance_due: newBalance,
-              status: isPaid ? "paid" : "pending",
-              paid_at: isPaid ? new Date().toISOString() : null,
-            })
-            .eq("id", v2Invoice.id);
-
-          if (isPaid && v2Invoice.subscription_id) {
-            await supabase
-              .from("billing_subscriptions")
-              .update({ status: "active", auto_billing_enabled: true })
-              .eq("id", v2Invoice.subscription_id);
+          if (existingLegacy) {
+            console.log(`[PayPal Webhook] Capture ${captureId} already in legacy — skipping`);
+            break;
           }
 
-          console.log(
-            `[PayPal Webhook] V2 invoice ${v2Invoice.invoice_number} updated via webhook capture`
-          );
-        } else if (!v2Invoice) {
-          // Try legacy billing
           const { data: legacyInvoice } = await supabase
             .from("billing")
             .select("*")
@@ -614,9 +580,7 @@ serve(async (req) => {
               })
               .eq("id", customId);
 
-            console.log(
-              `[PayPal Webhook] Legacy invoice ${customId} updated via webhook capture`
-            );
+            console.log(`[PayPal Webhook] Legacy invoice ${customId} updated via webhook`);
           }
         }
 

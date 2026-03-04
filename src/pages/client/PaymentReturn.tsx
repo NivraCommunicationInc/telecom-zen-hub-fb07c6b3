@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,12 @@ import ClientLayout from "@/components/client/ClientLayout";
  * /portal/payment-success — PayPal redirects here after approval.
  * Extracts the PayPal token (order ID) from query params,
  * calls paypal-capture-order, then shows result.
+ * After capture, invalidates all billing queries for instant UI refresh.
  */
 const PaymentReturn = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<"capturing" | "success" | "error">("capturing");
   const [errorMsg, setErrorMsg] = useState("");
   const [captureDetails, setCaptureDetails] = useState<any>(null);
@@ -41,6 +44,14 @@ const PaymentReturn = () => {
         setCaptureDetails(data);
         setStatus("success");
         toast.success("Paiement confirmé!");
+
+        // ★ Invalidate ALL billing-related queries for instant UI refresh
+        queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
+        queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
+        queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
+        queryClient.invalidateQueries({ queryKey: ["client-invoices"] });
+        queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
+        queryClient.invalidateQueries({ queryKey: ["client-profile-dashboard"] });
       } catch (err: any) {
         console.error("[PaymentReturn] Capture error:", err);
         setStatus("error");
@@ -49,7 +60,7 @@ const PaymentReturn = () => {
     };
 
     capture();
-  }, [params]);
+  }, [params, queryClient]);
 
   return (
     <ClientLayout>
