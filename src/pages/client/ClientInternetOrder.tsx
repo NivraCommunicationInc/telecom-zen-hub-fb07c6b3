@@ -440,7 +440,32 @@ const ClientInternetOrder = () => {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
 
-      // First, update the profile with ID information and phone
+      if (!verificationSessionId) {
+        throw new Error("Nous n'avons pas pu lier votre vérification d'identité. Veuillez soumettre vos documents à nouveau.");
+      }
+
+      const activeStatuses = ["created", "submitted", "manual_review", "approved"];
+      const reviewReadyStatuses = ["submitted", "manual_review", "approved"];
+
+      const { data: latestActiveSession, error: latestSessionError } = await supabase
+        .from("identity_verification_sessions")
+        .select("id, status, created_at")
+        .eq("user_id", user.id)
+        .in("status", activeStatuses)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestSessionError) {
+        throw new Error("Impossible de vérifier votre session d'identité. Veuillez réessayer.");
+      }
+
+      const effectiveSessionId = latestActiveSession?.id || verificationSessionId;
+      const effectiveSessionStatus = latestActiveSession?.status || null;
+
+      if (!effectiveSessionId || !effectiveSessionStatus || !reviewReadyStatuses.includes(effectiveSessionStatus)) {
+        throw new Error("Votre vérification d'identité doit être soumise avant de finaliser la commande.");
+      }
       const phoneDigits = checkoutPhone.replace(/\D/g, "");
       const { error: profileError } = await supabase.from("profiles").update({
         first_name: clientIdData.firstName,
@@ -541,8 +566,8 @@ const ClientInternetOrder = () => {
         installation_fee: installationMethod === "technician" ? 50 : 0,
         installation_credit: installationCredit,
         discount_code: discountCode || null,
-        status: verificationSessionId ? "pending_verification" : "pending",
-        identity_verification_session_id: verificationSessionId || null,
+        status: "pending_verification",
+        identity_verification_session_id: effectiveSessionId,
         payment_status: paymentStatus,
         payment_method: selectedPaymentMethod === "paypal" ? "paypal" : selectedPaymentMethod === "etransfer" ? "etransfer" : "card",
         payment_reference: selectedPaymentMethod === "paypal" && paypalCaptureId ? paypalCaptureId : null,
@@ -1085,6 +1110,10 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
                 userId={user?.id || ""}
                 checkoutType="internet"
                 isFrench={isFrench}
+                onSessionGenerated={(sessionId) => {
+                  setVerificationSessionId(sessionId);
+                  setIdVerificationApproved(false);
+                }}
                 onVerified={(sessionId) => {
                   setVerificationSessionId(sessionId);
                   setIdVerificationApproved(true);
