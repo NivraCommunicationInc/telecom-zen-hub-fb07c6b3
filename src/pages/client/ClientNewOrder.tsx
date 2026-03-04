@@ -1255,8 +1255,8 @@ const ClientNewOrder = () => {
 
   // Create order mutation
   const createOrderMutation = useMutation({
-    mutationFn: async () => {
-      console.log("[ClientNewOrder] Starting order creation...", { userId: user?.id, clientRequestId });
+    mutationFn: async (linkedSessionId: string) => {
+      console.log("[ClientNewOrder] Starting order creation...", { userId: user?.id, clientRequestId, linkedSessionId });
       if (!user?.id) throw new Error("Utilisateur non authentifié. Veuillez vous reconnecter.");
 
       // Security check before sensitive action
