@@ -1598,6 +1598,7 @@ const ClientNewOrder = () => {
           discount_amount: cappedDiscount,
         } : null,
         status: verificationSessionId ? "pending_verification" : "pending",
+        identity_verification_session_id: verificationSessionId || null,
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
