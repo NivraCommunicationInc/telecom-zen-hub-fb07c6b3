@@ -846,10 +846,203 @@ export function generateSummaryPDF(data: SummaryData): string {
 }
 
 // ============================================================================
+// CONTRACT SUMMARY (RRE) PDF GENERATOR — 1 page
+// ============================================================================
+
+export interface ContractSummaryData {
+  account_number: string;
+  contract_number: string;
+  order_number: string;
+  effective_date: string;
+  client_name: string;
+  client_email: string;
+  client_phone: string;
+  client_address: string;
+  services: Array<{ name: string; monthly_price: number }>;
+  equipment: Array<{ name: string; price: number }>;
+  total_monthly: number;
+  total_one_time: number;
+  tps_monthly: number;
+  tvq_monthly: number;
+  total_monthly_with_tax: number;
+  payment_method: string;
+  bill_cycle_day: number;
+  terms_version: string;
+}
+
+export function generateContractSummaryPDF(data: ContractSummaryData): string {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+
+  doc.setFillColor(...COLORS.white);
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
+  drawHeader(doc, "RÉSUMÉ DU CONTRAT");
+
+  let y = 32;
+
+  // Title banner
+  doc.setFillColor(...COLORS.accent);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 14, 3, 3, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("FICHE ESSENTIELLE — RÉSUMÉ DES INFORMATIONS CRITIQUES", pageWidth / 2, y + 9, { align: "center" });
+  y += 22;
+
+  // Reference block
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 20, 3, 3, "F");
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Compte:", margin + 5, y + 7);
+  doc.text("Contrat:", margin + 5, y + 14);
+  doc.text("Commande:", pageWidth / 2, y + 7);
+  doc.text("Date effective:", pageWidth / 2, y + 14);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.text);
+  doc.text(data.account_number, margin + 30, y + 7);
+  doc.text(data.contract_number, margin + 30, y + 14);
+  doc.text(data.order_number, pageWidth / 2 + 30, y + 7);
+  doc.text(formatDate(data.effective_date), pageWidth / 2 + 38, y + 14);
+  y += 26;
+
+  // Client block
+  doc.setFillColor(...COLORS.accent);
+  doc.rect(margin, y, 3, 8, "F");
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("CLIENT", margin + 7, y + 6);
+  y += 12;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.text);
+  doc.text(`Nom: ${data.client_name}`, margin + 5, y);
+  doc.text(`Courriel: ${data.client_email}`, margin + 5, y + 6);
+  doc.text(`Téléphone: ${data.client_phone}`, margin + 5, y + 12);
+  doc.text(`Adresse: ${data.client_address}`, margin + 5, y + 18);
+  y += 26;
+
+  // Services table
+  doc.setFillColor(...COLORS.accent);
+  doc.rect(margin, y, 3, 8, "F");
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("SERVICES SOUSCRITS", margin + 7, y + 6);
+  y += 12;
+
+  doc.setFillColor(...COLORS.primary);
+  doc.rect(margin, y, pageWidth - margin * 2, 7, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("SERVICE", margin + 5, y + 5);
+  doc.text("MENSUEL", pageWidth - margin - 5, y + 5, { align: "right" });
+  y += 9;
+
+  doc.setTextColor(...COLORS.text);
+  doc.setFont("helvetica", "normal");
+  data.services.forEach((s, i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(...COLORS.lightGray);
+      doc.rect(margin, y - 2, pageWidth - margin * 2, 7, "F");
+    }
+    doc.text(s.name, margin + 5, y + 3);
+    doc.text(formatCurrency(s.monthly_price), pageWidth - margin - 5, y + 3, { align: "right" });
+    y += 7;
+  });
+
+  // Equipment
+  if (data.equipment.length > 0) {
+    y += 4;
+    doc.setFillColor(...COLORS.accent);
+    doc.rect(margin, y, 3, 8, "F");
+    doc.setTextColor(...COLORS.primary);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("FRAIS UNIQUES / ÉQUIPEMENT", margin + 7, y + 6);
+    y += 12;
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.text);
+    data.equipment.forEach((e) => {
+      doc.text(e.name, margin + 5, y);
+      doc.text(formatCurrency(e.price), pageWidth - margin - 5, y, { align: "right" });
+      y += 6;
+    });
+  }
+
+  // Totals
+  y += 6;
+  doc.setDrawColor(...COLORS.border);
+  doc.line(pageWidth / 2, y, pageWidth - margin, y);
+  y += 6;
+
+  const totals = [
+    { label: "Total mensuel (avant taxes)", value: formatCurrency(data.total_monthly) },
+    { label: "TPS (5%)", value: formatCurrency(data.tps_monthly) },
+    { label: "TVQ (9.975%)", value: formatCurrency(data.tvq_monthly) },
+    { label: "Frais uniques", value: formatCurrency(data.total_one_time) },
+  ];
+
+  doc.setFontSize(9);
+  totals.forEach((t) => {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.text);
+    doc.text(t.label, pageWidth / 2 + 5, y);
+    doc.text(t.value, pageWidth - margin - 5, y, { align: "right" });
+    y += 6;
+  });
+
+  y += 2;
+  doc.setFillColor(...COLORS.success);
+  doc.roundedRect(pageWidth / 2, y, pageWidth / 2 - margin, 10, 2, 2, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("TOTAL MENSUEL", pageWidth / 2 + 5, y + 7);
+  doc.text(formatCurrency(data.total_monthly_with_tax), pageWidth - margin - 5, y + 7, { align: "right" });
+
+  y += 18;
+
+  // Payment & billing info
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 22, 3, 3, "F");
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Mode de paiement:", margin + 5, y + 7);
+  doc.text("Jour de facturation:", margin + 5, y + 14);
+  doc.text("Modalités de service:", pageWidth / 2, y + 7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.text);
+  doc.text(data.payment_method, margin + 48, y + 7);
+  doc.text(`Le ${data.bill_cycle_day} de chaque mois`, margin + 48, y + 14);
+  doc.text(data.terms_version, pageWidth / 2 + 42, y + 7);
+
+  y += 28;
+
+  // Legal note
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(...COLORS.textLight);
+  doc.text("Service prépayé — Le cycle commence après confirmation du paiement.", margin, y);
+  doc.text("En cas de non-renouvellement, le service expire à la fin de la période payée. Aucune dette n'est créée.", margin, y + 4);
+
+  drawFooter(doc, 1, 1);
+  return doc.output("datauristring").split(",")[1];
+}
+
+// ============================================================================
 // EXPORT
 // ============================================================================
 
-export type PDFType = 'invoice' | 'contract' | 'summary';
+export type PDFType = 'invoice' | 'contract' | 'summary' | 'contract_summary';
 
 export interface PDFAttachment {
   filename: string;
@@ -859,7 +1052,7 @@ export interface PDFAttachment {
 
 export function generatePDFAttachment(
   type: PDFType, 
-  data: InvoiceData | ContractData | SummaryData
+  data: InvoiceData | ContractData | SummaryData | ContractSummaryData
 ): PDFAttachment | null {
   try {
     switch (type) {
@@ -879,6 +1072,12 @@ export function generatePDFAttachment(
         return {
           filename: `Sommaire-${(data as SummaryData).order_number || 'Nivra'}.pdf`,
           content: generateSummaryPDF(data as SummaryData),
+          contentType: 'application/pdf',
+        };
+      case 'contract_summary':
+        return {
+          filename: `Resume-Contrat-${(data as ContractSummaryData).contract_number || 'Nivra'}.pdf`,
+          content: generateContractSummaryPDF(data as ContractSummaryData),
           contentType: 'application/pdf',
         };
       default:
