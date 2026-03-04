@@ -162,34 +162,50 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         </div>
       </div>
 
-      {/* Main navigation bar — teal, h-14 mobile / h-16 desktop */}
+      {/* Main navigation bar */}
       <header className="bg-teal-700 text-white shadow-md sticky top-0 z-50">
         <div className="max-w-[1200px] mx-auto px-4 lg:px-6">
-          <div className="flex items-center h-14 lg:h-16">
-            {/* Mobile: hamburger left */}
+          {/* Mobile: strict 3-column grid 56 / 1fr / 56 */}
+          <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
             <button
-              className="lg:hidden p-2 -ml-1 text-white/90 hover:text-white hover:bg-white/10 rounded-lg shrink-0"
+              className="w-14 h-14 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/10 rounded-lg"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Menu"
+              type="button"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            {/* Logo — centered on mobile */}
-            <div className="flex-1 flex items-center justify-center lg:justify-start lg:flex-initial">
-              <Link to="/portal" className="flex items-center gap-2 shrink-0">
-                <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
-                  <span className="font-bold text-white text-lg">N</span>
-                </div>
-                <span className="font-bold text-xl text-white hidden sm:block">Nivra</span>
-              </Link>
-            </div>
+            <Link to="/portal" className="justify-self-center flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
+                <span className="font-bold text-white text-lg">N</span>
+              </div>
+              <span className="font-bold text-xl text-white">Nivra</span>
+            </Link>
 
-            {/* Desktop nav */}
-            <nav className="hidden lg:flex items-center gap-1 ml-8 flex-1" ref={dropdownRef}>
+            <Link
+              to="/portal/profile"
+              className="w-14 h-14 flex items-center justify-center justify-self-end text-white/90 hover:text-white hover:bg-white/10 rounded-lg"
+              aria-label="Compte"
+            >
+              <User className="w-5 h-5" />
+            </Link>
+          </div>
+
+          {/* Desktop nav */}
+          <div className="hidden lg:flex items-center h-16">
+            <Link to="/portal" className="flex items-center gap-2 shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
+                <span className="font-bold text-white text-lg">N</span>
+              </div>
+              <span className="font-bold text-xl text-white">Nivra</span>
+            </Link>
+
+            <nav className="flex items-center gap-1 ml-8 flex-1" ref={dropdownRef}>
               {navGroups.map((group, idx) => {
                 const hasChildren = group.children.length > 0;
                 const active = isGroupActive(group);
-                
+
                 return (
                   <div key={idx} className="relative">
                     {hasChildren ? (
@@ -246,7 +262,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               })}
             </nav>
 
-            {/* Right side — notification + mobile account */}
             <div className="flex items-center gap-1 shrink-0">
               <PortalNotificationBell />
             </div>

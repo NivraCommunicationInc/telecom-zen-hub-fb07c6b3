@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, Search, ChevronDown } from "lucide-react";
+import { Menu, X, User, Search } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -103,12 +103,10 @@ const Header = () => {
       {/* Main navigation */}
       <header className={`sticky top-0 z-50 bg-white border-b border-slate-200 transition-shadow duration-200 ${isScrolled ? 'shadow-sm' : ''}`}>
         <div className="container mx-auto px-4 max-w-[1320px]">
-          {/* Mobile: h-14 (56px), Desktop: h-16 (64px) */}
-          <div className="flex items-center h-14 lg:h-16">
-            
-            {/* Mobile: hamburger LEFT */}
+          {/* Mobile: strict 3-column grid 56 / 1fr / 56 */}
+          <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
             <button
-              className="lg:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg shrink-0"
+              className="w-14 h-14 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle menu"
               type="button"
@@ -116,23 +114,37 @@ const Header = () => {
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            {/* Mobile: Logo CENTERED via flex-1 spacers */}
-            <div className="flex-1 flex items-center justify-center lg:justify-start lg:flex-initial">
-              <Link to="/" className="flex items-center gap-2 shrink-0">
-                <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
-                  <span className="font-bold text-white text-lg">N</span>
-                </div>
-                <span className="font-bold text-xl text-[#003366] tracking-tight">Nivra</span>
-              </Link>
-            </div>
+            <Link to="/" className="justify-self-center flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
+                <span className="font-bold text-white text-lg">N</span>
+              </div>
+              <span className="font-bold text-xl text-[#003366] tracking-tight">Nivra</span>
+            </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1 ml-10 flex-1">
+            <Link
+              to={portalLink}
+              className="w-14 h-14 flex items-center justify-center justify-self-end text-slate-600 hover:text-[#003366] hover:bg-slate-50 rounded-lg"
+              aria-label="Compte"
+            >
+              <User className="w-5 h-5" />
+            </Link>
+          </div>
+
+          {/* Desktop navigation */}
+          <div className="hidden lg:flex items-center h-16">
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
+                <span className="font-bold text-white text-lg">N</span>
+              </div>
+              <span className="font-bold text-xl text-[#003366] tracking-tight">Nivra</span>
+            </Link>
+
+            <nav className="flex items-center gap-1 ml-10 flex-1">
               {NAV_TARGETS.map((target) => {
-                const isActive = target.type === 'route' 
-                  ? location.pathname === target.target 
+                const isActive = target.type === 'route'
+                  ? location.pathname === target.target
                   : location.hash === `#${target.target}`;
-                
+
                 return target.type === 'route' ? (
                   <Link
                     key={target.id}
@@ -158,22 +170,13 @@ const Header = () => {
               })}
             </nav>
 
-            {/* Right side — desktop: search + login; mobile: account icon */}
             <div className="flex items-center gap-2 shrink-0">
-              <button className="hidden lg:flex p-2 text-slate-500 hover:text-[#003366] hover:bg-slate-50 rounded-lg transition-colors">
+              <button className="p-2 text-slate-500 hover:text-[#003366] hover:bg-slate-50 rounded-lg transition-colors" aria-label="Recherche">
                 <Search className="w-5 h-5" />
               </button>
-              {/* Mobile: compact account icon */}
-              <Link 
+              <Link
                 to={portalLink}
-                className="lg:hidden p-2 text-slate-600 hover:text-[#003366] hover:bg-slate-50 rounded-lg"
-              >
-                <User className="w-5 h-5" />
-              </Link>
-              {/* Desktop: full login button */}
-              <Link 
-                to={portalLink}
-                className="hidden lg:flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-[#003366] text-white rounded-full hover:bg-[#002244] transition-colors"
+                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-[#003366] text-white rounded-full hover:bg-[#002244] transition-colors"
               >
                 {isFr ? "Connexion" : "Log in"}
               </Link>
