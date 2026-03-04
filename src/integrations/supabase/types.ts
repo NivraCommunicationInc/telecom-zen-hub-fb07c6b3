@@ -4300,6 +4300,8 @@ export type Database = {
           document_back_path: string | null
           document_front_path: string | null
           document_type: Database["public"]["Enums"]["id_document_type"] | null
+          documents_deleted_at: string | null
+          documents_deleted_by: string | null
           expires_at: string
           extracted_fields: Json | null
           id: string
@@ -4318,6 +4320,7 @@ export type Database = {
           required_docs: Json | null
           result_payload: Json | null
           retention_delete_after: string | null
+          retention_status: string
           review_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -4339,6 +4342,8 @@ export type Database = {
           document_back_path?: string | null
           document_front_path?: string | null
           document_type?: Database["public"]["Enums"]["id_document_type"] | null
+          documents_deleted_at?: string | null
+          documents_deleted_by?: string | null
           expires_at: string
           extracted_fields?: Json | null
           id?: string
@@ -4357,6 +4362,7 @@ export type Database = {
           required_docs?: Json | null
           result_payload?: Json | null
           retention_delete_after?: string | null
+          retention_status?: string
           review_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -4378,6 +4384,8 @@ export type Database = {
           document_back_path?: string | null
           document_front_path?: string | null
           document_type?: Database["public"]["Enums"]["id_document_type"] | null
+          documents_deleted_at?: string | null
+          documents_deleted_by?: string | null
           expires_at?: string
           extracted_fields?: Json | null
           id?: string
@@ -4396,6 +4404,7 @@ export type Database = {
           required_docs?: Json | null
           result_payload?: Json | null
           retention_delete_after?: string | null
+          retention_status?: string
           review_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null

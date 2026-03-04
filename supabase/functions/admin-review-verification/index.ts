@@ -246,6 +246,66 @@ Deno.serve(async (req) => {
       return json({ message: `Document ${decision}`, document_id });
     }
 
+    // ── DELETE KYC DOCUMENTS ──
+    if (action === "delete_documents") {
+      const { session_id } = body;
+      if (!session_id) return json({ error: "session_id is required" }, 400);
+
+      const { data: session } = await serviceClient
+        .from("identity_verification_sessions")
+        .select("document_front_path, document_back_path, selfie_path, retention_status")
+        .eq("id", session_id).single();
+      if (!session) return json({ error: "Session not found" }, 404);
+
+      // Delete files from storage
+      const pathsToDelete: string[] = [];
+      if (session.document_front_path) pathsToDelete.push(session.document_front_path);
+      if (session.document_back_path) pathsToDelete.push(session.document_back_path);
+      if (session.selfie_path) pathsToDelete.push(session.selfie_path);
+
+      // Also delete requested doc files
+      const { data: reqDocs } = await serviceClient
+        .from("kyc_requested_documents")
+        .select("uploaded_file_url")
+        .eq("kyc_session_id", session_id)
+        .not("uploaded_file_url", "is", null);
+      if (reqDocs) {
+        for (const d of reqDocs) {
+          if (d.uploaded_file_url) pathsToDelete.push(d.uploaded_file_url);
+        }
+      }
+
+      if (pathsToDelete.length > 0) {
+        const { error: delErr } = await serviceClient.storage.from("id-documents").remove(pathsToDelete);
+        if (delErr) console.error("[admin-review] Storage delete error:", delErr);
+      }
+
+      // Update session
+      await serviceClient.from("identity_verification_sessions").update({
+        retention_status: "deleted",
+        documents_deleted_at: new Date().toISOString(),
+        documents_deleted_by: adminUserId,
+        document_front_path: null,
+        document_back_path: null,
+        selfie_path: null,
+      }).eq("id", session_id);
+
+      // Clear requested doc URLs
+      await serviceClient.from("kyc_requested_documents").update({
+        uploaded_file_url: null,
+      }).eq("kyc_session_id", session_id);
+
+      // Audit log
+      await serviceClient.from("identity_verification_events").insert({
+        session_id, event_type: "documents_deleted", actor_id: adminUserId, actor_role: "admin",
+        details: { files_deleted: pathsToDelete.length },
+        ip_address: req.headers.get("x-forwarded-for"),
+        user_agent: req.headers.get("user-agent"),
+      });
+
+      return json({ message: "Documents deleted", files_deleted: pathsToDelete.length });
+    }
+
     // ── DEFAULT: REVIEW DECISION (approve/reject/in_review) ──
     const { session_id, decision, reason, idempotency_key } = body;
 
@@ -268,7 +328,7 @@ Deno.serve(async (req) => {
       .from("identity_verification_sessions").select("*").eq("id", session_id).single();
     if (sessionError || !session) return json({ error: "Session not found" }, 404);
 
-    // Update session
+    // Update session - lock documents on approve/reject
     const updatePayload: Record<string, any> = {
       status: decision,
       reviewed_at: new Date().toISOString(),
@@ -276,6 +336,9 @@ Deno.serve(async (req) => {
       review_reason: reason,
       result_payload: { decision, reason, reviewed_by_admin: adminUserId },
     };
+    if (decision === "approved" || decision === "rejected") {
+      updatePayload.retention_status = "locked";
+    }
 
     const { error: updateError } = await serviceClient
       .from("identity_verification_sessions").update(updatePayload).eq("id", session_id);
@@ -308,7 +371,6 @@ Deno.serve(async (req) => {
           });
         }
       }
-      // Email is handled by the DB trigger trg_notify_kyc_status_change → notification_outbox
     }
 
     // On rejection: update ONLY id_verification_status on linked orders (NOT order status)
@@ -325,7 +387,6 @@ Deno.serve(async (req) => {
           }).eq("id", order.id);
         }
       }
-      // Email is handled by the DB trigger trg_notify_kyc_status_change → notification_outbox
     }
 
     return json({ message: `Session ${decision}`, session_id });
