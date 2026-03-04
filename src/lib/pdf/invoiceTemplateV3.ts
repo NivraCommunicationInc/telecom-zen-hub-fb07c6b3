@@ -54,6 +54,15 @@ const fmt = (amount: number): string => {
   return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 };
 
+/** For critical fields that MUST be present on the document */
+const critical = (value: string | undefined | null, fieldName: string): string => {
+  if (!value || value === "—" || value === "N/A" || value.trim() === "") {
+    console.warn(`[InvoiceV3] Champ critique manquant: ${fieldName}`);
+    return "Non fourni par le client";
+  }
+  return value;
+};
+
 const fmtDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return "—";
   if (dateStr.includes("DATE_") || dateStr.includes("PERIODE")) return dateStr;
@@ -71,7 +80,10 @@ const fmtShortDate = (dateStr: string | undefined | null): string => {
 
 const fmtStatus = (status: string): string => {
   const map: Record<string, string> = {
-    paid: "Payée", Paid: "Payée", pending: "En attente", Pending: "En attente",
+    paid: "Payée", Paid: "Payée",
+    pending: "En attente", Pending: "En attente",
+    unpaid: "Non payée", Unpaid: "Non payée",
+    partially_paid: "Partiellement payée",
     Issued: "Émise", cancelled: "Annulée", Cancelled: "Annulée",
     expired: "Expirée", Expired: "Expirée", void: "Annulée",
     overdue: "Renouvellement requis",
@@ -217,7 +229,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     doc.text("FACTURÉ À", m + 7, ly);
     ly += 7;
 
-    const drawField = (label: string, value: string) => {
+    const drawField = (label: string, value: string, isCritical = false) => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
       doc.setTextColor(...C.textMuted);
@@ -225,13 +237,14 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...C.text);
-      doc.text(assertPrintableText(value || "—", label).substring(0, 35), m + 35, ly);
+      const displayVal = isCritical ? critical(value, label) : assertPrintableText(value || "—", label);
+      doc.text(displayVal.substring(0, 35), m + 35, ly);
       ly += 5.5;
     };
 
-    drawField("Nom", customer.full_name);
-    drawField("Courriel", customer.email);
-    drawField("Téléphone", customer.phone || "—");
+    drawField("Nom", customer.full_name, true);
+    drawField("Courriel", customer.email, true);
+    drawField("Téléphone", customer.phone, true);
 
     // Billing address
     doc.setFont("helvetica", "bold");
@@ -241,10 +254,10 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...C.text);
-    const addr1 = customer.address_line1 || "—";
+    const addr1 = critical(customer.address_line1, "address_line1");
     doc.text(addr1.substring(0, 35), m + 35, ly);
     ly += 4.5;
-    const cityLine = `${customer.city || "—"}, ${customer.province || "QC"} ${customer.postal_code || ""}`.trim();
+    const cityLine = `${critical(customer.city, "city")}, ${customer.province || "QC"} ${customer.postal_code || ""}`.trim();
     doc.text(cityLine.substring(0, 35), m + 35, ly);
     ly += 6;
 
@@ -287,8 +300,8 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       ry += 5.5;
     };
 
-    drawRightField("N° compte", data.account_number);
-    drawRightField("N° facture", data.invoice_number);
+    drawRightField("N° compte", critical(data.account_number, "account_number"));
+    drawRightField("N° facture", critical(data.invoice_number, "invoice_number"));
 
     // Order number (if available in items reference or data)
     const orderNum = (data as any).order_number || data.items[0]?.reference || "";
