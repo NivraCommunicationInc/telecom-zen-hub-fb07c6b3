@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Banknote, Mail, Copy, Check, Info, CreditCard, Wrench } from "lucide-react";
+import { Banknote, Mail, Copy, Check, Info, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
+import { PayPalCardFields } from "@/components/payment/PayPalCardFields";
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -26,7 +27,7 @@ const PayInvoiceDialog = ({
   profile,
   onPaymentSuccess,
 }: PayInvoiceDialogProps) => {
-  const [paymentMethod, setPaymentMethod] = useState<"interac" | "paypal" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"interac" | "paypal" | "card" | null>(null);
   const [copied, setCopied] = useState(false);
 
   if (!invoice) return null;
@@ -41,42 +42,42 @@ const PayInvoiceDialog = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePayPalSuccess = (captureId: string) => {
-    toast.success("Paiement PayPal effectué avec succès!");
+  const handlePaymentSuccess = (captureId: string) => {
+    toast.success("Paiement effectué avec succès!");
     onOpenChange(false);
     onPaymentSuccess?.();
   };
 
-  const handlePayPalError = (error: string) => {
-    toast.error(`Erreur PayPal: ${error}`);
+  const handlePaymentError = (error: string) => {
+    toast.error(`Erreur de paiement: ${error}`);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-slate-900">
+          <DialogTitle className="text-xl font-bold text-foreground">
             Payer la facture
           </DialogTitle>
         </DialogHeader>
 
-        {/* Invoice Summary */}
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+        {/* Invoice Summary — always visible */}
+        <div className="bg-muted/50 rounded-xl p-4 border border-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-slate-500">Facture</span>
-            <span className="font-mono font-semibold text-slate-900">{invoiceNumber}</span>
+            <span className="text-sm text-muted-foreground">Facture</span>
+            <span className="font-mono font-semibold text-foreground">{invoiceNumber}</span>
           </div>
           {invoice.due_date && (
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-500">Échéance</span>
-              <span className="text-sm text-slate-700">
+              <span className="text-sm text-muted-foreground">Échéance</span>
+              <span className="text-sm text-foreground">
                 {format(new Date(invoice.due_date), "d MMMM yyyy", { locale: fr })}
               </span>
             </div>
           )}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-            <span className="text-sm font-medium text-slate-700">Montant à payer</span>
-            <span className="text-2xl font-bold text-slate-900">
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span className="text-sm font-medium text-foreground">Solde à payer</span>
+            <span className="text-2xl font-bold text-foreground">
               {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
             </span>
           </div>
@@ -84,25 +85,43 @@ const PayInvoiceDialog = ({
 
         {/* Payment Method Selection */}
         <div className="space-y-3">
-          <p className="text-sm font-medium text-slate-700">Choisir un mode de paiement</p>
+          <p className="text-sm font-medium text-foreground">Choisir un mode de paiement</p>
+
+          {/* Credit Card (TELUS-style) */}
+          <button
+            onClick={() => setPaymentMethod("card")}
+            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+              paymentMethod === "card"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/30 bg-background"
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
+              <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé</p>
+            </div>
+            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
+          </button>
 
           {/* Interac */}
           <button
             onClick={() => setPaymentMethod("interac")}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
               paymentMethod === "interac"
-                ? "border-emerald-500 bg-emerald-50"
-                : "border-slate-200 hover:border-slate-300 bg-white"
+                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                : "border-border hover:border-muted-foreground/30 bg-background"
             }`}
           >
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
               <Banknote className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-slate-900">Virement Interac</p>
-              <p className="text-xs text-slate-500">Envoyez un virement par votre banque</p>
+              <p className="font-semibold text-foreground">Virement Interac</p>
+              <p className="text-xs text-muted-foreground">Envoyez un virement par votre banque</p>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Recommandé</Badge>
           </button>
 
           {/* PayPal */}
@@ -110,11 +129,11 @@ const PayInvoiceDialog = ({
             onClick={() => setPaymentMethod("paypal")}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
               paymentMethod === "paypal"
-                ? "border-blue-500 bg-blue-50"
-                : "border-slate-200 hover:border-slate-300 bg-white"
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                : "border-border hover:border-muted-foreground/30 bg-background"
             }`}
           >
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
                 <path d="M19.554 9.488c.121.563.106 1.246-.04 2.017-.582 2.464-2.477 3.88-5.336 3.88h-.71c-.323 0-.6.216-.665.524l-.513 3.292-.146.935c-.033.211.127.403.34.403h2.398c.283 0 .526-.19.581-.468l.024-.123.46-2.922.03-.163c.055-.278.298-.468.58-.468h.367c2.369 0 4.221-1.042 4.762-4.057.226-1.261.11-2.314-.488-3.054a2.57 2.57 0 0 0-.644-.563c.138.244.252.505.34.78z" fill="#179BD7"/>
                 <path d="M18.474 9.081a5.97 5.97 0 0 0-.74-.195 9.456 9.456 0 0 0-1.505-.11h-4.562c-.283 0-.526.19-.581.467l-.973 6.17-.028.18c.065-.308.342-.524.665-.524h1.386c2.84 0 5.062-1.155 5.713-4.495.019-.099.036-.195.05-.289a3.09 3.09 0 0 0-.425-.204z" fill="#222D65"/>
@@ -122,35 +141,35 @@ const PayInvoiceDialog = ({
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-slate-900">PayPal</p>
-              <p className="text-xs text-slate-500">PayPal, carte de crédit ou débit</p>
+              <p className="font-semibold text-foreground">PayPal</p>
+              <p className="text-xs text-muted-foreground">Paiement via votre compte PayPal</p>
             </div>
           </button>
-
-          {/* Carte de crédit — maintenance */}
-          <div className="flex items-center gap-4 p-4 rounded-xl border-2 border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed">
-            <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5 text-slate-400" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-slate-500">Carte de crédit</p>
-              <p className="text-xs text-slate-400">Temporairement indisponible</p>
-            </div>
-            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs gap-1">
-              <Wrench className="w-3 h-3" />
-              Maintenance
-            </Badge>
-          </div>
         </div>
 
-        {/* Payment Details Based on Selection */}
+        {/* ============ Payment Form Based on Selection ============ */}
+
+        {/* Credit Card — TELUS-style embedded form */}
+        {paymentMethod === "card" && (
+          <div className="mt-2">
+            <PayPalCardFields
+              invoiceId={invoice.id}
+              amount={amount}
+              description={`Facture ${invoiceNumber} - Nivra Telecom`}
+              onSuccess={handlePaymentSuccess}
+              onError={handlePaymentError}
+            />
+          </div>
+        )}
+
+        {/* Interac */}
         {paymentMethod === "interac" && (
           <div className="space-y-3 mt-2">
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <p className="text-sm font-medium text-slate-900 mb-3">
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+              <p className="text-sm font-medium text-foreground mb-3">
                 Envoyez votre virement Interac à :
               </p>
-              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-emerald-200">
+              <div className="flex items-center gap-3 p-3 bg-background rounded-lg border border-emerald-200 dark:border-emerald-800">
                 <Mail className="w-5 h-5 text-emerald-600" />
                 <span className="font-mono text-base flex-1">{ETRANSFER_CONFIG.emailDisplay}</span>
                 <Button variant="outline" size="sm" onClick={handleCopyEmail} className="gap-1.5 shrink-0">
@@ -160,38 +179,39 @@ const PayInvoiceDialog = ({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <p className="text-xs text-slate-500 mb-1">Question de sécurité</p>
-                <p className="text-sm font-medium text-slate-900">{ETRANSFER_CONFIG.securityQuestion}</p>
+              <div className="p-3 bg-muted/50 rounded-lg border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Question de sécurité</p>
+                <p className="text-sm font-medium text-foreground">{ETRANSFER_CONFIG.securityQuestion}</p>
               </div>
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <p className="text-xs text-slate-500 mb-1">Réponse</p>
-                <p className="text-sm font-medium text-slate-900">{ETRANSFER_CONFIG.securityAnswer}</p>
+              <div className="p-3 bg-muted/50 rounded-lg border border-border">
+                <p className="text-xs text-muted-foreground mb-1">Réponse</p>
+                <p className="text-sm font-medium text-foreground">{ETRANSFER_CONFIG.securityAnswer}</p>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-xs text-slate-500 mb-1">Montant exact à envoyer</p>
-              <p className="text-lg font-bold text-slate-900">
+            <div className="p-3 bg-muted/50 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground mb-1">Montant exact à envoyer</p>
+              <p className="text-lg font-bold text-foreground">
                 {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
               </p>
             </div>
 
-            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
               <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-slate-600">
-                Incluez votre numéro de facture <strong>{invoiceNumber}</strong> dans le message du virement.
+              <p className="text-xs text-muted-foreground">
+                Incluez votre numéro de facture <strong className="text-foreground">{invoiceNumber}</strong> dans le message du virement.
                 Le paiement sera traité automatiquement dès réception.
               </p>
             </div>
           </div>
         )}
 
+        {/* PayPal */}
         {paymentMethod === "paypal" && (
           <div className="space-y-3 mt-2">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <p className="text-sm text-slate-600 mb-4">
-                Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit.
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+              <p className="text-sm text-muted-foreground mb-4">
+                Payez de façon sécurisée avec votre compte PayPal.
               </p>
               <PayPalButton
                 amount={amount}
@@ -203,8 +223,8 @@ const PayInvoiceDialog = ({
                   email: profile?.email || "",
                   phone: profile?.phone || "",
                 }}
-                onSuccess={handlePayPalSuccess}
-                onError={handlePayPalError}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
                 onCancel={() => toast.info("Paiement annulé")}
               />
             </div>

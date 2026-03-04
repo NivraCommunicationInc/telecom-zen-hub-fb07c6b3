@@ -493,6 +493,137 @@ serve(async (req) => {
       }
 
       // =========================================================================
+      // ONE-TIME PAYMENT CAPTURE — safety net for invoice payments
+      // =========================================================================
+      case "PAYMENT.CAPTURE.COMPLETED": {
+        const captureId = event.resource.id;
+        const captureAmount = parseFloat(
+          (event.resource as any).amount?.value || "0"
+        );
+        const customId = (event.resource as any).custom_id;
+
+        console.log(
+          `[PayPal Webhook] PAYMENT.CAPTURE.COMPLETED: capture=${captureId}, amount=${captureAmount}, custom_id=${customId}`
+        );
+
+        if (!customId) {
+          console.log("[PayPal Webhook] No custom_id on capture — skipping");
+          break;
+        }
+
+        // Idempotency: check if this capture was already recorded
+        const { data: existingCapture } = await supabase
+          .from("billing_payments")
+          .select("id")
+          .eq("provider_payment_id", captureId)
+          .maybeSingle();
+
+        if (existingCapture) {
+          console.log(
+            `[PayPal Webhook] Capture ${captureId} already recorded (idempotent) — skipping`
+          );
+          break;
+        }
+
+        // Also check legacy payments table
+        const { data: existingLegacy } = await supabase
+          .from("payments")
+          .select("id")
+          .eq("provider_payment_id", captureId)
+          .maybeSingle();
+
+        if (existingLegacy) {
+          console.log(
+            `[PayPal Webhook] Capture ${captureId} already in legacy payments — skipping`
+          );
+          break;
+        }
+
+        // Try to find the invoice in billing_invoices (V2)
+        const { data: v2Invoice } = await supabase
+          .from("billing_invoices")
+          .select("*, customer:billing_customers(*)")
+          .eq("id", customId)
+          .maybeSingle();
+
+        if (v2Invoice && v2Invoice.status !== "paid") {
+          // Record payment
+          await supabase.from("billing_payments").insert({
+            invoice_id: v2Invoice.id,
+            customer_id: v2Invoice.customer_id,
+            amount: captureAmount,
+            method: "paypal",
+            provider: "paypal",
+            provider_payment_id: captureId,
+            status: "confirmed",
+            received_at: new Date().toISOString(),
+            source: "live",
+            created_by_name: "PayPal Webhook",
+            created_by_role: "system",
+          });
+
+          // Recalculate
+          const newPaid = (v2Invoice.amount_paid || 0) + captureAmount;
+          const newBalance = Math.max(0, v2Invoice.total - newPaid);
+          const isPaid = newBalance <= 0;
+
+          await supabase
+            .from("billing_invoices")
+            .update({
+              amount_paid: newPaid,
+              balance_due: newBalance,
+              status: isPaid ? "paid" : "pending",
+              paid_at: isPaid ? new Date().toISOString() : null,
+            })
+            .eq("id", v2Invoice.id);
+
+          if (isPaid && v2Invoice.subscription_id) {
+            await supabase
+              .from("billing_subscriptions")
+              .update({ status: "active", auto_billing_enabled: true })
+              .eq("id", v2Invoice.subscription_id);
+          }
+
+          console.log(
+            `[PayPal Webhook] V2 invoice ${v2Invoice.invoice_number} updated via webhook capture`
+          );
+        } else if (!v2Invoice) {
+          // Try legacy billing
+          const { data: legacyInvoice } = await supabase
+            .from("billing")
+            .select("*")
+            .eq("id", customId)
+            .maybeSingle();
+
+          if (legacyInvoice && legacyInvoice.status !== "paid") {
+            const currentPaid = Number(legacyInvoice.amount_paid) || 0;
+            const newPaid = currentPaid + captureAmount;
+            const total = Number(legacyInvoice.amount) || 0;
+            const newBalance = Math.max(0, total - newPaid);
+            const isPaid = newBalance <= 0;
+
+            await supabase
+              .from("billing")
+              .update({
+                amount_paid: newPaid,
+                balance_due: newBalance,
+                status: isPaid ? "paid" : "partial",
+                paid_at: isPaid ? new Date().toISOString() : null,
+                payment_method_type: "paypal",
+                payment_reference: captureId,
+              })
+              .eq("id", customId);
+
+            console.log(
+              `[PayPal Webhook] Legacy invoice ${customId} updated via webhook capture`
+            );
+          }
+        }
+
+        break;
+      }
+
+      // =========================================================================
       // DISPUTE & CHARGEBACK HANDLERS (V2.5 - Billing Rules)
       // =========================================================================
       case "CUSTOMER.DISPUTE.CREATED":
