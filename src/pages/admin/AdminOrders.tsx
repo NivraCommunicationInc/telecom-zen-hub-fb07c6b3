@@ -71,6 +71,7 @@ import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
 import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
 import ManualOrderWizard from "@/components/admin/ManualOrderWizard";
 import { OrderClientInfoBlock } from "@/components/admin/OrderClientInfoBlock";
+import { KYCSessionPanel } from "@/components/admin/KYCSessionPanel";
 import { MobileFulfillmentSection } from "@/components/admin/MobileFulfillmentSection";
 import { StreamingActivationSection } from "@/components/admin/StreamingActivationSection";
 import { InstallationFulfillmentSection } from "@/components/admin/InstallationFulfillmentSection";
@@ -92,6 +93,8 @@ import { processOrderCompletionContest } from "@/lib/contestUtils";
 // Status configurations - includes installation statuses
 const orderStatusConfig: Record<string, { color: string; label: string; icon: any }> = {
   pending: { color: "bg-amber-500/20 text-amber-500", label: "En attente", icon: Clock },
+  pending_verification: { color: "bg-purple-500/20 text-purple-500", label: "Vérification KYC", icon: Shield },
+  confirmed: { color: "bg-emerald-500/20 text-emerald-500", label: "Confirmé", icon: CheckCircle },
   hold: { color: "bg-purple-500/20 text-purple-500", label: "Suspendu", icon: AlertTriangle },
   verification: { color: "bg-blue-500/20 text-blue-500", label: "Vérification", icon: Shield },
   back_order: { color: "bg-orange-500/20 text-orange-500", label: "Back Order", icon: Package },
@@ -148,6 +151,8 @@ const etransferStatusOptions = [
 
 const orderStatusOptions = [
   { value: "pending", label: "En attente" },
+  { value: "pending_verification", label: "Vérification KYC" },
+  { value: "confirmed", label: "Confirmé" },
   { value: "hold", label: "Suspendu" },
   { value: "verification", label: "Vérification" },
   { value: "back_order", label: "Back Order" },
@@ -2465,6 +2470,19 @@ const AdminOrders = () => {
                           </div>
                         </CardContent>
                       </Card>
+                    )}
+
+                    {/* KYC QR Session Panel — documents + approve/reject */}
+                    {selectedOrder.identity_verification_session_id && (
+                      <KYCSessionPanel
+                        orderId={selectedOrder.id}
+                        sessionId={selectedOrder.identity_verification_session_id}
+                        orderStatus={selectedOrder.status}
+                        onDecision={() => {
+                          refetch();
+                          queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+                        }}
+                      />
                     )}
 
                     <Card>

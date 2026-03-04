@@ -542,6 +542,7 @@ const ClientInternetOrder = () => {
         installation_credit: installationCredit,
         discount_code: discountCode || null,
         status: verificationSessionId ? "pending_verification" : "pending",
+        identity_verification_session_id: verificationSessionId || null,
         payment_status: paymentStatus,
         payment_method: selectedPaymentMethod === "paypal" ? "paypal" : selectedPaymentMethod === "etransfer" ? "etransfer" : "card",
         payment_reference: selectedPaymentMethod === "paypal" && paypalCaptureId ? paypalCaptureId : null,
