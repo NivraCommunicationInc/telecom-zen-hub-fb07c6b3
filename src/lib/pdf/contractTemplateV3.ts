@@ -345,7 +345,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawHeader(doc, "CONDITIONS GÉNÉRALES");
     y = 36;
 
-    // Payment method section before terms
+    // Payment method section — consistent with actual provider
     y += 5;
     y = sectionTitle(doc, "MODE DE PAIEMENT", y, m, cw);
     doc.setFillColor(...C.lightBg);
@@ -357,7 +357,15 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.text(`Mode de paiement sélectionné : ${payMethodLabel}`, m + 5, y + 6);
     doc.setFontSize(7);
     doc.setTextColor(...C.textMuted);
-    doc.text("Le cycle de facturation commence après confirmation du paiement par le fournisseur sélectionné.", m + 5, y + 12);
+    // Provider-specific cycle text — no contradictions
+    const isPayPalContract = data.payment_method?.toLowerCase()?.includes("paypal");
+    const isInteracContract = data.payment_method?.toLowerCase()?.includes("interac") || data.payment_method?.toLowerCase()?.includes("e_transfer");
+    const cycleTextContract = isPayPalContract
+      ? "Le cycle de facturation commence après confirmation du paiement PayPal."
+      : isInteracContract
+        ? "Le cycle de facturation commence après confirmation du virement Interac."
+        : "Le cycle de facturation commence après confirmation du paiement par le fournisseur sélectionné.";
+    doc.text(cycleTextContract, m + 5, y + 12);
     y += 20;
 
     const terms = [
