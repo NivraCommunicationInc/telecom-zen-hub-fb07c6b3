@@ -1,21 +1,20 @@
 /**
  * Client Portal - Identity Verification Status & Resubmission
  * Route: /portal/identity-verification
- * Shows KYC status, timeline, and resubmission flow.
+ * Shows KYC status, timeline, and additional doc upload when admin requests resubmission.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import ClientLayout from "@/components/client/ClientLayout";
 import {
   Shield, CheckCircle2, XCircle, Clock, Loader2, Camera,
-  Upload, AlertTriangle, RotateCcw, QrCode, Smartphone, FileCheck
+  Upload, RotateCcw, QrCode, FileCheck, FileUp, Check
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
@@ -30,19 +29,30 @@ const STATUS_CLIENT: Record<string, { label: string; description: string; classN
   approved: { label: "Vérification approuvée", description: "Votre identité a été confirmée. Votre commande est en cours de traitement.", className: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: CheckCircle2 },
   rejected: { label: "Vérification refusée", description: "Votre vérification a été refusée. Veuillez contacter le support pour plus d'informations.", className: "bg-red-50 text-red-700 border-red-200", icon: XCircle },
   expired: { label: "Expirée", description: "Le lien de vérification a expiré. Vous pouvez en générer un nouveau.", className: "bg-slate-100 text-slate-500 border-slate-200", icon: Clock },
-  resubmission_required: { label: "Resoumission requise", description: "L'administrateur a demandé de nouveaux documents. Veuillez resoumettre.", className: "bg-orange-50 text-orange-700 border-orange-200", icon: RotateCcw },
+  resubmission_required: { label: "Documents supplémentaires requis", description: "L'administrateur a demandé des documents supplémentaires. Veuillez les téléverser ci-dessous.", className: "bg-orange-50 text-orange-700 border-orange-200", icon: RotateCcw },
+};
+
+const DOC_LABELS: Record<string, string> = {
+  proof_of_address: "Preuve d'adresse",
+  bank_statement: "Relevé bancaire",
+  other_invoice: "Autre facture",
+  utility_bill: "Facture de services publics",
+  government_letter: "Lettre gouvernementale",
 };
 
 const ClientIdentityVerification = () => {
   const { user } = useClientAuth();
+  const queryClient = useQueryClient();
   const [showQR, setShowQR] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, boolean>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     setIsMobile(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
   }, []);
 
-  // Fetch user's verification sessions
   const { data: sessions = [], isLoading, refetch } = useQuery({
     queryKey: ["client-kyc-sessions", user?.id],
     queryFn: async () => {
@@ -59,25 +69,8 @@ const ClientIdentityVerification = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch linked orders for sessions
-  const sessionIds = sessions.map((s: any) => s.id);
-  const { data: linkedOrders = [] } = useQuery({
-    queryKey: ["client-kyc-orders", sessionIds.join(",")],
-    queryFn: async () => {
-      if (sessionIds.length === 0) return [];
-      const { data } = await portalClient
-        .from("orders")
-        .select("id, order_number, status, identity_verification_session_id")
-        .in("identity_verification_session_id", sessionIds);
-      return data || [];
-    },
-    enabled: sessionIds.length > 0,
-  });
-
-  const orderMap = Object.fromEntries(linkedOrders.map((o: any) => [o.identity_verification_session_id, o]));
-
-  // Fetch events for the latest session
   const latestSession = sessions[0];
+
   const { data: events = [] } = useQuery({
     queryKey: ["client-kyc-events", latestSession?.id],
     queryFn: async () => {
@@ -92,10 +85,46 @@ const ClientIdentityVerification = () => {
     enabled: !!latestSession?.id,
   });
 
-  const canResubmit = latestSession?.status === "resubmission_required" || latestSession?.status === "created";
   const needsVerification = !latestSession || latestSession.status === "expired";
+  const requiredDocs: string[] = (latestSession?.required_docs as string[]) || [];
+  const isResubmission = latestSession?.status === "resubmission_required";
 
-  const handleVerificationApproved = () => {
+  const handleUploadDoc = async (docType: string, file: File) => {
+    if (!latestSession?.id || !user?.id) return;
+    setUploadingDoc(docType);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${latestSession.id}/additional/${docType}.${ext}`;
+
+      const { error: uploadError } = await portalClient.storage
+        .from("id-documents")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      // Update session additional_docs
+      const currentDocs = (latestSession.additional_docs as Record<string, string>) || {};
+      const updatedDocs = { ...currentDocs, [docType]: path };
+      await portalClient
+        .from("identity_verification_sessions")
+        .update({ additional_docs: updatedDocs, updated_at: new Date().toISOString() })
+        .eq("id", latestSession.id);
+
+      setUploadedDocs((prev) => ({ ...prev, [docType]: true }));
+      toast.success(`Document "${DOC_LABELS[docType] || docType}" téléversé`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors du téléversement");
+    } finally {
+      setUploadingDoc(null);
+    }
+  };
+
+  const handleFileChange = (docType: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleUploadDoc(docType, file);
+  };
+
+  const handleVerificationDone = () => {
     setShowQR(false);
     refetch();
     toast.success("Documents soumis avec succès !");
@@ -104,7 +133,6 @@ const ClientIdentityVerification = () => {
   return (
     <ClientLayout>
       <div className="space-y-6 max-w-3xl mx-auto">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <Shield className="w-6 h-6 text-teal-700" />
           <div>
@@ -116,38 +144,27 @@ const ClientIdentityVerification = () => {
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
         ) : needsVerification && !showQR ? (
-          /* No session yet - offer to start verification */
           <Card className="border-teal-200">
             <CardContent className="py-8 text-center space-y-4">
               <Shield className="w-12 h-12 text-teal-600 mx-auto" />
               <h2 className="text-lg font-semibold text-slate-900">Aucune vérification en cours</h2>
               <p className="text-slate-500 text-sm max-w-md mx-auto">
                 Pour effectuer certaines opérations, une vérification d'identité peut être requise.
-                Vous pouvez démarrer le processus dès maintenant.
               </p>
               <Button onClick={() => setShowQR(true)} className="bg-teal-700 hover:bg-teal-800 text-white">
-                {isMobile ? (
-                  <><Camera className="w-4 h-4 mr-2" /> Prendre des photos maintenant</>
-                ) : (
-                  <><QrCode className="w-4 h-4 mr-2" /> Démarrer la vérification</>
-                )}
+                {isMobile ? <><Camera className="w-4 h-4 mr-2" /> Prendre des photos</> : <><QrCode className="w-4 h-4 mr-2" /> Démarrer la vérification</>}
               </Button>
             </CardContent>
           </Card>
         ) : showQR ? (
-          /* QR / capture step */
           <Card>
             <CardContent className="py-6">
               <QRVerificationStep
                 userId={user?.id || ""}
                 checkoutType="portal"
                 isFrench={true}
-                onVerified={(sessionId) => {
-                  handleVerificationApproved();
-                }}
-                onSessionGenerated={(sessionId) => {
-                  // Session created, will refresh on submit
-                }}
+                onVerified={() => handleVerificationDone()}
+                onSessionGenerated={() => {}}
               />
               <div className="mt-4 text-center">
                 <Button variant="outline" onClick={() => { setShowQR(false); refetch(); }}>Annuler</Button>
@@ -155,12 +172,10 @@ const ClientIdentityVerification = () => {
             </CardContent>
           </Card>
         ) : (
-          /* Show session(s) */
           <>
             {sessions.map((session: any, idx: number) => {
               const sc = STATUS_CLIENT[session.status] || STATUS_CLIENT.created;
               const StatusIcon = sc.icon;
-              const order = orderMap[session.id];
               const isLatest = idx === 0;
 
               return (
@@ -185,7 +200,7 @@ const ClientIdentityVerification = () => {
                       </div>
                       <div>
                         <Label className="text-xs text-slate-400">Commande liée</Label>
-                        <p className="font-mono">{order?.order_number || "Aucune"}</p>
+                        <p className="font-mono">{session.order_number || "Aucune"}</p>
                       </div>
                       <div>
                         <Label className="text-xs text-slate-400">Date de création</Label>
@@ -205,27 +220,65 @@ const ClientIdentityVerification = () => {
                       </div>
                     )}
 
-                    {/* Resubmission prompt */}
+                    {/* Resubmission: additional docs upload */}
                     {session.status === "resubmission_required" && isLatest && (
-                      <div className="p-4 bg-orange-50 rounded-lg border border-orange-200 space-y-3">
+                      <div className="p-4 bg-orange-50 rounded-lg border border-orange-200 space-y-4">
                         <div className="flex items-center gap-2">
                           <RotateCcw className="w-4 h-4 text-orange-700" />
-                          <p className="font-semibold text-orange-800">Nouveaux documents requis</p>
+                          <p className="font-semibold text-orange-800">Documents supplémentaires requis</p>
                         </div>
                         {session.review_reason && (
                           <p className="text-sm text-orange-700">{session.review_reason}</p>
                         )}
-                        <Button onClick={() => setShowQR(true)} className="bg-orange-600 hover:bg-orange-700 text-white">
-                          {isMobile ? (
-                            <><Camera className="w-4 h-4 mr-2" /> Prendre les photos</>
-                          ) : (
-                            <><QrCode className="w-4 h-4 mr-2" /> Scanner le QR code</>
-                          )}
-                        </Button>
+
+                        {/* Upload area for each required doc */}
+                        {requiredDocs.length > 0 ? (
+                          <div className="space-y-3">
+                            {requiredDocs.map((docType: string) => {
+                              const alreadyUploaded = uploadedDocs[docType] || !!((session.additional_docs as any)?.[docType]);
+                              return (
+                                <div key={docType} className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100">
+                                  <div className="flex items-center gap-2">
+                                    {alreadyUploaded ? <Check className="w-4 h-4 text-emerald-600" /> : <FileUp className="w-4 h-4 text-orange-600" />}
+                                    <span className="text-sm font-medium">{DOC_LABELS[docType] || docType}</span>
+                                  </div>
+                                  {alreadyUploaded ? (
+                                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Téléversé</Badge>
+                                  ) : (
+                                    <>
+                                      <input
+                                        ref={(el) => { fileInputRefs.current[docType] = el; }}
+                                        type="file"
+                                        accept="image/*,.pdf"
+                                        capture={isMobile ? "environment" : undefined}
+                                        className="hidden"
+                                        onChange={handleFileChange(docType)}
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={uploadingDoc === docType}
+                                        onClick={() => fileInputRefs.current[docType]?.click()}
+                                      >
+                                        {uploadingDoc === docType ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
+                                        {isMobile ? "Photo" : "Téléverser"}
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* No specific docs requested - allow re-upload via QR */
+                          <Button onClick={() => setShowQR(true)} className="bg-orange-600 hover:bg-orange-700 text-white">
+                            {isMobile ? <><Camera className="w-4 h-4 mr-2" /> Prendre les photos</> : <><QrCode className="w-4 h-4 mr-2" /> Scanner le QR code</>}
+                          </Button>
+                        )}
                       </div>
                     )}
 
-                    {/* Timeline for latest session */}
+                    {/* Timeline */}
                     {isLatest && events.length > 0 && (
                       <div className="space-y-2">
                         <Separator />
@@ -237,17 +290,15 @@ const ClientIdentityVerification = () => {
                               documents_submitted: "Documents soumis",
                               admin_approved: "Vérification approuvée",
                               admin_rejected: "Vérification refusée",
-                              admin_resubmission_required: "Resoumission demandée",
-                              admin_viewed_documents: "Documents consultés",
+                              admin_resubmission_required: "Documents supplémentaires demandés",
+                              admin_viewed_documents: "Documents consultés par un agent",
                               order_activated_on_approval: "Commande activée",
                             };
                             return (
                               <div key={event.id} className="flex items-center gap-3 text-sm">
                                 <div className="w-2 h-2 rounded-full bg-teal-500 shrink-0" />
                                 <span className="flex-1">{eventLabels[event.event_type] || event.event_type}</span>
-                                <span className="text-xs text-slate-400">
-                                  {format(new Date(event.created_at), "d MMM HH:mm", { locale: fr })}
-                                </span>
+                                <span className="text-xs text-slate-400">{format(new Date(event.created_at), "d MMM HH:mm", { locale: fr })}</span>
                               </div>
                             );
                           })}

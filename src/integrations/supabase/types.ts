@@ -4290,6 +4290,7 @@ export type Database = {
       }
       identity_verification_sessions: {
         Row: {
+          additional_docs: Json | null
           case_number: string | null
           checkout_fields: Json | null
           checkout_type: string | null
@@ -4308,10 +4309,13 @@ export type Database = {
           match_result: Json | null
           max_attempts: number
           order_context: Json | null
+          order_id: string | null
+          order_number: string | null
           public_token: string | null
           public_token_hash: string | null
           qr_regeneration_count: number
           reference_code: string | null
+          required_docs: Json | null
           result_payload: Json | null
           retention_delete_after: string | null
           review_reason: string | null
@@ -4325,6 +4329,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          additional_docs?: Json | null
           case_number?: string | null
           checkout_fields?: Json | null
           checkout_type?: string | null
@@ -4343,10 +4348,13 @@ export type Database = {
           match_result?: Json | null
           max_attempts?: number
           order_context?: Json | null
+          order_id?: string | null
+          order_number?: string | null
           public_token?: string | null
           public_token_hash?: string | null
           qr_regeneration_count?: number
           reference_code?: string | null
+          required_docs?: Json | null
           result_payload?: Json | null
           retention_delete_after?: string | null
           review_reason?: string | null
@@ -4360,6 +4368,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          additional_docs?: Json | null
           case_number?: string | null
           checkout_fields?: Json | null
           checkout_type?: string | null
@@ -4378,10 +4387,13 @@ export type Database = {
           match_result?: Json | null
           max_attempts?: number
           order_context?: Json | null
+          order_id?: string | null
+          order_number?: string | null
           public_token?: string | null
           public_token_hash?: string | null
           qr_regeneration_count?: number
           reference_code?: string | null
+          required_docs?: Json | null
           result_payload?: Json | null
           retention_delete_after?: string | null
           review_reason?: string | null
@@ -4394,7 +4406,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "identity_verification_sessions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       influencer_audit_log: {
         Row: {
