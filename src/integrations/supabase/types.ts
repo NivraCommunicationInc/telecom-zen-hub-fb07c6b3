@@ -5347,6 +5347,57 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_outbox: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          payload_json: Json
+          recipient: string
+          retry_count: number
+          sent_at: string | null
+          status: string
+          subject: string
+          to_email: string
+          to_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload_json?: Json
+          recipient?: string
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          subject: string
+          to_email: string
+          to_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload_json?: Json
+          recipient?: string
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          to_email?: string
+          to_name?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
