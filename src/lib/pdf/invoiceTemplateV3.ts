@@ -316,7 +316,25 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       drawRightField("Période", `${fmtShortDate(data.billing_period_start)} → ${fmtShortDate(data.billing_period_end)}`);
     }
 
-    drawRightField("Statut", fmtStatus(data.status));
+    // Status badge
+    const statusLabel = fmtStatus(data.status);
+    const isPaidStatus = data.status?.toLowerCase() === "paid";
+    const isPartial = data.status?.toLowerCase() === "partially_paid";
+    const badgeColor: [number, number, number] = isPaidStatus ? C.success : isPartial ? C.warning : C.error;
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...C.textMuted);
+    doc.text("Statut", rx + 7, ry);
+    // Draw status badge
+    const badgeW = doc.getTextWidth(statusLabel) + 6;
+    doc.setFillColor(...badgeColor);
+    doc.roundedRect(rx + 42, ry - 3.5, badgeW, 5, 1, 1, "F");
+    doc.setTextColor(...C.white);
+    doc.setFontSize(7);
+    doc.text(statusLabel, rx + 45, ry);
+    ry += 5.5;
+
     drawRightField("Total dû", fmt(data.balance_due), true);
 
     y = y + boxH + 8;
@@ -544,7 +562,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
 
       y += 26;
     } else {
-      // Payment instructions
+      // Payment instructions — adapt to selected method
       doc.setFillColor(...C.lightBg);
       doc.rect(m, y, cw, 7, "F");
       doc.setFillColor(...C.teal);
@@ -555,28 +573,37 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       doc.text("INSTRUCTIONS DE PAIEMENT", m + 7, y + 5);
       y += 10;
 
-      // Interac box
-      doc.setFillColor(...C.lightBg);
-      doc.roundedRect(m, y, cw, 24, 1, 1, "F");
+      const selectedMethod = (data.payments?.[0]?.method || "").toLowerCase();
+      const isPayPal = selectedMethod.includes("paypal");
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.text);
-      doc.text("Virement Interac (e-Transfer)", m + 5, y + 6);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.text(`Courriel: ${NIVRA.email}`, m + 5, y + 12);
-      doc.text("Question secrète: Numéro de facture", m + 5, y + 17);
-      doc.text(`Réponse: ${assertPrintableText(data.invoice_number, "invoice_number")}`, m + 5, y + 22);
-
-      // PayPal + Card mention
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(7);
-      doc.setTextColor(...C.textMuted);
-      doc.text("PayPal et carte de crédit également acceptés via le portail client.", m + cw / 2, y + 22, { align: "center" });
-
-      y += 28;
+      if (isPayPal) {
+        // PayPal instructions
+        doc.setFillColor(...C.lightBg);
+        doc.roundedRect(m, y, cw, 18, 1, 1, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(...C.text);
+        doc.text("PayPal", m + 5, y + 6);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.text("Procédez au paiement via le portail client Nivra ou le lien PayPal fourni par courriel.", m + 5, y + 12);
+        doc.text(`Référence de commande : ${assertPrintableText(data.invoice_number, "invoice_number")}`, m + 5, y + 17);
+        y += 22;
+      } else {
+        // Interac / default instructions
+        doc.setFillColor(...C.lightBg);
+        doc.roundedRect(m, y, cw, 24, 1, 1, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(...C.text);
+        doc.text("Virement Interac (e-Transfer)", m + 5, y + 6);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.text(`Courriel: ${NIVRA.email}`, m + 5, y + 12);
+        doc.text("Question secrète: Numéro de facture", m + 5, y + 17);
+        doc.text(`Réponse: ${assertPrintableText(data.invoice_number, "invoice_number")}`, m + 5, y + 22);
+        y += 28;
+      }
     }
 
     // ========================================================================

@@ -212,12 +212,21 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text(`Commande #${d.order_number}`, m + 5, y + 8);
+    // Status badge
+    const statusBadge = fmtStatus(d.order_status || "pending");
+    const statusColor: [number, number, number] = d.order_status === "confirmed" || d.order_status === "paid"
+      ? C.success : d.order_status === "cancelled" ? C.error : C.warning;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(`Date: ${fmtDate(d.order_date)} | Statut: ${fmtStatus(d.order_status || "pending")}`, m + 5, y + 14);
-    if (d.delivery_method) {
-      doc.text(`Livraison: ${d.delivery_method}`, pw - m - 5, y + 14, { align: "right" });
-    }
+    doc.text(`Date: ${fmtDate(d.order_date)}`, m + 5, y + 14);
+    // Draw status badge
+    const badgeW2 = doc.getTextWidth(statusBadge) + 8;
+    doc.setFillColor(...statusColor);
+    doc.roundedRect(pw - m - badgeW2 - 5, y + 9, badgeW2, 6, 1, 1, "F");
+    doc.setTextColor(...C.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text(statusBadge.toUpperCase(), pw - m - badgeW2 / 2 - 1, y + 13, { align: "center" });
     y += 24;
 
     // === CLIENT INFO (2-column) ===
@@ -404,7 +413,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     drawTotalLine(TAX.GST_LABEL, fmt(d.tax_gst));
     drawTotalLine(TAX.QST_LABEL, fmt(d.tax_qst));
 
-    drawTotalLine("TOTAL À PAYER", fmt(d.total_due), { bold: true, bg: C.navy });
+    drawTotalLine("TOTAL À PAYER AUJOURD'HUI", fmt(d.total_due), { bold: true, bg: C.navy });
 
     // Payment method
     if (d.payment_method) {
