@@ -1266,7 +1266,32 @@ const ClientNewOrder = () => {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
 
-      const subtotal = selectedServices.reduce((sum, s) => sum + Number(s.price), 0);
+      if (!linkedSessionId) {
+        throw new Error("Nous n'avons pas pu lier votre vérification d'identité. Veuillez rafraîchir le code QR et soumettre vos documents à nouveau.");
+      }
+
+      const activeStatuses = ["created", "submitted", "manual_review", "approved"];
+      const reviewReadyStatuses = ["submitted", "manual_review", "approved"];
+
+      const { data: latestActiveSession, error: latestSessionError } = await supabase
+        .from("identity_verification_sessions")
+        .select("id, status, created_at")
+        .eq("user_id", user.id)
+        .in("status", activeStatuses)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestSessionError) {
+        throw new Error("Impossible de vérifier votre session d'identité. Veuillez réessayer.");
+      }
+
+      const effectiveSessionId = latestActiveSession?.id || linkedSessionId;
+      const effectiveSessionStatus = latestActiveSession?.status || null;
+
+      if (!effectiveSessionId || !effectiveSessionStatus || !reviewReadyStatuses.includes(effectiveSessionStatus)) {
+        throw new Error("Votre vérification d'identité doit être soumise avant de finaliser la commande.");
+      }
       const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
       const serviceNames = selectedServices.map(s => s.name).join(", ");
       const categories = [...new Set(selectedServices.map(s => s.category))].join(", ");
@@ -1598,8 +1623,8 @@ const ClientNewOrder = () => {
           discount_value: appliedPromo.discount_value,
           discount_amount: cappedDiscount,
         } : null,
-        status: verificationSessionId ? "pending_verification" : "pending",
-        identity_verification_session_id: verificationSessionId || null,
+        status: "pending_verification",
+        identity_verification_session_id: effectiveSessionId,
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
@@ -4288,6 +4313,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           userId={user?.id || ""}
                           checkoutType="mobile"
                           isFrench={true}
+                          onSessionGenerated={(sessionId) => {
+                            setVerificationSessionId(sessionId);
+                            setIdVerificationApproved(false);
+                          }}
                           onVerified={(sessionId) => {
                             setVerificationSessionId(sessionId);
                             setIdVerificationApproved(true);

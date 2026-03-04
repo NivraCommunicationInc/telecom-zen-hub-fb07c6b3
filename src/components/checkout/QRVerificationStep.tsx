@@ -20,6 +20,7 @@ interface QRVerificationStepProps {
   checkoutType: "mobile" | "internet" | "tv";
   isFrench: boolean;
   onVerified: (sessionId: string) => void;
+  onSessionGenerated?: (sessionId: string) => void;
   orderContext?: Record<string, unknown>;
   checkoutFields?: Record<string, unknown>;
 }
@@ -60,6 +61,7 @@ export const QRVerificationStep = ({
   checkoutType,
   isFrench,
   onVerified,
+  onSessionGenerated,
   orderContext,
   checkoutFields,
 }: QRVerificationStepProps) => {
@@ -291,7 +293,11 @@ export const QRVerificationStep = ({
       }
 
       setQrDataUrl(qrImage || null);
-      setSessionId(data.session_id || null);
+      const newSessionId = data.session_id || null;
+      setSessionId(newSessionId);
+      if (newSessionId) {
+        onSessionGenerated?.(newSessionId);
+      }
       setStatus("created");
       setExpiresAt(data.expires_at ? new Date(data.expires_at) : null);
       setRegenCount(data.qr_regeneration_count || 0);
@@ -335,7 +341,7 @@ export const QRVerificationStep = ({
     } finally {
       setLoading(false);
     }
-  }, [checkoutType, checkoutMode, isAdmin, orderContext, checkoutFields, isFrench, userId]);
+  }, [checkoutType, checkoutMode, isAdmin, orderContext, checkoutFields, isFrench, userId, onSessionGenerated]);
 
   // Generate QR once on first render (prevent request storms on object-prop re-renders)
   useEffect(() => {
