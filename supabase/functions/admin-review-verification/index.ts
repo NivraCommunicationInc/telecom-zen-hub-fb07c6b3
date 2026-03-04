@@ -130,9 +130,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!["approved", "rejected", "manual_review"].includes(decision)) {
+    if (!["approved", "rejected", "manual_review", "resubmission_required"].includes(decision)) {
       return new Response(
-        JSON.stringify({ error: "decision must be approved, rejected, or manual_review" }),
+        JSON.stringify({ error: "decision must be approved, rejected, manual_review, or resubmission_required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
         for (const order of linkedOrders) {
           await serviceClient
             .from("orders")
-            .update({ status: "cancelled", cancellation_reason: `KYC rejected: ${reason}` })
+            .update({ status: "verification_failed", cancellation_reason: `KYC rejected: ${reason}` })
             .eq("id", order.id);
         }
       }
@@ -258,7 +258,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(
+    // On resubmission_required: reset session for new upload, notify client
+    if (decision === "resubmission_required") {
+      // Reset submission attempts so client can resubmit
+      await serviceClient
+        .from("identity_verification_sessions")
+        .update({
+          submission_attempts: 0,
+          document_front_path: null,
+          document_back_path: null,
+          selfie_path: null,
+          submitted_at: null,
+          extracted_fields: null,
+          match_result: null,
+        })
+        .eq("id", session_id);
+
+      // Queue resubmission notification
+      await serviceClient.from("admin_notification_logs").insert({
+        event_type: "kyc_resubmission_required",
+        event_id: session_id,
+        priority: "normal",
+      });
+    }
+
       JSON.stringify({ message: `Session ${decision}`, session_id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

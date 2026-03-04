@@ -113,6 +113,7 @@ import AdminNotificationsSettings from "@/pages/admin/AdminNotificationsSettings
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminPOS from "@/pages/admin/AdminPOS";
 import AdminIdentityVerification from "@/pages/admin/AdminIdentityVerification";
+import AdminKYCVerifications from "@/pages/admin/AdminKYCVerifications";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 // Influencer Portal
@@ -154,6 +155,7 @@ import ClientMonthlyInvoices from "@/pages/client/ClientMonthlyInvoices";
 import ClientWebForms from "@/pages/client/ClientWebForms";
 import ClientDocumentUpload from "@/pages/client/ClientDocumentUpload";
 import ClientDocuments from "@/pages/client/ClientDocuments";
+import ClientIdentityVerification from "@/pages/client/ClientIdentityVerification";
 import ClientResetPassword from "@/pages/client/ClientResetPassword";
 import ClientVerifyEmail from "@/pages/client/ClientVerifyEmail";
 import ClientRescheduleAppointment from "@/pages/client/ClientRescheduleAppointment";
@@ -337,6 +339,7 @@ const AppRoutes = () => {
 
         {/* Identity Verification Admin */}
         <Route path="identity-verification" element={<AdminIdentityVerification />} />
+        <Route path="kyc-verifications" element={<AdminKYCVerifications />} />
 
         {/* System Audit - READ-ONLY */}
         <Route path="system-audit" element={<AdminSystemAudit />} />
@@ -400,6 +403,7 @@ const AppRoutes = () => {
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/web-forms" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientWebForms /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/documents" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDocuments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/identity-verification" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientIdentityVerification /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* New client action routes from email links */}
       <Route path="/portal/upload" element={<MaintenanceGuard><ClientAuthProvider><ClientDocumentUpload /></ClientAuthProvider></MaintenanceGuard>} />

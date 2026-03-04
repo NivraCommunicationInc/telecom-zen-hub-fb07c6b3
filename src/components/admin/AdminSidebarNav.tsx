@@ -91,6 +91,7 @@ const navGroups: NavGroup[] = [
     items: [
       { icon: Package, label: "Commandes", href: "/admin/orders" },
       { icon: ShoppingCart, label: "Point de Vente (POS)", href: "/admin/pos" },
+      { icon: Shield, label: "Vérifications KYC", href: "/admin/kyc-verifications" },
       { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
       { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
     ],
