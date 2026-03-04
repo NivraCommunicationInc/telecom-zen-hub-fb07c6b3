@@ -22,7 +22,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   const links = {
     services: [
       { label: "Mobile", href: "/mobile" },
-      { label: isFr ? "Couverture Mobile" : "Mobile Coverage", href: "/mobile-coverage" },
+      { label: isFr ? "Couverture" : "Coverage", href: "/mobile-coverage" },
       { label: "Internet", href: "/internet" },
       { label: isFr ? "Télévision" : "Television", href: "/tv" },
       { label: isFr ? "Sécurité" : "Security", href: "/services" },
@@ -36,24 +36,24 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       { label: isFr ? "Portail partenaires" : "Partner Portal", href: "/influencer/login" },
     ],
     legal: [
-      { label: isFr ? "Conditions de service" : "Terms of Service", href: "/conditions-de-service" },
-      { label: isFr ? "Politique de confidentialité" : "Privacy Policy", href: "/privacy-policy" },
-      { label: isFr ? "Politique de remboursement" : "Refund Policy", href: "/refund-policy" },
-      { label: isFr ? "Paiement / e-Transfer" : "Payment / e-Transfer", href: "/modalites-paiement" },
-      { label: isFr ? "Frais possibles" : "Possible Fees", href: "/frais-possibles" },
-      { label: isFr ? "Équipement & garantie" : "Equipment & Warranty", href: "/equipement-garantie" },
-      { label: isFr ? "Support & plaintes" : "Support & Complaints", href: "/support-et-plaintes" },
+      { label: isFr ? "Conditions" : "Terms", href: "/conditions-de-service" },
+      { label: isFr ? "Confidentialité" : "Privacy", href: "/privacy-policy" },
+      { label: isFr ? "Remboursement" : "Refunds", href: "/refund-policy" },
+      { label: isFr ? "Paiement" : "Payment", href: "/modalites-paiement" },
+      { label: isFr ? "Frais" : "Fees", href: "/frais-possibles" },
+      { label: isFr ? "Équipement" : "Equipment", href: "/equipement-garantie" },
+      { label: isFr ? "Support & plaintes" : "Complaints", href: "/support-et-plaintes" },
     ],
   };
 
   return (
     <footer ref={ref} className="bg-slate-900 text-white" data-testid="footer">
       {/* Main Content Grid */}
-      <div className="container mx-auto px-4 py-12 lg:py-16 max-w-7xl">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
+      <div className="container mx-auto px-4 sm:px-6 py-10 lg:py-16 max-w-[1320px]">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           
-          {/* Brand */}
-          <div className="sm:col-span-2 lg:col-span-1">
+          {/* Brand — full width on mobile */}
+          <div className="col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
@@ -75,25 +75,23 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <Link 
                 to="/portal/auth"
                 className="flex items-center gap-2.5 text-slate-400 hover:text-white transition-colors text-sm"
-                data-testid="footer-chat"
               >
-                <MessageSquare className="w-4 h-4 text-slate-500" />
-                <span>{isFr ? "Chat / Tickets" : "Chat / Tickets"}</span>
+                <MessageSquare className="w-4 h-4 text-slate-500 shrink-0" />
+                <span>Chat / Tickets</span>
               </Link>
               <a 
                 href={`mailto:${supportEmail.toLowerCase()}`} 
                 className="flex items-center gap-2.5 text-slate-400 hover:text-white transition-colors text-sm"
-                data-testid="footer-email"
               >
-                <Mail className="w-4 h-4 text-slate-500" />
-                <span>{supportEmail}</span>
+                <Mail className="w-4 h-4 text-slate-500 shrink-0" />
+                <span className="break-all">{supportEmail}</span>
               </a>
-              <div className="flex items-start gap-2.5 text-slate-400 text-sm" data-testid="footer-address">
-                <MapPin className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 text-slate-400 text-sm">
+                <MapPin className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                 <span>{address}</span>
               </div>
-              <div className="flex items-start gap-2.5 text-slate-400 text-sm" data-testid="footer-hours">
-                <Clock className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 text-slate-400 text-sm">
+                <Clock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                 <span>{businessHours}</span>
               </div>
             </div>
@@ -151,47 +149,47 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
       {/* Payment & Security */}
       <div className="border-t border-white/10">
-        <div className="container mx-auto px-4 py-6 max-w-7xl">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex flex-col items-center md:items-start gap-2">
+        <div className="container mx-auto px-4 sm:px-6 py-5 max-w-[1320px]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col items-center sm:items-start gap-2">
               <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">
-                {isFr ? "Méthodes de paiement acceptées" : "Accepted Payment Methods"}
+                {isFr ? "Paiement" : "Payment"}
               </p>
               <div className="flex items-center gap-3">
-                <img src={paymentMethodsImg} alt="Interac, Cash, Mastercard" className="h-8 object-contain" />
-                <img src={paypalSecureImg} alt="PayPal" className="h-8 object-contain" />
+                <img src={paymentMethodsImg} alt="Interac, Cash, Mastercard" className="h-7 object-contain" />
+                <img src={paypalSecureImg} alt="PayPal" className="h-7 object-contain" />
               </div>
             </div>
-            <div className="flex flex-col items-center md:items-end gap-2">
+            <div className="flex flex-col items-center sm:items-end gap-2">
               <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">
                 {isFr ? "Sécurité" : "Security"}
               </p>
-              <img src={googleSafeBrowsingImg} alt="Google Safe Browsing" className="h-10 object-contain" />
+              <img src={googleSafeBrowsingImg} alt="Google Safe Browsing" className="h-8 object-contain" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Bar */}
+      {/* Bottom Bar — compact on mobile */}
       <div className="border-t border-white/10">
-        <div className="container mx-auto px-4 py-5 max-w-7xl">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-slate-500 text-xs text-center sm:text-left">
-              © {currentYear} {COMPANY_CONTACT.legalName} {isFr ? "Tous droits réservés." : "All rights reserved."}
+        <div className="container mx-auto px-4 sm:px-6 py-4 max-w-[1320px]">
+          <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:text-left">
+            <p className="text-slate-500 text-xs">
+              © {currentYear} {COMPANY_CONTACT.legalName}
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
               <Link to="/privacy-policy" className="text-slate-500 hover:text-white transition-colors text-xs">
                 {isFr ? "Confidentialité" : "Privacy"}
               </Link>
-              <span className="text-slate-600 text-xs hidden sm:inline">|</span>
+              <span className="text-slate-700 text-xs">·</span>
               <Link to="/terms-and-conditions" className="text-slate-500 hover:text-white transition-colors text-xs">
                 {isFr ? "Conditions" : "Terms"}
               </Link>
-              <span className="text-slate-600 text-xs hidden sm:inline">|</span>
+              <span className="text-slate-700 text-xs">·</span>
               <Link to="/refund-policy" className="text-slate-500 hover:text-white transition-colors text-xs">
                 {isFr ? "Remboursement" : "Refunds"}
               </Link>
-              <span className="text-slate-600 text-xs hidden sm:inline">·</span>
+              <span className="text-slate-700 text-xs hidden sm:inline">·</span>
               <span className="text-slate-600 text-xs">HTTPS + WAF</span>
             </div>
           </div>
