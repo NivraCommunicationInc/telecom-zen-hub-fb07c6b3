@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Menu, X, Search, RefreshCw, Shield } from "lucide-react";
+import { LogOut, Menu, X, Search, Shield, User } from "lucide-react";
 import { SystemStatusBanner, SystemStatusIndicator } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,38 +117,44 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
         {/* Mobile Header */}
         <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
-          <div className="flex items-center justify-between p-4">
-            <Link to="/admin" className="flex items-center gap-3">
+          <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 px-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="w-14 h-14 text-slate-300 hover:text-white hover:bg-slate-800"
+              aria-label="Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+
+            <Link to="/admin" className="justify-self-center flex items-center gap-2">
               <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg shadow-teal-500/20">
                 <Shield className="h-5 w-5 text-slate-900" />
               </div>
-              <span className="font-display font-bold text-lg text-white">Nivra Admin</span>
+              <span className="font-display font-bold text-base text-white">Nivra Admin</span>
             </Link>
-            <div className="flex items-center gap-2">
-              <LockdownButton compact />
-              <NotificationBell basePath="/admin" />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-slate-400 hover:text-white hover:bg-slate-800"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </Button>
-            </div>
+
+            <Link
+              to="/admin/account"
+              className="w-14 h-14 flex items-center justify-center justify-self-end text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg"
+              aria-label="Compte"
+            >
+              <User className="w-5 h-5" />
+            </Link>
           </div>
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <AdminMobileNav 
-              onClose={() => setMobileMenuOpen(false)} 
-              onSignOut={handleSignOut} 
+            <AdminMobileNav
+              onClose={() => setMobileMenuOpen(false)}
+              onSignOut={handleSignOut}
             />
           )}
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 lg:p-8 p-4 pt-20 lg:pt-8 overflow-auto">
+        <main className="flex-1 lg:p-8 p-4 pt-16 lg:pt-8 overflow-auto">
           {children}
         </main>
       </div>
