@@ -70,6 +70,7 @@ import AdminAccounts from "@/pages/admin/AdminAccounts";
 import AdminStreaming from "@/pages/admin/AdminStreaming";
 import AdminStreamingCatalog from "@/pages/admin/AdminStreamingCatalog";
 import AdminSystemStatus from "@/pages/admin/AdminSystemStatus";
+import AdminSystemHealth from "@/pages/admin/AdminSystemHealth";
 import AdminInternalTickets from "@/pages/admin/AdminInternalTickets";
 import AdminEmailActivity from "@/pages/admin/AdminEmailActivity";
 import AdminEmailDeliverability from "@/pages/admin/AdminEmailDeliverability";
@@ -339,6 +340,9 @@ const AppRoutes = () => {
 
         {/* System Audit - READ-ONLY */}
         <Route path="system-audit" element={<AdminSystemAudit />} />
+        
+        {/* System Health - Carrier-grade monitoring */}
+        <Route path="system-health" element={<AdminSystemHealth />} />
       </Route>
 
       {/* ============================================ */}
