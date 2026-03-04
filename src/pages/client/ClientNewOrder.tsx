@@ -1597,7 +1597,7 @@ const ClientNewOrder = () => {
           discount_value: appliedPromo.discount_value,
           discount_amount: cappedDiscount,
         } : null,
-        status: "pending",
+        status: verificationSessionId ? "pending_verification" : "pending",
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",

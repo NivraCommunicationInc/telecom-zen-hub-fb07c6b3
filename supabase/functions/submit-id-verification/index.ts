@@ -212,12 +212,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 1: Mark session as "submitted" (documents received, awaiting OCR)
+    // Step 1: Mark session as "submitted" + immediately transition to "manual_review"
+    // This ensures the client gets a fast response (<2s) without waiting for OCR
+    const now = new Date().toISOString();
     const { error: submitError } = await supabase
       .from("identity_verification_sessions")
       .update({
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
+        status: "manual_review",
+        submitted_at: now,
         id_type: idType || null,
         id_province: idProvince || null,
         document_front_path: frontPath,
@@ -253,8 +255,8 @@ Deno.serve(async (req) => {
       user_agent: clientUa,
     });
 
-    // Step 2: Trigger OCR processing asynchronously
-    // OCR will transition session from "submitted" → "manual_review" when complete
+    // Step 2: Trigger OCR processing asynchronously (fire-and-forget)
+    // OCR will update extracted_fields + match_result when complete; admin can review anytime
     try {
       const ocrUrl = `${supabaseUrl}/functions/v1/process-id-ocr`;
       fetch(ocrUrl, {
@@ -264,17 +266,14 @@ Deno.serve(async (req) => {
           "Authorization": `Bearer ${serviceRoleKey}`,
         },
         body: JSON.stringify({ session_id: session.id }),
-      }).catch(err => console.error("OCR trigger error:", err));
+      }).catch(err => console.error("OCR trigger error (fire-and-forget):", err));
     } catch (ocrErr) {
       console.error("OCR trigger exception:", ocrErr);
-      // If OCR fails to trigger, still move to manual_review so admin can review
-      await supabase.from("identity_verification_sessions")
-        .update({ status: "manual_review" })
-        .eq("id", session.id);
+      // Session is already in manual_review, admin can review without OCR
     }
 
     return new Response(
-      JSON.stringify({ message: "Documents submitted", status: "submitted" }),
+      JSON.stringify({ message: "Documents submitted", status: "manual_review" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
