@@ -176,6 +176,24 @@ function buildEmailHtml(notif: {
           <p style="color:#6b7280;font-size:12px">Dossier : ${payload.case_number || "—"}</p>
         </div>
       </div>`,
+
+    KYC_SUBMITTED: () => `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
+        <div style="background:#2563eb;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
+          <h2 style="margin:0">Nouvelle soumission KYC</h2>
+        </div>
+        <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
+          <p>Un client a soumis une vérification d'identité.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Dossier</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">${payload.case_number || "—"}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Commande</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${payload.order_number || "—"}</td></tr>
+            <tr><td style="padding:8px;color:#6b7280">Client</td><td style="padding:8px">${payload.client_name || "—"} (${payload.client_email || ""})</td></tr>
+          </table>
+          <p style="text-align:center;margin:24px 0">
+            <a href="https://nivra-telecom.ca/admin/kyc-verifications" style="background:#2563eb;color:white;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Examiner le dossier</a>
+          </p>
+        </div>
+      </div>`,
   };
 
   // Default fallback

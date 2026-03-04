@@ -289,80 +289,43 @@ Deno.serve(async (req) => {
       ip_address: req.headers.get("x-forwarded-for"), user_agent: req.headers.get("user-agent"),
     });
 
-    // On approval: confirm linked orders + send email
+    // On approval: update ONLY id_verification_status on linked orders (NOT order status)
     if (decision === "approved") {
       const { data: linkedOrders } = await serviceClient
         .from("orders").select("id, status")
-        .eq("identity_verification_session_id", session_id)
-        .in("status", ["pending_verification", "pending"]);
+        .eq("identity_verification_session_id", session_id);
 
       if (linkedOrders?.length) {
         for (const order of linkedOrders) {
-          await serviceClient.from("orders").update({ status: "confirmed" }).eq("id", order.id);
+          await serviceClient.from("orders").update({
+            id_verification_status: "verified",
+            id_verified_at: new Date().toISOString(),
+            id_verified_by: adminUserId,
+          }).eq("id", order.id);
           await serviceClient.from("identity_verification_events").insert({
-            session_id, event_type: "order_activated_on_approval", actor_id: adminUserId, actor_role: "admin",
-            details: { order_id: order.id },
+            session_id, event_type: "order_id_verified", actor_id: adminUserId, actor_role: "admin",
+            details: { order_id: order.id, note: "ID verification marked as verified. Order status unchanged." },
           });
         }
       }
-
-      // Send approval email
-      try {
-        const { data: profile } = await serviceClient
-          .from("profiles").select("email, full_name").eq("id", session.user_id).single();
-        if (profile?.email) {
-          const resendApiKey = Deno.env.get("RESEND_API_KEY");
-          if (resendApiKey) {
-            await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
-              body: JSON.stringify({
-                from: "Nivra Télécom <Support@nivra-telecom.ca>",
-                to: [profile.email],
-                subject: `Vérification approuvée — Dossier ${session.case_number || ""}`,
-                html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><div style="background:#059669;color:white;padding:16px 24px;border-radius:8px 8px 0 0"><h2 style="margin:0">✓ Vérification approuvée</h2></div><div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px"><p>Bonjour ${profile.full_name || ""},</p><p>Votre vérification d'identité a été approuvée. Votre commande est maintenant en cours de traitement.</p><p style="color:#6b7280;font-size:12px">Dossier : ${session.case_number || "—"}</p></div></div>`,
-                headers: { "X-Entity-Ref-ID": `kyc-approved-${session_id}`, "List-Unsubscribe": "<mailto:Support@nivra-telecom.ca>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
-              }),
-            });
-          }
-        }
-      } catch (e) { console.error("[admin-review] Approval email error:", e); }
+      // Email is handled by the DB trigger trg_notify_kyc_status_change → notification_outbox
     }
 
-    // On rejection: cancel linked orders + send email
+    // On rejection: update ONLY id_verification_status on linked orders (NOT order status)
     if (decision === "rejected") {
       const { data: linkedOrders } = await serviceClient
         .from("orders").select("id, status")
-        .eq("identity_verification_session_id", session_id)
-        .in("status", ["pending_verification", "pending"]);
+        .eq("identity_verification_session_id", session_id);
 
       if (linkedOrders?.length) {
         for (const order of linkedOrders) {
-          await serviceClient.from("orders").update({ status: "verification_failed", cancellation_reason: `KYC rejected: ${reason}` }).eq("id", order.id);
+          await serviceClient.from("orders").update({
+            id_verification_status: "rejected",
+            id_verification_notes: `KYC rejected: ${reason}`,
+          }).eq("id", order.id);
         }
       }
-
-      // Send rejection email
-      try {
-        const { data: profile } = await serviceClient
-          .from("profiles").select("email, full_name").eq("id", session.user_id).single();
-        if (profile?.email) {
-          const resendApiKey = Deno.env.get("RESEND_API_KEY");
-          if (resendApiKey) {
-            await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
-              body: JSON.stringify({
-                from: "Nivra Télécom <Support@nivra-telecom.ca>",
-                to: [profile.email],
-                subject: `Vérification refusée — Dossier ${session.case_number || ""}`,
-                html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><div style="background:#dc2626;color:white;padding:16px 24px;border-radius:8px 8px 0 0"><h2 style="margin:0">Vérification refusée</h2></div><div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px"><p>Bonjour ${profile.full_name || ""},</p><p>Votre vérification d'identité a été refusée.</p><p><strong>Raison :</strong> ${reason}</p><p>Si vous pensez qu'il s'agit d'une erreur, veuillez contacter notre support.</p><p style="color:#6b7280;font-size:12px">Dossier : ${session.case_number || "—"}</p></div></div>`,
-                headers: { "X-Entity-Ref-ID": `kyc-rejected-${session_id}`, "List-Unsubscribe": "<mailto:Support@nivra-telecom.ca>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
-              }),
-            });
-          }
-        }
-      } catch (e) { console.error("[admin-review] Rejection email error:", e); }
+      // Email is handled by the DB trigger trg_notify_kyc_status_change → notification_outbox
     }
 
     return json({ message: `Session ${decision}`, session_id });
