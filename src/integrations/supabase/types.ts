@@ -4873,6 +4873,65 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_requested_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          id: string
+          instructions: string | null
+          kyc_session_id: string
+          requested_at: string
+          requested_by_admin_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by_admin_id: string | null
+          status: string
+          updated_at: string
+          uploaded_at: string | null
+          uploaded_file_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          id?: string
+          instructions?: string | null
+          kyc_session_id: string
+          requested_at?: string
+          requested_by_admin_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by_admin_id?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_at?: string | null
+          uploaded_file_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          id?: string
+          instructions?: string | null
+          kyc_session_id?: string
+          requested_at?: string
+          requested_by_admin_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by_admin_id?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_at?: string | null
+          uploaded_file_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_requested_documents_kyc_session_id_fkey"
+            columns: ["kyc_session_id"]
+            isOneToOne: false
+            referencedRelation: "identity_verification_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ledger_entries: {
         Row: {
           account_id: string | null
