@@ -5,8 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Banknote, Mail, Copy, Check, Info, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
-import { PayPalCardFields } from "@/components/payment/PayPalCardFields";
-// PayPalButton removed — card payments go through PayPal Hosted Fields
+import { PayPalCheckoutButton } from "@/components/payment/PayPalCheckoutButton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -42,7 +41,7 @@ const PayInvoiceDialog = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePaymentSuccess = (captureId: string) => {
+  const handlePaymentSuccess = () => {
     toast.success("Paiement effectué avec succès!");
     onOpenChange(false);
     onPaymentSuccess?.();
@@ -127,10 +126,13 @@ const PayInvoiceDialog = ({
 
         {/* ============ Payment Form Based on Selection ============ */}
 
-        {/* Credit Card — TELUS-style embedded form via PayPal Hosted Fields */}
+        {/* Credit/Debit Card via PayPal Checkout redirect */}
         {paymentMethod === "card" && (
-          <div className="mt-2">
-            <PayPalCardFields
+          <div className="mt-2 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Vous serez redirigé vers PayPal pour compléter le paiement de façon sécurisée par carte de crédit, débit ou compte PayPal.
+            </p>
+            <PayPalCheckoutButton
               invoiceId={invoice.id}
               amount={amount}
               description={`Facture ${invoiceNumber} - Nivra Telecom`}

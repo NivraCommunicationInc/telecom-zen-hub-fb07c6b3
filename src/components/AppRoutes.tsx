@@ -159,6 +159,8 @@ import ClientIdentityVerification from "@/pages/client/ClientIdentityVerificatio
 import ClientResetPassword from "@/pages/client/ClientResetPassword";
 import ClientVerifyEmail from "@/pages/client/ClientVerifyEmail";
 import ClientRescheduleAppointment from "@/pages/client/ClientRescheduleAppointment";
+import PaymentReturn from "@/pages/client/PaymentReturn";
+import PaymentCancelled from "@/pages/client/PaymentCancelled";
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 
@@ -410,6 +412,8 @@ const AppRoutes = () => {
       <Route path="/portal/reset-password" element={<MaintenanceGuard><ClientResetPassword /></MaintenanceGuard>} />
       <Route path="/portal/verify" element={<MaintenanceGuard><ClientVerifyEmail /></MaintenanceGuard>} />
       <Route path="/portal/reschedule" element={<MaintenanceGuard><ClientAuthProvider><ClientRescheduleAppointment /></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/payment-success" element={<MaintenanceGuard><ClientAuthProvider><PaymentReturn /></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/payment-cancelled" element={<MaintenanceGuard><ClientAuthProvider><PaymentCancelled /></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* Legacy URL redirects for email links */}
       <Route path="/verify" element={<Navigate to="/portal/verify" replace />} />
