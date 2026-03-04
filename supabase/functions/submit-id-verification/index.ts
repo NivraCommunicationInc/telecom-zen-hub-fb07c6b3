@@ -140,8 +140,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check session isn't already submitted/approved/rejected
-    if (session.status !== "created") {
+    // Check session isn't already submitted/approved/rejected (allow resubmission_required + created)
+    if (session.status !== "created" && session.status !== "resubmission_required") {
       return new Response(
         JSON.stringify({ error: `Session already in status: ${session.status}`, status: session.status }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }

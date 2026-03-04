@@ -17,9 +17,10 @@ import QRCode from "qrcode";
 
 interface QRVerificationStepProps {
   userId: string;
-  checkoutType: "mobile" | "internet" | "tv";
-  isFrench: boolean;
-  onVerified: (sessionId: string) => void;
+  checkoutType: "mobile" | "internet" | "tv" | "portal";
+  isFrench?: boolean;
+  onVerified?: (sessionId: string) => void;
+  onVerificationApproved?: () => void;
   onSessionGenerated?: (sessionId: string) => void;
   orderContext?: Record<string, unknown>;
   checkoutFields?: Record<string, unknown>;
@@ -367,12 +368,12 @@ export const QRVerificationStep = ({
           setStatus(newStatus);
           
           if (newStatus === "submitted" || newStatus === "manual_review") {
-            onVerified(sessionId);
+            onVerified?.(sessionId);
             toast.success(isFrench 
               ? "Documents soumis — en vérification par un administrateur. Vous pouvez continuer." 
               : "Documents submitted — under admin review. You may continue.");
           } else if (newStatus === "approved") {
-            onVerified(sessionId);
+            onVerified?.(sessionId);
             toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
           } else if (newStatus === "rejected") {
             toast.error(isFrench ? "Vérification refusée. Veuillez réessayer." : "Verification rejected. Please try again.");

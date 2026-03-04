@@ -4290,6 +4290,7 @@ export type Database = {
       }
       identity_verification_sessions: {
         Row: {
+          case_number: string | null
           checkout_fields: Json | null
           checkout_type: string | null
           client_ip: string | null
@@ -4310,6 +4311,7 @@ export type Database = {
           public_token: string | null
           public_token_hash: string | null
           qr_regeneration_count: number
+          reference_code: string | null
           result_payload: Json | null
           retention_delete_after: string | null
           review_reason: string | null
@@ -4323,6 +4325,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          case_number?: string | null
           checkout_fields?: Json | null
           checkout_type?: string | null
           client_ip?: string | null
@@ -4343,6 +4346,7 @@ export type Database = {
           public_token?: string | null
           public_token_hash?: string | null
           qr_regeneration_count?: number
+          reference_code?: string | null
           result_payload?: Json | null
           retention_delete_after?: string | null
           review_reason?: string | null
@@ -4356,6 +4360,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          case_number?: string | null
           checkout_fields?: Json | null
           checkout_type?: string | null
           client_ip?: string | null
@@ -4376,6 +4381,7 @@ export type Database = {
           public_token?: string | null
           public_token_hash?: string | null
           qr_regeneration_count?: number
+          reference_code?: string | null
           result_payload?: Json | null
           retention_delete_after?: string | null
           review_reason?: string | null
