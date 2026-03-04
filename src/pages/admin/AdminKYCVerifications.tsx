@@ -2,7 +2,7 @@
  * Admin KYC Verifications Center
  * Telecom-grade identity verification management.
  * Route: /admin/kyc-verifications
- * Features: case numbers, order linking, resubmission, approve/reject with mandatory note.
+ * Features: case numbers, order linking, resubmission with required_docs, approve/reject with mandatory note.
  */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,17 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
-  Shield, CheckCircle2, XCircle, Clock, AlertCircle, Eye,
+  Shield, CheckCircle2, XCircle, Clock, Eye,
   Search, RefreshCw, FileCheck, User, Calendar, Loader2, Camera,
   AlertTriangle, Package, ExternalLink, Copy, RotateCcw, Send,
-  ChevronRight
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient } from "@/integrations/backend";
@@ -29,7 +28,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-// Status configuration
 const STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof Shield }> = {
   created: { label: "Créée", className: "bg-blue-50 text-blue-700 border-blue-200", icon: Clock },
   submitted: { label: "Soumise", className: "bg-amber-50 text-amber-700 border-amber-200", icon: Send },
@@ -46,7 +44,14 @@ const MATCH_CONFIG: Record<string, { label: string; className: string }> = {
   mismatch: { label: "Mismatch ✗", className: "bg-red-50 text-red-700 border-red-200" },
 };
 
-// OCR diff component
+const ADDITIONAL_DOC_TYPES = [
+  { value: "proof_of_address", label: "Preuve d'adresse" },
+  { value: "bank_statement", label: "Relevé bancaire" },
+  { value: "other_invoice", label: "Autre facture" },
+  { value: "utility_bill", label: "Facture de services publics" },
+  { value: "government_letter", label: "Lettre gouvernementale" },
+];
+
 const OCRDiffTable = ({ matchResult, checkoutFields }: { matchResult: any; checkoutFields: any }) => {
   if (!matchResult) return null;
   const extracted = matchResult.extracted_fields || {};
@@ -92,8 +97,10 @@ const AdminKYCVerifications = () => {
   const [reviewReason, setReviewReason] = useState("");
   const [signedUrls, setSignedUrls] = useState<Record<string, string | null>>({});
   const [loadingUrls, setLoadingUrls] = useState(false);
+  const [requiredDocs, setRequiredDocs] = useState<string[]>([]);
+  const [customDocLabel, setCustomDocLabel] = useState("");
 
-  // Fetch all sessions with profiles
+  // Fetch all sessions
   const { data: sessions = [], isLoading, refetch } = useQuery({
     queryKey: ["admin-kyc-sessions", filterStatus],
     queryFn: async () => {
@@ -109,36 +116,18 @@ const AdminKYCVerifications = () => {
     },
   });
 
-  // Fetch profile data for all user_ids
+  // Fetch profiles
   const userIds = [...new Set(sessions.map((s: any) => s.user_id))];
   const { data: profiles = [] } = useQuery({
     queryKey: ["admin-kyc-profiles", userIds.join(",")],
     queryFn: async () => {
       if (userIds.length === 0) return [];
-      const { data } = await adminClient
-        .from("profiles")
-        .select("id, full_name, email, phone")
-        .in("id", userIds);
+      const { data } = await adminClient.from("profiles").select("id, full_name, email, phone").in("id", userIds);
       return data || [];
     },
     enabled: userIds.length > 0,
   });
-
   const profileMap = Object.fromEntries(profiles.map((p: any) => [p.id, p]));
-
-  // Linked orders for selected session
-  const { data: linkedOrders = [] } = useQuery({
-    queryKey: ["admin-kyc-orders", selectedSession?.id],
-    queryFn: async () => {
-      if (!selectedSession?.id) return [];
-      const { data } = await adminClient
-        .from("orders")
-        .select("id, order_number, status, created_at, category, total_amount, client_snapshot")
-        .eq("identity_verification_session_id", selectedSession.id);
-      return data || [];
-    },
-    enabled: !!selectedSession?.id,
-  });
 
   // Events for selected session
   const { data: sessionEvents = [] } = useQuery({
@@ -155,7 +144,6 @@ const AdminKYCVerifications = () => {
     enabled: !!selectedSession?.id,
   });
 
-  // Fetch signed URLs
   const fetchSignedUrls = async (sessionId: string) => {
     setLoadingUrls(true);
     try {
@@ -171,11 +159,10 @@ const AdminKYCVerifications = () => {
     }
   };
 
-  // Review mutation (approve/reject/resubmission_required)
   const reviewMutation = useMutation({
-    mutationFn: async ({ sessionId, decision, reason }: { sessionId: string; decision: string; reason: string }) => {
+    mutationFn: async ({ sessionId, decision, reason, required_docs }: { sessionId: string; decision: string; reason: string; required_docs?: string[] }) => {
       const { data, error } = await adminClient.functions.invoke("admin-review-verification", {
-        body: { session_id: sessionId, decision, reason, idempotency_key: `review_${sessionId}_${Date.now()}` },
+        body: { session_id: sessionId, decision, reason, required_docs, idempotency_key: `review_${sessionId}_${Date.now()}` },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -184,9 +171,10 @@ const AdminKYCVerifications = () => {
     onSuccess: () => {
       toast.success("Décision enregistrée");
       queryClient.invalidateQueries({ queryKey: ["admin-kyc-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-kyc-orders"] });
       setSheetOpen(false);
       setReviewReason("");
+      setRequiredDocs([]);
+      setCustomDocLabel("");
     },
     onError: (err: any) => toast.error(err.message || "Erreur"),
   });
@@ -196,6 +184,8 @@ const AdminKYCVerifications = () => {
     setSignedUrls({});
     setReviewReason("");
     setReviewDecision("approved");
+    setRequiredDocs([]);
+    setCustomDocLabel("");
     setSheetOpen(true);
     if (session.document_front_path) fetchSignedUrls(session.id);
   };
@@ -203,22 +193,21 @@ const AdminKYCVerifications = () => {
   const handleReview = () => {
     if (!reviewReason.trim()) { toast.error("Note obligatoire"); return; }
     if (!selectedSession?.id) return;
-    reviewMutation.mutate({ sessionId: selectedSession.id, decision: reviewDecision, reason: reviewReason });
+    const docs = reviewDecision === "resubmission_required"
+      ? [...requiredDocs, ...(customDocLabel.trim() ? [customDocLabel.trim()] : [])]
+      : undefined;
+    reviewMutation.mutate({ sessionId: selectedSession.id, decision: reviewDecision, reason: reviewReason, required_docs: docs });
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copié");
-  };
+  const copyToClipboard = (text: string) => { navigator.clipboard.writeText(text); toast.success("Copié"); };
 
-  // Filter + search
   const filtered = sessions.filter((s: any) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     const profile = profileMap[s.user_id];
     return (
       s.case_number?.toLowerCase().includes(term) ||
-      s.id?.toLowerCase().includes(term) ||
+      s.order_number?.toLowerCase().includes(term) ||
       s.reference_code?.toLowerCase().includes(term) ||
       profile?.full_name?.toLowerCase().includes(term) ||
       profile?.email?.toLowerCase().includes(term) ||
@@ -228,10 +217,6 @@ const AdminKYCVerifications = () => {
 
   const pendingCount = sessions.filter((s: any) => s.status === "manual_review").length;
   const resubCount = sessions.filter((s: any) => s.status === "resubmission_required").length;
-  const mismatchCount = sessions.filter((s: any) => {
-    const ms = s.match_result?.status;
-    return ms === "mismatch" || ms === "partial_match";
-  }).length;
 
   return (
     <div className="space-y-6">
@@ -245,20 +230,9 @@ const AdminKYCVerifications = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {mismatchCount > 0 && (
-            <Badge className="bg-red-100 text-red-800 border-red-300">
-              <AlertTriangle className="w-3 h-3 mr-1" /> {mismatchCount} mismatch
-            </Badge>
-          )}
-          {pendingCount > 0 && (
-            <Badge className="bg-purple-100 text-purple-800 border-purple-300">{pendingCount} en révision</Badge>
-          )}
-          {resubCount > 0 && (
-            <Badge className="bg-orange-100 text-orange-800 border-orange-300">{resubCount} resoumission</Badge>
-          )}
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="w-4 h-4 mr-1" /> Actualiser
-          </Button>
+          {pendingCount > 0 && <Badge className="bg-purple-100 text-purple-800 border-purple-300">{pendingCount} en révision</Badge>}
+          {resubCount > 0 && <Badge className="bg-orange-100 text-orange-800 border-orange-300">{resubCount} resoumission</Badge>}
+          <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-4 h-4 mr-1" /> Actualiser</Button>
         </div>
       </div>
 
@@ -266,26 +240,19 @@ const AdminKYCVerifications = () => {
       <div className="flex gap-3">
         <div className="flex-1 relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher par N° dossier, nom, email, téléphone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Rechercher par N° dossier, commande, nom, email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
-            <SelectItem value="manual_review">🔍 En révision</SelectItem>
-            <SelectItem value="resubmission_required">🔄 Resoumission requise</SelectItem>
-            <SelectItem value="submitted">📥 Soumises</SelectItem>
-            <SelectItem value="approved">✓ Approuvées</SelectItem>
-            <SelectItem value="rejected">✗ Refusées</SelectItem>
-            <SelectItem value="created">⏳ Créées</SelectItem>
-            <SelectItem value="expired">⌛ Expirées</SelectItem>
+            <SelectItem value="manual_review">En révision</SelectItem>
+            <SelectItem value="resubmission_required">Resoumission requise</SelectItem>
+            <SelectItem value="submitted">Soumises</SelectItem>
+            <SelectItem value="approved">Approuvées</SelectItem>
+            <SelectItem value="rejected">Refusées</SelectItem>
+            <SelectItem value="created">Créées</SelectItem>
+            <SelectItem value="expired">Expirées</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -331,13 +298,16 @@ const AdminKYCVerifications = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground">—</span>
+                      {session.order_number ? (
+                        <Badge variant="outline" className="font-mono text-xs">{session.order_number}</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Non liée</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">{profile?.full_name || "—"}</span>
                         <span className="text-xs text-muted-foreground">{profile?.email || "—"}</span>
-                        {profile?.phone && <span className="text-xs text-muted-foreground">{profile.phone}</span>}
                       </div>
                     </TableCell>
                     <TableCell><Badge className={sc.className}>{sc.label}</Badge></TableCell>
@@ -348,12 +318,8 @@ const AdminKYCVerifications = () => {
                         </Badge>
                       ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(session.created_at), "d MMM yyyy HH:mm", { locale: fr })}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(session.updated_at), "d MMM yyyy HH:mm", { locale: fr })}
-                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{format(new Date(session.created_at), "d MMM yyyy HH:mm", { locale: fr })}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{format(new Date(session.updated_at), "d MMM yyyy HH:mm", { locale: fr })}</TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant={isMismatch ? "destructive" : session.status === "manual_review" ? "default" : "outline"} onClick={(e) => { e.stopPropagation(); handleOpenSession(session); }}>
                         <Eye className="w-4 h-4 mr-1" /> Ouvrir
@@ -367,7 +333,7 @@ const AdminKYCVerifications = () => {
         </Card>
       )}
 
-      {/* Detail Sheet (Drawer) */}
+      {/* Detail Sheet */}
       <Sheet open={sheetOpen} onOpenChange={(o) => { setSheetOpen(o); if (!o) setSelectedSession(null); }}>
         <SheetContent className="w-full sm:max-w-[900px] p-0 flex flex-col">
           <SheetHeader className="px-6 py-4 border-b">
@@ -375,29 +341,19 @@ const AdminKYCVerifications = () => {
               <Shield className="w-5 h-5" />
               <span className="font-mono">{selectedSession?.case_number || "Session"}</span>
               {selectedSession && <Badge className={STATUS_CONFIG[selectedSession.status]?.className}>{STATUS_CONFIG[selectedSession.status]?.label}</Badge>}
-              {selectedSession?.match_result?.status && (
-                <Badge className={MATCH_CONFIG[selectedSession.match_result.status]?.className || ""}>{MATCH_CONFIG[selectedSession.match_result.status]?.label}</Badge>
-              )}
             </SheetTitle>
           </SheetHeader>
 
           {selectedSession && (
             <ScrollArea className="flex-1 overflow-y-auto">
-              <Tabs defaultValue="documents" className="px-6 py-4">
-                <TabsList className="grid grid-cols-4 w-full">
-                  <TabsTrigger value="documents">📷 Documents</TabsTrigger>
-                  <TabsTrigger value="ocr">🔍 OCR</TabsTrigger>
-                  <TabsTrigger value="order">📦 Commande</TabsTrigger>
-                  <TabsTrigger value="timeline">📋 Historique</TabsTrigger>
-                </TabsList>
-
-                {/* Documents Tab */}
-                <TabsContent value="documents" className="space-y-4 mt-4">
+              <div className="px-6 py-4 space-y-6">
+                {/* Documents section */}
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold flex items-center gap-2"><Camera className="w-4 h-4" /> Documents soumis</h3>
                     {selectedSession.document_front_path && (
                       <Button variant="ghost" size="sm" onClick={() => fetchSignedUrls(selectedSession.id)}>
-                        <RefreshCw className="w-3 h-3 mr-1" /> Rafraîchir (5min)
+                        <RefreshCw className="w-3 h-3 mr-1" /> Rafraîchir
                       </Button>
                     )}
                   </div>
@@ -430,117 +386,99 @@ const AdminKYCVerifications = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="py-8 text-center text-muted-foreground border border-dashed rounded-lg">
-                      Aucun document soumis.
-                    </div>
+                    <div className="py-6 text-center text-muted-foreground border border-dashed rounded-lg">Aucun document soumis.</div>
                   )}
+                </div>
 
-                  {/* Session metadata */}
-                  <Card>
-                    <CardContent className="py-3 space-y-2 text-xs">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex justify-between"><span className="text-muted-foreground">N° Dossier</span><span className="font-mono font-semibold">{selectedSession.case_number}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Code Réf.</span><span className="font-mono">{selectedSession.reference_code || selectedSession.id.slice(0, 8)}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Type pièce</span><span>{selectedSession.id_type || "—"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Province</span><span>{selectedSession.id_province || "—"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Tentatives</span><span>{selectedSession.submission_attempts}/{selectedSession.max_attempts || 3}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">IP</span><span>{selectedSession.client_ip || "—"}</span></div>
-                      </div>
-                      <div className="flex gap-2 pt-2">
-                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(selectedSession.case_number || selectedSession.id)}>
-                          <Copy className="w-3 h-3 mr-1" /> Copier N°
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <Separator />
 
-                  {/* Client info */}
-                  {profileMap[selectedSession.user_id] && (
-                    <Card>
-                      <CardHeader className="py-2 px-4">
-                        <CardTitle className="text-xs flex items-center gap-1"><User className="w-3 h-3" /> Client</CardTitle>
-                      </CardHeader>
-                      <CardContent className="py-2 px-4 text-sm space-y-1">
-                        <p className="font-medium">{profileMap[selectedSession.user_id].full_name}</p>
-                        <p className="text-muted-foreground">{profileMap[selectedSession.user_id].email}</p>
-                        {profileMap[selectedSession.user_id].phone && <p className="text-muted-foreground">{profileMap[selectedSession.user_id].phone}</p>}
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                {/* OCR Tab */}
-                <TabsContent value="ocr" className="space-y-4 mt-4">
+                {/* OCR section */}
+                <div className="space-y-3">
                   <h3 className="font-semibold flex items-center gap-2"><FileCheck className="w-4 h-4" /> Correspondance OCR</h3>
                   {selectedSession.match_result ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <span className="text-sm">Score :</span>
-                        <span className={`text-3xl font-bold ${
+                        <span className={`text-2xl font-bold ${
                           selectedSession.match_result.match_score >= 100 ? "text-emerald-600" :
                           selectedSession.match_result.match_score >= 60 ? "text-amber-600" : "text-destructive"
-                        }`}>
-                          {selectedSession.match_result.match_score}%
-                        </span>
+                        }`}>{selectedSession.match_result.match_score}%</span>
                         <Badge className={MATCH_CONFIG[selectedSession.match_result.status]?.className || ""}>
                           {MATCH_CONFIG[selectedSession.match_result.status]?.label || selectedSession.match_result.status}
                         </Badge>
                       </div>
-                      {selectedSession.match_result.status !== "approved_candidate" && (
-                        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-destructive" />
-                          <span className="font-semibold">Divergence détectée — vérification manuelle requise</span>
-                        </div>
-                      )}
                       <OCRDiffTable matchResult={selectedSession.match_result} checkoutFields={selectedSession.checkout_fields} />
                     </div>
                   ) : (
-                    <div className="py-8 text-center text-muted-foreground border border-dashed rounded-lg">
-                      OCR non disponible — extraction en cours ou non déclenchée.
-                    </div>
+                    <div className="py-4 text-center text-muted-foreground border border-dashed rounded-lg text-sm">OCR non disponible.</div>
                   )}
-                </TabsContent>
+                </div>
 
-                {/* Order Tab */}
-                <TabsContent value="order" className="space-y-4 mt-4">
-                  <h3 className="font-semibold flex items-center gap-2"><Package className="w-4 h-4" /> Commandes liées</h3>
-                  {linkedOrders.length > 0 ? (
-                    linkedOrders.map((order: any) => (
-                      <Card key={order.id}>
-                        <CardContent className="py-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Badge variant="outline" className="font-mono text-sm">{order.order_number}</Badge>
-                              <Badge className={
-                                order.status === "confirmed" ? "bg-emerald-50 text-emerald-700" :
-                                order.status === "cancelled" || order.status === "verification_failed" ? "bg-red-50 text-red-700" :
-                                order.status === "pending_verification" ? "bg-amber-50 text-amber-700" :
-                                "bg-blue-50 text-blue-700"
-                              }>{order.status}</Badge>
-                            </div>
-                            <Button variant="outline" size="sm" asChild>
-                              <a href={`/admin/orders?id=${order.id}`} target="_blank"><ExternalLink className="w-3 h-3 mr-1" /> Voir commande</a>
-                            </Button>
+                <Separator />
+
+                {/* Order section */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2"><Package className="w-4 h-4" /> Commande liée</h3>
+                  {selectedSession.order_id ? (
+                    <Card>
+                      <CardContent className="py-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="font-mono text-sm">{selectedSession.order_number || "—"}</Badge>
+                            <span className="text-xs text-muted-foreground font-mono">ID: {selectedSession.order_id.slice(0, 8)}...</span>
                           </div>
-                          <div className="grid grid-cols-3 gap-3 text-sm">
-                            <div><Label className="text-xs text-muted-foreground">Catégorie</Label><p>{order.category || "—"}</p></div>
-                            <div><Label className="text-xs text-muted-foreground">Total</Label><p>{order.total_amount != null ? `${Number(order.total_amount).toFixed(2)} $` : "—"}</p></div>
-                            <div><Label className="text-xs text-muted-foreground">Créée</Label><p>{format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}</p></div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={`/admin/orders?id=${selectedSession.order_id}`} target="_blank"><ExternalLink className="w-3 h-3 mr-1" /> Voir commande</a>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    <div className="py-8 text-center text-muted-foreground border border-dashed rounded-lg">
+                    <div className="py-4 text-center text-muted-foreground border border-dashed rounded-lg text-sm">
                       Aucune commande liée à cette session.
                     </div>
                   )}
-                </TabsContent>
+                </div>
 
-                {/* Timeline Tab */}
-                <TabsContent value="timeline" className="space-y-4 mt-4">
-                  <h3 className="font-semibold flex items-center gap-2"><Calendar className="w-4 h-4" /> Historique des événements</h3>
-                  {sessionEvents.length > 0 ? (
+                <Separator />
+
+                {/* Session metadata */}
+                <Card>
+                  <CardContent className="py-3 space-y-2 text-xs">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex justify-between"><span className="text-muted-foreground">N° Dossier</span><span className="font-mono font-semibold">{selectedSession.case_number}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Code Réf.</span><span className="font-mono">{selectedSession.reference_code || selectedSession.id.slice(0, 8)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Type pièce</span><span>{selectedSession.id_type || "—"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Province</span><span>{selectedSession.id_province || "—"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Tentatives</span><span>{selectedSession.submission_attempts}/{selectedSession.max_attempts || 3}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">IP</span><span>{selectedSession.client_ip || "—"}</span></div>
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" size="sm" onClick={() => copyToClipboard(selectedSession.case_number || selectedSession.id)}>
+                        <Copy className="w-3 h-3 mr-1" /> Copier N°
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Client info */}
+                {profileMap[selectedSession.user_id] && (
+                  <Card>
+                    <CardHeader className="py-2 px-4">
+                      <CardTitle className="text-xs flex items-center gap-1"><User className="w-3 h-3" /> Client</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-2 px-4 text-sm space-y-1">
+                      <p className="font-medium">{profileMap[selectedSession.user_id].full_name}</p>
+                      <p className="text-muted-foreground">{profileMap[selectedSession.user_id].email}</p>
+                      {profileMap[selectedSession.user_id].phone && <p className="text-muted-foreground">{profileMap[selectedSession.user_id].phone}</p>}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Timeline */}
+                {sessionEvents.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2"><Calendar className="w-4 h-4" /> Historique</h3>
                     <div className="space-y-2">
                       {sessionEvents.map((event: any) => (
                         <div key={event.id} className="flex items-start gap-3 p-3 bg-muted rounded-lg text-sm">
@@ -554,72 +492,89 @@ const AdminKYCVerifications = () => {
                               <p className="text-xs text-muted-foreground mt-1">{JSON.stringify(event.details)}</p>
                             )}
                           </div>
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {format(new Date(event.created_at), "d MMM HH:mm:ss", { locale: fr })}
-                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0">{format(new Date(event.created_at), "d MMM HH:mm:ss", { locale: fr })}</span>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm py-4">Aucun événement.</p>
-                  )}
-                </TabsContent>
-              </Tabs>
+                  </div>
+                )}
 
-              {/* Decision Panel - always visible at bottom */}
-              {(selectedSession.status === "manual_review" || selectedSession.status === "submitted" || selectedSession.status === "resubmission_required") && (
-                <div className="px-6 pb-6">
-                  <Separator className="mb-4" />
-                  <Card className="border-2 border-primary/20">
-                    <CardHeader className="py-3">
-                      <CardTitle className="text-sm">Décision administrative</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {selectedSession.match_result?.status && selectedSession.match_result.status !== "approved_candidate" && (
-                        <div className="p-2 rounded bg-destructive/10 border border-destructive/20 text-xs flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3 text-destructive" />
-                          <span className="font-semibold">⚠ {selectedSession.match_result.status === "mismatch" ? "MISMATCH" : "Match partiel"} — Score: {selectedSession.match_result.match_score}%</span>
-                        </div>
-                      )}
+                {/* Decision Panel */}
+                {(selectedSession.status === "manual_review" || selectedSession.status === "submitted" || selectedSession.status === "resubmission_required") && (
+                  <div>
+                    <Separator className="mb-4" />
+                    <Card className="border-2 border-primary/20">
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm">Décision administrative</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {selectedSession.match_result?.status && selectedSession.match_result.status !== "approved_candidate" && (
+                          <div className="p-2 rounded bg-destructive/10 border border-destructive/20 text-xs flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-destructive" />
+                            <span className="font-semibold">⚠ {selectedSession.match_result.status === "mismatch" ? "MISMATCH" : "Match partiel"} — Score: {selectedSession.match_result.match_score}%</span>
+                          </div>
+                        )}
 
-                      <Select value={reviewDecision} onValueChange={setReviewDecision}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="approved">✓ Approuver — confirmer commande et activer services</SelectItem>
-                          <SelectItem value="rejected">✗ Refuser — bloquer commande</SelectItem>
-                          <SelectItem value="resubmission_required">🔄 Demander resoumission — le client devra resoumettre</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Select value={reviewDecision} onValueChange={setReviewDecision}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="approved">✓ Approuver — confirmer commande</SelectItem>
+                            <SelectItem value="rejected">✗ Refuser — bloquer commande</SelectItem>
+                            <SelectItem value="resubmission_required">🔄 Demander resoumission</SelectItem>
+                          </SelectContent>
+                        </Select>
 
-                      <Textarea
-                        value={reviewReason}
-                        onChange={(e) => setReviewReason(e.target.value)}
-                        placeholder="Note interne obligatoire..."
-                        rows={2}
-                      />
+                        {/* Required docs selector for resubmission */}
+                        {reviewDecision === "resubmission_required" && (
+                          <div className="space-y-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                            <Label className="text-xs font-semibold text-orange-800">Documents requis du client :</Label>
+                            {ADDITIONAL_DOC_TYPES.map((doc) => (
+                              <div key={doc.value} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={doc.value}
+                                  checked={requiredDocs.includes(doc.value)}
+                                  onCheckedChange={(checked) => {
+                                    setRequiredDocs(checked
+                                      ? [...requiredDocs, doc.value]
+                                      : requiredDocs.filter((d) => d !== doc.value)
+                                    );
+                                  }}
+                                />
+                                <label htmlFor={doc.value} className="text-sm">{doc.label}</label>
+                              </div>
+                            ))}
+                            <div className="pt-1">
+                              <Input
+                                placeholder="Autre document (optionnel)..."
+                                value={customDocLabel}
+                                onChange={(e) => setCustomDocLabel(e.target.value)}
+                                className="text-sm"
+                              />
+                            </div>
+                          </div>
+                        )}
 
-                      <Button
-                        onClick={handleReview}
-                        disabled={!reviewReason.trim() || reviewMutation.isPending}
-                        className={`w-full ${
-                          reviewDecision === "approved" ? "bg-emerald-600 hover:bg-emerald-700" :
-                          reviewDecision === "rejected" ? "bg-destructive hover:bg-destructive/90" :
-                          "bg-orange-600 hover:bg-orange-700"
-                        } text-white`}
-                      >
-                        {reviewMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Confirmer la décision
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+                        <Textarea value={reviewReason} onChange={(e) => setReviewReason(e.target.value)} placeholder="Note interne obligatoire..." rows={2} />
 
-              {/* Already reviewed */}
-              {selectedSession.review_reason && (
-                <div className="px-6 pb-6">
+                        <Button
+                          onClick={handleReview}
+                          disabled={!reviewReason.trim() || reviewMutation.isPending}
+                          className={`w-full ${
+                            reviewDecision === "approved" ? "bg-emerald-600 hover:bg-emerald-700" :
+                            reviewDecision === "rejected" ? "bg-destructive hover:bg-destructive/90" :
+                            "bg-orange-600 hover:bg-orange-700"
+                          } text-white`}
+                        >
+                          {reviewMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Confirmer la décision
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Already reviewed */}
+                {selectedSession.review_reason && (
                   <Card className="bg-muted">
                     <CardContent className="py-3">
                       <Label className="text-xs text-muted-foreground">Décision précédente</Label>
@@ -629,8 +584,8 @@ const AdminKYCVerifications = () => {
                       )}
                     </CardContent>
                   </Card>
-                </div>
-              )}
+                )}
+              </div>
             </ScrollArea>
           )}
         </SheetContent>

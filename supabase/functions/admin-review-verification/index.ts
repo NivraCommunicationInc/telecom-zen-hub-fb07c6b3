@@ -2,6 +2,7 @@
  * Edge Function: admin-review-verification
  * Admin approves/rejects identity verification session with mandatory reason.
  * Also supports generating signed URLs for viewing private documents.
+ * Supports required_docs for resubmission requests.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -89,7 +90,7 @@ Deno.serve(async (req) => {
       }
 
       const urls: Record<string, string | null> = { front: null, back: null, selfie: null };
-      const expiresIn = 300; // 5 minutes
+      const expiresIn = 300;
 
       for (const [key, path] of [
         ["front", session.document_front_path],
@@ -104,7 +105,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Log view event
       await serviceClient.from("identity_verification_events").insert({
         session_id,
         event_type: "admin_viewed_documents",
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     }
 
     // Default action: review decision
-    const { session_id, decision, reason, idempotency_key } = body;
+    const { session_id, decision, reason, required_docs, idempotency_key } = body;
 
     if (!session_id || !decision || !reason?.trim()) {
       return new Response(
@@ -168,15 +168,23 @@ Deno.serve(async (req) => {
     }
 
     // Update session
+    const updatePayload: Record<string, any> = {
+      status: decision,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: adminUserId,
+      review_reason: reason,
+      result_payload: { decision, reason, reviewed_by_admin: adminUserId },
+    };
+
+    // Store required_docs for resubmission
+    if (decision === "resubmission_required" && required_docs && Array.isArray(required_docs)) {
+      updatePayload.required_docs = required_docs;
+      updatePayload.additional_docs = null; // Reset previous additional uploads
+    }
+
     const { error: updateError } = await serviceClient
       .from("identity_verification_sessions")
-      .update({
-        status: decision,
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: adminUserId,
-        review_reason: reason,
-        result_payload: { decision, reason, reviewed_by_admin: adminUserId },
-      })
+      .update(updatePayload)
       .eq("id", session_id);
 
     if (updateError) {
@@ -192,13 +200,13 @@ Deno.serve(async (req) => {
       event_type: `admin_${decision}`,
       actor_id: adminUserId,
       actor_role: "admin",
-      details: { decision, reason },
+      details: { decision, reason, required_docs: required_docs || null },
       idempotency_key: idempotency_key || null,
       ip_address: req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip"),
       user_agent: req.headers.get("user-agent"),
     });
 
-    // On approval: update linked orders to confirmed, activate services
+    // On approval: update linked orders to confirmed
     if (decision === "approved") {
       const { data: linkedOrders } = await serviceClient
         .from("orders")
@@ -213,7 +221,6 @@ Deno.serve(async (req) => {
             .update({ status: "confirmed" })
             .eq("id", order.id);
 
-          // Log order activation
           await serviceClient.from("identity_verification_events").insert({
             session_id,
             event_type: "order_activated_on_approval",
@@ -224,7 +231,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Queue confirmation email
       await serviceClient.from("admin_notification_logs").insert({
         event_type: "kyc_approved",
         event_id: session_id,
@@ -250,7 +256,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Queue rejection notification
       await serviceClient.from("admin_notification_logs").insert({
         event_type: "kyc_rejected",
         event_id: session_id,
@@ -258,9 +263,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // On resubmission_required: reset session for new upload, notify client
+    // On resubmission_required: reset for new upload, notify client
     if (decision === "resubmission_required") {
-      // Reset submission attempts so client can resubmit
       await serviceClient
         .from("identity_verification_sessions")
         .update({
@@ -274,7 +278,6 @@ Deno.serve(async (req) => {
         })
         .eq("id", session_id);
 
-      // Queue resubmission notification
       await serviceClient.from("admin_notification_logs").insert({
         event_type: "kyc_resubmission_required",
         event_id: session_id,
@@ -282,6 +285,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    return new Response(
       JSON.stringify({ message: `Session ${decision}`, session_id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
