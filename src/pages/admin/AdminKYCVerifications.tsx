@@ -114,6 +114,7 @@ const AdminKYCVerifications = () => {
   const [reviewDecision, setReviewDecision] = useState<string>("approved");
   const [reviewReason, setReviewReason] = useState("");
   const [signedUrls, setSignedUrls] = useState<Record<string, string | null>>({});
+  const [docSignedUrls, setDocSignedUrls] = useState<Record<string, string>>({});
   const [loadingUrls, setLoadingUrls] = useState(false);
 
   // Request docs modal
@@ -191,6 +192,7 @@ const AdminKYCVerifications = () => {
       });
       if (error) throw error;
       setSignedUrls(data?.urls || {});
+      setDocSignedUrls(data?.doc_urls || {});
     } catch {
       toast.error("Erreur chargement documents");
     } finally {
@@ -265,6 +267,7 @@ const AdminKYCVerifications = () => {
   const handleOpenSession = (session: any) => {
     setSelectedSession(session);
     setSignedUrls({});
+    setDocSignedUrls({});
     setReviewReason("");
     setReviewDecision("approved");
     setSheetOpen(true);
@@ -513,11 +516,30 @@ const AdminKYCVerifications = () => {
                                 </div>
                                 {doc.instructions && <p className="text-xs text-muted-foreground italic">"{doc.instructions}"</p>}
                                 
-                                {/* Show uploaded file preview */}
-                                {doc.uploaded_file_url && doc.status === "uploaded" && (
+                                {/* Show uploaded file with view button */}
+                                {doc.uploaded_file_url && (doc.status === "uploaded" || doc.status === "accepted") && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <FileCheck className="w-3 h-3 text-blue-600" />
                                     <span className="text-blue-700">Fichier téléversé le {doc.uploaded_at ? format(new Date(doc.uploaded_at), "d MMM HH:mm", { locale: fr }) : "—"}</span>
+                                    {docSignedUrls[doc.id] ? (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-6 px-2 text-xs text-blue-700 hover:text-blue-900"
+                                        onClick={() => window.open(docSignedUrls[doc.id], "_blank")}
+                                      >
+                                        <Eye className="w-3 h-3 mr-1" /> Voir le document
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-6 px-2 text-xs text-muted-foreground"
+                                        onClick={() => selectedSession && fetchSignedUrls(selectedSession.id)}
+                                      >
+                                        <RefreshCw className="w-3 h-3 mr-1" /> Charger URL
+                                      </Button>
+                                    )}
                                   </div>
                                 )}
 
