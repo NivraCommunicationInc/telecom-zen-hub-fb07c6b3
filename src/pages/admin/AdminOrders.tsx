@@ -72,6 +72,7 @@ import EquipmentOrderDetails from "@/components/admin/EquipmentOrderDetails";
 import ManualOrderWizard from "@/components/admin/ManualOrderWizard";
 import { OrderClientInfoBlock } from "@/components/admin/OrderClientInfoBlock";
 import { KYCSessionPanel } from "@/components/admin/KYCSessionPanel";
+import { OrderDocumentsPanel } from "@/components/admin/OrderDocumentsPanel";
 import { MobileFulfillmentSection } from "@/components/admin/MobileFulfillmentSection";
 import { StreamingActivationSection } from "@/components/admin/StreamingActivationSection";
 import { InstallationFulfillmentSection } from "@/components/admin/InstallationFulfillmentSection";
@@ -1698,7 +1699,7 @@ const AdminOrders = () => {
                   />
                 ) : (
                 <Tabs defaultValue="details" className="w-full">
-                  <TabsList className="grid w-full grid-cols-7">
+                  <TabsList className="grid w-full grid-cols-8">
                     <TabsTrigger value="details">Détails</TabsTrigger>
                     <TabsTrigger value="fulfillment" className="flex items-center gap-1">
                       <Wrench className="w-3 h-3" />
@@ -1706,6 +1707,10 @@ const AdminOrders = () => {
                     </TabsTrigger>
                     <TabsTrigger value="payment">Paiement</TabsTrigger>
                     <TabsTrigger value="identity">Identité</TabsTrigger>
+                    <TabsTrigger value="documents" className="flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      Documents
+                    </TabsTrigger>
                     <TabsTrigger value="equipment">Équipement</TabsTrigger>
                     <TabsTrigger value="tracking">Suivi</TabsTrigger>
                     <TabsTrigger value="audit">Audit</TabsTrigger>
@@ -2678,6 +2683,29 @@ const AdminOrders = () => {
                         </div>
                       </CardContent>
                     </Card>
+                  </TabsContent>
+
+                  {/* Documents Tab — P0-2 */}
+                  <TabsContent value="documents" className="space-y-4 mt-4">
+                    <OrderDocumentsPanel
+                      orderId={selectedOrder.id}
+                      orderNumber={selectedOrder.order_number}
+                      orderStatus={selectedOrder.status}
+                      kycSessionId={selectedOrder.identity_verification_session_id}
+                    />
+
+                    {/* KYC Panel quick access */}
+                    {selectedOrder.identity_verification_session_id && (
+                      <KYCSessionPanel
+                        orderId={selectedOrder.id}
+                        sessionId={selectedOrder.identity_verification_session_id}
+                        orderStatus={selectedOrder.status}
+                        onDecision={() => {
+                          refetch();
+                          queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+                        }}
+                      />
+                    )}
                   </TabsContent>
 
                   {/* Equipment Tab */}
