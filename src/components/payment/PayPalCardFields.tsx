@@ -24,7 +24,8 @@ declare global {
         ExpiryField: () => { render: (container: string | HTMLElement) => Promise<void> };
         CVVField: () => { render: (container: string | HTMLElement) => Promise<void> };
         submit: () => Promise<void>;
-        getState: () => { isFormValid: boolean };
+        getState: () => Record<string, unknown>;
+        on: (event: string, callback: (data: unknown) => void) => void;
       };
       Buttons?: (config: unknown) => {
         render: (container: string | HTMLElement) => Promise<void>;
@@ -33,11 +34,6 @@ declare global {
   }
 }
 
-/**
- * PayPal Advanced Card Fields — TELUS-style embedded card form.
- * Uses PayPal CardFields (PCI-compliant hosted fields) so the client
- * never leaves the page.
- */
 export const PayPalCardFields = ({
   invoiceId,
   amount,
@@ -50,10 +46,10 @@ export const PayPalCardFields = ({
   const [eligible, setEligible] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sdkError, setSdkError] = useState<string | null>(null);
+  const [fieldsValid, setFieldsValid] = useState(false);
   const cardFieldRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
   const mountedRef = useRef(true);
 
-  // Stable callbacks
   const callbacksRef = useRef({ onSuccess, onError });
   useEffect(() => {
     callbacksRef.current = { onSuccess, onError };
@@ -63,33 +59,27 @@ export const PayPalCardFields = ({
     return () => { mountedRef.current = false; };
   }, []);
 
-  // Load PayPal SDK with card-fields component + client-token
+  // Load PayPal SDK
   useEffect(() => {
     let cancelled = false;
 
     const loadSdk = async () => {
-      // If SDK already loaded with card-fields, skip
       if (window.paypal?.CardFields) {
         setSdkReady(true);
         return;
       }
 
       try {
-        // 1. Get client token from backend
         const { data: tokenData, error: tokenError } = await supabase.functions.invoke(
           "paypal-client-token"
         );
         if (tokenError) throw tokenError;
         if (!tokenData?.client_token) throw new Error("No client token returned");
-
         if (cancelled) return;
 
-        // 2. Remove existing PayPal scripts (they may not have card-fields)
         document.querySelectorAll('script[src*="paypal.com/sdk/js"]').forEach((s) => s.remove());
-        // Reset paypal global
         delete (window as any).paypal;
 
-        // 3. Load SDK with card-fields component
         const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
         if (!clientId) {
           setSdkError("Configuration PayPal manquante");
@@ -100,12 +90,8 @@ export const PayPalCardFields = ({
         script.src = `https://www.paypal.com/sdk/js?components=card-fields&client-id=${clientId}&currency=CAD&locale=fr_CA`;
         script.setAttribute("data-client-token", tokenData.client_token);
         script.async = true;
-        script.onload = () => {
-          if (!cancelled) setSdkReady(true);
-        };
-        script.onerror = () => {
-          if (!cancelled) setSdkError("Impossible de charger PayPal");
-        };
+        script.onload = () => { if (!cancelled) setSdkReady(true); };
+        script.onerror = () => { if (!cancelled) setSdkError("Impossible de charger PayPal"); };
         document.body.appendChild(script);
       } catch (err) {
         console.error("[PayPal CardFields] SDK load error:", err);
@@ -124,15 +110,13 @@ export const PayPalCardFields = ({
     try {
       const cardField = window.paypal.CardFields({
         createOrder: async () => {
-          // Backend creates order from DB amount (not frontend)
           const { data, error } = await supabase.functions.invoke("paypal-create-order", {
             body: {
               invoice_id: invoiceId,
-              amount, // fallback — backend should override from DB
+              amount,
               description: description || "Paiement Nivra Telecom",
             },
           });
-
           if (error) throw error;
           if (!data?.paypal_order_id) throw new Error("No order ID returned");
           return data.paypal_order_id;
@@ -145,18 +129,11 @@ export const PayPalCardFields = ({
           try {
             const { data: captureData, error } = await supabase.functions.invoke(
               "paypal-capture-order",
-              {
-                body: {
-                  paypal_order_id: data.orderID,
-                  invoice_id: invoiceId,
-                },
-              }
+              { body: { paypal_order_id: data.orderID, invoice_id: invoiceId } }
             );
-
             if (error) throw error;
             if (!captureData?.capture_id) throw new Error("No capture ID returned");
 
-            // ★ Log capture proof in console for DevTools validation
             console.log("[PayPal CardFields] ★ CAPTURE PROOF:", {
               capture_id: captureData.capture_id,
               amount: captureData.amount,
@@ -182,6 +159,7 @@ export const PayPalCardFields = ({
           console.error("[PayPal CardFields] Error:", err);
           toast.error("Erreur de paiement. Veuillez réessayer.");
           callbacksRef.current.onError?.(err.message || "Erreur PayPal");
+          if (mountedRef.current) setIsSubmitting(false);
         },
 
         style: {
@@ -191,9 +169,7 @@ export const PayPalCardFields = ({
             color: "#0f172a",
             padding: "12px",
           },
-          ".invalid": {
-            color: "#dc2626",
-          },
+          ".invalid": { color: "#dc2626" },
         },
       });
 
@@ -201,7 +177,34 @@ export const PayPalCardFields = ({
         setEligible(true);
         cardFieldRef.current = cardField;
 
-        // Render individual fields into their containers
+        // Listen for validity changes from PayPal iframes
+        cardField.on("validityChange", (event: unknown) => {
+          console.log("[PayPal CardFields] validityChange event:", JSON.stringify(event, null, 2));
+          // The event contains field-level info; check full state for overall validity
+          try {
+            const state = cardField.getState();
+            console.log("[PayPal CardFields] Full state after validityChange:", JSON.stringify(state, null, 2));
+            
+            // PayPal CardFields getState() returns an object with fields property
+            // Each field has { isEmpty, isValid, isPotentiallyValid, isFocused }
+            // We check that all required fields are valid
+            const s = state as any;
+            const fields = s.fields || s;
+            const numberValid = fields?.cardNumberField?.isValid || fields?.cardNumber?.isValid || false;
+            const expiryValid = fields?.cardExpiryField?.isValid || fields?.cardExpiry?.isValid || fields?.expirationDate?.isValid || false;
+            const cvvValid = fields?.cardCvvField?.isValid || fields?.cardCvv?.isValid || fields?.cvv?.isValid || false;
+            const nameValid = fields?.cardNameField?.isValid || fields?.cardholderName?.isValid || true; // Name may not be tracked
+            
+            const allValid = numberValid && expiryValid && cvvValid;
+            console.log("[PayPal CardFields] Field validity:", { numberValid, expiryValid, cvvValid, nameValid, allValid });
+            
+            if (mountedRef.current) setFieldsValid(allValid);
+          } catch (e) {
+            console.warn("[PayPal CardFields] Could not parse state:", e);
+          }
+        });
+
+        // Render individual hosted fields (iframes)
         cardField.NameField().render("#card-name-field");
         cardField.NumberField().render("#card-number-field");
         cardField.ExpiryField().render("#card-expiry-field");
@@ -219,19 +222,26 @@ export const PayPalCardFields = ({
   const handleSubmit = useCallback(async () => {
     if (!cardFieldRef.current || isSubmitting) return;
 
-    const state = cardFieldRef.current.getState();
-    if (!state.isFormValid) {
-      toast.error("Veuillez remplir tous les champs de la carte correctement.");
-      return;
+    // Log full state for debugging
+    try {
+      const state = cardFieldRef.current.getState();
+      console.log("[PayPal CardFields] State at submit:", JSON.stringify(state, null, 2));
+    } catch (e) {
+      console.warn("[PayPal CardFields] Could not read state:", e);
     }
 
+    // Don't block on our local validity tracking — just submit and let PayPal validate.
+    // PayPal's submit() will reject with an error if fields are invalid,
+    // and onError will fire. This avoids false negatives from incorrect state parsing.
     setIsSubmitting(true);
     try {
       await cardFieldRef.current.submit();
-      // onApprove will handle the rest
-    } catch (err) {
+      // onApprove handles the rest; if fields are invalid PayPal throws here
+    } catch (err: any) {
       console.error("[PayPal CardFields] Submit error:", err);
-      toast.error("Erreur lors du traitement. Veuillez réessayer.");
+      // PayPal returns specific field errors — show them
+      const message = err?.message || err?.details?.[0]?.description || "Erreur lors du traitement. Veuillez réessayer.";
+      toast.error(message);
       if (mountedRef.current) setIsSubmitting(false);
     }
   }, [isSubmitting]);
@@ -256,14 +266,13 @@ export const PayPalCardFields = ({
   if (eligible === false) {
     return (
       <div className="text-sm text-muted-foreground p-3 text-center">
-        Le paiement par carte n'est pas disponible pour le moment. Veuillez utiliser PayPal ou Interac.
+        Le paiement par carte n'est pas disponible pour le moment. Veuillez utiliser Interac.
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Security notice */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Lock className="w-3.5 h-3.5" />
         <span>Vos informations sont chiffrées et sécurisées.</span>
@@ -284,7 +293,7 @@ export const PayPalCardFields = ({
         />
       </div>
 
-      {/* Expiry + CVV row */}
+      {/* Expiry + CVV */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium text-foreground mb-1.5 block">
@@ -333,6 +342,11 @@ export const PayPalCardFields = ({
           `Confirmer et payer ${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
         )}
       </Button>
+
+      {/* Debug: validity indicator */}
+      {fieldsValid && (
+        <p className="text-xs text-primary text-center">✓ Champs carte validés par PayPal</p>
+      )}
     </div>
   );
 };
