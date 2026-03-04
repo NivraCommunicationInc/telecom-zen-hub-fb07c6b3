@@ -1,0 +1,1 @@
+ALTER FUNCTION public.trigger_order_confirmation_email() SET search_path = public;
