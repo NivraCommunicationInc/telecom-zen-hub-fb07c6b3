@@ -21,7 +21,7 @@ const C = PDF_THEME;
 export interface ContractDataV3 {
   contract_number: string;
   contract_date: string;
-  terms_version: string; // e.g., "v2026-02-05"
+  terms_version: string;
 
   // Client
   client_name: string;
@@ -67,10 +67,15 @@ export interface ContractDataV3 {
   // Payment
   payment_method?: string;
 
-  // Signatures
+  // Client signature
   signature_name?: string;
   signature_date?: string;
+  signature_ip?: string;
   is_signed?: boolean;
+
+  // Admin signature
+  admin_signature_name?: string;
+  admin_signature_date?: string;
 }
 
 // ============================================================================
@@ -81,9 +86,31 @@ const fmt = (amount: number): string =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined): string => {
-  if (!dateStr) return "À confirmer";
+  if (!dateStr) {
+    console.warn("[ContractV3] Date manquante");
+    return "Non fourni par le client";
+  }
   try { return new Date(dateStr).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }); }
   catch { return dateStr; }
+};
+
+/** For critical fields that MUST be present on the document */
+const critical = (value: string | undefined | null, fieldName: string): string => {
+  if (!value || value === "—" || value === "N/A" || value.trim() === "") {
+    console.warn(`[ContractV3] Champ critique manquant: ${fieldName}`);
+    return "Non fourni par le client";
+  }
+  return value;
+};
+
+const fmtPayMethod = (m: string | undefined): string => {
+  if (!m) return "Non fourni par le client";
+  const map: Record<string, string> = {
+    PayPal: "PayPal", paypal: "PayPal", Interac: "Virement Interac",
+    interac: "Virement Interac", e_transfer: "Virement Interac",
+    "Credit Card": "Carte de crédit", card: "Carte de crédit",
+  };
+  return map[m] || m;
 };
 
 // ============================================================================
@@ -190,12 +217,12 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.roundedRect(m, y, cw, 42, 2, 2, "F");
 
     const fields = [
-      ["Nom complet", data.client_name],
-      ["Courriel", data.client_email],
-      ["Téléphone", data.client_phone || "—"],
-      ["Adresse de facturation", data.billing_address || "—"],
-      ["Adresse de service", data.service_address || "—"],
-      ["N° compte", data.account_number || "—"],
+      ["Nom complet", critical(data.client_name, "client_name")],
+      ["Courriel", critical(data.client_email, "client_email")],
+      ["Téléphone", critical(data.client_phone, "client_phone")],
+      ["Adresse de facturation", critical(data.billing_address, "billing_address")],
+      ["Adresse de service", critical(data.service_address, "service_address")],
+      ["N° compte", critical(data.account_number, "account_number")],
     ];
 
     let fy = y + 6;
@@ -318,6 +345,21 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     drawHeader(doc, "CONDITIONS GÉNÉRALES");
     y = 36;
 
+    // Payment method section before terms
+    y += 5;
+    y = sectionTitle(doc, "MODE DE PAIEMENT", y, m, cw);
+    doc.setFillColor(...C.lightBg);
+    doc.roundedRect(m, y, cw, 16, 2, 2, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...C.text);
+    const payMethodLabel = fmtPayMethod(data.payment_method);
+    doc.text(`Mode de paiement sélectionné : ${payMethodLabel}`, m + 5, y + 6);
+    doc.setFontSize(7);
+    doc.setTextColor(...C.textMuted);
+    doc.text("Le cycle de facturation commence après confirmation du paiement par le fournisseur sélectionné.", m + 5, y + 12);
+    y += 20;
+
     const terms = [
       { title: "1. DURÉE ET RÉSILIATION", content: "Le présent contrat est sans engagement et peut être résilié en tout temps par le client avec un préavis de 30 jours. Les services sont fournis sur une base mensuelle prépayée. Aucuns frais de résiliation ne s'appliquent." },
       { title: "2. PAIEMENT ET FACTURATION", content: "Les services sont prépayés. Le paiement doit être reçu et confirmé avant l'activation ou le renouvellement. Nivra accepte les virements Interac, PayPal et cartes de crédit. Le cycle de facturation commence à la date de confirmation du paiement. Sans paiement à la date de cycle (J0), le service n'est pas renouvelé." },
@@ -415,14 +457,24 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.text("SIGNATURE DU CLIENT", m + 5, y + 10);
 
     if (data.is_signed && data.signature_name) {
+      // Signed: show signature info
       doc.setFont("helvetica", "italic");
       doc.setFontSize(12);
       doc.setTextColor(...C.blue);
-      doc.text(data.signature_name, m + 10, y + 28);
+      doc.text(data.signature_name, m + 10, y + 25);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
       doc.setTextColor(...C.textMuted);
-      doc.text(`Signé le: ${fmtDate(data.signature_date)}`, m + 10, y + 38);
+      doc.text(`Signé le: ${fmtDate(data.signature_date)}`, m + 10, y + 32);
+      if (data.signature_ip) {
+        doc.text(`IP: ${data.signature_ip}`, m + 10, y + 37);
+      }
+      // Green checkmark
+      doc.setFillColor(...C.success);
+      doc.circle(m + boxW - 12, y + 10, 4, "F");
+      doc.setTextColor(...C.white);
+      doc.setFontSize(8);
+      doc.text("✓", m + boxW - 13.5, y + 12);
     } else {
       doc.setDrawColor(...C.textMuted);
       doc.line(m + 10, y + 32, m + boxW - 10, y + 32);
@@ -440,12 +492,30 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     doc.setFontSize(9);
     doc.setTextColor(...C.navy);
     doc.text("REPRÉSENTANT NIVRA", agentX + 5, y + 10);
-    doc.setDrawColor(...C.textMuted);
-    doc.line(agentX + 10, y + 32, agentX + boxW - 10, y + 32);
-    doc.setFontSize(7);
-    doc.setTextColor(...C.textMuted);
-    doc.text("Signature", agentX + 10, y + 37);
-    doc.text("Agent: _______________", agentX + 10, y + 43);
+
+    if (data.admin_signature_name) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(12);
+      doc.setTextColor(...C.blue);
+      doc.text(data.admin_signature_name, agentX + 10, y + 25);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(...C.textMuted);
+      doc.text(`Signé le: ${fmtDate(data.admin_signature_date)}`, agentX + 10, y + 32);
+      // Green checkmark
+      doc.setFillColor(...C.success);
+      doc.circle(agentX + boxW - 12, y + 10, 4, "F");
+      doc.setTextColor(...C.white);
+      doc.setFontSize(8);
+      doc.text("✓", agentX + boxW - 13.5, y + 12);
+    } else {
+      doc.setDrawColor(...C.textMuted);
+      doc.line(agentX + 10, y + 32, agentX + boxW - 10, y + 32);
+      doc.setFontSize(7);
+      doc.setTextColor(...C.textMuted);
+      doc.text("Signature", agentX + 10, y + 37);
+      doc.text("Agent: _______________", agentX + 10, y + 43);
+    }
 
     y += 60;
 

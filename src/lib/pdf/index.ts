@@ -25,12 +25,15 @@ export { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER, NIVRA_HEADER } from "./types";
 // ============================================================================
 export { generateInvoiceV3PDF, generateInvoiceMonthlyV3PDF, generateInvoiceOneTimeV3PDF } from "./invoiceTemplateV3";
 export { generateContractV3PDF, type ContractDataV3 } from "./contractTemplateV3";
+export { generateContractSummaryPDF, type ContractSummaryData } from "./contractSummaryTemplate";
 export { generateServiceTermsPDF, CURRENT_TERMS_VERSION } from "./serviceTermsTemplate";
+export { type OrderSummaryV3Data } from "./orderSummaryTemplate";
 
 // ============================================================================
-// DOCUMENT BUILDER — Order→PDF Pipeline
+// DOCUMENT BUILDER — Order→PDF Pipeline (generates all 4+1 documents)
 // ============================================================================
-export { generateOrderDocuments, downloadPDF, buildInvoiceData, buildContractData, fetchOrderDocumentData } from "./documentBuilder";
+export { generateOrderDocuments, downloadPDF, buildInvoiceData, buildContractData, buildOrderSummaryData, buildContractSummaryData, fetchOrderDocumentData } from "./documentBuilder";
+export type { OrderDocuments } from "./documentBuilder";
 
 // ============================================================================
 // LEGACY EXPORTS (backward compat — V2.5)

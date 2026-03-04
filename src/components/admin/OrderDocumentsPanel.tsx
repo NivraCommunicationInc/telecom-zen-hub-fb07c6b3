@@ -39,7 +39,9 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
 
       const results = [
         { name: "Facture", result: docs.invoice },
+        { name: "Sommaire", result: docs.orderSummary },
         { name: "Contrat", result: docs.contract },
+        { name: "Résumé contrat", result: docs.contractSummary },
         { name: "Modalités", result: docs.terms },
       ];
 
@@ -59,7 +61,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
     }
   };
 
-  const handleGenerateSingle = async (type: "invoice" | "contract" | "terms") => {
+  const handleGenerateSingle = async (type: "invoice" | "orderSummary" | "contract" | "contractSummary" | "terms") => {
     setGenerating(true);
     try {
       const docs = await generateOrderDocuments(orderId);
@@ -91,34 +93,24 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Document buttons */}
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleGenerateSingle("invoice")}
-            disabled={generating}
-            className="text-xs"
-          >
+        <div className="grid grid-cols-5 gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("invoice")} disabled={generating} className="text-xs">
             <Download className="w-3 h-3 mr-1" />
             Facture
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleGenerateSingle("contract")}
-            disabled={generating}
-            className="text-xs"
-          >
+          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("orderSummary")} disabled={generating} className="text-xs">
+            <Download className="w-3 h-3 mr-1" />
+            Sommaire
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("contract")} disabled={generating} className="text-xs">
             <Download className="w-3 h-3 mr-1" />
             Contrat
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleGenerateSingle("terms")}
-            disabled={generating}
-            className="text-xs"
-          >
+          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("contractSummary")} disabled={generating} className="text-xs">
+            <Download className="w-3 h-3 mr-1" />
+            RRE
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("terms")} disabled={generating} className="text-xs">
             <Download className="w-3 h-3 mr-1" />
             Modalités
           </Button>
@@ -136,7 +128,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
           ) : (
             <Download className="w-4 h-4 mr-2" />
           )}
-          {generating ? "Génération..." : "Télécharger les 3 documents"}
+          {generating ? "Génération..." : "Télécharger les 5 documents"}
         </Button>
 
         {/* KYC Status */}
