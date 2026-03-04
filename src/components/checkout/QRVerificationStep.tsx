@@ -51,7 +51,7 @@ const STATUS_CONFIG: Record<SessionStatus, { icon: typeof CheckCircle2; color: s
   submitted: { icon: Loader2, color: "text-amber-500", labelFr: "Documents soumis — analyse en cours", labelEn: "Documents submitted — analysis in progress" },
   approved: { icon: CheckCircle2, color: "text-emerald-600", labelFr: "Identité vérifiée ✓", labelEn: "Identity verified ✓" },
   rejected: { icon: XCircle, color: "text-red-500", labelFr: "Vérification refusée", labelEn: "Verification rejected" },
-  manual_review: { icon: AlertCircle, color: "text-amber-600", labelFr: "Révision manuelle en cours", labelEn: "Manual review in progress" },
+  manual_review: { icon: CheckCircle2, color: "text-emerald-600", labelFr: "Documents soumis — en vérification (admin)", labelEn: "Documents submitted — under admin review" },
   expired: { icon: Clock, color: "text-slate-400", labelFr: "Session expirée", labelEn: "Session expired" },
 };
 
@@ -360,15 +360,11 @@ export const QRVerificationStep = ({
           const newStatus = data.status as SessionStatus;
           setStatus(newStatus);
           
-          if (newStatus === "submitted") {
-            toast.info(isFrench 
-              ? "Documents reçus — analyse en cours..." 
-              : "Documents received — analysis in progress...");
-          } else if (newStatus === "manual_review") {
+          if (newStatus === "submitted" || newStatus === "manual_review") {
             onVerified(sessionId);
             toast.success(isFrench 
-              ? "Documents soumis! Un agent vérifiera votre identité sous peu." 
-              : "Documents submitted! An agent will verify your identity shortly.");
+              ? "Documents soumis — en vérification par un administrateur. Vous pouvez continuer." 
+              : "Documents submitted — under admin review. You may continue.");
           } else if (newStatus === "approved") {
             onVerified(sessionId);
             toast.success(isFrench ? "Identité vérifiée avec succès!" : "Identity verified successfully!");
