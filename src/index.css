@@ -135,8 +135,7 @@
     --sidebar-ring: 168 76% 42%;
   }
 
-  .dark,
-  .admin-dark {
+  .dark {
     --background: 222 47% 8%;
     --foreground: 220 14% 96%;
 
@@ -164,7 +163,7 @@
     --border: 222 39% 20%;
     --input: 222 39% 20%;
     --ring: 168 76% 42%;
-    
+
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 220 14% 96%;
     --sidebar-primary: 168 76% 42%;
@@ -174,8 +173,69 @@
     --sidebar-border: 222 39% 18%;
     --sidebar-ring: 168 76% 42%;
 
-    /* Ensure readable inherited text on dark portal containers */
     color: hsl(var(--foreground));
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     ADMIN DARK THEME — TELUS/Rogers/Bell carrier-grade
+     High-contrast, readable, AA-compliant
+     ═══════════════════════════════════════════════════════════ */
+  .admin-dark {
+    /* Surfaces */
+    --background: 222 47% 8%;
+    --foreground: 220 20% 93%;
+
+    --card: 222 40% 12%;
+    --card-foreground: 220 20% 93%;
+
+    --popover: 222 40% 13%;
+    --popover-foreground: 220 20% 93%;
+
+    /* Primary = Teal accent */
+    --primary: 168 76% 42%;
+    --primary-foreground: 222 47% 8%;
+
+    /* Secondary = elevated surface */
+    --secondary: 222 35% 16%;
+    --secondary-foreground: 220 20% 90%;
+
+    /* Muted — AA contrast on dark bg (min 4.5:1) */
+    --muted: 222 35% 16%;
+    --muted-foreground: 220 12% 64%;
+
+    /* Accent */
+    --accent: 168 76% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders — visible but not harsh */
+    --border: 222 25% 20%;
+    --input: 222 25% 22%;
+    --ring: 168 76% 42%;
+
+    /* Sidebar */
+    --sidebar-background: 222 42% 10%;
+    --sidebar-foreground: 220 20% 90%;
+    --sidebar-primary: 168 76% 42%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-accent: 222 30% 16%;
+    --sidebar-accent-foreground: 220 20% 90%;
+    --sidebar-border: 222 25% 17%;
+    --sidebar-ring: 168 76% 42%;
+
+    /* Admin-specific extended tokens */
+    --admin-surface-raised: 222 38% 14%;
+    --admin-text-primary: 220 20% 93%;
+    --admin-text-secondary: 220 12% 72%;
+    --admin-text-muted: 220 12% 54%;
+    --admin-accent-hover: 168 76% 36%;
+    --admin-accent-subtle: 168 40% 18%;
+
+    color: hsl(var(--foreground));
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   /* Client Portal Light Theme - Professional Clean ISP */
@@ -229,13 +289,20 @@
   }
 
   /* Contrast hardening: low-emphasis text stays readable per portal theme */
-  .admin-dark .text-muted-foreground,
+  .admin-dark .text-muted-foreground {
+    color: hsl(220 12% 64%);
+  }
+
   .admin-dark .text-slate-400 {
-    color: hsl(220 12% 74%);
+    color: hsl(220 12% 72%);
   }
 
   .admin-dark .text-slate-500 {
-    color: hsl(220 10% 66%);
+    color: hsl(220 10% 62%);
+  }
+
+  .admin-dark .text-slate-300 {
+    color: hsl(220 14% 80%);
   }
 
   .client-portal-dark .text-muted-foreground,

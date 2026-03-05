@@ -1,7 +1,7 @@
 /**
  * StatCard — KPI card for admin dashboards
+ * Proper sizing: 14px label, 28px value, semantic tokens
  */
-import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -11,30 +11,42 @@ interface StatCardProps {
   icon?: LucideIcon;
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
+  href?: string;
   className?: string;
 }
 
-export function StatCard({ label, value, icon: Icon, change, changeType = "neutral", className }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, change, changeType = "neutral", href, className }: StatCardProps) {
+  const Wrapper = href ? "a" : "div";
+  const wrapperProps = href ? { href } : {};
+
   return (
-    <div className={cn(
-      "rounded-xl border border-border bg-card p-4 space-y-2",
-      className
-    )}>
+    <Wrapper
+      {...wrapperProps}
+      className={cn(
+        "rounded-xl border border-border bg-card p-5 space-y-3 transition-colors",
+        href && "cursor-pointer hover:border-primary/30",
+        className
+      )}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+        {Icon && (
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+        )}
       </div>
-      <p className="text-2xl font-semibold text-foreground tabular-nums">{value}</p>
+      <p className="text-[28px] font-bold text-foreground tabular-nums leading-none">{value}</p>
       {change && (
         <p className={cn(
-          "text-xs font-medium",
-          changeType === "positive" && "text-emerald-500",
-          changeType === "negative" && "text-red-500",
+          "text-sm font-medium",
+          changeType === "positive" && "text-emerald-400",
+          changeType === "negative" && "text-red-400",
           changeType === "neutral" && "text-muted-foreground"
         )}>
           {change}
         </p>
       )}
-    </div>
+    </Wrapper>
   );
 }

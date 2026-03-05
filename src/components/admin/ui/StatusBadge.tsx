@@ -1,6 +1,6 @@
 /**
  * Unified StatusBadge — TELUS-grade status indicator
- * Single source of truth for all status rendering across admin
+ * Min 12px text, proper contrast, dot indicators
  */
 import { cn } from "@/lib/utils";
 
@@ -16,21 +16,21 @@ interface StatusBadgeProps {
 }
 
 const VARIANT_STYLES: Record<StatusVariant, string> = {
-  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  danger: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-  info: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
+  success: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
+  warning: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+  danger: "bg-red-500/15 text-red-400 border-red-500/25",
+  info: "bg-sky-500/15 text-sky-400 border-sky-500/25",
   neutral: "bg-muted text-muted-foreground border-border",
-  purple: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
+  purple: "bg-violet-500/15 text-violet-400 border-violet-500/25",
 };
 
 const DOT_STYLES: Record<StatusVariant, string> = {
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
-  info: "bg-sky-500",
+  success: "bg-emerald-400",
+  warning: "bg-amber-400",
+  danger: "bg-red-400",
+  info: "bg-sky-400",
   neutral: "bg-muted-foreground",
-  purple: "bg-violet-500",
+  purple: "bg-violet-400",
 };
 
 /** Map common telecom statuses to variants */
@@ -48,13 +48,13 @@ export function StatusBadge({ label, variant = "neutral", size = "sm", dot = tru
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border font-medium",
-        size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
+        "inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap",
+        size === "sm" ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-[13px]",
         VARIANT_STYLES[variant],
         className
       )}
     >
-      {dot && <span className={cn("h-1.5 w-1.5 rounded-full", DOT_STYLES[variant])} />}
+      {dot && <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", DOT_STYLES[variant])} />}
       {label}
     </span>
   );

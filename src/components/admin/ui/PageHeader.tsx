@@ -1,5 +1,6 @@
 /**
  * PageHeader — Consistent admin page header with breadcrumbs
+ * Proper sizing: 14px breadcrumbs, 24px title
  */
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -22,19 +23,19 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, breadcrumbs, actions, badge, className }: PageHeaderProps) {
   return (
-    <div className={cn("space-y-1", className)}>
+    <div className={cn("space-y-2", className)}>
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="flex items-center gap-1 text-xs text-muted-foreground">
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
           {breadcrumbs.map((crumb, i) => (
-            <span key={i} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3 w-3" />}
+            <span key={i} className="flex items-center gap-1.5">
+              {i > 0 && <ChevronRight className="h-3.5 w-3.5" />}
               {crumb.href ? (
                 <Link to={crumb.href} className="hover:text-foreground transition-colors">
                   {crumb.label}
                 </Link>
               ) : (
-                <span className="text-foreground">{crumb.label}</span>
+                <span className="text-foreground font-medium">{crumb.label}</span>
               )}
             </span>
           ))}
@@ -44,7 +45,7 @@ export function PageHeader({ title, subtitle, breadcrumbs, actions, badge, class
       {/* Title row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-xl font-semibold text-foreground tracking-tight truncate">{title}</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight truncate">{title}</h1>
           {badge}
         </div>
         {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
