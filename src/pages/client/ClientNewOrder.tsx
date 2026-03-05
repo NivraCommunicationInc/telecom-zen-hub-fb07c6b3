@@ -66,6 +66,8 @@ import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { InstallationScheduler } from "@/components/installation/InstallationScheduler";
+import type { InstallationDecision } from "@/lib/installationLogic";
 import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/validation/dob";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
@@ -4077,159 +4079,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardContent>
                 </Card>
               ) : (
-                /* Installation Options for Internet, TV, Security */
-                <Card className="bg-card border-purple-500/30">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Wrench className="w-5 h-5 text-purple-500" />
-                      Type d'installation
-                    </CardTitle>
-                    <CardDescription>
-                      Choisissez comment vous souhaitez installer vos services
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          installationChoice === "auto"
-                            ? "border-cyan-500 bg-cyan-500/10"
-                            : "border-border hover:border-cyan-500/50"
-                        }`}
-                        onClick={() => setInstallationChoice("auto")}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            installationChoice === "auto" ? "bg-cyan-500" : "bg-muted"
-                          }`}>
-                            <Truck className={`w-5 h-5 ${installationChoice === "auto" ? "text-white" : "text-muted-foreground"}`} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium text-foreground">Auto-installation</p>
-                              <Badge variant="secondary" className="text-xs">30,00 $</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Équipement livré à domicile. Vous installez vous-même avec nos instructions.
-                            </p>
-                            <p className="text-xs text-cyan-500 mt-2">
-                              Frais de livraison: 30,00 $
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                          installationChoice === "technician"
-                            ? "border-purple-500 bg-purple-500/10"
-                            : "border-border hover:border-purple-500/50"
-                        }`}
-                        onClick={() => setInstallationChoice("technician")}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            installationChoice === "technician" ? "bg-purple-500" : "bg-muted"
-                          }`}>
-                            <Wrench className={`w-5 h-5 ${installationChoice === "technician" ? "text-white" : "text-muted-foreground"}`} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium text-foreground">Technicien Nivra</p>
-                              <Badge variant="secondary" className="text-xs">{installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Un technicien se déplace pour installer et configurer vos services.
-                            </p>
-                            <p className="text-xs text-purple-500 mt-2">
-                              Frais d'installation: {installationFee > 0 ? `${installationFee.toFixed(2)} $` : "50,00 $"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {!installationChoice && (
-                      <p className="text-sm text-amber-500 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" />
-                        Veuillez sélectionner un type d'installation
-                      </p>
-                    )}
-
-                    {/* Quebec address validation notice */}
-                    <Card className="bg-blue-500/10 border-blue-500/30">
-                      <CardContent className="py-3 flex items-start gap-2">
-                        <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm text-muted-foreground">
-                          L'installation par technicien est disponible uniquement pour les adresses au Québec.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Appointment Scheduling - only for technician installation (non-delivery orders) */}
-              {!isDeliveryOnlyOrder && installationChoice === "technician" && selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category)) && (
-                <Card className="bg-card border-purple-500/30">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-purple-500" />
-                      Planifier l'installation
-                    </CardTitle>
-                    <CardDescription>
-                      Un technicien se déplacera pour installer vos services. Choisissez une date et une plage horaire.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Date préférée *</Label>
-                        <select
-                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                          value={selectedDate}
-                          onChange={(e) => setSelectedDate(e.target.value)}
-                        >
-                          <option value="">Sélectionner une date</option>
-                          {[...Array(14)].map((_, i) => {
-                            const date = addDays(new Date(), i + 3);
-                            const dayOfWeek = date.getDay();
-                            if (dayOfWeek === 0 || dayOfWeek === 6) return null;
-                            return (
-                              <option key={i} value={format(date, "d MMMM yyyy", { locale: fr })}>
-                                {format(date, "EEEE d MMMM yyyy", { locale: fr })}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Plage horaire *</Label>
-                        <select
-                          className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-                          value={selectedTime}
-                          onChange={(e) => setSelectedTime(e.target.value)}
-                        >
-                          <option value="">Sélectionner une plage</option>
-                          <option value="8h00 - 10h00">8h00 - 10h00 (Matin)</option>
-                          <option value="10h00 - 12h00">10h00 - 12h00 (Matin)</option>
-                          <option value="13h00 - 15h00">13h00 - 15h00 (Après-midi)</option>
-                          <option value="15h00 - 17h00">15h00 - 17h00 (Après-midi)</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    <Card className="bg-blue-500/10 border-blue-500/30">
-                      <CardContent className="py-3 flex items-start gap-2">
-                        <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm text-muted-foreground">
-                          <p>Le technicien vous contactera 30 minutes avant son arrivée.</p>
-                          <p>Durée estimée de l'installation: 1 à 2 heures.</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </CardContent>
-                </Card>
+                /* Installation — Coax Quick-Check + Smart Slot Picker */
+                <InstallationScheduler
+                  isFrench={true}
+                  fallbackDistanceKm={20}
+                  selectedDate={selectedDate}
+                  selectedTime={selectedTime}
+                  onDateTimeChange={(date, time) => {
+                    setSelectedDate(date);
+                    setSelectedTime(time);
+                  }}
+                  onInstallationTypeChange={(type, level) => {
+                    setInstallationChoice(type);
+                  }}
+                />
               )}
 
               {/* ID Verification - Only for telecom services, not equipment-only orders */}
