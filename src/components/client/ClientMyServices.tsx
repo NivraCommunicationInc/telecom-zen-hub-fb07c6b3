@@ -167,7 +167,7 @@ const ClientMyServices = () => {
       
       const { data, error } = await portalSupabase
         .from("billing_subscriptions")
-        .select("*, billing_subscription_services(*)")
+        .select("*, billing_subscription_services(*), service_addresses(id, label, address_line, city)")
         .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -528,6 +528,9 @@ const ClientMyServices = () => {
         created_at: sub.created_at,
         cycle_start_date: sub.cycle_start_date,
         cycle_end_date: sub.cycle_end_date,
+        address_label: sub.service_addresses?.label,
+        address_line: sub.service_addresses?.address_line,
+        address_city: sub.service_addresses?.city,
       }];
     }
     return services.map((svc: any) => ({
@@ -543,6 +546,9 @@ const ClientMyServices = () => {
       cycle_end_date: sub.cycle_end_date,
       parent_subscription_id: sub.id,
       parent_plan_name: sub.plan_name,
+      address_label: sub.service_addresses?.label,
+      address_line: sub.service_addresses?.address_line,
+      address_city: sub.service_addresses?.city,
     }));
   });
 
@@ -559,6 +565,9 @@ const ClientMyServices = () => {
         added_at: svc.added_at || svc.created_at,
         parent_plan_name: sub.plan_name,
         subscription_status: sub.status,
+        address_label: sub.service_addresses?.label,
+        address_line: sub.service_addresses?.address_line,
+        address_city: sub.service_addresses?.city,
       }));
   });
 
@@ -786,17 +795,18 @@ const ClientMyServices = () => {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-semibold text-foreground">{service.plan_name}</h4>
                                 {statusBadge}
-                                {service.source === "order" && (
-                                  <span className="text-xs text-muted-foreground">
-                                    #{service.order_number}
-                                  </span>
-                                )}
                                 {service.source === "billing_v2_service" && service.parent_plan_name && (
                                   <span className="text-xs text-muted-foreground">
                                     ({service.parent_plan_name})
                                   </span>
                                 )}
                               </div>
+                              {service.address_line && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <MapPin className="w-3 h-3" />
+                                  {service.address_label || service.address_line}{service.address_city ? `, ${service.address_city}` : ''}
+                                </p>
+                              )}
                               <p className="text-sm text-muted-foreground">
                                 {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/
                                 {service.billing_cycle === "monthly" ? "mois" : "an"}
