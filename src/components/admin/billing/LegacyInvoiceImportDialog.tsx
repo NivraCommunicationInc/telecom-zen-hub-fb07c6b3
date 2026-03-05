@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Download, CheckCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { calculateBillingTotals } from "@/lib/billing/types";
+import { BILLING_TAX_RATES } from "@/lib/billing/types";
 
 interface LegacyInvoice {
   id: string;
@@ -179,9 +179,11 @@ export function LegacyInvoiceImportDialog({ open, onOpenChange }: Props) {
           customerId = newCustomer.id;
         }
 
-        // 2. Calculate amounts
+        // 2. Calculate amounts (preview only — canonical totals come from RPC)
         const subtotal = inv.subtotal || inv.amount / 1.14975;
-        const totals = calculateBillingTotals(subtotal);
+        const tps = Math.round(subtotal * BILLING_TAX_RATES.TPS * 100) / 100;
+        const tvq = Math.round(subtotal * BILLING_TAX_RATES.TVQ * 100) / 100;
+        const totals = { subtotal, tps, tvq, total: Math.round((subtotal + tps + tvq) * 100) / 100 };
 
         // 3. Map status
         let v2Status: "draft" | "pending" | "paid" | "failed" | "cancelled" | "refunded" = "pending";
