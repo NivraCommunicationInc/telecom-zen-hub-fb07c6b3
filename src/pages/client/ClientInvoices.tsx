@@ -130,7 +130,7 @@ const ClientInvoices = () => {
       if (customer) {
         const { data: v2 } = await portalSupabase
           .from("billing_invoices")
-          .select("*")
+          .select("*, billing_invoice_lines(id, description, quantity, unit_price, line_total)")
           .eq("customer_id", customer.id)
           .order("created_at", { ascending: false });
         if (v2) {
@@ -155,6 +155,7 @@ const ClientInvoices = () => {
               tvq_amount: inv.tvq_amount,
               _source: "v2",
               _type: inv.type || "recurring",
+              _lines: inv.billing_invoice_lines || [],
             });
           }
         }
@@ -182,6 +183,26 @@ const ClientInvoices = () => {
     const tvq = Number(inv.tvq_amount) || 0;
     const total = subtotal + tps + tvq;
 
+    // Build items from billing_invoice_lines (each service/equipment/fee as separate line)
+    const lines: any[] = inv._lines || [];
+    const items = lines.length > 0
+      ? lines.map((line: any) => ({
+          category: "Other" as const,
+          description: line.description || "Service",
+          qty: Number(line.quantity) || 1,
+          unit_price: Number(line.unit_price) || 0,
+          amount: Number(line.line_total) || 0,
+          is_recurring: inv._type === "recurring",
+        }))
+      : [{
+          category: "Other" as const,
+          description: inv.notes || "Services télécom",
+          qty: 1,
+          unit_price: subtotal,
+          amount: subtotal,
+          is_recurring: inv._type === "recurring",
+        }];
+
     return {
       invoice_type: (inv._type === "recurring" || inv._type === "renewal") ? "MONTHLY" : "ONETIME",
       invoice_number: inv.invoice_number || `NVR-INV-${inv.id?.slice(0, 8).toUpperCase()}`,
@@ -199,14 +220,7 @@ const ClientInvoices = () => {
         province: "QC",
         postal_code: "",
       },
-      items: [{
-        category: "Other",
-        description: inv.notes || "Services télécom",
-        qty: 1,
-        unit_price: subtotal,
-        amount: subtotal,
-        is_recurring: inv._type === "recurring",
-      }],
+      items,
       subtotal,
       taxes: { gst_rate: 0.05, gst_amount: tps, qst_rate: 0.09975, qst_amount: tvq },
       total,
