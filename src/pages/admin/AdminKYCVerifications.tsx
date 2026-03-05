@@ -5,6 +5,7 @@
  * Features: case numbers, order linking, pending_docs with per-doc tracking, approve/reject with mandatory note.
  */
 import { useState } from "react";
+import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -341,7 +342,8 @@ const AdminKYCVerifications = () => {
   const canReview = selectedSession && ["manual_review", "submitted", "in_review", "pending_docs"].includes(selectedSession.status);
 
   return (
-    <div className="space-y-4">
+    <AdminLayout>
+    <div className="space-y-3">
       {/* Header — flat */}
       <div className="flex items-center justify-between">
         <div>
@@ -881,6 +883,7 @@ const AdminKYCVerifications = () => {
         </DialogContent>
       </Dialog>
     </div>
+    </AdminLayout>
   );
 };
 
