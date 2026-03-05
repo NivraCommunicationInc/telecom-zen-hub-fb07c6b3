@@ -229,6 +229,7 @@ function mapLineTypeToCategory(lineType: string) {
 function mapStatus(status: string) {
   switch (status) {
     case "paid": return "Paid" as const;
+    case "paid_by_promo": return "Paid" as const;
     case "pending": return "Pending" as const;
     case "overdue": return "Expired" as const;
     case "void":

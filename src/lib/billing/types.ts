@@ -7,7 +7,7 @@
 export type BillingCustomerStatus = 'active' | 'suspended' | 'closed';
 export type BillingSubscriptionStatus = 'active' | 'pending' | 'suspended' | 'cancelled';
 export type BillingInvoiceType = 'initial' | 'renewal' | 'adjustment' | 'credit';
-export type BillingInvoiceStatus = 'draft' | 'pending' | 'partially_paid' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'overdue' | 'void' | 'not_renewed';
+export type BillingInvoiceStatus = 'draft' | 'pending' | 'partially_paid' | 'paid' | 'paid_by_promo' | 'failed' | 'cancelled' | 'refunded' | 'overdue' | 'void' | 'not_renewed';
 export type BillingPaymentMethod = 'interac' | 'manual' | 'paypal';
 export type BillingPaymentStatus = 'pending' | 'confirmed' | 'failed';
 
@@ -124,6 +124,7 @@ export const BILLING_INVOICE_STATUS_LABELS: Record<BillingInvoiceStatus, string>
   pending: 'En attente',
   partially_paid: 'Partiellement payée',
   paid: 'Payée',
+  paid_by_promo: 'Payée par promo',
   failed: 'Échouée',
   cancelled: 'Annulée',
   refunded: 'Remboursée',
@@ -137,6 +138,7 @@ export const BILLING_INVOICE_STATUS_COLORS: Record<BillingInvoiceStatus, string>
   pending: 'bg-yellow-100 text-yellow-800',
   partially_paid: 'bg-orange-100 text-orange-800',
   paid: 'bg-green-100 text-green-800',
+  paid_by_promo: 'bg-purple-100 text-purple-800',
   failed: 'bg-red-100 text-red-800',
   cancelled: 'bg-gray-100 text-gray-600',
   refunded: 'bg-purple-100 text-purple-800',

@@ -25,10 +25,34 @@ const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'contract' | 'summary
   'order_confirmation': 'summary',
 };
 
+// Validate required client fields for PDF generation
+function validatePDFClientData(vars: Record<string, any>): { valid: boolean; missing: string[] } {
+  const missing: string[] = [];
+  const name = vars.client_name || vars.name;
+  const email = vars.client_email || vars.email;
+  const phone = vars.client_phone || vars.phone;
+  const address = vars.client_address || vars.address || vars.service_address;
+  
+  if (!name || name === 'Client' || name.trim() === '') missing.push('client_name');
+  if (!email || email.trim() === '') missing.push('client_email');
+  if (!phone || phone.trim() === '') missing.push('client_phone');
+  if (!address || address.trim() === '') missing.push('client_address');
+  
+  return { valid: missing.length === 0, missing };
+}
+
 // Generate PDF attachment from template vars
 function generateEmailPDFAttachment(templateKey: string, vars: Record<string, any>): PDFAttachment | null {
   const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
   if (!pdfType) return null;
+
+  // EMAIL SAFETY: Validate required client data before generating PDF
+  const validation = validatePDFClientData(vars);
+  if (!validation.valid) {
+    console.warn(`[PDF Safety] Missing client fields for ${templateKey}: ${validation.missing.join(', ')}. Skipping PDF attachment.`);
+    // Return null = no PDF attached, but email still sends (without attachment)
+    return null;
+  }
 
   try {
     switch (pdfType) {

@@ -10951,6 +10951,7 @@ export type Database = {
         | "pending"
         | "partially_paid"
         | "paid"
+        | "paid_by_promo"
         | "failed"
         | "cancelled"
         | "refunded"
@@ -11260,6 +11261,7 @@ export const Constants = {
         "pending",
         "partially_paid",
         "paid",
+        "paid_by_promo",
         "failed",
         "cancelled",
         "refunded",

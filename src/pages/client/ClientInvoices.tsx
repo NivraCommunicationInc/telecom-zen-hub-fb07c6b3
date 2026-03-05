@@ -23,6 +23,7 @@ import { fetchInvoiceBreakdowns, breakdownToInvoiceDataV2, type InvoiceBreakdown
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
+  paid_by_promo: "bg-purple-100 text-purple-700",
   overdue: "bg-red-100 text-red-700",
   partially_paid: "bg-orange-100 text-orange-700",
   void: "bg-muted text-muted-foreground",
@@ -32,6 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   pending: "En attente",
   paid: "Payée",
+  paid_by_promo: "Payée par promo",
   overdue: "En retard",
   partially_paid: "Partiel",
   void: "Annulée",
@@ -126,7 +128,7 @@ const ClientInvoices = () => {
   // ── Derived data ──
   const isOpen = (bd: InvoiceBreakdown) => {
     const s = bd.status;
-    if (["paid", "void", "cancelled"].includes(s)) return false;
+    if (["paid", "paid_by_promo", "void", "cancelled"].includes(s)) return false;
     return bd.balance_due_cents > 0;
   };
 
