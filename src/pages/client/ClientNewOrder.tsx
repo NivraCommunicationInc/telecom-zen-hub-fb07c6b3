@@ -255,6 +255,9 @@ interface OrderDraft {
   serviceAddressCity: string;
   serviceAddressProvince: string;
   serviceAddressPostalCode: string;
+  // KYC session persistence (survives refresh/crash/order failure)
+  verificationSessionId: string | null;
+  idVerificationApproved: boolean;
   // Promo code details (persisted to survive PayPal redirect)
   appliedPromo: {
     id: string;
@@ -539,8 +542,10 @@ const ClientNewOrder = () => {
   const [idExpiration, setIdExpiration] = useState("");
   const [idProvince, setIdProvince] = useState("");
   
-  // QR Identity Verification state (Rogers-grade)
-  const [verificationSessionId, setVerificationSessionId] = useState<string | null>(null);
+  // QR Identity Verification state (Rogers-grade) — persisted independently of order
+  const [verificationSessionId, setVerificationSessionId] = useState<string | null>(() => {
+    try { return localStorage.getItem('nivra_kyc_session_id') || null; } catch { return null; }
+  });
   const [idVerificationApproved, setIdVerificationApproved] = useState(false);
   
   // Customer info fields (DOB, name)
@@ -683,6 +688,12 @@ const ClientNewOrder = () => {
         if (draft.serviceAddressCity) setServiceAddressCity(draft.serviceAddressCity);
         if (draft.serviceAddressProvince) setServiceAddressProvince(draft.serviceAddressProvince);
         if (draft.serviceAddressPostalCode) setServiceAddressPostalCode(draft.serviceAddressPostalCode);
+        // KYC session persistence (independent of order)
+        if (draft.verificationSessionId) {
+          setVerificationSessionId(draft.verificationSessionId);
+          localStorage.setItem('nivra_kyc_session_id', draft.verificationSessionId);
+        }
+        if (draft.idVerificationApproved) setIdVerificationApproved(draft.idVerificationApproved);
         // Promo code details
         if (draft.appliedPromo) {
           setAppliedPromo(draft.appliedPromo);
@@ -743,6 +754,9 @@ const ClientNewOrder = () => {
       serviceAddressCity,
       serviceAddressProvince,
       serviceAddressPostalCode,
+      // KYC session persistence (independent of order)
+      verificationSessionId,
+      idVerificationApproved,
       // Promo code details (persisted to survive PayPal redirect)
       appliedPromo,
       // PayPal payment state
@@ -761,13 +775,64 @@ const ClientNewOrder = () => {
     selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
+    verificationSessionId, idVerificationApproved,
     appliedPromo, paypalCaptureId, paymentComplete, paymentMethod
   ]);
+
+  // Persist KYC session ID to localStorage whenever it changes (independent of order)
+  useEffect(() => {
+    if (verificationSessionId) {
+      localStorage.setItem('nivra_kyc_session_id', verificationSessionId);
+    }
+  }, [verificationSessionId]);
+
+  // Restore existing KYC session from DB on mount (survives refresh/crash/order failure)
+  useEffect(() => {
+    if (!user?.id || !isHydrated) return;
+    const storedSessionId = localStorage.getItem('nivra_kyc_session_id');
+    
+    const restoreKycSession = async () => {
+      try {
+        // Check for any active KYC session for this user (stored or latest)
+        const activeStatuses = ["created", "submitted", "manual_review", "approved"];
+        const reviewReadyStatuses = ["submitted", "manual_review", "approved"];
+        
+        const { data: activeSession } = await supabase
+          .from("identity_verification_sessions")
+          .select("id, status")
+          .eq("user_id", user.id)
+          .in("status", activeStatuses)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (activeSession) {
+          console.log("[KYC] Restored active session from DB:", activeSession.id, "status:", activeSession.status);
+          setVerificationSessionId(activeSession.id);
+          localStorage.setItem('nivra_kyc_session_id', activeSession.id);
+          if (reviewReadyStatuses.includes(activeSession.status)) {
+            setIdVerificationApproved(true);
+          }
+        } else if (storedSessionId) {
+          // Stored session is no longer active — clear stale reference
+          console.log("[KYC] Stored session no longer active, clearing localStorage");
+          localStorage.removeItem('nivra_kyc_session_id');
+          setVerificationSessionId(null);
+          setIdVerificationApproved(false);
+        }
+      } catch (err) {
+        console.error("[KYC] Failed to restore session from DB:", err);
+      }
+    };
+    
+    restoreKycSession();
+  }, [user?.id, isHydrated]);
 
   // Clear draft when order is completed (called after successful order creation)
   const clearOrderDraft = () => {
     sessionStorage.removeItem(ORDER_DRAFT_KEY);
-    console.log("[OrderWizard] Draft cleared");
+    localStorage.removeItem('nivra_kyc_session_id');
+    console.log("[OrderWizard] Draft + KYC session cleared");
   };
 
   // Fetch dynamic equipment prices from database
@@ -4206,32 +4271,45 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     )}
 
-                    {/* QR Identity Verification (Rogers-grade) */}
+                    {/* QR Identity Verification (Rogers-grade) — persisted independently */}
                     {isIdComplete && FEATURES.KYC_ENABLED && (
                       <div className="border-t border-border pt-6 mt-4">
-                        <QRVerificationStep
-                          userId={user?.id || ""}
-                          checkoutType="mobile"
-                          isFrench={true}
-                          onSessionGenerated={(sessionId) => {
-                            setVerificationSessionId(sessionId);
-                            setIdVerificationApproved(false);
-                          }}
-                          onVerified={(sessionId) => {
-                            setVerificationSessionId(sessionId);
-                            setIdVerificationApproved(true);
-                          }}
-                          orderContext={{ services: selectedServices.map(s => s.id) }}
-                          checkoutFields={{
-                            first_name: firstName || "",
-                            last_name: lastName || "",
-                            date_of_birth: dateOfBirth || "",
-                            document_number: idNumber || "",
-                            expiry_date: idExpiration || "",
-                            document_type: idType || "",
-                            issuing_region: idProvince || "",
-                          }}
-                        />
+                        {/* Show restored KYC status if already verified */}
+                        {idVerificationApproved && verificationSessionId ? (
+                          <div className="flex items-center gap-3 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium text-emerald-600">Vérification d'identité soumise ✓</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Documents déjà envoyés — en vérification par un administrateur. Vous pouvez continuer.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <QRVerificationStep
+                            userId={user?.id || ""}
+                            checkoutType="mobile"
+                            isFrench={true}
+                            onSessionGenerated={(sessionId) => {
+                              setVerificationSessionId(sessionId);
+                              setIdVerificationApproved(false);
+                            }}
+                            onVerified={(sessionId) => {
+                              setVerificationSessionId(sessionId);
+                              setIdVerificationApproved(true);
+                            }}
+                            orderContext={{ services: selectedServices.map(s => s.id) }}
+                            checkoutFields={{
+                              first_name: firstName || "",
+                              last_name: lastName || "",
+                              date_of_birth: dateOfBirth || "",
+                              document_number: idNumber || "",
+                              expiry_date: idExpiration || "",
+                              document_type: idType || "",
+                              issuing_region: idProvince || "",
+                            }}
+                          />
+                        )}
                       </div>
                     )}
                   </CardContent>
