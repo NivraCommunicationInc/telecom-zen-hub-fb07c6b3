@@ -1243,7 +1243,7 @@ const AdminBilling = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
+      <div className="space-y-3">
         <PageHeader
           title="Facturation"
           subtitle="Gérer les factures et paiements"
@@ -1411,76 +1411,76 @@ const AdminBilling = () => {
           </Card>
         </div>
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-cyan-400" />
-                  Factures
-                </CardTitle>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Switch 
-                      checked={autoApplyLateFee} 
-                      onCheckedChange={setAutoApplyLateFee}
-                      id="auto-late-fee"
-                    />
-                    <Label htmlFor="auto-late-fee" className="text-xs cursor-pointer flex items-center gap-1">
-                      <PercentCircle className="w-3 h-3" />
-                      Auto-frais 5%
-                    </Label>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Rechercher par client, email, ou nº facture..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="flex-wrap h-auto">
-                    <TabsTrigger value="all" className="text-xs">Toutes</TabsTrigger>
-                    <TabsTrigger value="pending" className="text-xs">En attente</TabsTrigger>
-                    <TabsTrigger value="renewal_required" className="text-xs">Renouvellement</TabsTrigger>
-                    <TabsTrigger value="paid" className="text-xs">Payées</TabsTrigger>
-                    <TabsTrigger value="partial" className="text-xs">Partiel</TabsTrigger>
-                    <TabsTrigger value="disputed" className="text-xs">Contesté</TabsTrigger>
-                    <TabsTrigger value="void" className="text-xs">Annulé</TabsTrigger>
-                    <TabsTrigger value="refunded" className="text-xs">Remboursé</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+        {/* Filters — flat, no card wrapper */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CreditCard className="w-4 h-4" />
+              <span>{filteredBilling?.length || 0} facture{(filteredBilling?.length || 0) !== 1 ? "s" : ""}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Switch 
+                  checked={autoApplyLateFee} 
+                  onCheckedChange={setAutoApplyLateFee}
+                  id="auto-late-fee"
+                />
+                <Label htmlFor="auto-late-fee" className="text-xs cursor-pointer flex items-center gap-1">
+                  <PercentCircle className="w-3 h-3" />
+                  Auto-frais 5%
+                </Label>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Rechercher par client, email, ou nº facture..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="flex-wrap h-auto bg-secondary border border-border p-0.5 gap-0.5">
+                <TabsTrigger value="all" className="text-xs">Toutes</TabsTrigger>
+                <TabsTrigger value="pending" className="text-xs">En attente</TabsTrigger>
+                <TabsTrigger value="renewal_required" className="text-xs">Renouvellement</TabsTrigger>
+                <TabsTrigger value="paid" className="text-xs">Payées</TabsTrigger>
+                <TabsTrigger value="partial" className="text-xs">Partiel</TabsTrigger>
+                <TabsTrigger value="disputed" className="text-xs">Contesté</TabsTrigger>
+                <TabsTrigger value="void" className="text-xs">Annulé</TabsTrigger>
+                <TabsTrigger value="refunded" className="text-xs">Remboursé</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+
+        {/* Invoices table — FULL WIDTH, no card wrapper */}
+        <div>
             {isLoading ? (
               <div className="space-y-4">{[1, 2, 3].map((i) => <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />)}</div>
             ) : filteredBilling && filteredBilling.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nº</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Client</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédits</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Échéance</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-secondary border-b-2 border-border">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nº</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Crédits</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Échéance</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredBilling.map((bill: any) => {
+                    {filteredBilling.map((bill: any, index: number) => {
                       const remainingBalance = calculateTotal(bill);
                       const hasCredits = Number(bill.credits || 0) > 0;
                       return (
-                        <tr key={bill.id} className="border-b border-border/50 hover:bg-accent/50">
+                        <tr key={bill.id} className={`border-b border-border/40 transition-colors hover:bg-primary/5 ${index % 2 === 1 ? "bg-secondary/15" : ""}`}>
                           <td className="py-3 px-4 text-sm text-foreground font-mono">{bill.invoice_number || bill.id.slice(0, 8)}</td>
                           <td className="py-3 px-4">
                             <button 
@@ -1544,8 +1544,7 @@ const AdminBilling = () => {
                 <p className="text-muted-foreground">{searchQuery ? "Aucun résultat" : "Aucune facture"}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </div>
 
         {/* Invoice Details Dialog */}
         <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
