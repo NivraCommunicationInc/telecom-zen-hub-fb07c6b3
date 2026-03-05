@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 type Action = "suggest" | "retrieve";
 
@@ -60,6 +61,13 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limit: 30 autocomplete requests per minute per IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = await checkRateLimit({ key: `mapbox:${clientIp}`, ...RATE_LIMITS.SEARCH });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders, "fr");
+    }
+
     const MAPBOX_TOKEN = Deno.env.get("MAPBOX_PUBLIC_TOKEN");
 
     if (!MAPBOX_TOKEN) {

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0?target=deno";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 type StaffRole = "admin" | "employee" | "technician";
 
@@ -252,6 +253,13 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Rate limit: 20 admin actions per minute per IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = await checkRateLimit({ key: `admin_staff:${clientIp}`, ...RATE_LIMITS.ADMIN_ACTION });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders, "fr");
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return json(401, {

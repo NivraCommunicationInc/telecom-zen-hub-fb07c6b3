@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 // Allowed origins whitelist (secure, not "*")
 const ALLOWED_ORIGINS = [
@@ -142,6 +143,13 @@ serve(async (req) => {
   console.log(`[client-pin-send][${requestId}] Request received`);
 
   try {
+    // Rate limit: 3 PIN sends per 15 min per IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = await checkRateLimit({ key: `pin_send:${clientIp}`, ...RATE_LIMITS.OTP_SEND });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders, "fr");
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");

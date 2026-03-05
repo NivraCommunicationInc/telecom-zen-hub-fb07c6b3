@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -79,6 +80,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limit: 5 OTP verify attempts per 10 min per IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = await checkRateLimit({ key: `staff_otp_verify:${clientIp}`, ...RATE_LIMITS.OTP_VERIFY });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders, "fr");
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const body: RequestBody = await req.json();
     const { user_id, code } = body;

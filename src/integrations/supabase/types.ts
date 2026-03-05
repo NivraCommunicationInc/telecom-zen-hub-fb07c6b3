@@ -5845,7 +5845,6 @@ export type Database = {
           category: string | null
           channel_assigned_by: string | null
           channel_selection_locked: boolean | null
-          client_dob: string | null
           client_email: string | null
           client_first_name: string | null
           client_full_address: string | null
@@ -5865,12 +5864,12 @@ export type Database = {
           equipment_id: string | null
           equipment_line_details: Json | null
           etransfer_status: string | null
+          failure_reason: string | null
           id: string
           id_verification_notes: string | null
           id_verification_status: string | null
           id_verified_at: string | null
           id_verified_by: string | null
-          identity_snapshot: Json | null
           identity_verification_session_id: string | null
           imei_number: string | null
           installation_credit: number | null
@@ -5939,7 +5938,6 @@ export type Database = {
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
-          client_dob?: string | null
           client_email?: string | null
           client_first_name?: string | null
           client_full_address?: string | null
@@ -5959,12 +5957,12 @@ export type Database = {
           equipment_id?: string | null
           equipment_line_details?: Json | null
           etransfer_status?: string | null
+          failure_reason?: string | null
           id?: string
           id_verification_notes?: string | null
           id_verification_status?: string | null
           id_verified_at?: string | null
           id_verified_by?: string | null
-          identity_snapshot?: Json | null
           identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null
@@ -6033,7 +6031,6 @@ export type Database = {
           category?: string | null
           channel_assigned_by?: string | null
           channel_selection_locked?: boolean | null
-          client_dob?: string | null
           client_email?: string | null
           client_first_name?: string | null
           client_full_address?: string | null
@@ -6053,12 +6050,12 @@ export type Database = {
           equipment_id?: string | null
           equipment_line_details?: Json | null
           etransfer_status?: string | null
+          failure_reason?: string | null
           id?: string
           id_verification_notes?: string | null
           id_verification_status?: string | null
           id_verified_at?: string | null
           id_verified_by?: string | null
-          identity_snapshot?: Json | null
           identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null

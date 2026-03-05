@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 interface BootstrapRequest {
   action?: "bootstrap" | "recover";
@@ -40,6 +41,13 @@ Deno.serve(async (req) => {
   console.log(`[admin-bootstrap] CORS headers:`, JSON.stringify(corsHeaders));
 
   try {
+    // Rate limit: 5 bootstrap attempts per 15 min per IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = await checkRateLimit({ key: `bootstrap:${clientIp}`, ...RATE_LIMITS.LOGIN });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders, "fr");
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const bootstrapToken = Deno.env.get("BOOTSTRAP_TOKEN");
