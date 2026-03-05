@@ -764,6 +764,7 @@ export type Database = {
           delivery_fee: number | null
           description: string | null
           equipment_details: Json | null
+          hold_expires_at: string | null
           id: string
           installation_fee: number | null
           installation_method: string | null
@@ -792,6 +793,7 @@ export type Database = {
           delivery_fee?: number | null
           description?: string | null
           equipment_details?: Json | null
+          hold_expires_at?: string | null
           id?: string
           installation_fee?: number | null
           installation_method?: string | null
@@ -820,6 +822,7 @@ export type Database = {
           delivery_fee?: number | null
           description?: string | null
           equipment_details?: Json | null
+          hold_expires_at?: string | null
           id?: string
           installation_fee?: number | null
           installation_method?: string | null
@@ -11907,6 +11910,14 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      confirm_appointment_hold: {
+        Args: {
+          p_appointment_id: string
+          p_client_id: string
+          p_order_id: string
+        }
+        Returns: Json
+      }
       create_activity_log: {
         Args: {
           p_action: string
@@ -11917,6 +11928,22 @@ export type Database = {
           p_summary?: string
         }
         Returns: string
+      }
+      create_appointment_hold: {
+        Args: {
+          p_client_id: string
+          p_hold_minutes?: number
+          p_installation_id?: string
+          p_installation_method?: string
+          p_scheduled_at: string
+          p_service_address?: string
+          p_service_city?: string
+          p_service_postal_code?: string
+          p_service_type?: string
+          p_slot_id?: string
+          p_time_slot: string
+        }
+        Returns: Json
       }
       create_invoice_with_lines: {
         Args: {
@@ -11962,6 +11989,7 @@ export type Database = {
         }
         Returns: string
       }
+      expire_stale_holds: { Args: never; Returns: number }
       flag_client_for_risk: {
         Args: {
           p_alert_level?: string

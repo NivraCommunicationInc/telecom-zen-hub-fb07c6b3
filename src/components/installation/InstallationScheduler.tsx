@@ -6,7 +6,7 @@
  * 
  * Drop-in replacement for the old installation method + date picker sections.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { format, addDays } from "date-fns";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { CablingQuestionnaire } from "./CablingQuestionnaire";
@@ -19,6 +19,9 @@ import {
   type CablingQuestionnaire as CablingData,
   type InstallationDecision,
 } from "@/lib/installationLogic";
+import { createAppointmentHold, restoreAppointmentHold, type AppointmentHold } from "@/lib/appointmentHold";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 
 interface SlotData {
   id: string;
@@ -60,6 +63,22 @@ export function InstallationScheduler({
   const [overrideToTech, setOverrideToTech] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<SlotData[]>([]);
   const [installationId, setInstallationId] = useState<string | null>(null);
+  const [activeHold, setActiveHold] = useState<AppointmentHold | null>(null);
+  const [holdLoading, setHoldLoading] = useState(false);
+
+  // Restore existing hold on mount
+  useEffect(() => {
+    const restore = async () => {
+      const hold = await restoreAppointmentHold();
+      if (hold) {
+        setActiveHold(hold);
+        // Restore selected date/time from hold
+        onDateTimeChange(hold.scheduledAt, hold.timeSlot);
+        console.log("[InstallationScheduler] Restored hold:", hold.appointmentId);
+      }
+    };
+    restore();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const distanceKm =
     lat && lng ? distanceFromMontreal(lat, lng) : (fallbackDistanceKm ?? 20);
@@ -158,16 +177,36 @@ export function InstallationScheduler({
 
   const handleSlotSelect = useCallback(async (date: string, time: string, slotId?: string) => {
     onDateTimeChange(date, time);
+    setHoldLoading(true);
 
-    // Atomic booking via RPC if we have slot + installation IDs
-    if (slotId && installationId) {
-      const { data } = await portalClient.rpc("book_slot", {
-        p_slot_id: slotId,
-        p_installation_id: installationId,
+    try {
+      // Create a hold in DB immediately
+      const hold = await createAppointmentHold({
+        scheduledAt: date,
+        timeSlot: time,
+        serviceType: decision?.messageKey?.includes("tech") ? "Internet" : "Internet",
+        installationMethod: decision?.installationType || "auto",
+        installationId: installationId || undefined,
+        slotId: slotId || undefined,
       });
-      console.log("[InstallationScheduler] book_slot result:", data);
+
+      if (hold) {
+        setActiveHold(hold);
+        console.log("[InstallationScheduler] Hold created:", hold.appointmentId);
+      }
+
+      // Legacy: also call book_slot RPC if both IDs exist
+      if (slotId && installationId) {
+        const { data } = await portalClient.rpc("book_slot", {
+          p_slot_id: slotId,
+          p_installation_id: installationId,
+        });
+        console.log("[InstallationScheduler] book_slot result:", data);
+      }
+    } finally {
+      setHoldLoading(false);
     }
-  }, [onDateTimeChange, installationId]);
+  }, [onDateTimeChange, installationId, decision]);
 
   return (
     <div className="space-y-4">
@@ -191,14 +230,36 @@ export function InstallationScheduler({
 
       {/* Step 3: Slot picker (only for technician installs) */}
       {decision && (decision.installationType === "technician" || overrideToTech) && (
-        <SmartSlotPicker
-          decision={decision}
-          isFrench={isFrench}
-          availableSlots={availableSlots}
-          selectedDate={selectedDate}
-          selectedTime={selectedTime}
-          onSelect={handleSlotSelect}
-        />
+        <>
+          {activeHold && !holdLoading && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/30">
+              <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm font-medium text-primary">
+                {isFrench ? "Plage réservée pendant 30 minutes" : "Slot held for 30 minutes"}
+              </span>
+              <Badge variant="outline" className="ml-auto text-xs">
+                <Clock className="w-3 h-3 mr-1" />
+                {isFrench ? "En attente de confirmation" : "Pending confirmation"}
+              </Badge>
+            </div>
+          )}
+          {holdLoading && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+              <Clock className="w-4 h-4 text-muted-foreground animate-pulse" />
+              <span className="text-sm text-muted-foreground">
+                {isFrench ? "Réservation en cours..." : "Reserving slot..."}
+              </span>
+            </div>
+          )}
+          <SmartSlotPicker
+            decision={decision}
+            isFrench={isFrench}
+            availableSlots={availableSlots}
+            selectedDate={selectedDate}
+            selectedTime={selectedTime}
+            onSelect={handleSlotSelect}
+          />
+        </>
       )}
     </div>
   );

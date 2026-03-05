@@ -832,7 +832,9 @@ const ClientNewOrder = () => {
   const clearOrderDraft = () => {
     sessionStorage.removeItem(ORDER_DRAFT_KEY);
     localStorage.removeItem('nivra_kyc_session_id');
-    console.log("[OrderWizard] Draft + KYC session cleared");
+    // Clear appointment hold reference (hold is already confirmed at this point)
+    import("@/lib/appointmentHold").then(m => m.clearAppointmentHold());
+    console.log("[OrderWizard] Draft + KYC session + appointment hold cleared");
   };
 
   // Fetch dynamic equipment prices from database
@@ -1937,50 +1939,52 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
-      // AUTO-CREATE APPOINTMENT for orders requiring installation (Internet/TV/Security)
-      // Only create appointment if date and time are selected AND service requires installation
+      // AUTO-CONFIRM APPOINTMENT HOLD for orders requiring installation (Internet/TV/Security)
+      // The hold was already created when the user selected a slot (persisted in DB + localStorage)
       const requiresInstallationService = hasInternetService || hasTVService || selectedServices.some(s => s.category === "Sécurité");
       const hasScheduledSlot = selectedDate && selectedTime;
-      const shouldCreateAppointment = requiresInstallationService && hasScheduledSlot;
+      const shouldConfirmAppointment = requiresInstallationService && hasScheduledSlot;
       
-      if (shouldCreateAppointment) {
+      if (shouldConfirmAppointment) {
         try {
-          const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
+          const { confirmAppointmentHold } = await import("@/lib/appointmentHold");
+          const confirmed = await confirmAppointmentHold(data.id);
           
-          const equipmentDetails = [];
-          if (hasInternetService || hasTVService) {
-            equipmentDetails.push({ type: "router", name: "Nivra Born Wifi", fee: ROUTER_CONFIG_DYNAMIC.price });
-          }
-          if (hasTVService) {
-            equipmentDetails.push({ type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalQuantity, fee: terminalQuantity * TERMINAL_CONFIG.price });
-          }
-          
-          const appointmentResult = await createAppointmentFromOrder({
-            orderId: data.id,
-            orderNumber: data.order_number,
-            userId: user.id,
-            clientEmail: profile?.email || user.email || "",
-            clientPhone: profile?.phone || "",
-            clientName: profile?.full_name || user.email?.split("@")[0] || "",
-            serviceType: serviceNames,
-            category: categories,
-            serviceAddress: profile?.service_address || "",
-            serviceCity: profile?.service_city || "",
-            servicePostalCode: profile?.service_postal_code || "",
-            scheduledDate: selectedDate,
-            scheduledTime: selectedTime,
-            installationMethod: (installationChoice as "auto" | "technician") || "auto",
-            deliveryFee: orderDeliveryFee,
-            installationFee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
-            equipmentDetails,
-            notes: notes || "",
-          });
-
-          if (!appointmentResult.success) {
-            console.error("Appointment creation failed:", appointmentResult.error);
-            postStepErrors.push("appointment");
+          if (confirmed) {
+            console.log("[Appointment] Hold confirmed for order:", data.order_number);
           } else {
-            console.log("Appointment created successfully:", appointmentResult.appointment?.appointment_number);
+            // Fallback: create appointment the old way if no hold exists
+            console.warn("[Appointment] No hold to confirm, creating appointment directly");
+            const { createAppointmentFromOrder } = await import("@/lib/appointmentUtils");
+            
+            const equipmentDetails = [];
+            if (hasInternetService || hasTVService) {
+              equipmentDetails.push({ type: "router", name: "Nivra Born Wifi", fee: ROUTER_CONFIG_DYNAMIC.price });
+            }
+            if (hasTVService) {
+              equipmentDetails.push({ type: "terminal", name: "Nivra 4K Smart Terminal", quantity: terminalQuantity, fee: terminalQuantity * TERMINAL_CONFIG.price });
+            }
+            
+            await createAppointmentFromOrder({
+              orderId: data.id,
+              orderNumber: data.order_number,
+              userId: user.id,
+              clientEmail: profile?.email || user.email || "",
+              clientPhone: profile?.phone || "",
+              clientName: profile?.full_name || user.email?.split("@")[0] || "",
+              serviceType: serviceNames,
+              category: categories,
+              serviceAddress: profile?.service_address || "",
+              serviceCity: profile?.service_city || "",
+              servicePostalCode: profile?.service_postal_code || "",
+              scheduledDate: selectedDate,
+              scheduledTime: selectedTime,
+              installationMethod: (installationChoice as "auto" | "technician") || "auto",
+              deliveryFee: orderDeliveryFee,
+              installationFee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
+              equipmentDetails,
+              notes: notes || "",
+            });
           }
         } catch (apptErr) {
           console.error("Appointment step failed:", apptErr);
