@@ -56,11 +56,11 @@ interface BillingTotals {
 }
 
 interface CreateOrderRequest {
-  // Customer info
+  // Customer info — identity hydrated from profiles server-side
   user_id?: string;
-  first_name: string;
-  last_name: string;
-  email: string;
+  first_name?: string;  // Optional: overridden by profile if user_id provided
+  last_name?: string;   // Optional: overridden by profile if user_id provided
+  email?: string;       // Optional: overridden by profile if user_id provided
   phone: string;
   // Services
   services: ServiceItem[];
@@ -88,6 +88,22 @@ serve(async (req) => {
 
     const body: CreateOrderRequest = await req.json();
     
+    // IDENTITY CORE: Hydrate identity from profiles if user_id provided
+    if (body.user_id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, email, phone")
+        .eq("user_id", body.user_id)
+        .maybeSingle();
+      
+      if (profile) {
+        if (profile.first_name) body.first_name = profile.first_name;
+        if (profile.last_name) body.last_name = profile.last_name;
+        if (profile.email) body.email = profile.email;
+        if (profile.phone && !body.phone) body.phone = profile.phone;
+      }
+    }
+
     console.log("[billing-create-order] Received request:", {
       email: body.email,
       payment_method: body.payment_method,
