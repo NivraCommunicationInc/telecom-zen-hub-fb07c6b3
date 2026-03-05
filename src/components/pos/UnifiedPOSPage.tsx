@@ -278,6 +278,15 @@ export default function UnifiedPOSPage({
         }
       }
 
+      // === CARRIER-GRADE ORCHESTRATION (Phase 2A) ===
+      try {
+        const { orchestrateOrder } = await import("@/lib/orderOrchestration");
+        const orchResult = await orchestrateOrder(newOrder.id);
+        console.log("[POS Orchestration] Result:", orchResult);
+      } catch (orchErr) {
+        console.warn("[POS Orchestration] Failed (non-blocking):", orchErr);
+      }
+
       onOrderComplete?.(newOrder.id);
 
       toast.success("🎉 Commande créée avec succès!", {

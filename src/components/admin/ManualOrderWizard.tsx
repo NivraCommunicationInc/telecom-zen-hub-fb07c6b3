@@ -477,12 +477,19 @@ export default function ManualOrderWizard({
 
       if (orderError) throw orderError;
 
+      // === CARRIER-GRADE ORCHESTRATION (Phase 2A) ===
+      try {
+        const { orchestrateOrder } = await import("@/lib/orderOrchestration");
+        const orchResult = await orchestrateOrder(order.id);
+        console.log("[Orchestration] ManualOrder result:", orchResult);
+      } catch (orchErr) {
+        console.error("[Orchestration] ManualOrder failed (non-blocking):", orchErr);
+      }
+
       // ============================================================
       // LEGACY BILLING BLOCKED - Source unique V2
-      // Date: 2026-01-24 - Écriture legacy désactivée
       // ============================================================
       console.warn("[BILLING] Legacy write BLOCKED in ManualOrderWizard - V2 required");
-      // Ne pas créer de billing legacy - sera fait via V2
 
       // Create TV setup ticket if TV service included (non-blocking)
       const hasTVService = orderState.selectedPlans.some((p) => 
