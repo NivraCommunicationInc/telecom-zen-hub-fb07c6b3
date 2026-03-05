@@ -98,30 +98,8 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
         }
       }
 
-      // 2. Legacy System: billing table
-      const { data: legacyInvoices } = await portalClient
-        .from('billing')
-        .select('id, invoice_number, amount, amount_paid, balance_due, status, due_date')
-        .eq('user_id', userId)
-        .not('status', 'in', '("paid","cancelled","voided","refunded")');
-
-      for (const inv of legacyInvoices || []) {
-        const invoiceAmount = Number(inv.amount) || 0;
-        const amountPaid = Number(inv.amount_paid) || 0;
-        const balanceDue = Number(inv.balance_due ?? (invoiceAmount - amountPaid));
-        
-        if (balanceDue > 0) {
-          allPending.push({
-            id: inv.id,
-            invoice_number: inv.invoice_number || `INV-${inv.id.slice(0, 8)}`,
-            due_date: inv.due_date,
-            status: inv.status,
-            total: invoiceAmount,
-            amount_paid: amountPaid,
-            balance_due: balanceDue,
-          });
-        }
-      }
+      // Legacy billing table — REMOVED. Single source of truth = billing_invoices V2.
+      // If you see zero invoices, it means the client has no V2 billing_customer record yet.
 
       // Sort by due date
       allPending.sort((a, b) => {

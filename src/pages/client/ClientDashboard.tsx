@@ -46,13 +46,8 @@ const ClientDashboard = () => {
         .eq("user_id", user.id)
         .maybeSingle();
       if (!customer) {
-        // Fallback to legacy subscriptions table
-        const { data } = await portalSupabase
-          .from("subscriptions")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("status", "active");
-        return data || [];
+        console.warn("[ClientDashboard] Aucun billing_customer trouvé — le client n'a pas encore de profil de facturation V2.");
+        return [];
       }
       const { data: subs } = await portalSupabase
         .from("billing_subscriptions")

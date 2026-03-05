@@ -51,12 +51,50 @@ export interface OrderDocumentData {
 // FIELD VALIDATION — "Non fourni par le client" (never N/A)
 // ============================================================================
 
+// Track missing fields for validation gate
+const _missingFields: string[] = [];
+
 function requireField(value: string | undefined | null, fieldName: string): string {
   if (!value || value === "—" || value === "N/A" || value === "À confirmer" || value === "000000" || value.trim() === "") {
-    console.warn(`[DocumentBuilder] CHAMP CRITIQUE MANQUANT: ${fieldName}`);
-    return "Non fourni par le client";
+    console.error(`[DocumentBuilder] ❌ CHAMP OBLIGATOIRE MANQUANT: ${fieldName}`);
+    _missingFields.push(fieldName);
+    return `[MANQUANT: ${fieldName}]`;
   }
   return value.trim();
+}
+
+/**
+ * Validates that all required fields are present BEFORE generating documents.
+ * Returns list of missing fields. If non-empty, PDF generation MUST be blocked.
+ */
+export function validateDocumentData(data: OrderDocumentData): string[] {
+  const missing: string[] = [];
+  const { order, profile, account } = data;
+  const clientName = buildClientName(order, profile);
+  const addr = buildCustomerAddress(order, profile, account);
+
+  const checks: [string | undefined | null, string][] = [
+    [clientName, "client_name"],
+    [order.client_email || profile?.email, "client_email"],
+    [order.client_phone || profile?.phone, "client_phone"],
+    [addr.address_line1, "address_line1"],
+    [addr.city, "city"],
+    [addr.postal_code, "postal_code"],
+    [account?.account_number, "account_number"],
+    [order.order_number?.toString(), "order_number"],
+  ];
+
+  for (const [val, name] of checks) {
+    if (!val || val === "—" || val === "N/A" || val === "000000" || val.trim() === "") {
+      missing.push(name);
+    }
+  }
+
+  if (!data.breakdown) {
+    missing.push("invoice_breakdown_rpc");
+  }
+
+  return missing;
 }
 
 // ============================================================================
@@ -240,10 +278,12 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
 }
 
 // ============================================================================
-// FALLBACK: Parse from order data (no breakdown available)
+// FALLBACK: FAIL HARD — No silent legacy path allowed
 // ============================================================================
 
 function fallbackStructure(order: any, billingInvoice: any, billingInvoiceLines: any[], billingPayments: any[]): StructuredFromBreakdown {
+  console.error("[DocumentBuilder] ⛔ FALLBACK INTERDIT — compute_invoice_breakdown RPC n'a pas retourné de données. Les totaux seront INCORRECTS.");
+  // We still parse lines if available but flag this as a critical error
   const services: StructuredFromBreakdown["services"] = [];
   const equipment: StructuredFromBreakdown["equipment"] = [];
   const fees: StructuredFromBreakdown["fees"] = [];
@@ -544,10 +584,28 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     return null;
   }
 
+  // VALIDATION GATE: Block PDF generation if required fields are missing
+  const missingFields = validateDocumentData(data);
+  if (missingFields.length > 0) {
+    console.error(`[DocumentBuilder] ⛔ GÉNÉRATION BLOQUÉE — Champs obligatoires manquants: ${missingFields.join(", ")}`);
+    // Create admin alert via billing_system_alerts
+    try {
+      await supabase.from("billing_system_alerts").insert({
+        alert_type: "pdf_blocked_missing_data",
+        entity_type: "order",
+        entity_id: orderId,
+        details: { missing_fields: missingFields, order_id: orderId, order_number: data.order?.order_number },
+      });
+    } catch (alertErr) {
+      console.error("[DocumentBuilder] Could not create alert:", alertErr);
+    }
+    return null;
+  }
+
   if (data.breakdown) {
-    console.log(`[DocumentBuilder V4] Using compute_invoice_breakdown RPC (source of truth)`);
+    console.log(`[DocumentBuilder V4] ✅ Using compute_invoice_breakdown RPC (source of truth)`);
   } else {
-    console.warn(`[DocumentBuilder V4] No breakdown available — using fallback calculations`);
+    console.error(`[DocumentBuilder V4] ⛔ No breakdown — fallback will produce UNRELIABLE documents`);
   }
 
   const invoiceData = buildInvoiceData(data);

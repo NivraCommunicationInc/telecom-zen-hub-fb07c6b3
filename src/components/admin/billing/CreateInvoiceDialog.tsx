@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, UserPlus, User } from "lucide-react";
-import { calculateBillingTotals, BILLING_TAX_RATES } from "@/lib/billing/types";
+import { BILLING_TAX_RATES } from "@/lib/billing/types";
 import type { BillingCustomer, BillingInvoiceType, BillingInvoiceStatus, BillingPaymentMethod } from "@/lib/billing/types";
 
 interface InvoiceLine {
@@ -102,11 +102,13 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
     enabled: open,
   });
 
-  // Calculate totals
+  // Calculate totals inline (preview only — canonical totals come from RPC after insert)
   const linesSubtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   const activationFee = includeActivationFee ? activationFeeAmount : 0;
   const subtotal = linesSubtotal + activationFee;
-  const totals = calculateBillingTotals(subtotal);
+  const tps = Math.round(subtotal * BILLING_TAX_RATES.TPS * 100) / 100;
+  const tvq = Math.round(subtotal * BILLING_TAX_RATES.TVQ * 100) / 100;
+  const totals = { subtotal, tps, tvq, total: Math.round((subtotal + tps + tvq) * 100) / 100 };
 
   // Add line
   const addLine = () => {
