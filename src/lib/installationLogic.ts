@@ -58,12 +58,17 @@ export function distanceFromMontreal(lat: number, lng: number): number {
 // ── RISKY_COAX flag ────────────────────────────────────────────────────
 
 /**
- * Determines if the coax situation is "risky" — outlet exists but
- * cable condition or service history is uncertain/negative.
+ * Determines if the coax situation is "risky":
+ *  - Outlet present but cable missing/unknown
+ *  - Previous service absent or unknown
+ *  - Outlet itself unknown
  */
 export function isRiskyCoax(q: CablingQuestionnaire): boolean {
-  if (q.hasCoaxial !== "yes") return false;
-  // Coax present but cable missing/unknown OR no previous service
+  // Outlet unknown → risky
+  if (q.hasCoaxial === "unknown") return true;
+  // Outlet absent → not risky, it's CONFIRMED bad (→ Level 2)
+  if (q.hasCoaxial === "no") return false;
+  // Outlet present but cable or service is uncertain/bad
   return (
     q.cableStatus === "no" ||
     q.cableStatus === "unknown" ||
@@ -116,8 +121,8 @@ export function determineInstallation(
 
   // ── Zone A — Grand Montréal (≤70 km) ──
 
-  // Case 1 — Rapid: coax present + cable intact + previous service
-  if (hasCoaxial === "yes" && cableStatus === "yes" && previousService === "yes") {
+  // Case 1 — Rapid: coax present + cable intact + previous service + NOT risky
+  if (hasCoaxial === "yes" && cableStatus === "yes" && previousService === "yes" && !riskyCoax) {
     return {
       zone: "zone_a",
       installationType: "technician",
@@ -132,8 +137,8 @@ export function determineInstallation(
     };
   }
 
-  // Case 2 — RISKY_COAX: coax present but cable or service uncertain
-  if (hasCoaxial === "yes" && riskyCoax) {
+  // Case 2 — RISKY_COAX: coax present/unknown but uncertain cable/service
+  if (riskyCoax) {
     return {
       zone: "zone_a",
       installationType: "technician",
@@ -148,23 +153,7 @@ export function determineInstallation(
     };
   }
 
-  // Case 3 — Unknown coax → Level 1 but no same-day
-  if (hasCoaxial === "unknown") {
-    return {
-      zone: "zone_a",
-      installationType: "technician",
-      technicianLevel: "level_1",
-      minLeadDays: 1,
-      maxLeadDays: 7,
-      sameDayPossible: false,
-      messageKey: "uncertain",
-      readinessScore,
-      needsFallbackTicket: false,
-      riskyCoax: false,
-    };
-  }
-
-  // Case 4 — Coax absent → Level 2
+  // Case 3 — Coax absent or cable cut → Level 2
   if (hasCoaxial === "no" || cableStatus === "no") {
     return {
       zone: "zone_b",
