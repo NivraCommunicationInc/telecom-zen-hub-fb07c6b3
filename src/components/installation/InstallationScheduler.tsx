@@ -7,15 +7,26 @@
  * Drop-in replacement for the old installation method + date picker sections.
  */
 import { useState, useCallback } from "react";
+import { format, addDays } from "date-fns";
+import { portalClient } from "@/integrations/backend/portalClient";
 import { CablingQuestionnaire } from "./CablingQuestionnaire";
 import { InstallationDecisionDisplay } from "./InstallationDecisionDisplay";
 import { SmartSlotPicker } from "./SmartSlotPicker";
 import {
   determineInstallation,
   distanceFromMontreal,
+  isSameDayStillAvailable,
   type CablingQuestionnaire as CablingData,
   type InstallationDecision,
 } from "@/lib/installationLogic";
+
+interface SlotData {
+  id: string;
+  slot_date: string;
+  time_slot: string;
+  capacity: number;
+  booked: number;
+}
 
 interface Props {
   isFrench: boolean;
@@ -47,27 +58,86 @@ export function InstallationScheduler({
   const [cablingAnswers, setCablingAnswers] = useState<CablingData | null>(null);
   const [decision, setDecision] = useState<InstallationDecision | null>(null);
   const [overrideToTech, setOverrideToTech] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<SlotData[]>([]);
 
   const distanceKm =
     lat && lng ? distanceFromMontreal(lat, lng) : (fallbackDistanceKm ?? 20);
 
+  const fetchSlots = useCallback(async (targetDecision: InstallationDecision) => {
+    if (targetDecision.installationType !== "technician") {
+      setAvailableSlots([]);
+      return;
+    }
+
+    const startDay = targetDecision.sameDayPossible && !targetDecision.riskyCoax && isSameDayStillAvailable()
+      ? 0
+      : targetDecision.minLeadDays;
+
+    const fromDate = format(addDays(new Date(), startDay), "yyyy-MM-dd");
+    const toDate = format(addDays(new Date(), targetDecision.maxLeadDays), "yyyy-MM-dd");
+
+    let query = portalClient
+      .from("technician_slots")
+      .select("id, slot_date, time_slot, capacity, booked")
+      .eq("is_active", true)
+      .eq("technician_level", targetDecision.technicianLevel)
+      .gte("slot_date", fromDate)
+      .lte("slot_date", toDate)
+      .order("slot_date", { ascending: true })
+      .order("time_slot", { ascending: true });
+
+    if (targetDecision.zone === "zone_a" || targetDecision.zone === "zone_b") {
+      query = query.eq("region", "montreal");
+    }
+
+    const { data } = await query;
+    setAvailableSlots((data || []) as SlotData[]);
+  }, []);
+
+  const recordInstallation = useCallback(async (answers: CablingData, targetDecision: InstallationDecision) => {
+    const { data: authData } = await portalClient.auth.getUser();
+    const userId = authData.user?.id;
+    if (!userId) return;
+
+    await portalClient.from("installations").insert({
+      client_id: userId,
+      installation_type: targetDecision.installationType,
+      technician_level: targetDecision.technicianLevel,
+      zone: targetDecision.zone,
+      status: "pending",
+      distance_km: Number(distanceKm.toFixed(2)),
+      has_coaxial: answers.hasCoaxial,
+      cable_status: answers.cableStatus,
+      previous_service: answers.previousService,
+      readiness_score: targetDecision.readinessScore,
+      needs_fallback_ticket: targetDecision.needsFallbackTicket,
+      notes: "coax_quick_check",
+    });
+  }, [distanceKm]);
+
   const handleQuestionnaireComplete = useCallback(
-    (answers: CablingData) => {
+    async (answers: CablingData) => {
       setCablingAnswers(answers);
       const result = determineInstallation(distanceKm, answers);
       setDecision(result);
       onInstallationTypeChange(result.installationType, result.technicianLevel);
       onDecisionMade?.(result);
+
+      await Promise.all([
+        recordInstallation(answers, result),
+        fetchSlots(result),
+      ]);
     },
-    [distanceKm, onInstallationTypeChange, onDecisionMade]
+    [distanceKm, onInstallationTypeChange, onDecisionMade, recordInstallation, fetchSlots]
   );
 
   const handleChooseAuto = useCallback(() => {
     if (!decision) return;
+    setAvailableSlots([]);
     onInstallationTypeChange("auto", "level_2");
   }, [decision, onInstallationTypeChange]);
 
-  const handleChooseTechnician = useCallback(() => {
+  const handleChooseTechnician = useCallback(async () => {
     if (!decision) return;
     setOverrideToTech(true);
     const updated: InstallationDecision = {
@@ -77,7 +147,8 @@ export function InstallationScheduler({
     };
     setDecision(updated);
     onInstallationTypeChange("technician", "level_2");
-  }, [decision, onInstallationTypeChange]);
+    await fetchSlots(updated);
+  }, [decision, onInstallationTypeChange, fetchSlots]);
 
   return (
     <div className="space-y-4">
@@ -104,6 +175,7 @@ export function InstallationScheduler({
         <SmartSlotPicker
           decision={decision}
           isFrench={isFrench}
+          availableSlots={availableSlots}
           selectedDate={selectedDate}
           selectedTime={selectedTime}
           onSelect={onDateTimeChange}
