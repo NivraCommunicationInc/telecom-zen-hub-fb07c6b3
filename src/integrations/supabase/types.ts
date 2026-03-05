@@ -12159,6 +12159,7 @@ export type Database = {
         Returns: string
       }
       normalize_text: { Args: { val: string }; Returns: string }
+      orchestrate_order: { Args: { p_order_id: string }; Returns: Json }
       provision_services_for_order: {
         Args: { p_order_id: string }
         Returns: Json

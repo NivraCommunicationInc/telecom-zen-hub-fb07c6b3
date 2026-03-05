@@ -2091,6 +2091,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         postStepErrors.push("snapshot");
       }
 
+      // === CARRIER-GRADE ORCHESTRATION (Phase 2A) ===
+      // Create order_items, provisioning_jobs, shipments atomically
+      try {
+        const { orchestrateOrder } = await import("@/lib/orderOrchestration");
+        const orchResult = await orchestrateOrder(data.id);
+        if (orchResult.status === 'error') {
+          console.error("[Orchestration] Failed (non-blocking):", orchResult.error);
+          postStepErrors.push("orchestration");
+        } else {
+          console.log("[Orchestration] Order orchestrated:", orchResult);
+        }
+      } catch (orchErr) {
+        console.error("[Orchestration] Exception (non-blocking):", orchErr);
+        postStepErrors.push("orchestration");
+      }
+
       // Log any post-step errors but don't block order success
       if (postStepErrors.length > 0) {
         console.warn("Order created but some post-steps failed:", postStepErrors);
