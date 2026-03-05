@@ -308,6 +308,15 @@ serve(async (req) => {
       discountAmount = promo.max_discount_amount;
     }
 
+    // Enforce min_payable_cents: discount cannot reduce total below minimum payable
+    if (promo.min_payable_cents != null && promo.min_payable_cents > 0) {
+      const minPayable = promo.min_payable_cents / 100; // convert cents to dollars
+      const maxAllowedDiscount = Math.max(0, subtotal_before_discount - minPayable);
+      if (discountAmount > maxAllowedDiscount) {
+        discountAmount = maxAllowedDiscount;
+      }
+    }
+
     // Round to 2 decimals
     discountAmount = Math.round(discountAmount * 100) / 100;
 
