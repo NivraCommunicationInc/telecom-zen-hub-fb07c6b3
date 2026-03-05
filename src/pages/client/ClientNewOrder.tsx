@@ -72,6 +72,7 @@ import { AuditNotes } from "@/lib/clientAuditNotes";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
+import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
 
@@ -547,6 +548,7 @@ const ClientNewOrder = () => {
   
   // Checkout phone and service address state
   const [checkoutPhone, setCheckoutPhone] = useState("");
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [serviceAddressStreet, setServiceAddressStreet] = useState("");
   const [serviceAddressApartment, setServiceAddressApartment] = useState("");
   const [serviceAddressCity, setServiceAddressCity] = useState("");
@@ -958,6 +960,15 @@ const ClientNewOrder = () => {
   
   // Check if Extras/Accessories service is selected
   const hasExtrasService = selectedServices.some(s => s.category === "Extras");
+  
+  const hasResidentialService = hasInternetService || hasTVService;
+  const checkoutAddressCategory = hasInternetService && hasTVService
+    ? "combo"
+    : hasInternetService
+      ? "internet"
+      : hasTVService
+        ? "tv"
+        : "mobile";
   
   // Check if this is a delivery-only order (Mobile, Streaming, or Accessories only - no technician installation)
   const isDeliveryOnlyOrder = (hasMobileService || hasStreamingService || hasExtrasService) && 
@@ -3796,6 +3807,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <MapPin className="w-4 h-4 text-cyan-500" />
                       Adresse de service
                     </h4>
+
+                    {hasResidentialService && user?.id && (
+                      <CheckoutAddressStep
+                        userId={user.id}
+                        category={checkoutAddressCategory}
+                        selectedAddressId={selectedAddressId}
+                        onAddressSelected={(addressId, addressLine, city, postalCode) => {
+                          setSelectedAddressId(addressId);
+                          setServiceAddressStreet(addressLine || "");
+                          setServiceAddressCity(city || "");
+                          setServiceAddressPostalCode(postalCode || "");
+                        }}
+                      />
+                    )}
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2 space-y-2">
