@@ -3686,28 +3686,30 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     Informations client
                   </CardTitle>
                   <CardDescription>
-                    Ces informations seront utilisées pour la livraison et la facturation
+                    Vos informations d'identité sont verrouillées pour votre sécurité. Pour les modifier, contactez le support.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Name fields */}
+                  {/* Identity fields — READ-ONLY from profiles (Identity Core Lock) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="first-name">Prénom <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="first-name">Prénom</Label>
                       <Input
                         id="first-name"
-                        placeholder="Ex: Jean"
                         value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                        readOnly
+                        disabled
+                        className="bg-muted/50 cursor-not-allowed"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="last-name">Nom de famille <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="last-name">Nom de famille</Label>
                       <Input
                         id="last-name"
-                        placeholder="Ex: Tremblay"
                         value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
+                        readOnly
+                        disabled
+                        className="bg-muted/50 cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -3722,12 +3724,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       id="date-of-birth"
                       type="date"
                       value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                      max={(() => {
-                        const maxDate = new Date();
-                        maxDate.setFullYear(maxDate.getFullYear() - 13);
-                        return maxDate.toISOString().split('T')[0];
-                      })()}
+                      readOnly
+                      disabled
+                      className="bg-muted/50 cursor-not-allowed"
                     />
                     {dateOfBirth && (() => {
                       // Safe DOB validation with try/catch to prevent crashes

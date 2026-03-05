@@ -6764,6 +6764,51 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_change_requests: {
+        Row: {
+          admin_notes: string | null
+          applied_at: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          requested_changes: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          supporting_document_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          applied_at?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_changes: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          supporting_document_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          applied_at?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_changes?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          supporting_document_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_number: string | null

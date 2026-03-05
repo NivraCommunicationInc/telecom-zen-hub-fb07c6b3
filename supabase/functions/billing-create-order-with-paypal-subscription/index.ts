@@ -89,6 +89,22 @@ serve(async (req) => {
 
     const body: CreateOrderRequest = await req.json();
     
+    // IDENTITY CORE: Hydrate identity from profiles if user_id provided
+    if (body.user_id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, email, phone")
+        .eq("user_id", body.user_id)
+        .maybeSingle();
+      
+      if (profile) {
+        if (profile.first_name) body.first_name = profile.first_name;
+        if (profile.last_name) body.last_name = profile.last_name;
+        if (profile.email) body.email = profile.email;
+        if (profile.phone && !body.phone) body.phone = profile.phone;
+      }
+    }
+
     // Validate required fields
     if (!body.email || !body.first_name || !body.last_name || !body.phone) {
       throw new Error("Missing required customer fields");
