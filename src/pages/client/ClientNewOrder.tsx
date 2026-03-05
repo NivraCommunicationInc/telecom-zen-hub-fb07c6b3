@@ -74,6 +74,7 @@ import { AuditNotes } from "@/lib/clientAuditNotes";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
+import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
 import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
@@ -547,6 +548,10 @@ const ClientNewOrder = () => {
     try { return localStorage.getItem('nivra_kyc_session_id') || null; } catch { return null; }
   });
   const [idVerificationApproved, setIdVerificationApproved] = useState(false);
+  // KYC choice state: null = user hasn't decided yet, "reuse" or "restart"
+  const [kycChoice, setKycChoice] = useState<"reuse" | "restart" | null>(null);
+  const [existingKycStatus, setExistingKycStatus] = useState<string | null>(null);
+  const [existingKycCaseNumber, setExistingKycCaseNumber] = useState<string | null>(null);
   
   // Customer info fields (DOB, name)
   const [firstName, setFirstName] = useState("");
@@ -786,20 +791,17 @@ const ClientNewOrder = () => {
     }
   }, [verificationSessionId]);
 
-  // Restore existing KYC session from DB on mount (survives refresh/crash/order failure)
+  // Restore existing KYC session from DB on mount — NO auto-approve, present choice
   useEffect(() => {
     if (!user?.id || !isHydrated) return;
-    const storedSessionId = localStorage.getItem('nivra_kyc_session_id');
     
     const restoreKycSession = async () => {
       try {
-        // Check for any active KYC session for this user (stored or latest)
         const activeStatuses = ["created", "submitted", "manual_review", "approved"];
-        const reviewReadyStatuses = ["submitted", "manual_review", "approved"];
         
         const { data: activeSession } = await supabase
           .from("identity_verification_sessions")
-          .select("id, status")
+          .select("id, status, case_number")
           .eq("user_id", user.id)
           .in("status", activeStatuses)
           .order("created_at", { ascending: false })
@@ -807,18 +809,35 @@ const ClientNewOrder = () => {
           .maybeSingle();
         
         if (activeSession) {
-          console.log("[KYC] Restored active session from DB:", activeSession.id, "status:", activeSession.status);
-          setVerificationSessionId(activeSession.id);
-          localStorage.setItem('nivra_kyc_session_id', activeSession.id);
-          if (reviewReadyStatuses.includes(activeSession.status)) {
-            setIdVerificationApproved(true);
+          console.log("[KYC] Found existing session:", activeSession.id, "status:", activeSession.status);
+          setExistingKycStatus(activeSession.status);
+          setExistingKycCaseNumber(activeSession.case_number || null);
+          
+          // If user already made a choice in this session (via localStorage), restore it
+          const storedChoice = localStorage.getItem('nivra_kyc_choice');
+          if (storedChoice === 'reuse') {
+            setKycChoice('reuse');
+            setVerificationSessionId(activeSession.id);
+            localStorage.setItem('nivra_kyc_session_id', activeSession.id);
+            const reviewReady = ["submitted", "manual_review", "approved"];
+            if (reviewReady.includes(activeSession.status)) {
+              setIdVerificationApproved(true);
+            }
+          } else if (storedChoice === 'restart') {
+            setKycChoice('restart');
+            // Don't set verificationSessionId — let QRVerificationStep create a new one
+            setVerificationSessionId(null);
+            setIdVerificationApproved(false);
           }
-        } else if (storedSessionId) {
-          // Stored session is no longer active — clear stale reference
-          console.log("[KYC] Stored session no longer active, clearing localStorage");
+          // If no stored choice → user will see the KycSessionChoice dialog
+        } else {
+          // No existing session — clear any stale refs
           localStorage.removeItem('nivra_kyc_session_id');
+          localStorage.removeItem('nivra_kyc_choice');
           setVerificationSessionId(null);
           setIdVerificationApproved(false);
+          setKycChoice(null);
+          setExistingKycStatus(null);
         }
       } catch (err) {
         console.error("[KYC] Failed to restore session from DB:", err);
@@ -832,9 +851,10 @@ const ClientNewOrder = () => {
   const clearOrderDraft = () => {
     sessionStorage.removeItem(ORDER_DRAFT_KEY);
     localStorage.removeItem('nivra_kyc_session_id');
+    localStorage.removeItem('nivra_kyc_choice');
     // Clear appointment hold reference (hold is already confirmed at this point)
     import("@/lib/appointmentHold").then(m => m.clearAppointmentHold());
-    console.log("[OrderWizard] Draft + KYC session + appointment hold cleared");
+    console.log("[OrderWizard] Draft + KYC session + KYC choice + appointment hold cleared");
   };
 
   // Fetch dynamic equipment prices from database
@@ -4317,31 +4337,88 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     )}
 
-                    {/* QR Identity Verification (Rogers-grade) — persisted independently */}
+                    {/* QR Identity Verification — strict KYC policy, no silent bypass */}
                     {isIdComplete && FEATURES.KYC_ENABLED && (
                       <div className="border-t border-border pt-6 mt-4">
-                        {/* Show restored KYC status if already verified */}
-                        {idVerificationApproved && verificationSessionId ? (
-                          <div className="flex items-center gap-3 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                            <div>
-                              <p className="font-medium text-emerald-600">Vérification d'identité soumise ✓</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Documents déjà envoyés — en vérification par un administrateur. Vous pouvez continuer.
-                              </p>
+                        {/* Case 1: User chose "reuse" and session is approved/submitted → show confirmation */}
+                        {kycChoice === "reuse" && idVerificationApproved && verificationSessionId ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-emerald-600">
+                                  {existingKycStatus === "approved" 
+                                    ? "Vérification d'identité approuvée ✓" 
+                                    : "Vérification d'identité soumise ✓"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {existingKycStatus === "approved"
+                                    ? "Votre identité est vérifiée. Vous pouvez continuer."
+                                    : "Documents soumis — en vérification par un administrateur."}
+                                </p>
+                              </div>
                             </div>
+                            <button 
+                              type="button"
+                              className="text-xs text-muted-foreground underline hover:text-foreground"
+                              onClick={() => {
+                                setKycChoice(null);
+                                localStorage.removeItem('nivra_kyc_choice');
+                                setIdVerificationApproved(false);
+                                setVerificationSessionId(null);
+                              }}
+                            >
+                              Changer de vérification
+                            </button>
                           </div>
+                        ) : existingKycStatus && kycChoice === null ? (
+                          /* Case 2: Existing session found but user hasn't chosen yet → show choice */
+                          <KycSessionChoice
+                            sessionStatus={existingKycStatus}
+                            sessionId={verificationSessionId || ""}
+                            caseNumber={existingKycCaseNumber || undefined}
+                            onChoice={(choice) => {
+                              setKycChoice(choice);
+                              localStorage.setItem('nivra_kyc_choice', choice || '');
+                              if (choice === "reuse") {
+                                // Reuse: restore the session from DB
+                                supabase
+                                  .from("identity_verification_sessions")
+                                  .select("id, status")
+                                  .eq("user_id", user?.id || "")
+                                  .in("status", ["submitted", "manual_review", "approved"])
+                                  .order("created_at", { ascending: false })
+                                  .limit(1)
+                                  .maybeSingle()
+                                  .then(({ data }) => {
+                                    if (data) {
+                                      setVerificationSessionId(data.id);
+                                      localStorage.setItem('nivra_kyc_session_id', data.id);
+                                      setIdVerificationApproved(true);
+                                    }
+                                  });
+                              } else if (choice === "restart") {
+                                // Restart: clear and let QRVerificationStep create new
+                                localStorage.removeItem('nivra_kyc_session_id');
+                                setVerificationSessionId(null);
+                                setIdVerificationApproved(false);
+                              }
+                            }}
+                          />
                         ) : (
+                          /* Case 3: No existing session OR user chose "restart" → show QR flow */
                           <QRVerificationStep
                             userId={user?.id || ""}
                             checkoutType="mobile"
                             isFrench={true}
                             onSessionGenerated={(sessionId) => {
                               setVerificationSessionId(sessionId);
+                              localStorage.setItem('nivra_kyc_session_id', sessionId);
                               setIdVerificationApproved(false);
                             }}
                             onVerified={(sessionId) => {
                               setVerificationSessionId(sessionId);
+                              localStorage.setItem('nivra_kyc_session_id', sessionId);
                               setIdVerificationApproved(true);
                             }}
                             orderContext={{ services: selectedServices.map(s => s.id) }}
