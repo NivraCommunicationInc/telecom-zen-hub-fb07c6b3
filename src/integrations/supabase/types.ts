@@ -355,6 +355,57 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_audit_sessions: {
+        Row: {
+          admin_email: string | null
+          admin_user_id: string
+          consumed_at: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          issued_at: string
+          magic_link_hash: string | null
+          reason: string
+          redirect_to: string | null
+          revoked_at: string | null
+          session_token: string | null
+          target_email: string
+          target_user_id: string
+        }
+        Insert: {
+          admin_email?: string | null
+          admin_user_id: string
+          consumed_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          issued_at?: string
+          magic_link_hash?: string | null
+          reason: string
+          redirect_to?: string | null
+          revoked_at?: string | null
+          session_token?: string | null
+          target_email: string
+          target_user_id: string
+        }
+        Update: {
+          admin_email?: string | null
+          admin_user_id?: string
+          consumed_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          issued_at?: string
+          magic_link_hash?: string | null
+          reason?: string
+          redirect_to?: string | null
+          revoked_at?: string | null
+          session_token?: string | null
+          target_email?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       admin_auth_audit_log: {
         Row: {
           admin_user_id: string
@@ -10944,6 +10995,7 @@ export type Database = {
         Args: { _work_order_id: string }
         Returns: boolean
       }
+      is_audit_session_active: { Args: { _user_id: string }; Returns: boolean }
       is_field_sales: { Args: { _user_id?: string }; Returns: boolean }
       is_first_client_order: {
         Args: { p_order_id: string; p_user_id: string }
