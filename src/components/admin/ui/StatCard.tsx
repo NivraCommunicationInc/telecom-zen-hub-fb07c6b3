@@ -1,6 +1,5 @@
 /**
- * StatCard — KPI card for admin dashboards
- * Proper sizing: 14px label, 28px value, semantic tokens
+ * StatCard — Compact KPI card for admin dashboards
  */
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
@@ -23,23 +22,25 @@ export function StatCard({ label, value, icon: Icon, change, changeType = "neutr
     <Wrapper
       {...wrapperProps}
       className={cn(
-        "rounded-xl border border-border bg-card p-5 space-y-3 transition-colors",
+        "rounded-md border border-border bg-card px-3 py-2.5 transition-colors",
         href && "cursor-pointer hover:border-primary/30",
         className
       )}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
         {Icon && (
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon className="h-4 w-4 text-primary" />
+          <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <Icon className="h-3.5 w-3.5 text-primary" />
           </div>
         )}
+        <div className="min-w-0">
+          <p className="text-xl font-bold text-foreground tabular-nums leading-none">{value}</p>
+          <span className="text-[11px] text-muted-foreground truncate">{label}</span>
+        </div>
       </div>
-      <p className="text-[28px] font-bold text-foreground tabular-nums leading-none">{value}</p>
       {change && (
         <p className={cn(
-          "text-sm font-medium",
+          "text-xs font-medium mt-1",
           changeType === "positive" && "text-emerald-400",
           changeType === "negative" && "text-red-400",
           changeType === "neutral" && "text-muted-foreground"

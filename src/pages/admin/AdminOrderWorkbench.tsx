@@ -71,8 +71,8 @@ const AdminOrderWorkbench = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Page Header */}
+      <div className="space-y-4">
+        {/* Page Header — tight operational */}
         <PageHeader
           title={`Commande #${orderNumber}`}
           subtitle={`${data.profile?.full_name || data.order.client_email || "Client"} — ${data.order.service_type || "Service"}`}
@@ -85,25 +85,23 @@ const AdminOrderWorkbench = () => {
             <StatusBadge
               label={orderStatus}
               variant={statusToVariant(orderStatus)}
-              size="md"
+              size="sm"
             />
           }
           actions={
-            <div className="flex items-center gap-2">
-              {data.order.user_id && (
-                <Link to={`/admin/clients`}>
-                  <Button variant="outline" size="sm" className="gap-1.5 h-9 text-sm">
-                    <ExternalLink className="h-3.5 w-3.5" /> Client
-                  </Button>
-                </Link>
-              )}
-            </div>
+            data.order.user_id ? (
+              <Link to={`/admin/clients`}>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs">
+                  <ExternalLink className="h-3 w-3" /> Client
+                </Button>
+              </Link>
+            ) : undefined
           }
         />
 
         {/* Tabs */}
         <Tabs defaultValue="summary" className="w-full">
-          <TabsList className="bg-card border border-border p-1 h-auto flex-wrap gap-1">
+          <TabsList className="bg-secondary border border-border p-0.5 h-auto flex-wrap gap-0.5">
             {TABS.map((tab) => {
               const count = tab.value === "items" ? data.orderItems.length
                 : tab.value === "provisioning" ? data.provisioningJobs.length
@@ -112,19 +110,19 @@ const AdminOrderWorkbench = () => {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="gap-2 text-sm px-4 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="gap-1.5 text-xs px-3 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                 >
-                  <tab.icon className="h-4 w-4" />
+                  <tab.icon className="h-3.5 w-3.5" />
                   {tab.label}
                   {count !== null && count > 0 && (
-                    <span className="ml-0.5 text-xs opacity-70">({count})</span>
+                    <span className="ml-0.5 text-[10px] opacity-70">({count})</span>
                   )}
                 </TabsTrigger>
               );
             })}
           </TabsList>
 
-          <div className="mt-6">
+          <div className="mt-3">
             <TabsContent value="summary" className="mt-0">
               <WorkbenchSummaryTab
                 order={data.order}

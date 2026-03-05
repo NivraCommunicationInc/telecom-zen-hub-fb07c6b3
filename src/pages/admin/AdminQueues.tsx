@@ -142,17 +142,17 @@ const AdminQueues = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-4">
-        {/* Page Header — flat */}
+      <div className="space-y-3">
+        {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-foreground">Queues opérationnelles</h1>
-            <p className="text-sm text-muted-foreground">Travail quotidien — traitement par file d'attente</p>
+            <h1 className="text-lg font-bold text-foreground">Queues opérationnelles</h1>
+            <p className="text-xs text-muted-foreground">Travail quotidien — traitement par file</p>
           </div>
         </div>
 
-        {/* Summary KPIs — small inline strip */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {/* KPI strip */}
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
           {queueTabs.map(({ label, icon, data }) => (
             <StatCard key={label} label={label} value={data.length} icon={icon} />
           ))}
@@ -160,16 +160,16 @@ const AdminQueues = () => {
 
         {/* Queue Tabs */}
         <Tabs defaultValue="kyc" className="w-full">
-          <TabsList className="bg-secondary border border-border p-1 h-auto flex-wrap gap-1">
+          <TabsList className="bg-secondary border border-border p-0.5 h-auto flex-wrap gap-0.5">
             {queueTabs.map(({ value, label, icon: Icon, data }) => (
               <TabsTrigger
                 key={value}
                 value={value}
-                className="gap-2 text-sm px-4 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="gap-1.5 text-xs px-3 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5" />
                 {label}
-                <span className="text-xs opacity-70">({data.length})</span>
+                <span className="text-[10px] opacity-70">({data.length})</span>
               </TabsTrigger>
             ))}
           </TabsList>
