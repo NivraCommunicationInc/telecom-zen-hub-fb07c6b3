@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Cable, Plug, History, ArrowRight, CheckCircle2, Info } from "lucide-react";
+import { Cable, Plug, History, ArrowRight, CheckCircle2, Info, AlertTriangle } from "lucide-react";
 import type { CablingAnswer, CablingQuestionnaire as CablingData } from "@/lib/installationLogic";
+import { isRiskyCoax } from "@/lib/installationLogic";
 import coaxialImage from "@/assets/coaxial-outlet-example.png";
+import cableConnectorImage from "@/assets/coaxial-cable-connector.png";
 
 interface Props {
   isFrench: boolean;
@@ -18,7 +20,8 @@ interface QuestionDef {
   icon: typeof Cable;
   question: string;
   helpText?: string;
-  showImage?: boolean;
+  showOutletImage?: boolean;
+  showCableImage?: boolean;
   providerExamples?: string[];
   options: { value: CablingAnswer; label: string }[];
 }
@@ -34,7 +37,7 @@ const QUESTIONS = (isFrench: boolean): QuestionDef[] => [
       ? "Cette prise est généralement utilisée par des services Internet ou télévision par câble tels que :"
       : "This outlet is typically used by cable Internet or TV services such as:",
     providerExamples: ["Vidéotron", "Fizz", "Cogeco", "Rogers", "Shaw"],
-    showImage: true,
+    showOutletImage: true,
     options: [
       { value: "yes", label: isFrench ? "Oui" : "Yes" },
       { value: "no", label: isFrench ? "Non" : "No" },
@@ -45,14 +48,15 @@ const QUESTIONS = (isFrench: boolean): QuestionDef[] => [
     key: "cableStatus",
     icon: Plug,
     question: isFrench
-      ? "Le câble est-il déjà branché ou présent dans la prise ?"
-      : "Is the cable already plugged in or present in the outlet?",
+      ? "Le câble coaxial est-il branché et en bon état dans la prise ?"
+      : "Is the coaxial cable plugged in and in good condition?",
     helpText: isFrench
-      ? "Le câble coaxial est un câble rond qui se visse dans la prise murale et dans le modem."
-      : "A coaxial cable is a round cable that screws into the wall outlet and the modem.",
+      ? "Le câble coaxial est un câble rond avec un connecteur métallique qui se visse dans la prise murale et dans le modem."
+      : "A coaxial cable is a round cable with a metal connector that screws into the wall outlet and the modem.",
+    showCableImage: true,
     options: [
-      { value: "yes", label: isFrench ? "Oui, le câble est présent" : "Yes, the cable is present" },
-      { value: "no", label: isFrench ? "Non, il n'y a pas de câble" : "No, there is no cable" },
+      { value: "yes", label: isFrench ? "Oui, le câble est présent et intact" : "Yes, the cable is present and intact" },
+      { value: "no", label: isFrench ? "Non, il est absent ou coupé" : "No, it is absent or cut" },
       { value: "unknown", label: isFrench ? "Je ne sais pas" : "I don't know" },
     ],
   },
@@ -81,11 +85,13 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
   const questions = QUESTIONS(isFrench);
   const allAnswered = questions.every((q) => answers[q.key]);
 
+  // Check risky coax when all answered
+  const fullAnswers = allAnswered ? (answers as CablingData) : null;
+  const risky = fullAnswers ? isRiskyCoax(fullAnswers) : false;
+
   const handleAnswer = (key: keyof CablingData, value: CablingAnswer) => {
     const updated = { ...answers, [key]: value };
     setAnswers(updated);
-
-    // Auto-advance to next question after a short delay
     if (currentQ < questions.length - 1) {
       setTimeout(() => setCurrentQ(currentQ + 1), 300);
     }
@@ -102,7 +108,7 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Cable className="w-5 h-5 text-primary" />
-          {isFrench ? "Évaluation de votre câblage" : "Cabling Assessment"}
+          {isFrench ? "Vérification de votre câblage" : "Cabling Quick-Check"}
         </CardTitle>
         <CardDescription>
           {isFrench
@@ -146,8 +152,7 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-foreground">{q.question}</p>
-                  
-                  {/* Help text with provider examples */}
+
                   {q.helpText && (
                     <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border">
                       <div className="flex items-start gap-2">
@@ -172,7 +177,7 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
                   )}
 
                   {/* Coaxial outlet image for Q1 */}
-                  {q.showImage && (
+                  {q.showOutletImage && (
                     <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
                       <p className="text-xs font-medium text-muted-foreground mb-2">
                         {isFrench ? "Exemple de prise câble :" : "Cable outlet example:"}
@@ -186,7 +191,28 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
                         <ul className="text-xs text-muted-foreground space-y-1">
                           <li>• {isFrench ? "Petite prise ronde" : "Small round outlet"}</li>
                           <li>• {isFrench ? "Filetage métallique" : "Metal threading"}</li>
-                          <li>• {isFrench ? "Câble qui se visse" : "Cable that screws in"}</li>
+                          <li>• {isFrench ? "Souvent sur le mur du salon" : "Usually on the living room wall"}</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cable connector image for Q2 */}
+                  {q.showCableImage && (
+                    <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        {isFrench ? "Exemple de câble coaxial :" : "Coaxial cable example:"}
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={cableConnectorImage}
+                          alt={isFrench ? "Connecteur câble coaxial avec vis" : "Coaxial cable connector with screw"}
+                          className="w-20 h-20 rounded-lg object-cover border border-border"
+                        />
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          <li>• {isFrench ? "Câble rond avec connecteur métallique" : "Round cable with metal connector"}</li>
+                          <li>• {isFrench ? "Se visse dans la prise murale" : "Screws into the wall outlet"}</li>
+                          <li>• {isFrench ? "Doit être intact (non coupé)" : "Must be intact (not cut)"}</li>
                         </ul>
                       </div>
                     </div>
@@ -218,6 +244,18 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
             </div>
           );
         })}
+
+        {/* RISKY_COAX warning */}
+        {allAnswered && risky && (
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-accent/50 border border-accent animate-in fade-in duration-300">
+            <AlertTriangle className="w-5 h-5 text-accent-foreground flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-accent-foreground">
+              {isFrench
+                ? "Le câblage de votre adresse nécessitera une vérification sur place par un technicien."
+                : "The cabling at your address will require on-site verification by a technician."}
+            </p>
+          </div>
+        )}
 
         {/* Submit */}
         {allAnswered && (

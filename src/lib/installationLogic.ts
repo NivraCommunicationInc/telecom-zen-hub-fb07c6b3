@@ -21,18 +21,14 @@ export interface InstallationDecision {
   zone: InstallationZone;
   installationType: "auto" | "technician";
   technicianLevel: TechnicianLevel;
-  /** Minimum days from today before first available slot */
   minLeadDays: number;
-  /** Maximum days ahead to show slots */
   maxLeadDays: number;
-  /** Whether same-day is possible (if ≥4h remain in working day) */
   sameDayPossible: boolean;
-  /** User-facing message key */
   messageKey: "rapid" | "uncertain" | "heavy_work" | "remote_auto" | "remote_tech";
-  /** Readiness score 0-100 for internal tracking */
   readinessScore: number;
-  /** Whether a fallback auto-install validation ticket should be created */
   needsFallbackTicket: boolean;
+  /** True when coax is present but cable/service answers are uncertain */
+  riskyCoax: boolean;
 }
 
 // ── Montreal reference point ───────────────────────────────────────────
@@ -40,9 +36,6 @@ export interface InstallationDecision {
 const MONTREAL_LAT = 45.5017;
 const MONTREAL_LNG = -73.5673;
 
-/**
- * Haversine distance in km between two lat/lng points.
- */
 export function haversineDistance(
   lat1: number, lng1: number,
   lat2: number, lng2: number
@@ -58,36 +51,39 @@ export function haversineDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/**
- * Calculate distance from Montreal.
- */
 export function distanceFromMontreal(lat: number, lng: number): number {
   return haversineDistance(MONTREAL_LAT, MONTREAL_LNG, lat, lng);
 }
 
-// ── Readiness score ────────────────────────────────────────────────────
+// ── RISKY_COAX flag ────────────────────────────────────────────────────
 
 /**
- * Calculate a readiness score (0-100) based on questionnaire answers.
- * Higher score = more likely infrastructure is ready for quick install.
+ * Determines if the coax situation is "risky" — outlet exists but
+ * cable condition or service history is uncertain/negative.
  */
+export function isRiskyCoax(q: CablingQuestionnaire): boolean {
+  if (q.hasCoaxial !== "yes") return false;
+  // Coax present but cable missing/unknown OR no previous service
+  return (
+    q.cableStatus === "no" ||
+    q.cableStatus === "unknown" ||
+    q.previousService === "no" ||
+    q.previousService === "unknown"
+  );
+}
+
+// ── Readiness score ────────────────────────────────────────────────────
+
 export function calculateReadinessScore(q: CablingQuestionnaire): number {
   let score = 0;
-
-  // Coaxial present: 40 pts
   if (q.hasCoaxial === "yes") score += 40;
   else if (q.hasCoaxial === "unknown") score += 15;
-  // "no" = 0
 
-  // Cable intact/present: 30 pts
   if (q.cableStatus === "yes") score += 30;
   else if (q.cableStatus === "unknown") score += 10;
-  // "no" = 0
 
-  // Previous service: 30 pts
   if (q.previousService === "yes") score += 30;
   else if (q.previousService === "unknown") score += 10;
-  // "no" = 0
 
   return score;
 }
@@ -98,14 +94,12 @@ export function determineInstallation(
   distanceKm: number,
   questionnaire: CablingQuestionnaire
 ): InstallationDecision {
-  const { hasCoaxial, cableStatus, previousService } = questionnaire;
   const readinessScore = calculateReadinessScore(questionnaire);
+  const riskyCoax = isRiskyCoax(questionnaire);
+  const { hasCoaxial, cableStatus, previousService } = questionnaire;
 
   // ── Zone C — Région éloignée (>70 km) ──
   if (distanceKm > 70) {
-    // If coax absent/cut/uncertain → auto-install with fallback ticket
-    const cableProblem = hasCoaxial === "no" || cableStatus === "no" || hasCoaxial === "unknown";
-
     return {
       zone: "zone_c",
       installationType: "auto",
@@ -115,18 +109,15 @@ export function determineInstallation(
       sameDayPossible: false,
       messageKey: "remote_auto",
       readinessScore,
-      needsFallbackTicket: true, // Always create fallback for auto-install
+      needsFallbackTicket: true,
+      riskyCoax,
     };
   }
 
   // ── Zone A — Grand Montréal (≤70 km) ──
 
-  // Case 1 — Rapid install: coaxial present + cable intact + previous service
-  if (
-    hasCoaxial === "yes" &&
-    cableStatus === "yes" &&
-    previousService === "yes"
-  ) {
+  // Case 1 — Rapid: coax present + cable intact + previous service
+  if (hasCoaxial === "yes" && cableStatus === "yes" && previousService === "yes") {
     return {
       zone: "zone_a",
       installationType: "technician",
@@ -137,12 +128,12 @@ export function determineInstallation(
       messageKey: "rapid",
       readinessScore,
       needsFallbackTicket: false,
+      riskyCoax: false,
     };
   }
 
-  // Case 2 — Coaxial present + cable intact but NO previous service
-  // Still Level 1, but not same-day (slightly uncertain)
-  if (hasCoaxial === "yes" && cableStatus === "yes" && previousService !== "yes") {
+  // Case 2 — RISKY_COAX: coax present but cable or service uncertain
+  if (hasCoaxial === "yes" && riskyCoax) {
     return {
       zone: "zone_a",
       installationType: "technician",
@@ -153,11 +144,12 @@ export function determineInstallation(
       messageKey: "uncertain",
       readinessScore,
       needsFallbackTicket: false,
+      riskyCoax: true,
     };
   }
 
-  // Case 3 — Uncertain: user doesn't know about coaxial or cable status
-  if (hasCoaxial === "unknown" || cableStatus === "unknown") {
+  // Case 3 — Unknown coax → Level 1 but no same-day
+  if (hasCoaxial === "unknown") {
     return {
       zone: "zone_a",
       installationType: "technician",
@@ -168,10 +160,11 @@ export function determineInstallation(
       messageKey: "uncertain",
       readinessScore,
       needsFallbackTicket: false,
+      riskyCoax: false,
     };
   }
 
-  // Case 4 — Cable absent or cut → heavy work (Level 2)
+  // Case 4 — Coax absent → Level 2
   if (hasCoaxial === "no" || cableStatus === "no") {
     return {
       zone: "zone_b",
@@ -183,10 +176,11 @@ export function determineInstallation(
       messageKey: "heavy_work",
       readinessScore,
       needsFallbackTicket: false,
+      riskyCoax: false,
     };
   }
 
-  // Fallback → Level 1, 1-2 days
+  // Fallback
   return {
     zone: "zone_a",
     installationType: "technician",
@@ -197,22 +191,15 @@ export function determineInstallation(
     messageKey: "uncertain",
     readinessScore,
     needsFallbackTicket: false,
+    riskyCoax: false,
   };
 }
 
-/**
- * Check if same-day appointment is still possible (≥4h remaining in work day).
- */
 export function isSameDayStillAvailable(): boolean {
   const now = new Date();
-  const cutoffHour = 16; // Must book before 4 PM for same-day
-  return now.getHours() < cutoffHour;
+  return now.getHours() < 16;
 }
 
-/**
- * Messages for each decision case (FR/EN).
- * Professional, neutral — no third-party brand mentions.
- */
 export const INSTALLATION_MESSAGES: Record<
   InstallationDecision["messageKey"],
   { fr: { title: string; description: string }; en: { title: string; description: string } }
