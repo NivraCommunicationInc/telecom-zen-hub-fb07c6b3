@@ -78,8 +78,9 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
 
 const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return "N/A";
-  return format(new Date(dateStr), "d MMM yyyy", { locale: fr });
+  if (!dateStr) return "—";
+  try { return format(new Date(dateStr), "d MMM yyyy", { locale: fr }); }
+  catch { return "—"; }
 };
 
 const AdminBillingV2 = () => {

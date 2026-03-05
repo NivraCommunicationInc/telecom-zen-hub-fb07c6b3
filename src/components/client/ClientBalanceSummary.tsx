@@ -83,7 +83,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
           .order('due_date', { ascending: true });
 
         for (const inv of v2Invoices || []) {
-          const balanceDue = Number(inv.balance_due) ?? (Number(inv.total) - Number(inv.amount_paid || 0));
+          const balanceDue = Number(inv.balance_due ?? 0);
           if (balanceDue > 0) {
             allPending.push({
               id: inv.id,
@@ -108,7 +108,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
       for (const inv of legacyInvoices || []) {
         const invoiceAmount = Number(inv.amount) || 0;
         const amountPaid = Number(inv.amount_paid) || 0;
-        const balanceDue = Number(inv.balance_due) ?? (invoiceAmount - amountPaid);
+        const balanceDue = Number(inv.balance_due ?? (invoiceAmount - amountPaid));
         
         if (balanceDue > 0) {
           allPending.push({
@@ -235,7 +235,7 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
               {pendingInvoices.slice(0, 3).map((invoice) => {
                 const statusInfo = statusConfig[invoice.status] || statusConfig.pending;
                 const needsRenewal = invoice.due_date && new Date(invoice.due_date) < new Date();
-                const amountDue = invoice.balance_due ?? (invoice.total - (invoice.amount_paid || 0));
+                const amountDue = invoice.balance_due;
 
                   return (
                     <div 
