@@ -8354,6 +8354,8 @@ export type Database = {
           is_default: boolean
           is_primary: boolean | null
           label: string
+          last_install_at: string | null
+          last_install_level: string | null
           last_install_outcome: string | null
           last_install_outcome_at: string | null
           postal_code: string | null
@@ -8373,6 +8375,8 @@ export type Database = {
           is_default?: boolean
           is_primary?: boolean | null
           label?: string
+          last_install_at?: string | null
+          last_install_level?: string | null
           last_install_outcome?: string | null
           last_install_outcome_at?: string | null
           postal_code?: string | null
@@ -8392,6 +8396,8 @@ export type Database = {
           is_default?: boolean
           is_primary?: boolean | null
           label?: string
+          last_install_at?: string | null
+          last_install_level?: string | null
           last_install_outcome?: string | null
           last_install_outcome_at?: string | null
           postal_code?: string | null
