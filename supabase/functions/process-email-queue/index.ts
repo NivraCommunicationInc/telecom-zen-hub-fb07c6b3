@@ -1802,9 +1802,27 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
     `, joinUrl(config.baseUrl, "/reset-password"), "Réinitialiser mot de passe / Reset password", config.supportEmail),
   },
 
-  // =============================================
-  // IDENTITY VERIFICATION TEMPLATES
-  // =============================================
+  // AUDIT MAGIC LINK (admin access to client account)
+  audit_magiclink: {
+    subject: "Nivra — Lien d'accès sécurisé à votre compte",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name || 'Client')}
+      ${statusBadge('warning', '🔑', 'Accès administratif', 'Administrative access',
+        'Un administrateur Nivra a généré un lien d\'accès sécurisé à votre compte pour une intervention autorisée.',
+        'A Nivra administrator has generated a secure access link to your account for an authorized intervention.'
+      )}
+      ${detailsCard([
+        { label: 'Raison / Reason', value: vars.reason || 'Intervention administrative' },
+        ...(vars.expires_at ? [{ label: 'Expire le / Expires at', value: formatDate(vars.expires_at, true) }] : []),
+        ...(vars.created_at ? [{ label: 'Créé le / Created at', value: formatDate(vars.created_at, true) }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Ce lien est à usage unique et expire automatiquement. Si vous n'avez pas demandé cette intervention, contactez-nous immédiatement.<br>
+        <em style="color:${emailStyles.textMuted};">This link is single-use and expires automatically. If you did not request this, contact us immediately.</em>
+      </p>
+    `, vars.action_link || '#', "Accéder à mon compte / Access my account", config.supportEmail),
+  },
+
 
   // IDENTITY VERIFICATION REQUESTED
   identity_verification_requested: {
