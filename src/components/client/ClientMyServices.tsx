@@ -154,26 +154,10 @@ const ClientMyServices = () => {
   const [simType, setSimType] = useState<"sim" | "esim">("sim");
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
-  // Fetch subscriptions
-  const { data: subscriptions, isLoading: loadingSubs } = useQuery({
-    queryKey: ["client-services-subscriptions", user?.id],
+  // CANONICAL: V2 billing subscriptions + services ONLY (no legacy fallback)
+  const { data: billingSubscriptions, isLoading: loadingSubs } = useQuery({
+    queryKey: ["client-billing-subscriptions-canonical", user?.id],
     queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", user?.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  // Fetch V2 billing subscriptions + services (add-ons etc.)
-  const { data: billingSubscriptions } = useQuery({
-    queryKey: ["client-billing-subscriptions", user?.id],
-    queryFn: async () => {
-      // Get billing customer for this user
       const { data: customer } = await portalSupabase
         .from("billing_customers")
         .select("id")
@@ -192,23 +176,24 @@ const ClientMyServices = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch orders with equipment - exclude cancelled from client view
+  // Orders query kept only for ticket context (not for service display)
   const { data: orders } = useQuery({
     queryKey: ["client-services-orders", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
       const { data, error } = await portalSupabase
         .from("orders")
-        .select("*")
+        .select("id, order_number, status, service_type, created_at")
         .eq("user_id", user.id)
-        .neq("status", "cancelled") // Exclude cancelled orders from client view
-        .order("created_at", { ascending: false });
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(20);
       if (error) throw error;
       return data || [];
     },
     enabled: !!user?.id,
   });
+
 
   // Fetch tickets for message updates
   const { data: tickets } = useQuery({
@@ -524,15 +509,13 @@ const ClientMyServices = () => {
     return "other";
   };
 
-  // Active subscriptions (legacy)
-  const activeSubscriptions = subscriptions?.filter((s: any) => 
-    ["active", "paused", "pending", "suspended"].includes(s.status)
-  ) || [];
-  
-  // V2 billing subscriptions mapped to unified format
-  const v2Services = (billingSubscriptions || []).flatMap((sub: any) => {
-    const services = sub.billing_subscription_services || [];
-    if (services.length === 0) {
+  // CANONICAL SOURCE: billing_subscriptions + billing_subscription_services ONLY
+  // Recurring services (monthly)
+  const activeRecurringServices = (billingSubscriptions || []).flatMap((sub: any) => {
+    const services = (sub.billing_subscription_services || []).filter(
+      (svc: any) => svc.is_active && svc.service_type === 'recurring'
+    );
+    if (services.length === 0 && sub.status === 'active') {
       // Subscription with no service lines — show the plan itself
       return [{
         id: sub.id,
@@ -547,7 +530,7 @@ const ClientMyServices = () => {
         cycle_end_date: sub.cycle_end_date,
       }];
     }
-    return services.filter((svc: any) => svc.is_active).map((svc: any) => ({
+    return services.map((svc: any) => ({
       id: svc.id,
       source: "billing_v2_service",
       plan_name: svc.service_name,
@@ -562,61 +545,28 @@ const ClientMyServices = () => {
       parent_plan_name: sub.plan_name,
     }));
   });
-  
-  // Processed/completed orders that represent active services
-  const activeOrderServices = orders?.filter((o: any) => 
-    ["completed", "active", "installed", "delivered"].includes(o.status?.toLowerCase())
-  ).map((order: any) => {
-    const planInfo = getPlanInfoFromOrder(order);
-    return {
-      id: order.id,
-      source: "order",
-      order_number: order.order_number,
-      plan_name: planInfo.name || order.service_type,
-      amount: order.subtotal || order.total_amount || 0,
-      billing_cycle: "monthly",
-      status: order.status === "paused" ? "paused" : "active",
-      service_type: order.service_type,
-      category: order.category,
-      created_at: order.created_at,
-      data_allowance: planInfo.data,
-      calls_allowance: planInfo.calls,
-      texts_allowance: planInfo.texts,
-      data_used: order.data_used || 0,
-      equipment_details: order.equipment_details,
-      selected_channels: order.selected_channels,
-    };
-  }) || [];
 
-  // Combine all services — V2 billing is canonical, skip order fallback if V2 services exist
-  // Orders that have been provisioned into billing_subscription_services should NOT appear twice
-  const v2OrderNumbers = new Set(
-    (billingSubscriptions || [])
-      .filter((sub: any) => sub.plan_code?.startsWith('order-'))
-      .map((sub: any) => sub.plan_code.replace('order-', ''))
-  );
-  
-  const filteredOrderServices = activeOrderServices.filter((s: any) => 
-    !v2OrderNumbers.has(s.order_number)
-  );
-  
-  const allActiveServices = [
-    ...activeSubscriptions.map((s: any) => ({ ...s, source: "subscription" })),
-    ...v2Services,
-    ...filteredOrderServices,
-  ];
+  // Equipment (one_time items from canonical table)
+  const activeEquipment = (billingSubscriptions || []).flatMap((sub: any) => {
+    return (sub.billing_subscription_services || [])
+      .filter((svc: any) => svc.is_active && svc.service_type === 'one_time')
+      .map((svc: any) => ({
+        id: svc.id,
+        service_name: svc.service_name,
+        service_code: svc.service_code,
+        unit_price: svc.unit_price,
+        quantity: svc.quantity,
+        added_at: svc.added_at || svc.created_at,
+        parent_plan_name: sub.plan_name,
+        subscription_status: sub.status,
+      }));
+  });
+
+  const allActiveServices = activeRecurringServices;
 
   const mobileServices = allActiveServices.filter((s: any) => 
     getServiceCategory(s.plan_name || s.service_type) === "mobile"
   );
-  
-  // Equipment from orders - exclude cancelled orders
-  const equipmentOrders = orders?.filter((o: any) => 
-    o.status !== "cancelled" && (
-      o.equipment_id || o.serial_number || o.imei_number || 
-      (o.equipment_details && Array.isArray(o.equipment_details) && o.equipment_details.length > 0)
-    )
-  ) || [];
 
   // Billing calculations - V2 Ledger as source of truth
   const lastPayment = payments?.[0];
@@ -639,49 +589,6 @@ const ClientMyServices = () => {
 
   // Check if service is in Quebec
   const isQuebecService = profile?.service_province === "QC" || profile?.service_province === "Québec";
-
-  function getPlanInfoFromOrder(order: any) {
-    const serviceType = order.service_type?.toLowerCase() || "";
-    const category = order.category?.toLowerCase() || "";
-    
-    if (serviceType.includes("mobile") || category === "mobile") {
-      if (serviceType.includes("60") || order.subtotal === 60) {
-        return { 
-          name: "Mobile 60$/30 jours", 
-          data: "75-80 GB 4G", 
-          calls: "Appels illimités Canada/US",
-          texts: "Textos illimités",
-          dataGB: 80
-        };
-      }
-      return { 
-        name: "Mobile 50$/30 jours", 
-        data: "50-55 GB 4G", 
-        calls: "Appels illimités Canada/US",
-        texts: "Textos illimités",
-        dataGB: 55
-      };
-    }
-    
-    if (serviceType.includes("tv") && serviceType.includes("internet")) {
-      if (serviceType.includes("25")) return { name: "TV 25 chaînes + Internet 500", speed: "500 Mbps", channels: 25 };
-      if (serviceType.includes("15")) return { name: "TV 15 chaînes + Internet 500", speed: "500 Mbps", channels: 15 };
-      if (serviceType.includes("10")) return { name: "TV 10 chaînes + Internet 500", speed: "500 Mbps", channels: 10 };
-      if (serviceType.includes("5")) return { name: "TV 5 chaînes + Internet 500", speed: "500 Mbps", channels: 5 };
-      if (serviceType.includes("giga") || serviceType.includes("basic")) return { name: "GIGA + TV Basic", speed: "1 Gbps", channels: "Base" };
-      return { name: order.service_type, speed: "500 Mbps" };
-    }
-    
-    if (serviceType.includes("internet") || serviceType.includes("fibre")) {
-      if (serviceType.includes("1g") || serviceType.includes("fibre")) return { name: "Internet Fibre 1Gbps", speed: "1 Gbps fibre optique" };
-      if (serviceType.includes("500")) return { name: "Internet Résidentiel 500", speed: "500 Mbps ultra-rapide" };
-      return { name: "Internet Résidentiel 100", speed: "100 Mbps haute vitesse" };
-    }
-    
-    if (serviceType.includes("tv")) return { name: order.service_type, channels: order.selected_channels?.length || 0 };
-    
-    return { name: order.service_type || "Service" };
-  }
 
   return (
     <div className="space-y-6">
@@ -1154,13 +1061,13 @@ const ClientMyServices = () => {
           )}
         </TabsContent>
 
-        {/* Equipment Tab */}
+        {/* Equipment Tab — CANONICAL: billing_subscription_services where service_type='one_time' */}
         <TabsContent value="equipment" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">Mes équipements</h3>
+            <h3 className="text-lg font-semibold text-foreground">Équipements associés</h3>
           </div>
 
-          {equipmentOrders.length > 0 ? (
+          {activeEquipment.length > 0 ? (
             <div className="space-y-4">
               <Card className="bg-emerald-500/5 border-emerald-500/20">
                 <CardContent className="p-3 flex items-center gap-2">
@@ -1169,90 +1076,45 @@ const ClientMyServices = () => {
                 </CardContent>
               </Card>
 
-              {equipmentOrders.map((order: any) => {
-                const equipmentList = order.equipment_details && Array.isArray(order.equipment_details) 
-                  ? order.equipment_details 
-                  : [];
-                
-                const orderDate = new Date(order.created_at);
-                const warrantyEnd = new Date(orderDate);
-                warrantyEnd.setFullYear(warrantyEnd.getFullYear() + 1);
-                const isUnderWarranty = new Date() < warrantyEnd;
-                const isNearEndOfLife = new Date() > new Date(warrantyEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-                const equipmentTypeName = order.service_type?.toLowerCase().includes("tv") 
-                  ? "Nivra 4K Smart Terminal" 
-                  : order.service_type?.toLowerCase().includes("internet") 
-                  ? "Nivra Born Wifi Router" 
-                  : order.service_type || "Équipement";
-
-                return (
-                  <Card key={order.id} className="bg-card border-border">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                          <div>
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <Package className="w-5 h-5 text-cyan-500" />
-                              <h4 className="font-semibold text-foreground">{equipmentTypeName}</h4>
-                              <Badge className={isUnderWarranty ? "bg-emerald-500/20 text-emerald-500" : "bg-muted text-muted-foreground"}>
-                                {isUnderWarranty ? "Sous garantie" : "Garantie expirée"}
-                              </Badge>
-                              {isNearEndOfLife && isUnderWarranty && (
-                                <Badge className="bg-amber-500/20 text-amber-500">
-                                  <AlertTriangle className="w-3 h-3 mr-1" />
-                                  Fin de vie proche
-                                </Badge>
-                              )}
-                            </div>
-                            
-                            <div className="space-y-1 text-sm">
-                              <p className="text-muted-foreground">Commande: {order.order_number || order.id.slice(0, 8)}</p>
-                              {order.equipment_id && <p className="text-muted-foreground">ID: {order.equipment_id}</p>}
-                              {order.serial_number && <p className="text-muted-foreground">Série: {order.serial_number}</p>}
-                              {order.imei_number && <p className="text-muted-foreground">IMEI: {order.imei_number}</p>}
-                              {equipmentList.map((eq: any, idx: number) => (
-                                <p key={idx} className="text-foreground">• {eq.name || eq}</p>
-                              ))}
-                            </div>
-                            
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Garantie fabricant: {format(warrantyEnd, "d MMM yyyy", { locale: fr })}
+              {activeEquipment.map((eq: any) => (
+                <Card key={eq.id} className="bg-card border-border">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <Package className="w-5 h-5 text-cyan-500" />
+                          <h4 className="font-semibold text-foreground">{eq.service_name}</h4>
+                          <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <p className="text-muted-foreground">Code: {eq.service_code}</p>
+                          <p className="text-muted-foreground">Forfait: {eq.parent_plan_name}</p>
+                          <p className="text-muted-foreground">
+                            Prix: {Number(eq.unit_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                            {eq.quantity > 1 && ` × ${eq.quantity}`}
+                          </p>
+                          {eq.added_at && (
+                            <p className="text-xs text-muted-foreground">
+                              Ajouté le {format(new Date(eq.added_at), "d MMM yyyy", { locale: fr })}
                             </p>
-
-                            {/* Deposit tracking placeholder */}
-                            <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
-                              <span className="text-muted-foreground">Dépôt équipement: </span>
-                              <span className="text-foreground">0,00 $ (aucun dépôt requis)</span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedService(order);
-                                setIssueDialogOpen(true);
-                              }}
-                            >
-                              <AlertTriangle className="w-4 h-4 mr-1" />
-                              Signaler problème
-                            </Button>
-                            
-                            {isNearEndOfLife && (
-                              <Button variant="ghost" size="sm" className="text-amber-600">
-                                <ArrowUpCircle className="w-4 h-4 mr-1" />
-                                Mise à niveau
-                              </Button>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedService(eq);
+                          setIssueDialogOpen(true);
+                        }}
+                      >
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        Signaler problème
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : (
             <Card className="bg-card border-border">

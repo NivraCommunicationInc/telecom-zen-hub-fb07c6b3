@@ -1414,6 +1414,7 @@ export type Database = {
       }
       billing_subscriptions: {
         Row: {
+          address_id: string | null
           auto_billing_enabled: boolean | null
           created_at: string | null
           customer_id: string
@@ -1421,6 +1422,7 @@ export type Database = {
           cycle_start_date: string
           id: string
           last_invoice_id: string | null
+          order_id: string | null
           paypal_plan_id: string | null
           paypal_subscription_id: string | null
           plan_code: string
@@ -1433,6 +1435,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          address_id?: string | null
           auto_billing_enabled?: boolean | null
           created_at?: string | null
           customer_id: string
@@ -1440,6 +1443,7 @@ export type Database = {
           cycle_start_date: string
           id?: string
           last_invoice_id?: string | null
+          order_id?: string | null
           paypal_plan_id?: string | null
           paypal_subscription_id?: string | null
           plan_code: string
@@ -1452,6 +1456,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          address_id?: string | null
           auto_billing_enabled?: boolean | null
           created_at?: string | null
           customer_id?: string
@@ -1459,6 +1464,7 @@ export type Database = {
           cycle_start_date?: string
           id?: string
           last_invoice_id?: string | null
+          order_id?: string | null
           paypal_plan_id?: string | null
           paypal_subscription_id?: string | null
           plan_code?: string
@@ -1472,6 +1478,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "billing_subscriptions_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "billing_subscriptions_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -1484,6 +1497,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -8008,6 +8028,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      service_addresses: {
+        Row: {
+          account_id: string
+          address_line: string
+          city: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          is_primary: boolean | null
+          label: string
+          postal_code: string | null
+          province: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id: string
+          address_line: string
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          label?: string
+          postal_code?: string | null
+          province?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          address_line?: string
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_primary?: boolean | null
+          label?: string
+          postal_code?: string | null
+          province?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_addresses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_cancellation_requests: {
         Row: {
