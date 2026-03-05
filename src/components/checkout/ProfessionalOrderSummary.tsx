@@ -427,7 +427,7 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
           <span className="font-bold text-lg text-foreground">Total à payer aujourd'hui</span>
           <span className="font-bold text-2xl text-cyan-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">Taxes incluses • Montants estimatifs</p>
+        <p className="text-xs text-muted-foreground mt-1">Taxes incluses</p>
       </div>
 
       {/* Bill Previews (optional) */}
@@ -491,7 +491,7 @@ export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> =
           </Card>
           
           <p className="text-[10px] text-muted-foreground text-center italic">
-            Montants estimatifs. Taxes calculées selon l'adresse de service.
+            Taxes calculées selon l'adresse de service.
           </p>
         </div>
       )}

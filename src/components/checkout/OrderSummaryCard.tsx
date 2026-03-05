@@ -55,18 +55,14 @@ export const OrderSummaryCard = ({
 }: OrderSummaryCardProps) => {
   const [expanded, setExpanded] = useState(true);
 
-  // Calculate monthly subtotal with taxes
-  const monthlyTPS = monthlyTotal * 0.05;
-  const monthlyTVQ = monthlyTotal * 0.09975;
-  const monthlyTotalAfterTax = monthlyTotal + monthlyTPS + monthlyTVQ;
+  // All totals are expected to come from server pricing (pricing_snapshot).
+  // No client-side tax recalculation — display props as-is.
+  const monthlyTotalAfterTax = monthlyTotal + (tpsAmount || 0) + (tvqAmount || 0);
 
-  // Calculate one-time subtotal
+  // One-time subtotal (display only, no recalculation)
   const oneTimeSubtotal = oneTimeItems.reduce((sum, item) => {
     return sum + (item.isDiscount ? -Math.abs(item.amount) : item.amount);
   }, 0);
-  const oneTimeTPS = Math.max(0, oneTimeSubtotal) * 0.05;
-  const oneTimeTVQ = Math.max(0, oneTimeSubtotal) * 0.09975;
-  const oneTimeTotalAfterTax = Math.max(0, oneTimeSubtotal + oneTimeTPS + oneTimeTVQ);
 
   return (
     <div className={cn("bg-white border border-slate-200 rounded-lg", className)}>
@@ -122,14 +118,14 @@ export const OrderSummaryCard = ({
                 <span className="text-slate-900">{monthlyTotal.toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
               </div>
 
-              {/* Tax breakdown */}
+              {/* Tax breakdown — from server props */}
               <div className="flex justify-between text-sm mt-1">
                 <span className="text-slate-500">{isFrench ? "TPS/TVH sur le forfait et les options" : "GST/HST"}</span>
-                <span className="text-slate-700">{monthlyTPS.toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
+                <span className="text-slate-700">{(tpsAmount || 0).toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
               </div>
               <div className="flex justify-between text-sm mt-1">
                 <span className="text-slate-500">{isFrench ? "TVP/TVQ sur le forfait et les options" : "PST/QST"}</span>
-                <span className="text-slate-700">{monthlyTVQ.toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
+                <span className="text-slate-700">{(tvqAmount || 0).toFixed(2)} $/{isFrench ? "mois" : "mo"}</span>
               </div>
 
               {/* Monthly total after taxes - Rogers big number style */}
@@ -200,10 +196,10 @@ export const OrderSummaryCard = ({
                 </span>
                 <div className="text-right">
                   <span className="text-3xl font-bold text-slate-900">
-                    {Math.floor(oneTimeTotalAfterTax).toLocaleString("fr-CA")}
+                    {Math.floor(totalDueNow || 0).toLocaleString("fr-CA")}
                   </span>
                   <span className="text-sm font-bold text-slate-900 align-top">
-                    ,{((oneTimeTotalAfterTax % 1) * 100).toFixed(0).padStart(2, "0")} $
+                    ,{(((totalDueNow || 0) % 1) * 100).toFixed(0).padStart(2, "0")} $
                   </span>
                 </div>
               </div>
