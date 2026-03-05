@@ -419,6 +419,21 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
     `, joinUrl(config.baseUrl, "/admin/email-activity"), "Voir l'activité / View activity", config.supportEmail),
   },
 
+  // CUSTOM HTML PASSTHROUGH — for emails enqueued via ResendProxy / enqueueEmail.
+  // The pre-built HTML is stored in template_vars._html; subject in _subject.
+  custom_html: {
+    subject: "Nivra Telecom",
+    getHtml: (vars, config) => {
+      if (vars._html) return vars._html;
+      // Fallback: simple message wrapper
+      return wrapEmail(`
+        <p style="font-size:14px;color:${emailStyles.textSecondary};">
+          ${vars.message || 'Contenu non disponible.'}
+        </p>
+      `, undefined, undefined, config.supportEmail);
+    },
+  },
+
   // ACCOUNT CREATED
   account_created: {
     subject: "Nivra — Bienvenue chez Nivra Telecom!",
@@ -2371,7 +2386,8 @@ Deno.serve(async (req) => {
         const html = template.getHtml(templateVars, emailConfig);
         
         // Replace template variables in subject
-        let subject = template.subject;
+        // Subject: prefer override from template_vars (custom_html emails), then template default
+        let subject = templateVars._subject || template.subject;
         const vars = templateVars;
         if (vars.order_number) subject = subject.replace('{{order_number}}', vars.order_number);
         if (vars.invoice_number) subject = subject.replace('{{invoice_number}}', vars.invoice_number);
@@ -2380,8 +2396,12 @@ Deno.serve(async (req) => {
         if (vars.request_number) subject = subject.replace('{{request_number}}', vars.request_number);
         if (vars.dispute_number) subject = subject.replace('{{dispute_number}}', vars.dispute_number);
 
-        // Generate plain text version from subject for preview
-        const plainText = `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
+        // Plain text: prefer override, then auto-generate
+        const plainText = templateVars._text || `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
+
+        // Support from/reply-to overrides from template_vars (queued custom_html emails via ResendProxy)
+        const effectiveFrom = templateVars._from_email || emailFromAddress;
+        const effectiveReplyTo = templateVars._reply_to || emailReplyTo;
 
         // DOMAIN VALIDATION: Only allow verified Resend domains
         const ALLOWED_DOMAINS = ['nivra-telecom.ca', 'send.nivra-telecom.ca', 'nivra.ca', 'nivratelecom.ca', 'resend.dev'];
@@ -2390,7 +2410,7 @@ Deno.serve(async (req) => {
         // - "Nivra Telecom <support@nivra-telecom.ca>"
         // - "support@nivra-telecom.ca"
         // - "Nivra <support@nivra-telecom.ca>" (with trailing chars)
-        let actualEmail = emailFromAddress.trim();
+        let actualEmail = effectiveFrom.trim();
         
         // Extract email from angle brackets if present
         const emailMatch = emailFromAddress.match(/<([^>]+)>/);
@@ -2431,20 +2451,25 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Generate PDF attachment if applicable
+        // Generate attachments: passthrough from ResendProxy OR auto-generated PDF
         let attachments: Array<{ filename: string; content: string }> | undefined;
-        const pdfAttachment = generateEmailPDFAttachment(templateKey, templateVars);
-        if (pdfAttachment) {
-          attachments = [{
-            filename: pdfAttachment.filename,
-            content: pdfAttachment.content,
-          }];
-          console.log(`[PDF ATTACHED] email_id=${email.id} file=${pdfAttachment.filename}`);
+        if (templateVars._attachments && Array.isArray(templateVars._attachments)) {
+          attachments = templateVars._attachments;
+          console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
+        } else {
+          const pdfAttachment = generateEmailPDFAttachment(templateKey, templateVars);
+          if (pdfAttachment) {
+            attachments = [{
+              filename: pdfAttachment.filename,
+              content: pdfAttachment.content,
+            }];
+            console.log(`[PDF ATTACHED] email_id=${email.id} file=${pdfAttachment.filename}`);
+          }
         }
 
         const emailPayload: Record<string, any> = {
-          from: emailFromAddress,
-          reply_to: emailReplyTo,
+          from: effectiveFrom,
+          reply_to: effectiveReplyTo,
           to: [email.to_email],
           subject,
           html,

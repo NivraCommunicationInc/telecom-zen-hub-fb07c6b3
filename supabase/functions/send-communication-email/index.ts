@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 interface Recipient {
   email: string;
@@ -151,58 +152,48 @@ serve(async (req) => {
       try {
         const html = buildHtmlEmail(recipient.name, message);
 
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${resendApiKey}`,
-          },
-          body: JSON.stringify({
-            from: "Nivra Télécom <communication@nivra-telecom.ca>",
-            reply_to: "support@nivra-telecom.ca",
-            to: [recipient.email],
-            subject,
-            html,
-          }),
+        const eqResult = await enqueueEmail({
+          to: recipient.email,
+          templateKey: "custom_html",
+          subject,
+          html,
+          fromEmail: "Nivra Télécom <communication@nivra-telecom.ca>",
+          replyTo: "support@nivra-telecom.ca",
+          messageType: "communication_email",
+          entityType: "direct_email",
+          entityId: directEmailId,
+          eventKey: `comm_${directEmailId}_${recipient.email}`,
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          console.error(`Failed to send to ${recipient.email}:`, result);
-          errors.push(`${recipient.email}: ${result.message || "Failed"}`);
+        if (!eqResult.success) {
+          console.error(`Failed to queue for ${recipient.email}:`, eqResult.error);
+          errors.push(`${recipient.email}: ${eqResult.error || "Queue failed"}`);
           failedCount++;
           
-          // Log individual send failure
           await supabase.from("direct_email_recipients").insert({
             direct_email_id: directEmailId,
             email: recipient.email,
             name: recipient.name,
             client_id: recipient.client_id,
             status: "failed",
-            error_message: result.message || "Failed to send",
+            error_message: eqResult.error || "Failed to queue",
           });
         } else {
-          console.log(`Email sent to ${recipient.email}: ${result.id}`);
+          console.log(`Email queued for ${recipient.email}: ${eqResult.id}`);
           sentCount++;
           
-          // Log individual send success
           await supabase.from("direct_email_recipients").insert({
             direct_email_id: directEmailId,
             email: recipient.email,
             name: recipient.name,
             client_id: recipient.client_id,
-            status: "sent",
-            resend_id: result.id,
-            sent_at: new Date().toISOString(),
+            status: "queued",
+            resend_id: eqResult.id,
           });
         }
 
-        // Rate limiting: 10 emails per second max
-        await new Promise(resolve => setTimeout(resolve, 100));
-
       } catch (error) {
-        console.error(`Error sending to ${recipient.email}:`, error);
+        console.error(`Error queuing for ${recipient.email}:`, error);
         errors.push(`${recipient.email}: ${(error as Error).message}`);
         failedCount++;
         

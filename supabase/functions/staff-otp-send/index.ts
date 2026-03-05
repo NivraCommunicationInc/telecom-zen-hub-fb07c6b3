@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -237,17 +238,15 @@ Deno.serve(async (req) => {
     // Send email with OTP
     if (RESEND_API_KEY) {
       try {
-        const emailResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "Nivra Sécurité <noreply@nivra-telecom.ca>",
-            to: [user.email],
-            subject: "Votre code de vérification Nivra",
-            html: `
+        const eqResult = await enqueueEmail({
+          to: user.email,
+          templateKey: "custom_html",
+          subject: "Votre code de vérification Nivra",
+          fromEmail: "Nivra Sécurité <noreply@nivra-telecom.ca>",
+          messageType: "staff_otp",
+          entityType: "user",
+          entityId: user_id,
+          html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #0891b2;">Code de vérification</h2>
                 <p>Votre code de vérification pour accéder au portail Nivra est :</p>
@@ -258,16 +257,15 @@ Deno.serve(async (req) => {
                 <p style="color: #6b7280; font-size: 14px;">Si vous n'avez pas demandé ce code, ignorez ce message.</p>
               </div>
             `,
-          }),
         });
 
-        if (!emailResponse.ok) {
-          console.error("Resend API error:", await emailResponse.text());
+        if (!eqResult.success) {
+          console.error("Email queue error:", eqResult.error);
         } else {
-          console.log(`OTP email sent to ${user.email}`);
+          console.log(`OTP email queued for ${user.email}`);
         }
       } catch (emailErr) {
-        console.error("Failed to send email:", emailErr);
+        console.error("Failed to queue email:", emailErr);
       }
     } else {
       // DEV mode - log OTP to console

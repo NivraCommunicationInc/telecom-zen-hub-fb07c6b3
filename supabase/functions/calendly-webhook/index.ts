@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 interface CalendlyPayload {
   event: string;
@@ -84,17 +85,15 @@ const handler = async (req: Request): Promise<Response> => {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (resendApiKey) {
         try {
-          const emailResponse = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${resendApiKey}`,
-            },
-            body: JSON.stringify({
-              from: "Nivra <onboarding@resend.dev>",
-              to: [invitee.email],
-              subject: "Confirmation de votre rendez-vous - Nivra",
-              html: `
+          const eqResult = await enqueueEmail({
+            to: invitee.email,
+            templateKey: "custom_html",
+            subject: "Confirmation de votre rendez-vous - Nivra",
+            fromEmail: "Nivra <noreply@nivra-telecom.ca>",
+            messageType: "appointment_confirmation",
+            entityType: "appointment",
+            entityId: appointment?.id,
+            html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
                     <h1 style="color: white; margin: 0;">Nivra</h1>
@@ -111,12 +110,12 @@ const handler = async (req: Request): Promise<Response> => {
                   </div>
                 </div>
               `,
-            }),
           });
-          console.log("Email sent:", await emailResponse.json());
+          console.log("Email queued:", eqResult);
         } catch (emailError) {
-          console.error("Error sending email:", emailError);
+          console.error("Error queuing email:", emailError);
         }
+      }
       }
 
       return new Response(JSON.stringify({ success: true, appointment }), {
