@@ -1,14 +1,17 @@
 /**
- * AdminOrderWorkbench - Carrier-grade order processing hub
+ * AdminOrderWorkbench V2 — Carrier-grade order processing hub
  * Route: /admin/orders/:id
+ * Full page layout with TELUS-grade design
  */
 import { useParams, Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, ListChecks, FileText } from "lucide-react";
+import { Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, ListChecks, FileText, ExternalLink } from "lucide-react";
 import { useWorkbenchData } from "@/hooks/useWorkbenchData";
 import { useAuth } from "@/hooks/useAuth";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
+import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
 import { WorkbenchSummaryTab } from "@/components/workbench/WorkbenchSummaryTab";
 import { WorkbenchItemsTab } from "@/components/workbench/WorkbenchItemsTab";
 import { WorkbenchProvisioningTab } from "@/components/workbench/WorkbenchProvisioningTab";
@@ -19,6 +22,19 @@ import { WorkbenchAuditTab } from "@/components/workbench/WorkbenchAuditTab";
 import { WorkbenchNotesTab } from "@/components/workbench/WorkbenchNotesTab";
 import { OrderDocumentsPanel } from "@/components/admin/OrderDocumentsPanel";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+const TABS = [
+  { value: "summary", label: "Résumé", icon: ListChecks },
+  { value: "items", label: "Items", icon: Package, count: true },
+  { value: "provisioning", label: "Provisioning", icon: Wifi, count: true },
+  { value: "fulfillment", label: "Fulfillment", icon: Truck },
+  { value: "payment", label: "Paiement", icon: CreditCard },
+  { value: "documents", label: "Documents", icon: FileText },
+  { value: "kyc", label: "KYC", icon: Shield },
+  { value: "audit", label: "Audit", icon: History },
+  { value: "notes", label: "Notes", icon: MessageSquare },
+] as const;
 
 const AdminOrderWorkbench = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,7 +49,7 @@ const AdminOrderWorkbench = () => {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-teal-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       </AdminLayout>
     );
@@ -42,137 +58,143 @@ const AdminOrderWorkbench = () => {
   if (!data.order) {
     return (
       <AdminLayout>
-        <div className="text-center py-20">
+        <div className="text-center py-20 space-y-4">
           <p className="text-muted-foreground">Commande introuvable.</p>
           <Link to="/admin/orders">
-            <Button variant="outline" className="mt-4">Retour aux commandes</Button>
+            <Button variant="outline" size="sm">Retour aux commandes</Button>
           </Link>
         </div>
       </AdminLayout>
     );
   }
 
+  const orderNumber = data.order.order_number || data.order.id?.slice(0, 8);
+  const orderStatus = data.order.status || "pending";
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/admin/orders">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-xl font-bold text-white">
-                Commande {data.order.order_number || data.order.id?.slice(0, 8)}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {data.profile?.full_name || data.order.client_email || "Client inconnu"} — {data.order.service_type || "Service"}
-              </p>
+        {/* Page Header */}
+        <PageHeader
+          title={`Commande #${orderNumber}`}
+          subtitle={`${data.profile?.full_name || data.order.client_email || "Client"} — ${data.order.service_type || "Service"}`}
+          breadcrumbs={[
+            { label: "Admin", href: "/admin" },
+            { label: "Commandes", href: "/admin/orders" },
+            { label: `#${orderNumber}` },
+          ]}
+          badge={
+            <StatusBadge
+              label={orderStatus}
+              variant={statusToVariant(orderStatus)}
+              size="md"
+            />
+          }
+          actions={
+            <div className="flex items-center gap-2">
+              {data.order.user_id && (
+                <Link to={`/admin/clients`}>
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8">
+                    <ExternalLink className="h-3 w-3" /> Client
+                  </Button>
+                </Link>
+              )}
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* Tabs */}
         <Tabs defaultValue="summary" className="w-full">
-          <TabsList className="bg-slate-800/80 border border-slate-700/50 flex-wrap h-auto p-1 gap-1">
-            <TabsTrigger value="summary" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <ListChecks className="h-3.5 w-3.5" /> Résumé
-            </TabsTrigger>
-            <TabsTrigger value="items" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <Package className="h-3.5 w-3.5" /> Items ({data.orderItems.length})
-            </TabsTrigger>
-            <TabsTrigger value="provisioning" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <Wifi className="h-3.5 w-3.5" /> Provisioning ({data.provisioningJobs.length})
-            </TabsTrigger>
-            <TabsTrigger value="fulfillment" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <Truck className="h-3.5 w-3.5" /> Fulfillment
-            </TabsTrigger>
-            <TabsTrigger value="payment" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <CreditCard className="h-3.5 w-3.5" /> Paiement
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <FileText className="h-3.5 w-3.5" /> Documents
-            </TabsTrigger>
-            <TabsTrigger value="kyc" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <Shield className="h-3.5 w-3.5" /> KYC
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <History className="h-3.5 w-3.5" /> Audit
-            </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
-              <MessageSquare className="h-3.5 w-3.5" /> Notes
-            </TabsTrigger>
+          <TabsList className="bg-[hsl(222,40%,12%)] border border-[hsl(222,30%,16%)] p-0.5 h-auto flex-wrap gap-0">
+            {TABS.map((tab) => {
+              const count = tab.value === "items" ? data.orderItems.length
+                : tab.value === "provisioning" ? data.provisioningJobs.length
+                : null;
+              return (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="gap-1.5 text-xs px-3 py-2 rounded-md data-[state=active]:bg-[hsl(168,76%,42%)] data-[state=active]:text-[hsl(222,47%,9%)] data-[state=active]:shadow-none text-[hsl(220,9%,50%)]"
+                >
+                  <tab.icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                  {count !== null && count > 0 && (
+                    <span className="ml-0.5 text-[10px] opacity-70">({count})</span>
+                  )}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
 
-          <TabsContent value="summary">
-            <WorkbenchSummaryTab
-              order={data.order}
-              profile={data.profile}
-              nextActions={data.nextActions}
-              orderItems={data.orderItems}
-              provisioningJobs={data.provisioningJobs}
-              role={role}
-              onAction={handleAction}
-            />
-          </TabsContent>
+          <div className="mt-6">
+            <TabsContent value="summary" className="mt-0">
+              <WorkbenchSummaryTab
+                order={data.order}
+                profile={data.profile}
+                nextActions={data.nextActions}
+                orderItems={data.orderItems}
+                provisioningJobs={data.provisioningJobs}
+                role={role}
+                onAction={handleAction}
+              />
+            </TabsContent>
 
-          <TabsContent value="items">
-            <WorkbenchItemsTab orderItems={data.orderItems} provisioningJobs={data.provisioningJobs} />
-          </TabsContent>
+            <TabsContent value="items" className="mt-0">
+              <WorkbenchItemsTab orderItems={data.orderItems} provisioningJobs={data.provisioningJobs} />
+            </TabsContent>
 
-          <TabsContent value="provisioning">
-            <WorkbenchProvisioningTab
-              provisioningJobs={data.provisioningJobs}
-              orderId={id!}
-              role={role}
-              onRefresh={data.refetchAll}
-            />
-          </TabsContent>
+            <TabsContent value="provisioning" className="mt-0">
+              <WorkbenchProvisioningTab
+                provisioningJobs={data.provisioningJobs}
+                orderId={id!}
+                role={role}
+                onRefresh={data.refetchAll}
+              />
+            </TabsContent>
 
-          <TabsContent value="fulfillment">
-            <WorkbenchFulfillmentTab
-              shipments={data.shipments}
-              inventoryAssignments={data.inventoryAssignments}
-              appointments={data.appointments}
-            />
-          </TabsContent>
+            <TabsContent value="fulfillment" className="mt-0">
+              <WorkbenchFulfillmentTab
+                shipments={data.shipments}
+                inventoryAssignments={data.inventoryAssignments}
+                appointments={data.appointments}
+              />
+            </TabsContent>
 
-          <TabsContent value="payment">
-            <WorkbenchPaymentTab
-              order={data.order}
-              billing={data.billing}
-              billingInvoices={data.billingInvoices}
-              role={role}
-            />
-          </TabsContent>
+            <TabsContent value="payment" className="mt-0">
+              <WorkbenchPaymentTab
+                order={data.order}
+                billing={data.billing}
+                billingInvoices={data.billingInvoices}
+                role={role}
+              />
+            </TabsContent>
 
-          <TabsContent value="documents">
-            <OrderDocumentsPanel
-              orderId={id!}
-              orderNumber={data.order.order_number}
-              orderStatus={data.order.status}
-              kycSessionId={data.kycSession?.id}
-            />
-          </TabsContent>
+            <TabsContent value="documents" className="mt-0">
+              <OrderDocumentsPanel
+                orderId={id!}
+                orderNumber={data.order.order_number}
+                orderStatus={data.order.status}
+                kycSessionId={data.kycSession?.id}
+              />
+            </TabsContent>
 
-          <TabsContent value="kyc">
-            <WorkbenchKYCTab
-              order={data.order}
-              kycSession={data.kycSession}
-              role={role}
-              onAction={handleAction}
-            />
-          </TabsContent>
+            <TabsContent value="kyc" className="mt-0">
+              <WorkbenchKYCTab
+                order={data.order}
+                kycSession={data.kycSession}
+                role={role}
+                onAction={handleAction}
+              />
+            </TabsContent>
 
-          <TabsContent value="audit">
-            <WorkbenchAuditTab activityLogs={data.activityLogs} />
-          </TabsContent>
+            <TabsContent value="audit" className="mt-0">
+              <WorkbenchAuditTab activityLogs={data.activityLogs} />
+            </TabsContent>
 
-          <TabsContent value="notes">
-            <WorkbenchNotesTab orderId={id!} />
-          </TabsContent>
+            <TabsContent value="notes" className="mt-0">
+              <WorkbenchNotesTab orderId={id!} />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </AdminLayout>
