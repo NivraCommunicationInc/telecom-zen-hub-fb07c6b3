@@ -10542,21 +10542,37 @@ export type Database = {
         }
         Returns: Json
       }
-      apply_payment_to_invoice: {
-        Args: {
-          p_amount: number
-          p_created_by_name?: string
-          p_created_by_role?: string
-          p_customer_id?: string
-          p_invoice_id: string
-          p_method?: string
-          p_provider?: string
-          p_provider_order_id?: string
-          p_provider_payment_id?: string
-          p_source?: string
-        }
-        Returns: Json
-      }
+      apply_payment_to_invoice:
+        | {
+            Args: {
+              p_amount: number
+              p_created_by_name?: string
+              p_created_by_role?: string
+              p_customer_id?: string
+              p_invoice_id: string
+              p_method?: string
+              p_provider?: string
+              p_provider_order_id?: string
+              p_provider_payment_id?: string
+              p_source?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_created_by_name?: string
+              p_created_by_role?: string
+              p_customer_id?: string
+              p_invoice_id: string
+              p_method?: string
+              p_provider?: string
+              p_provider_order_id?: string
+              p_provider_payment_id?: string
+              p_source?: string
+            }
+            Returns: Json
+          }
       calculate_activation_fee: {
         Args: { service_count: number }
         Returns: number
@@ -10829,6 +10845,10 @@ export type Database = {
         Returns: undefined
       }
       normalize_text: { Args: { val: string }; Returns: string }
+      provision_services_for_order: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
       queue_email: {
         Args: {
           p_event_key: string
