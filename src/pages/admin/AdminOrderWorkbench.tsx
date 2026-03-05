@@ -6,7 +6,7 @@ import { useParams, Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, ListChecks } from "lucide-react";
+import { ArrowLeft, Loader2, Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, ListChecks, FileText } from "lucide-react";
 import { useWorkbenchData } from "@/hooks/useWorkbenchData";
 import { useAuth } from "@/hooks/useAuth";
 import { WorkbenchSummaryTab } from "@/components/workbench/WorkbenchSummaryTab";
@@ -17,6 +17,7 @@ import { WorkbenchPaymentTab } from "@/components/workbench/WorkbenchPaymentTab"
 import { WorkbenchKYCTab } from "@/components/workbench/WorkbenchKYCTab";
 import { WorkbenchAuditTab } from "@/components/workbench/WorkbenchAuditTab";
 import { WorkbenchNotesTab } from "@/components/workbench/WorkbenchNotesTab";
+import { OrderDocumentsPanel } from "@/components/admin/OrderDocumentsPanel";
 import { toast } from "sonner";
 
 const AdminOrderWorkbench = () => {
@@ -25,7 +26,6 @@ const AdminOrderWorkbench = () => {
   const data = useWorkbenchData(id);
 
   const handleAction = (action: string, payload?: any) => {
-    // Tab navigation hint for now; specific actions handled in their tabs
     toast.info(`Action: ${action}`);
   };
 
@@ -92,6 +92,9 @@ const AdminOrderWorkbench = () => {
             <TabsTrigger value="payment" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
               <CreditCard className="h-3.5 w-3.5" /> Paiement
             </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
+              <FileText className="h-3.5 w-3.5" /> Documents
+            </TabsTrigger>
             <TabsTrigger value="kyc" className="gap-1.5 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-300">
               <Shield className="h-3.5 w-3.5" /> KYC
             </TabsTrigger>
@@ -142,6 +145,15 @@ const AdminOrderWorkbench = () => {
               billing={data.billing}
               billingInvoices={data.billingInvoices}
               role={role}
+            />
+          </TabsContent>
+
+          <TabsContent value="documents">
+            <OrderDocumentsPanel
+              orderId={id!}
+              orderNumber={data.order.order_number}
+              orderStatus={data.order.status}
+              kycSessionId={data.kycSession?.id}
             />
           </TabsContent>
 
