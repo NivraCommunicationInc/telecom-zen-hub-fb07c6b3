@@ -109,46 +109,38 @@ serve(async (req) => {
     // Due date = cycle end date
     const dueDate = cycleEndDate.toISOString().split('T')[0];
     
-    // Step 5: Create invoice
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("billing_invoices")
-      .insert({
-        subscription_id: subscription.id,
-        customer_id: customerId,
-        invoice_number: invoiceNumber,
-        type: 'initial',
-        subtotal,
-        tps_amount: tpsAmount,
-        tvq_amount: tvqAmount,
-        total,
-        currency: 'CAD',
-        payment_method: body.payment_method || 'interac',
-        status: 'pending',
-        cycle_start_date: cycleStartDate.toISOString().split('T')[0],
-        cycle_end_date: cycleEndDate.toISOString().split('T')[0],
-        due_date: dueDate
-      })
-      .select()
-      .single();
-    
-    if (invoiceError) throw invoiceError;
-    
-    // Step 6: Create invoice line
-    await supabase
-      .from("billing_invoice_lines")
-      .insert({
-        invoice_id: invoice.id,
-        description: `${body.plan_name} – 30 jours`,
-        unit_price: body.plan_price,
-        quantity: 1,
-        line_total: body.plan_price
+    // Step 5: Create invoice WITH lines atomically via RPC
+    const { data: invoiceId, error: invoiceError } = await supabase
+      .rpc("create_invoice_with_lines", {
+        p_subscription_id: subscription.id,
+        p_customer_id: customerId,
+        p_invoice_number: invoiceNumber,
+        p_type: 'initial',
+        p_subtotal: subtotal,
+        p_tps_amount: tpsAmount,
+        p_tvq_amount: tvqAmount,
+        p_total: total,
+        p_payment_method: body.payment_method || 'interac',
+        p_cycle_start: cycleStartDate.toISOString().split('T')[0],
+        p_cycle_end: cycleEndDate.toISOString().split('T')[0],
+        p_due_date: dueDate,
+        p_order_id: null,
+        p_lines: JSON.stringify([{
+          description: `${body.plan_name} – 30 jours`,
+          unit_price: body.plan_price,
+          quantity: 1,
+          line_total: body.plan_price,
+          line_type: 'service'
+        }])
       });
     
-    // Step 7: Create pending payment record
+    if (invoiceError) throw invoiceError;
+
+    // Step 6: Create pending payment record
     await supabase
       .from("billing_payments")
       .insert({
-        invoice_id: invoice.id,
+        invoice_id: invoiceId,
         customer_id: customerId,
         method: body.payment_method || 'interac',
         amount: total,
@@ -191,7 +183,7 @@ serve(async (req) => {
         success: true,
         customer_id: customerId,
         subscription_id: subscription.id,
-        invoice_id: invoice.id,
+        invoice_id: invoiceId,
         invoice_number: invoiceNumber,
         total
       }),

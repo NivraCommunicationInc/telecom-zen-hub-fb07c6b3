@@ -1920,7 +1920,7 @@ Deno.serve(async (req) => {
         const plainText = `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
 
         // DOMAIN VALIDATION: Only allow verified Resend domains
-        const ALLOWED_DOMAINS = ['nivra-telecom.ca', 'send.nivra-telecom.ca', 'nivra.ca'];
+        const ALLOWED_DOMAINS = ['nivra-telecom.ca', 'send.nivra-telecom.ca', 'nivra.ca', 'nivratelecom.ca', 'resend.dev'];
         
         // ROBUST EMAIL EXTRACTION: Handle various formats
         // - "Nivra Telecom <support@nivra-telecom.ca>"
