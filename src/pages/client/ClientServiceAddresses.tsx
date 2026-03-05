@@ -60,6 +60,21 @@ const ClientServiceAddresses = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch billing customer (for subscription counts)
+  const { data: billingCustomer } = useQuery({
+    queryKey: ["billing-customer-for-addresses", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   // Fetch addresses
   const { data: addresses = [], isLoading } = useQuery({
     queryKey: ["service-addresses", account?.id],
@@ -75,6 +90,27 @@ const ClientServiceAddresses = () => {
       return (data || []) as ServiceAddress[];
     },
     enabled: !!account?.id,
+  });
+
+  // Count active/pending/suspended services per address
+  const { data: addressServiceCounts = {} } = useQuery({
+    queryKey: ["address-service-counts", billingCustomer?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_subscriptions")
+        .select("address_id")
+        .eq("customer_id", billingCustomer!.id)
+        .in("status", ["active", "pending", "suspended"])
+        .not("address_id", "is", null);
+      if (error) throw error;
+
+      return (data || []).reduce((acc, row: { address_id: string | null }) => {
+        if (!row.address_id) return acc;
+        acc[row.address_id] = (acc[row.address_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+    },
+    enabled: !!billingCustomer?.id,
   });
 
   return (
@@ -132,6 +168,7 @@ const ClientServiceAddresses = () => {
                 <AddressCard
                   key={addr.id}
                   address={addr}
+                  serviceCount={addressServiceCounts[addr.id] || 0}
                   onEdit={() => setEditingId(addr.id)}
                   onSetDefault={() => {
                     supabase
@@ -167,9 +204,10 @@ const ClientServiceAddresses = () => {
 
 // --- Address Card ---
 const AddressCard = ({
-  address, onEdit, onSetDefault, onDeactivate
+  address, serviceCount, onEdit, onSetDefault, onDeactivate
 }: {
   address: ServiceAddress;
+  serviceCount: number;
   onEdit: () => void;
   onSetDefault: () => void;
   onDeactivate: () => void;
@@ -193,6 +231,9 @@ const AddressCard = ({
         </p>
         <p className="text-xs text-muted-foreground">
           {address.city}{address.province ? `, ${address.province}` : ""} {address.postal_code}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {serviceCount} service{serviceCount > 1 ? "s" : ""}
         </p>
       </div>
       <div className="flex gap-1 shrink-0">
