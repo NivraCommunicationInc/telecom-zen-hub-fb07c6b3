@@ -3334,6 +3334,8 @@ export type Database = {
           complained_at: string | null
           created_at: string
           delivered_at: string | null
+          entity_id: string | null
+          entity_type: string | null
           event_key: string
           from_email: string | null
           id: string
@@ -3341,8 +3343,10 @@ export type Database = {
           last_error: string | null
           max_attempts: number
           max_retries: number | null
+          message_type: string | null
           next_retry_at: string | null
           opened_at: string | null
+          preview_text: string | null
           provider_message_id: string | null
           provider_response: Json | null
           provider_status: string | null
@@ -3363,6 +3367,8 @@ export type Database = {
           complained_at?: string | null
           created_at?: string
           delivered_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
           event_key: string
           from_email?: string | null
           id?: string
@@ -3370,8 +3376,10 @@ export type Database = {
           last_error?: string | null
           max_attempts?: number
           max_retries?: number | null
+          message_type?: string | null
           next_retry_at?: string | null
           opened_at?: string | null
+          preview_text?: string | null
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null
@@ -3392,6 +3400,8 @@ export type Database = {
           complained_at?: string | null
           created_at?: string
           delivered_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
           event_key?: string
           from_email?: string | null
           id?: string
@@ -3399,8 +3409,10 @@ export type Database = {
           last_error?: string | null
           max_attempts?: number
           max_retries?: number | null
+          message_type?: string | null
           next_retry_at?: string | null
           opened_at?: string | null
+          preview_text?: string | null
           provider_message_id?: string | null
           provider_response?: Json | null
           provider_status?: string | null

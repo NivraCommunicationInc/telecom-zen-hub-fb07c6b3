@@ -4,62 +4,91 @@
  */
 
 // Template mapping - internal key => Resend template slug
+// COMPLETE TELECOM CATALOG - all templates must be registered here
 export const RESEND_TEMPLATES = {
-  // Appointments
-  appointment_scheduled: "appointment_scheduled_fr",
-  
-  // Contracts
-  contract_signed: "contract_signed_fr",
-  
-  // Account/Access
+  // === ACCOUNT ===
+  account_created: "account_created_fr",
   account_blocked: "account_blocked_fr",
+  account_locked: "account_locked_fr",
   online_access_blocked: "online_access_blocked_fr",
   online_account_blocked: "online_account_blocked_fr",
-  account_created: "account_created_fr",
   
-  // Service Cancellations
-  service_cancellation_requested: "service_cancellation_requested_fr",
-  service_cancellation_request: "service_cancellation_request_fr",
-  service_cancellation: "service_cancellation_f",
-  service_cancelled_90_days: "service_cancelled_90_days_fr",
+  // === SECURITY ===
+  login_alert: "login_alert_fr",
+  new_device_login: "new_device_login_fr",
+  password_changed: "password_changed_fr",
+  password_reset: "nivra_password_reset_fr",
+  email_changed: "email_changed_fr",
+  email_verification: "nivra_email_verification_fr",
   
-  // SIM/Mobile
-  sim_lost: "sim_lost_fr",
-  sim_lost_replacement: "sim_lost_replacement_fr",
+  // === IDENTITY / KYC ===
+  identity_verification_requested: "identity_verification_requested_fr",
+  identity_document_received: "identity_document_received_fr",
+  identity_verified: "identity_verified_fr",
+  identity_rejected: "identity_rejected_fr",
   
-  // Payments
-  payment_contested: "payment_contested_fr",
-  payment_declined: "nivra_payment_declined_fr",
-  payment_failed: "nivra_payment_failed_fr-1",
-  payment_verification: "nivra_payment_verification_fr",
-  payment_receipt: "nivra_payment_receipt_fr",
+  // === PROFILE CHANGES ===
+  profile_change_requested: "profile_change_requested_fr",
+  profile_change_approved: "profile_change_approved_fr",
+  profile_change_rejected: "profile_change_rejected_fr",
   
-  // Tickets
-  ticket_created: "ticket_created_fr",
-  ticket_creation_confirmation: "ticket-creation-confirmation",
-  
-  // Channel/Plan Changes
-  channels_change_requested: "channels_change_requested_fr",
-  plan_change_requested: "plan_change_requested_fr",
-  
-  // Orders
+  // === ORDERS ===
   order_confirmation: "nivra_order_confirmation_fr-1",
   order_processing: "nivra_order_processing_fr",
   order_in_progress: "nivra_order_in_progress_fr",
   order_completed: "nivra_order_completed_fr",
   order_cancelled: "nivra_order_cancelled_fr",
   
-  // Auth/Account
-  password_reset: "nivra_password_reset_fr",
-  email_verification: "nivra_email_verification_fr",
+  // === APPOINTMENTS ===
+  appointment_scheduled: "appointment_scheduled_fr",
+  appointment_reminder: "appointment_reminder_fr",
+  technician_on_the_way: "technician_on_the_way_fr",
+  appointment_completed: "appointment_completed_fr",
   
-  // Billing/Invoices
+  // === CONTRACTS ===
+  contract_signed: "contract_signed_fr",
+  
+  // === BILLING / INVOICES ===
   invoice_created: "nivra_invoice_created_fr",
+  invoice_paid: "invoice_paid_fr",
   invoice_reminder: "nivra_invoice_reminder_fr",
   invoice_overdue: "nivra_invoice_overdue_fr",
+  invoice_due_reminder: "invoice_due_reminder_fr",
   
-  // Refunds
+  // === PAYMENTS ===
+  payment_received: "payment_receipt_fr",
+  payment_receipt: "nivra_payment_receipt_fr",
+  payment_failed: "nivra_payment_failed_fr-1",
+  payment_contested: "payment_contested_fr",
+  payment_declined: "nivra_payment_declined_fr",
+  payment_verification: "nivra_payment_verification_fr",
+  refund_issued: "nivra_refund_processed_fr",
   refund_processed: "nivra_refund_processed_fr",
+  
+  // === SERVICES ===
+  service_activated: "service_activated_fr",
+  service_failed: "service_failed_fr",
+  service_changed: "service_changed_fr",
+  plan_changed: "plan_changed_fr",
+  service_cancellation_requested: "service_cancellation_requested_fr",
+  service_cancellation_request: "service_cancellation_request_fr",
+  service_cancellation: "service_cancellation_f",
+  service_cancelled_90_days: "service_cancelled_90_days_fr",
+  cancellation_confirmed: "cancellation_confirmed_fr",
+  
+  // === SIM / MOBILE ===
+  sim_lost: "sim_lost_fr",
+  sim_lost_replacement: "sim_lost_replacement_fr",
+  
+  // === TICKETS ===
+  ticket_created: "ticket_created_fr",
+  ticket_reply: "ticket_reply_fr",
+  ticket_resolved: "ticket_resolved_fr",
+  ticket_creation_confirmation: "ticket-creation-confirmation",
+  
+  // === CHANNEL / PLAN CHANGES ===
+  channels_change_requested: "channels_change_requested_fr",
+  plan_change_requested: "plan_change_requested_fr",
 } as const;
 
 export type ResendTemplateKey = keyof typeof RESEND_TEMPLATES;
