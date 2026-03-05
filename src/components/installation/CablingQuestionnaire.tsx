@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Cable, Plug, History, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Cable, Plug, History, ArrowRight, CheckCircle2, Info } from "lucide-react";
 import type { CablingAnswer, CablingQuestionnaire as CablingData } from "@/lib/installationLogic";
+import coaxialImage from "@/assets/coaxial-outlet-example.png";
 
 interface Props {
   isFrench: boolean;
@@ -12,41 +13,63 @@ interface Props {
   initialValues?: CablingData;
 }
 
-const QUESTIONS = (isFrench: boolean) => [
+interface QuestionDef {
+  key: keyof CablingData;
+  icon: typeof Cable;
+  question: string;
+  helpText?: string;
+  showImage?: boolean;
+  providerExamples?: string[];
+  options: { value: CablingAnswer; label: string }[];
+}
+
+const QUESTIONS = (isFrench: boolean): QuestionDef[] => [
   {
-    key: "hasCoaxial" as const,
+    key: "hasCoaxial",
     icon: Cable,
     question: isFrench
-      ? "Avez-vous une prise coaxiale (câble TV) dans votre logement ?"
-      : "Do you have a coaxial (TV cable) outlet in your home?",
+      ? "Avez-vous une prise câble (prise TV ronde) dans votre logement ?"
+      : "Do you have a cable outlet (round TV outlet) in your home?",
+    helpText: isFrench
+      ? "Cette prise est généralement utilisée par des services Internet ou télévision par câble tels que :"
+      : "This outlet is typically used by cable Internet or TV services such as:",
+    providerExamples: ["Vidéotron", "Fizz", "Cogeco", "Rogers", "Shaw"],
+    showImage: true,
     options: [
-      { value: "yes" as CablingAnswer, label: isFrench ? "Oui" : "Yes" },
-      { value: "no" as CablingAnswer, label: isFrench ? "Non" : "No" },
-      { value: "unknown" as CablingAnswer, label: isFrench ? "Je ne sais pas" : "I don't know" },
+      { value: "yes", label: isFrench ? "Oui" : "Yes" },
+      { value: "no", label: isFrench ? "Non" : "No" },
+      { value: "unknown", label: isFrench ? "Je ne sais pas" : "I don't know" },
     ],
   },
   {
-    key: "cableStatus" as const,
+    key: "cableStatus",
     icon: Plug,
     question: isFrench
-      ? "Le câble coaxial est-il connecté ou coupé ?"
-      : "Is the coaxial cable connected or cut?",
+      ? "Le câble est-il déjà branché ou présent dans la prise ?"
+      : "Is the cable already plugged in or present in the outlet?",
+    helpText: isFrench
+      ? "Le câble coaxial est un câble rond qui se visse dans la prise murale et dans le modem."
+      : "A coaxial cable is a round cable that screws into the wall outlet and the modem.",
     options: [
-      { value: "yes" as CablingAnswer, label: isFrench ? "Connecté" : "Connected" },
-      { value: "no" as CablingAnswer, label: isFrench ? "Coupé" : "Cut" },
-      { value: "unknown" as CablingAnswer, label: isFrench ? "Je ne sais pas" : "I don't know" },
+      { value: "yes", label: isFrench ? "Oui, le câble est présent" : "Yes, the cable is present" },
+      { value: "no", label: isFrench ? "Non, il n'y a pas de câble" : "No, there is no cable" },
+      { value: "unknown", label: isFrench ? "Je ne sais pas" : "I don't know" },
     ],
   },
   {
-    key: "previousService" as const,
+    key: "previousService",
     icon: History,
     question: isFrench
-      ? "Un ancien service câble (Vidéotron, Fizz, etc.) a-t-il déjà fonctionné ici ?"
-      : "Has a previous cable service (Vidéotron, Fizz, etc.) ever worked here?",
+      ? "Un service Internet ou télévision par câble fonctionnait-il déjà dans ce logement ?"
+      : "Has a cable Internet or TV service previously worked at this address?",
+    helpText: isFrench
+      ? "Par exemple avec :"
+      : "For example with:",
+    providerExamples: ["Vidéotron", "Fizz", "Cogeco", "Rogers"],
     options: [
-      { value: "yes" as CablingAnswer, label: isFrench ? "Oui" : "Yes" },
-      { value: "no" as CablingAnswer, label: isFrench ? "Non" : "No" },
-      { value: "unknown" as CablingAnswer, label: isFrench ? "Je ne sais pas" : "I don't know" },
+      { value: "yes", label: isFrench ? "Oui" : "Yes" },
+      { value: "no", label: isFrench ? "Non" : "No" },
+      { value: "unknown", label: isFrench ? "Je ne sais pas" : "I don't know" },
     ],
   },
 ];
@@ -79,7 +102,7 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Cable className="w-5 h-5 text-primary" />
-          {isFrench ? "Questionnaire de câblage" : "Cabling Assessment"}
+          {isFrench ? "Évaluation de votre câblage" : "Cabling Assessment"}
         </CardTitle>
         <CardDescription>
           {isFrench
@@ -121,8 +144,56 @@ export function CablingQuestionnaire({ isFrench, onComplete, initialValues }: Pr
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Icon className="w-5 h-5 text-primary" />
                 </div>
-                <p className="font-medium text-foreground pt-1.5">{q.question}</p>
+                <div className="flex-1">
+                  <p className="font-medium text-foreground">{q.question}</p>
+                  
+                  {/* Help text with provider examples */}
+                  {q.helpText && (
+                    <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-muted-foreground">
+                          <p>{q.helpText}</p>
+                          {q.providerExamples && (
+                            <div className="flex flex-wrap gap-2 mt-1.5">
+                              {q.providerExamples.map((provider) => (
+                                <span
+                                  key={provider}
+                                  className="inline-block px-2 py-0.5 rounded-md bg-background border border-border text-xs font-medium text-foreground"
+                                >
+                                  {provider}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Coaxial outlet image for Q1 */}
+                  {q.showImage && (
+                    <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        {isFrench ? "Exemple de prise câble :" : "Cable outlet example:"}
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={coaxialImage}
+                          alt={isFrench ? "Exemple de prise coaxiale" : "Coaxial outlet example"}
+                          className="w-20 h-20 rounded-lg object-cover border border-border"
+                        />
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          <li>• {isFrench ? "Petite prise ronde" : "Small round outlet"}</li>
+                          <li>• {isFrench ? "Filetage métallique" : "Metal threading"}</li>
+                          <li>• {isFrench ? "Câble qui se visse" : "Cable that screws in"}</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
               <RadioGroup
                 value={answers[q.key] || ""}
                 onValueChange={(v) => handleAnswer(q.key, v as CablingAnswer)}

@@ -10,7 +10,7 @@ export type CablingAnswer = "yes" | "no" | "unknown";
 
 export interface CablingQuestionnaire {
   hasCoaxial: CablingAnswer;
-  cableStatus: CablingAnswer; // 'yes' = connected, 'no' = cut, 'unknown'
+  cableStatus: CablingAnswer; // 'yes' = present/connected, 'no' = absent/cut, 'unknown'
   previousService: CablingAnswer;
 }
 
@@ -25,10 +25,14 @@ export interface InstallationDecision {
   minLeadDays: number;
   /** Maximum days ahead to show slots */
   maxLeadDays: number;
-  /** Whether same-day is possible (if >4h remain in working day) */
+  /** Whether same-day is possible (if ≥4h remain in working day) */
   sameDayPossible: boolean;
   /** User-facing message key */
   messageKey: "rapid" | "uncertain" | "heavy_work" | "remote_auto" | "remote_tech";
+  /** Readiness score 0-100 for internal tracking */
+  readinessScore: number;
+  /** Whether a fallback auto-install validation ticket should be created */
+  needsFallbackTicket: boolean;
 }
 
 // ── Montreal reference point ───────────────────────────────────────────
@@ -61,6 +65,33 @@ export function distanceFromMontreal(lat: number, lng: number): number {
   return haversineDistance(MONTREAL_LAT, MONTREAL_LNG, lat, lng);
 }
 
+// ── Readiness score ────────────────────────────────────────────────────
+
+/**
+ * Calculate a readiness score (0-100) based on questionnaire answers.
+ * Higher score = more likely infrastructure is ready for quick install.
+ */
+export function calculateReadinessScore(q: CablingQuestionnaire): number {
+  let score = 0;
+
+  // Coaxial present: 40 pts
+  if (q.hasCoaxial === "yes") score += 40;
+  else if (q.hasCoaxial === "unknown") score += 15;
+  // "no" = 0
+
+  // Cable intact/present: 30 pts
+  if (q.cableStatus === "yes") score += 30;
+  else if (q.cableStatus === "unknown") score += 10;
+  // "no" = 0
+
+  // Previous service: 30 pts
+  if (q.previousService === "yes") score += 30;
+  else if (q.previousService === "unknown") score += 10;
+  // "no" = 0
+
+  return score;
+}
+
 // ── Decision engine ────────────────────────────────────────────────────
 
 export function determineInstallation(
@@ -68,10 +99,13 @@ export function determineInstallation(
   questionnaire: CablingQuestionnaire
 ): InstallationDecision {
   const { hasCoaxial, cableStatus, previousService } = questionnaire;
+  const readinessScore = calculateReadinessScore(questionnaire);
 
-  // ── Zone C — Region éloignée (>70 km) ──
+  // ── Zone C — Région éloignée (>70 km) ──
   if (distanceKm > 70) {
-    // Default to auto-installation for remote areas
+    // If coax absent/cut/uncertain → auto-install with fallback ticket
+    const cableProblem = hasCoaxial === "no" || cableStatus === "no" || hasCoaxial === "unknown";
+
     return {
       zone: "zone_c",
       installationType: "auto",
@@ -80,12 +114,14 @@ export function determineInstallation(
       maxLeadDays: 14,
       sameDayPossible: false,
       messageKey: "remote_auto",
+      readinessScore,
+      needsFallbackTicket: true, // Always create fallback for auto-install
     };
   }
 
-  // ── Grand Montréal (≤70 km) ──
+  // ── Zone A — Grand Montréal (≤70 km) ──
 
-  // Case 1 — Rapid install: coaxial present + connected + previous service
+  // Case 1 — Rapid install: coaxial present + cable intact + previous service
   if (
     hasCoaxial === "yes" &&
     cableStatus === "yes" &&
@@ -95,14 +131,32 @@ export function determineInstallation(
       zone: "zone_a",
       installationType: "technician",
       technicianLevel: "level_1",
-      minLeadDays: 0, // same-day possible
+      minLeadDays: 0,
       maxLeadDays: 7,
       sameDayPossible: true,
       messageKey: "rapid",
+      readinessScore,
+      needsFallbackTicket: false,
     };
   }
 
-  // Case 2 — Uncertain: user doesn't know about coaxial
+  // Case 2 — Coaxial present + cable intact but NO previous service
+  // Still Level 1, but not same-day (slightly uncertain)
+  if (hasCoaxial === "yes" && cableStatus === "yes" && previousService !== "yes") {
+    return {
+      zone: "zone_a",
+      installationType: "technician",
+      technicianLevel: "level_1",
+      minLeadDays: 1,
+      maxLeadDays: 7,
+      sameDayPossible: false,
+      messageKey: "uncertain",
+      readinessScore,
+      needsFallbackTicket: false,
+    };
+  }
+
+  // Case 3 — Uncertain: user doesn't know about coaxial or cable status
   if (hasCoaxial === "unknown" || cableStatus === "unknown") {
     return {
       zone: "zone_a",
@@ -112,10 +166,12 @@ export function determineInstallation(
       maxLeadDays: 7,
       sameDayPossible: false,
       messageKey: "uncertain",
+      readinessScore,
+      needsFallbackTicket: false,
     };
   }
 
-  // Case 3 — Cable absent or cut → heavy work
+  // Case 4 — Cable absent or cut → heavy work (Level 2)
   if (hasCoaxial === "no" || cableStatus === "no") {
     return {
       zone: "zone_b",
@@ -125,11 +181,12 @@ export function determineInstallation(
       maxLeadDays: 14,
       sameDayPossible: false,
       messageKey: "heavy_work",
+      readinessScore,
+      needsFallbackTicket: false,
     };
   }
 
-  // Fallback: coaxial present but cable connected + no previous service
-  // Still level 1 but not same-day
+  // Fallback → Level 1, 1-2 days
   return {
     zone: "zone_a",
     installationType: "technician",
@@ -138,11 +195,13 @@ export function determineInstallation(
     maxLeadDays: 7,
     sameDayPossible: false,
     messageKey: "uncertain",
+    readinessScore,
+    needsFallbackTicket: false,
   };
 }
 
 /**
- * Check if same-day appointment is still possible (>4h remaining in work day).
+ * Check if same-day appointment is still possible (≥4h remaining in work day).
  */
 export function isSameDayStillAvailable(): boolean {
   const now = new Date();
@@ -152,6 +211,7 @@ export function isSameDayStillAvailable(): boolean {
 
 /**
  * Messages for each decision case (FR/EN).
+ * Professional, neutral — no third-party brand mentions.
  */
 export const INSTALLATION_MESSAGES: Record<
   InstallationDecision["messageKey"],
@@ -159,51 +219,51 @@ export const INSTALLATION_MESSAGES: Record<
 > = {
   rapid: {
     fr: {
-      title: "🎉 Bonne nouvelle !",
-      description: "Votre adresse permet une installation rapide. Un technicien de niveau 1 peut intervenir dès aujourd'hui ou demain.",
+      title: "Installation rapide disponible",
+      description: "Si une prise câble (coaxiale) est déjà présente et en bon état, un technicien peut activer votre service rapidement.",
     },
     en: {
-      title: "🎉 Great news!",
-      description: "Your address qualifies for a fast installation. A level 1 technician can come as early as today or tomorrow.",
+      title: "Fast installation available",
+      description: "If a cable (coaxial) outlet is already present and in good condition, a technician can activate your service quickly.",
     },
   },
   uncertain: {
     fr: {
-      title: "🔍 Vérification nécessaire",
-      description: "Nous devons vérifier l'état du câblage à votre adresse. Un technicien interviendra sous 1 à 2 jours.",
+      title: "Vérification nécessaire",
+      description: "Un technicien effectuera une validation sur place pour vérifier l'état du câblage à votre adresse. Délai estimé : 1 à 2 jours.",
     },
     en: {
-      title: "🔍 Verification needed",
-      description: "We need to verify the cabling at your address. A technician will visit within 1-2 days.",
+      title: "Verification needed",
+      description: "A technician will perform an on-site validation to verify the cabling at your address. Estimated delay: 1-2 days.",
     },
   },
   heavy_work: {
     fr: {
-      title: "🔧 Travaux techniques requis",
-      description: "Une intervention technique est nécessaire pour votre adresse. Un technicien spécialisé (niveau 2) interviendra sous 3 à 5 jours ouvrables.",
+      title: "Intervention technique requise",
+      description: "Un technicien spécialisé devra effectuer une vérification ou un ajustement de câblage. Délai estimé : 3 à 5 jours ouvrables.",
     },
     en: {
-      title: "🔧 Technical work required",
-      description: "Technical work is needed at your address. A specialized technician (level 2) will visit within 3-5 business days.",
+      title: "Technical work required",
+      description: "A specialized technician will need to verify or adjust the cabling. Estimated delay: 3-5 business days.",
     },
   },
   remote_auto: {
     fr: {
-      title: "📦 Auto-installation disponible",
-      description: "Votre adresse est en région éloignée. Nous vous enverrons l'équipement avec les instructions d'installation.",
+      title: "Auto-installation disponible",
+      description: "Nous vous envoyons l'équipement et les instructions. Si l'activation ne fonctionne pas, une visite technique pourra être planifiée.",
     },
     en: {
-      title: "📦 Self-installation available",
-      description: "Your address is in a remote area. We'll ship the equipment with installation instructions.",
+      title: "Self-installation available",
+      description: "We'll ship the equipment and instructions. If activation doesn't work, a technician visit can be scheduled.",
     },
   },
   remote_tech: {
     fr: {
-      title: "🔧 Technicien en région",
+      title: "Technicien en région",
       description: "Un technicien spécialisé se déplacera dans votre région sous 3 à 5 jours ouvrables.",
     },
     en: {
-      title: "🔧 Regional technician",
+      title: "Regional technician",
       description: "A specialized technician will travel to your region within 3-5 business days.",
     },
   },

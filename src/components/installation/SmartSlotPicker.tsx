@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, CheckCircle2 } from "lucide-react";
@@ -26,9 +26,10 @@ interface Props {
 }
 
 const TIME_SLOTS = [
-  { value: "8h - 12h", labelFr: "8h - 12h (Matin)", labelEn: "8AM - 12PM (Morning)" },
-  { value: "12h - 17h", labelFr: "12h - 17h (Après-midi)", labelEn: "12PM - 5PM (Afternoon)" },
-  { value: "17h - 20h", labelFr: "17h - 20h (Soir)", labelEn: "5PM - 8PM (Evening)" },
+  { value: "09h - 12h", labelFr: "9h - 12h (Matin)", labelEn: "9AM - 12PM (Morning)" },
+  { value: "12h - 15h", labelFr: "12h - 15h (Après-midi)", labelEn: "12PM - 3PM (Afternoon)" },
+  { value: "15h - 18h", labelFr: "15h - 18h (Fin d'après-midi)", labelEn: "3PM - 6PM (Late afternoon)" },
+  { value: "18h - 20h", labelFr: "18h - 20h (Soir)", labelEn: "6PM - 8PM (Evening)" },
 ];
 
 export function SmartSlotPicker({
@@ -71,8 +72,9 @@ export function SmartSlotPicker({
     if (isToday(date)) {
       const hour = new Date().getHours();
       return TIME_SLOTS.filter((slot) => {
-        if (slot.value === "8h - 12h" && hour >= 7) return false;
-        if (slot.value === "12h - 17h" && hour >= 11) return false;
+        if (slot.value === "09h - 12h" && hour >= 8) return false;
+        if (slot.value === "12h - 15h" && hour >= 11) return false;
+        if (slot.value === "15h - 18h" && hour >= 14) return false;
         return true;
       });
     }
@@ -117,12 +119,12 @@ export function SmartSlotPicker({
                       {formatDateLabel(date)}
                     </span>
                     {(isToday(date) || isTomorrow(date)) && (
-                      <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                      <Badge variant="outline" className="text-xs">
                         {isFrench ? "Rapide" : "Fast"}
                       </Badge>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                     {slots.map((slot) => {
                       const isActive = isSelected && selectedTime === slot.value;
                       return (
