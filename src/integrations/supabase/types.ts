@@ -841,6 +841,13 @@ export type Database = {
             foreignKeyName: "appointments_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "appointments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -1032,6 +1039,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "billing_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "billing_order_id_fkey"
             columns: ["order_id"]
@@ -1307,6 +1321,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "billing_invoices_order_id_fkey"
@@ -1618,6 +1639,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "qa_orphaned_payments"
             referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_subscriptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "billing_subscriptions_order_id_fkey"
@@ -2608,6 +2636,13 @@ export type Database = {
             foreignKeyName: "contest_entries_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "contest_entries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -2768,6 +2803,13 @@ export type Database = {
             foreignKeyName: "contracts_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "contracts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -2900,6 +2942,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crypto_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "crypto_payments_order_id_fkey"
@@ -4093,6 +4142,13 @@ export type Database = {
             foreignKeyName: "equipment_order_lines_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "equipment_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -4308,6 +4364,13 @@ export type Database = {
             foreignKeyName: "field_sales_orders_converted_order_id_fkey"
             columns: ["converted_order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "field_sales_orders_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -4393,6 +4456,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fulfillment_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "fulfillment_snapshots_order_id_fkey"
@@ -4585,6 +4655,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "identity_verification_sessions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "identity_verification_sessions_order_id_fkey"
             columns: ["order_id"]
@@ -4885,6 +4962,13 @@ export type Database = {
             foreignKeyName: "installations_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "installations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -5006,6 +5090,93 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          installed_at: string | null
+          notes: string | null
+          order_id: string
+          order_item_id: string | null
+          returned_at: string | null
+          shipment_id: string | null
+          status: Database["public"]["Enums"]["inventory_assignment_status"]
+          stock_item_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          installed_at?: string | null
+          notes?: string | null
+          order_id: string
+          order_item_id?: string | null
+          returned_at?: string | null
+          shipment_id?: string | null
+          status?: Database["public"]["Enums"]["inventory_assignment_status"]
+          stock_item_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          installed_at?: string | null
+          notes?: string | null
+          order_id?: string
+          order_item_id?: string | null
+          returned_at?: string | null
+          shipment_id?: string | null
+          status?: Database["public"]["Enums"]["inventory_assignment_status"]
+          stock_item_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "inventory_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_assignments_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_assignments_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_assignments_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_stock"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           created_at: string
@@ -5050,6 +5221,77 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      inventory_stock: {
+        Row: {
+          brand: string | null
+          catalog_item_id: string | null
+          created_at: string
+          iccid: string | null
+          id: string
+          imei: string | null
+          item_type: Database["public"]["Enums"]["inventory_stock_type"]
+          mac_address: string | null
+          metadata: Json | null
+          model: string | null
+          notes: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          serial_number: string | null
+          sku: string | null
+          status: string
+          updated_at: string
+          warehouse_location: string | null
+        }
+        Insert: {
+          brand?: string | null
+          catalog_item_id?: string | null
+          created_at?: string
+          iccid?: string | null
+          id?: string
+          imei?: string | null
+          item_type: Database["public"]["Enums"]["inventory_stock_type"]
+          mac_address?: string | null
+          metadata?: Json | null
+          model?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          sku?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_location?: string | null
+        }
+        Update: {
+          brand?: string | null
+          catalog_item_id?: string | null
+          created_at?: string
+          iccid?: string | null
+          id?: string
+          imei?: string | null
+          item_type?: Database["public"]["Enums"]["inventory_stock_type"]
+          mac_address?: string | null
+          metadata?: Json | null
+          model?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          serial_number?: string | null
+          sku?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_location?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_stock_catalog_item_id_fkey"
+            columns: ["catalog_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       job_applications: {
         Row: {
@@ -5405,6 +5647,13 @@ export type Database = {
             foreignKeyName: "messages_related_order_id_fkey"
             columns: ["related_order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "messages_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -5494,6 +5743,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mobile_fulfillment_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "mobile_fulfillment_order_id_fkey"
             columns: ["order_id"]
@@ -5762,6 +6018,13 @@ export type Database = {
             foreignKeyName: "order_documents_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_documents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -5816,6 +6079,13 @@ export type Database = {
             foreignKeyName: "order_identity_data_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_identity_data_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -5857,7 +6127,148 @@ export type Database = {
             foreignKeyName: "order_internal_notes_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_internal_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          depends_on_item_id: string | null
+          description: string | null
+          fulfillment_type:
+            | Database["public"]["Enums"]["fulfillment_type"]
+            | null
+          id: string
+          is_recurring: boolean
+          item_number: number
+          line_total: number
+          metadata: Json | null
+          order_id: string
+          plan_code: string | null
+          plan_name: string
+          provisioning_job_id: string | null
+          quantity: number
+          service_instance_id: string | null
+          service_type: Database["public"]["Enums"]["order_item_service_type"]
+          shipment_id: string | null
+          status: Database["public"]["Enums"]["order_item_status"]
+          status_reason: string | null
+          status_updated_at: string | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          depends_on_item_id?: string | null
+          description?: string | null
+          fulfillment_type?:
+            | Database["public"]["Enums"]["fulfillment_type"]
+            | null
+          id?: string
+          is_recurring?: boolean
+          item_number?: number
+          line_total?: number
+          metadata?: Json | null
+          order_id: string
+          plan_code?: string | null
+          plan_name: string
+          provisioning_job_id?: string | null
+          quantity?: number
+          service_instance_id?: string | null
+          service_type: Database["public"]["Enums"]["order_item_service_type"]
+          shipment_id?: string | null
+          status?: Database["public"]["Enums"]["order_item_status"]
+          status_reason?: string | null
+          status_updated_at?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          depends_on_item_id?: string | null
+          description?: string | null
+          fulfillment_type?:
+            | Database["public"]["Enums"]["fulfillment_type"]
+            | null
+          id?: string
+          is_recurring?: boolean
+          item_number?: number
+          line_total?: number
+          metadata?: Json | null
+          order_id?: string
+          plan_code?: string | null
+          plan_name?: string
+          provisioning_job_id?: string | null
+          quantity?: number
+          service_instance_id?: string | null
+          service_type?: Database["public"]["Enums"]["order_item_service_type"]
+          shipment_id?: string | null
+          status?: Database["public"]["Enums"]["order_item_status"]
+          status_reason?: string | null
+          status_updated_at?: string | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_depends_on_item_id_fkey"
+            columns: ["depends_on_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_provisioning_job_id_fkey"
+            columns: ["provisioning_job_id"]
+            isOneToOne: false
+            referencedRelation: "provisioning_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_service_instance_id_fkey"
+            columns: ["service_instance_id"]
+            isOneToOne: false
+            referencedRelation: "service_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
             referencedColumns: ["id"]
           },
         ]
@@ -5924,6 +6335,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "order_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "order_snapshots_order_id_fkey"
             columns: ["order_id"]
@@ -6725,6 +7143,13 @@ export type Database = {
             foreignKeyName: "payments_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -7211,6 +7636,132 @@ export type Database = {
           usage_limit_total?: number | null
         }
         Relationships: []
+      }
+      provisioning_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          depends_on_job_id: string | null
+          error_code: string | null
+          error_message: string | null
+          execution_log: Json | null
+          failed_at: string | null
+          id: string
+          job_label: string
+          job_type: Database["public"]["Enums"]["provisioning_job_type"]
+          manual_override_at: string | null
+          manual_override_by: string | null
+          manual_override_reason: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          order_id: string
+          order_item_id: string | null
+          priority: number
+          result_data: Json | null
+          service_instance_id: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["provisioning_job_status"]
+          status_reason: string | null
+          triggered_by: string | null
+          triggered_by_role: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          depends_on_job_id?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          execution_log?: Json | null
+          failed_at?: string | null
+          id?: string
+          job_label: string
+          job_type: Database["public"]["Enums"]["provisioning_job_type"]
+          manual_override_at?: string | null
+          manual_override_by?: string | null
+          manual_override_reason?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          order_id: string
+          order_item_id?: string | null
+          priority?: number
+          result_data?: Json | null
+          service_instance_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["provisioning_job_status"]
+          status_reason?: string | null
+          triggered_by?: string | null
+          triggered_by_role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          depends_on_job_id?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          execution_log?: Json | null
+          failed_at?: string | null
+          id?: string
+          job_label?: string
+          job_type?: Database["public"]["Enums"]["provisioning_job_type"]
+          manual_override_at?: string | null
+          manual_override_by?: string | null
+          manual_override_reason?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          order_id?: string
+          order_item_id?: string | null
+          priority?: number
+          result_data?: Json | null
+          service_instance_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["provisioning_job_status"]
+          status_reason?: string | null
+          triggered_by?: string | null
+          triggered_by_role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provisioning_jobs_depends_on_job_id_fkey"
+            columns: ["depends_on_job_id"]
+            isOneToOne: false
+            referencedRelation: "provisioning_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provisioning_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "provisioning_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provisioning_jobs_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provisioning_jobs_service_instance_id_fkey"
+            columns: ["service_instance_id"]
+            isOneToOne: false
+            referencedRelation: "service_instances"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -7799,6 +8350,13 @@ export type Database = {
             foreignKeyName: "replacement_orders_original_order_id_fkey"
             columns: ["original_order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "replacement_orders_original_order_id_fkey"
+            columns: ["original_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -8039,6 +8597,13 @@ export type Database = {
             foreignKeyName: "replacement_tickets_linked_order_id_fkey"
             columns: ["linked_order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "replacement_tickets_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -8198,6 +8763,13 @@ export type Database = {
           validated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_commissions_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "sales_commissions_converted_order_id_fkey"
             columns: ["converted_order_id"]
@@ -8567,6 +9139,13 @@ export type Database = {
             foreignKeyName: "service_instances_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "service_instances_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -8649,6 +9228,106 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      shipments: {
+        Row: {
+          actual_delivery_date: string | null
+          actual_ship_date: string | null
+          carrier: string | null
+          created_at: string
+          customer_id: string | null
+          estimated_delivery_date: string | null
+          estimated_ship_date: string | null
+          id: string
+          metadata: Json | null
+          notes: string | null
+          order_id: string
+          order_item_id: string | null
+          ship_to_address: string | null
+          ship_to_city: string | null
+          ship_to_name: string | null
+          ship_to_phone: string | null
+          ship_to_postal_code: string | null
+          ship_to_province: string | null
+          shipment_number: string | null
+          status: Database["public"]["Enums"]["shipment_status"]
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_delivery_date?: string | null
+          actual_ship_date?: string | null
+          carrier?: string | null
+          created_at?: string
+          customer_id?: string | null
+          estimated_delivery_date?: string | null
+          estimated_ship_date?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          order_id: string
+          order_item_id?: string | null
+          ship_to_address?: string | null
+          ship_to_city?: string | null
+          ship_to_name?: string | null
+          ship_to_phone?: string | null
+          ship_to_postal_code?: string | null
+          ship_to_province?: string | null
+          shipment_number?: string | null
+          status?: Database["public"]["Enums"]["shipment_status"]
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_delivery_date?: string | null
+          actual_ship_date?: string | null
+          carrier?: string | null
+          created_at?: string
+          customer_id?: string | null
+          estimated_delivery_date?: string | null
+          estimated_ship_date?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          order_id?: string
+          order_item_id?: string | null
+          ship_to_address?: string | null
+          ship_to_city?: string | null
+          ship_to_name?: string | null
+          ship_to_phone?: string | null
+          ship_to_postal_code?: string | null
+          ship_to_province?: string | null
+          shipment_number?: string | null
+          status?: Database["public"]["Enums"]["shipment_status"]
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_offers: {
         Row: {
@@ -9148,6 +9827,13 @@ export type Database = {
             foreignKeyName: "streaming_activation_tokens_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "streaming_activation_tokens_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -9454,6 +10140,13 @@ export type Database = {
             foreignKeyName: "support_tickets_related_order_id_fkey"
             columns: ["related_order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -9563,6 +10256,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "installations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_slot_bookings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "technician_slot_bookings_order_id_fkey"
@@ -10447,6 +11147,13 @@ export type Database = {
             foreignKeyName: "work_orders_linked_order_id_fkey"
             columns: ["linked_order_id"]
             isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "work_orders_linked_order_id_fkey"
+            columns: ["linked_order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -10502,6 +11209,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "billing"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "payments_order_id_fkey"
@@ -10563,6 +11277,45 @@ export type Database = {
           id?: string | null
           is_used?: never
           is_valid?: never
+        }
+        Relationships: []
+      }
+      order_next_actions: {
+        Row: {
+          active_items: number | null
+          failed_jobs: number | null
+          id_verification_status: string | null
+          next_action: string | null
+          next_action_label: string | null
+          order_id: string | null
+          order_number: string | null
+          payment_status: string | null
+          status: string | null
+          total_items: number | null
+        }
+        Insert: {
+          active_items?: never
+          failed_jobs?: never
+          id_verification_status?: string | null
+          next_action?: never
+          next_action_label?: never
+          order_id?: string | null
+          order_number?: string | null
+          payment_status?: string | null
+          status?: string | null
+          total_items?: never
+        }
+        Update: {
+          active_items?: never
+          failed_jobs?: never
+          id_verification_status?: string | null
+          next_action?: never
+          next_action_label?: never
+          order_id?: string | null
+          order_number?: string | null
+          payment_status?: string | null
+          status?: string | null
+          total_items?: never
         }
         Relationships: []
       }
@@ -10918,6 +11671,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "authorized_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_related_order_id_fkey"
+            columns: ["related_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "support_tickets_related_order_id_fkey"
@@ -11524,6 +12284,12 @@ export type Database = {
         | "employee"
         | "influencer"
         | "field_sales"
+        | "sales"
+        | "kyc_agent"
+        | "billing_admin"
+        | "techops"
+        | "support"
+        | "supervisor"
       billing_customer_status: "active" | "suspended" | "closed"
       billing_invoice_status:
         | "draft"
@@ -11624,6 +12390,25 @@ export type Database = {
         | "tech_dispatched"
         | "completed"
         | "cancelled"
+      inventory_assignment_status:
+        | "reserved"
+        | "assigned"
+        | "shipped"
+        | "installed"
+        | "returned"
+        | "lost"
+        | "defective"
+      inventory_stock_type:
+        | "modem"
+        | "router"
+        | "sim_card"
+        | "esim"
+        | "tv_box"
+        | "remote"
+        | "cable"
+        | "security_hub"
+        | "camera"
+        | "other"
       ledger_entry_type:
         | "invoice"
         | "payment"
@@ -11632,6 +12417,50 @@ export type Database = {
         | "refund"
         | "late_fee"
         | "promo_credit"
+      order_item_service_type:
+        | "internet"
+        | "tv"
+        | "mobile"
+        | "streaming"
+        | "security"
+        | "addon"
+        | "equipment"
+        | "fee"
+      order_item_status:
+        | "pending"
+        | "kyc_blocked"
+        | "payment_blocked"
+        | "fulfillment_pending"
+        | "shipped"
+        | "delivered"
+        | "install_scheduled"
+        | "install_complete"
+        | "provisioning_pending"
+        | "provisioning_in_progress"
+        | "active"
+        | "on_hold"
+        | "cancelled"
+        | "failed"
+      order_lifecycle_status:
+        | "draft"
+        | "submitted"
+        | "kyc_required"
+        | "kyc_in_review"
+        | "kyc_approved"
+        | "kyc_rejected"
+        | "payment_pending"
+        | "paid"
+        | "payment_failed"
+        | "fulfillment_pending"
+        | "provisioning_pending"
+        | "provisioning_in_progress"
+        | "active"
+        | "partial_active"
+        | "on_hold"
+        | "completed"
+        | "cancelled"
+        | "failed"
+        | "provisioning_failed"
       payment_status:
         | "pending"
         | "authorized"
@@ -11645,6 +12474,25 @@ export type Database = {
         | "refunded"
         | "fraud"
         | "cancelled"
+      provisioning_job_status:
+        | "queued"
+        | "waiting_dependency"
+        | "in_progress"
+        | "completed"
+        | "failed"
+        | "cancelled"
+        | "manual_override"
+      provisioning_job_type:
+        | "INTERNET_ACTIVATE"
+        | "TV_ACTIVATE"
+        | "MOBILE_ACTIVATE"
+        | "STREAMING_ACTIVATE"
+        | "SECURITY_ACTIVATE"
+        | "PORT_IN"
+        | "ESIM_PROVISION"
+        | "CHANNEL_PUSH"
+        | "EQUIPMENT_ASSIGN"
+        | "CUSTOM"
       replacement_order_status:
         | "open"
         | "awaiting_decision"
@@ -11687,6 +12535,15 @@ export type Database = {
         | "paid"
         | "fulfillment_in_progress"
         | "completed"
+        | "cancelled"
+      shipment_status:
+        | "pending"
+        | "preparing"
+        | "shipped"
+        | "in_transit"
+        | "delivered"
+        | "returned"
+        | "lost"
         | "cancelled"
       staff_notification_type:
         | "new_order"
@@ -11841,6 +12698,12 @@ export const Constants = {
         "employee",
         "influencer",
         "field_sales",
+        "sales",
+        "kyc_agent",
+        "billing_admin",
+        "techops",
+        "support",
+        "supervisor",
       ],
       billing_customer_status: ["active", "suspended", "closed"],
       billing_invoice_status: [
@@ -11955,6 +12818,27 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      inventory_assignment_status: [
+        "reserved",
+        "assigned",
+        "shipped",
+        "installed",
+        "returned",
+        "lost",
+        "defective",
+      ],
+      inventory_stock_type: [
+        "modem",
+        "router",
+        "sim_card",
+        "esim",
+        "tv_box",
+        "remote",
+        "cable",
+        "security_hub",
+        "camera",
+        "other",
+      ],
       ledger_entry_type: [
         "invoice",
         "payment",
@@ -11963,6 +12847,53 @@ export const Constants = {
         "refund",
         "late_fee",
         "promo_credit",
+      ],
+      order_item_service_type: [
+        "internet",
+        "tv",
+        "mobile",
+        "streaming",
+        "security",
+        "addon",
+        "equipment",
+        "fee",
+      ],
+      order_item_status: [
+        "pending",
+        "kyc_blocked",
+        "payment_blocked",
+        "fulfillment_pending",
+        "shipped",
+        "delivered",
+        "install_scheduled",
+        "install_complete",
+        "provisioning_pending",
+        "provisioning_in_progress",
+        "active",
+        "on_hold",
+        "cancelled",
+        "failed",
+      ],
+      order_lifecycle_status: [
+        "draft",
+        "submitted",
+        "kyc_required",
+        "kyc_in_review",
+        "kyc_approved",
+        "kyc_rejected",
+        "payment_pending",
+        "paid",
+        "payment_failed",
+        "fulfillment_pending",
+        "provisioning_pending",
+        "provisioning_in_progress",
+        "active",
+        "partial_active",
+        "on_hold",
+        "completed",
+        "cancelled",
+        "failed",
+        "provisioning_failed",
       ],
       payment_status: [
         "pending",
@@ -11977,6 +12908,27 @@ export const Constants = {
         "refunded",
         "fraud",
         "cancelled",
+      ],
+      provisioning_job_status: [
+        "queued",
+        "waiting_dependency",
+        "in_progress",
+        "completed",
+        "failed",
+        "cancelled",
+        "manual_override",
+      ],
+      provisioning_job_type: [
+        "INTERNET_ACTIVATE",
+        "TV_ACTIVATE",
+        "MOBILE_ACTIVATE",
+        "STREAMING_ACTIVATE",
+        "SECURITY_ACTIVATE",
+        "PORT_IN",
+        "ESIM_PROVISION",
+        "CHANNEL_PUSH",
+        "EQUIPMENT_ASSIGN",
+        "CUSTOM",
       ],
       replacement_order_status: [
         "open",
@@ -12024,6 +12976,16 @@ export const Constants = {
         "paid",
         "fulfillment_in_progress",
         "completed",
+        "cancelled",
+      ],
+      shipment_status: [
+        "pending",
+        "preparing",
+        "shipped",
+        "in_transit",
+        "delivered",
+        "returned",
+        "lost",
         "cancelled",
       ],
       staff_notification_type: [
