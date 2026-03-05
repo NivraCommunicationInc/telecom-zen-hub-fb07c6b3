@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,62 +7,42 @@ import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { FileText, Download, DollarSign, CheckCircle, AlertTriangle, Clock, Calendar, ChevronRight, Receipt } from "lucide-react";
+import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { generateInvoicePDF, type InvoiceDataV2 } from "@/lib/pdf";
+import { generateInvoicePDF } from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { fetchInvoiceBreakdowns, breakdownToInvoiceDataV2, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
 
 // ─── Status config ───────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
   overdue: "bg-red-100 text-red-700",
-  partial: "bg-orange-100 text-orange-700",
+  partially_paid: "bg-orange-100 text-orange-700",
   void: "bg-muted text-muted-foreground",
   cancelled: "bg-muted text-muted-foreground",
-  expired: "bg-red-100 text-red-700",
-  in_verification: "bg-teal-100 text-teal-700",
 };
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "En attente",
   paid: "Payée",
   overdue: "En retard",
-  partial: "Partiel",
+  partially_paid: "Partiel",
   void: "Annulée",
   cancelled: "Annulée",
-  expired: "Expirée",
-  in_verification: "En vérification",
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  recurring: "Mensuelle",
-  onetime: "Achat",
-  one_time: "Achat",
-  renewal: "Renouvellement",
-};
-
-// ─── Helpers ─────────────────────────────────────────────────────────
-const getBalanceDue = (inv: any) => {
-  if (inv?.balance_due !== null && inv?.balance_due !== undefined) {
-    const explicit = Number(inv.balance_due);
-    if (Number.isFinite(explicit)) return Math.max(0, explicit);
-  }
-  const total = Number(inv?.total ?? inv?.amount) || 0;
-  const amountPaid = Number(inv?.amount_paid) || 0;
-  return Math.max(0, total - amountPaid);
-};
-
-const isInvoiceOpen = (inv: any) => {
-  const status = String(inv?.status || "").toLowerCase();
-  if (["paid", "void", "cancelled", "refunded"].includes(status)) return false;
-  return getBalanceDue(inv) > 0;
+  renewal: "Mensuelle",
+  initial: "Achat",
+  adjustment: "Ajustement",
+  credit: "Crédit",
 };
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -82,7 +62,7 @@ const ClientInvoices = () => {
 
   // Pay dialog state
   const [payDialogOpen, setPayDialogOpen] = useState(false);
-  const [payingInvoice, setPayingInvoice] = useState<any>(null);
+  const [payingInvoice, setPayingInvoice] = useState<InvoiceBreakdown | null>(null);
 
   // ── Profile ──
   const { data: profile } = useQuery({
@@ -90,7 +70,7 @@ const ClientInvoices = () => {
     queryFn: async () => {
       const { data } = await portalSupabase
         .from("profiles")
-        .select("full_name, email, phone, account_number, client_number, service_address, service_city")
+        .select("full_name, email, phone, account_number, client_number, service_address, service_city, service_postal_code")
         .eq("user_id", user?.id)
         .maybeSingle();
       return data;
@@ -98,180 +78,137 @@ const ClientInvoices = () => {
     enabled: !!user?.id,
   });
 
-  // ── Unified invoices (legacy + V2) ──
-  const { data: invoices, isLoading } = useQuery({
-    queryKey: ["client-invoices-all", user?.id],
+  // ── Fetch V2 invoice IDs, then get breakdowns from RPC ──
+  const { data: breakdowns, isLoading } = useQuery({
+    queryKey: ["client-invoice-breakdowns", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const all: any[] = [];
 
-      // Legacy billing
-      const { data: legacy } = await portalSupabase
-        .from("billing")
-        .select("*, orders:order_id (order_number, service_type, equipment_details)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (legacy) {
-        for (const inv of legacy) {
-          all.push({
-            ...inv,
-            _source: "legacy",
-            _type: "onetime",
-          });
-        }
-      }
-
-      // V2 billing_invoices
+      // Get billing_customer for this user
       const { data: customer } = await portalSupabase
         .from("billing_customers")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (customer) {
-        const { data: v2 } = await portalSupabase
-          .from("billing_invoices")
-          .select("*, billing_invoice_lines(id, description, quantity, unit_price, line_total)")
-          .eq("customer_id", customer.id)
-          .order("created_at", { ascending: false });
-        if (v2) {
-          for (const inv of v2) {
-            const isOverdue = inv.status !== "paid" && inv.due_date && isPast(parseISO(inv.due_date));
-            all.push({
-              id: inv.id,
-              user_id: user.id,
-              invoice_number: inv.invoice_number,
-              amount: Number(inv.total) || 0,
-              subtotal: Number(inv.subtotal) || 0,
-              total: Number(inv.total) || 0,
-              fees: Number(inv.fees) || 0,
-              amount_paid: Number(inv.amount_paid) || 0,
-              balance_due: Number(inv.balance_due) || 0,
-              status: isOverdue && inv.status !== "paid" ? "overdue" : inv.status,
-              due_date: inv.due_date,
-              paid_at: inv.paid_at,
-              created_at: inv.created_at,
-              notes: inv.notes,
-              tps_amount: inv.tps_amount,
-              tvq_amount: inv.tvq_amount,
-              _source: "v2",
-              _type: inv.type || "recurring",
-              _lines: inv.billing_invoice_lines || [],
-            });
+      if (!customer) return [];
+
+      // Get invoice IDs
+      const { data: invoices } = await portalSupabase
+        .from("billing_invoices")
+        .select("id")
+        .eq("customer_id", customer.id)
+        .order("created_at", { ascending: false });
+      if (!invoices || invoices.length === 0) return [];
+
+      // Fetch all breakdowns from RPC
+      const ids = invoices.map((i) => i.id);
+      const bdMap = await fetchInvoiceBreakdowns(ids);
+
+      // Convert to sorted array, add overdue detection
+      const result: InvoiceBreakdown[] = [];
+      for (const inv of invoices) {
+        const bd = bdMap.get(inv.id);
+        if (bd) {
+          // Override status to overdue if applicable
+          if (bd.status !== "paid" && bd.status !== "void" && bd.status !== "cancelled" && bd.due_date && isPast(parseISO(bd.due_date))) {
+            (bd as any).display_status = "overdue";
+          } else {
+            (bd as any).display_status = bd.status;
           }
+          result.push(bd);
         }
       }
-
-      all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      return all;
+      return result;
     },
     enabled: !!user?.id,
   });
 
   // ── Derived data ──
-  const pendingInvoices = invoices?.filter(isInvoiceOpen) || [];
+  const isOpen = (bd: InvoiceBreakdown) => {
+    const s = bd.status;
+    if (["paid", "void", "cancelled"].includes(s)) return false;
+    return bd.balance_due_cents > 0;
+  };
+
+  const pendingInvoices = useMemo(() => breakdowns?.filter(isOpen) || [], [breakdowns]);
   const currentInvoice = pendingInvoices[0] || null;
 
-  const filteredInvoices = invoices?.filter((inv: any) => {
-    if (filterTab === "all") return true;
-    return inv.status === filterTab;
-  }) || [];
+  const filteredInvoices = useMemo(() => {
+    if (!breakdowns) return [];
+    if (filterTab === "all") return breakdowns;
+    return breakdowns.filter((bd) => {
+      const ds = (bd as any).display_status || bd.status;
+      return ds === filterTab;
+    });
+  }, [breakdowns, filterTab]);
 
-  // ── PDF generation ──
-  const createInvoiceData = useCallback((inv: any): InvoiceDataV2 => {
-    const subtotal = Number(inv.subtotal || inv.amount) || 0;
-    const tps = Number(inv.tps_amount) || 0;
-    const tvq = Number(inv.tvq_amount) || 0;
-    const total = subtotal + tps + tvq;
+  // ── PDF generation (from breakdown) ──
+  const buildPDFData = useCallback(
+    (bd: InvoiceBreakdown) => {
+      return breakdownToInvoiceDataV2(
+        bd,
+        {
+          full_name: profile?.full_name || "Non fourni par le client",
+          email: profile?.email || user?.email || "Non fourni par le client",
+          phone: profile?.phone || "Non fourni par le client",
+          address_line1: profile?.service_address || "Non fourni par le client",
+          city: profile?.service_city || "",
+          province: "QC",
+          postal_code: profile?.service_postal_code || "",
+        },
+        profile?.account_number || profile?.client_number || "Non fourni par le client",
+      );
+    },
+    [profile, user?.email],
+  );
 
-    // Build items from billing_invoice_lines (each service/equipment/fee as separate line)
-    const lines: any[] = inv._lines || [];
-    const items = lines.length > 0
-      ? lines.map((line: any) => ({
-          category: "Other" as const,
-          description: line.description || "Service",
-          qty: Number(line.quantity) || 1,
-          unit_price: Number(line.unit_price) || 0,
-          amount: Number(line.line_total) || 0,
-          is_recurring: inv._type === "recurring",
-        }))
-      : [{
-          category: "Other" as const,
-          description: inv.notes || "Services télécom",
-          qty: 1,
-          unit_price: subtotal,
-          amount: subtotal,
-          is_recurring: inv._type === "recurring",
-        }];
+  const handleViewPDF = useCallback(
+    async (bd: InvoiceBreakdown) => {
+      try {
+        setPdfLoading(true);
+        setPdfViewerOpen(true);
+        setPdfTitle(`Facture ${bd.invoice_number}`);
+        setPdfFilename(`Facture_${bd.invoice_number}.pdf`);
+        const result = await generateInvoicePDF(buildPDFData(bd));
+        if (result.success && result.blob) setPdfBlob(result.blob);
+        else throw new Error(result.error);
+      } catch (error) {
+        console.error("PDF error:", error);
+        toast.error("Erreur lors de la génération du PDF");
+        setPdfViewerOpen(false);
+      } finally {
+        setPdfLoading(false);
+      }
+    },
+    [buildPDFData],
+  );
 
-    return {
-      invoice_type: (inv._type === "recurring" || inv._type === "renewal") ? "MONTHLY" : "ONETIME",
-      invoice_number: inv.invoice_number || `NVR-INV-${inv.id?.slice(0, 8).toUpperCase()}`,
-      account_number: profile?.account_number || profile?.client_number || "000000",
-      invoice_date: inv.created_at,
-      due_date: inv.due_date,
-      currency: "CAD",
-      status: inv.status,
-      customer: {
-        full_name: profile?.full_name || "Client",
-        email: profile?.email || user?.email || "",
-        phone: profile?.phone,
-        address_line1: profile?.service_address || "",
-        city: profile?.service_city || "",
-        province: "QC",
-        postal_code: "",
-      },
-      items,
-      subtotal,
-      taxes: { gst_rate: 0.05, gst_amount: tps, qst_rate: 0.09975, qst_amount: tvq },
-      total,
-      balance_due: inv.status === "paid" ? 0 : total,
-      payments: inv.paid_at ? [{ method: "Manual", status: "Captured", paid_amount: total, paid_at: inv.paid_at, payment_reference: inv.payment_reference }] : [],
-      payments_total: inv.paid_at ? total : 0,
-    };
-  }, [profile, user?.email]);
-
-  const handleViewPDF = useCallback(async (inv: any) => {
-    try {
-      setPdfLoading(true);
-      setPdfViewerOpen(true);
-      setPdfTitle(`Facture ${inv.invoice_number || inv.id?.slice(0, 8).toUpperCase()}`);
-      setPdfFilename(`Facture_${inv.invoice_number || inv.id?.slice(0, 8)}.pdf`);
-      const result = await generateInvoicePDF(createInvoiceData(inv));
-      if (result.success && result.blob) setPdfBlob(result.blob);
-      else throw new Error(result.error);
-    } catch (error) {
-      console.error("PDF error:", error);
-      toast.error("Erreur lors de la génération du PDF");
-      setPdfViewerOpen(false);
-    } finally {
-      setPdfLoading(false);
-    }
-  }, [createInvoiceData]);
-
-  const handleDownloadPDF = useCallback(async (inv: any) => {
-    try {
-      const result = await generateInvoicePDF(createInvoiceData(inv));
-      if (result.success && result.blob && result.filename) {
-        safePDFDownload(result.blob, result.filename);
-        toast.success("Facture téléchargée");
-      } else throw new Error(result.error);
-    } catch (error) {
-      console.error("PDF download error:", error);
-      toast.error("Impossible de générer la facture");
-    }
-  }, [createInvoiceData]);
+  const handleDownloadPDF = useCallback(
+    async (bd: InvoiceBreakdown) => {
+      try {
+        const result = await generateInvoicePDF(buildPDFData(bd));
+        if (result.success && result.blob && result.filename) {
+          safePDFDownload(result.blob, result.filename);
+          toast.success("Facture téléchargée");
+        } else throw new Error(result.error);
+      } catch (error) {
+        console.error("PDF download error:", error);
+        toast.error("Impossible de générer la facture");
+      }
+    },
+    [buildPDFData],
+  );
 
   // ── Pay ──
-  const handlePayInvoice = (inv: any) => {
-    setPayingInvoice(inv);
+  const handlePayInvoice = (bd: InvoiceBreakdown) => {
+    setPayingInvoice(bd);
     setPayDialogOpen(true);
   };
 
   const handlePaymentSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["client-invoices-all"] });
+    queryClient.invalidateQueries({ queryKey: ["client-invoice-breakdowns"] });
     queryClient.invalidateQueries({ queryKey: ["client-profile"] });
     queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
-    queryClient.invalidateQueries({ queryKey: ["client-balance"] });
     toast.success("Paiement enregistré!");
   };
 
@@ -285,6 +222,7 @@ const ClientInvoices = () => {
 
   // ── Currency formatter ──
   const cad = (n: number) => n.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+  const getDisplayStatus = (bd: InvoiceBreakdown) => (bd as any).display_status || bd.status;
 
   // ── Render ─────────────────────────────────────────────────────────
   return (
@@ -317,13 +255,13 @@ const ClientInvoices = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-semibold text-foreground">
-                      {currentInvoice.invoice_number || currentInvoice.id?.slice(0, 8).toUpperCase()}
+                      {currentInvoice.invoice_number}
                     </span>
-                    <Badge className={STATUS_COLORS[currentInvoice.status] || "bg-muted text-muted-foreground"}>
-                      {STATUS_LABELS[currentInvoice.status] || currentInvoice.status}
+                    <Badge className={STATUS_COLORS[getDisplayStatus(currentInvoice)] || "bg-muted text-muted-foreground"}>
+                      {STATUS_LABELS[getDisplayStatus(currentInvoice)] || currentInvoice.status}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
-                      {TYPE_LABELS[currentInvoice._type] || "Facture"}
+                      {TYPE_LABELS[currentInvoice.type] || "Facture"}
                     </Badge>
                   </div>
                   {currentInvoice.due_date && (
@@ -333,11 +271,11 @@ const ClientInvoices = () => {
                     </p>
                   )}
                   <p className="text-xl font-bold text-amber-700">
-                    Solde dû : {cad(getBalanceDue(currentInvoice))}
+                    Solde dû : {cad(currentInvoice.balance_due)}
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  {isInvoiceOpen(currentInvoice) && (
+                  {isOpen(currentInvoice) && (
                     <Button
                       className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5"
                       onClick={() => handlePayInvoice(currentInvoice)}
@@ -387,46 +325,50 @@ const ClientInvoices = () => {
           <CardContent>
             {isLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />)}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                ))}
               </div>
             ) : filteredInvoices.length > 0 ? (
               <>
                 {/* Mobile cards */}
                 <div className="md:hidden space-y-3">
-                  {filteredInvoices.map((inv: any) => {
-                    const balance = getBalanceDue(inv);
-                    const open = isInvoiceOpen(inv);
+                  {filteredInvoices.map((bd) => {
+                    const open = isOpen(bd);
+                    const ds = getDisplayStatus(bd);
                     return (
-                      <div key={inv.id} className="p-4 rounded-lg border border-border bg-card">
+                      <div key={bd.invoice_id} className="p-4 rounded-lg border border-border bg-card">
                         <div className="flex items-start justify-between mb-2">
                           <div>
-                            <span className="font-mono text-sm font-semibold">{inv.invoice_number || inv.id?.slice(0, 8)}</span>
+                            <span className="font-mono text-sm font-semibold">{bd.invoice_number}</span>
                             <div className="flex gap-1.5 mt-1">
-                              <Badge className={STATUS_COLORS[inv.status] || "bg-muted text-muted-foreground"} >
-                                {STATUS_LABELS[inv.status] || inv.status}
+                              <Badge className={STATUS_COLORS[ds] || "bg-muted text-muted-foreground"}>
+                                {STATUS_LABELS[ds] || ds}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {TYPE_LABELS[inv._type] || "Facture"}
+                                {TYPE_LABELS[bd.type] || "Facture"}
                               </Badge>
                             </div>
                           </div>
-                          <span className="font-bold">{cad(Number(inv.amount || inv.total || 0))}</span>
+                          <span className="font-bold">{cad(bd.total)}</span>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                          <span>{format(new Date(inv.created_at), "d MMM yyyy", { locale: fr })}</span>
-                          {inv.due_date && <span>Éch. {format(parseISO(inv.due_date), "d MMM", { locale: fr })}</span>}
-                          {balance > 0 && <span className="text-amber-600 font-medium">Solde: {cad(balance)}</span>}
+                          <span>{format(new Date(bd.created_at), "d MMM yyyy", { locale: fr })}</span>
+                          {bd.due_date && <span>Éch. {format(parseISO(bd.due_date), "d MMM", { locale: fr })}</span>}
+                          {bd.balance_due > 0 && <span className="text-amber-600 font-medium">Solde: {cad(bd.balance_due)}</span>}
                         </div>
                         <div className="flex gap-2">
                           {open && (
-                            <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white text-xs h-8" onClick={() => handlePayInvoice(inv)}>
-                              <DollarSign className="w-3.5 h-3.5 mr-1" />Payer
+                            <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white text-xs h-8" onClick={() => handlePayInvoice(bd)}>
+                              <DollarSign className="w-3.5 h-3.5 mr-1" />
+                              Payer
                             </Button>
                           )}
-                          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => handleViewPDF(inv)}>
-                            <FileText className="w-3.5 h-3.5 mr-1" />PDF
+                          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => handleViewPDF(bd)}>
+                            <FileText className="w-3.5 h-3.5 mr-1" />
+                            PDF
                           </Button>
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(inv)}>
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(bd)}>
                             <Download className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -443,6 +385,8 @@ const ClientInvoices = () => {
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">N° Facture</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Type</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Sous-total</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Rabais</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde dû</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
@@ -450,38 +394,42 @@ const ClientInvoices = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredInvoices.map((inv: any) => {
-                        const balance = getBalanceDue(inv);
-                        const open = isInvoiceOpen(inv);
-                        const isOverdue = inv.status === "overdue" || (inv.due_date && isPast(parseISO(inv.due_date)) && open);
+                      {filteredInvoices.map((bd) => {
+                        const open = isOpen(bd);
+                        const ds = getDisplayStatus(bd);
                         return (
-                          <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4 text-sm font-mono font-semibold text-foreground">
-                              {inv.invoice_number || inv.id?.slice(0, 8)}
-                            </td>
+                          <tr key={bd.invoice_id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4 text-sm font-mono font-semibold text-foreground">{bd.invoice_number}</td>
                             <td className="py-3 px-4 text-sm text-muted-foreground">
-                              {format(new Date(inv.created_at), "d MMM yyyy", { locale: fr })}
+                              {format(new Date(bd.created_at), "d MMM yyyy", { locale: fr })}
                             </td>
                             <td className="py-3 px-4">
                               <Badge variant="outline" className="text-xs">
-                                {TYPE_LABELS[inv._type] || "Facture"}
+                                {TYPE_LABELS[bd.type] || "Facture"}
                               </Badge>
                             </td>
-                            <td className="py-3 px-4 text-sm font-medium text-foreground">
-                              {cad(Number(inv.amount || inv.total || 0))}
-                            </td>
+                            <td className="py-3 px-4 text-sm text-muted-foreground">{cad(bd.subtotal)}</td>
                             <td className="py-3 px-4 text-sm">
-                              {balance <= 0 ? (
+                              {bd.discounts_total > 0 ? (
+                                <span className="text-emerald-600">-{cad(bd.discounts_total)}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-sm font-medium text-foreground">{cad(bd.total)}</td>
+                            <td className="py-3 px-4 text-sm">
+                              {bd.balance_due <= 0 ? (
                                 <span className="text-emerald-600 font-medium flex items-center gap-1">
-                                  <CheckCircle className="w-3 h-3" />0,00 $
+                                  <CheckCircle className="w-3 h-3" />
+                                  0,00 $
                                 </span>
                               ) : (
-                                <span className="text-amber-600 font-medium">{cad(balance)}</span>
+                                <span className="text-amber-600 font-medium">{cad(bd.balance_due)}</span>
                               )}
                             </td>
                             <td className="py-3 px-4">
-                              <Badge className={STATUS_COLORS[isOverdue ? "overdue" : inv.status] || "bg-muted text-muted-foreground"}>
-                                {isOverdue ? STATUS_LABELS.overdue : STATUS_LABELS[inv.status] || inv.status}
+                              <Badge className={STATUS_COLORS[ds] || "bg-muted text-muted-foreground"}>
+                                {STATUS_LABELS[ds] || ds}
                               </Badge>
                             </td>
                             <td className="py-3 px-4">
@@ -490,15 +438,16 @@ const ClientInvoices = () => {
                                   <Button
                                     size="sm"
                                     className="h-8 px-3 bg-teal-600 hover:bg-teal-700 text-white text-xs"
-                                    onClick={() => handlePayInvoice(inv)}
+                                    onClick={() => handlePayInvoice(bd)}
                                   >
-                                    <DollarSign className="w-3.5 h-3.5 mr-1" />Payer
+                                    <DollarSign className="w-3.5 h-3.5 mr-1" />
+                                    Payer
                                   </Button>
                                 )}
-                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleViewPDF(inv)} title="Voir PDF">
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleViewPDF(bd)} title="Voir PDF">
                                   <FileText className="w-3.5 h-3.5" />
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(inv)} title="Télécharger PDF">
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(bd)} title="Télécharger PDF">
                                   <Download className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
@@ -534,8 +483,14 @@ const ClientInvoices = () => {
       <PayInvoiceDialog
         open={payDialogOpen}
         onOpenChange={setPayDialogOpen}
-        invoice={payingInvoice}
-        totalDue={payingInvoice ? getBalanceDue(payingInvoice) : 0}
+        invoice={payingInvoice ? {
+          id: payingInvoice.invoice_id,
+          invoice_number: payingInvoice.invoice_number,
+          total: payingInvoice.total,
+          balance_due: payingInvoice.balance_due,
+          status: payingInvoice.status,
+        } : null}
+        totalDue={payingInvoice?.balance_due || 0}
         profile={profile}
         onPaymentSuccess={handlePaymentSuccess}
       />
