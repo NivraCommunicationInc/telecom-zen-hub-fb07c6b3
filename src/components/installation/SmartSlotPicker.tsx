@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, CheckCircle2 } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { format, addDays, isToday, isTomorrow } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
 import type { InstallationDecision } from "@/lib/installationLogic";
@@ -18,18 +18,19 @@ interface SlotData {
 interface Props {
   decision: InstallationDecision;
   isFrench: boolean;
-  /** Available slots from DB. If empty, generates local options based on decision. */
   availableSlots?: SlotData[];
   selectedDate: string;
   selectedTime: string;
   onSelect: (date: string, time: string, slotId?: string) => void;
 }
 
+const LEAD_TIME_HOURS = 2;
+
 const TIME_SLOTS = [
-  { value: "09h - 12h", labelFr: "9h - 12h (Matin)", labelEn: "9AM - 12PM (Morning)" },
-  { value: "12h - 15h", labelFr: "12h - 15h (Après-midi)", labelEn: "12PM - 3PM (Afternoon)" },
-  { value: "15h - 18h", labelFr: "15h - 18h (Fin d'après-midi)", labelEn: "3PM - 6PM (Late afternoon)" },
-  { value: "18h - 20h", labelFr: "18h - 20h (Soir)", labelEn: "6PM - 8PM (Evening)" },
+  { value: "09h - 12h", startHour: 9, labelFr: "9h - 12h (Matin)", labelEn: "9AM - 12PM (Morning)" },
+  { value: "12h - 15h", startHour: 12, labelFr: "12h - 15h (Après-midi)", labelEn: "12PM - 3PM (Afternoon)" },
+  { value: "15h - 18h", startHour: 15, labelFr: "15h - 18h (Fin d'après-midi)", labelEn: "3PM - 6PM (Late afternoon)" },
+  { value: "18h - 20h", startHour: 18, labelFr: "18h - 20h (Soir)", labelEn: "6PM - 8PM (Evening)" },
 ];
 
 export function SmartSlotPicker({
@@ -40,46 +41,46 @@ export function SmartSlotPicker({
   selectedTime,
   onSelect,
 }: Props) {
-  // Generate available dates based on decision
+  // Live clock — updates every 60s so slots disable dynamically
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
   const dates = useMemo(() => {
     const result: Date[] = [];
     const startDay = decision.sameDayPossible && isSameDayStillAvailable() ? 0 : decision.minLeadDays;
-    
     for (let i = startDay; i <= decision.maxLeadDays; i++) {
-      const d = addDays(new Date(), i);
-      // Skip Sundays
-      if (d.getDay() !== 0) {
-        result.push(d);
-      }
+      const d = addDays(now, i);
+      if (d.getDay() !== 0) result.push(d);
     }
     return result;
-  }, [decision]);
+  }, [decision, now]);
 
-  // Filter time slots based on available DB slots (if provided)
   const getTimeSlotsForDate = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    
-    if (availableSlots && availableSlots.length > 0) {
-      return TIME_SLOTS.filter((slot) => {
+
+    // For today: filter out past slots + enforce 2h lead time
+    const filtered = TIME_SLOTS.filter((slot) => {
+      if (isToday(date)) {
+        const currentHour = now.getHours() + now.getMinutes() / 60;
+        // Slot start must be > current time + lead time
+        if (slot.startHour <= currentHour + LEAD_TIME_HOURS) return false;
+      }
+
+      // If DB slots exist, also check capacity
+      if (availableSlots && availableSlots.length > 0) {
         const match = availableSlots.find(
           (s) => s.slot_date === dateStr && s.time_slot === slot.value
         );
-        return match && match.booked < match.capacity;
-      });
-    }
-    
-    // No DB slots: show all time slots (for same-day, only future slots)
-    if (isToday(date)) {
-      const hour = new Date().getHours();
-      return TIME_SLOTS.filter((slot) => {
-        if (slot.value === "09h - 12h" && hour >= 8) return false;
-        if (slot.value === "12h - 15h" && hour >= 11) return false;
-        if (slot.value === "15h - 18h" && hour >= 14) return false;
-        return true;
-      });
-    }
-    
-    return TIME_SLOTS;
+        return match ? match.booked < match.capacity : false;
+      }
+
+      return true;
+    });
+
+    return filtered;
   };
 
   const formatDateLabel = (date: Date) => {
@@ -97,12 +98,16 @@ export function SmartSlotPicker({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {dates.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {isFrench
-              ? "Aucune disponibilité pour le moment. Veuillez nous contacter."
-              : "No availability at the moment. Please contact us."}
-          </p>
+        {/* Check if ALL dates have zero valid slots */}
+        {dates.length === 0 || dates.every(d => getTimeSlotsForDate(d).length === 0) ? (
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+            <p className="text-sm text-muted-foreground">
+              {isFrench
+                ? "Aucun créneau disponible aujourd'hui. Les prochaines disponibilités sont affichées ci-dessous."
+                : "No installation slots available today. Next available slots are shown below."}
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             {dates.slice(0, 8).map((date) => {
