@@ -1676,6 +1676,470 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       </p>
     `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
   },
+
+  // =============================================
+  // SECURITY TEMPLATES
+  // =============================================
+
+  // LOGIN ALERT
+  login_alert: {
+    subject: "Nivra — Nouvelle connexion détectée",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '🔐', 'Connexion détectée', 'Login detected',
+        'Une nouvelle connexion a été détectée sur votre compte Nivra.',
+        'A new login was detected on your Nivra account.'
+      )}
+      ${detailsCard([
+        { label: 'Date et heure / Date & time', value: vars.login_time ? formatDate(vars.login_time, true) : formatDate(new Date().toISOString(), true) },
+        ...(vars.ip_address ? [{ label: 'Adresse IP / IP address', value: vars.ip_address }] : []),
+        ...(vars.device ? [{ label: 'Appareil / Device', value: vars.device }] : []),
+        ...(vars.location ? [{ label: 'Localisation / Location', value: vars.location }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Si vous n'êtes pas à l'origine de cette connexion, changez votre mot de passe immédiatement.<br>
+        <em style="color:${emailStyles.textMuted};">If you did not initiate this login, change your password immediately.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/profile"), "Sécuriser mon compte / Secure my account", config.supportEmail),
+  },
+
+  // NEW DEVICE LOGIN
+  new_device_login: {
+    subject: "Nivra — Connexion depuis un nouvel appareil",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '📱', 'Nouvel appareil détecté', 'New device detected',
+        'Une connexion depuis un appareil inconnu a été détectée.',
+        'A login from an unknown device was detected.'
+      )}
+      ${detailsCard([
+        { label: 'Date et heure / Date & time', value: vars.login_time ? formatDate(vars.login_time, true) : formatDate(new Date().toISOString(), true) },
+        ...(vars.device ? [{ label: 'Appareil / Device', value: vars.device }] : []),
+        ...(vars.ip_address ? [{ label: 'Adresse IP / IP address', value: vars.ip_address }] : []),
+        ...(vars.browser ? [{ label: 'Navigateur / Browser', value: vars.browser }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Si vous reconnaissez cette activité, aucune action n'est requise. Sinon, sécurisez votre compte.<br>
+        <em style="color:${emailStyles.textMuted};">If you recognize this activity, no action is needed. Otherwise, secure your account.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/profile"), "Sécuriser mon compte / Secure my account", config.supportEmail),
+  },
+
+  // PASSWORD CHANGED
+  password_changed: {
+    subject: "Nivra — Mot de passe modifié",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔑', 'Mot de passe modifié', 'Password changed',
+        'Le mot de passe de votre compte Nivra a été modifié avec succès.',
+        'Your Nivra account password has been changed successfully.'
+      )}
+      ${detailsCard([
+        { label: 'Date / Date', value: formatDate(new Date().toISOString(), true) },
+        ...(vars.ip_address ? [{ label: 'Adresse IP / IP address', value: vars.ip_address }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Si vous n'avez pas effectué ce changement, contactez immédiatement notre support.<br>
+        <em style="color:${emailStyles.textMuted};">If you did not make this change, contact our support immediately.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/profile"), "Voir mon profil / View profile", config.supportEmail),
+  },
+
+  // EMAIL CHANGED
+  email_changed: {
+    subject: "Nivra — Adresse email modifiée",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '📧', 'Email modifié', 'Email changed',
+        'L\'adresse email associée à votre compte Nivra a été modifiée.',
+        'The email address associated with your Nivra account has been changed.'
+      )}
+      ${detailsCard([
+        { label: 'Ancien email / Old email', value: vars.old_email || 'N/A' },
+        { label: 'Nouvel email / New email', value: vars.new_email || 'N/A' },
+        { label: 'Date', value: formatDate(new Date().toISOString(), true) },
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Si vous n'avez pas effectué ce changement, contactez immédiatement notre support.<br>
+        <em style="color:${emailStyles.textMuted};">If you did not make this change, contact our support immediately.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/profile"), "Contacter support / Contact support", config.supportEmail),
+  },
+
+  // ACCOUNT LOCKED
+  account_locked: {
+    subject: "Nivra — Compte verrouillé",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '🔒', 'Compte verrouillé', 'Account locked',
+        'Votre compte a été verrouillé suite à plusieurs tentatives de connexion échouées.',
+        'Your account has been locked due to multiple failed login attempts.'
+      )}
+      ${detailsCard([
+        { label: 'Date / Date', value: formatDate(new Date().toISOString(), true) },
+        ...(vars.ip_address ? [{ label: 'Adresse IP / IP address', value: vars.ip_address }] : []),
+        ...(vars.unlock_time ? [{ label: 'Déverrouillage / Unlock at', value: formatDate(vars.unlock_time, true) }] : []),
+      ])}
+      <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Si vous êtes à l'origine de ces tentatives, attendez le déverrouillage automatique ou réinitialisez votre mot de passe.<br>
+        <em style="color:${emailStyles.textMuted};">If you made these attempts, wait for automatic unlock or reset your password.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/reset-password"), "Réinitialiser mot de passe / Reset password", config.supportEmail),
+  },
+
+  // =============================================
+  // IDENTITY VERIFICATION TEMPLATES
+  // =============================================
+
+  // IDENTITY VERIFICATION REQUESTED
+  identity_verification_requested: {
+    subject: "Nivra — Vérification d'identité requise",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🪪', 'Vérification requise', 'Verification required',
+        'Nous avons besoin de vérifier votre identité pour sécuriser votre compte.',
+        'We need to verify your identity to secure your account.'
+      )}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Veuillez soumettre une pièce d'identité valide via votre portail client.<br>
+        <em style="color:${emailStyles.textMuted};">Please submit a valid ID through your client portal.</em>
+      </p>
+      <p style="margin:0; font-size:13px; color:${emailStyles.textMuted};">
+        Documents acceptés : permis de conduire, passeport, carte d'assurance maladie.<br>
+        <em>Accepted documents: driver's license, passport, health card.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/verification"), "Soumettre mes documents / Submit documents", config.supportEmail),
+  },
+
+  // IDENTITY DOCUMENT RECEIVED
+  identity_document_received: {
+    subject: "Nivra — Documents de vérification reçus",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📄', 'Documents reçus', 'Documents received',
+        'Nous avons bien reçu vos documents de vérification d\'identité.',
+        'We have received your identity verification documents.'
+      )}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Notre équipe examinera vos documents dans un délai de 24-48 heures ouvrables.<br>
+        <em style="color:${emailStyles.textMuted};">Our team will review your documents within 24-48 business hours.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/verification"), "Suivre ma vérification / Track verification", config.supportEmail),
+  },
+
+  // IDENTITY VERIFIED
+  identity_verified: {
+    subject: "Nivra — Identité vérifiée avec succès!",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Identité vérifiée!', 'Identity verified!',
+        'Votre identité a été vérifiée avec succès.',
+        'Your identity has been successfully verified.'
+      )}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Votre compte est maintenant pleinement vérifié et sécurisé.<br>
+        <em style="color:${emailStyles.textMuted};">Your account is now fully verified and secured.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal"), "Accéder au portail / Access portal", config.supportEmail),
+  },
+
+  // IDENTITY REJECTED
+  identity_rejected: {
+    subject: "Nivra — Vérification d'identité non approuvée",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Vérification refusée', 'Verification rejected',
+        'Vos documents de vérification n\'ont pas pu être approuvés.',
+        'Your verification documents could not be approved.'
+      )}
+      ${vars.rejection_reason ? detailsCard([
+        { label: 'Raison / Reason', value: vars.rejection_reason },
+      ]) : ''}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Veuillez soumettre de nouveaux documents conformes aux exigences.<br>
+        <em style="color:${emailStyles.textMuted};">Please submit new documents that meet the requirements.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/verification"), "Resoumettre / Resubmit", config.supportEmail),
+  },
+
+  // =============================================
+  // PROFILE CHANGE TEMPLATES
+  // =============================================
+
+  // PROFILE CHANGE REQUESTED
+  profile_change_requested: {
+    subject: "Nivra — Demande de modification de profil reçue",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📝', 'Demande reçue', 'Request received',
+        'Votre demande de modification de profil a été soumise.',
+        'Your profile change request has been submitted.'
+      )}
+      ${detailsCard([
+        ...(vars.field_changed ? [{ label: 'Champ modifié / Field changed', value: vars.field_changed }] : []),
+        { label: 'Statut / Status', value: 'En attente d\'approbation / Pending approval' },
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Un membre de notre équipe examinera votre demande sous 24-48 heures.<br>
+        <em style="color:${emailStyles.textMuted};">A team member will review your request within 24-48 hours.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/profile"), "Voir mon profil / View profile", config.supportEmail),
+  },
+
+  // PROFILE CHANGE APPROVED
+  profile_change_approved: {
+    subject: "Nivra — Modification de profil approuvée",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Modification approuvée!', 'Change approved!',
+        'Votre demande de modification de profil a été approuvée et appliquée.',
+        'Your profile change request has been approved and applied.'
+      )}
+      ${detailsCard([
+        ...(vars.field_changed ? [{ label: 'Champ modifié / Field changed', value: vars.field_changed }] : []),
+        ...(vars.new_value ? [{ label: 'Nouvelle valeur / New value', value: vars.new_value }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, "/portal/profile"), "Voir mon profil / View profile", config.supportEmail),
+  },
+
+  // PROFILE CHANGE REJECTED
+  profile_change_rejected: {
+    subject: "Nivra — Modification de profil refusée",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Modification refusée', 'Change rejected',
+        'Votre demande de modification de profil n\'a pas pu être approuvée.',
+        'Your profile change request could not be approved.'
+      )}
+      ${detailsCard([
+        ...(vars.field_changed ? [{ label: 'Champ / Field', value: vars.field_changed }] : []),
+        ...(vars.rejection_reason ? [{ label: 'Raison / Reason', value: vars.rejection_reason }] : []),
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Pour toute question, contactez notre support.<br>
+        <em style="color:${emailStyles.textMuted};">For any questions, contact our support.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/profile"), "Contacter support / Contact support", config.supportEmail),
+  },
+
+  // =============================================
+  // SERVICE CHANGE TEMPLATES
+  // =============================================
+
+  // PLAN CHANGED
+  plan_changed: {
+    subject: "Nivra — Forfait modifié",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '🔄', 'Forfait modifié!', 'Plan changed!',
+        'Votre forfait a été modifié avec succès.',
+        'Your plan has been changed successfully.'
+      )}
+      ${detailsCard([
+        ...(vars.old_plan ? [{ label: 'Ancien forfait / Old plan', value: vars.old_plan }] : []),
+        ...(vars.new_plan ? [{ label: 'Nouveau forfait / New plan', value: vars.new_plan }] : []),
+        ...(vars.effective_date ? [{ label: 'Effectif le / Effective on', value: formatDate(vars.effective_date) }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, "/portal/services"), "Voir mes services / View services", config.supportEmail),
+  },
+
+  // SERVICE CHANGED
+  service_changed: {
+    subject: "Nivra — Service modifié",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔧', 'Service modifié', 'Service changed',
+        'Un changement a été appliqué à votre service.',
+        'A change has been applied to your service.'
+      )}
+      ${detailsCard([
+        { label: 'Service', value: vars.service_name || 'N/A' },
+        ...(vars.change_description ? [{ label: 'Changement / Change', value: vars.change_description }] : []),
+        ...(vars.effective_date ? [{ label: 'Effectif le / Effective on', value: formatDate(vars.effective_date) }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, "/portal/services"), "Voir mes services / View services", config.supportEmail),
+  },
+
+  // SERVICE FAILED
+  service_failed: {
+    subject: "Nivra — Problème d'activation de service",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Activation échouée', 'Activation failed',
+        'Un problème est survenu lors de l\'activation de votre service.',
+        'An issue occurred during the activation of your service.'
+      )}
+      ${detailsCard([
+        { label: 'Service', value: vars.service_name || 'N/A' },
+        ...(vars.failure_reason ? [{ label: 'Raison / Reason', value: vars.failure_reason }] : []),
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Notre équipe travaille à résoudre ce problème. Nous vous contacterons dès que possible.<br>
+        <em style="color:${emailStyles.textMuted};">Our team is working to resolve this issue. We will contact you as soon as possible.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/orders"), "Voir ma commande / View order", config.supportEmail),
+  },
+
+  // REFUND ISSUED
+  refund_issued: {
+    subject: "Nivra — Remboursement effectué (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '💰', 'Remboursement effectué', 'Refund issued',
+        'Un remboursement a été effectué sur votre compte.',
+        'A refund has been issued to your account.'
+      )}
+      ${detailsCard([
+        ...(vars.invoice_number ? [{ label: 'Nº facture / Invoice #', value: vars.invoice_number }] : []),
+        { label: 'Montant remboursé / Refund amount', value: formatCurrency(vars.refund_amount || vars.amount) },
+        { label: 'Méthode / Method', value: vars.refund_method || 'N/A' },
+        { label: 'Date', value: formatDate(new Date().toISOString()) },
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Le remboursement sera reflété sur votre compte dans les 5-10 jours ouvrables.<br>
+        <em style="color:${emailStyles.textMuted};">The refund will be reflected in your account within 5-10 business days.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail),
+  },
+
+  // INVOICE PAID (Receipt)
+  invoice_paid: {
+    subject: "Nivra — Facture payée (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Facture payée!', 'Invoice paid!',
+        'Votre facture a été payée intégralement.',
+        'Your invoice has been fully paid.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant payé / Amount paid', value: formatCurrency(vars.amount || vars.total) },
+        { label: 'Date de paiement / Payment date', value: vars.paid_at ? formatDate(vars.paid_at) : formatDate(new Date().toISOString()) },
+        ...(vars.payment_method ? [{ label: 'Méthode / Method', value: vars.payment_method }] : []),
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci! Votre reçu de paiement est disponible dans votre portail.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you! Your payment receipt is available in your portal.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mon reçu / View receipt", config.supportEmail),
+  },
+
+  // APPOINTMENT REMINDER
+  appointment_reminder: {
+    subject: "Nivra — Rappel: Rendez-vous demain",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📅', 'Rappel de rendez-vous', 'Appointment reminder',
+        'Votre rendez-vous est prévu pour demain.',
+        'Your appointment is scheduled for tomorrow.'
+      )}
+      ${detailsCard([
+        { label: 'Date et heure / Date & time', value: vars.scheduled_date_time ? formatDate(vars.scheduled_date_time, true) : 'N/A' },
+        ...(vars.service_address ? [{ label: 'Adresse / Address', value: vars.service_address }] : []),
+        ...(vars.technician_name ? [{ label: 'Technicien / Technician', value: vars.technician_name }] : []),
+        ...(vars.service_type ? [{ label: 'Service', value: vars.service_type }] : []),
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Assurez-vous qu'un adulte est présent à l'adresse pour accueillir le technicien.<br>
+        <em style="color:${emailStyles.textMuted};">Please ensure an adult is present at the address to welcome the technician.</em>
+      </p>
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Voir mon rendez-vous / View appointment", config.supportEmail),
+  },
+
+  // APPOINTMENT COMPLETED
+  appointment_completed: {
+    subject: "Nivra — Rendez-vous terminé",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Rendez-vous terminé!', 'Appointment completed!',
+        'Votre rendez-vous a été complété avec succès.',
+        'Your appointment has been completed successfully.'
+      )}
+      ${detailsCard([
+        ...(vars.service_type ? [{ label: 'Service', value: vars.service_type }] : []),
+        ...(vars.technician_name ? [{ label: 'Technicien / Technician', value: vars.technician_name }] : []),
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci de faire confiance à Nivra Telecom! Profitez de vos services.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for trusting Nivra Telecom! Enjoy your services.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal"), "Accéder au portail / Access portal", config.supportEmail),
+  },
+
+  // MOBILE STATUS (Generic for send-mobile-status-email)
+  mobile_status: {
+    subject: "Nivra — Mise à jour de votre ligne mobile (#{{order_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📱', 'Mise à jour mobile', 'Mobile update',
+        vars.status_message_fr || 'Le statut de votre ligne mobile a été mis à jour.',
+        vars.status_message_en || 'Your mobile line status has been updated.'
+      )}
+      ${detailsCard([
+        ...(vars.order_number ? [{ label: 'Nº commande / Order #', value: vars.order_number }] : []),
+        { label: 'Statut / Status', value: vars.status_label || vars.status || 'N/A' },
+        ...(vars.phone_number ? [{ label: 'Numéro / Number', value: vars.phone_number }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail),
+  },
+
+  // INSTALLATION STATUS (Generic)
+  installation_status: {
+    subject: "Nivra — Mise à jour d'installation (#{{order_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔧', 'Mise à jour installation', 'Installation update',
+        vars.status_message_fr || 'Le statut de votre installation a été mis à jour.',
+        vars.status_message_en || 'Your installation status has been updated.'
+      )}
+      ${detailsCard([
+        ...(vars.order_number ? [{ label: 'Nº commande / Order #', value: vars.order_number }] : []),
+        { label: 'Statut / Status', value: vars.status_label || vars.status || 'N/A' },
+        ...(vars.service_address ? [{ label: 'Adresse / Address', value: vars.service_address }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/orders"), "Suivre ma commande / Track order", config.supportEmail),
+  },
+
+  // CANCELLATION CONFIRMED (alias for when user requests say this exact key)
+  cancellation_confirmed: {
+    subject: "Nivra — Annulation de service confirmée",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '📋', 'Annulation confirmée', 'Cancellation confirmed',
+        'Votre demande d\'annulation de service a été confirmée.',
+        'Your service cancellation request has been confirmed.'
+      )}
+      ${detailsCard([
+        ...(vars.service_name ? [{ label: 'Service', value: vars.service_name }] : []),
+        ...(vars.effective_date ? [{ label: 'Date effective / Effective date', value: formatDate(vars.effective_date) }] : []),
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Merci d'avoir été client chez Nivra. Nous serons heureux de vous accueillir à nouveau.<br>
+        <em style="color:${emailStyles.textMuted};">Thank you for being a Nivra customer. We'd be happy to welcome you back.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal"), "Retour au portail / Back to portal", config.supportEmail),
+  },
+
+  // INVOICE DUE REMINDER (generic)
+  invoice_due_reminder: {
+    subject: "Nivra — Rappel: Facture à payer (#{{invoice_number}})",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '📅', 'Rappel de paiement', 'Payment reminder',
+        'Votre facture arrive bientôt à échéance.',
+        'Your invoice is due soon.'
+      )}
+      ${detailsCard([
+        { label: 'Nº facture / Invoice #', value: vars.invoice_number || 'N/A' },
+        { label: 'Montant dû / Amount due', value: formatCurrency(vars.balance_due || vars.amount) },
+        { label: 'Échéance / Due date', value: vars.due_date ? formatDate(vars.due_date) : 'N/A' },
+      ])}
+      <p style="margin:20px 0; font-size:14px; color:${emailStyles.textSecondary};">
+        Payez avant l'échéance pour éviter toute interruption de service.<br>
+        <em style="color:${emailStyles.textMuted};">Pay before the due date to avoid any service interruption.</em>
+      </p>
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
 };
 
 // =============================================
