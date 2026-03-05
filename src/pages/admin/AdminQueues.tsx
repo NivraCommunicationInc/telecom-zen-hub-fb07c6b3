@@ -142,17 +142,16 @@ const AdminQueues = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title="Queues opérationnelles"
-          subtitle="Travail quotidien — traitement par file d'attente"
-          breadcrumbs={[
-            { label: "Admin", href: "/admin" },
-            { label: "Queues opérationnelles" },
-          ]}
-        />
+      <div className="space-y-4">
+        {/* Page Header — flat */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Queues opérationnelles</h1>
+            <p className="text-sm text-muted-foreground">Travail quotidien — traitement par file d'attente</p>
+          </div>
+        </div>
 
-        {/* Summary KPIs */}
+        {/* Summary KPIs — small inline strip */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {queueTabs.map(({ label, icon, data }) => (
             <StatCard key={label} label={label} value={data.length} icon={icon} />
@@ -161,7 +160,7 @@ const AdminQueues = () => {
 
         {/* Queue Tabs */}
         <Tabs defaultValue="kyc" className="w-full">
-          <TabsList className="bg-card border border-border p-1 h-auto flex-wrap gap-1">
+          <TabsList className="bg-secondary border border-border p-1 h-auto flex-wrap gap-1">
             {queueTabs.map(({ value, label, icon: Icon, data }) => (
               <TabsTrigger
                 key={value}
@@ -176,114 +175,228 @@ const AdminQueues = () => {
           </TabsList>
 
           {/* KYC */}
-          <TabsContent value="kyc" className="mt-4">
-            <SectionCard title="Sessions KYC à traiter" icon={Shield} noPadding>
-              <ScrollArea className="max-h-[520px]">
-                {kycQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
-                {kycQueue.map((s: any) => (
-                  <QueueRow
-                    key={s.id}
-                    item={s.orders}
-                    linkTo={`/admin/orders/${s.orders?.id}`}
-                    subtitle={`${s.case_number || "—"} — ${s.orders?.client_email || "—"}`}
-                    status={s.status}
-                  />
-                ))}
-              </ScrollArea>
-            </SectionCard>
+          <TabsContent value="kyc" className="mt-3">
+            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <Shield className="h-4 w-4" /> Sessions KYC à traiter
+            </div>
+            <div className="overflow-x-auto -mx-4 lg:-mx-6">
+              <table className="w-full text-sm table-pro">
+                <thead>
+                  <tr>
+                    <th>Commande</th>
+                    <th>Dossier</th>
+                    <th>Client</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kycQueue.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">File vide ✓</td></tr>
+                  ) : kycQueue.map((s: any) => (
+                    <tr key={s.id}>
+                      <td className="font-mono">{s.orders?.order_number || s.orders?.id?.slice(0, 8) || "—"}</td>
+                      <td className="font-mono text-muted-foreground">{s.case_number || "—"}</td>
+                      <td>{s.orders?.client_email || "—"}</td>
+                      <td><StatusBadge label={s.status} variant={statusToVariant(s.status)} size="sm" /></td>
+                      <td>
+                        <Link to={`/admin/orders/${s.orders?.id}`}>
+                          <Button size="sm" variant="outline" className="h-8 text-xs">Ouvrir</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </TabsContent>
 
           {/* Provisioning */}
-          <TabsContent value="provisioning" className="mt-4">
-            <SectionCard title="Jobs provisioning en erreur" icon={Wifi} noPadding>
-              <ScrollArea className="max-h-[520px]">
-                {provQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
-                {provQueue.map((j: any) => (
-                  <QueueRow
-                    key={j.id}
-                    item={j.orders}
-                    linkTo={`/admin/orders/${j.orders?.id}`}
-                    subtitle={`${j.job_type} — Tentatives: ${j.attempts || 0}`}
-                    status={j.status}
-                  />
-                ))}
-              </ScrollArea>
-            </SectionCard>
+          <TabsContent value="provisioning" className="mt-3">
+            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <Wifi className="h-4 w-4" /> Jobs provisioning en erreur
+            </div>
+            <div className="overflow-x-auto -mx-4 lg:-mx-6">
+              <table className="w-full text-sm table-pro">
+                <thead>
+                  <tr>
+                    <th>Commande</th>
+                    <th>Type</th>
+                    <th>Tentatives</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {provQueue.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">File vide ✓</td></tr>
+                  ) : provQueue.map((j: any) => (
+                    <tr key={j.id}>
+                      <td className="font-mono">{j.orders?.order_number || "—"}</td>
+                      <td>{j.job_type}</td>
+                      <td>{j.attempts || 0}</td>
+                      <td><StatusBadge label={j.status} variant={statusToVariant(j.status)} size="sm" /></td>
+                      <td>
+                        <Link to={`/admin/orders/${j.orders?.id}`}>
+                          <Button size="sm" variant="outline" className="h-8 text-xs">Ouvrir</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </TabsContent>
 
           {/* Shipments */}
-          <TabsContent value="shipments" className="mt-4">
-            <SectionCard title="Expéditions à traiter" icon={Truck} noPadding>
-              <ScrollArea className="max-h-[520px]">
-                {shipQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
-                {shipQueue.map((s: any) => (
-                  <QueueRow
-                    key={s.id}
-                    item={s.orders}
-                    linkTo={`/admin/orders/${s.orders?.id}`}
-                    subtitle={`${s.shipment_number || "—"} — ${s.carrier || "À assigner"}`}
-                    status={s.status}
-                  />
-                ))}
-              </ScrollArea>
-            </SectionCard>
+          <TabsContent value="shipments" className="mt-3">
+            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <Truck className="h-4 w-4" /> Expéditions à traiter
+            </div>
+            <div className="overflow-x-auto -mx-4 lg:-mx-6">
+              <table className="w-full text-sm table-pro">
+                <thead>
+                  <tr>
+                    <th>Commande</th>
+                    <th>Expédition</th>
+                    <th>Transporteur</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shipQueue.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">File vide ✓</td></tr>
+                  ) : shipQueue.map((s: any) => (
+                    <tr key={s.id}>
+                      <td className="font-mono">{s.orders?.order_number || "—"}</td>
+                      <td className="font-mono text-muted-foreground">{s.shipment_number || "—"}</td>
+                      <td>{s.carrier || "À assigner"}</td>
+                      <td><StatusBadge label={s.status} variant={statusToVariant(s.status)} size="sm" /></td>
+                      <td>
+                        <Link to={`/admin/orders/${s.orders?.id}`}>
+                          <Button size="sm" variant="outline" className="h-8 text-xs">Ouvrir</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </TabsContent>
 
           {/* Installations */}
-          <TabsContent value="installations" className="mt-4">
-            <SectionCard title="Installations à planifier" icon={Calendar} noPadding>
-              <ScrollArea className="max-h-[520px]">
-                {aptQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
-                {aptQueue.map((a: any) => (
-                  <QueueRow
-                    key={a.id}
-                    item={a}
-                    linkTo={a.order_id ? `/admin/orders/${a.order_id}` : "/admin/appointments"}
-                    subtitle={`${a.title} — ${format(new Date(a.scheduled_at), "dd/MM HH:mm", { locale: fr })}`}
-                    status={a.status || "scheduled"}
-                  />
-                ))}
-              </ScrollArea>
-            </SectionCard>
+          <TabsContent value="installations" className="mt-3">
+            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <Calendar className="h-4 w-4" /> Installations à planifier
+            </div>
+            <div className="overflow-x-auto -mx-4 lg:-mx-6">
+              <table className="w-full text-sm table-pro">
+                <thead>
+                  <tr>
+                    <th>Commande</th>
+                    <th>Titre</th>
+                    <th>Date prévue</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aptQueue.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">File vide ✓</td></tr>
+                  ) : aptQueue.map((a: any) => (
+                    <tr key={a.id}>
+                      <td className="font-mono">{a.order_id ? a.order_id.slice(0, 8) : "—"}</td>
+                      <td>{a.title}</td>
+                      <td className="whitespace-nowrap">{format(new Date(a.scheduled_at), "dd/MM HH:mm", { locale: fr })}</td>
+                      <td><StatusBadge label={a.status || "scheduled"} variant={statusToVariant(a.status || "scheduled")} size="sm" /></td>
+                      <td>
+                        <Link to={a.order_id ? `/admin/orders/${a.order_id}` : "/admin/appointments"}>
+                          <Button size="sm" variant="outline" className="h-8 text-xs">Ouvrir</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </TabsContent>
 
           {/* Payments */}
-          <TabsContent value="payments" className="mt-4">
-            <SectionCard title="Paiements en attente" icon={CreditCard} noPadding>
-              <ScrollArea className="max-h-[520px]">
-                {payQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
-                {payQueue.map((o: any) => (
-                  <QueueRow
-                    key={o.id}
-                    item={o}
-                    linkTo={`/admin/orders/${o.id}`}
-                    subtitle={`${o.client_email || "—"} — ${Number(o.total_amount || 0).toFixed(2)} $`}
-                    status={o.payment_status}
-                  />
-                ))}
-              </ScrollArea>
-            </SectionCard>
+          <TabsContent value="payments" className="mt-3">
+            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <CreditCard className="h-4 w-4" /> Paiements en attente
+            </div>
+            <div className="overflow-x-auto -mx-4 lg:-mx-6">
+              <table className="w-full text-sm table-pro">
+                <thead>
+                  <tr>
+                    <th>Commande</th>
+                    <th>Client</th>
+                    <th>Montant</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payQueue.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">File vide ✓</td></tr>
+                  ) : payQueue.map((o: any) => (
+                    <tr key={o.id}>
+                      <td className="font-mono">{o.order_number || o.id.slice(0, 8)}</td>
+                      <td>{o.client_email || "—"}</td>
+                      <td className="tabular-nums">{Number(o.total_amount || 0).toFixed(2)} $</td>
+                      <td><StatusBadge label={o.payment_status} variant={statusToVariant(o.payment_status)} size="sm" /></td>
+                      <td>
+                        <Link to={`/admin/orders/${o.id}`}>
+                          <Button size="sm" variant="outline" className="h-8 text-xs">Ouvrir</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </TabsContent>
 
           {/* SLA */}
-          <TabsContent value="sla" className="mt-4">
-            <SectionCard title="SLA dépassé (> 48h)" icon={AlertTriangle} noPadding>
-              <ScrollArea className="max-h-[520px]">
-                {slaQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
-                {slaQueue.map((o: any) => {
-                  const age = differenceInHours(new Date(), new Date(o.created_at));
-                  return (
-                    <QueueRow
-                      key={o.id}
-                      item={o}
-                      linkTo={`/admin/orders/${o.id}`}
-                      subtitle={`${o.service_type || "—"} — ${age}h en ${o.status}`}
-                      status={`${age}h`}
-                    />
-                  );
-                })}
-              </ScrollArea>
-            </SectionCard>
+          <TabsContent value="sla" className="mt-3">
+            <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" /> SLA dépassé (&gt; 48h)
+            </div>
+            <div className="overflow-x-auto -mx-4 lg:-mx-6">
+              <table className="w-full text-sm table-pro">
+                <thead>
+                  <tr>
+                    <th>Commande</th>
+                    <th>Service</th>
+                    <th>Statut</th>
+                    <th>Âge</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {slaQueue.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">File vide ✓</td></tr>
+                  ) : slaQueue.map((o: any) => {
+                    const age = differenceInHours(new Date(), new Date(o.created_at));
+                    return (
+                      <tr key={o.id}>
+                        <td className="font-mono">{o.order_number || o.id.slice(0, 8)}</td>
+                        <td>{o.service_type || "—"}</td>
+                        <td><StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" /></td>
+                        <td className="text-amber-400 font-medium">{age}h</td>
+                        <td>
+                          <Link to={`/admin/orders/${o.id}`}>
+                            <Button size="sm" variant="outline" className="h-8 text-xs">Ouvrir</Button>
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

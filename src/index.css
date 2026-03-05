@@ -511,14 +511,16 @@
     @apply bg-slate-500/20 text-slate-400 border border-slate-500/30;
   }
   
-  /* Professional Table Styles — used via .table-pro class */
+  /* Professional Table Styles — carrier-grade workspace tables */
   .table-pro {
     @apply w-full text-sm;
   }
   
   .table-pro thead {
     background: hsl(var(--secondary));
-    @apply sticky top-0 z-5;
+    position: sticky;
+    top: 0;
+    z-index: 5;
   }
   
   .table-pro th {
@@ -528,17 +530,22 @@
   }
   
   .table-pro td {
-    @apply px-4 py-3.5;
-    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    @apply px-4 py-3;
+    border-bottom: 1px solid hsl(var(--border) / 0.4);
     color: hsl(var(--foreground));
+    font-size: 0.875rem;
   }
   
   .table-pro tbody tr:nth-child(even) {
-    background: hsl(var(--secondary) / 0.3);
+    background: hsl(var(--secondary) / 0.25);
   }
   
   .table-pro tbody tr:hover {
-    background: hsl(var(--secondary) / 0.6);
+    background: hsl(var(--primary) / 0.06);
+  }
+  
+  .table-pro tbody tr {
+    transition: background 100ms ease;
   }
   
   /* Professional Button Base — min 44px touch target */
@@ -766,7 +773,7 @@
   color: hsl(var(--foreground));
 }
 
-/* --- Cards: uniform styling --- */
+/* --- Cards: flatten cards that contain tables (workspace style) --- */
 .admin-dark [data-slot="card"],
 .admin-dark .bg-card,
 .admin-dark [class*="CardContent"],
@@ -774,7 +781,16 @@
   border-color: hsl(var(--border));
 }
 
-/* --- Tables: carrier-grade defaults --- */
+/* Force cards that only contain tables to be visually flat */
+.admin-dark .bg-card:has(> table),
+.admin-dark .bg-card:has(> .overflow-x-auto > table) {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* --- Tables: carrier-grade defaults (all admin tables) --- */
 .admin-dark table {
   font-size: 0.875rem; /* 14px */
   width: 100%;
@@ -801,17 +817,21 @@
 
 .admin-dark table td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  border-bottom: 1px solid hsl(var(--border) / 0.4);
   color: hsl(var(--foreground));
   vertical-align: middle;
 }
 
 .admin-dark table tbody tr:nth-child(even) {
-  background: hsl(var(--secondary) / 0.3);
+  background: hsl(var(--secondary) / 0.25);
 }
 
 .admin-dark table tbody tr:hover {
-  background: hsl(var(--secondary) / 0.6);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.admin-dark table tbody tr {
+  transition: background 100ms ease;
 }
 
 /* --- Inputs inside admin: inherit 14px base --- */

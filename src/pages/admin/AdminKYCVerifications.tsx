@@ -341,15 +341,12 @@ const AdminKYCVerifications = () => {
   const canReview = selectedSession && ["manual_review", "submitted", "in_review", "pending_docs"].includes(selectedSession.status);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Header — flat */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Shield className="w-6 h-6 text-foreground" />
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Centre de vérification KYC</h1>
-            <p className="text-sm text-muted-foreground">Gestion des vérifications d'identité — Numéros de dossier</p>
-          </div>
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Centre de vérification KYC</h1>
+          <p className="text-sm text-muted-foreground">Gestion des vérifications d'identité — Numéros de dossier</p>
         </div>
         <div className="flex items-center gap-2">
           {pendingCount > 0 && <Badge className="bg-violet-500/15 text-violet-400 border-violet-500/25">{pendingCount} à traiter</Badge>}
@@ -358,8 +355,8 @@ const AdminKYCVerifications = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3">
+      {/* Filters — flat, no card */}
+      <div className="flex gap-3 py-1">
         <div className="flex-1 relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Rechercher par N° dossier, commande, nom, email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
@@ -380,14 +377,20 @@ const AdminKYCVerifications = () => {
         </Select>
       </div>
 
-      {/* Table */}
+      {/* Results count */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground border-b border-border pb-2">
+        <Shield className="w-4 h-4" />
+        <span>{filtered.length} session{filtered.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Table — FULL WIDTH, no card wrapper */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">Aucune session trouvée.</CardContent></Card>
+        <div className="py-12 text-center text-muted-foreground">Aucune session trouvée.</div>
       ) : (
-        <Card>
-          <Table>
+        <div className="overflow-x-auto -mx-4 lg:-mx-6">
+          <Table className="table-pro">
             <TableHeader>
               <TableRow>
                 <TableHead>N° Dossier</TableHead>
@@ -452,7 +455,7 @@ const AdminKYCVerifications = () => {
               })}
             </TableBody>
           </Table>
-        </Card>
+        </div>
       )}
 
       {/* Detail Sheet */}
