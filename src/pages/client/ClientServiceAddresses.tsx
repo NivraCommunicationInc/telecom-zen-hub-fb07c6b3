@@ -3,7 +3,7 @@
  * Route: /portal/service-addresses
  * CRUD for service_addresses linked to the client's account.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,22 +75,29 @@ const ClientServiceAddresses = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch addresses
-  const { data: addresses = [], isLoading } = useQuery({
+  // Fetch addresses (with explicit count for audit/debug visibility)
+  const { data: addressesPayload, isLoading } = useQuery({
     queryKey: ["service-addresses", account?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
         .from("service_addresses")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("account_id", account!.id)
         .eq("is_active", true)
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data || []) as ServiceAddress[];
+      return {
+        account_id: account!.id,
+        rows: (data || []) as ServiceAddress[],
+        count: count ?? 0,
+      };
     },
     enabled: !!account?.id,
   });
+
+  const addresses = addressesPayload?.rows || [];
+  const addressesCount = addressesPayload?.count ?? 0;
 
   // Count active/pending/suspended services per address
   const { data: addressServiceCounts = {} } = useQuery({
@@ -112,6 +119,16 @@ const ClientServiceAddresses = () => {
     },
     enabled: !!billingCustomer?.id,
   });
+
+  useEffect(() => {
+    if (import.meta.env.PROD) return;
+    if (!account?.id) return;
+    console.info("[AUDIT][service-addresses]", {
+      account_id: account.id,
+      count: addressesCount,
+      rows: addresses,
+    });
+  }, [account?.id, addressesCount, addresses]);
 
   return (
     <ClientLayout>
