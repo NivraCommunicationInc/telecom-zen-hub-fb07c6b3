@@ -55,6 +55,15 @@ serve(async (req) => {
         }
       }
 
+      // Fetch referral program settings from DB (generic — no hardcoded percentages)
+      const { data: refSettings } = await supabase
+        .from('referral_program_settings')
+        .select('discount_percent_first_invoice_monthly')
+        .limit(1)
+        .single();
+
+      const referralDiscountPercent = refSettings?.discount_percent_first_invoice_monthly ?? 50;
+
       // Calculate eligible subtotal - SERVICES ONLY for referral codes
       let servicesSubtotal = 0;
       for (const item of cart_items || []) {
@@ -70,10 +79,10 @@ serve(async (req) => {
         );
       }
 
-      // 50% off services only
-      const discountAmount = Math.round(servicesSubtotal * 0.50 * 100) / 100;
+      // Discount from DB config, capped at eligible subtotal
+      const discountAmount = Math.round(Math.min(servicesSubtotal, servicesSubtotal * (referralDiscountPercent / 100)) * 100) / 100;
 
-      console.log(`[validate-promo] Valid referral code ${normalizedCode}: 50% off services = ${discountAmount} CAD`);
+      console.log(`[validate-promo] Valid referral code ${normalizedCode}: ${referralDiscountPercent}% off services = ${discountAmount} CAD`);
 
       const result = {
         valid: true,
@@ -83,14 +92,14 @@ serve(async (req) => {
         promo: {
           id: `referral_${referralCode.id}`,
           code: referralCode.code.toUpperCase(),
-          name: "Rabais parrainage 50%",
+          name: `Rabais parrainage ${referralDiscountPercent}%`,
           discount_type: 'percent',
-          discount_value: 50,
+          discount_value: referralDiscountPercent,
           applies_to: { services: true, one_time_fees: false, equipment: false, delivery: false, installation: false },
           stackable: false,
           new_customers_only: true,
           duration: 'first_cycle_only',
-          discount_label: "Rabais parrainage 50% (1er mois seulement)",
+          discount_label: `Rabais parrainage ${referralDiscountPercent}% (1er mois seulement)`,
         },
         discount_amount: discountAmount,
         eligible_subtotal: servicesSubtotal,
