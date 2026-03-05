@@ -4534,6 +4534,50 @@ export type Database = {
           },
         ]
       }
+      identity_documents: {
+        Row: {
+          checksum: string | null
+          created_at: string
+          doc_type: string
+          file_size_bytes: number | null
+          id: string
+          kyc_session_id: string
+          mime_type: string | null
+          object_path: string
+          storage_bucket: string
+        }
+        Insert: {
+          checksum?: string | null
+          created_at?: string
+          doc_type: string
+          file_size_bytes?: number | null
+          id?: string
+          kyc_session_id: string
+          mime_type?: string | null
+          object_path: string
+          storage_bucket?: string
+        }
+        Update: {
+          checksum?: string | null
+          created_at?: string
+          doc_type?: string
+          file_size_bytes?: number | null
+          id?: string
+          kyc_session_id?: string
+          mime_type?: string | null
+          object_path?: string
+          storage_bucket?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identity_documents_kyc_session_id_fkey"
+            columns: ["kyc_session_id"]
+            isOneToOne: false
+            referencedRelation: "identity_verification_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       identity_verification_events: {
         Row: {
           actor_id: string | null
@@ -11913,6 +11957,10 @@ export type Database = {
             }
             Returns: Json
           }
+      approve_kyc_session: {
+        Args: { p_decision: string; p_note?: string; p_session_id: string }
+        Returns: Json
+      }
       book_slot: {
         Args: {
           p_installation_id: string
@@ -12151,6 +12199,7 @@ export type Database = {
           payment_reference: string
         }[]
       }
+      get_kyc_document_urls: { Args: { p_session_id: string }; Returns: Json }
       get_ledger_allocations: {
         Args: { p_entry_id: string }
         Returns: {

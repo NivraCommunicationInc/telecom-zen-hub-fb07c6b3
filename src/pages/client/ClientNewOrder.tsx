@@ -791,17 +791,18 @@ const ClientNewOrder = () => {
     }
   }, [verificationSessionId]);
 
-  // Restore existing KYC session from DB on mount — NO auto-approve, present choice
+  // Restore existing KYC session from DB on mount — strict policy, no silent bypass
   useEffect(() => {
     if (!user?.id || !isHydrated) return;
     
     const restoreKycSession = async () => {
       try {
+        // Only look for non-terminal sessions
         const activeStatuses = ["created", "submitted", "manual_review", "approved"];
         
         const { data: activeSession } = await supabase
           .from("identity_verification_sessions")
-          .select("id, status, case_number")
+          .select("id, status, case_number, reviewed_at, document_front_path")
           .eq("user_id", user.id)
           .in("status", activeStatuses)
           .order("created_at", { ascending: false })
@@ -810,26 +811,58 @@ const ClientNewOrder = () => {
         
         if (activeSession) {
           console.log("[KYC] Found existing session:", activeSession.id, "status:", activeSession.status);
+          
+          // FIX #1: Only auto-skip if APPROVED AND within 12 months
+          const isApprovedRecently = activeSession.status === "approved" 
+            && activeSession.reviewed_at 
+            && (Date.now() - new Date(activeSession.reviewed_at).getTime()) < 365 * 24 * 60 * 60 * 1000;
+          
+          if (isApprovedRecently) {
+            // Approved within 12 months → auto-skip, no choice needed
+            console.log("[KYC] Session approved within 12 months, auto-skipping");
+            setExistingKycStatus("approved");
+            setExistingKycCaseNumber(activeSession.case_number || null);
+            setKycChoice("reuse");
+            setVerificationSessionId(activeSession.id);
+            localStorage.setItem('nivra_kyc_session_id', activeSession.id);
+            localStorage.setItem('nivra_kyc_choice', 'reuse');
+            setIdVerificationApproved(true);
+            return;
+          }
+          
+          // For all other statuses (created, submitted, manual_review, expired approved):
+          // NEVER auto-skip. Present choice or force new verification.
           setExistingKycStatus(activeSession.status);
           setExistingKycCaseNumber(activeSession.case_number || null);
           
-          // If user already made a choice in this session (via localStorage), restore it
+          // Restore previous explicit choice if any
           const storedChoice = localStorage.getItem('nivra_kyc_choice');
-          if (storedChoice === 'reuse') {
-            setKycChoice('reuse');
-            setVerificationSessionId(activeSession.id);
-            localStorage.setItem('nivra_kyc_session_id', activeSession.id);
-            const reviewReady = ["submitted", "manual_review", "approved"];
-            if (reviewReady.includes(activeSession.status)) {
-              setIdVerificationApproved(true);
+          if (storedChoice === 'reuse' && activeSession.status !== "created") {
+            // Only allow reuse if docs were actually submitted (not just "created")
+            const hasDocuments = !!activeSession.document_front_path;
+            if (hasDocuments) {
+              setKycChoice('reuse');
+              setVerificationSessionId(activeSession.id);
+              localStorage.setItem('nivra_kyc_session_id', activeSession.id);
+              // Only mark as approved if docs are in review+ status
+              const reviewReady = ["submitted", "manual_review"];
+              if (reviewReady.includes(activeSession.status)) {
+                setIdVerificationApproved(true);
+              }
+            } else {
+              // No documents exist → cannot reuse, force new choice
+              localStorage.removeItem('nivra_kyc_choice');
+              setKycChoice(null);
             }
           } else if (storedChoice === 'restart') {
             setKycChoice('restart');
-            // Don't set verificationSessionId — let QRVerificationStep create a new one
+            localStorage.removeItem('nivra_kyc_session_id');
             setVerificationSessionId(null);
             setIdVerificationApproved(false);
+          } else {
+            // No stored choice OR status is "created" → user must decide
+            setKycChoice(null);
           }
-          // If no stored choice → user will see the KycSessionChoice dialog
         } else {
           // No existing session — clear any stale refs
           localStorage.removeItem('nivra_kyc_session_id');
@@ -4371,8 +4404,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                               Changer de vérification
                             </button>
                           </div>
-                        ) : existingKycStatus && kycChoice === null ? (
-                          /* Case 2: Existing session found but user hasn't chosen yet → show choice */
+                        ) : existingKycStatus && existingKycStatus !== "created" && kycChoice === null ? (
+                          /* Case 2: Existing non-created session, user hasn't chosen → show choice */
                           <KycSessionChoice
                             sessionStatus={existingKycStatus}
                             sessionId={verificationSessionId || ""}
@@ -4381,24 +4414,31 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                               setKycChoice(choice);
                               localStorage.setItem('nivra_kyc_choice', choice || '');
                               if (choice === "reuse") {
-                                // Reuse: restore the session from DB
+                                // Reuse: restore the session from DB — only if docs exist
                                 supabase
                                   .from("identity_verification_sessions")
-                                  .select("id, status")
+                                  .select("id, status, document_front_path")
                                   .eq("user_id", user?.id || "")
                                   .in("status", ["submitted", "manual_review", "approved"])
                                   .order("created_at", { ascending: false })
                                   .limit(1)
                                   .maybeSingle()
                                   .then(({ data }) => {
-                                    if (data) {
+                                    if (data && data.document_front_path) {
                                       setVerificationSessionId(data.id);
                                       localStorage.setItem('nivra_kyc_session_id', data.id);
                                       setIdVerificationApproved(true);
+                                    } else {
+                                      // No documents → force restart
+                                      toast.error("Aucun document trouvé. Veuillez soumettre de nouveaux documents.");
+                                      setKycChoice("restart");
+                                      localStorage.setItem('nivra_kyc_choice', 'restart');
+                                      localStorage.removeItem('nivra_kyc_session_id');
+                                      setVerificationSessionId(null);
+                                      setIdVerificationApproved(false);
                                     }
                                   });
                               } else if (choice === "restart") {
-                                // Restart: clear and let QRVerificationStep create new
                                 localStorage.removeItem('nivra_kyc_session_id');
                                 setVerificationSessionId(null);
                                 setIdVerificationApproved(false);
