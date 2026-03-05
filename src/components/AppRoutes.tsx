@@ -22,6 +22,7 @@ import MobileCoverage from "@/pages/MobileCoverage";
 import StreamingPlans from "@/pages/StreamingPlans";
 import NotFound from "@/pages/NotFound";
 import DevLogin from "@/pages/DevLogin";
+import E2eInstallTest from "@/pages/E2eInstallTest";
 import VerifyIdentity from "@/pages/VerifyIdentity";
 import NotAuthorized from "@/pages/NotAuthorized";
 import APropos from "@/pages/APropos";
@@ -253,8 +254,9 @@ const AppRoutes = () => {
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
       <Route path="/install" element={<Install />} />
-      {/* DEV-ONLY: Route stripped from production builds */}
+      {/* DEV-ONLY: Routes stripped from production builds */}
       {!import.meta.env.PROD && <Route path="/dev-login" element={<DevLogin />} />}
+      {!import.meta.env.PROD && <Route path="/e2e-install-test" element={<E2eInstallTest />} />}
       
       {/* Identity verification - QR code scan from mobile */}
       <Route path="/verify-id" element={<VerifyIdentity />} />
