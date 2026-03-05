@@ -4,7 +4,10 @@
  * This page allows bypassing 2FA/email verification for audit purposes.
  * It creates test sessions for admin and client portals.
  * 
- * SECURITY: This page is ONLY available when the hostname contains "preview" or "localhost".
+ * SECURITY: 
+ *  1. BUILD GUARD: import.meta.env.PROD strips this from production bundles
+ *  2. RUNTIME GUARD: hostname must contain "preview", "localhost", etc.
+ *  3. ROUTE GUARD: AppRoutes only registers /dev-login when not in production
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +15,10 @@ import { adminClient } from "@/integrations/backend/adminClient";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { Loader2, Shield, User, AlertTriangle } from "lucide-react";
 
-const IS_PREVIEW = typeof window !== "undefined" && (
+// BUILD GUARD: In production builds, this is always false (dead-code eliminated by Vite)
+const IS_PRODUCTION_BUILD = import.meta.env.PROD;
+
+const IS_PREVIEW = !IS_PRODUCTION_BUILD && typeof window !== "undefined" && (
   window.location.hostname.includes("preview") ||
   window.location.hostname.includes("localhost") ||
   window.location.hostname.includes("127.0.0.1") ||

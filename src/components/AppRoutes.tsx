@@ -252,7 +252,8 @@ const AppRoutes = () => {
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
       <Route path="/install" element={<Install />} />
-      <Route path="/dev-login" element={<DevLogin />} />
+      {/* DEV-ONLY: Route stripped from production builds */}
+      {!import.meta.env.PROD && <Route path="/dev-login" element={<DevLogin />} />}
       
       {/* Identity verification - QR code scan from mobile */}
       <Route path="/verify-id" element={<VerifyIdentity />} />
