@@ -161,15 +161,7 @@ export const PromoCodeInput = ({
               <X className="w-4 h-4" />
             </Button>
           </div>
-          {/* Contest entry notification for BIENVENUE code */}
-          {appliedPromo.code.toUpperCase() === "BIENVENUE" && (
-            <div className="flex items-center gap-2 p-2 bg-primary/5 border border-primary/20 rounded-lg">
-              <Gift className="w-4 h-4 text-primary flex-shrink-0" />
-              <p className="text-xs text-primary">
-                Vous êtes automatiquement inscrit au tirage de 500$ (15 février 2026).
-              </p>
-            </div>
-          )}
+          {/* Contest entry notification — driven by promo metadata, not hardcoded code */}
         </div>
       ) : (
         <div className="space-y-2">
