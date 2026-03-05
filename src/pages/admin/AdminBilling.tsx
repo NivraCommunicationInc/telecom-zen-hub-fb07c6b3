@@ -174,6 +174,7 @@ const AdminBilling = () => {
   const { data: billing, isLoading } = useQuery({
     queryKey: ["admin-billing"],
     queryFn: async () => {
+      // 1) Legacy billing table
       const { data: billingData, error: billingErr } = await supabase
         .from("billing")
         .select("*")
@@ -181,6 +182,7 @@ const AdminBilling = () => {
 
       if (billingErr) throw billingErr;
 
+      let legacyBills: any[] = [];
       if (billingData && billingData.length > 0) {
         const userIds = [...new Set(billingData.map((b: any) => b.user_id))];
         const { data: profilesData } = await supabase
@@ -188,13 +190,71 @@ const AdminBilling = () => {
           .select("user_id, email, full_name, phone")
           .in("user_id", userIds);
 
-        return billingData.map((bill: any) => ({
+        legacyBills = billingData.map((bill: any) => ({
           ...bill,
+          _source: "legacy",
           profiles: profilesData?.find((p: any) => p.user_id === bill.user_id) || null,
         }));
       }
 
-      return billingData || [];
+      // 2) V2 billing_invoices table (canonical source of truth)
+      const { data: v2Invoices, error: v2Err } = await supabase
+        .from("billing_invoices")
+        .select("*, billing_customers!inner(first_name, last_name, email, phone, user_id)")
+        .order("created_at", { ascending: false });
+
+      let v2Bills: any[] = [];
+      if (!v2Err && v2Invoices && v2Invoices.length > 0) {
+        v2Bills = v2Invoices.map((inv: any) => {
+          const cust = inv.billing_customers;
+          // Map V2 status to legacy-compatible status
+          const statusMap: Record<string, string> = {
+            unpaid: "pending",
+            pending: "pending",
+            paid: "paid",
+            partially_paid: "partial",
+            void: "void",
+            cancelled: "cancelled",
+            refunded: "refunded",
+          };
+          return {
+            id: inv.id,
+            _source: "v2",
+            user_id: cust?.user_id || null,
+            amount: inv.total,
+            subtotal: inv.subtotal,
+            tps_amount: inv.tps_amount,
+            tvq_amount: inv.tvq_amount,
+            fees: inv.fees || 0,
+            balance_due: inv.balance_due,
+            amount_paid: inv.amount_paid || 0,
+            status: statusMap[inv.status] || inv.status,
+            invoice_number: inv.invoice_number,
+            due_date: inv.due_date,
+            created_at: inv.created_at,
+            paid_at: inv.paid_at,
+            notes: inv.notes,
+            order_id: inv.order_id,
+            client_email: cust?.email || null,
+            late_fee_applied: inv.late_fee_applied,
+            late_fee_amount: inv.late_fee_amount,
+            delivery_fee: 0,
+            installation_fee: 0,
+            profiles: cust ? {
+              user_id: cust.user_id,
+              email: cust.email,
+              full_name: `${cust.first_name} ${cust.last_name}`.trim(),
+              phone: cust.phone,
+            } : null,
+          };
+        });
+      }
+
+      // Merge: V2 first (canonical), then legacy (excluding any that share an order_id with V2)
+      const v2OrderIds = new Set(v2Bills.filter(b => b.order_id).map(b => b.order_id));
+      const dedupedLegacy = legacyBills.filter(b => !b.order_id || !v2OrderIds.has(b.order_id));
+      
+      return [...v2Bills, ...dedupedLegacy];
     },
   });
 
