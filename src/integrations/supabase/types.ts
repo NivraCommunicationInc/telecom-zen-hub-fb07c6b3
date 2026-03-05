@@ -4808,12 +4808,15 @@ export type Database = {
           client_id: string
           created_at: string
           distance_km: number | null
+          fallback_ticket_id: string | null
           has_coaxial: string | null
           id: string
           installation_type: string
+          needs_fallback_ticket: boolean | null
           notes: string | null
           order_id: string | null
           previous_service: string | null
+          readiness_score: number | null
           service_address: string | null
           service_city: string | null
           service_postal_code: string | null
@@ -4831,12 +4834,15 @@ export type Database = {
           client_id: string
           created_at?: string
           distance_km?: number | null
+          fallback_ticket_id?: string | null
           has_coaxial?: string | null
           id?: string
           installation_type?: string
+          needs_fallback_ticket?: boolean | null
           notes?: string | null
           order_id?: string | null
           previous_service?: string | null
+          readiness_score?: number | null
           service_address?: string | null
           service_city?: string | null
           service_postal_code?: string | null
@@ -4854,12 +4860,15 @@ export type Database = {
           client_id?: string
           created_at?: string
           distance_km?: number | null
+          fallback_ticket_id?: string | null
           has_coaxial?: string | null
           id?: string
           installation_type?: string
+          needs_fallback_ticket?: boolean | null
           notes?: string | null
           order_id?: string | null
           previous_service?: string | null
+          readiness_score?: number | null
           service_address?: string | null
           service_city?: string | null
           service_postal_code?: string | null
