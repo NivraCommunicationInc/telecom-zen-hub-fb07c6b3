@@ -32,7 +32,7 @@ const TEST_PASSWORD = "AuditTest2026!Secure";
 
 const ADMIN_EMAIL = "admin-audit@nivradev.com";
 const CLIENT_EMAIL = "client-audit@nivradev.com";
-
+const OLDO_EMAIL = "oldo.lavaud3112@icloud.com";
 export default function DevLogin() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("");
@@ -157,22 +157,82 @@ export default function DevLogin() {
     }
   };
 
-  const loginClient = async () => {
+  const loginClient = async (targetEmail: string = CLIENT_EMAIL) => {
     setLoading(true);
     setError("");
-    setStatus("Connexion client en cours...");
+    setStatus(`Connexion client (${targetEmail}) en cours...`);
 
     try {
+      // DEV-ONLY helper: enable real session on specific audited account without inbox/2FA
+      if (targetEmail === OLDO_EMAIL) {
+        setStatus("Préparation session audit OLDO...");
+
+        let { data: adminData, error: adminSignInErr } = await adminClient.auth.signInWithPassword({
+          email: ADMIN_EMAIL,
+          password: TEST_PASSWORD,
+        });
+
+        if (adminSignInErr?.message?.includes("Invalid login")) {
+          const { error: signUpErr } = await adminClient.auth.signUp({
+            email: ADMIN_EMAIL,
+            password: TEST_PASSWORD,
+            options: { data: { full_name: "Admin Audit" } },
+          });
+          if (signUpErr) throw signUpErr;
+
+          const retry = await adminClient.auth.signInWithPassword({
+            email: ADMIN_EMAIL,
+            password: TEST_PASSWORD,
+          });
+          if (retry.error) throw retry.error;
+          adminData = retry.data;
+        } else if (adminSignInErr) {
+          throw adminSignInErr;
+        }
+
+        const adminUserId = adminData?.user?.id;
+        if (!adminUserId) throw new Error("Admin session unavailable");
+
+        await adminClient.from("user_roles").upsert({
+          user_id: adminUserId,
+          role: "admin",
+          status: "active",
+        }, { onConflict: "user_id,role" });
+
+        const { data: oldoCustomer, error: oldoErr } = await adminClient
+          .from("billing_customers")
+          .select("user_id")
+          .eq("email", OLDO_EMAIL)
+          .maybeSingle();
+
+        if (oldoErr || !oldoCustomer?.user_id) {
+          throw new Error("Compte OLDO introuvable pour audit");
+        }
+
+        const { data: setPwdResult, error: setPwdErr } = await adminClient.functions.invoke("admin-set-user-password", {
+          body: {
+            action: "set_password",
+            target_user_id: oldoCustomer.user_id,
+            password: TEST_PASSWORD,
+            force_change: false,
+          },
+        });
+
+        if (setPwdErr || !setPwdResult?.success) {
+          throw new Error(setPwdResult?.error || setPwdErr?.message || "Impossible de préparer le compte OLDO");
+        }
+      }
+
       // Try sign in first
       let { data, error: signInErr } = await portalClient.auth.signInWithPassword({
-        email: CLIENT_EMAIL,
+        email: targetEmail,
         password: TEST_PASSWORD,
       });
 
-      // If user doesn't exist, create it
-      if (signInErr?.message?.includes("Invalid login")) {
+      // If user doesn't exist, create it (for generic audit user only)
+      if (signInErr?.message?.includes("Invalid login") && targetEmail === CLIENT_EMAIL) {
         setStatus("Création du compte client de test...");
-        const { data: signUpData, error: signUpErr } = await portalClient.auth.signUp({
+        const { error: signUpErr } = await portalClient.auth.signUp({
           email: CLIENT_EMAIL,
           password: TEST_PASSWORD,
           options: { data: { full_name: "Client Audit" } },
@@ -210,21 +270,23 @@ export default function DevLogin() {
         }, { onConflict: "user_id,role" });
       }
 
-      // Ensure profile exists
-      const { data: existingProfile } = await portalClient
-        .from("profiles")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // Ensure profile exists (audit user only)
+      if (targetEmail === CLIENT_EMAIL) {
+        const { data: existingProfile } = await portalClient
+          .from("profiles")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
 
-      if (!existingProfile) {
-        await portalClient.from("profiles").insert({
-          user_id: userId,
-          full_name: "Client Audit",
-          email: CLIENT_EMAIL,
-          phone: "514-555-0199",
-          online_access_status: "active",
-        });
+        if (!existingProfile) {
+          await portalClient.from("profiles").insert({
+            user_id: userId,
+            full_name: "Client Audit",
+            email: CLIENT_EMAIL,
+            phone: "514-555-0199",
+            online_access_status: "active",
+          });
+        }
       }
 
       // Set trusted device (24h window)
@@ -233,7 +295,7 @@ export default function DevLogin() {
       sessionStorage.setItem("client_pin_verified", "true");
       sessionStorage.setItem("client_last_auth_check", Date.now().toString());
 
-      setStatus("✅ Client connecté! Redirection...");
+      setStatus(`✅ Client connecté (${targetEmail})! Redirection...`);
       setTimeout(() => navigate("/portal", { replace: true }), 800);
     } catch (err: any) {
       console.error("Client login error:", err);
@@ -265,12 +327,21 @@ export default function DevLogin() {
           </button>
 
           <button
-            onClick={loginClient}
+            onClick={() => loginClient(CLIENT_EMAIL)}
             disabled={loading}
             className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 rounded-lg font-medium transition"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
             Connexion Client Portal
+          </button>
+
+          <button
+            onClick={() => loginClient(OLDO_EMAIL)}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg font-medium transition"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
+            Connexion Client OLDO (audit)
           </button>
         </div>
 
