@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Shield, User, Lock, KeyRound } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { adminClient as supabase } from "@/integrations/backend";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,10 +97,11 @@ const AdminAccount = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Mon compte</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos informations personnelles et votre sécurité</p>
-        </div>
+        <PageHeader
+          title="Mon compte"
+          subtitle="Gérez vos informations personnelles et votre sécurité"
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Compte" }]}
+        />
 
         {/* Account Info Card */}
         <Card>

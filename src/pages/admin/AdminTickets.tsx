@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -1041,24 +1042,23 @@ const AdminTickets = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Tickets de support</h1>
-            <p className="text-muted-foreground mt-1">Gérer les demandes de support client</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => refetch()}>
-              <RefreshCcw className="w-4 h-4 mr-2" />
-              Actualiser
-            </Button>
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="hero">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Créer un ticket
-                </Button>
-              </DialogTrigger>
+        <PageHeader
+          title="Tickets de support"
+          subtitle="Gérer les demandes de support client"
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Tickets" }]}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => refetch()}>
+                <RefreshCcw className="w-4 h-4 mr-2" />
+                Actualiser
+              </Button>
+              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Créer un ticket
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Créer un ticket pour un client</DialogTitle>
@@ -1234,9 +1234,10 @@ const AdminTickets = () => {
                   </Button>
                 </div>
               </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+              </Dialog>
+            </div>
+          }
+        />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
