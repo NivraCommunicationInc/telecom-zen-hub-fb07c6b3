@@ -73,6 +73,7 @@ import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { FEATURES } from "@/config/features";
+import { mapBillingError } from "@/lib/billing/errorMapping";
 
 interface Service {
   id: string;
@@ -2172,27 +2173,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       
       // Parse error for user-friendly message
       let errorMessage = "Erreur lors de la soumission de la commande";
-      let errorDescription = "Veuillez réessayer. Si le problème persiste, contactez le support.";
+      // Use telco-grade error mapping
+      const mapped = mapBillingError(error);
       
-      if (error?.message) {
-        errorMessage = error.message;
-      }
-      if (error?.code) {
-        // Supabase/PostgreSQL error codes
-        if (error.code === "42501" || error.message?.includes("permission denied")) {
-          errorMessage = "Erreur de permissions";
-          errorDescription = "Votre session a peut-être expiré. Veuillez vous reconnecter et réessayer.";
-        } else if (error.code === "23505") {
-          errorMessage = "Commande déjà créée";
-          errorDescription = "Cette commande existe déjà. Vérifiez votre historique de commandes.";
-        } else if (error.code === "PGRST301") {
-          errorMessage = "Session expirée";
-          errorDescription = "Veuillez vous reconnecter pour continuer.";
-        }
-      }
-      
-      toast.error(errorMessage, {
-        description: errorDescription,
+      toast.error(mapped.title, {
+        description: mapped.description,
         duration: 10000,
       });
     },
