@@ -148,8 +148,6 @@ import ClientContracts from "@/pages/client/ClientContracts";
 import ClientNewOrder from "@/pages/client/ClientNewOrder";
 import ClientOrderConfirmation from "@/pages/client/ClientOrderConfirmation";
 import ClientChannels from "@/pages/client/ClientChannels";
-import ClientInternetOrder from "@/pages/client/ClientInternetOrder";
-import ClientTVOrder from "@/pages/client/ClientTVOrder";
 import ClientEquipmentReplacement from "@/pages/client/ClientEquipmentReplacement";
 import ClientCancellations from "@/pages/client/ClientCancellations";
 import ClientAccessBlocked from "@/pages/client/ClientAccessBlocked";
@@ -404,8 +402,8 @@ const AppRoutes = () => {
       <Route path="/portal/my-services" element={<Navigate to="/portal/services" replace />} />
       <Route path="/portal/tickets" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientTickets /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/channels" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientChannels /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
-      <Route path="/portal/internet" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientInternetOrder /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
-      <Route path="/portal/tv-order" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientTVOrder /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/internet" element={<Navigate to="/portal/new-order" replace />} />
+      <Route path="/portal/tv-order" element={<Navigate to="/portal/new-order" replace />} />
       <Route path="/portal/replacement" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientEquipmentReplacement /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/cancellations" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientCancellations /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/profile" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
