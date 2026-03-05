@@ -1,6 +1,6 @@
 /**
  * AdminPOS - Point of Sale for Admin portal
- * Wraps the unified POS in AdminLayout for consistent admin design
+ * Full-width workspace layout — no card boxing
  */
 import AdminLayout from "@/components/admin/AdminLayout";
 import UnifiedPOSPage from "@/components/pos/UnifiedPOSPage";
@@ -8,7 +8,7 @@ import UnifiedPOSPage from "@/components/pos/UnifiedPOSPage";
 export default function AdminPOS() {
   return (
     <AdminLayout>
-      <div className="-mx-4 lg:-mx-8 -my-6 lg:-my-8">
+      <div className="-mx-4 lg:-mx-6 -my-4 lg:-my-5">
         <UnifiedPOSPage
           portalType="admin"
           backPath="/admin"

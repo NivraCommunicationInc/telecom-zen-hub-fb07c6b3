@@ -142,9 +142,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             )}
           </header>
 
-          {/* ─── Page content ─── */}
+          {/* ─── Page content — full-width workspace ─── */}
           <main className="flex-1 overflow-auto">
-            <div className="max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
+            <div className="px-4 lg:px-6 py-4 lg:py-5">
               {children}
             </div>
           </main>
