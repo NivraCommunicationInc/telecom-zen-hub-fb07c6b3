@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -137,16 +138,17 @@ const AdminAuditLog = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Journal d'audit</h1>
-            <p className="text-muted-foreground mt-1">Historique des actions administratives</p>
-          </div>
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualiser
-          </Button>
-        </div>
+        <PageHeader
+          title="Journal d'audit"
+          subtitle="Historique des actions administratives"
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Audit" }]}
+          actions={
+            <Button variant="outline" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
+          }
+        />
 
         {/* Filters */}
         <Card>

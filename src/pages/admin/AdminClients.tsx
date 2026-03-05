@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -905,33 +906,32 @@ const AdminClients = () => {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Clients</h1>
-            <p className="text-muted-foreground mt-1">Gérer tous les profils clients</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
-              <Upload className="w-4 h-4 mr-2" />
-              Import en lot
-            </Button>
-            <Button variant="hero" onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nouveau client
-            </Button>
-          </div>
-          <CreateClientDialog
-            open={createDialogOpen}
-            onOpenChange={setCreateDialogOpen}
-            onSuccess={() => {
-              refetchClients();
-            }}
-          />
-          <BulkImportClientsDialog
-            open={bulkImportOpen}
-            onOpenChange={setBulkImportOpen}
-          />
-        </div>
+        <PageHeader
+          title="Clients"
+          subtitle="Gérer tous les profils clients"
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Clients" }]}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import en lot
+              </Button>
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nouveau client
+              </Button>
+            </div>
+          }
+        />
+        <CreateClientDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onSuccess={() => { refetchClients(); }}
+        />
+        <BulkImportClientsDialog
+          open={bulkImportOpen}
+          onOpenChange={setBulkImportOpen}
+        />
 
         {/* QA Tools Toggle */}
         <div className="flex flex-wrap gap-2">

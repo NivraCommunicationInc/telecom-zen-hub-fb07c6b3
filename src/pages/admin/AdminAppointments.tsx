@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -988,44 +989,37 @@ const AdminAppointments = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Rendez-vous</h1>
-            <p className="text-muted-foreground mt-1">
-              {isAdmin ? "Gestion complète des rendez-vous" : 
-               isEmployee ? "Gestion des rendez-vous clients" : 
-               "Vos rendez-vous assignés"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] })}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Actualiser
-            </Button>
-            
-            {(isAdmin || isEmployee) && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => setCreateClientDialogOpen(true)}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Nouveau client
-                </Button>
-                
-                {isAdmin && (
-                  <Button variant="outline" size="sm" onClick={() => setCreateTechDialogOpen(true)}>
-                    <KeyRound className="w-4 h-4 mr-2" />
-                    Nouveau technicien
+        <PageHeader
+          title="Rendez-vous"
+          subtitle={isAdmin ? "Gestion complète des rendez-vous" : isEmployee ? "Gestion des rendez-vous clients" : "Vos rendez-vous assignés"}
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Rendez-vous" }]}
+          actions={
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] })}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Actualiser
+              </Button>
+              {(isAdmin || isEmployee) && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setCreateClientDialogOpen(true)}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Nouveau client
                   </Button>
-                )}
-                
-                <Button variant="hero" size="sm" onClick={() => setCreateDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouveau rendez-vous
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+                  {isAdmin && (
+                    <Button variant="outline" size="sm" onClick={() => setCreateTechDialogOpen(true)}>
+                      <KeyRound className="w-4 h-4 mr-2" />
+                      Nouveau technicien
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nouveau rendez-vous
+                  </Button>
+                </>
+              )}
+            </div>
+          }
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

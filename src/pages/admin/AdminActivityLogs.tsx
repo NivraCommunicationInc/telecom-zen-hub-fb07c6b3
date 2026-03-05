@@ -4,6 +4,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, User, Clock, FileText, Shield, AlertTriangle } from "lucide-react";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { format } from "date-fns";
@@ -81,17 +82,21 @@ const AdminActivityLogs = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Journal d'activité</h1>
-            <p className="text-muted-foreground mt-1">Historique complet des actions (Admin, Employé, Technicien)</p>
-          </div>
-          <Badge className="bg-red-500/20 text-red-500 border-red-500/30">
-            <Shield className="w-3 h-3 mr-1" />
-            Admin uniquement
-          </Badge>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title="Journal d'activité"
+          subtitle="Historique complet des actions (Admin, Employé, Technicien)"
+          breadcrumbs={[
+            { label: "Admin", href: "/admin" },
+            { label: "Journal d'activité" },
+          ]}
+          badge={
+            <Badge className="bg-red-500/15 text-red-400 border-red-500/30">
+              <Shield className="w-3 h-3 mr-1" />
+              Admin uniquement
+            </Badge>
+          }
+        />
 
         <Card className="bg-card border-border">
           <CardHeader>

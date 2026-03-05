@@ -511,29 +511,34 @@
     @apply bg-slate-500/20 text-slate-400 border border-slate-500/30;
   }
   
-  /* Professional Table Styles */
+  /* Professional Table Styles — used via .table-pro class */
   .table-pro {
     @apply w-full text-sm;
   }
   
   .table-pro thead {
-    @apply bg-slate-800/50 sticky top-0;
+    background: hsl(var(--secondary));
+    @apply sticky top-0 z-5;
   }
   
   .table-pro th {
-    @apply px-4 py-3.5 text-left font-semibold text-white text-xs uppercase tracking-wider border-b-2 border-slate-700;
+    @apply px-4 py-3.5 text-left font-semibold text-xs uppercase tracking-wider;
+    color: hsl(var(--admin-text-secondary, 220 12% 72%));
+    border-bottom: 2px solid hsl(var(--border));
   }
   
   .table-pro td {
-    @apply px-4 py-3.5 border-b border-slate-700/60 text-slate-300;
+    @apply px-4 py-3.5;
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    color: hsl(var(--foreground));
   }
   
   .table-pro tbody tr:nth-child(even) {
-    @apply bg-slate-800/30;
+    background: hsl(var(--secondary) / 0.3);
   }
   
   .table-pro tbody tr:hover {
-    @apply bg-accent/5;
+    background: hsl(var(--secondary) / 0.6);
   }
   
   /* Professional Button Base — min 44px touch target */
@@ -732,4 +737,203 @@
 
 .admin-scrollbar::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN-DARK GLOBAL OVERRIDES
+   Forces consistent carrier-grade styling on ALL admin pages
+   without touching individual page files.
+   ═══════════════════════════════════════════════════════════ */
+
+/* --- Typography: enforce min sizes --- */
+.admin-dark h1 {
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem); /* 20-28px */
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: hsl(var(--foreground));
+}
+
+.admin-dark h2 {
+  font-size: clamp(1.125rem, 2vw, 1.375rem); /* 18-22px */
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.admin-dark h3 {
+  font-size: 1rem; /* 16px */
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+/* --- Cards: uniform styling --- */
+.admin-dark [data-slot="card"],
+.admin-dark .bg-card,
+.admin-dark [class*="CardContent"],
+.admin-dark div[class*="rounded"][class*="border"][class*="bg-card"] {
+  border-color: hsl(var(--border));
+}
+
+/* --- Tables: carrier-grade defaults --- */
+.admin-dark table {
+  font-size: 0.875rem; /* 14px */
+  width: 100%;
+}
+
+.admin-dark table thead {
+  background: hsl(var(--secondary));
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.admin-dark table th {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--admin-text-secondary));
+  border-bottom: 2px solid hsl(var(--border));
+  text-align: left;
+  white-space: nowrap;
+}
+
+.admin-dark table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground));
+  vertical-align: middle;
+}
+
+.admin-dark table tbody tr:nth-child(even) {
+  background: hsl(var(--secondary) / 0.3);
+}
+
+.admin-dark table tbody tr:hover {
+  background: hsl(var(--secondary) / 0.6);
+}
+
+/* --- Inputs inside admin: inherit 14px base --- */
+.admin-dark input,
+.admin-dark select,
+.admin-dark textarea {
+  font-size: 14px !important;
+  color: hsl(var(--foreground));
+  background: hsl(var(--input));
+  border-color: hsl(var(--border));
+}
+
+.admin-dark input::placeholder,
+.admin-dark textarea::placeholder {
+  color: hsl(var(--admin-text-muted));
+}
+
+/* --- Badges: ensure readable on dark --- */
+.admin-dark .bg-blue-50,
+.admin-dark .bg-green-50,
+.admin-dark .bg-yellow-50,
+.admin-dark .bg-red-50,
+.admin-dark .bg-purple-50,
+.admin-dark .bg-orange-50,
+.admin-dark .bg-gray-50,
+.admin-dark .bg-slate-50 {
+  background: hsl(var(--secondary)) !important;
+}
+
+.admin-dark .text-blue-700,
+.admin-dark .text-blue-800 { color: hsl(210 90% 68%) !important; }
+.admin-dark .text-green-700,
+.admin-dark .text-green-800 { color: hsl(158 64% 52%) !important; }
+.admin-dark .text-yellow-700,
+.admin-dark .text-yellow-800 { color: hsl(45 93% 58%) !important; }
+.admin-dark .text-red-700,
+.admin-dark .text-red-800 { color: hsl(0 72% 60%) !important; }
+.admin-dark .text-purple-700,
+.admin-dark .text-purple-800 { color: hsl(270 67% 65%) !important; }
+.admin-dark .text-orange-700,
+.admin-dark .text-orange-800 { color: hsl(25 95% 60%) !important; }
+
+/* Light-bg badges overridden to dark variants */
+.admin-dark .bg-blue-100 { background: hsl(210 90% 68% / 0.15) !important; }
+.admin-dark .bg-green-100 { background: hsl(158 64% 52% / 0.15) !important; }
+.admin-dark .bg-yellow-100 { background: hsl(45 93% 58% / 0.15) !important; }
+.admin-dark .bg-red-100 { background: hsl(0 72% 60% / 0.15) !important; }
+.admin-dark .bg-purple-100 { background: hsl(270 67% 65% / 0.15) !important; }
+.admin-dark .bg-amber-100 { background: hsl(38 92% 50% / 0.15) !important; }
+.admin-dark .bg-emerald-100 { background: hsl(158 64% 42% / 0.15) !important; }
+
+/* --- Dialog/Drawer: dark theme --- */
+.admin-dark [role="dialog"] {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+/* --- Tab triggers: readable + active state --- */
+.admin-dark [role="tablist"] {
+  background: hsl(var(--secondary));
+  border-radius: 0.5rem;
+}
+
+.admin-dark [role="tab"] {
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 500;
+  color: hsl(var(--admin-text-secondary));
+  transition: all 150ms ease;
+}
+
+.admin-dark [role="tab"][data-state="active"] {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  box-shadow: 0 1px 3px hsl(0 0% 0% / 0.2);
+}
+
+/* --- Label: minimum readable --- */
+.admin-dark label {
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+/* --- Separator: visible on dark --- */
+.admin-dark [data-orientation="horizontal"] {
+  border-color: hsl(var(--border));
+}
+
+/* --- Smooth text rendering --- */
+.admin-dark {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Force old bg-white / bg-gray classes to dark --- */
+.admin-dark .bg-white {
+  background: hsl(var(--card)) !important;
+}
+
+.admin-dark .bg-gray-50,
+.admin-dark .bg-gray-100 {
+  background: hsl(var(--secondary)) !important;
+}
+
+.admin-dark .text-gray-500,
+.admin-dark .text-gray-600 {
+  color: hsl(var(--admin-text-secondary)) !important;
+}
+
+.admin-dark .text-gray-700,
+.admin-dark .text-gray-800,
+.admin-dark .text-gray-900 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.admin-dark .text-black {
+  color: hsl(var(--foreground)) !important;
+}
+
+.admin-dark .border-gray-200,
+.admin-dark .border-gray-300 {
+  border-color: hsl(var(--border)) !important;
 }

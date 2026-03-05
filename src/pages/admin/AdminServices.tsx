@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -852,12 +853,11 @@ const AdminServices = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Catalogue de services</h1>
-            <p className="text-muted-foreground mt-1">Gérer les plans et tarifs offerts sur le site public</p>
-          </div>
+        <PageHeader
+          title="Catalogue de services"
+          subtitle="Gérer les plans et tarifs offerts sur le site public"
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Services" }]}
+          actions={
           <div className="flex gap-2">
             <TooltipProvider>
               <Tooltip>
@@ -978,8 +978,9 @@ const AdminServices = () => {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
+            </div>
+          }
+        />
 
         {/* Business Rules Info */}
         <Alert className="bg-accent/50 border-accent">

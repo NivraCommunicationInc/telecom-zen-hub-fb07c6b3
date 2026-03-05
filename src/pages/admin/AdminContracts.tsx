@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -886,12 +887,12 @@ const AdminContracts = () => {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Contrats & Documents</h1>
-            <p className="text-muted-foreground mt-1">Gestion automatisée des contrats (génération sur paiement confirmé)</p>
-          </div>
-          <div className="flex gap-2">
+        <PageHeader
+          title="Contrats & Documents"
+          subtitle="Gestion automatisée des contrats (génération sur paiement confirmé)"
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Contrats" }]}
+          actions={
+            <div className="flex gap-2">
             <Button variant="outline" onClick={() => refetchContracts()}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
@@ -1030,8 +1031,9 @@ const AdminContracts = () => {
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
+            </div>
+          }
+        />
 
         {/* Pending Orders Alert */}
         {ordersNeedingContracts && ordersNeedingContracts.length > 0 && (

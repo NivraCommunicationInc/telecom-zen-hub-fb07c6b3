@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1243,12 +1244,12 @@ const AdminBilling = () => {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Facturation</h1>
-            <p className="text-muted-foreground mt-1">Gérer les factures et paiements</p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
+        <PageHeader
+          title="Facturation"
+          subtitle="Gérer les factures et paiements"
+          breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Facturation" }]}
+          actions={
+            <div className="flex gap-2 flex-wrap">
             <Button 
               variant="outline" 
               onClick={() => setExportDialogOpen(true)}
@@ -1264,7 +1265,7 @@ const AdminBilling = () => {
               <Wallet className="w-4 h-4 mr-2" />
               E-Transfers
               {etransferPayments && etransferPayments.filter((p: any) => p.status === "pending" || p.status === "in_verification").length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-foreground text-xs rounded-full flex items-center justify-center">
                   {etransferPayments.filter((p: any) => p.status === "pending" || p.status === "in_verification").length}
                 </span>
               )}
@@ -1368,8 +1369,9 @@ const AdminBilling = () => {
               </div>
             </DialogContent>
           </Dialog>
-          </div>
-        </div>
+            </div>
+          }
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="bg-card border-border">
