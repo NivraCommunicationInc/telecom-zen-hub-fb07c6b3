@@ -358,89 +358,65 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
 
   return (
     <nav className="flex-1 flex flex-col overflow-hidden">
-      {/* Accordion Mode Toggle */}
-      <div className="px-4 py-2 border-b border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="accordion-mode" className="text-xs text-slate-500 cursor-pointer">
-            Mode accordéon
-          </Label>
-          <Switch
-            id="accordion-mode"
-            checked={accordionMode}
-            onCheckedChange={handleAccordionModeChange}
-            className="scale-75"
-          />
-        </div>
-      </div>
-
       {/* Navigation Groups */}
-      <div className="flex-1 p-3 space-y-1 overflow-y-auto">
+      <div className="flex-1 px-3 py-1 space-y-0.5 overflow-y-auto scrollbar-thin">
         {filteredGroups.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 text-sm">
-            Aucun résultat pour "{searchQuery}"
+          <div className="text-center py-8 text-[hsl(220,9%,40%)] text-xs">
+            Aucun résultat pour « {searchQuery} »
           </div>
         ) : (
-          filteredGroups.map((group, index) => {
+          filteredGroups.map((group) => {
             const isOpen = openGroups[group.id] ?? false;
             const hasActiveItem = isGroupActive(group);
-            const isLastGroup = index === filteredGroups.length - 1;
 
             return (
-              <div key={group.id}>
-                <Collapsible
-                  open={isOpen}
-                  onOpenChange={() => toggleGroup(group.id)}
+              <Collapsible
+                key={group.id}
+                open={isOpen}
+                onOpenChange={() => toggleGroup(group.id)}
+              >
+                <CollapsibleTrigger
+                  className={cn(
+                    "flex items-center justify-between w-full px-2.5 py-2 rounded-md text-xs font-medium transition-colors",
+                    hasActiveItem
+                      ? "text-[hsl(168,76%,50%)]"
+                      : "text-[hsl(220,9%,55%)] hover:text-[hsl(220,14%,85%)] hover:bg-[hsl(222,40%,12%)]"
+                  )}
                 >
-                  <CollapsibleTrigger
-                    className={cn(
-                      "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                      hasActiveItem
-                        ? "bg-teal-500/20 text-teal-400"
-                        : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  <div className="flex items-center gap-2.5">
+                    <group.icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{group.label}</span>
+                    {group.id === "billing" && disputeCounts && disputeCounts.total > 0 && (
+                      <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px] font-medium rounded-full">
+                        {disputeCounts.total}
+                      </Badge>
                     )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <group.icon className="w-4 h-4 shrink-0" />
-                      <span className="truncate">{group.label}</span>
-                      {/* Dispute counter badge for billing group */}
-                      {group.id === "billing" && disputeCounts && disputeCounts.total > 0 && (
-                        <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-xs font-medium">
-                          {disputeCounts.total}
-                        </Badge>
-                      )}
-                    </div>
-                    {isOpen ? (
-                      <ChevronDown className="w-4 h-4 shrink-0 transition-transform" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 shrink-0 transition-transform" />
-                    )}
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-1">
-                    <div className="ml-3 pl-3 border-l-2 border-slate-700/50 space-y-0.5">
-                      {group.items.map((item) => (
-                        <Link
-                          key={item.href}
-                          to={item.href}
-                          className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                            isItemActive(item.href)
-                              ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-900 font-medium"
-                              : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                          )}
-                        >
-                          <item.icon className="w-4 h-4 shrink-0" />
-                          <span className="truncate">{item.label}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-                
-                {/* Subtle separator between groups */}
-                {!isLastGroup && (
-                  <div className="my-2 mx-3 border-t border-slate-700/30" />
-                )}
-              </div>
+                  </div>
+                  <ChevronRight className={cn(
+                    "w-3 h-3 shrink-0 transition-transform duration-200",
+                    isOpen && "rotate-90"
+                  )} />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="ml-4 pl-2.5 border-l border-[hsl(222,30%,16%)] space-y-0.5 py-0.5">
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={cn(
+                          "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs transition-colors",
+                          isItemActive(item.href)
+                            ? "bg-[hsl(168,76%,42%)] text-[hsl(222,47%,9%)] font-medium"
+                            : "text-[hsl(220,9%,50%)] hover:text-[hsl(220,14%,85%)] hover:bg-[hsl(222,40%,12%)]"
+                        )}
+                      >
+                        <item.icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             );
           })
         )}
