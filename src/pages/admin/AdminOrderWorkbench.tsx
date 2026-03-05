@@ -1,13 +1,12 @@
 /**
- * AdminOrderWorkbench V2 — Carrier-grade order processing hub
- * Route: /admin/orders/:id
- * Full page layout with TELUS-grade design
+ * AdminOrderWorkbench V3 — Carrier-grade order processing hub
+ * TELUS-grade design with semantic tokens
  */
 import { useParams, Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, ListChecks, FileText, ExternalLink } from "lucide-react";
+import { Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, ListChecks, FileText, ExternalLink, Loader2 } from "lucide-react";
 import { useWorkbenchData } from "@/hooks/useWorkbenchData";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/admin/ui/PageHeader";
@@ -22,7 +21,6 @@ import { WorkbenchAuditTab } from "@/components/workbench/WorkbenchAuditTab";
 import { WorkbenchNotesTab } from "@/components/workbench/WorkbenchNotesTab";
 import { OrderDocumentsPanel } from "@/components/admin/OrderDocumentsPanel";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
 const TABS = [
   { value: "summary", label: "Résumé", icon: ListChecks },
@@ -59,7 +57,7 @@ const AdminOrderWorkbench = () => {
     return (
       <AdminLayout>
         <div className="text-center py-20 space-y-4">
-          <p className="text-muted-foreground">Commande introuvable.</p>
+          <p className="text-muted-foreground text-sm">Commande introuvable.</p>
           <Link to="/admin/orders">
             <Button variant="outline" size="sm">Retour aux commandes</Button>
           </Link>
@@ -94,8 +92,8 @@ const AdminOrderWorkbench = () => {
             <div className="flex items-center gap-2">
               {data.order.user_id && (
                 <Link to={`/admin/clients`}>
-                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8">
-                    <ExternalLink className="h-3 w-3" /> Client
+                  <Button variant="outline" size="sm" className="gap-1.5 h-9 text-sm">
+                    <ExternalLink className="h-3.5 w-3.5" /> Client
                   </Button>
                 </Link>
               )}
@@ -105,7 +103,7 @@ const AdminOrderWorkbench = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="summary" className="w-full">
-          <TabsList className="bg-[hsl(222,40%,12%)] border border-[hsl(222,30%,16%)] p-0.5 h-auto flex-wrap gap-0">
+          <TabsList className="bg-card border border-border p-1 h-auto flex-wrap gap-1">
             {TABS.map((tab) => {
               const count = tab.value === "items" ? data.orderItems.length
                 : tab.value === "provisioning" ? data.provisioningJobs.length
@@ -114,12 +112,12 @@ const AdminOrderWorkbench = () => {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="gap-1.5 text-xs px-3 py-2 rounded-md data-[state=active]:bg-[hsl(168,76%,42%)] data-[state=active]:text-[hsl(222,47%,9%)] data-[state=active]:shadow-none text-[hsl(220,9%,50%)]"
+                  className="gap-2 text-sm px-4 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                 >
-                  <tab.icon className="h-3.5 w-3.5" />
+                  <tab.icon className="h-4 w-4" />
                   {tab.label}
                   {count !== null && count > 0 && (
-                    <span className="ml-0.5 text-[10px] opacity-70">({count})</span>
+                    <span className="ml-0.5 text-xs opacity-70">({count})</span>
                   )}
                 </TabsTrigger>
               );
