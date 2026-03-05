@@ -531,13 +531,7 @@ export function AddressAutocomplete({
         )}
       </div>
 
-      {/* Binding warning - visible if there's an issue */}
-      {bindingWarning && (
-        <div className="mt-1 flex items-center gap-1 text-red-600 text-xs bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded border border-red-300">
-          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-          <span className="font-medium">PARENT IS RESETTING VALUE</span>
-        </div>
-      )}
+      {/* Binding warning - silent in production, only console.warn in dev */}
 
       {/* DEV Diagnostic panel */}
       {DEV_MODE && (
