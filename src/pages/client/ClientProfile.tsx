@@ -201,6 +201,9 @@ const ClientProfile = () => {
     }
   }, [profile, user]);
 
+  // Derived: is identity already locked?
+  const isIdentityVerified = !!(profile as any)?.identity_verified;
+
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       // Log changes to client_profile_changes table
@@ -208,14 +211,20 @@ const ClientProfile = () => {
       
       if (profile) {
         const fieldsToCheck = [
-          { key: "first_name", old: profile.first_name, new: data.first_name },
-          { key: "last_name", old: profile.last_name, new: data.last_name },
           { key: "phone", old: profile.phone, new: data.phone },
-          { key: "date_of_birth", old: profile.date_of_birth, new: data.date_of_birth },
           { key: "service_address", old: profile.service_address, new: data.service_address },
           { key: "service_city", old: profile.service_city, new: data.service_city },
           { key: "service_postal_code", old: profile.service_postal_code, new: data.service_postal_code },
         ];
+
+        // Only track identity fields if not yet verified (one-time set)
+        if (!isIdentityVerified) {
+          fieldsToCheck.push(
+            { key: "first_name", old: profile.first_name, new: data.first_name },
+            { key: "last_name", old: profile.last_name, new: data.last_name },
+            { key: "date_of_birth", old: profile.date_of_birth, new: data.date_of_birth },
+          );
+        }
         
         for (const field of fieldsToCheck) {
           if (field.old !== field.new && (field.old || field.new)) {
@@ -228,22 +237,37 @@ const ClientProfile = () => {
         }
       }
 
-      // Update profile
+      // Build update payload — NEVER send identity fields if already verified
+      const updatePayload: Record<string, any> = {
+        phone: data.phone,
+        service_address: data.service_address || null,
+        service_city: data.service_city || null,
+        service_province: data.service_province || null,
+        service_postal_code: data.service_postal_code || null,
+      };
+
+      if (!isIdentityVerified) {
+        // One-time set: include identity fields only if they were previously empty
+        if (!profile?.first_name) updatePayload.first_name = data.first_name || null;
+        if (!profile?.last_name) updatePayload.last_name = data.last_name || null;
+        if (!profile?.date_of_birth) updatePayload.date_of_birth = data.date_of_birth || null;
+        // Rebuild full_name
+        const fn = updatePayload.first_name ?? profile?.first_name ?? "";
+        const ln = updatePayload.last_name ?? profile?.last_name ?? "";
+        updatePayload.full_name = `${fn} ${ln}`.trim() || data.full_name;
+      }
+
       const { error } = await portalSupabase
         .from("profiles")
-        .update({
-          first_name: data.first_name || null,
-          last_name: data.last_name || null,
-          full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || data.full_name,
-          phone: data.phone,
-          date_of_birth: data.date_of_birth || null,
-          service_address: data.service_address || null,
-          service_city: data.service_city || null,
-          service_province: data.service_province || null,
-          service_postal_code: data.service_postal_code || null,
-        })
+        .update(updatePayload)
         .eq("user_id", user?.id);
-      if (error) throw error;
+      if (error) {
+        // Catch identity lock errors and show a clear message
+        if (error.message?.includes("IDENTITY_FIELD_LOCKED")) {
+          throw new Error("IDENTITY_LOCKED");
+        }
+        throw error;
+      }
 
       // Log changes
       if (changedFields.length > 0 && user?.id) {
@@ -265,8 +289,16 @@ const ClientProfile = () => {
       toast({ title: "Profil mis à jour avec succès" });
       setPendingProfileUpdate(null);
     },
-    onError: () => {
-      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    onError: (error: any) => {
+      if (error?.message === "IDENTITY_LOCKED" || error?.message?.includes("IDENTITY_FIELD_LOCKED")) {
+        toast({ 
+          title: "Champs d'identité verrouillés", 
+          description: "Les informations d'identité (prénom, nom, date de naissance) ne peuvent être modifiées que par le support. Contactez-nous pour toute correction.",
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+      }
       setPendingProfileUpdate(null);
     },
   });
@@ -295,10 +327,9 @@ const ClientProfile = () => {
   // Check if there are sensitive changes that require PIN confirmation
   const hasSensitiveChanges = (data: typeof formData): boolean => {
     if (!profile) return false;
-    // Phone, date of birth, and address are sensitive fields
+    // Phone and address are sensitive fields (identity fields are locked separately)
     return (
       data.phone !== (profile.phone || "") ||
-      data.date_of_birth !== (profile.date_of_birth || "") ||
       data.service_address !== (profile.service_address || "")
     );
   };
@@ -441,26 +472,53 @@ const ClientProfile = () => {
                       }}
                     />
                   </div>
+                  {/* ——— Identity Core Fields ——— */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="first_name">Prénom</Label>
-                      <Input
-                        id="first_name"
-                        value={formData.first_name}
-                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                        placeholder="Jean"
-                      />
+                      <Label htmlFor="first_name" className="flex items-center gap-1">
+                        Prénom {isIdentityVerified && <Lock className="w-3 h-3 text-muted-foreground" />}
+                      </Label>
+                      {isIdentityVerified || (profile?.first_name && profile.first_name !== "") ? (
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border border-border min-h-[40px]">
+                          <span className="text-foreground">{formData.first_name || "—"}</span>
+                          <Lock className="w-3 h-3 text-muted-foreground ml-auto" />
+                        </div>
+                      ) : (
+                        <Input
+                          id="first_name"
+                          value={formData.first_name}
+                          onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                          placeholder="Jean"
+                        />
+                      )}
                     </div>
                     <div>
-                      <Label htmlFor="last_name">Nom</Label>
-                      <Input
-                        id="last_name"
-                        value={formData.last_name}
-                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                        placeholder="Dupont"
-                      />
+                      <Label htmlFor="last_name" className="flex items-center gap-1">
+                        Nom {isIdentityVerified && <Lock className="w-3 h-3 text-muted-foreground" />}
+                      </Label>
+                      {isIdentityVerified || (profile?.last_name && profile.last_name !== "") ? (
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border border-border min-h-[40px]">
+                          <span className="text-foreground">{formData.last_name || "—"}</span>
+                          <Lock className="w-3 h-3 text-muted-foreground ml-auto" />
+                        </div>
+                      ) : (
+                        <Input
+                          id="last_name"
+                          value={formData.last_name}
+                          onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                          placeholder="Dupont"
+                        />
+                      )}
                     </div>
                   </div>
+
+                  {isIdentityVerified && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground p-2 bg-muted/30 rounded-lg">
+                      <Lock className="w-3 h-3 flex-shrink-0" />
+                      Les champs d'identité sont verrouillés. Pour toute modification, veuillez contacter le support.
+                    </div>
+                  )}
+
                   <div>
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -498,17 +556,32 @@ const ClientProfile = () => {
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="date_of_birth">Date de naissance</Label>
-                    <Input
-                      id="date_of_birth"
-                      type="date"
-                      value={formData.date_of_birth}
-                      onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                      max={getMaxDobDate(MIN_AGE_TELECOM)}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Vous devez avoir au moins {MIN_AGE_TELECOM} ans pour nos services
-                    </p>
+                    <Label htmlFor="date_of_birth" className="flex items-center gap-1">
+                      Date de naissance {isIdentityVerified && <Lock className="w-3 h-3 text-muted-foreground" />}
+                    </Label>
+                    {isIdentityVerified || profile?.date_of_birth ? (
+                      <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border border-border min-h-[40px]">
+                        <span className="text-foreground">
+                          {formData.date_of_birth 
+                            ? format(new Date(formData.date_of_birth + "T12:00:00"), "d MMMM yyyy", { locale: fr })
+                            : "—"}
+                        </span>
+                        <Lock className="w-3 h-3 text-muted-foreground ml-auto" />
+                      </div>
+                    ) : (
+                      <>
+                        <Input
+                          id="date_of_birth"
+                          type="date"
+                          value={formData.date_of_birth}
+                          onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                          max={getMaxDobDate(MIN_AGE_TELECOM)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Vous devez avoir au moins {MIN_AGE_TELECOM} ans pour nos services
+                        </p>
+                      </>
+                    )}
                   </div>
                   <Button
                     type="submit"

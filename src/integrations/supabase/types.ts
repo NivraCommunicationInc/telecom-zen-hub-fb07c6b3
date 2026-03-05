@@ -6936,6 +6936,8 @@ export type Database = {
           id_number: string | null
           id_province: string | null
           id_type: string | null
+          identity_verified: boolean
+          identity_verified_at: string | null
           internal_notes: string | null
           last_auth_check_at: string | null
           last_login_at: string | null
@@ -6993,6 +6995,8 @@ export type Database = {
           id_number?: string | null
           id_province?: string | null
           id_type?: string | null
+          identity_verified?: boolean
+          identity_verified_at?: string | null
           internal_notes?: string | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
@@ -7050,6 +7054,8 @@ export type Database = {
           id_number?: string | null
           id_province?: string | null
           id_type?: string | null
+          identity_verified?: boolean
+          identity_verified_at?: string | null
           internal_notes?: string | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
