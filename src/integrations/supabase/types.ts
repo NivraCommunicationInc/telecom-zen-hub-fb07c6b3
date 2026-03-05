@@ -6390,6 +6390,7 @@ export type Database = {
           id_verification_status: string | null
           id_verified_at: string | null
           id_verified_by: string | null
+          identity_snapshot: Json | null
           identity_verification_session_id: string | null
           imei_number: string | null
           installation_credit: number | null
@@ -6484,6 +6485,7 @@ export type Database = {
           id_verification_status?: string | null
           id_verified_at?: string | null
           id_verified_by?: string | null
+          identity_snapshot?: Json | null
           identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null
@@ -6578,6 +6580,7 @@ export type Database = {
           id_verification_status?: string | null
           id_verified_at?: string | null
           id_verified_by?: string | null
+          identity_snapshot?: Json | null
           identity_verification_session_id?: string | null
           imei_number?: string | null
           installation_credit?: number | null
