@@ -2662,7 +2662,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     if (hasMobileService) {
       steps.push({ id: stepNum++, labelFr: "Transfert", labelEn: "Transfer" });
     }
-    steps.push({ id: stepNum++, labelFr: "Vérification", labelEn: "Verification" });
+    steps.push({ id: stepNum++, labelFr: "Adresse & Installation", labelEn: "Address & Installation" });
     steps.push({ id: stepNum++, labelFr: "Paiement", labelEn: "Payment" });
     steps.push({ id: stepNum++, labelFr: "Confirmation", labelEn: "Confirmation" });
     return steps;
@@ -3680,97 +3680,18 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* Customer Information Section - DOB + Contact */}
+              {/* ——— SECTION 1: Contact + Service Address ——— */}
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-cyan-500" />
-                    Informations client
+                    <MapPin className="w-5 h-5 text-cyan-500" />
+                    Coordonnées et adresse de service
                   </CardTitle>
                   <CardDescription>
-                    Vos informations d'identité sont verrouillées pour votre sécurité. Pour les modifier, contactez le support.
+                    Téléphone de contact et adresse où les services seront installés.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Identity fields — READ-ONLY from profiles (Identity Core Lock) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first-name">Prénom</Label>
-                      <Input
-                        id="first-name"
-                        value={firstName}
-                        readOnly
-                        disabled
-                        className="bg-muted/50 cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last-name">Nom de famille</Label>
-                      <Input
-                        id="last-name"
-                        value={lastName}
-                        readOnly
-                        disabled
-                        className="bg-muted/50 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Date of Birth */}
-                  <div className="space-y-2">
-                    <Label htmlFor="date-of-birth" className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      Date de naissance <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="date-of-birth"
-                      type="date"
-                      value={dateOfBirth}
-                      readOnly
-                      disabled
-                      className="bg-muted/50 cursor-not-allowed"
-                    />
-                    {dateOfBirth && (() => {
-                      // Safe DOB validation with try/catch to prevent crashes
-                      try {
-                        // First verify the date string is valid before validation
-                        const parsed = parseISO(dateOfBirth);
-                        if (!isValid(parsed)) {
-                          return (
-                            <p className="text-xs text-destructive flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" />
-                              Date invalide
-                            </p>
-                          );
-                        }
-                        
-                        const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
-                        if (!result.isValid) {
-                          return (
-                            <p className="text-xs text-destructive flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" />
-                              {result.error?.fr || `Vous devez avoir au moins ${MIN_AGE_TELECOM} ans pour souscrire à nos services.`}
-                            </p>
-                          );
-                        }
-                        return (
-                          <p className="text-xs text-emerald-500 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Âge vérifié
-                          </p>
-                        );
-                      } catch {
-                        // Guard: never crash, just show error
-                        return (
-                          <p className="text-xs text-destructive flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            Date invalide
-                          </p>
-                        );
-                      }
-                    })()}
-                  </div>
-
                   {/* Phone */}
                   <div className="space-y-2">
                     <Label htmlFor="checkout-phone" className="flex items-center gap-2">
@@ -3830,7 +3751,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           value={serviceAddressStreet}
                           onValueChange={(value) => setServiceAddressStreet(value)}
                           onSelect={(details: AddressValue) => {
-                            // Defense-in-depth: set street with formatted or line1
                             const addressText = details.formatted || details.line1;
                             setServiceAddressStreet(addressText);
                             if (details.city) setServiceAddressCity(details.city);
@@ -3903,17 +3823,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </p>
                   </div>
 
-                  {/* Customer info complete indicator */}
-                  {firstName && lastName && dateOfBirth && checkoutPhone.replace(/\D/g, "").length === 10 && serviceAddressStreet && serviceAddressCity && serviceAddressPostalCode.replace(/\s/g, "").length === 6 && (() => {
-                    const dob = new Date(dateOfBirth);
-                    const today = new Date();
-                    const age = today.getFullYear() - dob.getFullYear();
-                    const isAdult = age > 18 || (age === 18 && today >= new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate()));
-                    return isAdult;
-                  })() && (
+                  {/* Address complete indicator */}
+                  {serviceAddressStreet && serviceAddressCity && serviceAddressPostalCode.replace(/\s/g, "").length === 6 && (
                     <div className="flex items-center gap-2 text-sm text-emerald-500 p-3 bg-emerald-500/10 rounded-lg">
                       <CheckCircle2 className="w-4 h-4" />
-                      Informations client complétées
+                      Adresse de service complétée
                     </div>
                   )}
                 </CardContent>
@@ -4094,6 +4008,98 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   }}
                 />
               )}
+
+              {/* ——— SECTION 4: Identity (read-only / locked) ——— */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-cyan-500" />
+                    Identité du titulaire
+                  </CardTitle>
+                  <CardDescription>
+                    🔒 Vos informations d'identité sont verrouillées pour votre sécurité. Pour les modifier, contactez le support.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="first-name">Prénom</Label>
+                      <Input
+                        id="first-name"
+                        value={firstName}
+                        readOnly
+                        disabled
+                        className="bg-muted/50 cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last-name">Nom de famille</Label>
+                      <Input
+                        id="last-name"
+                        value={lastName}
+                        readOnly
+                        disabled
+                        className="bg-muted/50 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="date-of-birth" className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      Date de naissance
+                    </Label>
+                    <Input
+                      id="date-of-birth"
+                      type="date"
+                      value={dateOfBirth}
+                      readOnly
+                      disabled
+                      className="bg-muted/50 cursor-not-allowed"
+                    />
+                    {dateOfBirth && (() => {
+                      try {
+                        const parsed = parseISO(dateOfBirth);
+                        if (!isValid(parsed)) {
+                          return (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Date invalide
+                            </p>
+                          );
+                        }
+                        const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
+                        if (!result.isValid) {
+                          return (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {result.error?.fr || `Vous devez avoir au moins ${MIN_AGE_TELECOM} ans pour souscrire à nos services.`}
+                            </p>
+                          );
+                        }
+                        return (
+                          <p className="text-xs text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Âge vérifié
+                          </p>
+                        );
+                      } catch {
+                        return (
+                          <p className="text-xs text-destructive flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Date invalide
+                          </p>
+                        );
+                      }
+                    })()}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 bg-muted/30 rounded-lg">
+                    <Shield className="w-4 h-4 flex-shrink-0" />
+                    Ces informations proviennent de votre profil vérifié et ne peuvent pas être modifiées dans le checkout.
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* ID Verification - Only for telecom services, not equipment-only orders */}
               {!isEquipmentOnlyOrder ? (
