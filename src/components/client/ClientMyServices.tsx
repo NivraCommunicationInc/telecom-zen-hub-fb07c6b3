@@ -588,11 +588,22 @@ const ClientMyServices = () => {
     };
   }) || [];
 
-  // Combine all services, deduplicating by plan name where possible
+  // Combine all services — V2 billing is canonical, skip order fallback if V2 services exist
+  // Orders that have been provisioned into billing_subscription_services should NOT appear twice
+  const v2OrderNumbers = new Set(
+    (billingSubscriptions || [])
+      .filter((sub: any) => sub.plan_code?.startsWith('order-'))
+      .map((sub: any) => sub.plan_code.replace('order-', ''))
+  );
+  
+  const filteredOrderServices = activeOrderServices.filter((s: any) => 
+    !v2OrderNumbers.has(s.order_number)
+  );
+  
   const allActiveServices = [
     ...activeSubscriptions.map((s: any) => ({ ...s, source: "subscription" })),
     ...v2Services,
-    ...activeOrderServices,
+    ...filteredOrderServices,
   ];
 
   const mobileServices = allActiveServices.filter((s: any) => 
