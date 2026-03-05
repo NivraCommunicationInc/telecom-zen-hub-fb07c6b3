@@ -116,7 +116,6 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("Error queuing email:", emailError);
         }
       }
-      }
 
       return new Response(JSON.stringify({ success: true, appointment }), {
         status: 200,
