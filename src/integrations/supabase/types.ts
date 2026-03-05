@@ -1415,6 +1415,67 @@ export type Database = {
           },
         ]
       }
+      billing_subscription_trace_audit: {
+        Row: {
+          action: string
+          actor_admin_id: string | null
+          created_at: string
+          customer_id: string
+          details: Json
+          id: string
+          reason: string | null
+          source_id: string | null
+          source_type: string | null
+          subscription_id: string
+        }
+        Insert: {
+          action: string
+          actor_admin_id?: string | null
+          created_at?: string
+          customer_id: string
+          details?: Json
+          id?: string
+          reason?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          subscription_id: string
+        }
+        Update: {
+          action?: string
+          actor_admin_id?: string | null
+          created_at?: string
+          customer_id?: string
+          details?: Json
+          id?: string
+          reason?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscription_trace_audit_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_subscription_trace_audit_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
+          },
+          {
+            foreignKeyName: "billing_subscription_trace_audit_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "billing_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_subscriptions: {
         Row: {
           address_id: string | null
@@ -1432,6 +1493,8 @@ export type Database = {
           plan_name: string
           plan_price: number
           service_category: string | null
+          source_id: string | null
+          source_type: string | null
           status:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
@@ -1453,6 +1516,8 @@ export type Database = {
           plan_name: string
           plan_price: number
           service_category?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
@@ -1474,6 +1539,8 @@ export type Database = {
           plan_name?: string
           plan_price?: number
           service_category?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null

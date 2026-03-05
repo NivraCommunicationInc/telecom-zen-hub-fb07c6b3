@@ -163,9 +163,9 @@ export default function DevLogin() {
     setStatus(`Connexion client (${targetEmail}) en cours...`);
 
     try {
-      // DEV-ONLY helper: enable real session on specific audited account without inbox/2FA
+      // DEV-ONLY helper: audited access to real account via one-time magic link (no password reset)
       if (targetEmail === OLDO_EMAIL) {
-        setStatus("Préparation session audit OLDO...");
+        setStatus("Génération d'une session audit one-shot OLDO...");
 
         let { data: adminData, error: adminSignInErr } = await adminClient.auth.signInWithPassword({
           email: ADMIN_EMAIL,
@@ -199,28 +199,21 @@ export default function DevLogin() {
           status: "active",
         }, { onConflict: "user_id,role" });
 
-        const { data: oldoCustomer, error: oldoErr } = await adminClient
-          .from("billing_customers")
-          .select("user_id")
-          .eq("email", OLDO_EMAIL)
-          .maybeSingle();
-
-        if (oldoErr || !oldoCustomer?.user_id) {
-          throw new Error("Compte OLDO introuvable pour audit");
-        }
-
-        const { data: setPwdResult, error: setPwdErr } = await adminClient.functions.invoke("admin-set-user-password", {
+        const { data: auditSessionData, error: auditSessionErr } = await adminClient.functions.invoke("admin-audit-session-link", {
           body: {
-            action: "set_password",
-            target_user_id: oldoCustomer.user_id,
-            password: TEST_PASSWORD,
-            force_change: false,
+            target_email: OLDO_EMAIL,
+            reason: "Audit RLS /portal/service-addresses",
+            redirect_to: `${window.location.origin}/portal/service-addresses?audit_session=1`,
           },
         });
 
-        if (setPwdErr || !setPwdResult?.success) {
-          throw new Error(setPwdResult?.error || setPwdErr?.message || "Impossible de préparer le compte OLDO");
+        if (auditSessionErr || !auditSessionData?.success || !auditSessionData?.action_link) {
+          throw new Error(auditSessionData?.error || auditSessionErr?.message || "Impossible de créer la session audit OLDO");
         }
+
+        setStatus("Lien audit one-shot créé. Redirection...");
+        window.location.assign(auditSessionData.action_link);
+        return;
       }
 
       // Try sign in first
