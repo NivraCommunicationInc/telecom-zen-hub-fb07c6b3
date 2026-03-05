@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 type ClientPasswordResetSendRequest = {
   email: string;
@@ -331,6 +332,13 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Rate limit: 3 password resets per 60 min per IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = await checkRateLimit({ key: `pwd_reset:${clientIp}`, ...RATE_LIMITS.PASSWORD_RESET });
+    if (!rateCheck.allowed) {
+      return rateLimitResponse(rateCheck, corsHeaders, "fr");
+    }
+
     const body: ClientPasswordResetSendRequest = await req.json();
     const email = (body.email || "").trim().toLowerCase();
 
