@@ -6412,6 +6412,7 @@ export type Database = {
           port_request: Json | null
           preauth_card_id: string | null
           preauth_discount: number | null
+          pricing_snapshot: Json | null
           processed_at: string | null
           processed_by: string | null
           promo_code: string | null
@@ -6507,6 +6508,7 @@ export type Database = {
           port_request?: Json | null
           preauth_card_id?: string | null
           preauth_discount?: number | null
+          pricing_snapshot?: Json | null
           processed_at?: string | null
           processed_by?: string | null
           promo_code?: string | null
@@ -6602,6 +6604,7 @@ export type Database = {
           port_request?: Json | null
           preauth_card_id?: string | null
           preauth_discount?: number | null
+          pricing_snapshot?: Json | null
           processed_at?: string | null
           processed_by?: string | null
           promo_code?: string | null
@@ -7581,6 +7584,7 @@ export type Database = {
           end_at: string | null
           id: string
           max_discount_amount: number | null
+          min_payable_cents: number | null
           min_subtotal: number | null
           name: string
           new_customers_only: boolean
@@ -7606,6 +7610,7 @@ export type Database = {
           end_at?: string | null
           id?: string
           max_discount_amount?: number | null
+          min_payable_cents?: number | null
           min_subtotal?: number | null
           name: string
           new_customers_only?: boolean
@@ -7631,6 +7636,7 @@ export type Database = {
           end_at?: string | null
           id?: string
           max_discount_amount?: number | null
+          min_payable_cents?: number | null
           min_subtotal?: number | null
           name?: string
           new_customers_only?: boolean
@@ -11905,6 +11911,16 @@ export type Database = {
           p_province: string
         }
         Returns: string
+      }
+      compute_checkout_pricing: {
+        Args: {
+          p_cart_items: Json
+          p_client_email?: string
+          p_client_id?: string
+          p_preauth_discount?: number
+          p_promo_code?: string
+        }
+        Returns: Json
       }
       compute_invoice_breakdown: {
         Args: { p_invoice_id: string }

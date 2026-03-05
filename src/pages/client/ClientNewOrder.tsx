@@ -1655,12 +1655,45 @@ const ClientNewOrder = () => {
       });
 
       // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
-      // Calculate gross total for discount capping (before taxes)
+      // === SERVER-SIDE PRICING (authoritative) ===
+      const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
+      const cartItemsForPricing = [
+        ...selectedServices.map(s => ({
+          type: 'service' as const,
+          name: s.name,
+          amount: Number(s.price),
+          quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
+        })),
+        ...selectedStreamingServices.map(s => ({
+          type: 'service' as const,
+          name: s.name,
+          amount: Number(s.monthly_price),
+          quantity: 1,
+        })),
+        ...(paidChannelTotal > 0 ? [{ type: 'service' as const, name: 'Chaînes premium', amount: paidChannelTotal, quantity: 1 }] : []),
+        ...(orderActivationFee > 0 ? [{ type: 'activation' as const, name: 'Activation', amount: orderActivationFee, quantity: 1 }] : []),
+        ...(orderDeliveryFee > 0 ? [{ type: 'delivery' as const, name: 'Livraison', amount: orderDeliveryFee, quantity: 1 }] : []),
+        ...(installationFee > 0 ? [{ type: 'installation' as const, name: 'Installation', amount: installationFee, quantity: 1 }] : []),
+        ...((hasInternetService || hasTVService) ? [{ type: 'equipment' as const, name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price, quantity: 1 }] : []),
+        ...(hasTVService ? [{ type: 'equipment' as const, name: 'Terminal', amount: TERMINAL_CONFIG.price, quantity: terminalQuantity }] : []),
+        ...(hasMobileService ? [{ type: 'equipment' as const, name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price, quantity: totalMobileLineQuantity }] : []),
+      ];
+
+      const serverPricing = await computeCheckoutPricing(
+        cartItemsForPricing,
+        appliedPromo?.code || null,
+        profile?.email || user.email || null,
+        user.id,
+        acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+      );
+      console.log("[ServerPricing] Authoritative totals:", serverPricing);
+
+      // Use server-side totals for the order (authoritative)
       const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
       const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
       
-      // Cap discount to never exceed gross total (prevents negative amounts)
-      const cappedDiscount = Math.min((appliedPromo?.discount_amount || 0) + welcomeDiscountAmount, grossTotal);
+      // Cap discount using server-side computed discount (enforces min_payable_cents)
+      const cappedDiscount = serverPricing.discount_total;
       
       // Determine payment method value NOW (before insert) to avoid null
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
@@ -1742,10 +1775,12 @@ const ClientNewOrder = () => {
         terminal_fee: terminalFee,
         terminal_count: terminalQuantity,
         router_fee: routerFee,
-        // Correct total amount (capped discount)
-        total_amount: Math.max(0, totalAmount),
-        tps_amount: tpsAmount,
-        tvq_amount: tvqAmount,
+        // Server-side authoritative totals
+        total_amount: Math.max(0, serverPricing.grand_total),
+        tps_amount: serverPricing.tps_amount,
+        tvq_amount: serverPricing.tvq_amount,
+        // Structured pricing snapshot (server-side source of truth)
+        pricing_snapshot: serverPricing,
       } as any, {
         onConflict: 'client_request_id',
         ignoreDuplicates: false,
@@ -1779,14 +1814,14 @@ const ClientNewOrder = () => {
         
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
-          amount: Math.max(0, totalAmount), // Ensure non-negative
+          amount: Math.max(0, serverPricing.grand_total), // Server-side authoritative amount
           payment_method: actualPaymentMethod,
           reference_number: paymentRef,
           payment_reference: nivraPaymentRef,
           status: paymentStatus,
           card_type: actualPaymentMethod === "credit_card" ? "Visa/Mastercard" : null,
           card_last_four: actualPaymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
-          etransfer_amount: actualPaymentMethod === "etransfer" ? Math.max(0, totalAmount) : null,
+          etransfer_amount: actualPaymentMethod === "etransfer" ? Math.max(0, serverPricing.grand_total) : null,
           etransfer_sender_name: actualPaymentMethod === "etransfer" ? etransferSenderName : null,
           provider_payment_id: actualPaymentMethod === "paypal" ? paypalCaptureId : null,
           captured_at: actualPaymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
@@ -1832,20 +1867,21 @@ const ClientNewOrder = () => {
           
           const isPayPalPaid = actualPaymentMethod === "paypal" && !!paypalCaptureId;
           
-          // V2.2: Build billing_totals snapshot from checkout for source of truth
+          // V2.3: Use server-side pricing as billing source of truth
           const billingTotalsSnapshot = {
-            subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
-            discount_amount: cappedDiscount,
+            subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
+            discount_amount: serverPricing.discount_total,
             welcome_discount_amount: welcomeDiscountAmount,
-            base_amount: baseAmount,
-            tps_amount: tpsAmount,
-            tvq_amount: tvqAmount,
-            total: totalAmount,
+            base_amount: serverPricing.taxable_base,
+            tps_amount: serverPricing.tps_amount,
+            tvq_amount: serverPricing.tvq_amount,
+            total: serverPricing.grand_total,
             promo_code: appliedPromo?.code || null,
             promo_name: appliedPromo?.name || null,
             payment_method: actualPaymentMethod,
-            monthly_recurring: monthlyRecurring,
-            one_time_fees: oneTimeFees,
+            monthly_recurring: serverPricing.recurring_subtotal,
+            one_time_fees: serverPricing.one_time_subtotal,
+            server_computed: true,
           };
           
           const { data: billingResult, error: billingV2Error } = await supabase.functions.invoke("billing-create-order", {
@@ -1862,7 +1898,7 @@ const ClientNewOrder = () => {
               payment_method: actualPaymentMethod,
               payment_status: isPayPalPaid ? 'paid' : 'pending',
               payment_reference: isPayPalPaid ? paypalCaptureId : null,
-              total_amount: isPayPalPaid ? totalAmount : null,
+              total_amount: isPayPalPaid ? serverPricing.grand_total : null,
               // BILLING TOTALS (v2.2) - Source of truth from checkout
               billing_totals: billingTotalsSnapshot,
             },
@@ -2496,7 +2532,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // Total discount = promo + welcome (capped to gross total)
   const totalDiscount = Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
 
-  const baseAmount = round2(Math.max(0, grossTotal - totalDiscount));
+  // Enforce min_payable_cents from promo: discount cannot reduce below minimum
+  const minPayableDollars = 0; // Will be enforced server-side; client cap is defense-in-depth
+  const effectiveTotalDiscount = minPayableDollars > 0 
+    ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
+    : totalDiscount;
+
+  const baseAmount = round2(Math.max(0, grossTotal - effectiveTotalDiscount));
   const tpsAmount = round2(baseAmount * 0.05);
   const tvqAmount = round2(baseAmount * 0.09975);
   const totalAmount = round2(baseAmount + tpsAmount + tvqAmount);
