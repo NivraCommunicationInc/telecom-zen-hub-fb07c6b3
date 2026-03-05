@@ -1,8 +1,7 @@
 /**
- * ClientsTable - Extracted component for displaying the clients table
- * Reduces AdminClients.tsx complexity
+ * ClientsTable - Carrier-grade client list table
+ * NO Card wrapper. Full-width table as primary surface.
  */
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Eye } from "lucide-react";
@@ -43,101 +42,87 @@ const getStatusConfig = (status: string | undefined) => {
 export function ClientsTable({ clients, isLoading, searchQuery, onViewDetails }: ClientsTableProps) {
   if (isLoading) {
     return (
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-cyan-400" />
-            Liste des clients
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-1">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="h-10 bg-secondary/30 animate-pulse rounded-sm" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!clients || clients.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <Users className="w-10 h-10 mb-2" />
+        <p className="text-sm">{searchQuery ? "Aucun client trouvé" : "Aucun client pour le moment"}</p>
+      </div>
     );
   }
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-cyan-400" />
-          Liste des clients ({clients?.length || 0})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {clients && clients.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Compte</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nom</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Courriel</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Solde</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Crédit</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Statut</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Inscrit le</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground border-b border-border pb-2">
+        <Users className="w-4 h-4" />
+        <span>{clients.length} client{clients.length !== 1 ? "s" : ""}</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-secondary border-b-2 border-border">
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Compte</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nom</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Courriel</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Solde</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Crédit</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inscrit le</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clients.map((client, index) => {
+              const statusConfig = getStatusConfig(client.account_status);
+              return (
+                <tr key={client.id} className={`border-b border-border/40 transition-colors hover:bg-primary/5 ${index % 2 === 1 ? "bg-secondary/15" : ""}`}>
+                  <td className="px-4 py-2.5 font-mono text-sm">
+                    {client.account_number || "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-sm font-medium text-foreground">
+                    {client.full_name || "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-sm text-foreground">
+                    {client.email || "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-sm">
+                    <span className={Number(client.balance || 0) > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}>
+                      {Number(client.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-sm">
+                    <span className={Number(client.store_credit || 0) > 0 ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
+                      {Number(client.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Badge className={statusConfig.className}>
+                      {statusConfig.label}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2.5 text-sm text-muted-foreground">
+                    {format(new Date(client.created_at), "d MMM yyyy", { locale: fr })}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onViewDetails(client)}>
+                      <Eye className="w-3 h-3 mr-1.5" />
+                      Gérer
+                    </Button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {clients.map((client) => {
-                  const statusConfig = getStatusConfig(client.account_status);
-                  return (
-                    <tr key={client.id} className="border-b border-border/50 hover:bg-accent/50">
-                      <td className="py-3 px-4 text-sm font-mono text-cyan-400 font-medium">
-                        {client.account_number || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-foreground font-medium">
-                        {client.full_name || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-foreground">
-                        {client.email || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        <span className={Number(client.balance || 0) > 0 ? "text-amber-500 font-medium" : "text-muted-foreground"}>
-                          {Number(client.balance || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        <span className={Number(client.store_credit || 0) > 0 ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
-                          {Number(client.store_credit || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge className={statusConfig.className}>
-                          {statusConfig.label}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">
-                        {format(new Date(client.created_at), "d MMM yyyy", { locale: fr })}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button size="sm" variant="outline" onClick={() => onViewDetails(client)}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Gérer
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              {searchQuery ? "Aucun client trouvé" : "Aucun client pour le moment"}
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

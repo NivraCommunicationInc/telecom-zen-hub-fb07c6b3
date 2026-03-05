@@ -905,7 +905,7 @@ const AdminClients = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
+      <div className="space-y-3">
         <PageHeader
           title="Clients"
           subtitle="Gérer tous les profils clients"
