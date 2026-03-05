@@ -1,0 +1,1 @@
+UPDATE promotions SET discount_value = 99 WHERE code = 'TEST';
