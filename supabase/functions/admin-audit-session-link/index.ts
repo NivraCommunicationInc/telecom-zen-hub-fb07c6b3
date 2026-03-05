@@ -136,8 +136,35 @@ serve(async (req: Request) => {
 
     const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
 
+    // Compute magic link hash for correlation
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(actionLink));
+    const magicLinkHash = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const sessionId = crypto.randomUUID();
+    const issuedAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // TTL 10 minutes
+
+    // Insert into admin_audit_sessions (lifecycle tracking)
+    await adminClient.from("admin_audit_sessions").insert({
+      id: sessionId,
+      admin_user_id: actor.id,
+      admin_email: actor.email,
+      target_user_id: targetUserId,
+      target_email: targetEmail,
+      reason,
+      redirect_to: redirectTo,
+      ip_address: ipAddress,
+      issued_at: issuedAt,
+      expires_at: expiresAt,
+      magic_link_hash: magicLinkHash,
+    });
+
+    // Queue notification email
     await adminClient.from("email_queue").insert({
-      event_key: `audit_magiclink_${crypto.randomUUID()}`,
+      event_key: `audit_magiclink_${sessionId}`,
       to_email: targetEmail,
       template_key: "audit_magiclink",
       template_vars: {
@@ -146,11 +173,14 @@ serve(async (req: Request) => {
         target_user_id: targetUserId,
         reason,
         one_time: true,
-        created_at: new Date().toISOString(),
+        session_id: sessionId,
+        expires_at: expiresAt,
+        created_at: issuedAt,
       },
       status: "queued",
     });
 
+    // Audit log (existing)
     await adminClient.from("admin_audit_log").insert({
       admin_user_id: actor.id,
       admin_email: actor.email,
@@ -160,6 +190,9 @@ serve(async (req: Request) => {
         redirect_to: redirectTo,
         one_time: true,
         delivery: "email_queue",
+        session_id: sessionId,
+        ttl_minutes: 10,
+        expires_at: expiresAt,
       },
       ip_address: ipAddress,
       target_type: "user",
@@ -172,12 +205,15 @@ serve(async (req: Request) => {
         success: true,
         one_time: true,
         delivery: "email_queue",
+        session_id: sessionId,
         actor_admin_id: actor.id,
         target_user_id: targetUserId,
         target_email: targetEmail,
         reason,
         ip: ipAddress,
-        created_at: new Date().toISOString(),
+        issued_at: issuedAt,
+        expires_at: expiresAt,
+        ttl_minutes: 10,
         action_link: actionLink,
       }),
       {
