@@ -22,7 +22,7 @@ interface Props {
   availableSlots?: SlotData[];
   selectedDate: string;
   selectedTime: string;
-  onSelect: (date: string, time: string) => void;
+  onSelect: (date: string, time: string, slotId?: string) => void;
 }
 
 const TIME_SLOTS = [
@@ -130,7 +130,12 @@ export function SmartSlotPicker({
                       return (
                         <button
                           key={`${dateStr}-${slot.value}`}
-                          onClick={() => onSelect(dateStr, slot.value)}
+                          onClick={() => {
+                            const dbSlot = availableSlots?.find(
+                              (s) => s.slot_date === format(date, "yyyy-MM-dd") && s.time_slot === slot.value
+                            );
+                            onSelect(dateStr, slot.value, dbSlot?.id);
+                          }}
                           className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 text-sm font-medium transition-all ${
                             isActive
                               ? "border-primary bg-primary/10 text-primary"

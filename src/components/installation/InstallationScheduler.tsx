@@ -59,6 +59,7 @@ export function InstallationScheduler({
   const [decision, setDecision] = useState<InstallationDecision | null>(null);
   const [overrideToTech, setOverrideToTech] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<SlotData[]>([]);
+  const [installationId, setInstallationId] = useState<string | null>(null);
 
   const distanceKm =
     lat && lng ? distanceFromMontreal(lat, lng) : (fallbackDistanceKm ?? 20);
@@ -97,9 +98,9 @@ export function InstallationScheduler({
   const recordInstallation = useCallback(async (answers: CablingData, targetDecision: InstallationDecision) => {
     const { data: authData } = await portalClient.auth.getUser();
     const userId = authData.user?.id;
-    if (!userId) return;
+    if (!userId) return null;
 
-    await portalClient.from("installations").insert({
+    const { data } = await portalClient.from("installations").insert({
       client_id: userId,
       installation_type: targetDecision.installationType,
       technician_level: targetDecision.technicianLevel,
@@ -112,7 +113,12 @@ export function InstallationScheduler({
       readiness_score: targetDecision.readinessScore,
       needs_fallback_ticket: targetDecision.needsFallbackTicket,
       notes: "coax_quick_check",
-    });
+    }).select("id").single();
+
+    if (data?.id) {
+      setInstallationId(data.id);
+    }
+    return data?.id || null;
   }, [distanceKm]);
 
   const handleQuestionnaireComplete = useCallback(
@@ -150,6 +156,19 @@ export function InstallationScheduler({
     await fetchSlots(updated);
   }, [decision, onInstallationTypeChange, fetchSlots]);
 
+  const handleSlotSelect = useCallback(async (date: string, time: string, slotId?: string) => {
+    onDateTimeChange(date, time);
+
+    // Atomic booking via RPC if we have slot + installation IDs
+    if (slotId && installationId) {
+      const { data } = await portalClient.rpc("book_slot", {
+        p_slot_id: slotId,
+        p_installation_id: installationId,
+      });
+      console.log("[InstallationScheduler] book_slot result:", data);
+    }
+  }, [onDateTimeChange, installationId]);
+
   return (
     <div className="space-y-4">
       {/* Step 1: Questionnaire */}
@@ -178,7 +197,7 @@ export function InstallationScheduler({
           availableSlots={availableSlots}
           selectedDate={selectedDate}
           selectedTime={selectedTime}
-          onSelect={onDateTimeChange}
+          onSelect={handleSlotSelect}
         />
       )}
     </div>
