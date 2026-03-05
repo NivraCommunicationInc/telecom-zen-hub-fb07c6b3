@@ -98,6 +98,14 @@ export default {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
         },
+        admin: {
+          surface: "hsl(var(--admin-surface-raised))",
+          "text-primary": "hsl(var(--admin-text-primary))",
+          "text-secondary": "hsl(var(--admin-text-secondary))",
+          "text-muted": "hsl(var(--admin-text-muted))",
+          "accent-hover": "hsl(var(--admin-accent-hover))",
+          "accent-subtle": "hsl(var(--admin-accent-subtle))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -1,11 +1,10 @@
 /**
- * AdminLayout V2 — TELUS-grade carrier admin shell
- * Clean, professional, high-contrast dark theme
- * Stable sidebar + sticky header + breadcrumbs
+ * AdminLayout — TELUS-grade carrier admin shell
+ * Semantic tokens, proper sizing (14px base), AA contrast
  */
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Menu, X, Search, Shield, Bell, ChevronRight } from "lucide-react";
+import { LogOut, Menu, X, Search, Shield } from "lucide-react";
 import { SystemStatusBanner } from "@/components/SystemStatusBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,19 +39,18 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[hsl(222,47%,7%)] text-[hsl(220,14%,96%)]">
-      {/* System Status Banner */}
+    <div className="admin-dark min-h-screen flex flex-col bg-background text-foreground">
       <SystemStatusBanner userType="admin" />
 
       <div className="flex-1 flex">
         {/* ═══════ DESKTOP SIDEBAR ═══════ */}
-        <aside className="hidden lg:flex flex-col w-[260px] shrink-0 border-r border-[hsl(222,30%,14%)] bg-[hsl(222,47%,9%)]">
+        <aside className="hidden lg:flex flex-col w-[260px] shrink-0 border-r border-sidebar-border bg-sidebar">
           {/* Brand */}
-          <div className="h-14 flex items-center gap-3 px-5 border-b border-[hsl(222,30%,14%)]">
-            <div className="h-8 w-8 rounded-lg bg-[hsl(168,76%,42%)] flex items-center justify-center">
-              <Shield className="h-4 w-4 text-[hsl(222,47%,9%)]" />
+          <div className="h-14 flex items-center gap-3 px-5 border-b border-sidebar-border">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Shield className="h-4 w-4 text-primary-foreground" />
             </div>
-            <Link to="/admin" className="font-semibold text-sm tracking-tight text-white">
+            <Link to="/admin" className="font-semibold text-[15px] tracking-tight text-foreground">
               Nivra Admin
             </Link>
           </div>
@@ -61,22 +59,22 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           <div className="px-3 py-3 space-y-2">
             <GlobalSearchTrigger />
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[hsl(220,9%,40%)]" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Filtrer le menu…"
                 value={sidebarSearchQuery}
                 onChange={(e) => setSidebarSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-xs bg-[hsl(222,40%,12%)] border-[hsl(222,30%,16%)] text-[hsl(220,14%,80%)] placeholder:text-[hsl(220,9%,35%)] focus-visible:ring-[hsl(168,76%,42%)] focus-visible:ring-1"
+                className="pl-9 h-9 text-sm bg-secondary border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary focus-visible:ring-1"
               />
               {sidebarSearchQuery && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7 text-[hsl(220,9%,40%)] hover:text-white"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
                   onClick={() => setSidebarSearchQuery("")}
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </Button>
               )}
             </div>
@@ -86,22 +84,22 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           <AdminSidebarNav searchQuery={sidebarSearchQuery} />
 
           {/* Footer */}
-          <div className="px-4 py-3 border-t border-[hsl(222,30%,14%)] space-y-2">
-            <div className="flex items-center gap-2 px-1">
-              <div className="h-7 w-7 rounded-full bg-[hsl(222,40%,16%)] flex items-center justify-center text-xs font-medium text-[hsl(220,14%,70%)]">
+          <div className="px-4 py-3 border-t border-sidebar-border space-y-2">
+            <div className="flex items-center gap-2.5 px-1">
+              <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-sm font-medium text-admin-text-secondary">
                 {user?.email?.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-[hsl(220,14%,85%)] truncate">{user?.email}</p>
+                <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start gap-2 text-xs text-[hsl(220,9%,50%)] hover:text-white hover:bg-[hsl(222,40%,14%)] h-8"
+              className="w-full justify-start gap-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary h-9"
               onClick={handleSignOut}
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
               Déconnexion
             </Button>
           </div>
@@ -110,10 +108,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         {/* ═══════ MAIN AREA ═══════ */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* ─── Top bar (desktop) ─── */}
-          <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-[hsl(222,30%,14%)] bg-[hsl(222,47%,8%)] shrink-0">
-            <div className="flex items-center gap-3">
-              {/* Breadcrumb placeholder — pages inject via context */}
-            </div>
+          <header className="hidden lg:flex items-center justify-between h-14 px-6 border-b border-border bg-background shrink-0 sticky top-0 z-40">
+            <div className="flex items-center gap-3" />
             <div className="flex items-center gap-2">
               <LockdownButton compact />
               <OnlineUsersIndicator />
@@ -122,20 +118,20 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </header>
 
           {/* ─── Mobile header ─── */}
-          <header className="lg:hidden sticky top-0 z-50 flex items-center justify-between h-14 px-3 border-b border-[hsl(222,30%,14%)] bg-[hsl(222,47%,8%)]">
+          <header className="lg:hidden sticky top-0 z-50 flex items-center justify-between h-14 px-3 border-b border-border bg-background">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="h-10 w-10 text-[hsl(220,14%,70%)]"
+              className="h-10 w-10 text-muted-foreground"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
             <Link to="/admin" className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-[hsl(168,76%,42%)] flex items-center justify-center">
-                <Shield className="h-3.5 w-3.5 text-[hsl(222,47%,9%)]" />
+              <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+                <Shield className="h-3.5 w-3.5 text-primary-foreground" />
               </div>
-              <span className="font-semibold text-sm text-white">Nivra Admin</span>
+              <span className="font-semibold text-sm text-foreground">Nivra Admin</span>
             </Link>
             <NotificationBell basePath="/admin" />
             {mobileMenuOpen && (
