@@ -73,6 +73,7 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
         quantity: 1,
         unit_price: l.type === "credit" ? -l.amount : l.amount,
         line_total: l.type === "credit" ? -l.amount : l.amount,
+        line_type: l.type === "credit" ? "credit" : "fee",
       }));
 
       const { error: linesError } = await supabase

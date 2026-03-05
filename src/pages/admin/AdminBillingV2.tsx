@@ -420,18 +420,24 @@ const AdminBillingV2 = () => {
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Facture</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Client</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead>Échéance</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
+                     <TableRow>
+                         <TableHead>Facture</TableHead>
+                         <TableHead>Type</TableHead>
+                         <TableHead>Client</TableHead>
+                         <TableHead>Montants</TableHead>
+                         <TableHead>Solde dû</TableHead>
+                         <TableHead>Statut</TableHead>
+                         <TableHead>Échéance</TableHead>
+                         <TableHead>Actions</TableHead>
+                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredInvoices?.map((invoice) => (
+                      {filteredInvoices?.map((invoice) => {
+                        // Use breakdown data if available via lines, otherwise fallback
+                        const subtotalDisplay = formatCurrency(invoice.subtotal);
+                        const invAny = invoice as any;
+                        const balanceDue = Number(invAny.balance_due ?? (invoice.total - (invAny.amount_paid || 0)));
+                        return (
                         <TableRow key={invoice.id}>
                           <TableCell className="font-mono">{invoice.invoice_number}</TableCell>
                           <TableCell>
@@ -440,7 +446,20 @@ const AdminBillingV2 = () => {
                           <TableCell>
                             {invoice.customer?.first_name} {invoice.customer?.last_name}
                           </TableCell>
-                          <TableCell className="font-semibold">{formatCurrency(invoice.total)}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">{subtotalDisplay}</div>
+                            <div className="text-xs text-muted-foreground">
+                              TPS: {formatCurrency(invoice.tps_amount)} | TVQ: {formatCurrency(invoice.tvq_amount)}
+                            </div>
+                            <div className="font-semibold">{formatCurrency(invoice.total)}</div>
+                          </TableCell>
+                          <TableCell>
+                            {balanceDue > 0 ? (
+                              <span className="text-amber-600 font-medium">{formatCurrency(balanceDue)}</span>
+                            ) : (
+                              <span className="text-emerald-600 font-medium">0,00 $</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge className={BILLING_INVOICE_STATUS_COLORS[invoice.status]}>
                               {BILLING_INVOICE_STATUS_LABELS[invoice.status]}
@@ -476,10 +495,11 @@ const AdminBillingV2 = () => {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                       {(!filteredInvoices || filteredInvoices.length === 0) && (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                             Aucune facture trouvée
                           </TableCell>
                         </TableRow>

@@ -199,6 +199,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
           unit_price: l.unitPrice,
           quantity: l.quantity,
           line_total: l.unitPrice * l.quantity,
+          line_type: 'service',
         }));
 
       // Add activation fee as a line if applicable
@@ -209,6 +210,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
           unit_price: activationFee,
           quantity: 1,
           line_total: activationFee,
+          line_type: 'fee',
         });
       }
 

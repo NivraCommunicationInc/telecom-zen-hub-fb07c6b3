@@ -1098,6 +1098,8 @@ export type Database = {
           id: string
           invoice_id: string
           line_total: number
+          line_type: string
+          metadata: Json | null
           quantity: number | null
           unit_price: number
         }
@@ -1107,6 +1109,8 @@ export type Database = {
           id?: string
           invoice_id: string
           line_total: number
+          line_type?: string
+          metadata?: Json | null
           quantity?: number | null
           unit_price: number
         }
@@ -1116,6 +1120,8 @@ export type Database = {
           id?: string
           invoice_id?: string
           line_total?: number
+          line_type?: string
+          metadata?: Json | null
           quantity?: number | null
           unit_price?: number
         }
@@ -10587,6 +10593,10 @@ export type Database = {
           p_signature_type?: string
           p_token: string
         }
+        Returns: Json
+      }
+      compute_invoice_breakdown: {
+        Args: { p_invoice_id: string }
         Returns: Json
       }
       create_activity_log: {
