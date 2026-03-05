@@ -90,6 +90,7 @@ const navGroups: NavGroup[] = [
     icon: ShoppingCart,
     items: [
       { icon: Package, label: "Commandes", href: "/admin/orders" },
+      { icon: Activity, label: "Queues opérationnelles", href: "/admin/queues" },
       { icon: ShoppingCart, label: "Point de Vente (POS)", href: "/admin/pos" },
       { icon: Shield, label: "Vérifications KYC", href: "/admin/kyc-verifications" },
       { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },

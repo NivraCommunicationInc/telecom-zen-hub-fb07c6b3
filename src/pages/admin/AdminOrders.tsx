@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1649,6 +1650,11 @@ const AdminOrders = () => {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex gap-1">
+                            <Link to={`/admin/orders/${order.id}`}>
+                              <Button size="sm" variant="default" className="gap-1 bg-teal-600 hover:bg-teal-700">
+                                <Wrench className="w-3 h-3" /> Workbench
+                              </Button>
+                            </Link>
                             <Button size="sm" variant="outline" onClick={() => handleViewDetails(order)}>
                               <Eye className="w-4 h-4" />
                             </Button>
