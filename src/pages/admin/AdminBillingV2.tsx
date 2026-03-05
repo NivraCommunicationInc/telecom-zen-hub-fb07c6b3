@@ -72,6 +72,7 @@ import {
 } from "@/lib/billing";
 import { LegacyInvoiceImportDialog } from "@/components/admin/billing/LegacyInvoiceImportDialog";
 import { CreateInvoiceDialog } from "@/components/admin/billing/CreateInvoiceDialog";
+import { InvoiceAdjustmentDialog } from "@/components/admin/billing/InvoiceAdjustmentDialog";
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
@@ -93,6 +94,8 @@ const AdminBillingV2 = () => {
   // New dialogs
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
+  const [adjustmentInvoice, setAdjustmentInvoice] = useState<BillingInvoice | null>(null);
 
   // Data hooks
   const { data: stats, isLoading: statsLoading } = useBillingStats();
@@ -445,18 +448,32 @@ const AdminBillingV2 = () => {
                           </TableCell>
                           <TableCell>{formatDate(invoice.due_date)}</TableCell>
                           <TableCell>
-                            {invoice.status === "pending" && (
+                            <div className="flex gap-1">
+                              {invoice.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedInvoice(invoice);
+                                    setConfirmDialogOpen(true);
+                                  }}
+                                  title="Confirmer paiement"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => {
-                                  setSelectedInvoice(invoice);
-                                  setConfirmDialogOpen(true);
+                                  setAdjustmentInvoice(invoice);
+                                  setAdjustmentDialogOpen(true);
                                 }}
+                                title="Ajuster la facture"
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                               </Button>
-                            )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -681,6 +698,13 @@ const AdminBillingV2 = () => {
         <CreateInvoiceDialog
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
+        />
+
+        {/* Invoice Adjustment Dialog */}
+        <InvoiceAdjustmentDialog
+          open={adjustmentDialogOpen}
+          onOpenChange={setAdjustmentDialogOpen}
+          invoice={adjustmentInvoice}
         />
       </div>
     </AdminLayout>
