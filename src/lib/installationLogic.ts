@@ -186,7 +186,8 @@ export function determineInstallation(
 
 export function isSameDayStillAvailable(): boolean {
   const now = new Date();
-  return now.getHours() < 16;
+  // Same-day only if current hour < 14 (need 4h lead time before last 18h slot)
+  return now.getHours() < 14;
 }
 
 export const INSTALLATION_MESSAGES: Record<

@@ -1,5 +1,6 @@
 /**
  * WorkbenchSummaryTab - Next Best Action + Order overview
+ * Reads totals from orders.pricing_snapshot (server-side source of truth)
  */
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,10 +38,10 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   on_hold: { color: "bg-orange-500/20 text-orange-400", label: "En attente" },
   cancelled: { color: "bg-red-500/20 text-red-400", label: "Annulé" },
   failed: { color: "bg-red-500/20 text-red-400", label: "Échoué" },
-  // Legacy statuses
   pending: { color: "bg-amber-500/20 text-amber-400", label: "En attente" },
   confirmed: { color: "bg-emerald-500/20 text-emerald-400", label: "Confirmé" },
   completed: { color: "bg-emerald-500/20 text-emerald-400", label: "Terminé" },
+  pending_verification: { color: "bg-purple-500/20 text-purple-400", label: "Vérification en cours" },
 };
 
 function getStatusBadge(status: string) {
@@ -51,7 +52,6 @@ function getStatusBadge(status: string) {
 function computeNBA(order: any, nextActions: any, orderItems: any[], provisioningJobs: any[]): { icon: any; label: string; action: WorkbenchAction; priority: string }[] {
   const result: { icon: any; label: string; action: WorkbenchAction; priority: string }[] = [];
 
-  // From order_next_actions table if available
   if (nextActions?.next_actions) {
     const a = nextActions.next_actions;
     if (a.kyc_pending) result.push({ icon: Shield, label: "KYC à approuver", action: "approve_kyc", priority: "high" });
@@ -62,41 +62,30 @@ function computeNBA(order: any, nextActions: any, orderItems: any[], provisionin
     if (a.provisioning_blocked) result.push({ icon: Wifi, label: "Provisioning bloqué – retry", action: "retry_provisioning", priority: "high" });
   }
 
-  // Dynamic computation from actual state (fills gaps when order_next_actions is empty)
   if (result.length === 0) {
     const status = order?.status || "";
     const payStatus = order?.payment_status || "";
 
-    // KYC check
     if (["kyc_required", "kyc_in_review"].includes(status) || order?.id_verification_status === "submitted") {
       result.push({ icon: Shield, label: "KYC à approuver", action: "approve_kyc", priority: "high" });
     }
-
-    // Payment check
     if (["payment_pending", "payment_failed"].includes(status) || payStatus === "pending" || payStatus === "failed") {
       result.push({ icon: CreditCard, label: "Paiement à capturer", action: "capture_payment", priority: "high" });
     }
-
-    // Provisioning failures
     const failedJobs = provisioningJobs.filter((j: any) => j.status === "failed" || j.status === "blocked");
     if (failedJobs.length > 0) {
       result.push({ icon: Wifi, label: `${failedJobs.length} job(s) provisioning en échec`, action: "retry_provisioning", priority: "high" });
     }
-
-    // Fulfillment pending
     if (status === "fulfillment_pending" || status === "submitted") {
       const hasItemsNeedingFulfillment = orderItems.some((i: any) => ["fulfillment_pending", "submitted", "payment_pending"].includes(i.status));
       if (hasItemsNeedingFulfillment || orderItems.length === 0) {
         result.push({ icon: Truck, label: "Fulfillment à traiter", action: "manage_shipment", priority: "medium" });
       }
     }
-
-    // Items stuck in early stages
     const kycItems = orderItems.filter((i: any) => i.status === "kyc_required");
     if (kycItems.length > 0 && !result.some(r => r.action === "approve_kyc")) {
       result.push({ icon: Shield, label: `${kycItems.length} item(s) en attente KYC`, action: "approve_kyc", priority: "high" });
     }
-
     const payItems = orderItems.filter((i: any) => i.status === "payment_pending");
     if (payItems.length > 0 && !result.some(r => r.action === "capture_payment")) {
       result.push({ icon: CreditCard, label: `${payItems.length} item(s) en attente paiement`, action: "capture_payment", priority: "high" });
@@ -115,6 +104,8 @@ export function WorkbenchSummaryTab({ order, profile, nextActions, orderItems, p
   const jobsActive = provisioningJobs.filter((j: any) => ["pending", "in_progress"].includes(j.status)).length;
   const itemsActive = orderItems.filter((i: any) => i.status === "active").length;
 
+  const ps = order?.pricing_snapshot;
+
   return (
     <div className="space-y-6">
       {/* Next Best Action */}
@@ -128,10 +119,10 @@ export function WorkbenchSummaryTab({ order, profile, nextActions, orderItems, p
           </CardHeader>
           <CardContent className="space-y-2">
             {nba.map((action, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
                 <div className="flex items-center gap-3">
                   <action.icon className="h-4 w-4 text-amber-400" />
-                  <span className="text-sm text-slate-200">{action.label}</span>
+                  <span className="text-sm text-foreground">{action.label}</span>
                   <Badge variant="outline" className={action.priority === "high" ? "border-red-500 text-red-400" : "border-amber-500 text-amber-400"}>
                     {action.priority === "high" ? "Urgent" : "Normal"}
                   </Badge>
@@ -151,21 +142,21 @@ export function WorkbenchSummaryTab({ order, profile, nextActions, orderItems, p
         <Card className="border-emerald-500/30 bg-emerald-500/5">
           <CardContent className="py-4 flex items-center gap-3">
             <CheckCircle className="h-5 w-5 text-emerald-400" />
-            <span className="text-sm text-emerald-300">Aucune action requise — commande en bonne voie</span>
+            <span className="text-sm text-emerald-400">Aucune action requise — commande en bonne voie</span>
           </CardContent>
         </Card>
       )}
 
       {/* Order Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-slate-800/50 border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground mb-1">Commande</p>
-            <p className="font-mono text-lg text-white">{order?.order_number || "—"}</p>
+            <p className="font-mono text-lg text-foreground">{order?.order_number || "—"}</p>
             <p className="text-xs text-muted-foreground mt-2">Créée le {createdAt}</p>
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground mb-1">Statut</p>
             <div className="flex items-center gap-2 mt-1">
@@ -176,10 +167,10 @@ export function WorkbenchSummaryTab({ order, profile, nextActions, orderItems, p
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground mb-1">Client</p>
-            <p className="text-white font-medium">{profile?.full_name || order?.client_email || "—"}</p>
+            <p className="text-foreground font-medium">{profile?.full_name || order?.client_email || "—"}</p>
             <p className="text-xs text-muted-foreground">{profile?.email || order?.client_email}</p>
           </CardContent>
         </Card>
@@ -187,45 +178,78 @@ export function WorkbenchSummaryTab({ order, profile, nextActions, orderItems, p
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-800/50 border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold text-white">{orderItems.length}</p>
+            <p className="text-2xl font-bold text-foreground">{orderItems.length}</p>
             <p className="text-xs text-muted-foreground">Items</p>
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold text-emerald-400">{itemsActive}</p>
+            <p className="text-2xl font-bold text-emerald-500">{itemsActive}</p>
             <p className="text-xs text-muted-foreground">Actifs</p>
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold text-cyan-400">{jobsActive}</p>
+            <p className="text-2xl font-bold text-primary">{jobsActive}</p>
             <p className="text-xs text-muted-foreground">Jobs actifs</p>
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold text-red-400">{jobsFailed}</p>
+            <p className="text-2xl font-bold text-destructive">{jobsFailed}</p>
             <p className="text-xs text-muted-foreground">Jobs échoués</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Amount */}
-      <Card className="bg-slate-800/50 border-slate-700/50">
+      {/* Amount — from pricing_snapshot when available */}
+      <Card className="bg-card border-border">
         <CardContent className="pt-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-xs text-muted-foreground">Montant total</p>
-              <p className="text-2xl font-bold text-white">{Number(order?.total_amount || 0).toFixed(2)} $</p>
+          {ps ? (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total (serveur)</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {Number(ps.grand_total || 0).toFixed(2)} $
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Service</p>
+                  <p className="text-sm text-foreground">{order?.service_type || "—"}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                <div>
+                  <span>Récurrent: </span>
+                  <span className="text-foreground">{Number(ps.recurring_subtotal || 0).toFixed(2)} $</span>
+                </div>
+                <div>
+                  <span>Rabais: </span>
+                  <span className="text-emerald-500">-{Number(ps.discount_total || 0).toFixed(2)} $</span>
+                </div>
+                <div>
+                  <span>Taxes: </span>
+                  <span className="text-foreground">
+                    {(Number(ps.tps_amount || 0) + Number(ps.tvq_amount || 0)).toFixed(2)} $
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">Service</p>
-              <p className="text-sm text-white">{order?.service_type || "—"}</p>
+          ) : (
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-xs text-muted-foreground">Montant total</p>
+                <p className="text-2xl font-bold text-foreground">{Number(order?.total_amount || 0).toFixed(2)} $</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Service</p>
+                <p className="text-sm text-foreground">{order?.service_type || "—"}</p>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1964,6 +1964,57 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_sessions: {
+        Row: {
+          appointment_id: string | null
+          cart_items: Json | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          identity_data: Json | null
+          kyc_session_id: string | null
+          payment_method: string | null
+          pricing_snapshot: Json | null
+          promo_code: string | null
+          service_address: Json | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          cart_items?: Json | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          identity_data?: Json | null
+          kyc_session_id?: string | null
+          payment_method?: string | null
+          pricing_snapshot?: Json | null
+          promo_code?: string | null
+          service_address?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          cart_items?: Json | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          identity_data?: Json | null
+          kyc_session_id?: string | null
+          payment_method?: string | null
+          pricing_snapshot?: Json | null
+          promo_code?: string | null
+          service_address?: Json | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_access_logs: {
         Row: {
           access_method: string
@@ -11903,6 +11954,7 @@ export type Database = {
         }
         Returns: Json
       }
+      commit_order_atomic: { Args: { p_payload: Json }; Returns: Json }
       compute_address_hash: {
         Args: {
           p_address_line: string
