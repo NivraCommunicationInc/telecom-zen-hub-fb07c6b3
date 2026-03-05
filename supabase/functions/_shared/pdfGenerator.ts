@@ -7,16 +7,17 @@
 
 import { jsPDF } from "npm:jspdf@2.5.1";
 
-// Company information
+// Company information — MUST match client-side companyInfo.ts
 export const COMPANY = {
-  name: "Nivra Telecom",
-  legalName: "9477-4922 Québec inc. (Nivra Telecom)",
+  name: "NIVRA COMMUNICATIONS INC.",
+  legalName: "NIVRA COMMUNICATIONS INC.",
   address: "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5",
   email: "Support@nivra-telecom.ca",
-  website: "nivra-telecom.ca",
-  neq: "1176282285",
-  gstNumber: "713971764RT0001",
-  qstNumber: "1232379195TQ0001",
+  phone: "438-544-2233",
+  website: "www.nivra-telecom.ca",
+  neq: "2291249786",
+  gstNumber: "732287291 RT0001",
+  qstNumber: "1229249786 TQ0001",
 };
 
 // Professional color palette
@@ -40,12 +41,14 @@ export const formatCurrency = (amount: number): string => {
 };
 
 export const formatDate = (dateStr: string): string => {
-  if (!dateStr) return 'N/A';
-  return new Date(dateStr).toLocaleDateString('fr-CA', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+  if (!dateStr) return 'Non fourni par le client';
+  try {
+    return new Date(dateStr).toLocaleDateString('fr-CA', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  } catch { return dateStr; }
 };
 
 // Helper to add new page with white background
