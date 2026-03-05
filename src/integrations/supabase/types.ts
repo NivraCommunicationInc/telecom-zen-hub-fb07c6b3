@@ -10992,6 +10992,10 @@ export type Database = {
         Args: { p_contract_id: string; p_create_new_version?: boolean }
         Returns: Json
       }
+      resolve_or_create_service_address: {
+        Args: { p_customer_id: string; p_order_id?: string }
+        Returns: string
+      }
       search_clients_unified: {
         Args: {
           search_email?: string
