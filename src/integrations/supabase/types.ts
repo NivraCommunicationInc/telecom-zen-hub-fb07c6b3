@@ -9513,6 +9513,67 @@ export type Database = {
         }
         Relationships: []
       }
+      technician_slot_bookings: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          installation_id: string
+          order_id: string | null
+          slot_date: string
+          slot_id: string
+          status: string
+          technician_level: string
+          time_slot: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          installation_id: string
+          order_id?: string | null
+          slot_date: string
+          slot_id: string
+          status?: string
+          technician_level: string
+          time_slot: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          installation_id?: string
+          order_id?: string | null
+          slot_date?: string
+          slot_id?: string
+          status?: string
+          technician_level?: string
+          time_slot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technician_slot_bookings_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: true
+            referencedRelation: "installations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_slot_bookings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "technician_slot_bookings_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "technician_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technician_slots: {
         Row: {
           booked: number
@@ -11014,6 +11075,14 @@ export type Database = {
             }
             Returns: Json
           }
+      book_slot: {
+        Args: {
+          p_installation_id: string
+          p_order_id?: string
+          p_slot_id: string
+        }
+        Returns: Json
+      }
       calculate_activation_fee: {
         Args: { service_count: number }
         Returns: number
