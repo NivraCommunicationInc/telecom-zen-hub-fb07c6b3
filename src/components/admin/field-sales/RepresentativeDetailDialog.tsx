@@ -204,21 +204,30 @@ export function RepresentativeDetailDialog({
     },
   });
 
-  // Set password mutation
+  // Send password reset link mutation (replaces legacy set-password)
   const setPasswordMutation = useMutation({
     mutationFn: async ({ password, forceChange }: { password: string; forceChange: boolean }) => {
+      // Password setting is no longer supported - use reset link instead
+      throw new Error("Le changement direct de mot de passe a été désactivé. Utilisez l'envoi de lien de réinitialisation.");
+    },
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Send reset link mutation via audit session
+  const sendResetLinkMutation = useMutation({
+    mutationFn: async () => {
       const {
         data: { session },
       } = await adminSupabase.auth.getSession();
 
       const { data, error } = await adminSupabase.functions.invoke(
-        "admin-set-user-password",
+        "admin-audit-session-link",
         {
           body: {
-            action: "set_password",
             target_user_id: representative!.user_id,
-            password,
-            force_change: forceChange,
+            reason: "Password reset requested by admin for field sales representative",
           },
           headers: session?.access_token
             ? { Authorization: `Bearer ${session.access_token}` }
@@ -235,48 +244,8 @@ export function RepresentativeDetailDialog({
     },
     onSuccess: () => {
       toast({
-        title: "Mot de passe défini",
-        description: "Le nouveau mot de passe a été configuré avec succès.",
-      });
-      setSetPasswordDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["admin-field-sales-reps"] });
-    },
-    onError: (error: any) => {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    },
-  });
-
-  // Send reset link mutation
-  const sendResetLinkMutation = useMutation({
-    mutationFn: async () => {
-      const {
-        data: { session },
-      } = await adminSupabase.auth.getSession();
-
-      const { data, error } = await adminSupabase.functions.invoke(
-        "admin-set-user-password",
-        {
-          body: {
-            action: "send_reset_link",
-            target_user_id: representative!.user_id,
-          },
-          headers: session?.access_token
-            ? { Authorization: `Bearer ${session.access_token}` }
-            : undefined,
-        }
-      );
-
-      if (error) {
-        const message = await extractEdgeFunctionErrorMessage(error);
-        throw new Error(message);
-      }
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
-    onSuccess: (data) => {
-      toast({
         title: "Lien envoyé",
-        description: `Un courriel de réinitialisation a été envoyé à ${data?.email || representative?.email}`,
+        description: "Un lien de réinitialisation sécurisé a été envoyé par courriel.",
       });
     },
     onError: (error: any) => {

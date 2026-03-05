@@ -5673,6 +5673,53 @@ export type Database = {
           },
         ]
       }
+      order_identity_data: {
+        Row: {
+          created_at: string
+          id: string
+          id_expiry: string | null
+          id_number_encrypted: string | null
+          id_type: string | null
+          order_id: string
+          updated_at: string
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          id_expiry?: string | null
+          id_number_encrypted?: string | null
+          id_type?: string | null
+          order_id: string
+          updated_at?: string
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          id_expiry?: string | null
+          id_number_encrypted?: string | null
+          id_type?: string | null
+          order_id?: string
+          updated_at?: string
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_identity_data_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_internal_notes: {
         Row: {
           body: string
@@ -10794,6 +10841,7 @@ export type Database = {
       check_overdue_invoices: { Args: never; Returns: undefined }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
+      cleanup_old_logs: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       client_sign_contract: {
         Args: {
@@ -10832,6 +10880,25 @@ export type Database = {
           p_entity_id: string
           p_entity_type: string
           p_summary?: string
+        }
+        Returns: string
+      }
+      create_invoice_with_lines: {
+        Args: {
+          p_customer_id: string
+          p_cycle_end?: string
+          p_cycle_start?: string
+          p_due_date?: string
+          p_invoice_number: string
+          p_lines?: Json
+          p_order_id?: string
+          p_payment_method?: string
+          p_subscription_id: string
+          p_subtotal: number
+          p_total: number
+          p_tps_amount: number
+          p_tvq_amount: number
+          p_type: string
         }
         Returns: string
       }
@@ -10987,10 +11054,6 @@ export type Database = {
         Args: { code_id: string }
         Returns: undefined
       }
-      is_admin: { Args: never; Returns: boolean }
-      is_admin_user:
-        | { Args: never; Returns: boolean }
-        | { Args: { check_user_id: string }; Returns: boolean }
       is_assigned_technician: {
         Args: { _work_order_id: string }
         Returns: boolean
@@ -11010,7 +11073,6 @@ export type Database = {
         Args: { p_captured_at?: string; p_paid_at?: string; p_status: string }
         Returns: boolean
       }
-      is_staff: { Args: never; Returns: boolean }
       is_staff_member: { Args: { _user_id: string }; Returns: boolean }
       is_staff_user: { Args: { _user_id: string }; Returns: boolean }
       lift_client_suspension: {
