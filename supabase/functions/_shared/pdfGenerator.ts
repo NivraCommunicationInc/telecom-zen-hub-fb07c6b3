@@ -106,7 +106,7 @@ export interface InvoiceData {
   invoice_number: string;
   invoice_date: string;
   due_date: string;
-  account_number?: string;
+  account_number: string;
   period_start?: string;
   period_end?: string;
   client_name: string;
@@ -137,6 +137,10 @@ export interface InvoiceData {
 }
 
 export function generateInvoicePDF(data: InvoiceData): string {
+  // HARD STOP: account_number is mandatory for all financial documents
+  if (!data.account_number || data.account_number === 'N/A' || data.account_number === '000000') {
+    throw new Error('MISSING_ACCOUNT_NUMBER: Impossible de générer la facture sans numéro de compte valide.');
+  }
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -874,6 +878,10 @@ export interface ContractSummaryData {
 }
 
 export function generateContractSummaryPDF(data: ContractSummaryData): string {
+  // HARD STOP: account_number is mandatory
+  if (!data.account_number || data.account_number === 'N/A' || data.account_number === '000000') {
+    throw new Error('MISSING_ACCOUNT_NUMBER: Impossible de générer le RRE sans numéro de compte valide.');
+  }
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
