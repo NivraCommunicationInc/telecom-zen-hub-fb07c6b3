@@ -24,7 +24,7 @@ interface Props {
   onSelect: (date: string, time: string, slotId?: string) => void;
 }
 
-const LEAD_TIME_HOURS = 2;
+const LEAD_TIME_HOURS = 4;
 
 const TIME_SLOTS = [
   { value: "09h - 12h", startHour: 9, labelFr: "9h - 12h (Matin)", labelEn: "9AM - 12PM (Morning)" },
