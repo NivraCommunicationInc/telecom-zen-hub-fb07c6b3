@@ -8347,12 +8347,15 @@ export type Database = {
           address_line: string
           address_normalized: string | null
           city: string | null
+          coax_readiness_score: number | null
           created_at: string | null
           id: string
           is_active: boolean | null
           is_default: boolean
           is_primary: boolean | null
           label: string
+          last_install_outcome: string | null
+          last_install_outcome_at: string | null
           postal_code: string | null
           province: string | null
           updated_at: string | null
@@ -8363,12 +8366,15 @@ export type Database = {
           address_line: string
           address_normalized?: string | null
           city?: string | null
+          coax_readiness_score?: number | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean
           is_primary?: boolean | null
           label?: string
+          last_install_outcome?: string | null
+          last_install_outcome_at?: string | null
           postal_code?: string | null
           province?: string | null
           updated_at?: string | null
@@ -8379,12 +8385,15 @@ export type Database = {
           address_line?: string
           address_normalized?: string | null
           city?: string | null
+          coax_readiness_score?: number | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean
           is_primary?: boolean | null
           label?: string
+          last_install_outcome?: string | null
+          last_install_outcome_at?: string | null
           postal_code?: string | null
           province?: string | null
           updated_at?: string | null
