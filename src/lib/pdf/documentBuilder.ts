@@ -93,7 +93,7 @@ export async function fetchOrderDocumentData(orderId: string): Promise<OrderDocu
     try {
       breakdown = await fetchInvoiceBreakdown(invoiceId);
     } catch (e) {
-      console.error("[DocumentBuilder] Breakdown RPC failed, falling back:", e);
+      console.error("[DocumentBuilder] ⚠️ Breakdown RPC failed — documents may have inconsistent totals:", e);
     }
 
     // Also fetch raw data for backward compat (contract signatures etc.)

@@ -34,15 +34,40 @@ const ClientDashboard = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch from billing_subscriptions (V2 source of truth) via billing_customer
   const { data: subscriptions } = useQuery({
-    queryKey: ["client-subscriptions", user?.id],
+    queryKey: ["client-billing-subscriptions", user?.id],
     queryFn: async () => {
-      const { data } = await portalSupabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", user?.id)
+      if (!user?.id) return [];
+      // Find billing_customer for this user
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!customer) {
+        // Fallback to legacy subscriptions table
+        const { data } = await portalSupabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "active");
+        return data || [];
+      }
+      const { data: subs } = await portalSupabase
+        .from("billing_subscriptions")
+        .select("*, services:billing_subscription_services(*)")
+        .eq("customer_id", customer.id)
         .eq("status", "active");
-      return data || [];
+      // Map to compatible shape
+      return (subs || []).map((s: any) => ({
+        id: s.id,
+        plan_name: s.plan_name,
+        amount: s.plan_price,
+        billing_cycle: "monthly",
+        service_type: s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
+        status: s.status,
+      }));
     },
     enabled: !!user?.id,
   });
