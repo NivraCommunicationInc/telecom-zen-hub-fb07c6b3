@@ -433,10 +433,10 @@ const AdminBillingV2 = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredInvoices?.map((invoice) => {
-                        // Use breakdown data if available via lines, otherwise fallback
+                        // Display DB values directly — no client-side recalculation
                         const subtotalDisplay = formatCurrency(invoice.subtotal);
                         const invAny = invoice as any;
-                        const balanceDue = Number(invAny.balance_due ?? (invoice.total - (invAny.amount_paid || 0)));
+                        const balanceDue = Number(invAny.balance_due ?? 0);
                         return (
                         <TableRow key={invoice.id}>
                           <TableCell className="font-mono">{invoice.invoice_number}</TableCell>
