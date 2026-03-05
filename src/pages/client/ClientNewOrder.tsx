@@ -618,6 +618,11 @@ const ClientNewOrder = () => {
   // Pre-authorized payment state
   const [acceptPreauthorized, setAcceptPreauthorized] = useState(false);
   const PREAUTH_MONTHLY_DISCOUNT = 5;
+
+  // === LIVE SERVER PRICING (authoritative for summary display) ===
+  const [liveServerPricing, setLiveServerPricing] = useState<import("@/lib/pricing/serverPricing").ServerPricingResult | null>(null);
+  const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
+  const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Query client billing preferences to check if preauth already opted-in
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
@@ -2591,10 +2596,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
     : totalDiscount;
 
-  const baseAmount = round2(Math.max(0, grossTotal - effectiveTotalDiscount));
-  const tpsAmount = round2(baseAmount * 0.05);
-  const tvqAmount = round2(baseAmount * 0.09975);
-  const totalAmount = round2(baseAmount + tpsAmount + tvqAmount);
+  // Client-side fallback values (used only before server pricing loads)
+  const _clientBaseAmount = round2(Math.max(0, grossTotal - effectiveTotalDiscount));
+  const _clientTpsAmount = round2(_clientBaseAmount * 0.05);
+  const _clientTvqAmount = round2(_clientBaseAmount * 0.09975);
+  const _clientTotalAmount = round2(_clientBaseAmount + _clientTpsAmount + _clientTvqAmount);
 
   // Keep promo discount accurate when the cart changes (prevents “97% => 0$” stale/cap bugs)
   useEffect(() => {
@@ -2631,9 +2637,80 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     user?.id,
   ]);
 
-  // Separate tax calculations for bill preview
-  const oneTimeFeesWithTax = oneTimeFees + Math.round(oneTimeFees * 0.14975 * 100) / 100;
-  const monthlyRecurringWithTax = monthlyRecurring + Math.round(monthlyRecurring * 0.14975 * 100) / 100;
+  // === LIVE SERVER PRICING: Debounced call to compute_checkout_pricing on cart changes ===
+  useEffect(() => {
+    if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
+      setLiveServerPricing(null);
+      return;
+    }
+
+    if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
+
+    serverPricingTimerRef.current = setTimeout(async () => {
+      setIsServerPricingLoading(true);
+      try {
+        const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
+        const cartItems = [
+          ...selectedServices.map(s => ({
+            type: 'service' as const,
+            name: s.name,
+            amount: Number(s.price),
+            quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
+          })),
+          ...selectedStreamingServices.map(s => ({
+            type: 'service' as const,
+            name: s.name,
+            amount: Number(s.monthly_price),
+            quantity: 1,
+          })),
+          ...(paidChannelTotal > 0 ? [{ type: 'service' as const, name: 'Chaînes premium', amount: paidChannelTotal, quantity: 1 }] : []),
+          ...(activationFee > 0 ? [{ type: 'activation' as const, name: 'Activation', amount: activationFee, quantity: 1 }] : []),
+          ...(deliveryFee > 0 ? [{ type: 'delivery' as const, name: 'Livraison', amount: deliveryFee, quantity: 1 }] : []),
+          ...(installationFee > 0 ? [{ type: 'installation' as const, name: 'Installation', amount: installationFee, quantity: 1 }] : []),
+          ...((hasInternetService || hasTVService) ? [{ type: 'equipment' as const, name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price, quantity: 1 }] : []),
+          ...(hasTVService ? [{ type: 'equipment' as const, name: 'Terminal', amount: TERMINAL_CONFIG.price, quantity: terminalQuantity }] : []),
+          ...(hasMobileService ? [{ type: 'equipment' as const, name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price, quantity: totalMobileLineQuantity }] : []),
+        ];
+        const result = await computeCheckoutPricing(
+          cartItems,
+          appliedPromo?.code || null,
+          profile?.email || user?.email || null,
+          user?.id || null,
+          acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+        );
+        console.log("[LiveServerPricing] Updated:", result);
+        setLiveServerPricing(result);
+      } catch (err) {
+        console.error("[LiveServerPricing] Error:", err);
+      } finally {
+        setIsServerPricingLoading(false);
+      }
+    }, 400); // 400ms debounce
+
+    return () => {
+      if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
+    };
+  }, [
+    selectedServices, selectedStreamingServices, paidChannelTotal,
+    mobileLineQuantities, activationFee, deliveryFee, installationFee,
+    terminalQuantity, hasTVService, hasInternetService, hasMobileService,
+    totalMobileLineQuantity, acceptPreauthorized, appliedPromo?.code,
+    profile?.email, user?.email, user?.id,
+  ]);
+
+  // Totals: use server pricing when available, fallback to client-side for initial render
+  const baseAmount = liveServerPricing ? liveServerPricing.taxable_base : _clientBaseAmount;
+  const tpsAmount = liveServerPricing ? liveServerPricing.tps_amount : _clientTpsAmount;
+  const tvqAmount = liveServerPricing ? liveServerPricing.tvq_amount : _clientTvqAmount;
+  const totalAmount = liveServerPricing ? liveServerPricing.grand_total : _clientTotalAmount;
+
+  // Separate tax calculations for bill preview — from server pricing when available
+  const oneTimeFeesWithTax = liveServerPricing
+    ? liveServerPricing.one_time_subtotal + (liveServerPricing.one_time_subtotal * 0.14975)
+    : oneTimeFees + Math.round(oneTimeFees * 0.14975 * 100) / 100;
+  const monthlyRecurringWithTax = liveServerPricing
+    ? liveServerPricing.recurring_subtotal + (liveServerPricing.recurring_subtotal * 0.14975)
+    : monthlyRecurring + Math.round(monthlyRecurring * 0.14975 * 100) / 100;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
