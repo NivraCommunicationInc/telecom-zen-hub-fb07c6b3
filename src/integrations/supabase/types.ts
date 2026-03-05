@@ -6451,6 +6451,7 @@ export type Database = {
           installation_fee: number | null
           installation_type: string | null
           internal_notes: string | null
+          kyc_policy: string
           late_fee_amount: number | null
           late_fee_applied: boolean | null
           notes: string | null
@@ -6472,6 +6473,7 @@ export type Database = {
           provider_payment_id: string | null
           related_contract_id: string | null
           related_ticket_id: string | null
+          require_fresh_kyc: boolean
           risk_flags: Json | null
           router_fee: number | null
           savings_estimated: number | null
@@ -6547,6 +6549,7 @@ export type Database = {
           installation_fee?: number | null
           installation_type?: string | null
           internal_notes?: string | null
+          kyc_policy?: string
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
@@ -6568,6 +6571,7 @@ export type Database = {
           provider_payment_id?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
+          require_fresh_kyc?: boolean
           risk_flags?: Json | null
           router_fee?: number | null
           savings_estimated?: number | null
@@ -6643,6 +6647,7 @@ export type Database = {
           installation_fee?: number | null
           installation_type?: string | null
           internal_notes?: string | null
+          kyc_policy?: string
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
@@ -6664,6 +6669,7 @@ export type Database = {
           provider_payment_id?: string | null
           related_contract_id?: string | null
           related_ticket_id?: string | null
+          require_fresh_kyc?: boolean
           risk_flags?: Json | null
           router_fee?: number | null
           savings_estimated?: number | null
