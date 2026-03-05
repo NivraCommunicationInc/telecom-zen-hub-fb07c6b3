@@ -5,8 +5,8 @@ import {
   FileText, Activity, Calendar, Briefcase, UserPlus, Ticket, Tv, Wrench,
   ExternalLink, Building2, Film, Radio, Mail, History, AlertTriangle,
   Shield, Trophy, Headphones, Megaphone, Send, Upload, ChevronRight,
-  Eye, ShoppingCart, UserCheck, Receipt, Handshake, LifeBuoy, Phone,
-  HardDrive, User, X, Gavel, Bell, DollarSign, LucideIcon
+  ShoppingCart, Handshake, LifeBuoy,
+  HardDrive, Bell, DollarSign, LucideIcon, Gavel
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -34,41 +34,54 @@ interface NavGroup {
 const navGroups: NavGroup[] = [
   {
     id: "overview",
-    label: "Vue d'ensemble",
-    icon: Eye,
+    label: "Dashboard",
+    icon: LayoutDashboard,
     items: [
       { icon: LayoutDashboard, label: "Tableau de bord", href: "/admin" },
       { icon: Activity, label: "Activité", href: "/admin/activity" },
-      { icon: Radio, label: "🔴 Activité en direct", href: "/admin/live-activity" },
-      { icon: Radio, label: "Statut Système", href: "/admin/system-status" },
+      { icon: Radio, label: "Activité en direct", href: "/admin/live-activity" },
+      { icon: Radio, label: "Statut système", href: "/admin/system-status" },
     ],
   },
   {
-    id: "sales",
-    label: "Ventes & Commandes",
+    id: "operations",
+    label: "Opérations",
     icon: ShoppingCart,
     items: [
       { icon: Package, label: "Commandes", href: "/admin/orders" },
-      { icon: Activity, label: "Queues opérationnelles", href: "/admin/queues" },
-      { icon: ShoppingCart, label: "Point de Vente (POS)", href: "/admin/pos" },
-      { icon: Shield, label: "Vérifications KYC", href: "/admin/kyc-verifications" },
-      { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
+      { icon: Activity, label: "Queues", href: "/admin/queues" },
+      { icon: ShoppingCart, label: "POS", href: "/admin/pos" },
+      { icon: Shield, label: "KYC", href: "/admin/kyc-verifications" },
       { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
+      { icon: MessageSquare, label: "Demandes", href: "/admin/requests" },
     ],
   },
   {
     id: "clients",
-    label: "Clients & Comptes",
-    icon: UserCheck,
+    label: "Clients",
+    icon: Users,
     items: [
       { icon: Users, label: "Clients", href: "/admin/clients" },
       { icon: Building2, label: "Comptes", href: "/admin/accounts" },
-      { icon: Upload, label: "Documents clients", href: "/admin/document-requests" },
+      { icon: Upload, label: "Documents", href: "/admin/document-requests" },
+    ],
+  },
+  {
+    id: "billing",
+    label: "Facturation",
+    icon: CreditCard,
+    items: [
+      { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
+      { icon: DollarSign, label: "Paiements", href: "/admin/payments" },
+      { icon: FileText, label: "Templates PDF", href: "/admin/pdf-templates-v2" },
+      { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
+      { icon: Gavel, label: "Contestations", href: "/admin/contested-payments" },
+      { icon: FileText, label: "Factures contestées", href: "/admin/contested-invoices" },
     ],
   },
   {
     id: "offers",
-    label: "Offres & Services",
+    label: "Catalogue",
     icon: Settings,
     items: [
       { icon: Settings, label: "Services", href: "/admin/services" },
@@ -78,28 +91,15 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    id: "billing",
-    label: "Facturation & Recouvrement",
-    icon: Receipt,
-    items: [
-      { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
-      { icon: DollarSign, label: "Paiements", href: "/admin/payments" },
-      { icon: FileText, label: "Templates PDF V2", href: "/admin/pdf-templates-v2" },
-      { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
-      { icon: FileText, label: "Factures contestées", href: "/admin/contested-invoices" },
-      { icon: Gavel, label: "Paiements contestés", href: "/admin/contested-payments" },
-    ],
-  },
-  {
     id: "marketing",
-    label: "Marketing & Communications",
+    label: "Marketing",
     icon: Megaphone,
     items: [
       { icon: Ticket, label: "Promotions", href: "/admin/promotions" },
       { icon: Trophy, label: "Concours", href: "/admin/concours" },
-      { icon: Megaphone, label: "Marketing Email", href: "/admin/marketing" },
-      { icon: Send, label: "Communication Email", href: "/admin/communication-email" },
-      { icon: MessageSquare, label: "Communication SMS", href: "/admin/communication-sms" },
+      { icon: Megaphone, label: "Email marketing", href: "/admin/marketing" },
+      { icon: Send, label: "Email comm.", href: "/admin/communication-email" },
+      { icon: MessageSquare, label: "SMS", href: "/admin/communication-sms" },
     ],
   },
   {
@@ -107,8 +107,8 @@ const navGroups: NavGroup[] = [
     label: "Partenaires",
     icon: Handshake,
     items: [
-      { icon: Users, label: "Programme Parrainage", href: "/admin/referrals" },
-      { icon: FileText, label: "Conditions Partenaires", href: "/admin/referrals/terms" },
+      { icon: Users, label: "Parrainage", href: "/admin/referrals" },
+      { icon: FileText, label: "Conditions", href: "/admin/referrals/terms" },
     ],
   },
   {
@@ -118,15 +118,8 @@ const navGroups: NavGroup[] = [
     items: [
       { icon: Ticket, label: "Tickets clients", href: "/admin/tickets" },
       { icon: MessageSquare, label: "Tickets internes", href: "/admin/internal-tickets" },
-      { icon: Mail, label: "Formulaire Web", href: "/admin/formulaire-web" },
-    ],
-  },
-  {
-    id: "telephony",
-    label: "Téléphonie",
-    icon: Phone,
-    items: [
-      { icon: Headphones, label: "Téléphonie (OpenPhone)", href: "/admin/telephony" },
+      { icon: Mail, label: "Formulaire web", href: "/admin/formulaire-web" },
+      { icon: Headphones, label: "Téléphonie", href: "/admin/telephony" },
     ],
   },
   {
@@ -140,27 +133,18 @@ const navGroups: NavGroup[] = [
   },
   {
     id: "system",
-    label: "Système & Administration",
+    label: "Système",
     icon: HardDrive,
     items: [
       { icon: Bell, label: "Notifications", href: "/admin/notifications-settings" },
       { icon: Wrench, label: "Maintenance", href: "/admin/maintenance" },
       { icon: Mail, label: "Emails", href: "/admin/email-activity" },
-      { icon: Mail, label: "Délivrabilité Emails", href: "/admin/email-deliverability" },
-      { icon: ExternalLink, label: "Gestion du Site", href: "/admin/site" },
-      { icon: Users, label: "Utilisateurs & Accès", href: "/admin/users-access" },
-      { icon: History, label: "Journal d'audit", href: "/admin/audit-log" },
-      { icon: Shield, label: "Événements sécurité", href: "/admin/security-events" },
-      { icon: Shield, label: "Security Guardian", href: "/admin/security-guardian" },
-      { icon: FileText, label: "QA Audit", href: "/admin/qa" },
+      { icon: ExternalLink, label: "Site", href: "/admin/site" },
+      { icon: Users, label: "Utilisateurs", href: "/admin/users-access" },
+      { icon: History, label: "Audit", href: "/admin/audit-log" },
+      { icon: Shield, label: "Sécurité", href: "/admin/security-events" },
+      { icon: Shield, label: "Guardian", href: "/admin/security-guardian" },
       { icon: Activity, label: "System Audit", href: "/admin/system-audit" },
-    ],
-  },
-  {
-    id: "account",
-    label: "Compte",
-    icon: User,
-    items: [
       { icon: Settings, label: "Mon compte", href: "/admin/account" },
     ],
   },
@@ -258,40 +242,40 @@ const AdminSidebarNav = ({ searchQuery = "" }: AdminSidebarNavProps) => {
               >
                 <CollapsibleTrigger
                   className={cn(
-                    "flex items-center justify-between w-full px-3 py-2 rounded-lg text-[13px] font-semibold transition-colors",
+                    "flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors",
                     hasActiveItem
                       ? "text-primary"
                       : "text-admin-text-secondary hover:text-foreground hover:bg-sidebar-accent"
                   )}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <group.icon className="w-4 h-4 shrink-0" />
+                  <div className="flex items-center gap-2">
+                    <group.icon className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{group.label}</span>
                     {group.id === "billing" && disputeCounts && disputeCounts.total > 0 && (
-                      <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[11px] font-semibold rounded-full">
+                      <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px] font-semibold rounded-full">
                         {disputeCounts.total}
                       </Badge>
                     )}
                   </div>
                   <ChevronRight className={cn(
-                    "w-3.5 h-3.5 shrink-0 transition-transform duration-200",
+                    "w-3 h-3 shrink-0 transition-transform duration-200",
                     isOpen && "rotate-90"
                   )} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="ml-4 pl-3 border-l-2 border-sidebar-border space-y-0.5 py-1">
+                  <div className="ml-3.5 pl-2.5 border-l border-sidebar-border space-y-0.5 py-0.5">
                     {group.items.map((item) => (
                       <Link
                         key={item.href}
                         to={item.href}
                         className={cn(
-                          "flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[13px] transition-colors",
+                          "flex items-center gap-2 px-2.5 py-[5px] rounded-md text-xs transition-colors",
                           isItemActive(item.href)
                             ? "bg-primary text-primary-foreground font-medium"
                             : "text-admin-text-secondary hover:text-foreground hover:bg-sidebar-accent"
                         )}
                       >
-                        <item.icon className="w-4 h-4 shrink-0" />
+                        <item.icon className="w-3.5 h-3.5 shrink-0" />
                         <span className="truncate">{item.label}</span>
                       </Link>
                     ))}
