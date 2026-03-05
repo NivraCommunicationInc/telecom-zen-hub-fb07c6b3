@@ -158,6 +158,7 @@ import ClientDocumentUpload from "@/pages/client/ClientDocumentUpload";
 import ClientDocuments from "@/pages/client/ClientDocuments";
 import ClientIdentityVerification from "@/pages/client/ClientIdentityVerification";
 import ClientResetPassword from "@/pages/client/ClientResetPassword";
+import ClientServiceAddresses from "@/pages/client/ClientServiceAddresses";
 import ClientVerifyEmail from "@/pages/client/ClientVerifyEmail";
 import ClientRescheduleAppointment from "@/pages/client/ClientRescheduleAppointment";
 import PaymentReturn from "@/pages/client/PaymentReturn";
@@ -409,6 +410,7 @@ const AppRoutes = () => {
       <Route path="/portal/web-forms" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientWebForms /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/documents" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDocuments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/identity-verification" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientIdentityVerification /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/service-addresses" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientServiceAddresses /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       
       {/* New client action routes from email links */}
       <Route path="/portal/upload" element={<MaintenanceGuard><ClientAuthProvider><ClientDocumentUpload /></ClientAuthProvider></MaintenanceGuard>} />

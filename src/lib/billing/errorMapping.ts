@@ -35,6 +35,18 @@ const BILLING_ERROR_MAP: Record<string, BillingError> = {
     description: 'Cette commande ne contient aucun service ou équipement à provisionner.',
     severity: 'error',
   },
+  ADDRESS_REQUIRED: {
+    code: 'ADDRESS_REQUIRED',
+    title: 'Adresse de service requise',
+    description: 'Une adresse de service est requise pour les services Internet, TV ou Combo. Veuillez sélectionner ou ajouter une adresse.',
+    severity: 'error',
+  },
+  DUPLICATE_ADDRESS: {
+    code: 'DUPLICATE_ADDRESS',
+    title: 'Adresse déjà enregistrée',
+    description: 'Cette adresse existe déjà dans votre compte, même si elle est écrite différemment. Sélectionnez-la dans la liste.',
+    severity: 'warning',
+  },
 };
 
 /**
@@ -52,6 +64,9 @@ export function mapBillingError(error: any): BillingError {
     const detail = error?.details || error?.message || '';
     if (detail.includes('idx_unique_sub_per_address_category')) {
       return BILLING_ERROR_MAP.DUPLICATE_SERVICE_AT_ADDRESS;
+    }
+    if (detail.includes('idx_unique_address_hash_per_account')) {
+      return BILLING_ERROR_MAP.DUPLICATE_ADDRESS;
     }
     return {
       code: 'DUPLICATE_ENTRY',

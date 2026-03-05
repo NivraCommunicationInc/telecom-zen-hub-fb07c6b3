@@ -1145,6 +1145,7 @@ export type Database = {
       billing_invoices: {
         Row: {
           activation_fee: number | null
+          address_snapshot: Json | null
           amount_paid: number | null
           balance_due: number | null
           billing_snapshot_account_number: string | null
@@ -1177,6 +1178,7 @@ export type Database = {
         }
         Insert: {
           activation_fee?: number | null
+          address_snapshot?: Json | null
           amount_paid?: number | null
           balance_due?: number | null
           billing_snapshot_account_number?: string | null
@@ -1209,6 +1211,7 @@ export type Database = {
         }
         Update: {
           activation_fee?: number | null
+          address_snapshot?: Json | null
           amount_paid?: number | null
           balance_due?: number | null
           billing_snapshot_account_number?: string | null
@@ -8032,11 +8035,14 @@ export type Database = {
       service_addresses: {
         Row: {
           account_id: string
+          address_hash: string | null
           address_line: string
+          address_normalized: string | null
           city: string | null
           created_at: string | null
           id: string
           is_active: boolean | null
+          is_default: boolean
           is_primary: boolean | null
           label: string
           postal_code: string | null
@@ -8045,11 +8051,14 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          address_hash?: string | null
           address_line: string
+          address_normalized?: string | null
           city?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
           is_primary?: boolean | null
           label?: string
           postal_code?: string | null
@@ -8058,11 +8067,14 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          address_hash?: string | null
           address_line?: string
+          address_normalized?: string | null
           city?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          is_default?: boolean
           is_primary?: boolean | null
           label?: string
           postal_code?: string | null
@@ -10681,6 +10693,15 @@ export type Database = {
         }
         Returns: Json
       }
+      compute_address_hash: {
+        Args: {
+          p_address_line: string
+          p_city: string
+          p_postal_code: string
+          p_province: string
+        }
+        Returns: string
+      }
       compute_invoice_breakdown: {
         Args: { p_invoice_id: string }
         Returns: Json
@@ -10914,6 +10935,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      normalize_address: {
+        Args: {
+          p_address_line: string
+          p_city: string
+          p_postal_code: string
+          p_province: string
+        }
+        Returns: string
+      }
       normalize_text: { Args: { val: string }; Returns: string }
       provision_services_for_order: {
         Args: { p_order_id: string }
@@ -10993,6 +11023,7 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: string
       }
+      unaccent: { Args: { "": string }; Returns: string }
       update_template_last_used_at: {
         Args: { p_template_key: string }
         Returns: undefined
