@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { InstallationScheduler } from "@/components/installation/InstallationScheduler";
+import type { InstallationDecision } from "@/lib/installationLogic";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -235,8 +237,14 @@ const ClientInternetOrder = () => {
   const [essentialTermsAcknowledged, setEssentialTermsAcknowledged] = useState(false);
   const [routerAcknowledged, setRouterAcknowledged] = useState(false);
   
-  // Installation method
+  // Installation method (determined by questionnaire)
   const [installationMethod, setInstallationMethod] = useState<"auto" | "technician">("auto");
+  const [technicianLevel, setTechnicianLevel] = useState<"level_1" | "level_2">("level_1");
+  const [installationDecision, setInstallationDecision] = useState<InstallationDecision | null>(null);
+  
+  // Address coordinates for distance calc
+  const [addressLat, setAddressLat] = useState<number | undefined>();
+  const [addressLng, setAddressLng] = useState<number | undefined>();
   
   // Installation scheduling
   const [selectedDate, setSelectedDate] = useState("");
@@ -388,6 +396,11 @@ const ClientInternetOrder = () => {
         postalCode: postalCode
       });
       setAddressBlocked(false);
+      // Store coordinates for distance calculation
+      if (details.lat && details.lng) {
+        setAddressLat(details.lat);
+        setAddressLng(details.lng);
+      }
       toast.success(isFrench ? "Adresse validée! Service disponible." : "Address validated! Service available.");
     } else {
       setAddressValidation({
@@ -666,7 +679,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
       }
       
       setCreatedOrder(data);
-      setStep(6);
+      setStep(7);
     },
     onError: (error) => {
       console.error("Order creation error:", error);
@@ -829,10 +842,11 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
   const checkoutSteps = [
     { id: 1, labelFr: "Adresse", labelEn: "Address" },
     { id: 2, labelFr: "Forfait", labelEn: "Plan" },
-    { id: 3, labelFr: "Identité", labelEn: "Identity" },
-    { id: 4, labelFr: "Options", labelEn: "Options" },
-    { id: 5, labelFr: "Paiement", labelEn: "Payment" },
-    { id: 6, labelFr: "Confirmation", labelEn: "Confirmation" },
+    { id: 3, labelFr: "Installation", labelEn: "Installation" },
+    { id: 4, labelFr: "Identité", labelEn: "Identity" },
+    { id: 5, labelFr: "Options", labelEn: "Options" },
+    { id: 6, labelFr: "Paiement", labelEn: "Payment" },
+    { id: 7, labelFr: "Confirmation", labelEn: "Confirmation" },
   ];
 
   // Sidebar content for Rogers-style layout
@@ -880,7 +894,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
         />
 
         {/* Rogers-style Two-Column Layout for Steps 1-4 */}
-        {step < 6 && (
+        {step < 7 && (
           <>
           {/* Mobile Summary Toggle - Rogers style */}
           <div className="lg:hidden border-b border-slate-200 pb-4 mb-6">
@@ -1102,8 +1116,46 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
           </div>
         )}
 
-        {/* Step 3: QR Identity Verification */}
+        {/* Step 3: Installation Assessment */}
         {step === 3 && (
+          <div className="space-y-6">
+            <InstallationScheduler
+              isFrench={isFrench}
+              lat={addressLat}
+              lng={addressLng}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              onDateTimeChange={(date, time) => {
+                setSelectedDate(date);
+                setSelectedTime(time);
+              }}
+              onInstallationTypeChange={(type, level) => {
+                setInstallationMethod(type);
+                setTechnicianLevel(level);
+              }}
+              onDecisionMade={(d) => setInstallationDecision(d)}
+            />
+            {/* Navigation */}
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {isFrench ? "Retour" : "Back"}
+              </Button>
+              <Button 
+                variant="hero" 
+                size="lg" 
+                onClick={() => setStep(4)}
+                disabled={!installationDecision || (installationMethod === "technician" && (!selectedDate || !selectedTime))}
+              >
+                {isFrench ? "Continuer" : "Continue"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: QR Identity Verification */}
+        {step === 4 && (
           <div className="space-y-6">
             {FEATURES.KYC_ENABLED ? (
               <QRVerificationStep
@@ -1136,14 +1188,14 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
             )}
             {/* Navigation */}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>
+              <Button variant="outline" onClick={() => setStep(3)}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {isFrench ? "Retour" : "Back"}
               </Button>
               <Button 
                 variant="hero" 
                 size="lg" 
-                onClick={() => setStep(4)}
+                onClick={() => setStep(5)}
                 disabled={!idVerificationApproved}
               >
                 {isFrench ? "Continuer" : "Continue"}
@@ -1153,8 +1205,8 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
           </div>
         )}
 
-        {/* Step 4: Details & Options */}
-        {step === 4 && (
+        {/* Step 5: Details & Options */}
+        {step === 5 && (
           <div className="space-y-6">
             {/* Terms & Conditions - French First */}
             <Card className="bg-card border-border">
@@ -1240,7 +1292,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
 
             {/* Navigation */}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(4)}>
+              <Button variant="outline" onClick={() => setStep(5)}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {isFrench ? "Retour" : "Back"}
               </Button>
@@ -1275,8 +1327,8 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
           </>
         )}
 
-        {/* Step 6: Professional Order Confirmation */}
-        {step === 6 && createdOrder && (
+        {/* Step 7: Professional Order Confirmation */}
+        {step === 7 && createdOrder && (
           <div className="space-y-6 max-w-3xl mx-auto">
             {/* Success Header */}
             <Card className="bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-cyan-500/10 border-emerald-500/30 overflow-hidden relative">
@@ -1538,7 +1590,7 @@ ${selectedPaymentMethod === "paypal" ? `PayPal Capture ID: ${paypalCaptureId}` :
         )}
 
         {/* Delivery Notice - Always visible before footer */}
-        {step !== 6 && (
+        {step !== 7 && (
           <Card className="bg-accent/30 border-border mt-8">
             <CardContent className="py-4">
               <p className="text-sm text-muted-foreground text-center">

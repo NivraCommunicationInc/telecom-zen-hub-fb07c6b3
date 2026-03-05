@@ -54,6 +54,8 @@ import { StreamingCatalogItem } from "@/hooks/usePortalStreamingCatalog";
 import { CheckoutPaymentSection, CheckoutPhoneField, validateCanadianPhone, CheckoutEssentialTerms, AutoPayPalOption } from "@/components/checkout";
 import { verifyPortalSensitiveActionAllowed } from "@/lib/portalSecurityUtils";
 import { useOrderDraft, OrderDraft } from "@/hooks/useOrderDraft";
+import { InstallationScheduler } from "@/components/installation/InstallationScheduler";
+import type { InstallationDecision } from "@/lib/installationLogic";
 import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
@@ -260,6 +262,11 @@ const ClientTVOrder = () => {
   
   // Installation method from draft
   const installationMethod = draft.installationMethod;
+  
+  // Address coordinates for distance calc
+  const [addressLat, setAddressLat] = useState<number | undefined>();
+  const [addressLng, setAddressLng] = useState<number | undefined>();
+  const [installationDecision, setInstallationDecision] = useState<InstallationDecision | null>(null);
   
   // Scheduling from draft
   const selectedDate = draft.selectedDate;
@@ -477,6 +484,11 @@ const ClientTVOrder = () => {
     handleAddressValidation(validation, details.line1);
     
     if (isQuebec) {
+      // Store coordinates for distance calculation
+      if (details.lat && details.lng) {
+        setAddressLat(details.lat);
+        setAddressLng(details.lng);
+      }
       toast.success(isFrench ? "Adresse validée! Service disponible." : "Address validated! Service available.");
     } else {
       toast.error(isFrench ? "Désolé, nos services sont disponibles uniquement au Québec." : "Sorry, our services are only available in Quebec.");
@@ -1262,56 +1274,22 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                 </CardContent>
               </Card>
 
-              {/* Installation Method */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wrench className="w-5 h-5 text-amber-500" />
-                    {isFrench ? "Méthode d'installation" : "Installation Method"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RadioGroup value={installationMethod} onValueChange={(v) => setInstallationMethod(v as "auto" | "technician")}>
-                    <div className="space-y-4">
-                      <div className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        installationMethod === "auto" ? "border-emerald-500 bg-emerald-500/5" : "border-border"
-                      }`} onClick={() => setInstallationMethod("auto")}>
-                        <RadioGroupItem value="auto" id="auto" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="auto" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                            <Truck className="w-4 h-4 text-emerald-500" />
-                            {isFrench ? "Auto-installation" : "Self-installation"}
-                          </Label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {isFrench 
-                              ? "Recevez votre équipement par la poste et installez-le vous-même. Frais de livraison: $30"
-                              : "Receive your equipment by mail and install it yourself. Delivery fee: $30"}
-                          </p>
-                        </div>
-                        <Badge className="bg-emerald-500">{isFrench ? "Économique" : "Economical"}</Badge>
-                      </div>
-
-                      <div className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        installationMethod === "technician" ? "border-purple-500 bg-purple-500/5" : "border-border"
-                      }`} onClick={() => setInstallationMethod("technician")}>
-                        <RadioGroupItem value="technician" id="technician" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="technician" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                            <Wrench className="w-4 h-4 text-purple-500" />
-                            {isFrench ? "Installation par technicien Nivra" : "Nivra Technician Installation"}
-                          </Label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {isFrench 
-                              ? "Un technicien Nivra se déplace chez vous pour l'installation. Frais d'installation: $50"
-                              : "A Nivra technician comes to your home for installation. Installation fee: $50"}
-                          </p>
-                        </div>
-                        <Badge className="bg-purple-500">{isFrench ? "Recommandé" : "Recommended"}</Badge>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </CardContent>
-              </Card>
+              {/* Installation Assessment + Scheduling */}
+              <InstallationScheduler
+                isFrench={isFrench}
+                lat={addressLat}
+                lng={addressLng}
+                selectedDate={selectedDate}
+                selectedTime={selectedTime}
+                onDateTimeChange={(date, time) => {
+                  setSelectedDate(date);
+                  setSelectedTime(time);
+                }}
+                onInstallationTypeChange={(type, level) => {
+                  setInstallationMethod(type);
+                }}
+                onDecisionMade={(d) => setInstallationDecision(d)}
+              />
 
               {/* Identity Verification */}
               <Card className="bg-card border-amber-500/30">
@@ -1332,48 +1310,6 @@ Deposit: $${totalDueNow.toFixed(2)} pre-authorized`,
                     onChange={setClientIdData}
                     isFrench={isFrench}
                   />
-                </CardContent>
-              </Card>
-
-              {/* Installation Scheduling */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-purple-500" />
-                    {isFrench ? "Planification de l'installation" : "Installation Scheduling"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{isFrench ? "Date préférée" : "Preferred Date"}</Label>
-                      <select 
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="w-full p-2 border rounded-md bg-background"
-                      >
-                        <option value="">{isFrench ? "Sélectionner une date" : "Select a date"}</option>
-                        {getInstallationDates().map((date) => (
-                          <option key={date.toISOString()} value={date.toISOString()}>
-                            {format(date, "EEEE d MMMM yyyy", { locale: isFrench ? fr : undefined })}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{isFrench ? "Plage horaire" : "Time Slot"}</Label>
-                      <select 
-                        value={selectedTime}
-                        onChange={(e) => setSelectedTime(e.target.value)}
-                        className="w-full p-2 border rounded-md bg-background"
-                      >
-                        <option value="">{isFrench ? "Sélectionner une plage" : "Select a time"}</option>
-                        {timeSlots.map((slot) => (
-                          <option key={slot.value} value={slot.value}>{slot.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 

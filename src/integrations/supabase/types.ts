@@ -4801,6 +4801,86 @@ export type Database = {
           },
         ]
       }
+      installations: {
+        Row: {
+          appointment_date: string | null
+          cable_status: string | null
+          client_id: string
+          created_at: string
+          distance_km: number | null
+          has_coaxial: string | null
+          id: string
+          installation_type: string
+          notes: string | null
+          order_id: string | null
+          previous_service: string | null
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
+          status: Database["public"]["Enums"]["installation_status"] | null
+          technician_level:
+            | Database["public"]["Enums"]["technician_level"]
+            | null
+          time_slot: string | null
+          updated_at: string
+          zone: Database["public"]["Enums"]["installation_zone"] | null
+        }
+        Insert: {
+          appointment_date?: string | null
+          cable_status?: string | null
+          client_id: string
+          created_at?: string
+          distance_km?: number | null
+          has_coaxial?: string | null
+          id?: string
+          installation_type?: string
+          notes?: string | null
+          order_id?: string | null
+          previous_service?: string | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          status?: Database["public"]["Enums"]["installation_status"] | null
+          technician_level?:
+            | Database["public"]["Enums"]["technician_level"]
+            | null
+          time_slot?: string | null
+          updated_at?: string
+          zone?: Database["public"]["Enums"]["installation_zone"] | null
+        }
+        Update: {
+          appointment_date?: string | null
+          cable_status?: string | null
+          client_id?: string
+          created_at?: string
+          distance_km?: number | null
+          has_coaxial?: string | null
+          id?: string
+          installation_type?: string
+          notes?: string | null
+          order_id?: string | null
+          previous_service?: string | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          status?: Database["public"]["Enums"]["installation_status"] | null
+          technician_level?:
+            | Database["public"]["Enums"]["technician_level"]
+            | null
+          time_slot?: string | null
+          updated_at?: string
+          zone?: Database["public"]["Enums"]["installation_zone"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       internal_ticket_replies: {
         Row: {
           author_email: string | null
@@ -9409,6 +9489,42 @@ export type Database = {
         }
         Relationships: []
       }
+      technician_slots: {
+        Row: {
+          booked: number
+          capacity: number
+          created_at: string
+          id: string
+          is_active: boolean
+          region: string
+          slot_date: string
+          technician_level: Database["public"]["Enums"]["technician_level"]
+          time_slot: string
+        }
+        Insert: {
+          booked?: number
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          region?: string
+          slot_date: string
+          technician_level?: Database["public"]["Enums"]["technician_level"]
+          time_slot: string
+        }
+        Update: {
+          booked?: number
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          region?: string
+          slot_date?: string
+          technician_level?: Database["public"]["Enums"]["technician_level"]
+          time_slot?: string
+        }
+        Relationships: []
+      }
       technicians: {
         Row: {
           access_code: string | null
@@ -11024,6 +11140,10 @@ export type Database = {
         Args: { p_length: number }
         Returns: string
       }
+      generate_technician_slots: {
+        Args: { days_ahead?: number }
+        Returns: undefined
+      }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
@@ -11388,6 +11508,13 @@ export type Database = {
         | "passport_ca"
         | "passport_intl"
       influencer_status: "invited" | "active" | "suspended" | "pending"
+      installation_status:
+        | "pending"
+        | "scheduled"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+      installation_zone: "zone_a" | "zone_b" | "zone_c"
       internal_order_status:
         | "draft"
         | "quoted"
@@ -11469,6 +11596,7 @@ export type Database = {
         | "service_suspended"
         | "service_cancelled"
       staff_role: "admin" | "employee" | "technician"
+      technician_level: "level_1" | "level_2"
       work_order_status:
         | "assigned"
         | "scheduled"
@@ -11709,6 +11837,14 @@ export const Constants = {
         "passport_intl",
       ],
       influencer_status: ["invited", "active", "suspended", "pending"],
+      installation_status: [
+        "pending",
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
+      installation_zone: ["zone_a", "zone_b", "zone_c"],
       internal_order_status: [
         "draft",
         "quoted",
@@ -11799,6 +11935,7 @@ export const Constants = {
         "service_cancelled",
       ],
       staff_role: ["admin", "employee", "technician"],
+      technician_level: ["level_1", "level_2"],
       work_order_status: [
         "assigned",
         "scheduled",
