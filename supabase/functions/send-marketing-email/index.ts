@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 interface SendRequest {
   campaign_id?: string;
@@ -296,27 +297,20 @@ function replaceVariables(content: string, variables: Record<string, string>): s
   return result;
 }
 
-async function sendEmail(apiKey: string, params: { to: string; subject: string; html: string }) {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from: "Nivra Télécom <marketing@nivra-telecom.ca>",
-      reply_to: "support@nivra-telecom.ca",
-      to: [params.to],
-      subject: params.subject,
-      html: params.html,
-    }),
+async function sendEmail(_apiKey: string, params: { to: string; subject: string; html: string }) {
+  const result = await enqueueEmail({
+    to: params.to,
+    templateKey: "custom_html",
+    subject: params.subject,
+    html: params.html,
+    fromEmail: "Nivra Télécom <marketing@nivra-telecom.ca>",
+    replyTo: "support@nivra-telecom.ca",
+    messageType: "marketing_email",
   });
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.message || "Failed to send email");
+  if (!result.success) {
+    throw new Error(result.error || "Failed to queue email");
   }
 
-  return result;
+  return { id: result.id };
 }

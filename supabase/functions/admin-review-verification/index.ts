@@ -6,7 +6,7 @@
  * - review_document: accept/reject individual requested doc
  * - default: approve/reject/in_review decision
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -157,15 +157,17 @@ Deno.serve(async (req) => {
             const resendApiKey = Deno.env.get("RESEND_API_KEY");
             if (resendApiKey) {
               const docList = requested_documents.map((d: any) => `• ${d.doc_type}${d.instructions ? ` — ${d.instructions}` : ""}`).join("\n");
-              await fetch("https://api.resend.com/emails", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
-                body: JSON.stringify({
-                  from: "Nivra Télécom <Support@nivra-telecom.ca>",
-                  reply_to: "Support@nivra-telecom.ca",
-                  to: [profile.email],
-                  subject: `Documents requis — Dossier ${session.case_number || session_id.slice(0, 8)}`,
-                  html: `
+              await enqueueEmail({
+                to: profile.email,
+                templateKey: "custom_html",
+                subject: `Documents requis — Dossier ${session.case_number || session_id.slice(0, 8)}`,
+                fromEmail: "Nivra Télécom <Support@nivra-telecom.ca>",
+                replyTo: "Support@nivra-telecom.ca",
+                messageType: "kyc_documents_requested",
+                entityType: "kyc_session",
+                entityId: session_id,
+                eventKey: `kyc_docs_${session_id}_${Date.now()}`,
+                html: `
                     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
                       <div style="background:#f97316;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
                         <h2 style="margin:0">Documents requis</h2>
@@ -185,14 +187,8 @@ Deno.serve(async (req) => {
                         <p style="color:#6b7280;font-size:12px">Si vous avez des questions, contactez notre support.</p>
                       </div>
                     </div>`,
-                  headers: {
-                    "X-Entity-Ref-ID": `kyc-docs-${session_id}`,
-                    "List-Unsubscribe": "<mailto:Support@nivra-telecom.ca>",
-                    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-                  },
-                }),
               });
-              console.log("[admin-review] Email sent for pending_docs to", profile.email);
+              console.log("[admin-review] Email queued for pending_docs to", profile.email);
             }
           }
         }

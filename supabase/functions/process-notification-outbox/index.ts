@@ -4,6 +4,7 @@
  * Called by pg_cron or manually.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,27 +49,21 @@ Deno.serve(async (req) => {
       try {
         const htmlContent = buildEmailHtml(notif);
 
-        const emailRes = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
-          body: JSON.stringify({
-            from: "Nivra Télécom <Support@nivra-telecom.ca>",
-            reply_to: "Support@nivra-telecom.ca",
-            to: [notif.to_email],
-            subject: notif.subject,
-            html: htmlContent,
-            headers: {
-              "X-Entity-Ref-ID": `outbox-${notif.id}`,
-              "List-Unsubscribe": "<mailto:Support@nivra-telecom.ca>",
-              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-              Precedence: "bulk",
-            },
-          }),
+        const eqResult = await enqueueEmail({
+          to: notif.to_email,
+          templateKey: "custom_html",
+          subject: notif.subject,
+          html: htmlContent,
+          fromEmail: "Nivra Télécom <Support@nivra-telecom.ca>",
+          replyTo: "Support@nivra-telecom.ca",
+          messageType: notif.event_type || "notification",
+          entityType: "notification_outbox",
+          entityId: notif.id,
+          eventKey: `outbox_${notif.id}`,
         });
 
-        if (!emailRes.ok) {
-          const errBody = await emailRes.text();
-          throw new Error(`Resend ${emailRes.status}: ${errBody}`);
+        if (!eqResult.success) {
+          throw new Error(eqResult.error || "Failed to queue email");
         }
 
         await supabase

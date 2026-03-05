@@ -5,7 +5,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { Resend } from "../_shared/ResendProxy.ts";
 import { EMAIL_SENDER, formatCurrencyForTemplate, formatDateTimeForTemplate } from "../_shared/resendTemplates.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
