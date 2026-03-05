@@ -48,23 +48,66 @@ function getStatusBadge(status: string) {
   return <Badge className={cfg.color}>{cfg.label}</Badge>;
 }
 
-function parseNextActions(nextActions: any): { icon: any; label: string; action: WorkbenchAction; priority: string }[] {
-  if (!nextActions?.next_actions) return [];
-  const actions = nextActions.next_actions;
+function computeNBA(order: any, nextActions: any, orderItems: any[], provisioningJobs: any[]): { icon: any; label: string; action: WorkbenchAction; priority: string }[] {
   const result: { icon: any; label: string; action: WorkbenchAction; priority: string }[] = [];
 
-  if (actions.kyc_pending) result.push({ icon: Shield, label: "KYC à approuver", action: "approve_kyc", priority: "high" });
-  if (actions.payment_pending) result.push({ icon: CreditCard, label: "Paiement échoué – relancer", action: "capture_payment", priority: "high" });
-  if (actions.inventory_needed) result.push({ icon: Truck, label: "Stock manquant – assigner équipement", action: "assign_inventory", priority: "medium" });
-  if (actions.shipment_pending) result.push({ icon: Truck, label: "Expédition à préparer", action: "manage_shipment", priority: "medium" });
-  if (actions.appointment_needed) result.push({ icon: Clock, label: "Rendez-vous à confirmer", action: "create_ticket", priority: "medium" });
-  if (actions.provisioning_blocked) result.push({ icon: Wifi, label: "Provisioning bloqué – retry", action: "retry_provisioning", priority: "high" });
+  // From order_next_actions table if available
+  if (nextActions?.next_actions) {
+    const a = nextActions.next_actions;
+    if (a.kyc_pending) result.push({ icon: Shield, label: "KYC à approuver", action: "approve_kyc", priority: "high" });
+    if (a.payment_pending) result.push({ icon: CreditCard, label: "Paiement échoué – relancer", action: "capture_payment", priority: "high" });
+    if (a.inventory_needed) result.push({ icon: Truck, label: "Stock manquant – assigner équipement", action: "assign_inventory", priority: "medium" });
+    if (a.shipment_pending) result.push({ icon: Truck, label: "Expédition à préparer", action: "manage_shipment", priority: "medium" });
+    if (a.appointment_needed) result.push({ icon: Clock, label: "Rendez-vous à confirmer", action: "create_ticket", priority: "medium" });
+    if (a.provisioning_blocked) result.push({ icon: Wifi, label: "Provisioning bloqué – retry", action: "retry_provisioning", priority: "high" });
+  }
+
+  // Dynamic computation from actual state (fills gaps when order_next_actions is empty)
+  if (result.length === 0) {
+    const status = order?.status || "";
+    const payStatus = order?.payment_status || "";
+
+    // KYC check
+    if (["kyc_required", "kyc_in_review"].includes(status) || order?.id_verification_status === "submitted") {
+      result.push({ icon: Shield, label: "KYC à approuver", action: "approve_kyc", priority: "high" });
+    }
+
+    // Payment check
+    if (["payment_pending", "payment_failed"].includes(status) || payStatus === "pending" || payStatus === "failed") {
+      result.push({ icon: CreditCard, label: "Paiement à capturer", action: "capture_payment", priority: "high" });
+    }
+
+    // Provisioning failures
+    const failedJobs = provisioningJobs.filter((j: any) => j.status === "failed" || j.status === "blocked");
+    if (failedJobs.length > 0) {
+      result.push({ icon: Wifi, label: `${failedJobs.length} job(s) provisioning en échec`, action: "retry_provisioning", priority: "high" });
+    }
+
+    // Fulfillment pending
+    if (status === "fulfillment_pending" || status === "submitted") {
+      const hasItemsNeedingFulfillment = orderItems.some((i: any) => ["fulfillment_pending", "submitted", "payment_pending"].includes(i.status));
+      if (hasItemsNeedingFulfillment || orderItems.length === 0) {
+        result.push({ icon: Truck, label: "Fulfillment à traiter", action: "manage_shipment", priority: "medium" });
+      }
+    }
+
+    // Items stuck in early stages
+    const kycItems = orderItems.filter((i: any) => i.status === "kyc_required");
+    if (kycItems.length > 0 && !result.some(r => r.action === "approve_kyc")) {
+      result.push({ icon: Shield, label: `${kycItems.length} item(s) en attente KYC`, action: "approve_kyc", priority: "high" });
+    }
+
+    const payItems = orderItems.filter((i: any) => i.status === "payment_pending");
+    if (payItems.length > 0 && !result.some(r => r.action === "capture_payment")) {
+      result.push({ icon: CreditCard, label: `${payItems.length} item(s) en attente paiement`, action: "capture_payment", priority: "high" });
+    }
+  }
 
   return result;
 }
 
 export function WorkbenchSummaryTab({ order, profile, nextActions, orderItems, provisioningJobs, role, onAction }: Props) {
-  const nba = parseNextActions(nextActions);
+  const nba = computeNBA(order, nextActions, orderItems, provisioningJobs);
   const orderStatus = order?.status || "pending";
   const createdAt = order?.created_at ? format(new Date(order.created_at), "dd MMM yyyy HH:mm", { locale: fr }) : "—";
 

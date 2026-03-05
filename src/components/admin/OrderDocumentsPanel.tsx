@@ -129,17 +129,17 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
     }
   };
 
-  const FIELD_LABELS: Record<string, string> = {
-    client_name: "Nom du client",
-    client_email: "Courriel",
-    client_phone: "Téléphone",
-    address_line1: "Adresse",
-    city: "Ville",
-    postal_code: "Code postal",
-    account_number: "Numéro de compte",
-    order_number: "Numéro de commande",
-    invoice_breakdown_rpc: "Facture (breakdown RPC)",
-    order_data_unavailable: "Données de commande",
+  const FIELD_LABELS: Record<string, { label: string; source: string }> = {
+    client_name: { label: "Nom du client", source: "orders.client_first_name / profiles.full_name" },
+    client_email: { label: "Courriel", source: "orders.client_email / profiles.email" },
+    client_phone: { label: "Téléphone", source: "orders.client_phone / profiles.phone" },
+    address_line1: { label: "Adresse", source: "orders.shipping_address / accounts.primary_service_address" },
+    city: { label: "Ville", source: "orders.shipping_city / accounts.primary_service_city" },
+    postal_code: { label: "Code postal", source: "orders.shipping_postal_code / accounts.primary_service_postal_code" },
+    account_number: { label: "Numéro de compte", source: "accounts.account_number (auto-généré)" },
+    order_number: { label: "Numéro de commande", source: "orders.order_number" },
+    financial_data: { label: "Données financières", source: "billing_invoices ou orders.total_amount" },
+    order_data_unavailable: { label: "Données de commande", source: "orders (table principale)" },
   };
 
   return (
@@ -207,10 +207,16 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
               <AlertTriangle className="w-3 h-3" />
               {missingFields.length} champ(s) manquant(s) bloquent la génération :
             </p>
-            <ul className="text-xs text-muted-foreground space-y-0.5 pl-4">
-              {missingFields.map(f => (
-                <li key={f}>• {FIELD_LABELS[f] || f}</li>
-              ))}
+            <ul className="text-xs text-muted-foreground space-y-1 pl-4">
+              {missingFields.map(f => {
+                const info = FIELD_LABELS[f];
+                return (
+                  <li key={f}>
+                    <span className="text-foreground font-medium">• {info?.label || f}</span>
+                    {info?.source && <span className="text-muted-foreground ml-1">— source : <code className="text-xs bg-muted px-1 rounded">{info.source}</code></span>}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

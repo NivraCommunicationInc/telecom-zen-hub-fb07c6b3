@@ -90,8 +90,10 @@ export function validateDocumentData(data: OrderDocumentData): string[] {
     }
   }
 
-  if (!data.breakdown) {
-    missing.push("invoice_breakdown_rpc");
+  // breakdown is preferred but not blocking — fallback path exists
+  // Only block if we have zero financial data at all
+  if (!data.breakdown && !data.billingInvoice && !data.order?.total_amount && !data.order?.subtotal) {
+    missing.push("financial_data");
   }
 
   return missing;
@@ -115,7 +117,7 @@ export async function fetchOrderDocumentData(orderId: string): Promise<OrderDocu
 
   // Fetch all related data in parallel
   const [profileRes, accountRes, invoiceRes, contractRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", order.user_id).single(),
+    supabase.from("profiles").select("*").eq("user_id", order.user_id).maybeSingle(),
     supabase.from("accounts").select("*").eq("client_id", order.user_id).maybeSingle(),
     supabase.from("billing_invoices").select("*").eq("order_id", order.id).maybeSingle(),
     supabase.from("contracts").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).maybeSingle(),
