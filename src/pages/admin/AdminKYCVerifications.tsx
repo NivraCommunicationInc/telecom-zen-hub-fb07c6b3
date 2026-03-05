@@ -31,21 +31,21 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof Shield }> = {
-  created: { label: "Créée", className: "bg-blue-50 text-blue-700 border-blue-200", icon: Clock },
-  submitted: { label: "Soumise", className: "bg-amber-50 text-amber-700 border-amber-200", icon: Send },
-  in_review: { label: "En cours d'examen", className: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: Eye },
-  manual_review: { label: "En révision", className: "bg-purple-50 text-purple-700 border-purple-200", icon: Eye },
-  pending_docs: { label: "En attente de documents", className: "bg-orange-50 text-orange-700 border-orange-200", icon: PauseCircle },
-  approved: { label: "Approuvée", className: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: CheckCircle2 },
-  rejected: { label: "Refusée", className: "bg-red-50 text-red-700 border-red-200", icon: XCircle },
-  expired: { label: "Expirée", className: "bg-slate-100 text-slate-500 border-slate-200", icon: Clock },
-  resubmission_required: { label: "Resoumission requise", className: "bg-orange-50 text-orange-700 border-orange-200", icon: RotateCcw },
+  created: { label: "Créée", className: "bg-sky-500/15 text-sky-400 border-sky-500/25", icon: Clock },
+  submitted: { label: "Soumise", className: "bg-amber-500/15 text-amber-400 border-amber-500/25", icon: Send },
+  in_review: { label: "En cours d'examen", className: "bg-violet-500/15 text-violet-400 border-violet-500/25", icon: Eye },
+  manual_review: { label: "En révision", className: "bg-violet-500/15 text-violet-400 border-violet-500/25", icon: Eye },
+  pending_docs: { label: "En attente de documents", className: "bg-amber-500/15 text-amber-400 border-amber-500/25", icon: PauseCircle },
+  approved: { label: "Approuvée", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25", icon: CheckCircle2 },
+  rejected: { label: "Refusée", className: "bg-red-500/15 text-red-400 border-red-500/25", icon: XCircle },
+  expired: { label: "Expirée", className: "bg-muted text-muted-foreground border-border", icon: Clock },
+  resubmission_required: { label: "Resoumission requise", className: "bg-amber-500/15 text-amber-400 border-amber-500/25", icon: RotateCcw },
 };
 
 const MATCH_CONFIG: Record<string, { label: string; className: string }> = {
-  approved_candidate: { label: "Match ✓", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  partial_match: { label: "Partiel ⚠", className: "bg-amber-50 text-amber-700 border-amber-200" },
-  mismatch: { label: "Mismatch ✗", className: "bg-red-50 text-red-700 border-red-200" },
+  approved_candidate: { label: "Match ✓", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" },
+  partial_match: { label: "Partiel ⚠", className: "bg-amber-500/15 text-amber-400 border-amber-500/25" },
+  mismatch: { label: "Mismatch ✗", className: "bg-red-500/15 text-red-400 border-red-500/25" },
 };
 
 const DOC_TYPE_OPTIONS = [
@@ -60,10 +60,10 @@ const DOC_TYPE_OPTIONS = [
 ];
 
 const DOC_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  requested: { label: "Demandé", className: "bg-orange-50 text-orange-700 border-orange-200" },
-  uploaded: { label: "Téléversé", className: "bg-blue-50 text-blue-700 border-blue-200" },
-  accepted: { label: "Accepté", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  rejected: { label: "Refusé", className: "bg-red-50 text-red-700 border-red-200" },
+  requested: { label: "Demandé", className: "bg-amber-500/15 text-amber-400 border-amber-500/25" },
+  uploaded: { label: "Téléversé", className: "bg-sky-500/15 text-sky-400 border-sky-500/25" },
+  accepted: { label: "Accepté", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" },
+  rejected: { label: "Refusé", className: "bg-red-500/15 text-red-400 border-red-500/25" },
 };
 
 const OCRDiffTable = ({ matchResult, checkoutFields }: { matchResult: any; checkoutFields: any }) => {
@@ -352,8 +352,8 @@ const AdminKYCVerifications = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {pendingCount > 0 && <Badge className="bg-purple-100 text-purple-800 border-purple-300">{pendingCount} à traiter</Badge>}
-          {pendingDocsCount > 0 && <Badge className="bg-orange-100 text-orange-800 border-orange-300">{pendingDocsCount} en attente docs</Badge>}
+          {pendingCount > 0 && <Badge className="bg-violet-500/15 text-violet-400 border-violet-500/25">{pendingCount} à traiter</Badge>}
+          {pendingDocsCount > 0 && <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25">{pendingDocsCount} en attente docs</Badge>}
           <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-4 h-4 mr-1" /> Actualiser</Button>
         </div>
       </div>
@@ -410,7 +410,7 @@ const AdminKYCVerifications = () => {
                 return (
                   <TableRow
                     key={session.id}
-                    className={`cursor-pointer ${isMismatch ? "bg-destructive/5 hover:bg-destructive/10" : session.status === "pending_docs" ? "bg-orange-50/30 hover:bg-orange-50/50" : session.status === "manual_review" || session.status === "submitted" ? "bg-purple-50/30 hover:bg-purple-50/50" : "hover:bg-muted/50"}`}
+                    className={`cursor-pointer ${isMismatch ? "bg-red-500/5 hover:bg-red-500/10" : session.status === "pending_docs" ? "bg-amber-500/5 hover:bg-amber-500/10" : session.status === "manual_review" || session.status === "submitted" ? "bg-violet-500/5 hover:bg-violet-500/10" : "hover:bg-muted/50"}`}
                     onClick={() => handleOpenSession(session)}
                   >
                     <TableCell>

@@ -1,49 +1,49 @@
 /**
- * AdminQueues - Operational queue dashboard for carrier-grade processing
+ * AdminQueues - Operational queue dashboard — TELUS-grade design
  */
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Shield, Wifi, Truck, Calendar, CreditCard, AlertTriangle, ArrowRight, Loader2, Clock } from "lucide-react";
+import { Shield, Wifi, Truck, Calendar, CreditCard, AlertTriangle, ArrowRight, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { Link } from "react-router-dom";
 import { format, differenceInHours } from "date-fns";
 import { fr } from "date-fns/locale";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
+import { StatCard } from "@/components/admin/ui/StatCard";
+import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { SectionCard } from "@/components/admin/ui/SectionCard";
 
-function QueueCard({ item, linkTo, subtitle, badge, badgeColor }: {
+function QueueRow({ item, linkTo, subtitle, status }: {
   item: any;
   linkTo: string;
   subtitle: string;
-  badge: string;
-  badgeColor: string;
+  status: string;
 }) {
   return (
-    <Card className="bg-slate-800/50 border-slate-700/50 hover:border-teal-500/30 transition-colors">
-      <CardContent className="pt-4 pb-4">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-white font-mono truncate">{item.order_number || item.id?.slice(0, 8)}</p>
-            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge className={badgeColor}>{badge}</Badge>
-            <Link to={linkTo}>
-              <Button size="sm" variant="ghost"><ArrowRight className="h-4 w-4" /></Button>
-            </Link>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border/50 last:border-0 hover:bg-primary/5 transition-colors">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-mono font-medium text-foreground truncate">
+          {item?.order_number || item?.id?.slice(0, 8) || "—"}
+        </p>
+        <p className="text-[13px] text-muted-foreground truncate mt-0.5">{subtitle}</p>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <StatusBadge label={status} variant={statusToVariant(status)} size="sm" />
+        <Link to={linkTo}>
+          <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </Link>
+      </div>
+    </div>
   );
 }
 
 const AdminQueues = () => {
-  // KYC Queue
   const { data: kycQueue = [], isLoading: kycLoading } = useQuery({
     queryKey: ["queue-kyc"],
     queryFn: async () => {
@@ -58,7 +58,6 @@ const AdminQueues = () => {
     },
   });
 
-  // Provisioning errors
   const { data: provQueue = [], isLoading: provLoading } = useQuery({
     queryKey: ["queue-provisioning"],
     queryFn: async () => {
@@ -73,7 +72,6 @@ const AdminQueues = () => {
     },
   });
 
-  // Shipments pending
   const { data: shipQueue = [], isLoading: shipLoading } = useQuery({
     queryKey: ["queue-shipments"],
     queryFn: async () => {
@@ -88,7 +86,6 @@ const AdminQueues = () => {
     },
   });
 
-  // Appointments / Installations pending
   const { data: aptQueue = [], isLoading: aptLoading } = useQuery({
     queryKey: ["queue-appointments"],
     queryFn: async () => {
@@ -103,7 +100,6 @@ const AdminQueues = () => {
     },
   });
 
-  // Payment failures
   const { data: payQueue = [], isLoading: payLoading } = useQuery({
     queryKey: ["queue-payments"],
     queryFn: async () => {
@@ -119,7 +115,6 @@ const AdminQueues = () => {
     },
   });
 
-  // SLA breached (orders older than 48h still not active/completed)
   const { data: slaQueue = [], isLoading: slaLoading } = useQuery({
     queryKey: ["queue-sla"],
     queryFn: async () => {
@@ -136,168 +131,159 @@ const AdminQueues = () => {
     },
   });
 
-  const isLoading = kycLoading || provLoading || shipLoading || aptLoading || payLoading || slaLoading;
+  const queueTabs = [
+    { value: "kyc", label: "KYC", icon: Shield, data: kycQueue },
+    { value: "provisioning", label: "Provisioning", icon: Wifi, data: provQueue },
+    { value: "shipments", label: "Expéditions", icon: Truck, data: shipQueue },
+    { value: "installations", label: "Installations", icon: Calendar, data: aptQueue },
+    { value: "payments", label: "Paiements", icon: CreditCard, data: payQueue },
+    { value: "sla", label: "SLA", icon: AlertTriangle, data: slaQueue },
+  ];
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Queues opérationnelles</h1>
-          <p className="text-sm text-muted-foreground">Travail quotidien — traitement par file d'attente</p>
-        </div>
+        <PageHeader
+          title="Queues opérationnelles"
+          subtitle="Travail quotidien — traitement par file d'attente"
+          breadcrumbs={[
+            { label: "Admin", href: "/admin" },
+            { label: "Queues opérationnelles" },
+          ]}
+        />
 
-        {/* Summary cards */}
+        {/* Summary KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { label: "KYC", count: kycQueue.length, icon: Shield, color: "text-purple-400" },
-            { label: "Provisioning", count: provQueue.length, icon: Wifi, color: "text-red-400" },
-            { label: "Expéditions", count: shipQueue.length, icon: Truck, color: "text-cyan-400" },
-            { label: "Installations", count: aptQueue.length, icon: Calendar, color: "text-blue-400" },
-            { label: "Paiements", count: payQueue.length, icon: CreditCard, color: "text-amber-400" },
-            { label: "SLA dépassé", count: slaQueue.length, icon: AlertTriangle, color: "text-red-400" },
-          ].map(({ label, count, icon: Icon, color }) => (
-            <Card key={label} className="bg-slate-800/50 border-slate-700/50">
-              <CardContent className="pt-4 pb-4 text-center">
-                <Icon className={`h-5 w-5 mx-auto ${color}`} />
-                <p className="text-2xl font-bold text-white mt-1">{count}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
-              </CardContent>
-            </Card>
+          {queueTabs.map(({ label, icon, data }) => (
+            <StatCard key={label} label={label} value={data.length} icon={icon} />
           ))}
         </div>
 
         {/* Queue Tabs */}
         <Tabs defaultValue="kyc" className="w-full">
-          <TabsList className="bg-slate-800/80 border border-slate-700/50 flex-wrap h-auto p-1 gap-1">
-            <TabsTrigger value="kyc" className="gap-1.5">
-              <Shield className="h-3.5 w-3.5" /> KYC ({kycQueue.length})
-            </TabsTrigger>
-            <TabsTrigger value="provisioning" className="gap-1.5">
-              <Wifi className="h-3.5 w-3.5" /> Provisioning ({provQueue.length})
-            </TabsTrigger>
-            <TabsTrigger value="shipments" className="gap-1.5">
-              <Truck className="h-3.5 w-3.5" /> Expéditions ({shipQueue.length})
-            </TabsTrigger>
-            <TabsTrigger value="installations" className="gap-1.5">
-              <Calendar className="h-3.5 w-3.5" /> Installations ({aptQueue.length})
-            </TabsTrigger>
-            <TabsTrigger value="payments" className="gap-1.5">
-              <CreditCard className="h-3.5 w-3.5" /> Paiements ({payQueue.length})
-            </TabsTrigger>
-            <TabsTrigger value="sla" className="gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5" /> SLA ({slaQueue.length})
-            </TabsTrigger>
+          <TabsList className="bg-card border border-border p-1 h-auto flex-wrap gap-1">
+            {queueTabs.map(({ value, label, icon: Icon, data }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="gap-2 text-sm px-4 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+                <span className="text-xs opacity-70">({data.length})</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <TabsContent value="kyc">
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-2">
-                {kycQueue.length === 0 && <p className="text-center text-muted-foreground py-8">File vide ✓</p>}
+          {/* KYC */}
+          <TabsContent value="kyc" className="mt-4">
+            <SectionCard title="Sessions KYC à traiter" icon={Shield} noPadding>
+              <ScrollArea className="max-h-[520px]">
+                {kycQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
                 {kycQueue.map((s: any) => (
-                  <QueueCard
+                  <QueueRow
                     key={s.id}
                     item={s.orders}
                     linkTo={`/admin/orders/${s.orders?.id}`}
                     subtitle={`${s.case_number || "—"} — ${s.orders?.client_email || "—"}`}
-                    badge={s.status}
-                    badgeColor={s.ocr_match_status === "mismatch" ? "bg-red-500/20 text-red-400" : "bg-purple-500/20 text-purple-400"}
+                    status={s.status}
                   />
                 ))}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </SectionCard>
           </TabsContent>
 
-          <TabsContent value="provisioning">
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-2">
-                {provQueue.length === 0 && <p className="text-center text-muted-foreground py-8">File vide ✓</p>}
+          {/* Provisioning */}
+          <TabsContent value="provisioning" className="mt-4">
+            <SectionCard title="Jobs provisioning en erreur" icon={Wifi} noPadding>
+              <ScrollArea className="max-h-[520px]">
+                {provQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
                 {provQueue.map((j: any) => (
-                  <QueueCard
+                  <QueueRow
                     key={j.id}
                     item={j.orders}
                     linkTo={`/admin/orders/${j.orders?.id}`}
                     subtitle={`${j.job_type} — Tentatives: ${j.attempts || 0}`}
-                    badge={j.status}
-                    badgeColor="bg-red-500/20 text-red-400"
+                    status={j.status}
                   />
                 ))}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </SectionCard>
           </TabsContent>
 
-          <TabsContent value="shipments">
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-2">
-                {shipQueue.length === 0 && <p className="text-center text-muted-foreground py-8">File vide ✓</p>}
+          {/* Shipments */}
+          <TabsContent value="shipments" className="mt-4">
+            <SectionCard title="Expéditions à traiter" icon={Truck} noPadding>
+              <ScrollArea className="max-h-[520px]">
+                {shipQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
                 {shipQueue.map((s: any) => (
-                  <QueueCard
+                  <QueueRow
                     key={s.id}
                     item={s.orders}
                     linkTo={`/admin/orders/${s.orders?.id}`}
                     subtitle={`${s.shipment_number || "—"} — ${s.carrier || "À assigner"}`}
-                    badge={s.status}
-                    badgeColor="bg-cyan-500/20 text-cyan-400"
+                    status={s.status}
                   />
                 ))}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </SectionCard>
           </TabsContent>
 
-          <TabsContent value="installations">
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-2">
-                {aptQueue.length === 0 && <p className="text-center text-muted-foreground py-8">File vide ✓</p>}
+          {/* Installations */}
+          <TabsContent value="installations" className="mt-4">
+            <SectionCard title="Installations à planifier" icon={Calendar} noPadding>
+              <ScrollArea className="max-h-[520px]">
+                {aptQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
                 {aptQueue.map((a: any) => (
-                  <QueueCard
+                  <QueueRow
                     key={a.id}
                     item={a}
                     linkTo={a.order_id ? `/admin/orders/${a.order_id}` : "/admin/appointments"}
                     subtitle={`${a.title} — ${format(new Date(a.scheduled_at), "dd/MM HH:mm", { locale: fr })}`}
-                    badge={a.status || "scheduled"}
-                    badgeColor="bg-blue-500/20 text-blue-400"
+                    status={a.status || "scheduled"}
                   />
                 ))}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </SectionCard>
           </TabsContent>
 
-          <TabsContent value="payments">
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-2">
-                {payQueue.length === 0 && <p className="text-center text-muted-foreground py-8">File vide ✓</p>}
+          {/* Payments */}
+          <TabsContent value="payments" className="mt-4">
+            <SectionCard title="Paiements en attente" icon={CreditCard} noPadding>
+              <ScrollArea className="max-h-[520px]">
+                {payQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
                 {payQueue.map((o: any) => (
-                  <QueueCard
+                  <QueueRow
                     key={o.id}
                     item={o}
                     linkTo={`/admin/orders/${o.id}`}
                     subtitle={`${o.client_email || "—"} — ${Number(o.total_amount || 0).toFixed(2)} $`}
-                    badge={o.payment_status}
-                    badgeColor={o.payment_status === "failed" ? "bg-red-500/20 text-red-400" : "bg-amber-500/20 text-amber-400"}
+                    status={o.payment_status}
                   />
                 ))}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </SectionCard>
           </TabsContent>
 
-          <TabsContent value="sla">
-            <ScrollArea className="h-[500px]">
-              <div className="space-y-2">
-                {slaQueue.length === 0 && <p className="text-center text-muted-foreground py-8">File vide ✓</p>}
+          {/* SLA */}
+          <TabsContent value="sla" className="mt-4">
+            <SectionCard title="SLA dépassé (> 48h)" icon={AlertTriangle} noPadding>
+              <ScrollArea className="max-h-[520px]">
+                {slaQueue.length === 0 && <p className="text-center text-muted-foreground py-8 text-sm">File vide ✓</p>}
                 {slaQueue.map((o: any) => {
                   const age = differenceInHours(new Date(), new Date(o.created_at));
                   return (
-                    <QueueCard
+                    <QueueRow
                       key={o.id}
                       item={o}
                       linkTo={`/admin/orders/${o.id}`}
                       subtitle={`${o.service_type || "—"} — ${age}h en ${o.status}`}
-                      badge={`${age}h`}
-                      badgeColor="bg-red-500/20 text-red-400"
+                      status={`${age}h`}
                     />
                   );
                 })}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </SectionCard>
           </TabsContent>
         </Tabs>
       </div>
