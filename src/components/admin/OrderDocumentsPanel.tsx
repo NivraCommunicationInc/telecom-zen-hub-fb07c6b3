@@ -1,22 +1,16 @@
 /**
  * Admin Order Documents Panel
  * Shows invoice, contract, terms PDFs + KYC photos for an order
+ * With diagnostic info when generation fails
  */
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, Download, ShieldCheck, AlertTriangle, Eye } from "lucide-react";
-import { generateOrderDocuments, downloadPDF } from "@/lib/pdf/documentBuilder";
+import { Loader2, FileText, Download, ShieldCheck, AlertTriangle, CheckCircle } from "lucide-react";
+import { generateOrderDocuments, downloadPDF, fetchOrderDocumentData, validateDocumentData } from "@/lib/pdf/documentBuilder";
 import { toast } from "sonner";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 interface OrderDocumentsPanelProps {
   orderId: string;
@@ -25,34 +19,83 @@ interface OrderDocumentsPanelProps {
   kycSessionId?: string | null;
 }
 
+type DocType = "invoice" | "orderSummary" | "contract" | "contractSummary" | "terms";
+
+const DOC_LABELS: Record<DocType, string> = {
+  invoice: "Facture",
+  orderSummary: "Sommaire",
+  contract: "Contrat",
+  contractSummary: "RRE",
+  terms: "Modalités",
+};
+
 export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSessionId }: OrderDocumentsPanelProps) {
   const [generating, setGenerating] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[] | null>(null);
+  const [lastResults, setLastResults] = useState<Record<string, boolean> | null>(null);
+
+  const handleCheckReadiness = async () => {
+    setGenerating(true);
+    try {
+      const data = await fetchOrderDocumentData(orderId);
+      if (!data) {
+        setMissingFields(["order_data_unavailable"]);
+        toast.error("Données de commande introuvables");
+        return;
+      }
+      const missing = validateDocumentData(data);
+      setMissingFields(missing);
+      if (missing.length === 0) {
+        toast.success("Tous les champs requis sont présents — prêt pour génération");
+      } else {
+        toast.warning(`${missing.length} champ(s) manquant(s) — voir détails ci-dessous`);
+      }
+    } catch (err) {
+      console.error("[OrderDocumentsPanel] Check error:", err);
+      toast.error("Erreur lors de la vérification");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleGenerateAll = async () => {
     setGenerating(true);
+    setLastResults(null);
     try {
       const docs = await generateOrderDocuments(orderId);
       if (!docs) {
-        toast.error("Impossible de récupérer les données de commande");
+        // Fetch diagnostics
+        await handleCheckReadiness();
+        toast.error("Génération bloquée — champs obligatoires manquants");
         return;
       }
 
-      const results = [
-        { name: "Facture", result: docs.invoice },
-        { name: "Sommaire", result: docs.orderSummary },
-        { name: "Contrat", result: docs.contract },
-        { name: "Résumé contrat", result: docs.contractSummary },
-        { name: "Modalités", result: docs.terms },
+      const results: Record<string, boolean> = {};
+      const entries: { name: string; key: DocType; result: any }[] = [
+        { name: "Facture", key: "invoice", result: docs.invoice },
+        { name: "Sommaire", key: "orderSummary", result: docs.orderSummary },
+        { name: "Contrat", key: "contract", result: docs.contract },
+        { name: "RRE", key: "contractSummary", result: docs.contractSummary },
+        { name: "Modalités", key: "terms", result: docs.terms },
       ];
 
-      results.forEach(({ name, result }) => {
+      let successCount = 0;
+      entries.forEach(({ name, key, result }) => {
+        results[key] = result.success;
         if (result.success) {
           downloadPDF(result);
-          toast.success(`${name} téléchargée`);
+          successCount++;
         } else {
           toast.error(`${name}: ${result.error}`);
         }
       });
+
+      setLastResults(results);
+      if (successCount === 5) {
+        toast.success("5 documents téléchargés ✓");
+      } else {
+        toast.warning(`${successCount}/5 documents générés`);
+      }
     } catch (err) {
       console.error("[OrderDocumentsPanel] Error:", err);
       toast.error("Erreur lors de la génération des documents");
@@ -61,20 +104,23 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
     }
   };
 
-  const handleGenerateSingle = async (type: "invoice" | "orderSummary" | "contract" | "contractSummary" | "terms") => {
+  const handleGenerateSingle = async (type: DocType) => {
     setGenerating(true);
     try {
       const docs = await generateOrderDocuments(orderId);
       if (!docs) {
-        toast.error("Données indisponibles");
+        await handleCheckReadiness();
+        toast.error("Génération bloquée — champs manquants");
         return;
       }
       const result = docs[type];
       if (result.success) {
         downloadPDF(result);
-        toast.success("Document téléchargé");
+        toast.success(`${DOC_LABELS[type]} téléchargé ✓`);
+        setLastResults(prev => ({ ...prev, [type]: true }));
       } else {
         toast.error(result.error || "Erreur");
+        setLastResults(prev => ({ ...prev, [type]: false }));
       }
     } catch (err) {
       toast.error("Erreur lors de la génération");
@@ -83,37 +129,49 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
     }
   };
 
+  const FIELD_LABELS: Record<string, string> = {
+    client_name: "Nom du client",
+    client_email: "Courriel",
+    client_phone: "Téléphone",
+    address_line1: "Adresse",
+    city: "Ville",
+    postal_code: "Code postal",
+    account_number: "Numéro de compte",
+    order_number: "Numéro de commande",
+    invoice_breakdown_rpc: "Facture (breakdown RPC)",
+    order_data_unavailable: "Données de commande",
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <FileText className="w-4 h-4 text-primary" />
-          Documents de la commande {orderNumber ? `#${orderNumber}` : ""}
+          Documents {orderNumber ? `#${orderNumber}` : ""}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Document buttons */}
         <div className="grid grid-cols-5 gap-2">
-          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("invoice")} disabled={generating} className="text-xs">
-            <Download className="w-3 h-3 mr-1" />
-            Facture
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("orderSummary")} disabled={generating} className="text-xs">
-            <Download className="w-3 h-3 mr-1" />
-            Sommaire
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("contract")} disabled={generating} className="text-xs">
-            <Download className="w-3 h-3 mr-1" />
-            Contrat
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("contractSummary")} disabled={generating} className="text-xs">
-            <Download className="w-3 h-3 mr-1" />
-            RRE
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleGenerateSingle("terms")} disabled={generating} className="text-xs">
-            <Download className="w-3 h-3 mr-1" />
-            Modalités
-          </Button>
+          {(Object.entries(DOC_LABELS) as [DocType, string][]).map(([key, label]) => (
+            <Button
+              key={key}
+              variant="outline"
+              size="sm"
+              onClick={() => handleGenerateSingle(key)}
+              disabled={generating}
+              className="text-xs relative"
+            >
+              <Download className="w-3 h-3 mr-1" />
+              {label}
+              {lastResults?.[key] === true && (
+                <CheckCircle className="w-3 h-3 text-emerald-400 absolute -top-1 -right-1" />
+              )}
+              {lastResults?.[key] === false && (
+                <AlertTriangle className="w-3 h-3 text-red-400 absolute -top-1 -right-1" />
+              )}
+            </Button>
+          ))}
         </div>
 
         {/* Download all */}
@@ -131,14 +189,45 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
           {generating ? "Génération..." : "Télécharger les 5 documents"}
         </Button>
 
+        {/* Check readiness */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCheckReadiness}
+          disabled={generating}
+          className="w-full text-xs"
+        >
+          Vérifier les prérequis
+        </Button>
+
+        {/* Missing fields diagnostic */}
+        {missingFields !== null && missingFields.length > 0 && (
+          <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 space-y-1">
+            <p className="text-xs font-medium text-destructive flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              {missingFields.length} champ(s) manquant(s) bloquent la génération :
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-0.5 pl-4">
+              {missingFields.map(f => (
+                <li key={f}>• {FIELD_LABELS[f] || f}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {missingFields !== null && missingFields.length === 0 && (
+          <div className="p-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+            <CheckCircle className="w-3 h-3 text-emerald-400" />
+            <span className="text-xs text-emerald-400">Prêt pour génération</span>
+          </div>
+        )}
+
         {/* KYC Status */}
         {kycSessionId && (
           <div className="flex items-center gap-2 p-2 rounded-md bg-muted">
             <ShieldCheck className="w-4 h-4 text-primary" />
             <span className="text-xs text-muted-foreground">Vérification d'identité liée</span>
-            <Badge variant="outline" className="text-xs ml-auto">
-              KYC
-            </Badge>
+            <Badge variant="outline" className="text-xs ml-auto">KYC</Badge>
           </div>
         )}
 
@@ -146,7 +235,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
         {orderStatus && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>Statut:</span>
-            <Badge variant={orderStatus === "confirmed" ? "default" : "secondary"} className="text-xs">
+            <Badge variant={orderStatus === "confirmed" || orderStatus === "completed" ? "default" : "secondary"} className="text-xs">
               {orderStatus}
             </Badge>
           </div>
