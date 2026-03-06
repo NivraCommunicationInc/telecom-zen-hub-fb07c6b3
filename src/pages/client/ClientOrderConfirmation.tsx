@@ -364,8 +364,8 @@ END:VCALENDAR`;
   const tpsAmount = order.tps_amount || 0;
   const tvqAmount = order.tvq_amount || 0;
   const totalAmount = order.total_amount || 0;
-  const monthlyRecurring = order.subtotal || 0;
-  const monthlyWithTaxes = monthlyRecurring * 1.14975;
+  const monthlyRecurring = order.pricing_snapshot?.recurring_subtotal ?? order.subtotal ?? 0;
+  const monthlyWithTaxes = order.pricing_snapshot?.monthly_total_with_tax ?? monthlyRecurring * 1.14975;
 
   // Determine fulfillment type
   const isDeliveryOnly = order.installation_type === "auto" || order.delivery_method?.toLowerCase().includes("livraison");
