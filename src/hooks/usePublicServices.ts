@@ -128,6 +128,7 @@ export function useInternetPlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
         speed,
         price: Number(s.price),
