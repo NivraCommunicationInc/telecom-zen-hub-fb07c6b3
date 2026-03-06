@@ -125,6 +125,9 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
       case "contracts":
         if (order.related_contract_id) status = "completed";
         break;
+      case "tv_channels":
+        if (order.tv_channels_activated) status = "completed";
+        break;
       case "shipping":
         if (order.tracking_number || order.shipped_at || order.technician_id || order.status === "delivered") status = "completed";
         break;
