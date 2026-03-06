@@ -1274,11 +1274,15 @@ const ClientNewOrder = () => {
         );
 
         console.log("[ServerPricing] Live pricing result:", result);
-        setLiveServerPricing(result);
+        if (requestId === latestPricingRequestIdRef.current) {
+          setLiveServerPricing(result);
+        }
       } catch (err) {
         console.error("[ServerPricing] Failed to compute live pricing:", err);
       } finally {
-        setIsServerPricingLoading(false);
+        if (requestId === latestPricingRequestIdRef.current) {
+          setIsServerPricingLoading(false);
+        }
       }
     }, 400); // 400ms debounce
 
