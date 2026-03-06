@@ -17,6 +17,7 @@ import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
+import { fetchNivraProducts, createNivraOrder, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, SKU } from "@/lib/api/nivraApi";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { 
@@ -81,6 +82,7 @@ import { mapBillingError } from "@/lib/billing/errorMapping";
 
 interface Service {
   id: string;
+  sku: string;
   name: string;
   description: string;
   price: number;
@@ -918,19 +920,30 @@ const ClientNewOrder = () => {
     notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
   };
 
-  // Fetch available services
+  // Fetch available services from Nivra external API (source of truth for pricing)
   const { data: services, isLoading } = useQuery({
     queryKey: ["available-services"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("*")
-        .eq("is_active", true)
-        .order("category", { ascending: true });
-
-      if (error) throw error;
-      return data as Service[];
+      const products = await fetchNivraProducts();
+      return products
+        .filter((p) => ["internet_plan", "mobile_plan", "bundle"].includes(p.product_type))
+        .map((p): Service => ({
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          description: "",
+          price: p.base_price,
+          category: mapProductTypeToCategory(p.product_type),
+        }));
     },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Keep full product list for SKU lookup during checkout
+  const { data: allNivraProducts = [] } = useQuery({
+    queryKey: ["nivra-products-all"],
+    queryFn: fetchNivraProducts,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch TV channels for selection with error handling + logging
@@ -1713,38 +1726,86 @@ const ClientNewOrder = () => {
       });
 
       // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
-      // === SERVER-SIDE PRICING (authoritative) ===
-      const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
-      const cartItemsForPricing = [
-        ...selectedServices.map(s => ({
-          type: 'service' as const,
-          name: s.name,
-          amount: Number(s.price),
-          quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
-        })),
-        ...selectedStreamingServices.map(s => ({
-          type: 'service' as const,
-          name: s.name,
-          amount: Number(s.monthly_price),
-          quantity: 1,
-        })),
-        ...(paidChannelTotal > 0 ? [{ type: 'service' as const, name: 'Chaînes premium', amount: paidChannelTotal, quantity: 1 }] : []),
-        ...(orderActivationFee > 0 ? [{ type: 'activation' as const, name: 'Activation', amount: orderActivationFee, quantity: 1 }] : []),
-        ...(orderDeliveryFee > 0 ? [{ type: 'delivery' as const, name: 'Livraison', amount: orderDeliveryFee, quantity: 1 }] : []),
-        ...(installationFee > 0 ? [{ type: 'installation' as const, name: 'Installation', amount: installationFee, quantity: 1 }] : []),
-        ...((hasInternetService || hasTVService) ? [{ type: 'equipment' as const, name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price, quantity: 1 }] : []),
-        ...(hasTVService ? [{ type: 'equipment' as const, name: 'Terminal', amount: TERMINAL_CONFIG.price, quantity: terminalQuantity }] : []),
-        ...(hasMobileService ? [{ type: 'equipment' as const, name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price, quantity: totalMobileLineQuantity }] : []),
-      ];
+      // === EXTERNAL API PRICING (authoritative) ===
+      // Build SKU-based items array for the external Nivra API
+      const nivraItems: NivraOrderItem[] = [];
 
-      const serverPricing = await computeCheckoutPricing(
-        cartItemsForPricing,
-        appliedPromo?.code || null,
-        profile?.email || user.email || null,
-        user.id,
-        acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-      );
-      console.log("[ServerPricing] Authoritative totals:", serverPricing);
+      // Service plans (use SKU from the service object)
+      for (const s of selectedServices) {
+        const sku = s.sku || findSkuByName(allNivraProducts, s.name);
+        if (sku) {
+          nivraItems.push({
+            sku,
+            quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
+          });
+        } else {
+          console.warn("[NivraCheckout] No SKU found for service:", s.name);
+        }
+      }
+
+      // Equipment: Router
+      if (hasInternetService || hasTVService) {
+        nivraItems.push({ sku: SKU.ROUTER, quantity: 1 });
+      }
+
+      // Equipment: TV Terminal
+      if (hasTVService) {
+        nivraItems.push({ sku: SKU.TVBOX, quantity: terminalQuantity });
+      }
+
+      // Equipment: SIM
+      if (hasMobileService) {
+        nivraItems.push({ sku: SKU.SIM, quantity: totalMobileLineQuantity });
+      }
+
+      // Fees: Activation
+      if (orderActivationFee > 0) {
+        const uniqueCategories = new Set(selectedServices.map(s => s.category));
+        nivraItems.push({
+          sku: uniqueCategories.size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1,
+          quantity: 1,
+        });
+      }
+
+      // Fees: Delivery
+      if (orderDeliveryFee > 0) {
+        nivraItems.push({ sku: SKU.DELIVERY, quantity: 1 });
+      }
+
+      // Call external API to create order and get authoritative pricing
+      const customerName = `${firstName} ${lastName}`.trim();
+      const customerEmail = profile?.email || user.email || "";
+
+      const nivraOrderResponse = await createNivraOrder({
+        customer_name: customerName,
+        customer_email: customerEmail,
+        items: nivraItems,
+      });
+      console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
+
+      // Use external API response as authoritative pricing
+      const serverPricing = {
+        grand_total: nivraOrderResponse.total,
+        tps_amount: nivraOrderResponse.gst,
+        tvq_amount: nivraOrderResponse.qst,
+        taxable_base: nivraOrderResponse.subtotal,
+        recurring_subtotal: monthlyRecurring,
+        one_time_subtotal: oneTimeFees,
+        discount_total: 0,
+        preauth_discount: 0,
+        promo_applied: null,
+        computed_at: new Date().toISOString(),
+        cents: {
+          recurring_subtotal: Math.round(monthlyRecurring * 100),
+          one_time_subtotal: Math.round(oneTimeFees * 100),
+          discount_total: 0,
+          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
+          tps: Math.round(nivraOrderResponse.gst * 100),
+          tvq: Math.round(nivraOrderResponse.qst * 100),
+          grand_total: Math.round(nivraOrderResponse.total * 100),
+        },
+      };
+      console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
 
       // Use server-side totals for the order (authoritative)
       const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
@@ -2637,7 +2698,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     user?.id,
   ]);
 
-  // === LIVE SERVER PRICING: Debounced call to compute_checkout_pricing on cart changes ===
+  // === LIVE PRICING: Client-side calculation using API product prices (no server RPC needed) ===
+  // The external API prices are already loaded via useQuery. We compute taxes client-side
+  // for the live preview only. The authoritative pricing comes from POST /create-order at submission.
   useEffect(() => {
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       setLiveServerPricing(null);
@@ -2649,43 +2712,54 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     serverPricingTimerRef.current = setTimeout(async () => {
       setIsServerPricingLoading(true);
       try {
-        const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
-        const cartItems = [
-          ...selectedServices.map(s => ({
-            type: 'service' as const,
-            name: s.name,
-            amount: Number(s.price),
-            quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
-          })),
-          ...selectedStreamingServices.map(s => ({
-            type: 'service' as const,
-            name: s.name,
-            amount: Number(s.monthly_price),
-            quantity: 1,
-          })),
-          ...(paidChannelTotal > 0 ? [{ type: 'service' as const, name: 'Chaînes premium', amount: paidChannelTotal, quantity: 1 }] : []),
-          ...(activationFee > 0 ? [{ type: 'activation' as const, name: 'Activation', amount: activationFee, quantity: 1 }] : []),
-          ...(deliveryFee > 0 ? [{ type: 'delivery' as const, name: 'Livraison', amount: deliveryFee, quantity: 1 }] : []),
-          ...(installationFee > 0 ? [{ type: 'installation' as const, name: 'Installation', amount: installationFee, quantity: 1 }] : []),
-          ...((hasInternetService || hasTVService) ? [{ type: 'equipment' as const, name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price, quantity: 1 }] : []),
-          ...(hasTVService ? [{ type: 'equipment' as const, name: 'Terminal', amount: TERMINAL_CONFIG.price, quantity: terminalQuantity }] : []),
-          ...(hasMobileService ? [{ type: 'equipment' as const, name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price, quantity: totalMobileLineQuantity }] : []),
-        ];
-        const result = await computeCheckoutPricing(
-          cartItems,
-          appliedPromo?.code || null,
-          profile?.email || user?.email || null,
-          user?.id || null,
-          acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-        );
-        console.log("[LiveServerPricing] Updated:", result);
+        // Calculate totals from API prices (already in selectedServices)
+        const serviceTotal = selectedServices.reduce((sum, s) => {
+          if (s.category === "Mobile") {
+            return sum + Number(s.price) * (mobileLineQuantities[s.id] || 1);
+          }
+          return sum + Number(s.price);
+        }, 0);
+        const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+        const recurringSubtotal = serviceTotal + paidChannelTotal + streamingTotal;
+        const oneTimeSubtotal = activationFee + deliveryFee + installationFee
+          + ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0)
+          + (hasTVService ? TERMINAL_CONFIG.price * terminalQuantity : 0)
+          + (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
+        
+        const taxableBase = recurringSubtotal + oneTimeSubtotal;
+        const tps = Math.round(taxableBase * 0.05 * 100) / 100;
+        const tvq = Math.round(taxableBase * 0.09975 * 100) / 100;
+        const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
+
+        const result = {
+          recurring_subtotal: recurringSubtotal,
+          one_time_subtotal: oneTimeSubtotal,
+          discount_total: 0,
+          preauth_discount: 0,
+          taxable_base: taxableBase,
+          tps_amount: tps,
+          tvq_amount: tvq,
+          grand_total: grandTotal,
+          promo_applied: null,
+          computed_at: new Date().toISOString(),
+          cents: {
+            recurring_subtotal: Math.round(recurringSubtotal * 100),
+            one_time_subtotal: Math.round(oneTimeSubtotal * 100),
+            discount_total: 0,
+            taxable_base: Math.round(taxableBase * 100),
+            tps: Math.round(tps * 100),
+            tvq: Math.round(tvq * 100),
+            grand_total: Math.round(grandTotal * 100),
+          },
+        };
+        console.log("[LivePricing] Updated from API prices:", result);
         setLiveServerPricing(result);
       } catch (err) {
-        console.error("[LiveServerPricing] Error:", err);
+        console.error("[LivePricing] Error:", err);
       } finally {
         setIsServerPricingLoading(false);
       }
-    }, 400); // 400ms debounce
+    }, 300);
 
     return () => {
       if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchNivraProducts, mapProductTypeToCategory, type NivraProduct } from "@/lib/api/nivraApi";
 
 export interface PublicService {
   id: string;
+  sku: string;
   name: string;
   category: string;
   price: number;
@@ -11,6 +12,7 @@ export interface PublicService {
 
 export interface InternetPlan {
   id: string;
+  sku: string;
   name: string;
   speed: string;
   price: number;
@@ -23,6 +25,7 @@ export interface InternetPlan {
 
 export interface MobilePlan {
   id: string;
+  sku: string;
   name: string;
   price: number;
   description: string;
@@ -36,6 +39,7 @@ export interface MobilePlan {
 
 export interface TVPlan {
   id: string;
+  sku: string;
   name: string;
   internetSpeed: string;
   price: number;
@@ -51,6 +55,7 @@ export interface TVPlan {
 
 export interface Equipment {
   id: string;
+  sku: string;
   name: string;
   price: number;
   description: string;
@@ -87,27 +92,27 @@ const extractDataInfo = (description: string): { autoTopUp: string; noTopUp: str
   };
 };
 
+/**
+ * Fetch products from the Nivra external API.
+ * Maps API products to PublicService format for backward compatibility.
+ */
 export function usePublicServices() {
   return useQuery({
     queryKey: ["public-services"],
     queryFn: async () => {
-      // Use secure public view that hides internal metadata
-      const { data, error } = await supabase
-        .from("services_public")
-        .select("id, name, category, price, description")
-        .order("category")
-        .order("price");
+      const products = await fetchNivraProducts();
 
-      if (error) {
-        console.error("[usePublicServices] Error fetching services:", error);
-        throw error;
-      }
-
-      return (data || []) as PublicService[];
+      return products.map((p): PublicService => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        category: mapProductTypeToCategory(p.product_type),
+        price: p.base_price,
+        description: null,
+      }));
     },
-    staleTime: 10 * 1000, // 10 seconds - quick refresh for admin edits
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -123,6 +128,7 @@ export function useInternetPlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
         speed,
         price: Number(s.price),
@@ -163,6 +169,7 @@ export function useMobilePlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
         price: Number(s.price),
         description: s.description || "",
@@ -206,6 +213,7 @@ export function useTVPlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
         internetSpeed: speed,
         price: Number(s.price),
@@ -257,6 +265,7 @@ export function useTVPlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
         internetSpeed: "1 Gbps",
         price: Number(s.price),
@@ -293,18 +302,22 @@ export function useTVPlans(isFrench: boolean) {
 export function useEquipmentPrices() {
   const { data: services = [], isLoading, error } = usePublicServices();
 
-  const equipment = services.filter((s) => s.category === "Équipement");
+  // Equipment and fees come from different categories in the API
+  const allItems = services;
 
-  const routerPrice = equipment.find((e) => e.name.toLowerCase().includes("router"))?.price || 60;
-  const simPrice = equipment.find((e) => e.name.toLowerCase().includes("sim") && !e.name.toLowerCase().includes("esim"))?.price || 30;
-  const esimPrice = equipment.find((e) => e.name.toLowerCase().includes("esim"))?.price || 25;
-  const terminalPrice = equipment.find((e) => e.name.toLowerCase().includes("terminal"))?.price || 50;
+  const findBySkuOrName = (sku: string, namePart: string, fallback: number): number => {
+    const bySku = allItems.find((s) => s.sku === sku);
+    if (bySku) return Number(bySku.price);
+    const byName = allItems.find((e) => e.name.toLowerCase().includes(namePart));
+    if (byName) return Number(byName.price);
+    return fallback;
+  };
 
   return {
-    routerPrice: Number(routerPrice),
-    simPrice: Number(simPrice),
-    esimPrice: Number(esimPrice),
-    terminalPrice: Number(terminalPrice),
+    routerPrice: findBySkuOrName("EQ-ROUTER", "router", 60),
+    simPrice: findBySkuOrName("FEE-SIM", "carte sim", 25),
+    esimPrice: findBySkuOrName("FEE-ESIM", "esim", 25),
+    terminalPrice: findBySkuOrName("EQ-TVBOX", "terminal", 50),
     isLoading,
     error,
   };
