@@ -169,6 +169,7 @@ export function useMobilePlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
         price: Number(s.price),
         description: s.description || "",
@@ -212,8 +213,8 @@ export function useTVPlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
-        internetSpeed: speed,
         price: Number(s.price),
         channels,
         channelType: isBasic
