@@ -2763,6 +2763,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     if (submittingRef.current) return;
     submittingRef.current = true;
     
+    // GATE: Server pricing must be loaded before submission
+    if (!liveServerPricing || isServerPricingLoading) {
+      submittingRef.current = false;
+      toast.error("Le calcul des prix est en cours. Veuillez patienter quelques secondes.");
+      return;
+    }
+    
     // SERVER-SIDE: Check if account is blocked before proceeding
     const blockCheck = await checkAccountBlockedForAction(user?.id || "");
     if (!blockCheck.allowed) {
