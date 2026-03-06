@@ -12,7 +12,7 @@
  * + Service Terms PDF
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { generateInvoiceV3PDF } from "./invoiceTemplateV3";
 import { generateContractV3PDF, type ContractDataV3 } from "./contractTemplateV3";
 import { generateContractSummaryPDF, type ContractSummaryData } from "./contractSummaryTemplate";
@@ -131,7 +131,7 @@ export async function fetchOrderDocumentData(orderId: string): Promise<OrderDocu
   if (invoiceId) {
     // Fetch breakdown from RPC (SINGLE SOURCE OF TRUTH)
     try {
-      breakdown = await fetchInvoiceBreakdown(invoiceId);
+      breakdown = await fetchInvoiceBreakdown(invoiceId, supabase);
     } catch (e) {
       console.error("[DocumentBuilder] ⚠️ Breakdown RPC failed — documents may have inconsistent totals:", e);
     }
