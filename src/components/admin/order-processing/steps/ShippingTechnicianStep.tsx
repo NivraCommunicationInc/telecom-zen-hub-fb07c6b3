@@ -54,6 +54,15 @@ export function ShippingTechnicianStep({ proc }: Props) {
     }
   };
 
+  const handleMarkDelivered = async () => {
+    setLoading("delivered");
+    try {
+      await proc.changeStatus("delivered");
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const handleNotifyClient = async () => {
     setLoading("notify");
     try {
@@ -151,9 +160,13 @@ export function ShippingTechnicianStep({ proc }: Props) {
               {loading === "save" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
               Sauvegarder
             </Button>
-            <Button size="sm" onClick={handleMarkShipped} disabled={loading === "shipped" || proc.isUpdating} className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button size="sm" onClick={handleMarkShipped} disabled={loading === "shipped" || proc.isUpdating || order.status === "shipped"} className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
               {loading === "shipped" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Truck className="w-3 h-3 mr-1" />}
               Marquer expédié
+            </Button>
+            <Button size="sm" onClick={handleMarkDelivered} disabled={loading === "delivered" || proc.isUpdating || order.status === "delivered"} className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white">
+              {loading === "delivered" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
+              Marquer livré
             </Button>
             <Button size="sm" variant="outline" onClick={handleNotifyClient} disabled={loading === "notify"} className="text-xs h-8 border-gray-300 text-gray-700">
               {loading === "notify" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Bell className="w-3 h-3 mr-1" />}

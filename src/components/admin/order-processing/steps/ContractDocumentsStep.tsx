@@ -212,8 +212,8 @@ export function ContractDocumentsStep({ proc }: Props) {
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div><span className="text-gray-500">Statut:</span> <span className="font-medium text-gray-900">{contracts[0].status || "—"}</span></div>
             <div><span className="text-gray-500">Version:</span> <span className="font-medium text-gray-900">v{contracts[0].version || 1}</span></div>
-            <div><span className="text-gray-500">Signé client:</span> <span className="font-medium text-gray-900">{contracts[0].signed_by_client ? "Oui" : "Non"}</span></div>
-            <div><span className="text-gray-500">Signé admin:</span> <span className="font-medium text-gray-900">{contracts[0].signed_by_admin ? "Oui" : "Non"}</span></div>
+            <div><span className="text-gray-500">Signé client:</span> <span className="font-medium text-gray-900">{contracts[0].client_signed_at ? "Oui" : "Non"}</span></div>
+            <div><span className="text-gray-500">Signé admin:</span> <span className="font-medium text-gray-900">{contracts[0].admin_signed_at ? "Oui" : "Non"}</span></div>
           </div>
         </div>
       )}

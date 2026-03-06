@@ -586,14 +586,15 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     return null;
   }
 
-  // VALIDATION GATE: Block PDF generation if required fields are missing
+  // VALIDATION GATE: Warn about missing fields but DO NOT block generation
+  // Documents must still be viewable even with partial data
   const missingFields = validateDocumentData(data);
   if (missingFields.length > 0) {
-    console.error(`[DocumentBuilder] ⛔ GÉNÉRATION BLOQUÉE — Champs obligatoires manquants: ${missingFields.join(", ")}`);
-    // Create admin alert via billing_system_alerts
+    console.warn(`[DocumentBuilder] ⚠️ Champs manquants (non bloquant): ${missingFields.join(", ")}`);
+    // Log alert for admin awareness, but continue generation
     try {
       await supabase.from("billing_system_alerts").insert({
-        alert_type: "pdf_blocked_missing_data",
+        alert_type: "pdf_missing_data_warning",
         entity_type: "order",
         entity_id: orderId,
         details: { missing_fields: missingFields, order_id: orderId, order_number: data.order?.order_number },
@@ -601,7 +602,7 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     } catch (alertErr) {
       console.error("[DocumentBuilder] Could not create alert:", alertErr);
     }
-    return null;
+    // Continue generation — documents will show "Non fourni par le client" for missing fields
   }
 
   if (data.breakdown) {
