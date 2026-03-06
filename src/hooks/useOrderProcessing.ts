@@ -19,6 +19,7 @@ export type WorkflowStepId =
   | "fulfillment"
   | "equipment"
   | "activation"
+  | "tv_channels"
   | "contracts"
   | "shipping"
   | "completion";
@@ -55,12 +56,18 @@ function buildWorkflow(order: any): WorkflowStep[] {
       { id: "shipping", label: "Expédition", status: "pending" },
       { id: "completion", label: "Complétion", status: "pending" },
     );
-  } else if (serviceType.includes("internet") || serviceType.includes("tv") || serviceType.includes("bundle")) {
+  } else if (serviceType.includes("internet") || serviceType.includes("tv") || serviceType.includes("bundle") || serviceType.includes("combo")) {
     base.push(
       { id: "fulfillment", label: "Fulfillment / Routing", status: "pending" },
       { id: "equipment", label: "Équipement", status: "pending" },
       { id: "shipping", label: "Technicien / Expédition", status: "pending" },
       { id: "activation", label: "Activation", status: "pending" },
+    );
+    // Add TV channel step for TV/combo orders
+    if (serviceType.includes("tv") || serviceType.includes("combo") || serviceType.includes("bundle")) {
+      base.push({ id: "tv_channels", label: "Chaînes TV", status: "pending" });
+    }
+    base.push(
       { id: "contracts", label: "Contrat & Documents", status: "pending" },
       { id: "completion", label: "Complétion", status: "pending" },
     );
