@@ -626,8 +626,7 @@ const ClientNewOrder = () => {
   const [liveServerPricing, setLiveServerPricing] = useState<import("@/lib/pricing/serverPricing").ServerPricingResult | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // Query client billing preferences to check if preauth already opted-in
+  const latestPricingRequestIdRef = useRef(0);
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
     queryKey: ["client-billing-preferences", user?.id],
     queryFn: async () => {
@@ -1199,6 +1198,7 @@ const ClientNewOrder = () => {
   // === SERVER PRICING: Debounced call to compute_checkout_pricing RPC ===
   useEffect(() => {
     if (selectedServices.length === 0) {
+      latestPricingRequestIdRef.current += 1;
       setLiveServerPricing(null);
       return;
     }
@@ -1206,6 +1206,7 @@ const ClientNewOrder = () => {
     if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
 
     serverPricingTimerRef.current = setTimeout(async () => {
+      const requestId = ++latestPricingRequestIdRef.current;
       setIsServerPricingLoading(true);
       try {
         // Build cart items (same shape as buildPromoValidationPayload)
@@ -1217,11 +1218,11 @@ const ClientNewOrder = () => {
         selectedServices.forEach((s) => {
           if (mobileIds.has(s.id)) return;
           const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
-          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
+          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty });
         });
         mobileServices.forEach((s) => {
           const qty = mobileLineQuantities[s.id] || 1;
-          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
+          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty });
         });
         selectedPaidChannels.forEach((ch) => {
           cartItems.push({ type: "service", name: ch.name, amount: Number(ch.price) });
@@ -1262,6 +1263,16 @@ const ClientNewOrder = () => {
 
         const preauthDisc = acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0;
 
+        console.log("[ServerPricing] Request payload:", {
+          requestId,
+          cartItems,
+          promoCode: appliedPromo?.code || null,
+          clientEmail: profile?.email || null,
+          clientId: user?.id || null,
+          preauthDiscount: preauthDisc,
+          isNewCustomer: welcomeDiscountHook.isNewCustomer,
+        });
+
         const result = await computeCheckoutPricing(
           cartItems,
           appliedPromo?.code || null,
@@ -1273,11 +1284,15 @@ const ClientNewOrder = () => {
         );
 
         console.log("[ServerPricing] Live pricing result:", result);
-        setLiveServerPricing(result);
+        if (requestId === latestPricingRequestIdRef.current) {
+          setLiveServerPricing(result);
+        }
       } catch (err) {
         console.error("[ServerPricing] Failed to compute live pricing:", err);
       } finally {
-        setIsServerPricingLoading(false);
+        if (requestId === latestPricingRequestIdRef.current) {
+          setIsServerPricingLoading(false);
+        }
       }
     }, 400); // 400ms debounce
 
