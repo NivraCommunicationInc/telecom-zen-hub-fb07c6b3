@@ -6,6 +6,7 @@
  * - review_document: accept/reject individual requested doc
  * - default: approve/reject/in_review decision
  */
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {
