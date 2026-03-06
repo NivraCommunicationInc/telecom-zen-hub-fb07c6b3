@@ -215,6 +215,7 @@ export function useTVPlans(isFrench: boolean) {
         id: s.id,
         sku: s.sku || "",
         name: s.name,
+        internetSpeed: speed,
         price: Number(s.price),
         channels,
         channelType: isBasic
@@ -264,6 +265,7 @@ export function useTVPlans(isFrench: boolean) {
 
       return {
         id: s.id,
+        sku: s.sku || "",
         name: s.name,
         internetSpeed: "1 Gbps",
         price: Number(s.price),
