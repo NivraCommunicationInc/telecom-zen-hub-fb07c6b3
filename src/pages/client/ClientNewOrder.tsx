@@ -920,19 +920,30 @@ const ClientNewOrder = () => {
     notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
   };
 
-  // Fetch available services
+  // Fetch available services from Nivra external API (source of truth for pricing)
   const { data: services, isLoading } = useQuery({
     queryKey: ["available-services"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("*")
-        .eq("is_active", true)
-        .order("category", { ascending: true });
-
-      if (error) throw error;
-      return data as Service[];
+      const products = await fetchNivraProducts();
+      return products
+        .filter((p) => ["internet_plan", "mobile_plan", "bundle"].includes(p.product_type))
+        .map((p): Service => ({
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          description: "",
+          price: p.base_price,
+          category: mapProductTypeToCategory(p.product_type),
+        }));
     },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Keep full product list for SKU lookup during checkout
+  const { data: allNivraProducts = [] } = useQuery({
+    queryKey: ["nivra-products-all"],
+    queryFn: fetchNivraProducts,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch TV channels for selection with error handling + logging
