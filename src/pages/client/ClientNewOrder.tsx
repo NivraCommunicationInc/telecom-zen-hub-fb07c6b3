@@ -2778,13 +2778,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const tvqAmount = liveServerPricing ? liveServerPricing.tvq_amount : _clientTvqAmount;
   const totalAmount = liveServerPricing ? liveServerPricing.grand_total : _clientTotalAmount;
 
-  // Separate tax calculations for bill preview — from server pricing when available
-  const oneTimeFeesWithTax = liveServerPricing
-    ? liveServerPricing.one_time_subtotal + (liveServerPricing.one_time_subtotal * 0.14975)
-    : oneTimeFees + Math.round(oneTimeFees * 0.14975 * 100) / 100;
-  const monthlyRecurringWithTax = liveServerPricing
-    ? liveServerPricing.recurring_subtotal + (liveServerPricing.recurring_subtotal * 0.14975)
-    : monthlyRecurring + Math.round(monthlyRecurring * 0.14975 * 100) / 100;
+  // === Separate tax calculations per block (one-time vs monthly) ===
+  // One-time block: taxes computed ONLY on one-time fees
+  const oneTimeTps = round2(oneTimeFees * 0.05);
+  const oneTimeTvq = round2(oneTimeFees * 0.09975);
+  const oneTimeTaxes = round2(oneTimeTps + oneTimeTvq);
+  const oneTimeTotalWithTax = round2(oneTimeFees + oneTimeTaxes);
+
+  // Monthly block: taxes computed ONLY on monthly recurring
+  const monthlyTps = round2(monthlyRecurring * 0.05);
+  const monthlyTvq = round2(monthlyRecurring * 0.09975);
+  const monthlyTaxes = round2(monthlyTps + monthlyTvq);
+  const monthlyRecurringWithTax = round2(monthlyRecurring + monthlyTaxes);
+
+  // Legacy aliases kept for bill preview
+  const oneTimeFeesWithTax = oneTimeTotalWithTax;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
@@ -4853,27 +4861,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   )}
 
-                  {/* Taxes */}
+                  {/* Taxes — on one-time fees only (what's payable today) */}
                   <div className="border-t border-border pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">TPS (5%)</span>
-                      <span className="text-foreground">{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{oneTimeTps.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">TVQ (9.975%)</span>
-                      <span className="text-foreground">{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{oneTimeTvq.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
-                  {/* Total Due Today */}
+                  {/* Total Due Today — one-time fees + their taxes only */}
                   <div className="border-t-2 border-cyan-500/50 pt-4 bg-gradient-to-r from-cyan-500/5 to-transparent -mx-6 px-6 pb-2 rounded-b-lg">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Taxes incluses</p>
+                    <p className="text-xs text-muted-foreground mt-1">Frais uniques, taxes incluses</p>
                   </div>
 
                   <div className="pt-4 space-y-3">
@@ -5174,11 +5182,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
-                      <span>{(tpsAmount + tvqAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{oneTimeTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-cyan-500/50">
                       <span className="font-bold text-cyan-500 text-base">Total à payer aujourd'hui</span>
-                      <span className="font-bold text-cyan-500 text-lg">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="font-bold text-cyan-500 text-lg">{oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -5247,7 +5255,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
-                      <span>{(Math.round(monthlyRecurring * 0.14975 * 100) / 100).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{monthlyTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-purple-500/50">
                       <span className="font-bold text-purple-500 text-base">Total mensuel estimé</span>
@@ -5623,47 +5631,76 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2 text-sm">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mensuel</p>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Sous-total</span>
-                      <span>{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-muted-foreground">Services récurrents</span>
+                      <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">TPS + TVQ</span>
+                      <span>{monthlyTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span className="text-muted-foreground">Total mensuel</span>
+                      <span>{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                    </div>
+
+                    <Separator className="my-1" />
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Frais uniques</p>
+                    {(hasInternetService || hasTVService) && routerFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{ROUTER_CONFIG_DYNAMIC.name}</span>
+                        <span>{routerFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                     {hasTVService && terminalFee > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">{TERMINAL_CONFIG.name} (×{terminalQuantity})</span>
                         <span>{terminalFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Livraison</span>
-                      <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Activation</span>
-                      <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Installation</span>
-                      <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                    </div>
                     {hasMobileService && simFee > 0 && (
                       <div className="flex justify-between">
                         <span className="text-blue-500">{SIM_CONFIG_DYNAMIC[simType].name}</span>
                         <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    <div className="flex justify-between">
+                    {deliveryFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Livraison</span>
+                        <span>{deliveryFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {!isEquipmentOnlyOrder && activationFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Activation</span>
+                        <span>{activationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {installationFee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Installation</span>
+                        <span>{installationFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-medium">
+                      <span className="text-muted-foreground">Sous-total frais uniques</span>
+                      <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS + TVQ</span>
-                      <span>{(tpsAmount + tvqAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{oneTimeTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
                   <div className="border-t border-border pt-4">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium text-foreground">Total à payer</span>
+                      <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">Frais uniques, taxes incluses</p>
                   </div>
 
                   {/* Payment Status Indicator */}
