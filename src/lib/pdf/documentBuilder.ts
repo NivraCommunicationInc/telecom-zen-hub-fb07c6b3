@@ -12,7 +12,7 @@
  * + Service Terms PDF
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient as supabase } from "@/integrations/backend";
 import { generateInvoiceV3PDF } from "./invoiceTemplateV3";
 import { generateContractV3PDF, type ContractDataV3 } from "./contractTemplateV3";
 import { generateContractSummaryPDF, type ContractSummaryData } from "./contractSummaryTemplate";
