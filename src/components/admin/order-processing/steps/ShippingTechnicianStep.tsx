@@ -13,7 +13,7 @@ import { toast } from "sonner";
 interface Props { proc: any; }
 
 export function ShippingTechnicianStep({ proc }: Props) {
-  const { order, appointment } = proc;
+  const { order, appointment, installationEstimate } = proc;
   const fulfillmentType = order.fulfillment_type || "shipping";
   const isShipping = fulfillmentType === "shipping" || fulfillmentType === "self_install";
   const [loading, setLoading] = useState<string | null>(null);
@@ -181,6 +181,24 @@ export function ShippingTechnicianStep({ proc }: Props) {
               <h4 className="text-xs font-semibold text-blue-700 uppercase mb-1">Rendez-vous planifié</h4>
               <p className="text-sm text-blue-900">{appointment.scheduled_at?.slice(0, 16).replace("T", " ")}</p>
               <p className="text-xs text-blue-700 mt-0.5">{appointment.service_address || "—"}</p>
+            </div>
+          )}
+
+          {/* Installation time estimate */}
+          {installationEstimate && (
+            <div className={`border rounded-lg p-3 mb-4 ${installationEstimate.wiringNeeded ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"}`}>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Durée d'installation estimée</h4>
+              <p className={`text-sm font-medium ${installationEstimate.wiringNeeded ? "text-amber-800" : "text-gray-900"}`}>
+                {installationEstimate.label}
+              </p>
+              {installationEstimate.wiringNeeded && (
+                <p className="text-xs text-amber-600 mt-1">⚠ Prévoir du matériel de câblage supplémentaire</p>
+              )}
+              <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                <span>Internet câblé: ~30 min</span>
+                <span>TV câblée: ~45 min</span>
+                <span>Sans fil existant: 2h+</span>
+              </div>
             </div>
           )}
 
