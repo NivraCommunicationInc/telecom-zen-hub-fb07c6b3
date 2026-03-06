@@ -1933,6 +1933,7 @@ const ClientNewOrder = () => {
         
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
+          order_id: data.id,
           amount: Math.max(0, serverPricing.grand_total), // Server-side authoritative amount
           payment_method: actualPaymentMethod,
           reference_number: paymentRef,
@@ -2319,7 +2320,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // Create order_items, provisioning_jobs, shipments atomically
       try {
         const { orchestrateOrder } = await import("@/lib/orderOrchestration");
-        const orchResult = await orchestrateOrder(data.id);
+        const orchResult = await orchestrateOrder(data.id, supabase);
         if (orchResult.status === 'error') {
           console.error("[Orchestration] Failed (non-blocking):", orchResult.error);
           postStepErrors.push("orchestration");

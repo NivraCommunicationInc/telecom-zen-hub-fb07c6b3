@@ -197,6 +197,66 @@ serve(async (req) => {
       console.log(`[billing-create-order] Created new customer: ${customerId}`);
     }
     
+    // Resolve address_id for residential services (Internet, TV, Combo)
+    // Required by chk_residential_address_required constraint
+    let addressId: string | null = null;
+    const needsAddress = body.services.some(s => 
+      ['internet', 'tv', 'combo', 'combo_tv_internet'].includes(s.category?.toLowerCase() || '')
+    );
+    
+    if (needsAddress && body.order_id) {
+      // Get address from the order's shipping fields
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("shipping_address, shipping_city, shipping_province, shipping_postal_code, user_id")
+        .eq("id", body.order_id)
+        .single();
+      
+      if (orderData?.shipping_address) {
+        // Look up existing account and service_address
+        const { data: account } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("client_id", orderData.user_id || body.user_id)
+          .limit(1)
+          .maybeSingle();
+        
+        if (account) {
+          // Check for existing address
+          const { data: existingAddr } = await supabase
+            .from("service_addresses")
+            .select("id")
+            .eq("account_id", account.id)
+            .eq("address_line", orderData.shipping_address)
+            .limit(1)
+            .maybeSingle();
+          
+          if (existingAddr) {
+            addressId = existingAddr.id;
+          } else {
+            // Create new service address
+            const { data: newAddr } = await supabase
+              .from("service_addresses")
+              .insert({
+                account_id: account.id,
+                label: "Adresse principale",
+                address_line: orderData.shipping_address,
+                city: orderData.shipping_city || null,
+                province: orderData.shipping_province || "QC",
+                postal_code: orderData.shipping_postal_code || null,
+                is_primary: true,
+                is_default: true,
+              })
+              .select("id")
+              .single();
+            if (newAddr) addressId = newAddr.id;
+          }
+        }
+      }
+      
+      console.log(`[billing-create-order] Address resolution: addressId=${addressId}, needsAddress=${needsAddress}`);
+    }
+    
     const results = {
       customer_id: customerId,
       subscriptions: [] as Array<{
@@ -223,6 +283,11 @@ serve(async (req) => {
     for (let i = 0; i < body.services.length; i++) {
       const service = body.services[i];
       
+      // Determine if this service needs address_id
+      const serviceNeedsAddress = ['internet', 'tv', 'combo', 'combo_tv_internet'].includes(
+        service.category?.toLowerCase() || ''
+      );
+      
       // Create subscription with appropriate status
       const subscriptionStatus = isPayPalPaid ? 'active' : 'pending';
       
@@ -239,6 +304,7 @@ serve(async (req) => {
           status: subscriptionStatus,
           auto_billing_enabled: isPayPalPaid,
           order_id: body.order_id || null,
+          address_id: serviceNeedsAddress ? addressId : null,
         })
         .select()
         .single();
