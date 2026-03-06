@@ -23,9 +23,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { code, client_email, client_id, cart_items, subtotal_before_discount } = await req.json();
+    const { code, client_email, client_id, cart_items, subtotal_before_discount, is_new_customer } = await req.json();
 
-    console.log(`[validate-promo] Validating code: ${code} for client: ${client_email}`);
+    console.log(`[validate-promo] Validating code: ${code} for client: ${client_email} (new_customer: ${is_new_customer})`);
 
     if (!code || !code.trim()) {
       return new Response(
@@ -139,6 +139,19 @@ serve(async (req) => {
         JSON.stringify({ valid: false, error: "Code promo invalide" }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Duplicate detection: if welcome discount is active and promo targets services,
+    // reject with "already applied" message to prevent double-discounting
+    if (is_new_customer === true) {
+      const appliesTo = promo.applies_to as Record<string, boolean>;
+      if (appliesTo?.services === true) {
+        console.log(`[validate-promo] Duplicate detected: welcome discount active + promo ${normalizedCode} targets services`);
+        return new Response(
+          JSON.stringify({ valid: false, error: "Ce rabais est déjà appliqué automatiquement à votre commande." }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Check if active

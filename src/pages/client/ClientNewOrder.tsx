@@ -1342,6 +1342,7 @@ const ClientNewOrder = () => {
           client_id: user?.id,
           cart_items: payload.cartItems,
           subtotal_before_discount: payload.subtotalBeforeDiscount,
+          is_new_customer: welcomeDiscountHook.isNewCustomer,
         },
       });
 
@@ -1783,29 +1784,35 @@ const ClientNewOrder = () => {
       });
       console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
 
-      // Use external API response as authoritative pricing
+      // Use external API response as authoritative pricing base,
+      // then overlay discount/welcome from our server-side RPC
       const serverPricing = {
-        grand_total: nivraOrderResponse.total,
-        tps_amount: nivraOrderResponse.gst,
-        tvq_amount: nivraOrderResponse.qst,
-        taxable_base: nivraOrderResponse.subtotal,
-        recurring_subtotal: monthlyRecurring,
-        one_time_subtotal: oneTimeFees,
-        discount_total: 0,
-        preauth_discount: 0,
-        promo_applied: null,
+        grand_total: liveServerPricing?.grand_total ?? nivraOrderResponse.total,
+        tps_amount: liveServerPricing?.tps_amount ?? nivraOrderResponse.gst,
+        tvq_amount: liveServerPricing?.tvq_amount ?? nivraOrderResponse.qst,
+        taxable_base: liveServerPricing?.taxable_base ?? nivraOrderResponse.subtotal,
+        recurring_subtotal: liveServerPricing?.recurring_subtotal ?? monthlyRecurring,
+        one_time_subtotal: liveServerPricing?.one_time_subtotal ?? oneTimeFees,
+        discount_total: liveServerPricing?.discount_total ?? 0,
+        promo_discount: liveServerPricing?.promo_discount ?? 0,
+        welcome_discount: liveServerPricing?.welcome_discount ?? 0,
+        preauth_discount: liveServerPricing?.preauth_discount ?? 0,
+        promo_applied: liveServerPricing?.promo_applied ?? null,
+        is_new_customer: liveServerPricing?.is_new_customer ?? welcomeDiscountHook.isNewCustomer,
         computed_at: new Date().toISOString(),
-        cents: {
+        cents: liveServerPricing?.cents ?? {
           recurring_subtotal: Math.round(monthlyRecurring * 100),
           one_time_subtotal: Math.round(oneTimeFees * 100),
           discount_total: 0,
+          promo_discount: 0,
+          welcome_discount: 0,
           taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
           tps: Math.round(nivraOrderResponse.gst * 100),
           tvq: Math.round(nivraOrderResponse.qst * 100),
           grand_total: Math.round(nivraOrderResponse.total * 100),
         },
       };
-      console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
+      console.log("[ServerPricing] Authoritative totals:", serverPricing);
 
       // Use server-side totals for the order (authoritative)
       const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
@@ -1990,7 +1997,8 @@ const ClientNewOrder = () => {
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
             discount_amount: serverPricing.discount_total,
-            welcome_discount_amount: welcomeDiscountAmount,
+            promo_discount: serverPricing.promo_discount,
+            welcome_discount_amount: serverPricing.welcome_discount,
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
             tvq_amount: serverPricing.tvq_amount,
@@ -2640,22 +2648,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
   
-  // Welcome discount: 50% off services for new customers (first bill only)
-  const welcomeDiscountAmount = welcomeDiscountHook.getDiscountAmount(monthlyRecurring);
+  // Welcome discount: now computed server-side via compute_checkout_pricing RPC.
+  // The client-side hook is only used to determine isNewCustomer flag passed to the server.
+  // The actual welcome_discount amount comes from liveServerPricing.welcome_discount.
+  const welcomeDiscountAmount = liveServerPricing?.welcome_discount ?? 0;
   
   const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
   // Cap discount to never exceed the cart total (prevents negative amounts)
   const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
   
-  // Total discount = promo + welcome (capped to gross total)
-  const totalDiscount = Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
-
-  // Enforce min_payable_cents from promo: discount cannot reduce below minimum
-  const minPayableDollars = 0; // Will be enforced server-side; client cap is defense-in-depth
-  const effectiveTotalDiscount = minPayableDollars > 0 
-    ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
-    : totalDiscount;
+  // Total discount comes from server (includes promo + welcome, properly deduped)
+  const totalDiscount = liveServerPricing?.discount_total ?? Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
+  const effectiveTotalDiscount = totalDiscount;
 
   // Client-side fallback values (used only before server pricing loads)
   const _clientBaseAmount = round2(Math.max(0, grossTotal - effectiveTotalDiscount));
@@ -2698,9 +2703,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     user?.id,
   ]);
 
-  // === LIVE PRICING: Client-side calculation using API product prices (no server RPC needed) ===
-  // The external API prices are already loaded via useQuery. We compute taxes client-side
-  // for the live preview only. The authoritative pricing comes from POST /create-order at submission.
+  // === LIVE PRICING: Server-side RPC is the single source of truth for all totals ===
+  // Calls compute_checkout_pricing which handles promo, welcome discount, and taxes in cents.
   useEffect(() => {
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       setLiveServerPricing(null);
@@ -2712,64 +2716,73 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     serverPricingTimerRef.current = setTimeout(async () => {
       setIsServerPricingLoading(true);
       try {
-        // Calculate totals from API prices (already in selectedServices)
-        const serviceTotal = selectedServices.reduce((sum, s) => {
-          if (s.category === "Mobile") {
-            return sum + Number(s.price) * (mobileLineQuantities[s.id] || 1);
-          }
-          return sum + Number(s.price);
-        }, 0);
-        const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
-        const recurringSubtotal = serviceTotal + paidChannelTotal + streamingTotal;
-        const oneTimeSubtotal = activationFee + deliveryFee + installationFee
-          + ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0)
-          + (hasTVService ? TERMINAL_CONFIG.price * terminalQuantity : 0)
-          + (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
-        
-        const taxableBase = recurringSubtotal + oneTimeSubtotal;
-        const tps = Math.round(taxableBase * 0.05 * 100) / 100;
-        const tvq = Math.round(taxableBase * 0.09975 * 100) / 100;
-        const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
+        // Build cart items for RPC (same structure as promo validation)
+        const cartItems: import("@/lib/pricing/serverPricing").CartLineItem[] = [];
 
-        const result = {
-          recurring_subtotal: recurringSubtotal,
-          one_time_subtotal: oneTimeSubtotal,
-          discount_total: 0,
-          preauth_discount: 0,
-          taxable_base: taxableBase,
-          tps_amount: tps,
-          tvq_amount: tvq,
-          grand_total: grandTotal,
-          promo_applied: null,
-          computed_at: new Date().toISOString(),
-          cents: {
-            recurring_subtotal: Math.round(recurringSubtotal * 100),
-            one_time_subtotal: Math.round(oneTimeSubtotal * 100),
-            discount_total: 0,
-            taxable_base: Math.round(taxableBase * 100),
-            tps: Math.round(tps * 100),
-            tvq: Math.round(tvq * 100),
-            grand_total: Math.round(grandTotal * 100),
-          },
-        };
-        console.log("[LivePricing] Updated from API prices:", result);
+        // Services
+        selectedServices.forEach((s) => {
+          const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
+          cartItems.push({ type: 'service', name: s.name, amount: Number(s.price) * qty, quantity: 1 });
+        });
+        // Paid channels as services
+        selectedPaidChannels.forEach((ch) => {
+          cartItems.push({ type: 'service', name: ch.name, amount: Number(ch.price) });
+        });
+        // Streaming+ add-ons
+        selectedStreamingServices.forEach((s) => {
+          cartItems.push({ type: 'service', name: s.name, amount: Number(s.monthly_price) });
+        });
+        // Equipment
+        if (hasInternetService || hasTVService) {
+          cartItems.push({ type: 'equipment', name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price });
+        }
+        if (hasTVService) {
+          cartItems.push({ type: 'equipment', name: 'Terminal TV', amount: TERMINAL_CONFIG.price * terminalQuantity });
+        }
+        if (hasMobileService) {
+          cartItems.push({ type: 'equipment', name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity });
+        }
+        // Activation
+        if (activationFee > 0) {
+          cartItems.push({ type: 'one_time_fee', name: 'Activation', amount: activationFee });
+        }
+        // Delivery
+        if (deliveryFee > 0) {
+          cartItems.push({ type: 'delivery', name: 'Livraison', amount: deliveryFee });
+        }
+        // Installation
+        if (installationFee > 0) {
+          cartItems.push({ type: 'installation', name: 'Installation', amount: installationFee });
+        }
+
+        const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
+        const result = await computeCheckoutPricing(
+          cartItems,
+          appliedPromo?.code || null,
+          profile?.email || user?.email || null,
+          user?.id || null,
+          acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+          welcomeDiscountHook.isNewCustomer,
+        );
+
+        console.log("[LivePricing] Server RPC result:", result);
         setLiveServerPricing(result);
       } catch (err) {
-        console.error("[LivePricing] Error:", err);
+        console.error("[LivePricing] RPC Error:", err);
       } finally {
         setIsServerPricingLoading(false);
       }
-    }, 300);
+    }, 400);
 
     return () => {
       if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
     };
   }, [
-    selectedServices, selectedStreamingServices, paidChannelTotal,
+    selectedServices, selectedStreamingServices, selectedPaidChannels, paidChannelTotal,
     mobileLineQuantities, activationFee, deliveryFee, installationFee,
     terminalQuantity, hasTVService, hasInternetService, hasMobileService,
     totalMobileLineQuantity, acceptPreauthorized, appliedPromo?.code,
-    profile?.email, user?.email, user?.id,
+    profile?.email, user?.email, user?.id, welcomeDiscountHook.isNewCustomer,
   ]);
 
   // Totals: use server pricing when available, fallback to client-side for initial render
@@ -3280,8 +3293,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   onContinue={() => setStep(2)}
                   continueDisabled={selectedServices.length === 0}
                   welcomeDiscount={{
-                    isNewCustomer: welcomeDiscountHook.isNewCustomer,
-                    discountPercent: welcomeDiscountHook.discountPercent,
+                    isNewCustomer: welcomeDiscountHook.isNewCustomer && welcomeDiscountAmount > 0,
+                    discountPercent: welcomeDiscountAmount > 0 ? 50 : 0,
                     discountAmount: welcomeDiscountAmount,
                     label: welcomeDiscountHook.label,
                   }}
