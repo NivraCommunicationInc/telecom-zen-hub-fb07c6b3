@@ -4,6 +4,7 @@
  * appointment management, provisioning, dispatch routing, and order completion.
  */
 import { useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,9 +13,26 @@ import { toast } from "sonner";
 export type ActionState = "idle" | "loading" | "success" | "error";
 
 export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { logActivity } = useActivityLog();
+  const queryClient = useQueryClient();
   const [actionState, setActionState] = useState<ActionState>("idle");
+
+  const invalidateAfterMutation = useCallback(async () => {
+    await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: ["workbench-order", orderId] }),
+      queryClient.invalidateQueries({ queryKey: ["workbench-billing", orderId] }),
+      queryClient.invalidateQueries({ queryKey: ["workbench-invoices", orderId] }),
+      queryClient.invalidateQueries({ queryKey: ["workbench-audit", orderId] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] }),
+      queryClient.invalidateQueries({ queryKey: ["client-orders"] }),
+      queryClient.invalidateQueries({ queryKey: ["client-orders-all"] }),
+      queryClient.invalidateQueries({ queryKey: ["client-invoice-breakdowns"] }),
+      queryClient.invalidateQueries({ queryKey: ["pending-invoices-unified"] }),
+      queryClient.invalidateQueries({ queryKey: ["ledger-balance"] }),
+      queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] }),
+    ]);
+  }, [queryClient, orderId]);
 
   const exec = useCallback(async (
     fn: () => Promise<void>,
@@ -33,20 +51,45 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
         newValue: opts?.newValue,
         changedField: opts?.field,
       });
+      await Promise.allSettled([Promise.resolve(onRefresh()), invalidateAfterMutation()]);
       setActionState("success");
-      onRefresh();
     } catch (err: any) {
       setActionState("error");
       toast.error(err.message || "Erreur");
       throw err;
     }
-  }, [logActivity, onRefresh]);
+  }, [logActivity, onRefresh, invalidateAfterMutation]);
+
+  const getPrimaryInvoice = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("billing_invoices")
+      .select("id, customer_id, status, amount_paid, balance_due")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error("Aucune facture canonique liée à cette commande");
+    return data;
+  }, [orderId]);
 
   // ── ORDER STATUS ──────────────────────────────────────────────
   const updateOrderStatus = useCallback(async (newStatus: string, reason?: string) => {
     await exec(
       async () => {
-        const { error } = await supabase.from("orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderId);
+        const now = new Date().toISOString();
+        const patch: Record<string, any> = {
+          status: newStatus,
+          updated_at: now,
+        };
+
+        if (newStatus === "completed") {
+          patch.processed_at = now;
+          patch.processed_by = user?.id || null;
+        }
+
+        const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
         if (error) throw error;
         toast.success(`Statut → ${newStatus}`);
       },
@@ -54,42 +97,81 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
       { new_status: newStatus, reason },
       { field: "status", newValue: newStatus }
     );
-  }, [orderId, exec]);
+  }, [orderId, user?.id, exec]);
 
-  // ── PAYMENT ───────────────────────────────────────────────────
+  // ── PAYMENT (CANONICAL: billing_invoices + billing_payments via RPC) ──
   const confirmPayment = useCallback(async (reference: string, method: string, amount: number) => {
     await exec(
       async () => {
-        const { error } = await supabase.from("orders").update({
-          payment_status: "paid",
-          payment_reference: reference,
+        const invoice = await getPrimaryInvoice();
+        const normalizedMethod = method === "interac" || method === "paypal" ? method : "manual";
+
+        const { error: rpcError } = await (supabase as any).rpc("apply_payment_to_invoice", {
+          p_invoice_id: invoice.id,
+          p_customer_id: invoice.customer_id,
+          p_amount: amount,
+          p_method: normalizedMethod,
+          p_provider: "admin_workbench",
+          p_provider_payment_id: reference || `admin-${orderId}-${Date.now()}`,
+          p_source: "admin_workbench",
+          p_created_by_name: user?.email || "admin",
+          p_created_by_role: role || "admin",
+        });
+
+        if (rpcError) throw rpcError;
+
+        const { data: updatedInvoice, error: invoiceError } = await supabase
+          .from("billing_invoices")
+          .select("status, amount_paid, balance_due")
+          .eq("id", invoice.id)
+          .single();
+        if (invoiceError) throw invoiceError;
+
+        const orderPaymentStatus =
+          updatedInvoice.status === "paid" || updatedInvoice.status === "paid_by_promo"
+            ? "paid"
+            : updatedInvoice.status === "partially_paid"
+              ? "captured"
+              : updatedInvoice.status === "failed"
+                ? "failed"
+                : "pending";
+
+        const { error: orderError } = await supabase.from("orders").update({
+          payment_status: orderPaymentStatus,
+          payment_reference: reference || null,
           payment_method: method,
           payment_confirmed_at: new Date().toISOString(),
-          amount_paid: amount,
+          amount_paid: Number(updatedInvoice.amount_paid || 0),
+          updated_at: new Date().toISOString(),
         }).eq("id", orderId);
-        if (error) throw error;
 
-        // Also update billing_invoices for this order
-        await supabase.from("billing_invoices")
-          .update({ status: "paid", amount_paid: amount, balance_due: 0, paid_at: new Date().toISOString() })
-          .eq("order_id", orderId)
-          .eq("status", "pending");
-
+        if (orderError) throw orderError;
         toast.success("Paiement confirmé ✓");
       },
       "confirm_payment", "order", orderId,
       { reference, method, amount },
       { field: "payment_status", oldValue: "pending", newValue: "paid" }
     );
-  }, [orderId, exec]);
+  }, [orderId, role, user?.email, getPrimaryInvoice, exec]);
 
   const failPayment = useCallback(async (reason: string) => {
     await exec(
       async () => {
+        const now = new Date().toISOString();
         const { error } = await supabase.from("orders").update({
-          payment_status: "failed", failure_reason: reason,
+          payment_status: "failed",
+          failure_reason: reason,
+          updated_at: now,
         }).eq("id", orderId);
         if (error) throw error;
+
+        const { error: invoiceError } = await supabase
+          .from("billing_invoices")
+          .update({ status: "failed" })
+          .eq("order_id", orderId)
+          .in("status", ["pending", "overdue", "partially_paid"]);
+
+        if (invoiceError) throw invoiceError;
         toast.success("Paiement marqué échoué");
       },
       "fail_payment", "order", orderId, { reason },
@@ -127,7 +209,6 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
           assigned_by: user?.id || null,
         });
         if (error) throw error;
-        // Mark stock as assigned
         await supabase.from("inventory_stock").update({ status: "assigned" }).eq("id", stockItemId);
         toast.success("Équipement assigné ✓");
       },
@@ -153,7 +234,7 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
     );
   }, [user, exec]);
 
-  // ── PROVISIONING (uses correct column names) ──────────────────
+  // ── PROVISIONING ──────────────────────────────────────────────
   const retryProvisioning = useCallback(async (jobId: string) => {
     await exec(
       async () => {
@@ -233,7 +314,6 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
         const { error } = await supabase.from("orders").update(updateData).eq("id", orderId);
         if (error) throw error;
 
-        // If technician specified and there's an appointment, assign them
         if (technicianId) {
           await supabase.from("appointments")
             .update({ technician_id: technicianId, updated_at: new Date().toISOString() })
