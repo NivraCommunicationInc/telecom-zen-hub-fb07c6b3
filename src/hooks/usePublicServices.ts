@@ -302,18 +302,22 @@ export function useTVPlans(isFrench: boolean) {
 export function useEquipmentPrices() {
   const { data: services = [], isLoading, error } = usePublicServices();
 
-  const equipment = services.filter((s) => s.category === "Équipement");
+  // Equipment and fees come from different categories in the API
+  const allItems = services;
 
-  const routerPrice = equipment.find((e) => e.name.toLowerCase().includes("router"))?.price || 60;
-  const simPrice = equipment.find((e) => e.name.toLowerCase().includes("sim") && !e.name.toLowerCase().includes("esim"))?.price || 30;
-  const esimPrice = equipment.find((e) => e.name.toLowerCase().includes("esim"))?.price || 25;
-  const terminalPrice = equipment.find((e) => e.name.toLowerCase().includes("terminal"))?.price || 50;
+  const findBySkuOrName = (sku: string, namePart: string, fallback: number): number => {
+    const bySku = allItems.find((s) => s.sku === sku);
+    if (bySku) return Number(bySku.price);
+    const byName = allItems.find((e) => e.name.toLowerCase().includes(namePart));
+    if (byName) return Number(byName.price);
+    return fallback;
+  };
 
   return {
-    routerPrice: Number(routerPrice),
-    simPrice: Number(simPrice),
-    esimPrice: Number(esimPrice),
-    terminalPrice: Number(terminalPrice),
+    routerPrice: findBySkuOrName("EQ-ROUTER", "router", 60),
+    simPrice: findBySkuOrName("FEE-SIM", "carte sim", 25),
+    esimPrice: findBySkuOrName("FEE-ESIM", "esim", 25),
+    terminalPrice: findBySkuOrName("EQ-TVBOX", "terminal", 50),
     isLoading,
     error,
   };
