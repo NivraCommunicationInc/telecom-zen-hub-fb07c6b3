@@ -29,9 +29,9 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
       await fn();
       await logActivity(action, entityType, entityId, details, {
         reason: details?.reason,
-        old_value: opts?.oldValue,
-        new_value: opts?.newValue,
-        changed_field: opts?.field,
+        oldValue: opts?.oldValue,
+        newValue: opts?.newValue,
+        changedField: opts?.field,
       });
       setActionState("success");
       onRefresh();
