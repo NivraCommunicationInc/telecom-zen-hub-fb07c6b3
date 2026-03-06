@@ -2319,7 +2319,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // Create order_items, provisioning_jobs, shipments atomically
       try {
         const { orchestrateOrder } = await import("@/lib/orderOrchestration");
-        const orchResult = await orchestrateOrder(data.id);
+        const orchResult = await orchestrateOrder(data.id, supabase);
         if (orchResult.status === 'error') {
           console.error("[Orchestration] Failed (non-blocking):", orchResult.error);
           postStepErrors.push("orchestration");
