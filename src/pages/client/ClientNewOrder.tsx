@@ -1263,6 +1263,16 @@ const ClientNewOrder = () => {
 
         const preauthDisc = acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0;
 
+        console.log("[ServerPricing] Request payload:", {
+          requestId,
+          cartItems,
+          promoCode: appliedPromo?.code || null,
+          clientEmail: profile?.email || null,
+          clientId: user?.id || null,
+          preauthDiscount: preauthDisc,
+          isNewCustomer: welcomeDiscountHook.isNewCustomer,
+        });
+
         const result = await computeCheckoutPricing(
           cartItems,
           appliedPromo?.code || null,
