@@ -626,8 +626,7 @@ const ClientNewOrder = () => {
   const [liveServerPricing, setLiveServerPricing] = useState<import("@/lib/pricing/serverPricing").ServerPricingResult | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // Query client billing preferences to check if preauth already opted-in
+  const latestPricingRequestIdRef = useRef(0);
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
     queryKey: ["client-billing-preferences", user?.id],
     queryFn: async () => {
@@ -1199,6 +1198,7 @@ const ClientNewOrder = () => {
   // === SERVER PRICING: Debounced call to compute_checkout_pricing RPC ===
   useEffect(() => {
     if (selectedServices.length === 0) {
+      latestPricingRequestIdRef.current += 1;
       setLiveServerPricing(null);
       return;
     }
@@ -1206,8 +1206,8 @@ const ClientNewOrder = () => {
     if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
 
     serverPricingTimerRef.current = setTimeout(async () => {
+      const requestId = ++latestPricingRequestIdRef.current;
       setIsServerPricingLoading(true);
-      try {
         // Build cart items (same shape as buildPromoValidationPayload)
         const cartItems: CartLineItem[] = [];
         const mobileServices = selectedServices.filter(s => s.category === "Mobile");
