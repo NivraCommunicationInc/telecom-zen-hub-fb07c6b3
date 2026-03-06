@@ -1208,6 +1208,7 @@ const ClientNewOrder = () => {
     serverPricingTimerRef.current = setTimeout(async () => {
       const requestId = ++latestPricingRequestIdRef.current;
       setIsServerPricingLoading(true);
+      try {
         // Build cart items (same shape as buildPromoValidationPayload)
         const cartItems: CartLineItem[] = [];
         const mobileServices = selectedServices.filter(s => s.category === "Mobile");
