@@ -1217,11 +1217,11 @@ const ClientNewOrder = () => {
         selectedServices.forEach((s) => {
           if (mobileIds.has(s.id)) return;
           const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
-          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
+          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty });
         });
         mobileServices.forEach((s) => {
           const qty = mobileLineQuantities[s.id] || 1;
-          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
+          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty });
         });
         selectedPaidChannels.forEach((ch) => {
           cartItems.push({ type: "service", name: ch.name, amount: Number(ch.price) });
