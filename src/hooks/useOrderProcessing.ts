@@ -1,0 +1,405 @@
+/**
+ * useOrderProcessing — Data hook for Admin Order Processing Workspace
+ * Single source of truth: all reads/writes go through adminClient → canonical DB tables.
+ * Every mutation invalidates both admin and client query keys.
+ */
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { adminClient as supabase } from "@/integrations/backend";
+import { useAuth } from "@/hooks/useAuth";
+import { useActivityLog } from "@/hooks/useActivityLog";
+import { toast } from "sonner";
+
+/* ─── Types ─── */
+export type WorkflowStepId =
+  | "client_info"
+  | "order_review"
+  | "payment"
+  | "kyc"
+  | "fulfillment"
+  | "equipment"
+  | "activation"
+  | "contracts"
+  | "shipping"
+  | "completion";
+
+export type StepStatus = "pending" | "completed" | "blocked";
+
+export interface WorkflowStep {
+  id: WorkflowStepId;
+  label: string;
+  status: StepStatus;
+  optional?: boolean;
+}
+
+/* ─── Dynamic workflow per order type ─── */
+function buildWorkflow(order: any): WorkflowStep[] {
+  const serviceType = (order?.service_type || "").toLowerCase();
+  const hasKyc = order?.kyc_policy !== "none" && order?.kyc_policy !== "skip";
+
+  const base: WorkflowStep[] = [
+    { id: "client_info", label: "Information client", status: "pending" },
+    { id: "order_review", label: "Revue de commande", status: "pending" },
+    { id: "payment", label: "Paiement & Facture", status: "pending" },
+  ];
+
+  if (hasKyc) {
+    base.push({ id: "kyc", label: "Vérification KYC", status: "pending", optional: true });
+  }
+
+  if (serviceType.includes("mobile")) {
+    base.push(
+      { id: "activation", label: "Activation / SIM", status: "pending" },
+      { id: "equipment", label: "Équipement", status: "pending" },
+      { id: "contracts", label: "Contrat & Documents", status: "pending" },
+      { id: "shipping", label: "Expédition", status: "pending" },
+      { id: "completion", label: "Complétion", status: "pending" },
+    );
+  } else if (serviceType.includes("internet") || serviceType.includes("tv") || serviceType.includes("bundle")) {
+    base.push(
+      { id: "fulfillment", label: "Fulfillment / Routing", status: "pending" },
+      { id: "equipment", label: "Équipement", status: "pending" },
+      { id: "shipping", label: "Technicien / Expédition", status: "pending" },
+      { id: "activation", label: "Activation", status: "pending" },
+      { id: "contracts", label: "Contrat & Documents", status: "pending" },
+      { id: "completion", label: "Complétion", status: "pending" },
+    );
+  } else if (serviceType.includes("streaming")) {
+    base.push(
+      { id: "activation", label: "Activation Streaming", status: "pending" },
+      { id: "contracts", label: "Documents", status: "pending" },
+      { id: "completion", label: "Complétion", status: "pending" },
+    );
+  } else {
+    // Generic fallback
+    base.push(
+      { id: "fulfillment", label: "Fulfillment", status: "pending" },
+      { id: "equipment", label: "Équipement", status: "pending" },
+      { id: "activation", label: "Activation", status: "pending" },
+      { id: "contracts", label: "Contrat & Documents", status: "pending" },
+      { id: "shipping", label: "Expédition / Technicien", status: "pending" },
+      { id: "completion", label: "Complétion", status: "pending" },
+    );
+  }
+
+  return computeStepStatuses(base, order);
+}
+
+function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] {
+  if (!order) return steps;
+
+  return steps.map((step) => {
+    let status: StepStatus = "pending";
+    switch (step.id) {
+      case "client_info":
+        if (order.client_first_name && order.client_last_name && order.client_email) status = "completed";
+        break;
+      case "order_review":
+        if (order.status !== "pending" && order.status !== "submitted") status = "completed";
+        break;
+      case "payment":
+        if (["paid", "captured", "confirmed"].includes(order.payment_status || "")) status = "completed";
+        else if (order.payment_status === "failed") status = "blocked";
+        break;
+      case "kyc":
+        if (order.id_verification_status === "approved") status = "completed";
+        else if (order.id_verification_status === "rejected") status = "blocked";
+        break;
+      case "fulfillment":
+        if (order.fulfillment_type) status = "completed";
+        break;
+      case "equipment":
+        if (order.equipment_id || order.sim_number || order.serial_number) status = "completed";
+        break;
+      case "activation":
+        if (["active", "activated", "completed"].includes(order.status || "")) status = "completed";
+        break;
+      case "contracts":
+        if (order.related_contract_id) status = "completed";
+        break;
+      case "shipping":
+        if (order.tracking_number || order.shipped_at || order.technician_id) status = "completed";
+        break;
+      case "completion":
+        if (order.status === "completed") status = "completed";
+        break;
+    }
+    return { ...step, status };
+  });
+}
+
+/* ─── Invalidation keys (admin + client) ─── */
+const INVALIDATION_KEYS = [
+  "admin-orders",
+  "admin-order-detail",
+  "client-orders",
+  "client-invoices",
+  "client-invoice-breakdowns",
+  "ledger-balance",
+  "overdue-count-unified",
+  "admin-activity-logs",
+];
+
+/* ─── Main hook ─── */
+export function useOrderProcessing(orderId: string | undefined) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { logActivity } = useActivityLog();
+  const [activeStep, setActiveStep] = useState<WorkflowStepId>("client_info");
+
+  /* ── Fetch order with profile ── */
+  const orderQuery = useQuery({
+    queryKey: ["admin-order-detail", orderId],
+    enabled: !!orderId,
+    queryFn: async () => {
+      const { data: order, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", orderId!)
+        .single();
+      if (error) throw error;
+
+      // Fetch profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", order.user_id)
+        .maybeSingle();
+
+      // Fetch account
+      const { data: account } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("client_id", order.user_id)
+        .maybeSingle();
+
+      // Fetch order items
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("*")
+        .eq("order_id", orderId!);
+
+      // Fetch invoice from billing_invoices
+      const { data: invoice } = await supabase
+        .from("billing_invoices")
+        .select("*")
+        .eq("order_id", orderId!)
+        .maybeSingle();
+
+      // Fetch contracts
+      const { data: contracts } = await supabase
+        .from("contracts")
+        .select("*")
+        .eq("order_id", orderId!)
+        .order("created_at", { ascending: false });
+
+      // Fetch appointment
+      const { data: appointment } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("order_id", orderId!)
+        .maybeSingle();
+
+      // Fetch KYC session if linked
+      let kycSession = null;
+      if (order.identity_verification_session_id) {
+        const { data } = await supabase
+          .from("identity_verification_sessions")
+          .select("*")
+          .eq("id", order.identity_verification_session_id)
+          .maybeSingle();
+        kycSession = data;
+      }
+
+      // Fetch activity logs
+      const { data: activityLogs } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .eq("entity_type", "order")
+        .eq("entity_id", orderId!)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      return {
+        order,
+        profile,
+        account,
+        items: items || [],
+        invoice,
+        contracts: contracts || [],
+        appointment,
+        kycSession,
+        activityLogs: activityLogs || [],
+      };
+    },
+  });
+
+  const data = orderQuery.data;
+  const workflow = data?.order ? buildWorkflow(data.order) : [];
+
+  /* ── Invalidate everything ── */
+  const invalidateAll = () => {
+    INVALIDATION_KEYS.forEach((key) => {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    });
+  };
+
+  /* ── Update order fields ── */
+  const updateOrder = useMutation({
+    mutationFn: async (fields: Record<string, any>) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ ...fields, updated_at: new Date().toISOString() })
+        .eq("id", orderId!);
+      if (error) throw error;
+    },
+    onSuccess: () => invalidateAll(),
+  });
+
+  /* ── Change order status ── */
+  const changeStatus = async (newStatus: string, reason?: string) => {
+    const oldStatus = data?.order?.status;
+    await updateOrder.mutateAsync({ status: newStatus });
+    await logActivity(
+      "status_change",
+      "order",
+      orderId,
+      { old_status: oldStatus, new_status: newStatus, reason },
+      { changedField: "status", oldValue: oldStatus, newValue: newStatus, reason }
+    );
+    toast.success(`Statut mis à jour: ${newStatus}`);
+  };
+
+  /* ── Confirm payment ── */
+  const confirmPayment = async (reference?: string) => {
+    // Use the canonical RPC if available; fallback to direct update
+    try {
+      if (data?.invoice) {
+        const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
+          p_invoice_id: data.invoice.id,
+          p_amount: data.invoice.total,
+          p_method: data.order?.payment_method || "manual",
+          p_reference: reference || "admin-confirmed",
+          p_provider_payment_id: reference || `admin-${Date.now()}`,
+          p_admin_id: user?.id,
+        });
+        if (error) throw error;
+      } else {
+        // Fallback: update order directly
+        await updateOrder.mutateAsync({
+          payment_status: "confirmed",
+          payment_confirmed_at: new Date().toISOString(),
+          payment_reference: reference || "admin-confirmed",
+        });
+      }
+    } catch (err: any) {
+      // If RPC doesn't exist, do direct update
+      if (err?.message?.includes("function") || err?.code === "PGRST202") {
+        await updateOrder.mutateAsync({
+          payment_status: "confirmed",
+          payment_confirmed_at: new Date().toISOString(),
+          payment_reference: reference || "admin-confirmed",
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    await logActivity("payment_confirmed", "order", orderId, { reference });
+    invalidateAll();
+    toast.success("Paiement confirmé");
+  };
+
+  /* ── Update fulfillment type ── */
+  const setFulfillmentType = async (type: string) => {
+    await updateOrder.mutateAsync({
+      fulfillment_type: type,
+      fulfillment_assigned_at: new Date().toISOString(),
+    });
+    await logActivity("fulfillment_assigned", "order", orderId, { fulfillment_type: type });
+    toast.success(`Mode de livraison: ${type}`);
+  };
+
+  /* ── Assign equipment ── */
+  const assignEquipment = async (fields: {
+    sim_number?: string;
+    imei_number?: string;
+    serial_number?: string;
+    equipment_id?: string;
+    equipment_details?: any;
+  }) => {
+    await updateOrder.mutateAsync(fields);
+    await logActivity("equipment_assigned", "order", orderId, fields);
+    toast.success("Équipement assigné");
+  };
+
+  /* ── Update shipping ── */
+  const updateShipping = async (fields: {
+    carrier?: string;
+    tracking_number?: string;
+    tracking_url?: string;
+    shipped_at?: string;
+  }) => {
+    await updateOrder.mutateAsync(fields);
+    await logActivity("shipment_updated", "order", orderId, fields);
+    toast.success("Expédition mise à jour");
+  };
+
+  /* ── Assign technician ── */
+  const assignTechnician = async (technicianId: string) => {
+    await updateOrder.mutateAsync({ technician_id: technicianId });
+    await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
+    toast.success("Technicien assigné");
+  };
+
+  /* ── Add internal note ── */
+  const addNote = async (note: string) => {
+    const existing = data?.order?.internal_notes || "";
+    const timestamp = new Date().toISOString();
+    const entry = `[${timestamp}] ${user?.email}: ${note}`;
+    const updated = existing ? `${existing}\n${entry}` : entry;
+    await updateOrder.mutateAsync({ internal_notes: updated });
+    await logActivity("note_added", "order", orderId, { note });
+    toast.success("Note ajoutée");
+  };
+
+  /* ── Complete order ── */
+  const completeOrder = async () => {
+    await changeStatus("completed");
+    await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
+    toast.success("Commande complétée");
+  };
+
+  return {
+    // Data
+    order: data?.order,
+    profile: data?.profile,
+    account: data?.account,
+    items: data?.items || [],
+    invoice: data?.invoice,
+    contracts: data?.contracts || [],
+    appointment: data?.appointment,
+    kycSession: data?.kycSession,
+    activityLogs: data?.activityLogs || [],
+    isLoading: orderQuery.isLoading,
+    error: orderQuery.error,
+    refetch: orderQuery.refetch,
+
+    // Workflow
+    workflow,
+    activeStep,
+    setActiveStep,
+
+    // Mutations
+    updateOrder: updateOrder.mutateAsync,
+    changeStatus,
+    confirmPayment,
+    setFulfillmentType,
+    assignEquipment,
+    updateShipping,
+    assignTechnician,
+    addNote,
+    completeOrder,
+    isUpdating: updateOrder.isPending,
+  };
+}
