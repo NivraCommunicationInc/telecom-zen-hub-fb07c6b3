@@ -259,6 +259,23 @@ export function useOrderProcessing(orderId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(50);
 
+      // Fetch channel selections for TV/combo orders
+      let channelSelection = null;
+      const svcType = (order.service_type || "").toLowerCase();
+      if (svcType.includes("tv") || svcType.includes("combo") || svcType.includes("bundle")) {
+        const { data: cs } = await supabase
+          .from("channel_selections")
+          .select("*")
+          .eq("user_id", order.user_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        channelSelection = cs;
+      }
+
+      // Compute installation time estimate
+      const installationEstimate = computeInstallationEstimate(order, appointment);
+
       // Enrich order with canonical KYC status from session for workflow step computation
       const enrichedOrder = {
         ...order,
@@ -273,6 +290,8 @@ export function useOrderProcessing(orderId: string | undefined) {
         invoice,
         contracts: contracts || [],
         appointment,
+        channelSelection,
+        installationEstimate,
         kycSession,
         activityLogs: activityLogs || [],
       };
