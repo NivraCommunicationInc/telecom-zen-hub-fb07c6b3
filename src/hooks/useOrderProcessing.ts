@@ -33,6 +33,36 @@ export interface WorkflowStep {
   optional?: boolean;
 }
 
+/* ─── Installation time estimate ─── */
+function computeInstallationEstimate(order: any, appointment: any): {
+  label: string;
+  minutes: number;
+  wiringNeeded: boolean;
+} {
+  const svcType = (order?.service_type || "").toLowerCase();
+  const installType = (order?.installation_type || appointment?.installation_method || "").toLowerCase();
+  const wiringNeeded = installType.includes("new") || installType.includes("complex") || installType.includes("n2");
+
+  let minutes = 60;
+  let label = "~1 heure";
+
+  if (wiringNeeded) {
+    minutes = 120;
+    label = "2 heures+ (nouveau câblage requis)";
+  } else if (svcType.includes("tv") && svcType.includes("internet")) {
+    minutes = 75;
+    label = "~1h15 (Internet + TV, câblage existant)";
+  } else if (svcType.includes("tv")) {
+    minutes = 45;
+    label = "~45 min (TV, câblage existant)";
+  } else if (svcType.includes("internet")) {
+    minutes = 30;
+    label = "~30 min (Internet, câblage existant)";
+  }
+
+  return { label, minutes, wiringNeeded };
+}
+
 /* ─── Dynamic workflow per order type ─── */
 function buildWorkflow(order: any): WorkflowStep[] {
   const serviceType = (order?.service_type || "").toLowerCase();
@@ -617,6 +647,8 @@ export function useOrderProcessing(orderId: string | undefined) {
     invoice: data?.invoice,
     contracts: data?.contracts || [],
     appointment: data?.appointment,
+    channelSelection: data?.channelSelection || null,
+    installationEstimate: data?.installationEstimate || null,
     kycSession: data?.kycSession,
     activityLogs: data?.activityLogs || [],
     isLoading: orderQuery.isLoading,
