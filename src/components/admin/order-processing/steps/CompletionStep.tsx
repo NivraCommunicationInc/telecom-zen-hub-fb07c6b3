@@ -13,15 +13,17 @@ interface Props { proc: any; }
 const ORDER_FINAL_STATUSES = [
   { value: "pending", label: "En attente" },
   { value: "validated", label: "Validé" },
-  { value: "fraud", label: "Fraude" },
+  { value: "prepared", label: "Préparé" },
   { value: "shipped", label: "Expédié" },
+  { value: "delivered", label: "Livré" },
   { value: "installation_scheduled", label: "Installation planifiée" },
   { value: "installed", label: "Installé" },
   { value: "activated", label: "Activé" },
+  { value: "completed", label: "Complété" },
   { value: "suspended", label: "Suspendu" },
+  { value: "fraud", label: "Fraude" },
   { value: "invalid_payment", label: "Paiement invalide" },
   { value: "incomplete", label: "Incomplet" },
-  { value: "completed", label: "Complété" },
   { value: "cancelled", label: "Annulé" },
 ];
 

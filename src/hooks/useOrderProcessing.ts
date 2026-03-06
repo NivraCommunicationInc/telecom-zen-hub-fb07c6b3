@@ -102,8 +102,9 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
         else if (order.payment_status === "failed") status = "blocked";
         break;
       case "kyc":
-        if (order.id_verification_status === "approved") status = "completed";
-        else if (order.id_verification_status === "rejected") status = "blocked";
+        // Read canonical KYC status from the linked session first, fallback to order field
+        if ((order._kycSessionStatus || order.id_verification_status) === "approved") status = "completed";
+        else if ((order._kycSessionStatus || order.id_verification_status) === "rejected") status = "blocked";
         break;
       case "fulfillment":
         if (order.fulfillment_type) status = "completed";
@@ -248,8 +249,14 @@ export function useOrderProcessing(orderId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(50);
 
+      // Enrich order with canonical KYC status from session for workflow step computation
+      const enrichedOrder = {
+        ...order,
+        _kycSessionStatus: kycSession?.status || null,
+      };
+
       return {
-        order,
+        order: enrichedOrder,
         profile,
         account,
         items: items || [],
@@ -307,12 +314,23 @@ export function useOrderProcessing(orderId: string | undefined) {
       { changedField: "status", oldValue: oldStatus, newValue: newStatus, reason }
     );
 
-    // Queue email notification to client
+    // Queue email notification to client — map to existing template keys
     const email = getClientEmail();
     if (email) {
+      // Map status to known template keys in process-email-queue
+      const statusTemplateMap: Record<string, string> = {
+        shipped: "order_shipped",
+        delivered: "order_completed",
+        completed: "order_completed",
+        activated: "order_completed",
+        installed: "order_completed",
+        cancelled: "order_cancelled",
+      };
+      const templateKey = statusTemplateMap[newStatus] || "order_submitted";
+
       await queueClientEmail({
         to_email: email,
-        template_key: "order_status_changed",
+        template_key: templateKey,
         event_key: `order_status_${orderId}_${newStatus}_${Date.now()}`,
         subject: `Mise à jour de votre commande — ${newStatus}`,
         entity_id: orderId,
@@ -322,6 +340,7 @@ export function useOrderProcessing(orderId: string | undefined) {
           old_status: oldStatus,
           new_status: newStatus,
           reason: reason || "",
+          status: newStatus,
         },
       });
     }
@@ -518,13 +537,20 @@ export function useOrderProcessing(orderId: string | undefined) {
     const { error } = await supabase
       .from("contracts")
       .update({
-        signed_by_admin: true,
+        is_signed: true,
         admin_signed_at: new Date().toISOString(),
+        admin_signer_id: user?.id || null,
+        admin_signer_name: user?.email || "Admin",
         status: "signed_by_admin",
+        updated_at: new Date().toISOString(),
       })
       .eq("id", contractId);
     if (error) throw error;
     await logActivity("contract_signed_admin", "order", orderId, { contract_id: contractId });
+
+    // Also update order to link the contract
+    await updateOrder.mutateAsync({ related_contract_id: contractId });
+
     invalidateAll();
     toast.success("Contrat signé (admin)");
   };

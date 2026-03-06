@@ -12,7 +12,8 @@ interface Props { proc: any; }
 export function KycStep({ proc }: Props) {
   const { order, kycSession } = proc;
   const [note, setNote] = useState("");
-  const kycStatus = kycSession?.status || order.id_verification_status || "none";
+  // Canonical KYC status: session is the source of truth, order field is fallback
+  const kycStatus = kycSession?.status || order.id_verification_status || order._kycSessionStatus || "none";
 
   const handleApprove = async () => {
     await proc.updateOrder({
