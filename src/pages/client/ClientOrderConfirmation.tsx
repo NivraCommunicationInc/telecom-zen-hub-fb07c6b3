@@ -81,6 +81,7 @@ interface OrderData {
   promo_discount_amount?: number;
   preauth_discount?: number;
   account_id?: string;
+  pricing_snapshot?: any;
   // Address fields from order
   shipping_address?: string;
   shipping_city?: string;
