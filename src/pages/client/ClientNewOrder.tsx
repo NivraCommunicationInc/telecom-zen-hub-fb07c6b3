@@ -2698,7 +2698,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     user?.id,
   ]);
 
-  // === LIVE SERVER PRICING: Debounced call to compute_checkout_pricing on cart changes ===
+  // === LIVE PRICING: Client-side calculation using API product prices (no server RPC needed) ===
+  // The external API prices are already loaded via useQuery. We compute taxes client-side
+  // for the live preview only. The authoritative pricing comes from POST /create-order at submission.
   useEffect(() => {
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       setLiveServerPricing(null);
@@ -2710,43 +2712,54 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     serverPricingTimerRef.current = setTimeout(async () => {
       setIsServerPricingLoading(true);
       try {
-        const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
-        const cartItems = [
-          ...selectedServices.map(s => ({
-            type: 'service' as const,
-            name: s.name,
-            amount: Number(s.price),
-            quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
-          })),
-          ...selectedStreamingServices.map(s => ({
-            type: 'service' as const,
-            name: s.name,
-            amount: Number(s.monthly_price),
-            quantity: 1,
-          })),
-          ...(paidChannelTotal > 0 ? [{ type: 'service' as const, name: 'Chaînes premium', amount: paidChannelTotal, quantity: 1 }] : []),
-          ...(activationFee > 0 ? [{ type: 'activation' as const, name: 'Activation', amount: activationFee, quantity: 1 }] : []),
-          ...(deliveryFee > 0 ? [{ type: 'delivery' as const, name: 'Livraison', amount: deliveryFee, quantity: 1 }] : []),
-          ...(installationFee > 0 ? [{ type: 'installation' as const, name: 'Installation', amount: installationFee, quantity: 1 }] : []),
-          ...((hasInternetService || hasTVService) ? [{ type: 'equipment' as const, name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price, quantity: 1 }] : []),
-          ...(hasTVService ? [{ type: 'equipment' as const, name: 'Terminal', amount: TERMINAL_CONFIG.price, quantity: terminalQuantity }] : []),
-          ...(hasMobileService ? [{ type: 'equipment' as const, name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price, quantity: totalMobileLineQuantity }] : []),
-        ];
-        const result = await computeCheckoutPricing(
-          cartItems,
-          appliedPromo?.code || null,
-          profile?.email || user?.email || null,
-          user?.id || null,
-          acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-        );
-        console.log("[LiveServerPricing] Updated:", result);
+        // Calculate totals from API prices (already in selectedServices)
+        const serviceTotal = selectedServices.reduce((sum, s) => {
+          if (s.category === "Mobile") {
+            return sum + Number(s.price) * (mobileLineQuantities[s.id] || 1);
+          }
+          return sum + Number(s.price);
+        }, 0);
+        const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+        const recurringSubtotal = serviceTotal + paidChannelTotal + streamingTotal;
+        const oneTimeSubtotal = activationFee + deliveryFee + installationFee
+          + ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0)
+          + (hasTVService ? TERMINAL_CONFIG.price * terminalQuantity : 0)
+          + (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
+        
+        const taxableBase = recurringSubtotal + oneTimeSubtotal;
+        const tps = Math.round(taxableBase * 0.05 * 100) / 100;
+        const tvq = Math.round(taxableBase * 0.09975 * 100) / 100;
+        const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
+
+        const result = {
+          recurring_subtotal: recurringSubtotal,
+          one_time_subtotal: oneTimeSubtotal,
+          discount_total: 0,
+          preauth_discount: 0,
+          taxable_base: taxableBase,
+          tps_amount: tps,
+          tvq_amount: tvq,
+          grand_total: grandTotal,
+          promo_applied: null,
+          computed_at: new Date().toISOString(),
+          cents: {
+            recurring_subtotal: Math.round(recurringSubtotal * 100),
+            one_time_subtotal: Math.round(oneTimeSubtotal * 100),
+            discount_total: 0,
+            taxable_base: Math.round(taxableBase * 100),
+            tps: Math.round(tps * 100),
+            tvq: Math.round(tvq * 100),
+            grand_total: Math.round(grandTotal * 100),
+          },
+        };
+        console.log("[LivePricing] Updated from API prices:", result);
         setLiveServerPricing(result);
       } catch (err) {
-        console.error("[LiveServerPricing] Error:", err);
+        console.error("[LivePricing] Error:", err);
       } finally {
         setIsServerPricingLoading(false);
       }
-    }, 400); // 400ms debounce
+    }, 300);
 
     return () => {
       if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
