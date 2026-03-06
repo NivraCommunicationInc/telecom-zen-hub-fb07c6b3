@@ -131,7 +131,7 @@ export async function fetchOrderDocumentData(orderId: string): Promise<OrderDocu
   if (invoiceId) {
     // Fetch breakdown from RPC (SINGLE SOURCE OF TRUTH)
     try {
-      breakdown = await fetchInvoiceBreakdown(invoiceId);
+      breakdown = await fetchInvoiceBreakdown(invoiceId, supabase);
     } catch (e) {
       console.error("[DocumentBuilder] ⚠️ Breakdown RPC failed — documents may have inconsistent totals:", e);
     }
