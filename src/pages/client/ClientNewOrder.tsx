@@ -1726,38 +1726,86 @@ const ClientNewOrder = () => {
       });
 
       // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
-      // === SERVER-SIDE PRICING (authoritative) ===
-      const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
-      const cartItemsForPricing = [
-        ...selectedServices.map(s => ({
-          type: 'service' as const,
-          name: s.name,
-          amount: Number(s.price),
-          quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
-        })),
-        ...selectedStreamingServices.map(s => ({
-          type: 'service' as const,
-          name: s.name,
-          amount: Number(s.monthly_price),
-          quantity: 1,
-        })),
-        ...(paidChannelTotal > 0 ? [{ type: 'service' as const, name: 'Chaînes premium', amount: paidChannelTotal, quantity: 1 }] : []),
-        ...(orderActivationFee > 0 ? [{ type: 'activation' as const, name: 'Activation', amount: orderActivationFee, quantity: 1 }] : []),
-        ...(orderDeliveryFee > 0 ? [{ type: 'delivery' as const, name: 'Livraison', amount: orderDeliveryFee, quantity: 1 }] : []),
-        ...(installationFee > 0 ? [{ type: 'installation' as const, name: 'Installation', amount: installationFee, quantity: 1 }] : []),
-        ...((hasInternetService || hasTVService) ? [{ type: 'equipment' as const, name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price, quantity: 1 }] : []),
-        ...(hasTVService ? [{ type: 'equipment' as const, name: 'Terminal', amount: TERMINAL_CONFIG.price, quantity: terminalQuantity }] : []),
-        ...(hasMobileService ? [{ type: 'equipment' as const, name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price, quantity: totalMobileLineQuantity }] : []),
-      ];
+      // === EXTERNAL API PRICING (authoritative) ===
+      // Build SKU-based items array for the external Nivra API
+      const nivraItems: NivraOrderItem[] = [];
 
-      const serverPricing = await computeCheckoutPricing(
-        cartItemsForPricing,
-        appliedPromo?.code || null,
-        profile?.email || user.email || null,
-        user.id,
-        acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-      );
-      console.log("[ServerPricing] Authoritative totals:", serverPricing);
+      // Service plans (use SKU from the service object)
+      for (const s of selectedServices) {
+        const sku = s.sku || findSkuByName(allNivraProducts, s.name);
+        if (sku) {
+          nivraItems.push({
+            sku,
+            quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
+          });
+        } else {
+          console.warn("[NivraCheckout] No SKU found for service:", s.name);
+        }
+      }
+
+      // Equipment: Router
+      if (hasInternetService || hasTVService) {
+        nivraItems.push({ sku: SKU.ROUTER, quantity: 1 });
+      }
+
+      // Equipment: TV Terminal
+      if (hasTVService) {
+        nivraItems.push({ sku: SKU.TVBOX, quantity: terminalQuantity });
+      }
+
+      // Equipment: SIM
+      if (hasMobileService) {
+        nivraItems.push({ sku: SKU.SIM, quantity: totalMobileLineQuantity });
+      }
+
+      // Fees: Activation
+      if (orderActivationFee > 0) {
+        const uniqueCategories = new Set(selectedServices.map(s => s.category));
+        nivraItems.push({
+          sku: uniqueCategories.size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1,
+          quantity: 1,
+        });
+      }
+
+      // Fees: Delivery
+      if (orderDeliveryFee > 0) {
+        nivraItems.push({ sku: SKU.DELIVERY, quantity: 1 });
+      }
+
+      // Call external API to create order and get authoritative pricing
+      const customerName = `${firstName} ${lastName}`.trim();
+      const customerEmail = profile?.email || user.email || "";
+
+      const nivraOrderResponse = await createNivraOrder({
+        customer_name: customerName,
+        customer_email: customerEmail,
+        items: nivraItems,
+      });
+      console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
+
+      // Use external API response as authoritative pricing
+      const serverPricing = {
+        grand_total: nivraOrderResponse.total,
+        tps_amount: nivraOrderResponse.gst,
+        tvq_amount: nivraOrderResponse.qst,
+        taxable_base: nivraOrderResponse.subtotal,
+        recurring_subtotal: monthlyRecurring,
+        one_time_subtotal: oneTimeFees,
+        discount_total: 0,
+        preauth_discount: 0,
+        promo_applied: null,
+        computed_at: new Date().toISOString(),
+        cents: {
+          recurring_subtotal: Math.round(monthlyRecurring * 100),
+          one_time_subtotal: Math.round(oneTimeFees * 100),
+          discount_total: 0,
+          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
+          tps: Math.round(nivraOrderResponse.gst * 100),
+          tvq: Math.round(nivraOrderResponse.qst * 100),
+          grand_total: Math.round(nivraOrderResponse.total * 100),
+        },
+      };
+      console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
 
       // Use server-side totals for the order (authoritative)
       const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
