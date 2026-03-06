@@ -1,19 +1,25 @@
 /**
  * PaymentInvoiceStep — Step 3: Payment & Invoice (canonical source only)
  * NO client-side recalculation. Reads billing_invoices exclusively.
+ * All buttons are fully functional.
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, FileText, Send, RefreshCw, CreditCard } from "lucide-react";
+import { CheckCircle2, XCircle, FileText, Send, CreditCard, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { generateOrderDocuments } from "@/lib/pdf";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
 
 interface Props { proc: any; }
 
 export function PaymentInvoiceStep({ proc }: Props) {
   const { order, invoice } = proc;
   const [reference, setReference] = useState(order.payment_reference || "");
+  const [loading, setLoading] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
 
   // Canonical values from billing_invoices (V2), fallback to order
   const invoiceNumber = invoice?.invoice_number || order.order_number;
@@ -27,17 +33,72 @@ export function PaymentInvoiceStep({ proc }: Props) {
   const isPaid = ["paid", "captured", "confirmed"].includes(paymentStatus);
 
   const handleConfirm = async () => {
-    await proc.confirmPayment(reference || undefined);
+    setLoading("confirm");
+    try {
+      await proc.confirmPayment(reference || undefined);
+    } finally {
+      setLoading(null);
+    }
   };
 
   const handleMarkInvalid = async () => {
-    await proc.updateOrder({ payment_status: "failed" });
-    toast.warning("Paiement marqué comme invalide");
+    setLoading("invalid");
+    try {
+      await proc.markPaymentInvalid();
+    } finally {
+      setLoading(null);
+    }
   };
 
   const handleMarkPartial = async () => {
-    await proc.updateOrder({ payment_status: "partial" });
-    toast.info("Paiement marqué comme partiel");
+    setLoading("partial");
+    try {
+      await proc.markPaymentPartial();
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleViewInvoice = async () => {
+    setLoading("view");
+    try {
+      const result = await generateOrderDocuments(order.id);
+      if (!result) {
+        toast.error("Données de facture introuvables");
+        return;
+      }
+      if (result.invoice.blob) {
+        setPdfBlob(result.invoice.blob);
+        setPdfViewerOpen(true);
+      } else {
+        toast.error("Erreur lors de la génération de la facture");
+      }
+    } catch (err) {
+      console.error("[Payment] View invoice error:", err);
+      toast.error("Erreur lors de l'ouverture de la facture");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleSendToClient = async () => {
+    setLoading("send");
+    try {
+      await proc.sendClientNotification(
+        "invoice_sent",
+        `Facture ${invoiceNumber || ""} — Nivra`,
+        {
+          invoice_number: invoiceNumber || "",
+          total: Number(total).toFixed(2),
+          balance_due: Number(balanceDue).toFixed(2),
+        }
+      );
+    } catch (err) {
+      console.error("[Payment] Send error:", err);
+      toast.error("Erreur lors de l'envoi");
+    } finally {
+      setLoading(null);
+    }
   };
 
   return (
@@ -93,23 +154,37 @@ export function PaymentInvoiceStep({ proc }: Props) {
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
         {!isPaid && (
-          <Button size="sm" onClick={handleConfirm} disabled={proc.isUpdating} className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Confirmer paiement
+          <Button size="sm" onClick={handleConfirm} disabled={loading === "confirm" || proc.isUpdating} className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+            {loading === "confirm" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
+            Confirmer paiement
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={handleMarkPartial} disabled={proc.isUpdating} className="text-xs h-8 border-gray-300 text-gray-700">
-          <CreditCard className="w-3 h-3 mr-1" /> Paiement partiel
+        <Button size="sm" variant="outline" onClick={handleMarkPartial} disabled={loading === "partial" || proc.isUpdating} className="text-xs h-8 border-gray-300 text-gray-700">
+          {loading === "partial" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CreditCard className="w-3 h-3 mr-1" />}
+          Paiement partiel
         </Button>
-        <Button size="sm" variant="outline" onClick={handleMarkInvalid} disabled={proc.isUpdating} className="text-xs h-8 border-red-300 text-red-600 hover:bg-red-50">
-          <XCircle className="w-3 h-3 mr-1" /> Invalider paiement
+        <Button size="sm" variant="outline" onClick={handleMarkInvalid} disabled={loading === "invalid" || proc.isUpdating} className="text-xs h-8 border-red-300 text-red-600 hover:bg-red-50">
+          {loading === "invalid" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+          Invalider paiement
         </Button>
-        <Button size="sm" variant="outline" className="text-xs h-8 border-gray-300 text-gray-700">
-          <FileText className="w-3 h-3 mr-1" /> Voir facture
+        <Button size="sm" variant="outline" onClick={handleViewInvoice} disabled={loading === "view"} className="text-xs h-8 border-gray-300 text-gray-700">
+          {loading === "view" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
+          Voir facture
         </Button>
-        <Button size="sm" variant="outline" className="text-xs h-8 border-gray-300 text-gray-700">
-          <Send className="w-3 h-3 mr-1" /> Envoyer au client
+        <Button size="sm" variant="outline" onClick={handleSendToClient} disabled={loading === "send"} className="text-xs h-8 border-gray-300 text-gray-700">
+          {loading === "send" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
+          Envoyer au client
         </Button>
       </div>
+
+      {/* PDF Viewer Dialog */}
+      <PDFViewerDialog
+        open={pdfViewerOpen}
+        onOpenChange={setPdfViewerOpen}
+        pdfBlob={pdfBlob}
+        title={`Facture ${invoiceNumber || ""}`}
+        filename={`Facture_${invoiceNumber || ""}.pdf`}
+      />
     </div>
   );
 }

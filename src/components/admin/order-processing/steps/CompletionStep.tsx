@@ -1,9 +1,10 @@
 /**
  * CompletionStep — Step 10: Final verification checklist + complete order
+ * All buttons are fully functional.
  */
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, Circle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Circle, AlertTriangle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const ORDER_FINAL_STATUSES = [
 export function CompletionStep({ proc }: Props) {
   const { order } = proc;
   const [finalStatus, setFinalStatus] = useState(order.status || "completed");
+  const [loading, setLoading] = useState(false);
 
   // Checklist items
   const checks = [
@@ -43,10 +45,15 @@ export function CompletionStep({ proc }: Props) {
   const completedCount = checks.filter((c) => c.done).length;
 
   const handleComplete = async () => {
-    if (finalStatus === "completed") {
-      await proc.completeOrder();
-    } else {
-      await proc.changeStatus(finalStatus);
+    setLoading(true);
+    try {
+      if (finalStatus === "completed") {
+        await proc.completeOrder();
+      } else {
+        await proc.changeStatus(finalStatus);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,7 +118,7 @@ export function CompletionStep({ proc }: Props) {
         <Button
           size="sm"
           onClick={handleComplete}
-          disabled={proc.isUpdating || order.status === "completed"}
+          disabled={loading || proc.isUpdating}
           className={cn(
             "text-xs h-9 px-6",
             finalStatus === "completed"
@@ -119,7 +126,7 @@ export function CompletionStep({ proc }: Props) {
               : "bg-gray-900 hover:bg-gray-800 text-white"
           )}
         >
-          <CheckCircle2 className="w-4 h-4 mr-1.5" />
+          {loading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />}
           {finalStatus === "completed" ? "Compléter la commande" : "Appliquer le statut"}
         </Button>
       </div>
