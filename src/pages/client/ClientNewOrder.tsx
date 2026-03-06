@@ -1821,7 +1821,7 @@ const ClientNewOrder = () => {
         shipping_postal_code: serviceAddressPostalCode || null,
         service_type: serviceNames,
         category: isDeliveryOnlyOrder ? "Delivery" : categories,
-        subtotal: grossSubtotal,
+        subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
         delivery_fee: orderDeliveryFee,
         activation_fee: orderActivationFee,
         installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
@@ -1857,7 +1857,7 @@ const ClientNewOrder = () => {
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
         // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
         equipment_details: wrapLineItemsForOrder(lineItems, {
-          subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
+          subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
           discount_amount: cappedDiscount,
           base_amount: baseAmount,
           tps_amount: tpsAmount,
