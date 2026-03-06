@@ -73,6 +73,7 @@ import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/v
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
+import { computeCheckoutPricing, type CartLineItem } from "@/lib/pricing/serverPricing";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
