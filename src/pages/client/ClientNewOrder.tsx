@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import React from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { ProfessionalOrderSummary } from "@/components/checkout/ProfessionalOrderSummary";
@@ -73,7 +73,6 @@ import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/v
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
-import { computeCheckoutPricing, type CartLineItem } from "@/lib/pricing/serverPricing";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
@@ -625,9 +624,9 @@ const ClientNewOrder = () => {
   // === LIVE SERVER PRICING (authoritative for summary display) ===
   const [liveServerPricing, setLiveServerPricing] = useState<import("@/lib/pricing/serverPricing").ServerPricingResult | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
-  const [serverPricingError, setServerPricingError] = useState<string | null>(null);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestPricingRequestIdRef = useRef(0);
+  
+  // Query client billing preferences to check if preauth already opted-in
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
     queryKey: ["client-billing-preferences", user?.id],
     queryFn: async () => {
@@ -1196,126 +1195,6 @@ const ClientNewOrder = () => {
     return false;
   };
 
-  // === SERVER PRICING: Debounced call to compute_checkout_pricing RPC ===
-  useEffect(() => {
-    if (selectedServices.length === 0) {
-      latestPricingRequestIdRef.current += 1;
-      setLiveServerPricing(null);
-      setServerPricingError(null);
-      return;
-    }
-
-    if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
-
-    serverPricingTimerRef.current = setTimeout(async () => {
-      const requestId = ++latestPricingRequestIdRef.current;
-      setIsServerPricingLoading(true);
-      setServerPricingError(null);
-
-      try {
-        // Build cart items (same shape as buildPromoValidationPayload)
-        const cartItems: CartLineItem[] = [];
-        const mobileServices = selectedServices.filter(s => s.category === "Mobile");
-        const mobileIds = new Set(mobileServices.map((s) => s.id));
-        const totalMobileLines = mobileServices.reduce((sum, s) => sum + (mobileLineQuantities[s.id] || 1), 0);
-
-        selectedServices.forEach((s) => {
-          if (mobileIds.has(s.id)) return;
-          const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
-          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty });
-        });
-        mobileServices.forEach((s) => {
-          const qty = mobileLineQuantities[s.id] || 1;
-          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty });
-        });
-        selectedPaidChannels.forEach((ch) => {
-          cartItems.push({ type: "service", name: ch.name, amount: Number(ch.price) });
-        });
-        selectedStreamingServices.forEach((s) => {
-          cartItems.push({ type: "service", name: `Streaming+ — ${s.name}`, amount: Number(s.monthly_price) });
-        });
-
-        // Equipment
-        if (hasTVService && terminalQuantity > 0) {
-          cartItems.push({ type: "equipment", name: `${TERMINAL_CONFIG.name} x${terminalQuantity}`, amount: terminalQuantity * TERMINAL_CONFIG.price });
-        }
-        if (hasInternetService || hasTVService) {
-          cartItems.push({ type: "equipment", name: ROUTER_CONFIG_DYNAMIC.name, amount: ROUTER_CONFIG_DYNAMIC.price });
-        }
-        if (hasMobileService) {
-          cartItems.push({ type: "equipment", name: `${SIM_CONFIG_DYNAMIC.physical.name} x${totalMobileLines}`, amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLines });
-        }
-
-        // Activation
-        const actFee = calculateActivationFee();
-        if (actFee > 0) {
-          cartItems.push({ type: "activation", name: "Frais d'activation", amount: actFee });
-        }
-
-        // Delivery
-        if (isDeliveryOnlyOrder && deliveryChoice) {
-          const deliveryFeeAmount = deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : DELIVERY_CONFIG.standard.fee;
-          cartItems.push({ type: "delivery", name: "Frais de livraison", amount: deliveryFeeAmount });
-        } else if (!isDeliveryOnlyOrder && installationChoice === "auto") {
-          cartItems.push({ type: "delivery", name: "Frais de livraison", amount: 30 });
-        }
-
-        // Installation
-        if (!isDeliveryOnlyOrder && installationChoice === "technician") {
-          cartItems.push({ type: "installation", name: "Frais d'installation technicien", amount: 50 });
-        }
-
-        const preauthDisc = acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0;
-
-        console.log("[ServerPricing] Request payload:", {
-          requestId,
-          cartItems,
-          promoCode: appliedPromo?.code || null,
-          clientEmail: profile?.email || null,
-          clientId: user?.id || null,
-          preauthDiscount: preauthDisc,
-          isNewCustomer: welcomeDiscountHook.isNewCustomer,
-        });
-
-        const result = await computeCheckoutPricing(
-          cartItems,
-          appliedPromo?.code || null,
-          profile?.email || null,
-          user?.id || null,
-          preauthDisc,
-          welcomeDiscountHook.isNewCustomer,
-          supabase,
-        );
-
-        console.log("[ServerPricing] Live pricing result:", result);
-        if (requestId === latestPricingRequestIdRef.current) {
-          setLiveServerPricing(result);
-          setServerPricingError(null);
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Erreur de tarification serveur";
-        console.error("[ServerPricing] Failed to compute live pricing:", err);
-        if (requestId === latestPricingRequestIdRef.current) {
-          setLiveServerPricing(null);
-          setServerPricingError(message);
-        }
-      } finally {
-        if (requestId === latestPricingRequestIdRef.current) {
-          setIsServerPricingLoading(false);
-        }
-      }
-    }, 400);
-
-    return () => {
-      if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
-    };
-  }, [
-    selectedServices, selectedPaidChannels, selectedStreamingServices,
-    mobileLineQuantities, terminalQuantity, hasTVService, hasInternetService, hasMobileService,
-    isDeliveryOnlyOrder, deliveryChoice, installationChoice, acceptPreauthorized,
-    appliedPromo?.code, profile?.email, user?.id, welcomeDiscountHook.isNewCustomer,
-  ]);
-
   // Promo validation helpers
   type PromoCartItemType = "service" | "one_time_fee" | "equipment" | "delivery" | "installation";
   type PromoCartItem = { type: PromoCartItemType; amount: number; name: string };
@@ -1463,7 +1342,6 @@ const ClientNewOrder = () => {
           client_id: user?.id,
           cart_items: payload.cartItems,
           subtotal_before_discount: payload.subtotalBeforeDiscount,
-          is_new_customer: welcomeDiscountHook.isNewCustomer,
         },
       });
 
@@ -1905,16 +1783,33 @@ const ClientNewOrder = () => {
       });
       console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
 
-      // === SERVER PRICING — SINGLE SOURCE OF TRUTH ===
-      // liveServerPricing must be loaded before order creation (enforced in handleSubmit)
-      if (!liveServerPricing) {
-        throw new Error("Le calcul des prix n'est pas encore terminé. Veuillez attendre quelques secondes.");
-      }
+      // Use external API response as authoritative pricing
       const serverPricing = {
-        ...liveServerPricing,
-        computed_at: liveServerPricing.computed_at || new Date().toISOString(),
+        grand_total: nivraOrderResponse.total,
+        tps_amount: nivraOrderResponse.gst,
+        tvq_amount: nivraOrderResponse.qst,
+        taxable_base: nivraOrderResponse.subtotal,
+        recurring_subtotal: monthlyRecurring,
+        one_time_subtotal: oneTimeFees,
+        discount_total: 0,
+        preauth_discount: 0,
+        promo_applied: null,
+        computed_at: new Date().toISOString(),
+        cents: {
+          recurring_subtotal: Math.round(monthlyRecurring * 100),
+          one_time_subtotal: Math.round(oneTimeFees * 100),
+          discount_total: 0,
+          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
+          tps: Math.round(nivraOrderResponse.gst * 100),
+          tvq: Math.round(nivraOrderResponse.qst * 100),
+          grand_total: Math.round(nivraOrderResponse.total * 100),
+        },
       };
-      console.log("[ServerPricing] Authoritative totals (from RPC, no fallback):", serverPricing);
+      console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
+
+      // Use server-side totals for the order (authoritative)
+      const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+      const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
       
       // Cap discount using server-side computed discount (enforces min_payable_cents)
       const cappedDiscount = serverPricing.discount_total;
@@ -1942,7 +1837,7 @@ const ClientNewOrder = () => {
         shipping_postal_code: serviceAddressPostalCode || null,
         service_type: serviceNames,
         category: isDeliveryOnlyOrder ? "Delivery" : categories,
-        subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
+        subtotal: grossSubtotal,
         delivery_fee: orderDeliveryFee,
         activation_fee: orderActivationFee,
         installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
@@ -1978,7 +1873,7 @@ const ClientNewOrder = () => {
         channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
         // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
         equipment_details: wrapLineItemsForOrder(lineItems, {
-          subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
+          subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
           discount_amount: cappedDiscount,
           base_amount: baseAmount,
           tps_amount: tpsAmount,
@@ -2095,8 +1990,7 @@ const ClientNewOrder = () => {
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
             discount_amount: serverPricing.discount_total,
-            promo_discount: serverPricing.promo_discount,
-            welcome_discount_amount: serverPricing.welcome_discount,
+            welcome_discount_amount: welcomeDiscountAmount,
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
             tvq_amount: serverPricing.tvq_amount,
@@ -2375,11 +2269,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             promo_code: appliedPromo?.code || null,
           },
           billing_snapshot: {
-            subtotal: serverPricing.recurring_subtotal,
-            one_time_fees: serverPricing.one_time_subtotal,
-            tps: serverPricing.tps_amount,
-            tvq: serverPricing.tvq_amount,
-            total: serverPricing.grand_total,
+            subtotal: subtotal + paidChannelTotal,
+            one_time_fees: oneTimeFees,
+            tps: tpsAmount,
+            tvq: tvqAmount,
+            total: totalAmount,
             payment_method: paymentMethod || null,
             payment_reference: paymentConfirmationNumber || nivraPaymentRef || null,
           },
@@ -2742,40 +2636,163 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // IMPORTANT: discount_amount is computed server-side on eligible items.
   // To avoid stale discounts when the cart changes, we revalidate the promo (see useEffect below)
   // instead of guessing the discount client-side.
-  // === ALL PRICING FROM SERVER — NO CLIENT-SIDE COMPUTATION ===
-  // The server RPC (compute_checkout_pricing) is the ONLY source of truth.
-  // No fallback values. If server pricing is loading, show loading indicators.
-  const sp = liveServerPricing; // shorthand
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-  // Global totals — server only
-  const baseAmount = sp?.taxable_base ?? 0;
-  const tpsAmount = sp?.tps_amount ?? 0;
-  const tvqAmount = sp?.tvq_amount ?? 0;
-  const totalAmount = sp?.grand_total ?? 0;
+  const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
+  
+  // Welcome discount: 50% off services for new customers (first bill only)
+  const welcomeDiscountAmount = welcomeDiscountHook.getDiscountAmount(monthlyRecurring);
+  
+  const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
-  // Discounts — server only
-  const promoDiscount = sp?.promo_discount ?? 0;
-  const welcomeDiscountAmount = sp?.welcome_discount ?? 0;
-  const totalDiscount = sp?.discount_total ?? 0;
-  const effectiveTotalDiscount = totalDiscount;
+  // Cap discount to never exceed the cart total (prevents negative amounts)
+  const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
+  
+  // Total discount = promo + welcome (capped to gross total)
+  const totalDiscount = Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
 
-  // Per-block: one-time — server only
-  const oneTimeTps = sp?.one_time_tps ?? 0;
-  const oneTimeTvq = sp?.one_time_tvq ?? 0;
-  const oneTimeTaxes = (sp ? sp.one_time_tps + sp.one_time_tvq : 0);
-  const oneTimeTotalWithTax = sp?.one_time_total_with_tax ?? 0;
+  // Enforce min_payable_cents from promo: discount cannot reduce below minimum
+  const minPayableDollars = 0; // Will be enforced server-side; client cap is defense-in-depth
+  const effectiveTotalDiscount = minPayableDollars > 0 
+    ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
+    : totalDiscount;
 
-  // Per-block: monthly — server only
-  const monthlyTps = sp?.monthly_tps ?? 0;
-  const monthlyTvq = sp?.monthly_tvq ?? 0;
-  const monthlyTaxes = (sp ? sp.monthly_tps + sp.monthly_tvq : 0);
-  const monthlyRecurringWithTax = sp?.monthly_total_with_tax ?? 0;
+  // Client-side fallback values (used only before server pricing loads)
+  const _clientBaseAmount = round2(Math.max(0, grossTotal - effectiveTotalDiscount));
+  const _clientTpsAmount = round2(_clientBaseAmount * 0.05);
+  const _clientTvqAmount = round2(_clientBaseAmount * 0.09975);
+  const _clientTotalAmount = round2(_clientBaseAmount + _clientTpsAmount + _clientTvqAmount);
 
-  // Legacy aliases
+  // Keep promo discount accurate when the cart changes (prevents “97% => 0$” stale/cap bugs)
+  useEffect(() => {
+    if (!appliedPromo?.code) return;
+    if (isValidatingPromo) return;
+
+    const payload = buildPromoValidationPayload(appliedPromo.code);
+    if (!payload) return;
+
+    // If cart signature hasn't changed since last validation, skip
+    if (payload.signature === promoCartSignatureRef.current) return;
+
+    // Silent revalidation (no success toast)
+    void validateAndApplyPromo(appliedPromo.code, { silent: true });
+  }, [
+    appliedPromo?.code,
+    isValidatingPromo,
+    selectedServices,
+    selectedMobileServices,
+    selectedPaidChannels,
+    selectedStreamingServices,
+    mobileLineQuantities,
+    terminalQuantity,
+    deliveryChoice,
+    installationChoice,
+    installationCredit,
+    isDeliveryOnlyOrder,
+    isEquipmentOnlyOrder,
+    hasTVService,
+    hasInternetService,
+    hasMobileService,
+    totalMobileLineQuantity,
+    profile?.email,
+    user?.id,
+  ]);
+
+  // === LIVE PRICING: Client-side calculation using API product prices (no server RPC needed) ===
+  // The external API prices are already loaded via useQuery. We compute taxes client-side
+  // for the live preview only. The authoritative pricing comes from POST /create-order at submission.
+  useEffect(() => {
+    if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
+      setLiveServerPricing(null);
+      return;
+    }
+
+    if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
+
+    serverPricingTimerRef.current = setTimeout(async () => {
+      setIsServerPricingLoading(true);
+      try {
+        // Calculate totals from API prices (already in selectedServices)
+        const serviceTotal = selectedServices.reduce((sum, s) => {
+          if (s.category === "Mobile") {
+            return sum + Number(s.price) * (mobileLineQuantities[s.id] || 1);
+          }
+          return sum + Number(s.price);
+        }, 0);
+        const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+        const recurringSubtotal = serviceTotal + paidChannelTotal + streamingTotal;
+        const oneTimeSubtotal = activationFee + deliveryFee + installationFee
+          + ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0)
+          + (hasTVService ? TERMINAL_CONFIG.price * terminalQuantity : 0)
+          + (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
+        
+        const taxableBase = recurringSubtotal + oneTimeSubtotal;
+        const tps = Math.round(taxableBase * 0.05 * 100) / 100;
+        const tvq = Math.round(taxableBase * 0.09975 * 100) / 100;
+        const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
+
+        const result = {
+          recurring_subtotal: recurringSubtotal,
+          one_time_subtotal: oneTimeSubtotal,
+          discount_total: 0,
+          preauth_discount: 0,
+          taxable_base: taxableBase,
+          tps_amount: tps,
+          tvq_amount: tvq,
+          grand_total: grandTotal,
+          promo_applied: null,
+          computed_at: new Date().toISOString(),
+          cents: {
+            recurring_subtotal: Math.round(recurringSubtotal * 100),
+            one_time_subtotal: Math.round(oneTimeSubtotal * 100),
+            discount_total: 0,
+            taxable_base: Math.round(taxableBase * 100),
+            tps: Math.round(tps * 100),
+            tvq: Math.round(tvq * 100),
+            grand_total: Math.round(grandTotal * 100),
+          },
+        };
+        console.log("[LivePricing] Updated from API prices:", result);
+        setLiveServerPricing(result);
+      } catch (err) {
+        console.error("[LivePricing] Error:", err);
+      } finally {
+        setIsServerPricingLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
+    };
+  }, [
+    selectedServices, selectedStreamingServices, paidChannelTotal,
+    mobileLineQuantities, activationFee, deliveryFee, installationFee,
+    terminalQuantity, hasTVService, hasInternetService, hasMobileService,
+    totalMobileLineQuantity, acceptPreauthorized, appliedPromo?.code,
+    profile?.email, user?.email, user?.id,
+  ]);
+
+  // Totals: use server pricing when available, fallback to client-side for initial render
+  const baseAmount = liveServerPricing ? liveServerPricing.taxable_base : _clientBaseAmount;
+  const tpsAmount = liveServerPricing ? liveServerPricing.tps_amount : _clientTpsAmount;
+  const tvqAmount = liveServerPricing ? liveServerPricing.tvq_amount : _clientTvqAmount;
+  const totalAmount = liveServerPricing ? liveServerPricing.grand_total : _clientTotalAmount;
+
+  // === Separate tax calculations per block (one-time vs monthly) ===
+  // One-time block: taxes computed ONLY on one-time fees
+  const oneTimeTps = round2(oneTimeFees * 0.05);
+  const oneTimeTvq = round2(oneTimeFees * 0.09975);
+  const oneTimeTaxes = round2(oneTimeTps + oneTimeTvq);
+  const oneTimeTotalWithTax = round2(oneTimeFees + oneTimeTaxes);
+
+  // Monthly block: taxes computed ONLY on monthly recurring
+  const monthlyTps = round2(monthlyRecurring * 0.05);
+  const monthlyTvq = round2(monthlyRecurring * 0.09975);
+  const monthlyTaxes = round2(monthlyTps + monthlyTvq);
+  const monthlyRecurringWithTax = round2(monthlyRecurring + monthlyTaxes);
+
+  // Legacy aliases kept for bill preview
   const oneTimeFeesWithTax = oneTimeTotalWithTax;
-
-  // Server pricing loaded flag (used to gate payment and submission)
-  const isServerPricingReady = !!sp && !isServerPricingLoading && !serverPricingError;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
@@ -2883,13 +2900,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     // Prevent double-click race condition with synchronous guard
     if (submittingRef.current) return;
     submittingRef.current = true;
-    
-    // GATE: Server pricing must be loaded before submission
-    if (!liveServerPricing || isServerPricingLoading) {
-      submittingRef.current = false;
-      toast.error("Le calcul des prix est en cours. Veuillez patienter quelques secondes.");
-      return;
-    }
     
     // SERVER-SIDE: Check if account is blocked before proceeding
     const blockCheck = await checkAccountBlockedForAction(user?.id || "");
@@ -3268,10 +3278,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   deliveryChoice={deliveryChoice}
                   installationChoice={installationChoice}
                   onContinue={() => setStep(2)}
-                  continueDisabled={selectedServices.length === 0 || !isServerPricingReady}
+                  continueDisabled={selectedServices.length === 0}
                   welcomeDiscount={{
-                    isNewCustomer: welcomeDiscountHook.isNewCustomer && welcomeDiscountAmount > 0,
-                    discountPercent: welcomeDiscountAmount > 0 ? 50 : 0,
+                    isNewCustomer: welcomeDiscountHook.isNewCustomer,
+                    discountPercent: welcomeDiscountHook.discountPercent,
                     discountAmount: welcomeDiscountAmount,
                     label: welcomeDiscountHook.label,
                   }}

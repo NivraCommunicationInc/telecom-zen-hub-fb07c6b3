@@ -81,7 +81,6 @@ interface OrderData {
   promo_discount_amount?: number;
   preauth_discount?: number;
   account_id?: string;
-  pricing_snapshot?: any;
   // Address fields from order
   shipping_address?: string;
   shipping_city?: string;
@@ -362,14 +361,11 @@ END:VCALENDAR`;
   const simFee = equipment.find(e => e.type === "sim")?.fee || 0;
   const promoDiscount = order.promo_discount_amount || 0;
   const preauthDiscount = order.preauth_discount || 0;
-  const pricingSnapshot = order.pricing_snapshot ?? null;
-  const tpsAmount = pricingSnapshot?.one_time_tps ?? order.tps_amount ?? 0;
-  const tvqAmount = pricingSnapshot?.one_time_tvq ?? order.tvq_amount ?? 0;
-  const totalAmount = pricingSnapshot?.one_time_total_with_tax ?? order.total_amount ?? 0;
-  const monthlyRecurring = pricingSnapshot?.recurring_subtotal ?? order.subtotal ?? 0;
-  const monthlyTpsAmount = pricingSnapshot?.monthly_tps ?? 0;
-  const monthlyTvqAmount = pricingSnapshot?.monthly_tvq ?? 0;
-  const monthlyWithTaxes = pricingSnapshot?.monthly_total_with_tax ?? 0;
+  const tpsAmount = order.tps_amount || 0;
+  const tvqAmount = order.tvq_amount || 0;
+  const totalAmount = order.total_amount || 0;
+  const monthlyRecurring = order.subtotal || 0;
+  const monthlyWithTaxes = monthlyRecurring * 1.14975;
 
   // Determine fulfillment type
   const isDeliveryOnly = order.installation_type === "auto" || order.delivery_method?.toLowerCase().includes("livraison");
@@ -537,7 +533,7 @@ END:VCALENDAR`;
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground mt-1">
                     <span>TPS (5%) + TVQ (9.975%)</span>
-                    <span>+{(monthlyTpsAmount + monthlyTvqAmount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span>+{(monthlyRecurring * 0.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-purple-500/30">
                     <span className="text-purple-500">Total mensuel estimé</span>
