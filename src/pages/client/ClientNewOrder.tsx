@@ -625,6 +625,7 @@ const ClientNewOrder = () => {
   // === LIVE SERVER PRICING (authoritative for summary display) ===
   const [liveServerPricing, setLiveServerPricing] = useState<import("@/lib/pricing/serverPricing").ServerPricingResult | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
+  const [serverPricingError, setServerPricingError] = useState<string | null>(null);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestPricingRequestIdRef = useRef(0);
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
