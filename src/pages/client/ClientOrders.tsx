@@ -310,6 +310,42 @@ const ClientOrders = () => {
                 </div>
               )}
 
+              {/* Payment Status */}
+              {selectedOrder.payment_status && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Paiement</span>
+                  <Badge className={
+                    selectedOrder.payment_status === "paid" || selectedOrder.payment_status === "captured"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : selectedOrder.payment_status === "pending"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-muted text-muted-foreground"
+                  }>
+                    {selectedOrder.payment_status === "paid" || selectedOrder.payment_status === "captured" 
+                      ? "Payé" 
+                      : selectedOrder.payment_status === "pending" 
+                      ? "En attente" 
+                      : selectedOrder.payment_status}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Quick Links to Invoice & Payments */}
+              <div className="pt-4 border-t border-border space-y-2">
+                <Link to="/portal/invoices" onClick={() => setDetailsOpen(false)}>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="w-4 h-4 mr-2 text-blue-500" />
+                    Voir mes factures
+                  </Button>
+                </Link>
+                <Link to="/portal/contracts" onClick={() => setDetailsOpen(false)}>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Shield className="w-4 h-4 mr-2 text-purple-500" />
+                    Voir mes contrats
+                  </Button>
+                </Link>
+              </div>
+
               {/* Port-In Info (Read-Only for Client) */}
               {selectedOrder.port_request && (selectedOrder.port_request as any)?.port_in && (
                 <div className="pt-4 border-t border-border">
