@@ -1210,14 +1210,16 @@ const ClientNewOrder = () => {
       try {
         // Build cart items (same shape as buildPromoValidationPayload)
         const cartItems: CartLineItem[] = [];
-        const selectedMobileIds = new Set(selectedMobileServices.map((s) => s.id));
+        const mobileServices = selectedServices.filter(s => s.category === "Mobile");
+        const mobileIds = new Set(mobileServices.map((s) => s.id));
+        const totalMobileLines = mobileServices.reduce((sum, s) => sum + (mobileLineQuantities[s.id] || 1), 0);
 
         selectedServices.forEach((s) => {
-          if (selectedMobileIds.has(s.id)) return;
+          if (mobileIds.has(s.id)) return;
           const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
           cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
         });
-        selectedMobileServices.forEach((s) => {
+        mobileServices.forEach((s) => {
           const qty = mobileLineQuantities[s.id] || 1;
           cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
         });
@@ -1236,7 +1238,7 @@ const ClientNewOrder = () => {
           cartItems.push({ type: "equipment", name: ROUTER_CONFIG_DYNAMIC.name, amount: ROUTER_CONFIG_DYNAMIC.price });
         }
         if (hasMobileService) {
-          cartItems.push({ type: "equipment", name: `${SIM_CONFIG_DYNAMIC.physical.name} x${totalMobileLineQuantity}`, amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity });
+          cartItems.push({ type: "equipment", name: `${SIM_CONFIG_DYNAMIC.physical.name} x${totalMobileLines}`, amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLines });
         }
 
         // Activation
