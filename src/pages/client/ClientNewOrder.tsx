@@ -2657,11 +2657,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
     : totalDiscount;
 
-  // Client-side fallback values (used only before server pricing loads)
-  const _clientBaseAmount = round2(Math.max(0, grossTotal - effectiveTotalDiscount));
-  const _clientTpsAmount = round2(_clientBaseAmount * 0.05);
-  const _clientTvqAmount = round2(_clientBaseAmount * 0.09975);
-  const _clientTotalAmount = round2(_clientBaseAmount + _clientTpsAmount + _clientTvqAmount);
+  // Client-side fallback values removed — unified pricing object below is the single source of truth
 
   // Keep promo discount accurate when the cart changes (prevents “97% => 0$” stale/cap bugs)
   useEffect(() => {
@@ -2724,7 +2720,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const todayTotal = round2(todayTaxableBase + todayTps + todayTvq);
 
   // Future monthly: exclude first-cycle-only discounts
-  const monthlyFutureDiscount = (appliedPromo?.duration === 'first_cycle_only' ? 0 : promoDiscount);
+  const monthlyFutureDiscount = ((appliedPromo as any)?.duration === 'first_cycle_only' ? 0 : promoDiscount);
   const monthlyFutureNet = round2(Math.max(0, monthlyRecurring - monthlyFutureDiscount));
   const monthlyFutureTps = round2(monthlyFutureNet * 0.05);
   const monthlyFutureTvq = round2(monthlyFutureNet * 0.09975);
@@ -2749,6 +2745,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // Legacy aliases
   const oneTimeFeesWithTax = oneTimeTotalWithTax;
 
+  // Step 7: Reuse the same pricing object across all steps
+  const baseAmount = todayTaxableBase;
+  const tpsAmount = todayTps;
+  const tvqAmount = todayTvq;
+  const totalAmount = todayTotal;
+
   // === LIVE PRICING: feed unified values into liveServerPricing for downstream consumers ===
   useEffect(() => {
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
@@ -2770,10 +2772,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           tps_amount: todayTps,
           tvq_amount: todayTvq,
           grand_total: todayTotal,
-          promo_applied: appliedPromo ? {
-            code: appliedPromo.code,
-            discount_amount: promoDiscount,
-          } : null,
+          promo_applied: null as any,
           computed_at: new Date().toISOString(),
           cents: {
             recurring_subtotal: Math.round(monthlyRecurring * 100),
