@@ -1284,7 +1284,7 @@ const ClientNewOrder = () => {
       if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
     };
   }, [
-    selectedServices, selectedMobileServices, selectedPaidChannels, selectedStreamingServices,
+    selectedServices, selectedPaidChannels, selectedStreamingServices,
     mobileLineQuantities, terminalQuantity, hasTVService, hasInternetService, hasMobileService,
     isDeliveryOnlyOrder, deliveryChoice, installationChoice, acceptPreauthorized,
     appliedPromo?.code, profile?.email, user?.id, welcomeDiscountHook.isNewCustomer,
