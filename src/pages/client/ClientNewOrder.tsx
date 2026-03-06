@@ -4873,27 +4873,37 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   )}
 
-                  {/* Taxes — on one-time fees only (what's payable today) */}
+                  {/* First month recurring (after discount) — included in today's total */}
+                  {monthlyRecurringNet > 0 && (
+                    <div className="border-t border-border pt-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Mensuel (1er mois après rabais)</span>
+                        <span className="text-foreground">{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Taxes — on today's taxable base (one-time + discounted recurring) */}
                   <div className="border-t border-border pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">TPS (5%)</span>
-                      <span className="text-foreground">{oneTimeTps.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{todayTps.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">TVQ (9.975%)</span>
-                      <span className="text-foreground">{oneTimeTvq.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{todayTvq.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
-                  {/* Total Due Today — one-time fees + their taxes only */}
+                  {/* Total Due Today — unified: one-time + discounted recurring + taxes */}
                   <div className="border-t-2 border-cyan-500/50 pt-4 bg-gradient-to-r from-cyan-500/5 to-transparent -mx-6 px-6 pb-2 rounded-b-lg">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Frais uniques, taxes incluses</p>
+                    <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
                   </div>
 
                   <div className="pt-4 space-y-3">
@@ -5174,31 +5184,38 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     
-                    {/* Show promo discount in first bill preview */}
-                    {appliedPromo && promoDiscount > 0 && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Mensuel (1er mois)</span>
-                          <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                        </div>
-                        <div className="flex justify-between text-emerald-500 font-medium">
-                          <span>Rabais promo ({appliedPromo.code})</span>
-                          <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                        </div>
-                        <div className="flex justify-between font-medium">
-                          <span className="text-muted-foreground">Sous-total après rabais</span>
-                          <span>{baseAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                        </div>
-                      </>
+                    {/* First month recurring breakdown */}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Mensuel (1er mois)</span>
+                      <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    
+                    {/* Show all applicable discounts */}
+                    {welcomeDiscountAmount > 0 && (
+                      <div className="flex justify-between text-emerald-500 font-medium">
+                        <span>Rabais nouveau client (50%)</span>
+                        <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
                     )}
+                    {appliedPromo && promoDiscount > 0 && (
+                      <div className="flex justify-between text-emerald-500 font-medium">
+                        <span>Rabais promo ({appliedPromo.code})</span>
+                        <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between font-medium">
+                      <span className="text-muted-foreground">Base taxable aujourd'hui</span>
+                      <span>{todayTaxableBase.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
                     
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
-                      <span>{oneTimeTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{round2(todayTps + todayTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-cyan-500/50">
                       <span className="font-bold text-cyan-500 text-base">Total à payer aujourd'hui</span>
-                      <span className="font-bold text-cyan-500 text-lg">{oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="font-bold text-cyan-500 text-lg">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -5699,9 +5716,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span className="text-muted-foreground">Sous-total frais uniques</span>
                       <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
+                    {monthlyRecurringNet > 0 && (
+                      <div className="flex justify-between font-medium">
+                        <span className="text-muted-foreground">Mensuel 1er mois (après rabais)</span>
+                        <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS + TVQ</span>
-                      <span>{oneTimeTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{round2(todayTps + todayTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
@@ -5709,10 +5732,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Frais uniques, taxes incluses</p>
+                    <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
                   </div>
 
                   {/* Payment Status Indicator */}
