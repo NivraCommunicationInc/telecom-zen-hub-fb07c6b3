@@ -81,6 +81,7 @@ interface OrderData {
   promo_discount_amount?: number;
   preauth_discount?: number;
   account_id?: string;
+  pricing_snapshot?: any;
   // Address fields from order
   shipping_address?: string;
   shipping_city?: string;
@@ -533,7 +534,7 @@ END:VCALENDAR`;
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground mt-1">
                     <span>TPS (5%) + TVQ (9.975%)</span>
-                    <span>+{(monthlyRecurring * 0.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span>+{(monthlyWithTaxes - monthlyRecurring).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-purple-500/30">
                     <span className="text-purple-500">Total mensuel estimé</span>
