@@ -195,7 +195,7 @@ const AdminOrders = () => {
       render: (o: any) => (
         <Link to={`/admin/orders/${o.id}`}>
           <Button size="sm" className="gap-1.5 h-7 text-xs">
-            <Wrench className="w-3 h-3" /> Workbench
+            <Wrench className="w-3 h-3" /> Détails
           </Button>
         </Link>
       ),

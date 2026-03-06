@@ -51,7 +51,7 @@ import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminBootstrap from "@/pages/admin/AdminBootstrap";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminOrders from "@/pages/admin/AdminOrders";
-import AdminOrderWorkbench from "@/pages/admin/AdminOrderWorkbench";
+import AdminOrderDetail from "@/pages/admin/AdminOrderDetail";
 import AdminQueues from "@/pages/admin/AdminQueues";
 import AdminClients from "@/pages/admin/AdminClients";
 import AdminServices from "@/pages/admin/AdminServices";
@@ -275,7 +275,7 @@ const AppRoutes = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="change-credentials" element={<AdminChangeCredentials />} />
         <Route path="orders" element={<AdminOrders />} />
-        <Route path="orders/:id" element={<AdminOrderWorkbench />} />
+        <Route path="orders/:id" element={<AdminOrderDetail />} />
         <Route path="queues" element={<AdminQueues />} />
         <Route path="clients" element={<AdminClients />} />
         <Route path="services" element={<AdminServices />} />
