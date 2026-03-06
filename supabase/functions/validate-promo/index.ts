@@ -141,6 +141,19 @@ serve(async (req) => {
       );
     }
 
+    // Duplicate detection: if welcome discount is active and promo targets services,
+    // reject with "already applied" message to prevent double-discounting
+    if (is_new_customer === true) {
+      const appliesTo = promo.applies_to as Record<string, boolean>;
+      if (appliesTo?.services === true) {
+        console.log(`[validate-promo] Duplicate detected: welcome discount active + promo ${normalizedCode} targets services`);
+        return new Response(
+          JSON.stringify({ valid: false, error: "Ce rabais est déjà appliqué automatiquement à votre commande." }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Check if active
     if (promo.status !== 'active') {
       return new Response(
