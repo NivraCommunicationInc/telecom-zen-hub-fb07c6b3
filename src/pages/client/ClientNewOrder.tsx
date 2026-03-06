@@ -3268,7 +3268,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   deliveryChoice={deliveryChoice}
                   installationChoice={installationChoice}
                   onContinue={() => setStep(2)}
-                  continueDisabled={selectedServices.length === 0}
+                  continueDisabled={selectedServices.length === 0 || !isServerPricingReady}
                   welcomeDiscount={{
                     isNewCustomer: welcomeDiscountHook.isNewCustomer && welcomeDiscountAmount > 0,
                     discountPercent: welcomeDiscountAmount > 0 ? 50 : 0,
