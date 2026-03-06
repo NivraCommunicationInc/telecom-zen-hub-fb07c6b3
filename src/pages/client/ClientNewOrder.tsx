@@ -1784,39 +1784,16 @@ const ClientNewOrder = () => {
       });
       console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
 
-      // Use external API response as authoritative pricing base,
-      // then overlay discount/welcome from our server-side RPC
+      // === SERVER PRICING — SINGLE SOURCE OF TRUTH ===
+      // liveServerPricing must be loaded before order creation (enforced in handleSubmit)
+      if (!liveServerPricing) {
+        throw new Error("Le calcul des prix n'est pas encore terminé. Veuillez attendre quelques secondes.");
+      }
       const serverPricing = {
-        grand_total: liveServerPricing?.grand_total ?? nivraOrderResponse.total,
-        tps_amount: liveServerPricing?.tps_amount ?? nivraOrderResponse.gst,
-        tvq_amount: liveServerPricing?.tvq_amount ?? nivraOrderResponse.qst,
-        taxable_base: liveServerPricing?.taxable_base ?? nivraOrderResponse.subtotal,
-        recurring_subtotal: liveServerPricing?.recurring_subtotal ?? monthlyRecurring,
-        one_time_subtotal: liveServerPricing?.one_time_subtotal ?? oneTimeFees,
-        discount_total: liveServerPricing?.discount_total ?? 0,
-        promo_discount: liveServerPricing?.promo_discount ?? 0,
-        welcome_discount: liveServerPricing?.welcome_discount ?? 0,
-        preauth_discount: liveServerPricing?.preauth_discount ?? 0,
-        promo_applied: liveServerPricing?.promo_applied ?? null,
-        is_new_customer: liveServerPricing?.is_new_customer ?? welcomeDiscountHook.isNewCustomer,
-        computed_at: new Date().toISOString(),
-        cents: liveServerPricing?.cents ?? {
-          recurring_subtotal: Math.round(monthlyRecurring * 100),
-          one_time_subtotal: Math.round(oneTimeFees * 100),
-          discount_total: 0,
-          promo_discount: 0,
-          welcome_discount: 0,
-          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
-          tps: Math.round(nivraOrderResponse.gst * 100),
-          tvq: Math.round(nivraOrderResponse.qst * 100),
-          grand_total: Math.round(nivraOrderResponse.total * 100),
-        },
+        ...liveServerPricing,
+        computed_at: liveServerPricing.computed_at || new Date().toISOString(),
       };
-      console.log("[ServerPricing] Authoritative totals:", serverPricing);
-
-      // Use server-side totals for the order (authoritative)
-      const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
-      const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
+      console.log("[ServerPricing] Authoritative totals (from RPC, no fallback):", serverPricing);
       
       // Cap discount using server-side computed discount (enforces min_payable_cents)
       const cappedDiscount = serverPricing.discount_total;
