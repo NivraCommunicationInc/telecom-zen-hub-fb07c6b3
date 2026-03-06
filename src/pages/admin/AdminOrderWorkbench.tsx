@@ -1,13 +1,13 @@
 /**
- * AdminOrderWorkbench V4 — Complete Order Processing Workspace
- * Carrier-grade, fully operational. All actions execute real DB operations.
+ * AdminOrderWorkbench V5 — Complete Order Processing Workspace
+ * Carrier-grade, fully operational with dispatch routing and communications.
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, ListChecks, FileText, Loader2 } from "lucide-react";
+import { Package, Wifi, Truck, CreditCard, Shield, History, MessageSquare, FileText, Loader2, ArrowRight, Mail } from "lucide-react";
 import { useWorkbenchData } from "@/hooks/useWorkbenchData";
 import { useWorkbenchActions } from "@/hooks/useWorkbenchActions";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +20,8 @@ import { WorkbenchPaymentTab } from "@/components/workbench/WorkbenchPaymentTab"
 import { WorkbenchKYCTab } from "@/components/workbench/WorkbenchKYCTab";
 import { WorkbenchAuditTab } from "@/components/workbench/WorkbenchAuditTab";
 import { WorkbenchNotesTab } from "@/components/workbench/WorkbenchNotesTab";
+import { WorkbenchDispatchPanel } from "@/components/workbench/WorkbenchDispatchPanel";
+import { WorkbenchCommunicationsTab } from "@/components/workbench/WorkbenchCommunicationsTab";
 import { OrderDocumentsPanel } from "@/components/admin/OrderDocumentsPanel";
 
 const TABS = [
@@ -29,6 +31,7 @@ const TABS = [
   { value: "fulfillment", label: "Logistique", icon: Truck },
   { value: "provisioning", label: "Activation", icon: Wifi },
   { value: "documents", label: "Documents", icon: FileText },
+  { value: "communications", label: "Comms", icon: Mail },
   { value: "notes", label: "Notes", icon: MessageSquare },
   { value: "audit", label: "Audit", icon: History },
 ] as const;
@@ -85,6 +88,14 @@ const AdminOrderWorkbench = () => {
           onNavigateTab={setActiveTab}
         />
 
+        {/* ── DISPATCH: Routing to shipping or technician ────── */}
+        <WorkbenchDispatchPanel
+          order={data.order}
+          role={role}
+          onAssignToShipping={actions.assignToShipping}
+          onAssignToTechnician={actions.assignToTechnician}
+        />
+
         {/* ── TABS: All operational areas ─────────────────────── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-secondary border border-border p-0.5 h-auto flex-wrap gap-0.5">
@@ -133,9 +144,7 @@ const AdminOrderWorkbench = () => {
                 order={data.order}
                 kycSession={data.kycSession}
                 role={role}
-                onAction={(action) => {
-                  data.refetchAll();
-                }}
+                onAction={() => data.refetchAll()}
               />
             </TabsContent>
 
@@ -172,6 +181,15 @@ const AdminOrderWorkbench = () => {
                 orderNumber={data.order.order_number}
                 orderStatus={data.order.status}
                 kycSessionId={data.kycSession?.id}
+              />
+            </TabsContent>
+
+            {/* Communications */}
+            <TabsContent value="communications" className="mt-0">
+              <WorkbenchCommunicationsTab
+                orderId={id!}
+                orderNumber={data.order.order_number}
+                clientEmail={data.profile?.email || data.order?.client_email}
               />
             </TabsContent>
 

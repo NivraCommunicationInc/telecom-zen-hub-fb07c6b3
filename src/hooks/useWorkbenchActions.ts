@@ -1,7 +1,7 @@
 /**
  * useWorkbenchActions - All operational actions for the Order Processing Workspace
  * Handles: status changes, payment confirmation, equipment assignment, shipment updates,
- * appointment management, provisioning, and order completion.
+ * appointment management, provisioning, dispatch routing, and order completion.
  */
 import { useState, useCallback } from "react";
 import { adminClient as supabase } from "@/integrations/backend";
@@ -153,12 +153,12 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
     );
   }, [user, exec]);
 
-  // ── PROVISIONING ──────────────────────────────────────────────
+  // ── PROVISIONING (uses correct column names) ──────────────────
   const retryProvisioning = useCallback(async (jobId: string) => {
     await exec(
       async () => {
         const { error } = await supabase.from("provisioning_jobs").update({
-          status: "pending", last_error: null,
+          status: "queued", error_message: null, error_code: null,
         }).eq("id", jobId);
         if (error) throw error;
         toast.success("Job relancé ✓");
@@ -173,6 +173,9 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
         const { error } = await supabase.from("provisioning_jobs").update({
           status: "completed",
           completed_at: new Date().toISOString(),
+          manual_override_by: user?.id || null,
+          manual_override_at: new Date().toISOString(),
+          manual_override_reason: reason,
           execution_log: [...executionLog, { event: "manual_override", reason, timestamp: new Date().toISOString() }],
         }).eq("id", jobId);
         if (error) throw error;
@@ -180,7 +183,7 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
       },
       "override_provisioning", "provisioning_job", jobId, { reason, order_id: orderId }
     );
-  }, [orderId, exec]);
+  }, [orderId, user, exec]);
 
   const completeProvisioning = useCallback(async (jobId: string, providerRef?: string) => {
     await exec(
@@ -188,12 +191,60 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
         const { error } = await supabase.from("provisioning_jobs").update({
           status: "completed",
           completed_at: new Date().toISOString(),
-          provider_reference: providerRef || null,
+          result_data: providerRef ? { provider_reference: providerRef } : null,
         }).eq("id", jobId);
         if (error) throw error;
         toast.success("Activation complétée ✓");
       },
       "complete_provisioning", "provisioning_job", jobId, { provider_reference: providerRef, order_id: orderId }
+    );
+  }, [orderId, exec]);
+
+  // ── DISPATCH / ROUTING ────────────────────────────────────────
+  const assignToShipping = useCallback(async (notes?: string) => {
+    await exec(
+      async () => {
+        const { error } = await supabase.from("orders").update({
+          fulfillment_type: "shipping",
+          fulfillment_assigned_at: new Date().toISOString(),
+          fulfillment_notes: notes || null,
+          status: "fulfillment_pending",
+          updated_at: new Date().toISOString(),
+        }).eq("id", orderId);
+        if (error) throw error;
+        toast.success("Assigné à l'expédition ✓");
+      },
+      "assign_to_shipping", "order", orderId,
+      { fulfillment_type: "shipping", notes },
+      { field: "fulfillment_type", newValue: "shipping" }
+    );
+  }, [orderId, exec]);
+
+  const assignToTechnician = useCallback(async (technicianId?: string, notes?: string) => {
+    await exec(
+      async () => {
+        const updateData: Record<string, any> = {
+          fulfillment_type: "installation",
+          fulfillment_assigned_at: new Date().toISOString(),
+          fulfillment_notes: notes || null,
+          status: "fulfillment_pending",
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await supabase.from("orders").update(updateData).eq("id", orderId);
+        if (error) throw error;
+
+        // If technician specified and there's an appointment, assign them
+        if (technicianId) {
+          await supabase.from("appointments")
+            .update({ technician_id: technicianId, updated_at: new Date().toISOString() })
+            .eq("order_id", orderId)
+            .in("status", ["scheduled", "confirmed"]);
+        }
+        toast.success("Assigné à l'installation ✓");
+      },
+      "assign_to_technician", "order", orderId,
+      { fulfillment_type: "installation", technician_id: technicianId, notes },
+      { field: "fulfillment_type", newValue: "installation" }
     );
   }, [orderId, exec]);
 
@@ -227,5 +278,8 @@ export function useWorkbenchActions(orderId: string, onRefresh: () => void) {
     retryProvisioning,
     overrideProvisioning,
     completeProvisioning,
+    // Dispatch routing
+    assignToShipping,
+    assignToTechnician,
   };
 }
