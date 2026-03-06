@@ -8,9 +8,7 @@ import { FileText, Send, RefreshCw, PenTool, Eye, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import { fetchOrderDocumentData, generateOrderDocuments } from "@/lib/pdf";
-import { generateInvoicePDF } from "@/lib/pdf";
-import { generateContractPDF } from "@/lib/pdf";
+import { generateOrderDocuments } from "@/lib/pdf";
 import { safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 
@@ -35,13 +33,12 @@ export function ContractDocumentsStep({ proc }: Props) {
   const handleView = async (doc: typeof documents[0]) => {
     setLoading(doc.key);
     try {
-      const docData = await fetchOrderDocumentData(order.id);
-      if (!docData) {
+      const result = await generateOrderDocuments(order.id);
+      if (!result) {
         toast.error("Données de document introuvables");
         return;
       }
 
-      const result = await generateOrderDocuments(docData);
       let blob: Blob | null = null;
       let title = doc.type;
       let filename = `${doc.type}.pdf`;
@@ -106,12 +103,11 @@ export function ContractDocumentsStep({ proc }: Props) {
   const handleRegenerate = async () => {
     setLoading("regenerate");
     try {
-      const docData = await fetchOrderDocumentData(order.id);
-      if (!docData) {
+      const result = await generateOrderDocuments(order.id);
+      if (!result) {
         toast.error("Données introuvables");
         return;
       }
-      await generateOrderDocuments(docData);
       toast.success("Documents régénérés avec succès");
       proc.refetch();
     } catch (err) {

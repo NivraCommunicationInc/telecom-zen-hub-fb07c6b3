@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle, FileText, Send, CreditCard, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { fetchOrderDocumentData, generateOrderDocuments } from "@/lib/pdf";
-import { safePDFOpen } from "@/lib/pdfUtils";
+import { generateOrderDocuments } from "@/lib/pdf";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 
 interface Props { proc: any; }
@@ -63,12 +62,11 @@ export function PaymentInvoiceStep({ proc }: Props) {
   const handleViewInvoice = async () => {
     setLoading("view");
     try {
-      const docData = await fetchOrderDocumentData(order.id);
-      if (!docData) {
+      const result = await generateOrderDocuments(order.id);
+      if (!result) {
         toast.error("Données de facture introuvables");
         return;
       }
-      const result = await generateOrderDocuments(docData);
       if (result.invoice.blob) {
         setPdfBlob(result.invoice.blob);
         setPdfViewerOpen(true);
