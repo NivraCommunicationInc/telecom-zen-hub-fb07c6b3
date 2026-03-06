@@ -445,7 +445,7 @@ serve(async (req) => {
       
       // Create invoice with SMART status + order linkage
       const invoiceData: Record<string, any> = {
-        subscription_id: subscription.id,
+        subscription_id: subscription!.id,
         customer_id: customerId,
         invoice_number: invoiceNumber,
         type: 'initial',
