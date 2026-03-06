@@ -204,57 +204,133 @@ serve(async (req) => {
       ['internet', 'tv', 'combo', 'combo_tv_internet'].includes(s.category?.toLowerCase() || '')
     );
     
-    if (needsAddress && body.order_id) {
-      // Get address from the order's shipping fields
-      const { data: orderData } = await supabase
-        .from("orders")
-        .select("shipping_address, shipping_city, shipping_province, shipping_postal_code, user_id")
-        .eq("id", body.order_id)
-        .single();
+    if (needsAddress) {
+      const resolveUserId = body.user_id;
       
-      if (orderData?.shipping_address) {
-        // Look up existing account and service_address
-        const { data: account } = await supabase
-          .from("accounts")
-          .select("id")
-          .eq("client_id", orderData.user_id || body.user_id)
-          .limit(1)
-          .maybeSingle();
-        
-        if (account) {
-          // Check for existing address
-          const { data: existingAddr } = await supabase
-            .from("service_addresses")
-            .select("id")
-            .eq("account_id", account.id)
-            .eq("address_line", orderData.shipping_address)
-            .limit(1)
-            .maybeSingle();
+      // Strategy 1: Resolve from order shipping fields
+      if (body.order_id) {
+        try {
+          const { data: orderData, error: orderErr } = await supabase
+            .from("orders")
+            .select("shipping_address, shipping_city, shipping_province, shipping_postal_code, user_id")
+            .eq("id", body.order_id)
+            .single();
           
-          if (existingAddr) {
-            addressId = existingAddr.id;
-          } else {
-            // Create new service address
-            const { data: newAddr } = await supabase
-              .from("service_addresses")
-              .insert({
-                account_id: account.id,
-                label: "Adresse principale",
-                address_line: orderData.shipping_address,
-                city: orderData.shipping_city || null,
-                province: orderData.shipping_province || "QC",
-                postal_code: orderData.shipping_postal_code || null,
-                is_primary: true,
-                is_default: true,
-              })
+          console.log(`[billing-create-order] Order lookup: found=${!!orderData}, error=${orderErr?.message || 'none'}, address=${orderData?.shipping_address}`);
+          
+          if (orderData?.shipping_address) {
+            const clientId = orderData.user_id || resolveUserId;
+            
+            // Find ALL accounts for this user - use select without maybeSingle to avoid errors
+            const { data: accounts, error: accErr } = await supabase
+              .from("accounts")
               .select("id")
-              .single();
-            if (newAddr) addressId = newAddr.id;
+              .eq("client_id", clientId)
+              .order("created_at", { ascending: true })
+              .limit(5);
+            
+            console.log(`[billing-create-order] Account lookup: found=${accounts?.length || 0}, error=${accErr?.message || 'none'}`);
+            
+            if (accounts && accounts.length > 0) {
+              // Search across ALL accounts for matching address
+              for (const account of accounts) {
+                const { data: existingAddrs, error: addrErr } = await supabase
+                  .from("service_addresses")
+                  .select("id")
+                  .eq("account_id", account.id)
+                  .eq("address_line", orderData.shipping_address)
+                  .limit(1);
+                
+                if (existingAddrs && existingAddrs.length > 0) {
+                  addressId = existingAddrs[0].id;
+                  console.log(`[billing-create-order] Found existing address: ${addressId} on account ${account.id}`);
+                  break;
+                }
+              }
+              
+              // If not found on any account, create on first account
+              if (!addressId) {
+                const targetAccountId = accounts[0].id;
+                console.log(`[billing-create-order] Creating new address on account ${targetAccountId}`);
+                const { data: newAddr, error: newAddrErr } = await supabase
+                  .from("service_addresses")
+                  .insert({
+                    account_id: targetAccountId,
+                    label: orderData.shipping_city || "Adresse principale",
+                    address_line: orderData.shipping_address,
+                    city: orderData.shipping_city || null,
+                    province: orderData.shipping_province || "QC",
+                    postal_code: orderData.shipping_postal_code || null,
+                    is_primary: true,
+                    is_default: true,
+                  })
+                  .select("id")
+                  .single();
+                
+                if (newAddrErr) {
+                  console.error(`[billing-create-order] Address create error: ${newAddrErr.message}`);
+                  // Try RPC fallback
+                  const { data: rpcAddr } = await supabase.rpc("resolve_or_create_service_address", {
+                    p_account_id: targetAccountId,
+                    p_address_line: orderData.shipping_address,
+                    p_city: orderData.shipping_city || '',
+                    p_province: orderData.shipping_province || 'QC',
+                    p_postal_code: orderData.shipping_postal_code || '',
+                  });
+                  if (rpcAddr) addressId = rpcAddr;
+                } else if (newAddr) {
+                  addressId = newAddr.id;
+                }
+              }
+            } else {
+              // No account exists - create one, then create address
+              console.log(`[billing-create-order] No account found for client ${clientId}, creating one`);
+              const { data: newAccount, error: newAccErr } = await supabase
+                .from("accounts")
+                .insert({
+                  client_id: clientId,
+                  account_number: String(Math.floor(100000 + Math.random() * 900000)),
+                  status: "active",
+                  primary_service_address: orderData.shipping_address,
+                  primary_service_city: orderData.shipping_city,
+                  primary_service_province: orderData.shipping_province || "QC",
+                  primary_service_postal_code: orderData.shipping_postal_code,
+                })
+                .select("id")
+                .single();
+              
+              if (newAccErr) {
+                console.error(`[billing-create-order] Account create error: ${newAccErr.message}`);
+              } else if (newAccount) {
+                const { data: newAddr } = await supabase
+                  .from("service_addresses")
+                  .insert({
+                    account_id: newAccount.id,
+                    label: orderData.shipping_city || "Adresse principale",
+                    address_line: orderData.shipping_address,
+                    city: orderData.shipping_city || null,
+                    province: orderData.shipping_province || "QC",
+                    postal_code: orderData.shipping_postal_code || null,
+                    is_primary: true,
+                    is_default: true,
+                  })
+                  .select("id")
+                  .single();
+                if (newAddr) addressId = newAddr.id;
+              }
+            }
           }
+        } catch (addrResolveErr) {
+          console.error(`[billing-create-order] Address resolution exception:`, addrResolveErr);
         }
       }
       
-      console.log(`[billing-create-order] Address resolution: addressId=${addressId}, needsAddress=${needsAddress}`);
+      console.log(`[billing-create-order] Final address resolution: addressId=${addressId}, needsAddress=${needsAddress}`);
+      
+      // HARD FAIL if residential service needs address but none resolved
+      if (!addressId) {
+        console.error(`[billing-create-order] CRITICAL: Cannot resolve address for residential service. order_id=${body.order_id}`);
+      }
     }
     
     const results = {
