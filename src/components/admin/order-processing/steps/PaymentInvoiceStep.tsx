@@ -154,10 +154,15 @@ export function PaymentInvoiceStep({ proc }: Props) {
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
         {!isPaid && (
-          <Button size="sm" onClick={handleConfirm} disabled={loading === "confirm" || proc.isUpdating} className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button size="sm" onClick={handleConfirm} disabled={loading === "confirm" || proc.isUpdating || Number(balanceDue) <= 0} className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
             {loading === "confirm" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
             Confirmer paiement
           </Button>
+        )}
+        {isPaid && (
+          <div className="text-xs text-emerald-600 font-semibold flex items-center gap-1 px-2">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Facture payée — aucune action requise
+          </div>
         )}
         <Button size="sm" variant="outline" onClick={handleMarkPartial} disabled={loading === "partial" || proc.isUpdating} className="text-xs h-8 border-gray-300 text-gray-700">
           {loading === "partial" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CreditCard className="w-3 h-3 mr-1" />}

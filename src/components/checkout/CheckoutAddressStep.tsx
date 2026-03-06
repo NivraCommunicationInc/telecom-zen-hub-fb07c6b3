@@ -102,7 +102,28 @@ export const CheckoutAddressStep = ({
       setError("Veuillez remplir tous les champs obligatoires.");
       return;
     }
-    if (!account?.id) return;
+
+    // If no account yet, create one first
+    let accountId = account?.id;
+    if (!accountId) {
+      try {
+        const { data: newAcct, error: acctErr } = await supabase
+          .from("accounts")
+          .insert({
+            client_id: userId,
+            account_number: `ACCT-${Date.now()}`,
+            status: "active",
+          })
+          .select("id")
+          .single();
+        if (acctErr) throw acctErr;
+        accountId = newAcct.id;
+      } catch (e: any) {
+        setError("Impossible de créer le compte. " + (e.message || ""));
+        return;
+      }
+    }
+
     setSaving(true);
     setError("");
 
@@ -110,7 +131,7 @@ export const CheckoutAddressStep = ({
       const { data, error: err } = await supabase
         .from("service_addresses")
         .insert({
-          account_id: account.id,
+          account_id: accountId,
           label: newLabel.trim() || newCity.trim(),
           address_line: newAddress.trim(),
           city: newCity.trim(),

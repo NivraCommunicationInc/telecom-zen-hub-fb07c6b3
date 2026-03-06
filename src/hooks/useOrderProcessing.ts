@@ -19,6 +19,7 @@ export type WorkflowStepId =
   | "fulfillment"
   | "equipment"
   | "activation"
+  | "tv_channels"
   | "contracts"
   | "shipping"
   | "completion";
@@ -30,6 +31,36 @@ export interface WorkflowStep {
   label: string;
   status: StepStatus;
   optional?: boolean;
+}
+
+/* ─── Installation time estimate ─── */
+function computeInstallationEstimate(order: any, appointment: any): {
+  label: string;
+  minutes: number;
+  wiringNeeded: boolean;
+} {
+  const svcType = (order?.service_type || "").toLowerCase();
+  const installType = (order?.installation_type || appointment?.installation_method || "").toLowerCase();
+  const wiringNeeded = installType.includes("new") || installType.includes("complex") || installType.includes("n2");
+
+  let minutes = 60;
+  let label = "~1 heure";
+
+  if (wiringNeeded) {
+    minutes = 120;
+    label = "2 heures+ (nouveau câblage requis)";
+  } else if (svcType.includes("tv") && svcType.includes("internet")) {
+    minutes = 75;
+    label = "~1h15 (Internet + TV, câblage existant)";
+  } else if (svcType.includes("tv")) {
+    minutes = 45;
+    label = "~45 min (TV, câblage existant)";
+  } else if (svcType.includes("internet")) {
+    minutes = 30;
+    label = "~30 min (Internet, câblage existant)";
+  }
+
+  return { label, minutes, wiringNeeded };
 }
 
 /* ─── Dynamic workflow per order type ─── */
@@ -55,12 +86,18 @@ function buildWorkflow(order: any): WorkflowStep[] {
       { id: "shipping", label: "Expédition", status: "pending" },
       { id: "completion", label: "Complétion", status: "pending" },
     );
-  } else if (serviceType.includes("internet") || serviceType.includes("tv") || serviceType.includes("bundle")) {
+  } else if (serviceType.includes("internet") || serviceType.includes("tv") || serviceType.includes("bundle") || serviceType.includes("combo")) {
     base.push(
       { id: "fulfillment", label: "Fulfillment / Routing", status: "pending" },
       { id: "equipment", label: "Équipement", status: "pending" },
       { id: "shipping", label: "Technicien / Expédition", status: "pending" },
       { id: "activation", label: "Activation", status: "pending" },
+    );
+    // Add TV channel step for TV/combo orders
+    if (serviceType.includes("tv") || serviceType.includes("combo") || serviceType.includes("bundle")) {
+      base.push({ id: "tv_channels", label: "Chaînes TV", status: "pending" });
+    }
+    base.push(
       { id: "contracts", label: "Contrat & Documents", status: "pending" },
       { id: "completion", label: "Complétion", status: "pending" },
     );
@@ -117,6 +154,9 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
         break;
       case "contracts":
         if (order.related_contract_id) status = "completed";
+        break;
+      case "tv_channels":
+        if (order.tv_channels_activated) status = "completed";
         break;
       case "shipping":
         if (order.tracking_number || order.shipped_at || order.technician_id || order.status === "delivered") status = "completed";
@@ -249,6 +289,23 @@ export function useOrderProcessing(orderId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(50);
 
+      // Fetch channel selections for TV/combo orders
+      let channelSelection = null;
+      const svcType = (order.service_type || "").toLowerCase();
+      if (svcType.includes("tv") || svcType.includes("combo") || svcType.includes("bundle")) {
+        const { data: cs } = await supabase
+          .from("channel_selections")
+          .select("*")
+          .eq("user_id", order.user_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        channelSelection = cs;
+      }
+
+      // Compute installation time estimate
+      const installationEstimate = computeInstallationEstimate(order, appointment);
+
       // Enrich order with canonical KYC status from session for workflow step computation
       const enrichedOrder = {
         ...order,
@@ -263,6 +320,8 @@ export function useOrderProcessing(orderId: string | undefined) {
         invoice,
         contracts: contracts || [],
         appointment,
+        channelSelection,
+        installationEstimate,
         kycSession,
         activityLogs: activityLogs || [],
       };
@@ -352,13 +411,22 @@ export function useOrderProcessing(orderId: string | undefined) {
   const confirmPayment = async (reference?: string) => {
     try {
       if (data?.invoice) {
+        // Check if invoice is already fully paid (prevent duplicate)
+        if (data.invoice.status === "paid" || (data.invoice.balance_due !== null && Number(data.invoice.balance_due) <= 0)) {
+          toast.info("Cette facture est déjà payée");
+          return;
+        }
+
         const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
           p_invoice_id: data.invoice.id,
-          p_amount: data.invoice.total,
+          p_amount: Number(data.invoice.balance_due ?? data.invoice.total),
           p_method: data.order?.payment_method || "manual",
-          p_reference: reference || "admin-confirmed",
+          p_provider: "admin",
           p_provider_payment_id: reference || `admin-${Date.now()}`,
-          p_admin_id: user?.id,
+          p_source: "admin",
+          p_created_by_name: user?.email || "Admin",
+          p_created_by_role: "admin",
+          p_customer_id: data.invoice.customer_id || null,
         });
         if (error) throw error;
       } else {
@@ -588,6 +656,8 @@ export function useOrderProcessing(orderId: string | undefined) {
     invoice: data?.invoice,
     contracts: data?.contracts || [],
     appointment: data?.appointment,
+    channelSelection: data?.channelSelection || null,
+    installationEstimate: data?.installationEstimate || null,
     kycSession: data?.kycSession,
     activityLogs: data?.activityLogs || [],
     isLoading: orderQuery.isLoading,
