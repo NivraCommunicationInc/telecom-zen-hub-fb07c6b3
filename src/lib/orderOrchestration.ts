@@ -6,6 +6,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Re-export pure logic for consumers
 export {
@@ -33,10 +34,12 @@ export interface OrchestrationResult {
 /**
  * Orchestrate an order: create order_items, provisioning_jobs, shipments.
  * Idempotent — safe to call multiple times.
+ * @param client - Optional supabase client to use (portal/admin). Falls back to default client.
  */
-export async function orchestrateOrder(orderId: string): Promise<OrchestrationResult> {
+export async function orchestrateOrder(orderId: string, client?: SupabaseClient): Promise<OrchestrationResult> {
+  const db = client || supabase;
   try {
-    const { data, error } = await supabase.rpc('orchestrate_order', {
+    const { data, error } = await db.rpc('orchestrate_order', {
       p_order_id: orderId,
     });
 
