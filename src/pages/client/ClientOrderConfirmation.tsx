@@ -353,20 +353,40 @@ END:VCALENDAR`;
   const servicePostalCode = order.shipping_postal_code || profile?.service_postal_code || "";
   const hasValidAddress = serviceAddress && serviceCity;
   
-  // Calculate fees
-  const deliveryFee = order.delivery_fee || 0;
-  const activationFee = order.activation_fee ?? 0;
-  const installationFee = Math.max(0, (order.installation_fee || 0) - (order.installation_credit || 0));
-  const routerFee = order.router_fee || 0;
-  const terminalFee = order.terminal_fee || 0;
-  const simFee = equipment.find(e => e.type === "sim")?.fee || 0;
-  const promoDiscount = order.promo_discount_amount || 0;
+  // ===== CANONICAL PRICING: All monetary values from pricing_snapshot =====
+  // The pricing_snapshot is the server-approved pricing object saved at order creation.
+  // No client-side recalculation is permitted.
+  const ps = order.pricing_snapshot;
+  
+  // One-time fees (from snapshot or fallback to order columns for legacy orders)
+  const deliveryFee = ps?.one_time_breakdown?.delivery ?? order.delivery_fee ?? 0;
+  const activationFee = ps?.one_time_breakdown?.activation ?? order.activation_fee ?? 0;
+  const installationFee = ps?.one_time_breakdown?.installation ?? Math.max(0, (order.installation_fee || 0) - (order.installation_credit || 0));
+  const routerFee = ps?.one_time_breakdown?.router ?? order.router_fee ?? 0;
+  const terminalFee = ps?.one_time_breakdown?.terminal ?? order.terminal_fee ?? 0;
+  const simFee = ps?.one_time_breakdown?.sim ?? (equipment.find(e => e.type === "sim")?.fee || 0);
+  
+  // Recurring values
+  const monthlyRecurringGross = ps?.recurring_subtotal ?? order.subtotal ?? 0;
+  const recurringDiscountTotal = ps?.discount_total ?? order.promo_discount_amount ?? 0;
+  const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - recurringDiscountTotal);
+  
+  // One-time subtotal
+  const oneTimeSubtotal = ps?.one_time_subtotal ?? (deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
+  
+  // Promo / discount display
+  const promoDiscount = recurringDiscountTotal;
   const preauthDiscount = order.preauth_discount || 0;
-  const tpsAmount = order.tps_amount || 0;
-  const tvqAmount = order.tvq_amount || 0;
-  const totalAmount = order.total_amount || 0;
-  const monthlyRecurring = order.subtotal || 0;
-  const monthlyWithTaxes = monthlyRecurring * 1.14975;
+  
+  // Taxes and total — directly from canonical snapshot
+  const tpsAmount = ps?.tps_amount ?? order.tps_amount ?? 0;
+  const tvqAmount = ps?.tvq_amount ?? order.tvq_amount ?? 0;
+  const totalAmount = ps?.grand_total ?? order.total_amount ?? 0;
+  
+  // Future monthly total (recurring net + taxes on recurring net)
+  const monthlyTps = monthlyRecurringNet * 0.05;
+  const monthlyTvq = monthlyRecurringNet * 0.09975;
+  const monthlyWithTaxes = monthlyRecurringNet + monthlyTps + monthlyTvq;
 
   // Determine fulfillment type
   const isDeliveryOnly = order.installation_type === "auto" || order.delivery_method?.toLowerCase().includes("livraison");
