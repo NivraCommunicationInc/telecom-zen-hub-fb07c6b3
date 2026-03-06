@@ -193,12 +193,22 @@ export function ContractDocumentsStep({ proc }: Props) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleView(doc)}
+                    onClick={() => handleViewOrDownload(doc, false)}
                     disabled={loading === doc.key}
                     className="text-xs h-7 border-gray-300 text-gray-700"
                   >
                     {loading === doc.key ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
                     Voir
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleViewOrDownload(doc, true)}
+                    disabled={loading === `dl-${doc.key}`}
+                    className="text-xs h-7 border-gray-300 text-gray-700"
+                  >
+                    {loading === `dl-${doc.key}` ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Download className="w-3 h-3 mr-1" />}
+                    Télécharger
                   </Button>
                   <Button
                     size="sm"
