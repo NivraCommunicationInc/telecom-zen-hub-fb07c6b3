@@ -5695,11 +5695,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
                   <div className="border-t border-border pt-4">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium text-foreground">Total à payer</span>
+                      <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">Frais uniques, taxes incluses</p>
                   </div>
 
                   {/* Payment Status Indicator */}
