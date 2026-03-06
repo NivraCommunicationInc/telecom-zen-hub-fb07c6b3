@@ -2775,7 +2775,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const oneTimeFeesWithTax = oneTimeTotalWithTax;
 
   // Server pricing loaded flag (used to gate payment and submission)
-  const isServerPricingReady = !!sp && !isServerPricingLoading;
+  const isServerPricingReady = !!sp && !isServerPricingLoading && !serverPricingError;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
