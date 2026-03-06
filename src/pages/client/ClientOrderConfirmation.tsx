@@ -550,11 +550,23 @@ END:VCALENDAR`;
                   
                   <div className="flex justify-between font-medium">
                     <span>Sous-total mensuel</span>
-                    <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
+                  {recurringDiscountTotal > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-500 mt-1">
+                      <span>Rabais {order.promo_code ? `(${order.promo_code})` : "nouveau client"}</span>
+                      <span>-{recurringDiscountTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                  {recurringDiscountTotal > 0 && (
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className="text-muted-foreground">Net mensuel après rabais</span>
+                      <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm text-muted-foreground mt-1">
                     <span>TPS (5%) + TVQ (9.975%)</span>
-                    <span>+{(monthlyRecurring * 0.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span>+{(monthlyTps + monthlyTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-purple-500/30">
                     <span className="text-purple-500">Total mensuel estimé</span>
