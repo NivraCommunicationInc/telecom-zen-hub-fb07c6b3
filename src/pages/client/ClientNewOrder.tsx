@@ -2644,168 +2644,40 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // IMPORTANT: discount_amount is computed server-side on eligible items.
   // To avoid stale discounts when the cart changes, we revalidate the promo (see useEffect below)
   // instead of guessing the discount client-side.
-  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+  // === ALL PRICING FROM SERVER — NO CLIENT-SIDE COMPUTATION ===
+  // The server RPC (compute_checkout_pricing) is the ONLY source of truth.
+  // No fallback values. If server pricing is loading, show loading indicators.
+  const sp = liveServerPricing; // shorthand
 
-  const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
-  
-  // Welcome discount: now computed server-side via compute_checkout_pricing RPC.
-  // The client-side hook is only used to determine isNewCustomer flag passed to the server.
-  // The actual welcome_discount amount comes from liveServerPricing.welcome_discount.
-  const welcomeDiscountAmount = liveServerPricing?.welcome_discount ?? 0;
-  
-  const grossTotal = round2(monthlyRecurring + oneTimeFees);
+  // Global totals — server only
+  const baseAmount = sp?.taxable_base ?? 0;
+  const tpsAmount = sp?.tps_amount ?? 0;
+  const tvqAmount = sp?.tvq_amount ?? 0;
+  const totalAmount = sp?.grand_total ?? 0;
 
-  // Cap discount to never exceed the cart total (prevents negative amounts)
-  const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
-  
-  // Total discount comes from server (includes promo + welcome, properly deduped)
-  const totalDiscount = liveServerPricing?.discount_total ?? Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
+  // Discounts — server only
+  const promoDiscount = sp?.promo_discount ?? 0;
+  const welcomeDiscountAmount = sp?.welcome_discount ?? 0;
+  const totalDiscount = sp?.discount_total ?? 0;
   const effectiveTotalDiscount = totalDiscount;
 
-  // Client-side fallback values (used only before server pricing loads)
-  const _clientBaseAmount = round2(Math.max(0, grossTotal - effectiveTotalDiscount));
-  const _clientTpsAmount = round2(_clientBaseAmount * 0.05);
-  const _clientTvqAmount = round2(_clientBaseAmount * 0.09975);
-  const _clientTotalAmount = round2(_clientBaseAmount + _clientTpsAmount + _clientTvqAmount);
+  // Per-block: one-time — server only
+  const oneTimeTps = sp?.one_time_tps ?? 0;
+  const oneTimeTvq = sp?.one_time_tvq ?? 0;
+  const oneTimeTaxes = (sp ? sp.one_time_tps + sp.one_time_tvq : 0);
+  const oneTimeTotalWithTax = sp?.one_time_total_with_tax ?? 0;
 
-  // Keep promo discount accurate when the cart changes (prevents “97% => 0$” stale/cap bugs)
-  useEffect(() => {
-    if (!appliedPromo?.code) return;
-    if (isValidatingPromo) return;
+  // Per-block: monthly — server only
+  const monthlyTps = sp?.monthly_tps ?? 0;
+  const monthlyTvq = sp?.monthly_tvq ?? 0;
+  const monthlyTaxes = (sp ? sp.monthly_tps + sp.monthly_tvq : 0);
+  const monthlyRecurringWithTax = sp?.monthly_total_with_tax ?? 0;
 
-    const payload = buildPromoValidationPayload(appliedPromo.code);
-    if (!payload) return;
-
-    // If cart signature hasn't changed since last validation, skip
-    if (payload.signature === promoCartSignatureRef.current) return;
-
-    // Silent revalidation (no success toast)
-    void validateAndApplyPromo(appliedPromo.code, { silent: true });
-  }, [
-    appliedPromo?.code,
-    isValidatingPromo,
-    selectedServices,
-    selectedMobileServices,
-    selectedPaidChannels,
-    selectedStreamingServices,
-    mobileLineQuantities,
-    terminalQuantity,
-    deliveryChoice,
-    installationChoice,
-    installationCredit,
-    isDeliveryOnlyOrder,
-    isEquipmentOnlyOrder,
-    hasTVService,
-    hasInternetService,
-    hasMobileService,
-    totalMobileLineQuantity,
-    profile?.email,
-    user?.id,
-  ]);
-
-  // === LIVE PRICING: Server-side RPC is the single source of truth for all totals ===
-  // Calls compute_checkout_pricing which handles promo, welcome discount, and taxes in cents.
-  useEffect(() => {
-    if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
-      setLiveServerPricing(null);
-      return;
-    }
-
-    if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
-
-    serverPricingTimerRef.current = setTimeout(async () => {
-      setIsServerPricingLoading(true);
-      try {
-        // Build cart items for RPC (same structure as promo validation)
-        const cartItems: import("@/lib/pricing/serverPricing").CartLineItem[] = [];
-
-        // Services
-        selectedServices.forEach((s) => {
-          const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
-          cartItems.push({ type: 'service', name: s.name, amount: Number(s.price) * qty, quantity: 1 });
-        });
-        // Paid channels as services
-        selectedPaidChannels.forEach((ch) => {
-          cartItems.push({ type: 'service', name: ch.name, amount: Number(ch.price) });
-        });
-        // Streaming+ add-ons
-        selectedStreamingServices.forEach((s) => {
-          cartItems.push({ type: 'service', name: s.name, amount: Number(s.monthly_price) });
-        });
-        // Equipment
-        if (hasInternetService || hasTVService) {
-          cartItems.push({ type: 'equipment', name: 'Routeur', amount: ROUTER_CONFIG_DYNAMIC.price });
-        }
-        if (hasTVService) {
-          cartItems.push({ type: 'equipment', name: 'Terminal TV', amount: TERMINAL_CONFIG.price * terminalQuantity });
-        }
-        if (hasMobileService) {
-          cartItems.push({ type: 'equipment', name: 'SIM', amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity });
-        }
-        // Activation
-        if (activationFee > 0) {
-          cartItems.push({ type: 'one_time_fee', name: 'Activation', amount: activationFee });
-        }
-        // Delivery
-        if (deliveryFee > 0) {
-          cartItems.push({ type: 'delivery', name: 'Livraison', amount: deliveryFee });
-        }
-        // Installation
-        if (installationFee > 0) {
-          cartItems.push({ type: 'installation', name: 'Installation', amount: installationFee });
-        }
-
-        const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
-        const result = await computeCheckoutPricing(
-          cartItems,
-          appliedPromo?.code || null,
-          profile?.email || user?.email || null,
-          user?.id || null,
-          acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-          welcomeDiscountHook.isNewCustomer,
-        );
-
-        console.log("[LivePricing] Server RPC result:", result);
-        setLiveServerPricing(result);
-      } catch (err) {
-        console.error("[LivePricing] RPC Error:", err);
-      } finally {
-        setIsServerPricingLoading(false);
-      }
-    }, 400);
-
-    return () => {
-      if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
-    };
-  }, [
-    selectedServices, selectedStreamingServices, selectedPaidChannels, paidChannelTotal,
-    mobileLineQuantities, activationFee, deliveryFee, installationFee,
-    terminalQuantity, hasTVService, hasInternetService, hasMobileService,
-    totalMobileLineQuantity, acceptPreauthorized, appliedPromo?.code,
-    profile?.email, user?.email, user?.id, welcomeDiscountHook.isNewCustomer,
-  ]);
-
-  // Totals: use server pricing when available, fallback to client-side for initial render
-  const baseAmount = liveServerPricing ? liveServerPricing.taxable_base : _clientBaseAmount;
-  const tpsAmount = liveServerPricing ? liveServerPricing.tps_amount : _clientTpsAmount;
-  const tvqAmount = liveServerPricing ? liveServerPricing.tvq_amount : _clientTvqAmount;
-  const totalAmount = liveServerPricing ? liveServerPricing.grand_total : _clientTotalAmount;
-
-  // === Separate tax calculations per block (one-time vs monthly) ===
-  // One-time block: taxes computed ONLY on one-time fees
-  const oneTimeTps = round2(oneTimeFees * 0.05);
-  const oneTimeTvq = round2(oneTimeFees * 0.09975);
-  const oneTimeTaxes = round2(oneTimeTps + oneTimeTvq);
-  const oneTimeTotalWithTax = round2(oneTimeFees + oneTimeTaxes);
-
-  // Monthly block: taxes computed ONLY on monthly recurring
-  const monthlyTps = round2(monthlyRecurring * 0.05);
-  const monthlyTvq = round2(monthlyRecurring * 0.09975);
-  const monthlyTaxes = round2(monthlyTps + monthlyTvq);
-  const monthlyRecurringWithTax = round2(monthlyRecurring + monthlyTaxes);
-
-  // Legacy aliases kept for bill preview
+  // Legacy aliases
   const oneTimeFeesWithTax = oneTimeTotalWithTax;
+
+  // Server pricing loaded flag (used to gate payment and submission)
+  const isServerPricingReady = !!sp && !isServerPricingLoading;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
