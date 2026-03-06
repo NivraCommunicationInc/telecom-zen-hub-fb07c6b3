@@ -1269,6 +1269,7 @@ const ClientNewOrder = () => {
           user?.id || null,
           preauthDisc,
           welcomeDiscountHook.isNewCustomer,
+          supabase, // Use portalClient for client checkout
         );
 
         console.log("[ServerPricing] Live pricing result:", result);

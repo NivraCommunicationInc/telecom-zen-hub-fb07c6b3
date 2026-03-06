@@ -7,7 +7,7 @@
  * The frontend must NEVER compute taxes, totals, discounts, or subtotals locally.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as defaultClient } from "@/integrations/supabase/client";
 
 export interface CartLineItem {
   type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation' | 'activation';
@@ -79,6 +79,8 @@ export interface ServerPricingResult {
  * Call server-side pricing engine.
  * Returns authoritative totals computed in cents (no floating-point drift).
  * This is the ONLY function that should provide pricing data to the checkout UI.
+ * 
+ * @param supabaseClient - Optional Supabase client override (use portalClient for client checkout)
  */
 export async function computeCheckoutPricing(
   cartItems: CartLineItem[],
@@ -87,8 +89,11 @@ export async function computeCheckoutPricing(
   clientId?: string | null,
   preauthDiscount: number = 0,
   isNewCustomer: boolean = false,
+  supabaseClient?: any,
 ): Promise<ServerPricingResult> {
-  const { data, error } = await supabase.rpc("compute_checkout_pricing" as any, {
+  const client = supabaseClient || defaultClient;
+  
+  const { data, error } = await client.rpc("compute_checkout_pricing" as any, {
     p_cart_items: cartItems,
     p_promo_code: promoCode || null,
     p_client_email: clientEmail || null,
