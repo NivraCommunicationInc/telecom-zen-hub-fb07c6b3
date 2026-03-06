@@ -1,66 +1,69 @@
 /**
- * Hook for counting overdue/unpaid invoices - UNIFIED Billing System
- * Counts from both V2 (billing_invoices) and legacy (billing) tables
- * Used for badge display in navigation
- * 
- * CRITICAL: For client portal, pass portalClient for proper RLS authentication
+ * Hook for counting open invoices - V2 Billing ONLY
+ * Single source of truth: billing_invoices.balance_due/status
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { backendClient } from "@/integrations/backend/client";
 
 /**
- * @param userId - The user ID to count overdue invoices for
- * @param supabaseClient - Optional: The authenticated Supabase client to use
- *                         For portal context, pass portalClient
- *                         Defaults to backendClient for admin/staff contexts
+ * @param userId - The user ID to count open invoices for
+ * @param supabaseClient - Optional authenticated client (portalClient in portal context)
  */
 export function useOverdueCount(
   userId: string | undefined,
   supabaseClient?: SupabaseClient
 ) {
   const client = supabaseClient || backendClient;
-  
-  return useQuery({
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
     queryKey: ["overdue-count-unified", userId],
     queryFn: async () => {
       if (!userId) return 0;
-      
-      let totalCount = 0;
 
-      // 1. V2 System: Count from billing_invoices
       const { data: customer } = await client
-        .from('billing_customers')
-        .select('id')
-        .eq('user_id', userId)
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", userId)
         .maybeSingle();
 
-      if (customer) {
-        const { count: v2Count } = await client
-          .from('billing_invoices')
-          .select('id', { count: 'exact', head: true })
-          .eq('customer_id', customer.id)
-          .not('status', 'in', '("paid","cancelled","refunded")')
-          .gt('balance_due', 0);
+      if (!customer) return 0;
 
-        totalCount += v2Count || 0;
-      }
+      const { count } = await client
+        .from("billing_invoices")
+        .select("id", { count: "exact", head: true })
+        .eq("customer_id", customer.id)
+        .not("status", "in", '("paid","paid_by_promo","cancelled","refunded","void")')
+        .gt("balance_due", 0);
 
-      // 2. Legacy System: Count from billing table
-      const { count: legacyCount } = await client
-        .from('billing')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .not('status', 'in', '("paid","cancelled","voided","refunded")');
-
-      totalCount += legacyCount || 0;
-
-      return totalCount;
+      return count || 0;
     },
     enabled: !!userId,
-    staleTime: 60000, // 1 minute
+    staleTime: 30000,
   });
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = client
+      .channel(`overdue-count-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_invoices" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["overdue-count-unified", userId] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "billing_payments" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["overdue-count-unified", userId] });
+      })
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [client, queryClient, userId]);
+
+  return query;
 }
 
 export default useOverdueCount;
