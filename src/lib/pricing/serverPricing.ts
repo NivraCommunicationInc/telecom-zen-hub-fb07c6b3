@@ -76,6 +76,40 @@ export interface ServerPricingResult {
 }
 
 /**
+ * Runtime guard: prevent silent UI corruption when RPC payload shape is incomplete.
+ */
+function assertCompletePricingPayload(payload: any): asserts payload is ServerPricingResult {
+  const requiredNumericFields: Array<keyof ServerPricingResult> = [
+    "recurring_subtotal",
+    "one_time_subtotal",
+    "discount_total",
+    "promo_discount",
+    "welcome_discount",
+    "preauth_discount",
+    "taxable_base",
+    "tps_amount",
+    "tvq_amount",
+    "grand_total",
+    "one_time_tps",
+    "one_time_tvq",
+    "one_time_total_with_tax",
+    "monthly_tps",
+    "monthly_tvq",
+    "monthly_total_with_tax",
+  ];
+
+  const missing = requiredNumericFields.filter(
+    (field) => typeof payload?.[field] !== "number" || Number.isNaN(payload?.[field]),
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `[ServerPricing] Incomplete pricing payload. Missing/invalid fields: ${missing.join(", ")}`,
+    );
+  }
+}
+
+/**
  * Call server-side pricing engine.
  * Returns authoritative totals computed in cents (no floating-point drift).
  * This is the ONLY function that should provide pricing data to the checkout UI.
@@ -92,7 +126,7 @@ export async function computeCheckoutPricing(
   supabaseClient?: any,
 ): Promise<ServerPricingResult> {
   const client = supabaseClient || defaultClient;
-  
+
   const { data, error } = await client.rpc("compute_checkout_pricing" as any, {
     p_cart_items: cartItems,
     p_promo_code: promoCode || null,
@@ -107,5 +141,6 @@ export async function computeCheckoutPricing(
     throw new Error(`Pricing calculation failed: ${error.message}`);
   }
 
-  return data as unknown as ServerPricingResult;
+  assertCompletePricingPayload(data);
+  return data;
 }
