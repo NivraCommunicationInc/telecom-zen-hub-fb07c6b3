@@ -1342,6 +1342,7 @@ const ClientNewOrder = () => {
           client_id: user?.id,
           cart_items: payload.cartItems,
           subtotal_before_discount: payload.subtotalBeforeDiscount,
+          is_new_customer: welcomeDiscountHook.isNewCustomer,
         },
       });
 
@@ -3285,8 +3286,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   onContinue={() => setStep(2)}
                   continueDisabled={selectedServices.length === 0}
                   welcomeDiscount={{
-                    isNewCustomer: welcomeDiscountHook.isNewCustomer,
-                    discountPercent: welcomeDiscountHook.discountPercent,
+                    isNewCustomer: welcomeDiscountHook.isNewCustomer && welcomeDiscountAmount > 0,
+                    discountPercent: welcomeDiscountAmount > 0 ? 50 : 0,
                     discountAmount: welcomeDiscountAmount,
                     label: welcomeDiscountHook.label,
                   }}
