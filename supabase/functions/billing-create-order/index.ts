@@ -237,7 +237,8 @@ serve(async (req) => {
           cycle_start_date: cycleStartStr,
           cycle_end_date: cycleEndStr,
           status: subscriptionStatus,
-          auto_billing_enabled: isPayPalPaid, // Enable auto-billing for PayPal
+          auto_billing_enabled: isPayPalPaid,
+          order_id: body.order_id || null,
         })
         .select()
         .single();
@@ -279,7 +280,7 @@ serve(async (req) => {
         total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
       }
       
-      // Create invoice with SMART status
+      // Create invoice with SMART status + order linkage
       const invoiceData: Record<string, any> = {
         subscription_id: subscription.id,
         customer_id: customerId,
@@ -296,6 +297,7 @@ serve(async (req) => {
         cycle_start_date: cycleStartStr,
         cycle_end_date: cycleEndStr,
         due_date: dueDate,
+        order_id: body.order_id || null,
         notes: body.order_number 
           ? `Commande: ${body.order_number}${discountAmount > 0 ? ` | Rabais: -${discountAmount.toFixed(2)}$` : ''}${body.billing_totals?.promo_code ? ` (${body.billing_totals.promo_code})` : ''}`
           : null,
