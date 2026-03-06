@@ -411,13 +411,22 @@ export function useOrderProcessing(orderId: string | undefined) {
   const confirmPayment = async (reference?: string) => {
     try {
       if (data?.invoice) {
+        // Check if invoice is already fully paid (prevent duplicate)
+        if (data.invoice.status === "paid" || (data.invoice.balance_due !== null && Number(data.invoice.balance_due) <= 0)) {
+          toast.info("Cette facture est déjà payée");
+          return;
+        }
+
         const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
           p_invoice_id: data.invoice.id,
-          p_amount: data.invoice.total,
+          p_amount: Number(data.invoice.balance_due ?? data.invoice.total),
           p_method: data.order?.payment_method || "manual",
-          p_reference: reference || "admin-confirmed",
+          p_provider: "admin",
           p_provider_payment_id: reference || `admin-${Date.now()}`,
-          p_admin_id: user?.id,
+          p_source: "admin",
+          p_created_by_name: user?.email || "Admin",
+          p_created_by_role: "admin",
+          p_customer_id: data.invoice.customer_id || null,
         });
         if (error) throw error;
       } else {
