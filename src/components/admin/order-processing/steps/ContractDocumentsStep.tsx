@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Send, RefreshCw, PenTool, Eye, Loader2 } from "lucide-react";
+import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -30,8 +30,9 @@ export function ContractDocumentsStep({ proc }: Props) {
     { type: "Conditions de service", key: "terms", available: true, data: null },
   ];
 
-  const handleView = async (doc: typeof documents[0]) => {
-    setLoading(doc.key);
+  const handleViewOrDownload = async (doc: typeof documents[0], download = false) => {
+    const loadKey = download ? `dl-${doc.key}` : doc.key;
+    setLoading(loadKey);
     try {
       const result = await generateOrderDocuments(order.id);
       if (!result) {
@@ -68,15 +69,28 @@ export function ContractDocumentsStep({ proc }: Props) {
       }
 
       if (blob) {
-        setPdfBlob(blob);
-        setPdfTitle(title);
-        setPdfFilename(filename);
-        setPdfViewerOpen(true);
+        if (download) {
+          // Direct download
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          toast.success("Téléchargement démarré");
+        } else {
+          setPdfBlob(blob);
+          setPdfTitle(title);
+          setPdfFilename(filename);
+          setPdfViewerOpen(true);
+        }
       } else {
         toast.error("Erreur lors de la génération du document");
       }
     } catch (err) {
-      console.error("[Documents] View error:", err);
+      console.error("[Documents] View/Download error:", err);
       toast.error("Erreur lors de l'ouverture du document");
     } finally {
       setLoading(null);
