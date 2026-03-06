@@ -1,6 +1,5 @@
 /**
- * WorkbenchProvisioningTab V2 — Operational activation management
- * Retry, override, complete with provider reference
+ * WorkbenchProvisioningTab V3 — Uses correct provisioning_jobs column names
  */
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -22,19 +21,24 @@ interface Props {
   onComplete: (jobId: string, providerRef?: string) => Promise<void>;
 }
 
-const JOB_STATUS_CFG: Record<string, { color: string; icon: any }> = {
-  pending: { color: "bg-amber-500/20 text-amber-400", icon: Clock },
-  in_progress: { color: "bg-blue-500/20 text-blue-400", icon: Loader2 },
-  completed: { color: "bg-emerald-500/20 text-emerald-400", icon: CheckCircle },
-  failed: { color: "bg-red-500/20 text-red-400", icon: XCircle },
-  blocked: { color: "bg-orange-500/20 text-orange-400", icon: AlertTriangle },
-  skipped: { color: "bg-muted text-muted-foreground", icon: Clock },
+const JOB_STATUS_CFG: Record<string, { color: string; icon: any; label: string }> = {
+  queued: { color: "bg-amber-500/20 text-amber-400", icon: Clock, label: "En file" },
+  pending: { color: "bg-amber-500/20 text-amber-400", icon: Clock, label: "En attente" },
+  in_progress: { color: "bg-blue-500/20 text-blue-400", icon: Loader2, label: "En cours" },
+  completed: { color: "bg-emerald-500/20 text-emerald-400", icon: CheckCircle, label: "Complété" },
+  failed: { color: "bg-red-500/20 text-red-400", icon: XCircle, label: "Échoué" },
+  blocked: { color: "bg-orange-500/20 text-orange-400", icon: AlertTriangle, label: "Bloqué" },
+  skipped: { color: "bg-muted text-muted-foreground", icon: Clock, label: "Ignoré" },
 };
 
 const TYPE_ICONS: Record<string, any> = {
+  INTERNET_ACTIVATE: Wifi,
   internet_activation: Wifi,
+  TV_ACTIVATE: Tv,
   tv_activation: Tv,
+  MOBILE_ACTIVATE: Smartphone,
   mobile_activation: Smartphone,
+  STREAMING_ACTIVATE: Film,
   streaming_activation: Film,
 };
 
@@ -84,6 +88,7 @@ export function WorkbenchProvisioningTab({ provisioningJobs, orderId, role, onRe
         {provisioningJobs.map((job: any) => {
           const cfg = JOB_STATUS_CFG[job.status] || JOB_STATUS_CFG.pending;
           const Icon = TYPE_ICONS[job.job_type] || cfg.icon;
+          const provRef = job.result_data?.provider_reference;
           return (
             <div key={job.id} className="border border-border rounded-lg bg-card p-4">
               <div className="flex items-start justify-between">
@@ -93,28 +98,37 @@ export function WorkbenchProvisioningTab({ provisioningJobs, orderId, role, onRe
                   </div>
                   <div>
                     <p className="font-medium text-foreground font-mono text-sm">{job.job_type}</p>
-                    {job.provider && <p className="text-xs text-muted-foreground">Provider: {job.provider}</p>}
-                    {job.provider_reference && <p className="text-xs text-muted-foreground">Réf: <span className="font-mono">{job.provider_reference}</span></p>}
+                    {job.job_label && <p className="text-xs text-muted-foreground">{job.job_label}</p>}
+                    {provRef && <p className="text-xs text-muted-foreground">Réf: <span className="font-mono">{provRef}</span></p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className={cfg.color}>{job.status}</Badge>
+                  <Badge className={cfg.color}>{cfg.label}</Badge>
                   {job.priority && <Badge variant="outline" className="text-xs">P{job.priority}</Badge>}
                 </div>
               </div>
 
               {/* Details grid */}
               <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                <div><span className="text-muted-foreground block">Tentatives</span><span className="text-foreground">{job.attempts || 0} / {job.max_retries || 3}</span></div>
+                <div><span className="text-muted-foreground block">Tentatives</span><span className="text-foreground">{job.attempts || 0} / {job.max_attempts || 3}</span></div>
                 <div><span className="text-muted-foreground block">Prochaine</span><span className="text-foreground">{job.next_retry_at ? format(new Date(job.next_retry_at), "dd/MM HH:mm") : "—"}</span></div>
                 <div><span className="text-muted-foreground block">Créé</span><span className="text-foreground">{format(new Date(job.created_at), "dd/MM HH:mm", { locale: fr })}</span></div>
                 <div><span className="text-muted-foreground block">Complété</span><span className="text-foreground">{job.completed_at ? format(new Date(job.completed_at), "dd/MM HH:mm") : "—"}</span></div>
               </div>
 
               {/* Error */}
-              {job.last_error && (
+              {job.error_message && (
                 <div className="mt-3 p-2 rounded bg-destructive/10 border border-destructive/20">
-                  <p className="text-xs text-destructive font-mono">{job.last_error}</p>
+                  <p className="text-xs text-destructive font-mono">{job.error_message}</p>
+                  {job.error_code && <p className="text-xs text-muted-foreground mt-1">Code: {job.error_code}</p>}
+                </div>
+              )}
+
+              {/* Manual override info */}
+              {job.manual_override_reason && (
+                <div className="mt-3 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-xs text-amber-400">Override: {job.manual_override_reason}</p>
+                  {job.manual_override_at && <p className="text-xs text-muted-foreground">{format(new Date(job.manual_override_at), "dd/MM HH:mm")}</p>}
                 </div>
               )}
 
@@ -135,12 +149,12 @@ export function WorkbenchProvisioningTab({ provisioningJobs, orderId, role, onRe
               {/* Actions */}
               {job.status !== "completed" && job.status !== "skipped" && (
                 <div className="mt-3 flex gap-2 justify-end border-t border-border pt-3">
-                  {(job.status === "pending" || job.status === "in_progress") && canPerformAction(role, "retry_provisioning") && (
+                  {["queued", "pending", "in_progress"].includes(job.status) && canPerformAction(role, "retry_provisioning") && (
                     <Button size="sm" variant="outline" className="text-xs" onClick={() => setCompleteJob(job)}>
                       <CheckCircle className="h-3 w-3 mr-1" /> Marquer complété
                     </Button>
                   )}
-                  {(job.status === "failed" || job.status === "blocked") && (
+                  {["failed", "blocked"].includes(job.status) && (
                     <>
                       {canPerformAction(role, "retry_provisioning") && (
                         <Button size="sm" variant="outline" className="text-xs" onClick={() => handleRetry(job)} disabled={isProcessing}>
