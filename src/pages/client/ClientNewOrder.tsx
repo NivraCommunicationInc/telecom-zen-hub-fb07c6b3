@@ -4861,27 +4861,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   )}
 
-                  {/* Taxes */}
+                  {/* Taxes — on one-time fees only (what's payable today) */}
                   <div className="border-t border-border pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">TPS (5%)</span>
-                      <span className="text-foreground">{tpsAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{oneTimeTps.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">TVQ (9.975%)</span>
-                      <span className="text-foreground">{tvqAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{oneTimeTvq.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
 
-                  {/* Total Due Today */}
+                  {/* Total Due Today — one-time fees + their taxes only */}
                   <div className="border-t-2 border-cyan-500/50 pt-4 bg-gradient-to-r from-cyan-500/5 to-transparent -mx-6 px-6 pb-2 rounded-b-lg">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {oneTimeTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Taxes incluses</p>
+                    <p className="text-xs text-muted-foreground mt-1">Frais uniques, taxes incluses</p>
                   </div>
 
                   <div className="pt-4 space-y-3">
