@@ -1,6 +1,8 @@
 /**
  * Invoice Adjustment Dialog - Admin tool to add charge/credit lines to an existing invoice
- * Recalculates totals and optionally regenerates PDF + notifies client
+ * 
+ * CRITICAL: After inserting lines, calls compute_invoice_breakdown RPC to get
+ * authoritative totals. Zero client-side tax math.
  */
 
 import { useState } from "react";
@@ -16,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Minus, Loader2, FileText, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { fetchInvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
 
 interface AdjustmentLine {
   type: "charge" | "credit";
@@ -26,7 +29,7 @@ interface AdjustmentLine {
 interface InvoiceAdjustmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  invoice: any; // BillingInvoice
+  invoice: any;
 }
 
 export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: InvoiceAdjustmentDialogProps) {
@@ -48,13 +51,6 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
   const netAdjustment = lines.reduce((sum, l) => {
     return sum + (l.type === "charge" ? l.amount : -l.amount);
   }, 0);
-
-  const newSubtotal = Number(invoice?.subtotal || 0) + netAdjustment;
-  const taxRate = 0.14975; // TPS 5% + TVQ 9.975%
-  const newTps = newSubtotal * 0.05;
-  const newTvq = newSubtotal * 0.09975;
-  const newTotal = newSubtotal + newTps + newTvq;
-  const newBalanceDue = Math.max(0, newTotal - Number(invoice?.amount_paid || 0));
 
   const handleSubmit = async () => {
     if (!invoice?.id) return;
@@ -81,21 +77,24 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
         .insert(lineInserts);
       if (linesError) throw linesError;
 
-      // 2. Update invoice totals
+      // 2. Recalculate via canonical RPC — NO client-side math
+      const breakdown = await fetchInvoiceBreakdown(invoice.id);
+
+      // 3. Update invoice with canonical RPC-computed totals
       const { error: updateError } = await supabase
         .from("billing_invoices")
         .update({
-          subtotal: newSubtotal,
-          tps_amount: newTps,
-          tvq_amount: newTvq,
-          total: newTotal,
-          balance_due: newBalanceDue,
+          subtotal: breakdown.subtotal,
+          tps_amount: breakdown.tps_amount,
+          tvq_amount: breakdown.tvq_amount,
+          total: breakdown.total,
+          balance_due: breakdown.balance_due,
           notes: [invoice.notes, `Ajustement: ${reason || "Correction administrative"}`].filter(Boolean).join(" | "),
         })
         .eq("id", invoice.id);
       if (updateError) throw updateError;
 
-      // 3. Notify client via email queue (if enabled)
+      // 4. Notify client via email queue (if enabled)
       if (notifyClient && invoice.customer?.email) {
         await supabase.from("email_queue").insert({
           to_email: invoice.customer.email,
@@ -106,8 +105,8 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
             invoice_number: invoice.invoice_number,
             adjustment_lines: validLines,
             net_adjustment: netAdjustment,
-            new_total: newTotal,
-            new_balance_due: newBalanceDue,
+            new_total: breakdown.total,
+            new_balance_due: breakdown.balance_due,
             reason: reason || "Correction administrative",
           },
           priority: "normal",
@@ -115,9 +114,11 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
         });
       }
 
-      // 4. Invalidate caches
+      // 5. Invalidate all billing caches
       queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["billing-invoice", invoice.id] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-breakdown", invoice.id] });
+      queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
 
       toast({ title: "Ajustement appliqué", description: `${validLines.length} ligne(s) ajoutée(s) à la facture ${invoice.invoice_number}` });
       onOpenChange(false);
@@ -146,7 +147,7 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Current state */}
+          {/* Current state — from canonical DB values */}
           <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg p-3">
             <span className="text-muted-foreground">Totaux actuels</span>
             <div className="text-right">
@@ -207,35 +208,17 @@ export function InvoiceAdjustmentDialog({ open, onOpenChange, invoice }: Invoice
             </Button>
           </div>
 
-          {/* Net impact */}
+          {/* Net impact preview (approximate — final totals come from RPC) */}
           <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
             <div className="flex justify-between">
-              <span>Ajustement net</span>
+              <span>Ajustement net (approx.)</span>
               <Badge className={netAdjustment >= 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}>
                 {netAdjustment >= 0 ? "+" : ""}{cad(netAdjustment)}
               </Badge>
             </div>
-            <div className="flex justify-between">
-              <span>Nouveau sous-total</span>
-              <strong>{cad(newSubtotal)}</strong>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>TPS (5%)</span>
-              <span>{cad(newTps)}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>TVQ (9,975%)</span>
-              <span>{cad(newTvq)}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-semibold">
-              <span>Nouveau total</span>
-              <span>{cad(newTotal)}</span>
-            </div>
-            <div className="flex justify-between font-semibold">
-              <span>Nouveau solde dû</span>
-              <span className={newBalanceDue > 0 ? "text-amber-600" : "text-emerald-600"}>{cad(newBalanceDue)}</span>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Les totaux exacts (taxes incluses) seront calculés par le serveur après l'ajustement.
+            </p>
           </div>
 
           {/* Reason */}
