@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import React from "react";
 import ClientLayout from "@/components/client/ClientLayout";
 import { ProfessionalOrderSummary } from "@/components/checkout/ProfessionalOrderSummary";
@@ -73,6 +73,7 @@ import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/v
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
 import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
+import { computeCheckoutPricing, type CartLineItem } from "@/lib/pricing/serverPricing";
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
@@ -1194,6 +1195,100 @@ const ClientNewOrder = () => {
     }
     return false;
   };
+
+  // === SERVER PRICING: Debounced call to compute_checkout_pricing RPC ===
+  useEffect(() => {
+    if (selectedServices.length === 0) {
+      setLiveServerPricing(null);
+      return;
+    }
+
+    if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
+
+    serverPricingTimerRef.current = setTimeout(async () => {
+      setIsServerPricingLoading(true);
+      try {
+        // Build cart items (same shape as buildPromoValidationPayload)
+        const cartItems: CartLineItem[] = [];
+        const mobileServices = selectedServices.filter(s => s.category === "Mobile");
+        const mobileIds = new Set(mobileServices.map((s) => s.id));
+        const totalMobileLines = mobileServices.reduce((sum, s) => sum + (mobileLineQuantities[s.id] || 1), 0);
+
+        selectedServices.forEach((s) => {
+          if (mobileIds.has(s.id)) return;
+          const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
+          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
+        });
+        mobileServices.forEach((s) => {
+          const qty = mobileLineQuantities[s.id] || 1;
+          cartItems.push({ type: "service", name: qty > 1 ? `${s.name} x${qty}` : s.name, amount: Number(s.price) * qty, quantity: qty });
+        });
+        selectedPaidChannels.forEach((ch) => {
+          cartItems.push({ type: "service", name: ch.name, amount: Number(ch.price) });
+        });
+        selectedStreamingServices.forEach((s) => {
+          cartItems.push({ type: "service", name: `Streaming+ — ${s.name}`, amount: Number(s.monthly_price) });
+        });
+
+        // Equipment
+        if (hasTVService && terminalQuantity > 0) {
+          cartItems.push({ type: "equipment", name: `${TERMINAL_CONFIG.name} x${terminalQuantity}`, amount: terminalQuantity * TERMINAL_CONFIG.price });
+        }
+        if (hasInternetService || hasTVService) {
+          cartItems.push({ type: "equipment", name: ROUTER_CONFIG_DYNAMIC.name, amount: ROUTER_CONFIG_DYNAMIC.price });
+        }
+        if (hasMobileService) {
+          cartItems.push({ type: "equipment", name: `${SIM_CONFIG_DYNAMIC.physical.name} x${totalMobileLines}`, amount: SIM_CONFIG_DYNAMIC.physical.price * totalMobileLines });
+        }
+
+        // Activation
+        const actFee = calculateActivationFee();
+        if (actFee > 0) {
+          cartItems.push({ type: "activation", name: "Frais d'activation", amount: actFee });
+        }
+
+        // Delivery
+        if (isDeliveryOnlyOrder && deliveryChoice) {
+          const deliveryFeeAmount = deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : DELIVERY_CONFIG.standard.fee;
+          cartItems.push({ type: "delivery", name: "Frais de livraison", amount: deliveryFeeAmount });
+        } else if (!isDeliveryOnlyOrder && installationChoice === "auto") {
+          cartItems.push({ type: "delivery", name: "Frais de livraison", amount: 30 });
+        }
+
+        // Installation
+        if (!isDeliveryOnlyOrder && installationChoice === "technician") {
+          cartItems.push({ type: "installation", name: "Frais d'installation technicien", amount: 50 });
+        }
+
+        const preauthDisc = acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0;
+
+        const result = await computeCheckoutPricing(
+          cartItems,
+          appliedPromo?.code || null,
+          profile?.email || null,
+          user?.id || null,
+          preauthDisc,
+          welcomeDiscountHook.isNewCustomer,
+        );
+
+        console.log("[ServerPricing] Live pricing result:", result);
+        setLiveServerPricing(result);
+      } catch (err) {
+        console.error("[ServerPricing] Failed to compute live pricing:", err);
+      } finally {
+        setIsServerPricingLoading(false);
+      }
+    }, 400); // 400ms debounce
+
+    return () => {
+      if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
+    };
+  }, [
+    selectedServices, selectedPaidChannels, selectedStreamingServices,
+    mobileLineQuantities, terminalQuantity, hasTVService, hasInternetService, hasMobileService,
+    isDeliveryOnlyOrder, deliveryChoice, installationChoice, acceptPreauthorized,
+    appliedPromo?.code, profile?.email, user?.id, welcomeDiscountHook.isNewCustomer,
+  ]);
 
   // Promo validation helpers
   type PromoCartItemType = "service" | "one_time_fee" | "equipment" | "delivery" | "installation";
