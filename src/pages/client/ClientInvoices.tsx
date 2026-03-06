@@ -102,9 +102,9 @@ const ClientInvoices = () => {
         .order("created_at", { ascending: false });
       if (!invoices || invoices.length === 0) return [];
 
-      // Fetch all breakdowns from RPC
+      // Fetch all breakdowns from RPC using portal client for correct auth session
       const ids = invoices.map((i) => i.id);
-      const bdMap = await fetchInvoiceBreakdowns(ids);
+      const bdMap = await fetchInvoiceBreakdowns(ids, portalSupabase);
 
       // Convert to sorted array, add overdue detection
       const result: InvoiceBreakdown[] = [];

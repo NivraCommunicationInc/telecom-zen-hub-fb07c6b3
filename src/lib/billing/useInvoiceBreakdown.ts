@@ -2,10 +2,14 @@
  * useInvoiceBreakdown - SINGLE SOURCE OF TRUTH hook
  * Calls compute_invoice_breakdown RPC (server-side, cents-based)
  * All UI consumers MUST use this — zero client-side math.
+ * 
+ * Accepts an optional `client` parameter so portal pages can pass
+ * their own authenticated client instead of the default one.
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface InvoiceBreakdownItem {
   id: string;
@@ -70,10 +74,14 @@ export interface InvoiceBreakdown {
 }
 
 /**
- * Fetch breakdown for a single invoice via RPC
+ * Fetch breakdown for a single invoice via RPC.
+ * @param invoiceId - The invoice UUID
+ * @param client - Optional Supabase client (defaults to the standard client).
+ *                 Portal pages should pass their portalClient to use the correct auth session.
  */
-export async function fetchInvoiceBreakdown(invoiceId: string): Promise<InvoiceBreakdown> {
-  const { data, error } = await supabase.rpc("compute_invoice_breakdown", {
+export async function fetchInvoiceBreakdown(invoiceId: string, client?: SupabaseClient): Promise<InvoiceBreakdown> {
+  const db = client || supabase;
+  const { data, error } = await (db as any).rpc("compute_invoice_breakdown", {
     p_invoice_id: invoiceId,
   });
 
@@ -87,8 +95,10 @@ export async function fetchInvoiceBreakdown(invoiceId: string): Promise<InvoiceB
 
 /**
  * Fetch breakdowns for multiple invoices (batched)
+ * @param invoiceIds - Array of invoice UUIDs
+ * @param client - Optional Supabase client for portal auth context
  */
-export async function fetchInvoiceBreakdowns(invoiceIds: string[]): Promise<Map<string, InvoiceBreakdown>> {
+export async function fetchInvoiceBreakdowns(invoiceIds: string[], client?: SupabaseClient): Promise<Map<string, InvoiceBreakdown>> {
   const results = new Map<string, InvoiceBreakdown>();
   
   // Batch in parallel (max 20 concurrent)
@@ -100,7 +110,7 @@ export async function fetchInvoiceBreakdowns(invoiceIds: string[]): Promise<Map<
   for (const batch of batches) {
     const promises = batch.map(async (id) => {
       try {
-        const bd = await fetchInvoiceBreakdown(id);
+        const bd = await fetchInvoiceBreakdown(id, client);
         results.set(id, bd);
       } catch (e) {
         console.error(`[breakdown] Failed for ${id}:`, e);

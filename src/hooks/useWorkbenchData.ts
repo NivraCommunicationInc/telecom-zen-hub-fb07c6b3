@@ -160,18 +160,32 @@ export function useWorkbenchData(orderId: string | undefined) {
   });
 
   const kycSession = useQuery({
-    queryKey: ["workbench-kyc", order.data?.user_id],
-    enabled: !!order.data?.user_id,
+    queryKey: ["workbench-kyc", orderId, order.data?.user_id, order.data?.identity_verification_session_id],
+    enabled: !!order.data?.user_id || !!order.data?.identity_verification_session_id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("identity_verification_sessions")
-        .select("*")
-        .eq("user_id", order.data!.user_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      // Prefer the session explicitly linked to this order
+      const linkedSessionId = order.data?.identity_verification_session_id;
+      if (linkedSessionId) {
+        const { data, error } = await supabase
+          .from("identity_verification_sessions")
+          .select("*")
+          .eq("id", linkedSessionId)
+          .maybeSingle();
+        if (!error && data) return data;
+      }
+      // Fallback: latest session for user
+      if (order.data?.user_id) {
+        const { data, error } = await supabase
+          .from("identity_verification_sessions")
+          .select("*")
+          .eq("user_id", order.data!.user_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      }
+      return null;
     },
   });
 
