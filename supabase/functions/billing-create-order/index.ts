@@ -364,28 +364,49 @@ serve(async (req) => {
         service.category?.toLowerCase() || ''
       );
       
-      // Create subscription with appropriate status
+      // Create subscription with appropriate status (IDEMPOTENT — reuse if exists)
       const subscriptionStatus = isPayPalPaid ? 'active' : 'pending';
+      let subscription: { id: string } | null = null;
       
-      const { data: subscription, error: subError } = await supabase
-        .from("billing_subscriptions")
-        .insert({
-          customer_id: customerId,
-          plan_code: service.plan_code,
-          plan_name: service.plan_name,
-          plan_price: service.plan_price,
-          service_category: service.category,
-          cycle_start_date: cycleStartStr,
-          cycle_end_date: cycleEndStr,
-          status: subscriptionStatus,
-          auto_billing_enabled: isPayPalPaid,
-          order_id: body.order_id || null,
-          address_id: serviceNeedsAddress ? addressId : null,
-        })
-        .select()
-        .single();
+      // Check for existing subscription first (created by orchestrate_order RPC)
+      if (body.order_id) {
+        const { data: existingSub } = await supabase
+          .from("billing_subscriptions")
+          .select("id")
+          .eq("order_id", body.order_id)
+          .eq("customer_id", customerId)
+          .limit(1)
+          .maybeSingle();
+        
+        if (existingSub) {
+          subscription = existingSub;
+          console.log(`[billing-create-order] Reusing existing subscription: ${subscription.id}`);
+        }
+      }
       
-      if (subError) throw subError;
+      if (!subscription) {
+        const { data: newSub, error: subError } = await supabase
+          .from("billing_subscriptions")
+          .insert({
+            customer_id: customerId,
+            plan_code: service.plan_code,
+            plan_name: service.plan_name,
+            plan_price: service.plan_price,
+            service_category: service.category,
+            cycle_start_date: cycleStartStr,
+            cycle_end_date: cycleEndStr,
+            status: subscriptionStatus,
+            auto_billing_enabled: isPayPalPaid,
+            order_id: body.order_id || null,
+            address_id: serviceNeedsAddress ? addressId : null,
+          })
+          .select()
+          .single();
+        
+        if (subError) throw subError;
+        subscription = newSub;
+        console.log(`[billing-create-order] Created new subscription: ${subscription!.id}`);
+      }
       
       // Generate invoice number
       const { data: invoiceNumberData } = await supabase
