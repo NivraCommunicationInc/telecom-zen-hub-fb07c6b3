@@ -113,13 +113,13 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
         if (order.equipment_id || order.sim_number || order.serial_number) status = "completed";
         break;
       case "activation":
-        if (["active", "activated", "completed"].includes(order.status || "")) status = "completed";
+        if (["active", "activated", "completed", "delivered"].includes(order.status || "")) status = "completed";
         break;
       case "contracts":
         if (order.related_contract_id) status = "completed";
         break;
       case "shipping":
-        if (order.tracking_number || order.shipped_at || order.technician_id) status = "completed";
+        if (order.tracking_number || order.shipped_at || order.technician_id || order.status === "delivered") status = "completed";
         break;
       case "completion":
         if (order.status === "completed") status = "completed";
