@@ -81,6 +81,7 @@ interface OrderData {
   promo_discount_amount?: number;
   preauth_discount?: number;
   account_id?: string;
+  pricing_snapshot?: any;
   // Address fields from order
   shipping_address?: string;
   shipping_city?: string;
@@ -352,20 +353,37 @@ END:VCALENDAR`;
   const servicePostalCode = order.shipping_postal_code || profile?.service_postal_code || "";
   const hasValidAddress = serviceAddress && serviceCity;
   
-  // Calculate fees
-  const deliveryFee = order.delivery_fee || 0;
+  // ===== CANONICAL PRICING: All monetary values from pricing_snapshot =====
+  // The pricing_snapshot is the server-approved pricing object saved at order creation.
+  // No client-side recalculation is permitted.
+  const ps = order.pricing_snapshot;
+  const hasSnapshot = !!ps;
+  
+  // One-time fees (from order columns — these are individual line items for display)
+  const deliveryFee = order.delivery_fee ?? 0;
   const activationFee = order.activation_fee ?? 0;
   const installationFee = Math.max(0, (order.installation_fee || 0) - (order.installation_credit || 0));
-  const routerFee = order.router_fee || 0;
-  const terminalFee = order.terminal_fee || 0;
+  const routerFee = order.router_fee ?? 0;
+  const terminalFee = order.terminal_fee ?? 0;
   const simFee = equipment.find(e => e.type === "sim")?.fee || 0;
-  const promoDiscount = order.promo_discount_amount || 0;
   const preauthDiscount = order.preauth_discount || 0;
-  const tpsAmount = order.tps_amount || 0;
-  const tvqAmount = order.tvq_amount || 0;
-  const totalAmount = order.total_amount || 0;
-  const monthlyRecurring = order.subtotal || 0;
-  const monthlyWithTaxes = monthlyRecurring * 1.14975;
+  
+  // ===== All totals from pricing_snapshot (canonical) =====
+  const monthlyRecurringGross = hasSnapshot ? Number(ps.recurring_subtotal) : (order.subtotal ?? 0);
+  const recurringDiscountTotal = hasSnapshot ? Number(ps.discount_total) : (order.promo_discount_amount ?? 0);
+  const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - recurringDiscountTotal);
+  const oneTimeSubtotal = hasSnapshot ? Number(ps.one_time_subtotal) : (deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
+  const promoDiscount = recurringDiscountTotal;
+  
+  // Taxes and total — directly from canonical snapshot, zero recalculation
+  const tpsAmount = hasSnapshot ? Number(ps.tps_amount) : (order.tps_amount ?? 0);
+  const tvqAmount = hasSnapshot ? Number(ps.tvq_amount) : (order.tvq_amount ?? 0);
+  const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.total_amount ?? 0);
+  
+  // Future monthly total (recurring net + taxes on recurring net only)
+  const monthlyTps = Math.round(monthlyRecurringNet * 0.05 * 100) / 100;
+  const monthlyTvq = Math.round(monthlyRecurringNet * 0.09975 * 100) / 100;
+  const monthlyWithTaxes = Math.round((monthlyRecurringNet + monthlyTps + monthlyTvq) * 100) / 100;
 
   // Determine fulfillment type
   const isDeliveryOnly = order.installation_type === "auto" || order.delivery_method?.toLowerCase().includes("livraison");
@@ -529,11 +547,23 @@ END:VCALENDAR`;
                   
                   <div className="flex justify-between font-medium">
                     <span>Sous-total mensuel</span>
-                    <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
+                  {recurringDiscountTotal > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-500 mt-1">
+                      <span>Rabais {order.promo_code ? `(${order.promo_code})` : "nouveau client"}</span>
+                      <span>-{recurringDiscountTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                  {recurringDiscountTotal > 0 && (
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className="text-muted-foreground">Net mensuel après rabais</span>
+                      <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm text-muted-foreground mt-1">
                     <span>TPS (5%) + TVQ (9.975%)</span>
-                    <span>+{(monthlyRecurring * 0.14975).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span>+{(monthlyTps + monthlyTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-purple-500/30">
                     <span className="text-purple-500">Total mensuel estimé</span>
