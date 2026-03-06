@@ -12023,6 +12023,7 @@ export type Database = {
           p_cart_items: Json
           p_client_email?: string
           p_client_id?: string
+          p_is_new_customer?: boolean
           p_preauth_discount?: number
           p_promo_code?: string
         }
