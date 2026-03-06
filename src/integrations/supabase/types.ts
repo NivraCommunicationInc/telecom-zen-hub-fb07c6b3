@@ -12018,16 +12018,29 @@ export type Database = {
         }
         Returns: string
       }
-      compute_checkout_pricing: {
-        Args: {
-          p_cart_items: Json
-          p_client_email?: string
-          p_client_id?: string
-          p_preauth_discount?: number
-          p_promo_code?: string
-        }
-        Returns: Json
-      }
+      compute_checkout_pricing:
+        | {
+            Args: {
+              p_cart_items: Json
+              p_client_email?: string
+              p_client_id?: string
+              p_is_new_customer?: boolean
+              p_preauth_discount?: number
+              p_promo_code?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_cart_items: Json
+              p_client_email?: string
+              p_client_id?: string
+              p_is_new_customer?: boolean
+              p_preauth_discount?: number
+              p_promo_code?: string
+            }
+            Returns: Json
+          }
       compute_invoice_breakdown: {
         Args: { p_invoice_id: string }
         Returns: Json
