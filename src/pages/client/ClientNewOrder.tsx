@@ -625,6 +625,7 @@ const ClientNewOrder = () => {
   // === LIVE SERVER PRICING (authoritative for summary display) ===
   const [liveServerPricing, setLiveServerPricing] = useState<import("@/lib/pricing/serverPricing").ServerPricingResult | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
+  const [serverPricingError, setServerPricingError] = useState<string | null>(null);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestPricingRequestIdRef = useRef(0);
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
@@ -1200,6 +1201,7 @@ const ClientNewOrder = () => {
     if (selectedServices.length === 0) {
       latestPricingRequestIdRef.current += 1;
       setLiveServerPricing(null);
+      setServerPricingError(null);
       return;
     }
 
@@ -1208,6 +1210,8 @@ const ClientNewOrder = () => {
     serverPricingTimerRef.current = setTimeout(async () => {
       const requestId = ++latestPricingRequestIdRef.current;
       setIsServerPricingLoading(true);
+      setServerPricingError(null);
+
       try {
         // Build cart items (same shape as buildPromoValidationPayload)
         const cartItems: CartLineItem[] = [];
@@ -1280,21 +1284,27 @@ const ClientNewOrder = () => {
           user?.id || null,
           preauthDisc,
           welcomeDiscountHook.isNewCustomer,
-          supabase, // Use portalClient for client checkout
+          supabase,
         );
 
         console.log("[ServerPricing] Live pricing result:", result);
         if (requestId === latestPricingRequestIdRef.current) {
           setLiveServerPricing(result);
+          setServerPricingError(null);
         }
       } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur de tarification serveur";
         console.error("[ServerPricing] Failed to compute live pricing:", err);
+        if (requestId === latestPricingRequestIdRef.current) {
+          setLiveServerPricing(null);
+          setServerPricingError(message);
+        }
       } finally {
         if (requestId === latestPricingRequestIdRef.current) {
           setIsServerPricingLoading(false);
         }
       }
-    }, 400); // 400ms debounce
+    }, 400);
 
     return () => {
       if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
@@ -2765,7 +2775,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const oneTimeFeesWithTax = oneTimeTotalWithTax;
 
   // Server pricing loaded flag (used to gate payment and submission)
-  const isServerPricingReady = !!sp && !isServerPricingLoading;
+  const isServerPricingReady = !!sp && !isServerPricingLoading && !serverPricingError;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
@@ -3258,7 +3268,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   deliveryChoice={deliveryChoice}
                   installationChoice={installationChoice}
                   onContinue={() => setStep(2)}
-                  continueDisabled={selectedServices.length === 0}
+                  continueDisabled={selectedServices.length === 0 || !isServerPricingReady}
                   welcomeDiscount={{
                     isNewCustomer: welcomeDiscountHook.isNewCustomer && welcomeDiscountAmount > 0,
                     discountPercent: welcomeDiscountAmount > 0 ? 50 : 0,
