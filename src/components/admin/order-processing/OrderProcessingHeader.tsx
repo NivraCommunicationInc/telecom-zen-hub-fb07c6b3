@@ -1,22 +1,18 @@
 /**
  * OrderProcessingHeader — Top bar with order info + action buttons
- * White background, high contrast black text
+ * White background, high contrast black text. All buttons functional.
  */
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, Bell, StickyNote, CheckCircle2, RefreshCw } from "lucide-react";
+import { ChevronDown, Bell, StickyNote, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { notifyAdmin } from "@/hooks/useAdminNotification";
 
 const ORDER_STATUSES = [
   { value: "pending", label: "En attente" },
@@ -82,21 +78,54 @@ export function OrderProcessingHeader({ proc }: Props) {
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(order.status);
   const [noteText, setNoteText] = useState("");
+  const [loading, setLoading] = useState<string | null>(null);
 
   const clientName = profile?.full_name
     || [order.client_first_name, order.client_last_name].filter(Boolean).join(" ")
     || "—";
 
   const handleChangeStatus = async () => {
-    await proc.changeStatus(selectedStatus);
-    setStatusDialogOpen(false);
+    setLoading("status");
+    try {
+      await proc.changeStatus(selectedStatus);
+      setStatusDialogOpen(false);
+    } finally {
+      setLoading(null);
+    }
   };
 
   const handleAddNote = async () => {
     if (!noteText.trim()) return;
-    await proc.addNote(noteText.trim());
-    setNoteText("");
-    setNoteDialogOpen(false);
+    setLoading("note");
+    try {
+      await proc.addNote(noteText.trim());
+      setNoteText("");
+      setNoteDialogOpen(false);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleComplete = async () => {
+    setLoading("complete");
+    try {
+      await proc.completeOrder();
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleSendNotification = async () => {
+    setLoading("notify");
+    try {
+      await proc.sendClientNotification(
+        "order_update",
+        `Mise à jour de votre commande ${order.order_number || ""} — Nivra`,
+        { status: order.status }
+      );
+    } finally {
+      setLoading(null);
+    }
   };
 
   return (
@@ -149,16 +178,21 @@ export function OrderProcessingHeader({ proc }: Props) {
           <Button size="sm" variant="outline" onClick={() => setNoteDialogOpen(true)} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
             <StickyNote className="w-3.5 h-3.5 mr-1" /> Ajouter note
           </Button>
+          <Button size="sm" variant="outline" onClick={handleSendNotification} disabled={loading === "notify"} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
+            {loading === "notify" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Bell className="w-3.5 h-3.5 mr-1" />}
+            Notifier client
+          </Button>
           <Button size="sm" variant="outline" onClick={() => proc.refetch()} className="text-xs h-8 border-gray-300 text-gray-700 hover:bg-gray-50">
             <RefreshCw className="w-3.5 h-3.5 mr-1" /> Actualiser
           </Button>
           <Button
             size="sm"
-            onClick={() => proc.completeOrder()}
-            disabled={proc.isUpdating || order.status === "completed"}
+            onClick={handleComplete}
+            disabled={loading === "complete" || proc.isUpdating || order.status === "completed"}
             className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
           >
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Compléter
+            {loading === "complete" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
+            Compléter
           </Button>
         </div>
       </div>
@@ -181,7 +215,10 @@ export function OrderProcessingHeader({ proc }: Props) {
           </Select>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStatusDialogOpen(false)} className="text-gray-700 border-gray-300">Annuler</Button>
-            <Button onClick={handleChangeStatus} disabled={proc.isUpdating} className="bg-gray-900 text-white hover:bg-gray-800">Confirmer</Button>
+            <Button onClick={handleChangeStatus} disabled={loading === "status" || proc.isUpdating} className="bg-gray-900 text-white hover:bg-gray-800">
+              {loading === "status" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+              Confirmer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -200,7 +237,10 @@ export function OrderProcessingHeader({ proc }: Props) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setNoteDialogOpen(false)} className="text-gray-700 border-gray-300">Annuler</Button>
-            <Button onClick={handleAddNote} disabled={!noteText.trim() || proc.isUpdating} className="bg-gray-900 text-white hover:bg-gray-800">Ajouter</Button>
+            <Button onClick={handleAddNote} disabled={!noteText.trim() || loading === "note" || proc.isUpdating} className="bg-gray-900 text-white hover:bg-gray-800">
+              {loading === "note" ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+              Ajouter
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -132,6 +132,7 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
 const INVALIDATION_KEYS = [
   "admin-orders",
   "admin-order-detail",
+  "admin-order-overview",
   "client-orders",
   "client-invoices",
   "client-invoice-breakdowns",
@@ -139,6 +140,33 @@ const INVALIDATION_KEYS = [
   "overdue-count-unified",
   "admin-activity-logs",
 ];
+
+/* ─── Email queue helper ─── */
+async function queueClientEmail(params: {
+  to_email: string;
+  template_key: string;
+  event_key: string;
+  subject: string;
+  entity_type?: string;
+  entity_id?: string;
+  template_vars?: Record<string, any>;
+}) {
+  try {
+    const { error } = await supabase.from("email_queue").insert({
+      to_email: params.to_email,
+      template_key: params.template_key,
+      event_key: params.event_key,
+      subject: params.subject,
+      entity_type: params.entity_type || "order",
+      entity_id: params.entity_id,
+      template_vars: params.template_vars || {},
+      status: "queued",
+    });
+    if (error) console.error("[OrderProcessing] Email queue error:", error);
+  } catch (err) {
+    console.error("[OrderProcessing] Email queue exception:", err);
+  }
+}
 
 /* ─── Main hook ─── */
 export function useOrderProcessing(orderId: string | undefined) {
@@ -244,6 +272,17 @@ export function useOrderProcessing(orderId: string | undefined) {
     });
   };
 
+  /* ── Get client email for notifications ── */
+  const getClientEmail = (): string | null => {
+    return data?.order?.client_email || data?.profile?.email || null;
+  };
+
+  const getClientName = (): string => {
+    return data?.profile?.full_name
+      || [data?.order?.client_first_name, data?.order?.client_last_name].filter(Boolean).join(" ")
+      || "Client";
+  };
+
   /* ── Update order fields ── */
   const updateOrder = useMutation({
     mutationFn: async (fields: Record<string, any>) => {
@@ -267,12 +306,31 @@ export function useOrderProcessing(orderId: string | undefined) {
       { old_status: oldStatus, new_status: newStatus, reason },
       { changedField: "status", oldValue: oldStatus, newValue: newStatus, reason }
     );
+
+    // Queue email notification to client
+    const email = getClientEmail();
+    if (email) {
+      await queueClientEmail({
+        to_email: email,
+        template_key: "order_status_changed",
+        event_key: `order_status_${orderId}_${newStatus}_${Date.now()}`,
+        subject: `Mise à jour de votre commande — ${newStatus}`,
+        entity_id: orderId,
+        template_vars: {
+          client_name: getClientName(),
+          order_number: data?.order?.order_number || "",
+          old_status: oldStatus,
+          new_status: newStatus,
+          reason: reason || "",
+        },
+      });
+    }
+
     toast.success(`Statut mis à jour: ${newStatus}`);
   };
 
   /* ── Confirm payment ── */
   const confirmPayment = async (reference?: string) => {
-    // Use the canonical RPC if available; fallback to direct update
     try {
       if (data?.invoice) {
         const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
@@ -285,7 +343,6 @@ export function useOrderProcessing(orderId: string | undefined) {
         });
         if (error) throw error;
       } else {
-        // Fallback: update order directly
         await updateOrder.mutateAsync({
           payment_status: "confirmed",
           payment_confirmed_at: new Date().toISOString(),
@@ -293,7 +350,6 @@ export function useOrderProcessing(orderId: string | undefined) {
         });
       }
     } catch (err: any) {
-      // If RPC doesn't exist, do direct update
       if (err?.message?.includes("function") || err?.code === "PGRST202") {
         await updateOrder.mutateAsync({
           payment_status: "confirmed",
@@ -306,8 +362,57 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
 
     await logActivity("payment_confirmed", "order", orderId, { reference });
+
+    // Queue email notification
+    const email = getClientEmail();
+    if (email) {
+      await queueClientEmail({
+        to_email: email,
+        template_key: "payment_confirmed",
+        event_key: `payment_confirmed_${orderId}_${Date.now()}`,
+        subject: "Confirmation de paiement — Nivra",
+        entity_id: orderId,
+        template_vars: {
+          client_name: getClientName(),
+          order_number: data?.order?.order_number || "",
+          amount: data?.invoice?.total || data?.order?.total_amount || 0,
+          reference: reference || "",
+        },
+      });
+    }
+
     invalidateAll();
     toast.success("Paiement confirmé");
+  };
+
+  /* ── Mark payment invalid ── */
+  const markPaymentInvalid = async () => {
+    await updateOrder.mutateAsync({ payment_status: "failed" });
+    await logActivity("payment_invalidated", "order", orderId, {});
+
+    const email = getClientEmail();
+    if (email) {
+      await queueClientEmail({
+        to_email: email,
+        template_key: "payment_failed",
+        event_key: `payment_failed_${orderId}_${Date.now()}`,
+        subject: "Problème de paiement — Nivra",
+        entity_id: orderId,
+        template_vars: {
+          client_name: getClientName(),
+          order_number: data?.order?.order_number || "",
+        },
+      });
+    }
+
+    toast.warning("Paiement marqué comme invalide");
+  };
+
+  /* ── Mark payment partial ── */
+  const markPaymentPartial = async () => {
+    await updateOrder.mutateAsync({ payment_status: "partial" });
+    await logActivity("payment_partial", "order", orderId, {});
+    toast.info("Paiement marqué comme partiel");
   };
 
   /* ── Update fulfillment type ── */
@@ -342,6 +447,28 @@ export function useOrderProcessing(orderId: string | undefined) {
   }) => {
     await updateOrder.mutateAsync(fields);
     await logActivity("shipment_updated", "order", orderId, fields);
+
+    // Send shipping notification if tracking was added
+    if (fields.tracking_number) {
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "shipment_created",
+          event_key: `shipment_${orderId}_${Date.now()}`,
+          subject: "Votre commande a été expédiée — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_number: data?.order?.order_number || "",
+            carrier: fields.carrier || "",
+            tracking_number: fields.tracking_number || "",
+            tracking_url: fields.tracking_url || "",
+          },
+        });
+      }
+    }
+
     toast.success("Expédition mise à jour");
   };
 
@@ -363,10 +490,66 @@ export function useOrderProcessing(orderId: string | undefined) {
     toast.success("Note ajoutée");
   };
 
+  /* ── Send notification to client ── */
+  const sendClientNotification = async (templateKey: string, subject: string, extraVars?: Record<string, any>) => {
+    const email = getClientEmail();
+    if (!email) {
+      toast.error("Aucun courriel client disponible");
+      return;
+    }
+    await queueClientEmail({
+      to_email: email,
+      template_key: templateKey,
+      event_key: `${templateKey}_${orderId}_${Date.now()}`,
+      subject,
+      entity_id: orderId,
+      template_vars: {
+        client_name: getClientName(),
+        order_number: data?.order?.order_number || "",
+        ...extraVars,
+      },
+    });
+    await logActivity("notification_sent", "order", orderId, { template_key: templateKey, to: email });
+    toast.success("Notification envoyée au client");
+  };
+
+  /* ── Sign contract (admin side) ── */
+  const signContract = async (contractId: string) => {
+    const { error } = await supabase
+      .from("contracts")
+      .update({
+        signed_by_admin: true,
+        admin_signed_at: new Date().toISOString(),
+        status: "signed_by_admin",
+      })
+      .eq("id", contractId);
+    if (error) throw error;
+    await logActivity("contract_signed_admin", "order", orderId, { contract_id: contractId });
+    invalidateAll();
+    toast.success("Contrat signé (admin)");
+  };
+
   /* ── Complete order ── */
   const completeOrder = async () => {
     await changeStatus("completed");
     await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
+
+    // Queue completion notification
+    const email = getClientEmail();
+    if (email) {
+      await queueClientEmail({
+        to_email: email,
+        template_key: "order_completed",
+        event_key: `order_completed_${orderId}_${Date.now()}`,
+        subject: "Votre commande est complétée — Nivra",
+        entity_id: orderId,
+        template_vars: {
+          client_name: getClientName(),
+          order_number: data?.order?.order_number || "",
+        },
+      });
+    }
+
     toast.success("Commande complétée");
   };
 
@@ -394,12 +577,16 @@ export function useOrderProcessing(orderId: string | undefined) {
     updateOrder: updateOrder.mutateAsync,
     changeStatus,
     confirmPayment,
+    markPaymentInvalid,
+    markPaymentPartial,
     setFulfillmentType,
     assignEquipment,
     updateShipping,
     assignTechnician,
     addNote,
     completeOrder,
+    signContract,
+    sendClientNotification,
     isUpdating: updateOrder.isPending,
   };
 }
