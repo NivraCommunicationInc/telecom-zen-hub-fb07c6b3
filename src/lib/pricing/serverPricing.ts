@@ -17,6 +17,8 @@ export interface ServerPricingResult {
   recurring_subtotal: number;
   one_time_subtotal: number;
   discount_total: number;
+  promo_discount: number;
+  welcome_discount: number;
   preauth_discount: number;
   taxable_base: number;
   tps_amount: number;
@@ -34,11 +36,14 @@ export interface ServerPricingResult {
     duration: string;
     applies_to: Record<string, boolean>;
   } | null;
+  is_new_customer: boolean;
   computed_at: string;
   cents: {
     recurring_subtotal: number;
     one_time_subtotal: number;
     discount_total: number;
+    promo_discount: number;
+    welcome_discount: number;
     taxable_base: number;
     tps: number;
     tvq: number;
@@ -56,6 +61,7 @@ export async function computeCheckoutPricing(
   clientEmail?: string | null,
   clientId?: string | null,
   preauthDiscount: number = 0,
+  isNewCustomer: boolean = false,
 ): Promise<ServerPricingResult> {
   const { data, error } = await supabase.rpc("compute_checkout_pricing" as any, {
     p_cart_items: cartItems,
@@ -63,6 +69,7 @@ export async function computeCheckoutPricing(
     p_client_email: clientEmail || null,
     p_client_id: clientId || null,
     p_preauth_discount: preauthDiscount,
+    p_is_new_customer: isNewCustomer,
   });
 
   if (error) {
