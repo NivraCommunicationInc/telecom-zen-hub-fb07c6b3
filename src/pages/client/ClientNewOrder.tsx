@@ -2698,9 +2698,58 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     user?.id,
   ]);
 
-  // === LIVE PRICING: Client-side calculation using API product prices (no server RPC needed) ===
-  // The external API prices are already loaded via useQuery. We compute taxes client-side
-  // for the live preview only. The authoritative pricing comes from POST /create-order at submission.
+  // === UNIFIED CHECKOUT PRICING OBJECT ===
+  // Single source of truth: computed once, reused unchanged across ALL checkout steps,
+  // payment, and confirmation. No step may reinterpret or recalculate these values.
+
+  // Step 1: Recurring service subtotal (gross)
+  // monthlyRecurring is already computed above as: subtotal + paidChannelTotal + streamingAddonsTotal
+
+  // Step 2: Apply all valid recurring discounts before tax
+  // promoDiscount and welcomeDiscountAmount are already computed above
+  // totalDiscount = promoDiscount + welcomeDiscountAmount (capped to grossTotal)
+
+  // Step 3: Recurring NET after discount
+  const monthlyRecurringNet = round2(Math.max(0, monthlyRecurring - totalDiscount));
+
+  // Step 4: One-time fees are already in `oneTimeFees`
+
+  // Step 5: Compute taxes on the correct taxable base
+  // First cycle is ALWAYS collected today (Nivra = prepaid model)
+  const todayTaxableBase = round2(oneTimeFees + monthlyRecurringNet);
+  const todayTps = round2(todayTaxableBase * 0.05);
+  const todayTvq = round2(todayTaxableBase * 0.09975);
+
+  // Step 6: Produce one final approved pricing object
+  const todayTotal = round2(todayTaxableBase + todayTps + todayTvq);
+
+  // Future monthly: exclude first-cycle-only discounts
+  const monthlyFutureDiscount = (appliedPromo?.duration === 'first_cycle_only' ? 0 : promoDiscount);
+  const monthlyFutureNet = round2(Math.max(0, monthlyRecurring - monthlyFutureDiscount));
+  const monthlyFutureTps = round2(monthlyFutureNet * 0.05);
+  const monthlyFutureTvq = round2(monthlyFutureNet * 0.09975);
+  const monthlyFutureTotal = round2(monthlyFutureNet + monthlyFutureTps + monthlyFutureTvq);
+
+  // Breakdown sub-components for display (derived from unified object, not recalculated)
+  const oneTimeTps = round2(oneTimeFees * 0.05);
+  const oneTimeTvq = round2(oneTimeFees * 0.09975);
+  const oneTimeTaxes = round2(oneTimeTps + oneTimeTvq);
+  const oneTimeTotalWithTax = round2(oneTimeFees + oneTimeTaxes);
+  const monthlyNetTps = round2(monthlyRecurringNet * 0.05);
+  const monthlyNetTvq = round2(monthlyRecurringNet * 0.09975);
+  const monthlyNetTaxes = round2(monthlyNetTps + monthlyNetTvq);
+  const monthlyNetWithTax = round2(monthlyRecurringNet + monthlyNetTaxes);
+
+  // Monthly gross taxes (for future monthly display when no ongoing discount)
+  const monthlyTps = round2(monthlyRecurring * 0.05);
+  const monthlyTvq = round2(monthlyRecurring * 0.09975);
+  const monthlyTaxes = round2(monthlyTps + monthlyTvq);
+  const monthlyRecurringWithTax = round2(monthlyRecurring + monthlyTaxes);
+
+  // Legacy aliases
+  const oneTimeFeesWithTax = oneTimeTotalWithTax;
+
+  // === LIVE PRICING: feed unified values into liveServerPricing for downstream consumers ===
   useEffect(() => {
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       setLiveServerPricing(null);
@@ -2712,47 +2761,31 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     serverPricingTimerRef.current = setTimeout(async () => {
       setIsServerPricingLoading(true);
       try {
-        // Calculate totals from API prices (already in selectedServices)
-        const serviceTotal = selectedServices.reduce((sum, s) => {
-          if (s.category === "Mobile") {
-            return sum + Number(s.price) * (mobileLineQuantities[s.id] || 1);
-          }
-          return sum + Number(s.price);
-        }, 0);
-        const streamingTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
-        const recurringSubtotal = serviceTotal + paidChannelTotal + streamingTotal;
-        const oneTimeSubtotal = activationFee + deliveryFee + installationFee
-          + ((hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0)
-          + (hasTVService ? TERMINAL_CONFIG.price * terminalQuantity : 0)
-          + (hasMobileService ? SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity : 0);
-        
-        const taxableBase = recurringSubtotal + oneTimeSubtotal;
-        const tps = Math.round(taxableBase * 0.05 * 100) / 100;
-        const tvq = Math.round(taxableBase * 0.09975 * 100) / 100;
-        const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
-
         const result = {
-          recurring_subtotal: recurringSubtotal,
-          one_time_subtotal: oneTimeSubtotal,
-          discount_total: 0,
+          recurring_subtotal: monthlyRecurring,
+          one_time_subtotal: oneTimeFees,
+          discount_total: totalDiscount,
           preauth_discount: 0,
-          taxable_base: taxableBase,
-          tps_amount: tps,
-          tvq_amount: tvq,
-          grand_total: grandTotal,
-          promo_applied: null,
+          taxable_base: todayTaxableBase,
+          tps_amount: todayTps,
+          tvq_amount: todayTvq,
+          grand_total: todayTotal,
+          promo_applied: appliedPromo ? {
+            code: appliedPromo.code,
+            discount_amount: promoDiscount,
+          } : null,
           computed_at: new Date().toISOString(),
           cents: {
-            recurring_subtotal: Math.round(recurringSubtotal * 100),
-            one_time_subtotal: Math.round(oneTimeSubtotal * 100),
-            discount_total: 0,
-            taxable_base: Math.round(taxableBase * 100),
-            tps: Math.round(tps * 100),
-            tvq: Math.round(tvq * 100),
-            grand_total: Math.round(grandTotal * 100),
+            recurring_subtotal: Math.round(monthlyRecurring * 100),
+            one_time_subtotal: Math.round(oneTimeFees * 100),
+            discount_total: Math.round(totalDiscount * 100),
+            taxable_base: Math.round(todayTaxableBase * 100),
+            tps: Math.round(todayTps * 100),
+            tvq: Math.round(todayTvq * 100),
+            grand_total: Math.round(todayTotal * 100),
           },
         };
-        console.log("[LivePricing] Updated from API prices:", result);
+        console.log("[LivePricing] Unified pricing object:", result);
         setLiveServerPricing(result);
       } catch (err) {
         console.error("[LivePricing] Error:", err);
@@ -2770,29 +2803,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     terminalQuantity, hasTVService, hasInternetService, hasMobileService,
     totalMobileLineQuantity, acceptPreauthorized, appliedPromo?.code,
     profile?.email, user?.email, user?.id,
+    monthlyRecurring, oneTimeFees, totalDiscount, todayTaxableBase,
+    todayTps, todayTvq, todayTotal, promoDiscount,
   ]);
-
-  // Totals: use server pricing when available, fallback to client-side for initial render
-  const baseAmount = liveServerPricing ? liveServerPricing.taxable_base : _clientBaseAmount;
-  const tpsAmount = liveServerPricing ? liveServerPricing.tps_amount : _clientTpsAmount;
-  const tvqAmount = liveServerPricing ? liveServerPricing.tvq_amount : _clientTvqAmount;
-  const totalAmount = liveServerPricing ? liveServerPricing.grand_total : _clientTotalAmount;
-
-  // === Separate tax calculations per block (one-time vs monthly) ===
-  // One-time block: taxes computed ONLY on one-time fees
-  const oneTimeTps = round2(oneTimeFees * 0.05);
-  const oneTimeTvq = round2(oneTimeFees * 0.09975);
-  const oneTimeTaxes = round2(oneTimeTps + oneTimeTvq);
-  const oneTimeTotalWithTax = round2(oneTimeFees + oneTimeTaxes);
-
-  // Monthly block: taxes computed ONLY on monthly recurring
-  const monthlyTps = round2(monthlyRecurring * 0.05);
-  const monthlyTvq = round2(monthlyRecurring * 0.09975);
-  const monthlyTaxes = round2(monthlyTps + monthlyTvq);
-  const monthlyRecurringWithTax = round2(monthlyRecurring + monthlyTaxes);
-
-  // Legacy aliases kept for bill preview
-  const oneTimeFeesWithTax = oneTimeTotalWithTax;
 
   // Canadian provinces for ID
   const CANADIAN_PROVINCES = [
