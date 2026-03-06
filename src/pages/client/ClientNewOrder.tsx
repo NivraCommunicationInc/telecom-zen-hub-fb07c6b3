@@ -1201,6 +1201,7 @@ const ClientNewOrder = () => {
     if (selectedServices.length === 0) {
       latestPricingRequestIdRef.current += 1;
       setLiveServerPricing(null);
+      setServerPricingError(null);
       return;
     }
 
@@ -1209,6 +1210,8 @@ const ClientNewOrder = () => {
     serverPricingTimerRef.current = setTimeout(async () => {
       const requestId = ++latestPricingRequestIdRef.current;
       setIsServerPricingLoading(true);
+      setServerPricingError(null);
+
       try {
         // Build cart items (same shape as buildPromoValidationPayload)
         const cartItems: CartLineItem[] = [];
@@ -1281,21 +1284,27 @@ const ClientNewOrder = () => {
           user?.id || null,
           preauthDisc,
           welcomeDiscountHook.isNewCustomer,
-          supabase, // Use portalClient for client checkout
+          supabase,
         );
 
         console.log("[ServerPricing] Live pricing result:", result);
         if (requestId === latestPricingRequestIdRef.current) {
           setLiveServerPricing(result);
+          setServerPricingError(null);
         }
       } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur de tarification serveur";
         console.error("[ServerPricing] Failed to compute live pricing:", err);
+        if (requestId === latestPricingRequestIdRef.current) {
+          setLiveServerPricing(null);
+          setServerPricingError(message);
+        }
       } finally {
         if (requestId === latestPricingRequestIdRef.current) {
           setIsServerPricingLoading(false);
         }
       }
-    }, 400); // 400ms debounce
+    }, 400);
 
     return () => {
       if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
