@@ -1867,6 +1867,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          order_id: string | null
           related_ticket_id: string | null
           status: string
           total_price: number | null
@@ -1880,6 +1881,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          order_id?: string | null
           related_ticket_id?: string | null
           status?: string
           total_price?: number | null
@@ -1893,6 +1895,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          order_id?: string | null
           related_ticket_id?: string | null
           status?: string
           total_price?: number | null
@@ -1900,6 +1903,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "channel_selections_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "channel_selections_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "channel_selections_related_ticket_id_fkey"
             columns: ["related_ticket_id"]
@@ -12011,6 +12028,7 @@ export type Database = {
         }
         Returns: string
       }
+      compute_channels_total: { Args: { _channels: Json }; Returns: number }
       compute_checkout_pricing:
         | {
             Args: {
