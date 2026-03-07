@@ -282,10 +282,10 @@ export const QRVerificationStep = ({
       setVerifyUrl(fetchedVerifyUrl || null);
       let qrImage = data.qr_png || data.qr_data_url;
 
-      if (!qrImage && verifyUrl) {
+      if (!qrImage && fetchedVerifyUrl) {
         console.warn("[QR] Server QR PNG missing, generating client-side fallback");
         try {
-          qrImage = await QRCode.toDataURL(verifyUrl, {
+          qrImage = await QRCode.toDataURL(fetchedVerifyUrl, {
             width: 280,
             margin: 2,
             color: { dark: "#000000", light: "#FFFFFF" },
