@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 };
 
 const AdminAccounts = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -372,9 +374,7 @@ const AdminAccounts = () => {
   };
 
   const openAccountDetails = (account: any) => {
-    setSelectedAccount(account);
-    setNewCreditClass(account.credit_class || "C");
-    setDetailsDialogOpen(true);
+    navigate(`/admin/accounts/${account.id}`);
   };
 
   return (
