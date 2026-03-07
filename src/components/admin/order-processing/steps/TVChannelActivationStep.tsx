@@ -95,29 +95,51 @@ export function TVChannelActivationStep({ proc }: Props) {
   const handleSaveSelection = async () => {
     setLoading("save");
     try {
-      if (channelSelection?.id) {
-        await supabase
-          .from("channel_selections")
-          .update({
-            channels: selectedChannels.map(ch => ({
-              id: ch.id,
-              name: ch.name,
-              category: ch.category,
-              price: ch.price,
-            })),
-            total_price: totalPrice,
-            status: "confirmed",
-            confirmed_at: new Date().toISOString(),
-            confirmed_by: "admin",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", channelSelection.id);
+      if (!order?.id || !order?.user_id) {
+        throw new Error("Commande invalide");
       }
+
+      if (selectedChannels.length === 0) {
+        throw new Error("Sélectionnez au moins une chaîne");
+      }
+
+      const payload = {
+        user_id: order.user_id,
+        order_id: order.id,
+        channels: normalizeChannelPayload(selectedChannels),
+        total_price: totalPrice,
+        status: "confirmed",
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: proc.currentUserId || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (channelSelection?.id) {
+        const { error } = await supabase
+          .from("channel_selections")
+          .update(payload)
+          .eq("id", channelSelection.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("channel_selections")
+          .insert({ ...payload, created_at: new Date().toISOString() });
+        if (error) throw error;
+      }
+
+      await proc.updateOrder({
+        selected_channels: normalizeChannelPayload(selectedChannels),
+        channel_selection_locked: true,
+        tv_channels_count: selectedChannels.length,
+        tv_total_price: totalPrice,
+        updated_at: new Date().toISOString(),
+      });
+
       toast.success("Sélection de chaînes sauvegardée");
-      proc.refetch();
-    } catch (err) {
+      await proc.refetch();
+    } catch (err: any) {
       console.error("[TVChannels] Save error:", err);
-      toast.error("Erreur lors de la sauvegarde");
+      toast.error(err?.message || "Erreur lors de la sauvegarde");
     } finally {
       setLoading(null);
     }
