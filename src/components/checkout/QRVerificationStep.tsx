@@ -70,6 +70,7 @@ export const QRVerificationStep = ({
   const { isAdmin } = useClientAuth();
   const isMobile = useIsMobile();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<SessionStatus>("created");
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
