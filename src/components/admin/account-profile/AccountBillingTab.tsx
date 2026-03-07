@@ -141,9 +141,8 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
           qst_amount: inv.tvq_amount || 0,
         },
         total: inv.total || 0,
-        amount_paid: inv.amount_paid || 0,
         balance_due: inv.balance_due || 0,
-        payment_method: inv.payment_method || "etransfer",
+        payments_total: inv.amount_paid || 0,
       };
       const result = await generateInvoicePDF(pdfData);
       if (result.success && result.blob) {
@@ -187,9 +186,8 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
           qst_amount: inv.tvq_amount || 0,
         },
         total: inv.total || 0,
-        amount_paid: inv.amount_paid || 0,
         balance_due: inv.balance_due || 0,
-        payment_method: inv.payment_method || "etransfer",
+        payments_total: inv.amount_paid || 0,
       };
       const result = await generateInvoicePDF(pdfData);
       if (result.success && result.blob && result.filename) {
