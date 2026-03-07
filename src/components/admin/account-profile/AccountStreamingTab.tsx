@@ -81,7 +81,7 @@ export function AccountStreamingTab({ subscriptions, clientId }: AccountStreamin
         .update({
           status: "confirmed",
           confirmed_at: new Date().toISOString(),
-          confirmed_by: user?.id || "admin",
+          confirmed_by: user?.id || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", selectionId);
