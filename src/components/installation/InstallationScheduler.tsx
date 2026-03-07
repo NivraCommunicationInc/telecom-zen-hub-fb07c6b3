@@ -180,14 +180,14 @@ export function InstallationScheduler({
 
   const handleSlotSelect = useCallback(async (date: string, time: string, slotId?: string) => {
     onDateTimeChange(date, time);
+    setAppointmentConfirmed(false); // New slot selected, needs re-confirmation
     setHoldLoading(true);
 
     try {
-      // Create a hold in DB immediately
       const hold = await createAppointmentHold({
         scheduledAt: date,
         timeSlot: time,
-        serviceType: decision?.messageKey?.includes("tech") ? "Internet" : "Internet",
+        serviceType: "Internet",
         installationMethod: decision?.installationType || "auto",
         installationId: installationId || undefined,
         slotId: slotId || undefined,
@@ -197,11 +197,16 @@ export function InstallationScheduler({
         setActiveHold(hold);
         console.log("[InstallationScheduler] Hold created:", hold.appointmentId);
       }
-
     } finally {
       setHoldLoading(false);
     }
   }, [onDateTimeChange, installationId, decision]);
+
+  const handleConfirmAppointment = useCallback(() => {
+    setAppointmentConfirmed(true);
+    onDateTimeChange(selectedDate, selectedTime);
+    console.log("[InstallationScheduler] Appointment confirmed by user:", selectedDate, selectedTime);
+  }, [onDateTimeChange, selectedDate, selectedTime]);
 
   return (
     <div className="space-y-4">
