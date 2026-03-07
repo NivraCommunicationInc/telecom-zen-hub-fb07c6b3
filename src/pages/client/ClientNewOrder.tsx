@@ -4617,10 +4617,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   selectedTime={selectedTime}
                   confirmedAppointment={appointmentConfirmed}
                   onDateTimeChange={(date, time) => {
-                    const changed = date !== selectedDate || time !== selectedTime;
                     setSelectedDate(date);
                     setSelectedTime(time);
-                    if (changed) setAppointmentConfirmed(false);
                   }}
                   onAppointmentConfirmedChange={setAppointmentConfirmed}
                   onInstallationTypeChange={(type, level) => {
