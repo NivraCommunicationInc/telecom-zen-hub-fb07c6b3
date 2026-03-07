@@ -744,6 +744,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     contracts: data?.contracts || [],
     appointment: data?.appointment,
     channelSelection: data?.channelSelection || null,
+    serviceAddresses: data?.serviceAddresses || [],
     installationEstimate: data?.installationEstimate || null,
     kycSession: data?.kycSession,
     activityLogs: data?.activityLogs || [],
