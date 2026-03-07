@@ -215,16 +215,24 @@ async function queueClientEmail(params: {
   entity_type?: string;
   entity_id?: string;
   template_vars?: Record<string, any>;
+  idempotency_key?: string;
+  mode?: "automatic" | "manual";
 }) {
   try {
+    const templateVars = {
+      ...(params.template_vars || {}),
+      ...(params.mode === "manual" ? { manual_send: true } : {}),
+    };
+
     const { error } = await supabase.from("email_queue").insert({
       to_email: params.to_email,
       template_key: params.template_key,
       event_key: params.event_key,
+      idempotency_key: params.idempotency_key,
       subject: params.subject,
       entity_type: params.entity_type || "order",
       entity_id: params.entity_id,
-      template_vars: params.template_vars || {},
+      template_vars: templateVars,
       status: "queued",
     });
     if (error) console.error("[OrderProcessing] Email queue error:", error);
