@@ -259,14 +259,28 @@ export function InstallationScheduler({
             selectedTime={selectedTime}
             onSelect={handleSlotSelect}
           />
-          {/* Confirm appointment button */}
-          {selectedDate && selectedTime && activeHold && !holdLoading && (
+          {/* Confirmed state */}
+          {appointmentConfirmed && activeHold && !holdLoading && (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+              <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-700">
+                  {isFrench ? "Rendez-vous confirmé ✓" : "Appointment confirmed ✓"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFrench ? "Votre plage horaire est réservée." : "Your time slot is reserved."}
+                </p>
+              </div>
+            </div>
+          )}
+          {/* Confirm button — only when hold exists but not yet confirmed */}
+          {selectedDate && selectedTime && activeHold && !holdLoading && !appointmentConfirmed && (
             <div className="pt-2">
               <Button
                 variant="hero"
                 size="lg"
                 className="w-full"
-                onClick={() => onDateTimeChange(selectedDate, selectedTime)}
+                onClick={handleConfirmAppointment}
               >
                 <CheckCircle2 className="w-5 h-5 mr-2" />
                 {isFrench ? "Confirmer le rendez-vous" : "Confirm appointment"}
