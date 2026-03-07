@@ -3068,6 +3068,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         toast.error("Veuillez sélectionner une date et heure d'installation");
         return;
       }
+      if (requiresInstallation && !appointmentConfirmed) {
+        submittingRef.current = false;
+        toast.error("Veuillez confirmer le rendez-vous d'installation");
+        return;
+      }
     }
     if (!isPaymentComplete) {
       submittingRef.current = false;
@@ -4610,10 +4615,14 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   fallbackDistanceKm={20}
                   selectedDate={selectedDate}
                   selectedTime={selectedTime}
+                  confirmedAppointment={appointmentConfirmed}
                   onDateTimeChange={(date, time) => {
+                    const changed = date !== selectedDate || time !== selectedTime;
                     setSelectedDate(date);
                     setSelectedTime(time);
+                    if (changed) setAppointmentConfirmed(false);
                   }}
+                  onAppointmentConfirmedChange={setAppointmentConfirmed}
                   onInstallationTypeChange={(type, level) => {
                     setInstallationChoice(type);
                   }}
@@ -5205,8 +5214,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           // For other delivery-only orders (mobile), need ID + delivery choice
                           : isDeliveryOnlyOrder 
                             ? (!isIdComplete || !deliveryChoice)
-                            // For installation orders, need ID + installation choice + appointment if technician
-                            : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime)))
+                            // For installation orders, need ID + installation choice + confirmed technician appointment
+                            : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
                       }
                     >
                       Réviser et confirmer
@@ -6061,7 +6070,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         className="w-full"
                         size="lg"
                         onClick={handleSubmit}
-                        disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime))}
+                        disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}
                       >
                         {createOrderMutation.isPending ? "Traitement..." : "Confirmer la commande"}
                       </Button>
@@ -6171,7 +6180,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       ? !deliveryChoice
                       : isDeliveryOnlyOrder 
                         ? (!isIdComplete || !deliveryChoice)
-                        : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime)))
+                        : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
                   }>
                     Réviser <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
@@ -6194,7 +6203,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </Button>
                   <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
                     <Button variant="hero" className="flex-1" size="lg" onClick={handleSubmit}
-                      disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime))}>
+                      disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}>
                       {createOrderMutation.isPending ? "..." : "Confirmer"}
                     </Button>
                   </BlockedActionWrapper>
