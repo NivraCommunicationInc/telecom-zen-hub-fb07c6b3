@@ -3267,6 +3267,55 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
               {/* Spacer for fixed bottom bar on mobile */}
               {selectedServices.length > 0 && <div className="lg:hidden h-28" />}
+
+              {/* Mobile Order Summary — visible only on mobile when services selected */}
+              {selectedServices.length > 0 && (
+                <div className="lg:hidden mt-4">
+                  <ProfessionalOrderSummary
+                    selectedServices={selectedServices}
+                    selectedMobileServices={selectedMobileServices}
+                    mobileLineQuantities={mobileLineQuantities}
+                    totalMobileLineQuantity={totalMobileLineQuantity}
+                    selectedPaidChannels={selectedPaidChannels}
+                    paidChannelTotal={paidChannelTotal}
+                    selectedStreamingAddons={selectedStreamingServices}
+                    streamingAddonsTotal={streamingAddonsTotal}
+                    monthlyRecurring={monthlyRecurring}
+                    oneTimeFees={oneTimeFees}
+                    oneTimeFeesGross={oneTimeFeesGross}
+                    activationFee={activationFee}
+                    deliveryFee={deliveryFee}
+                    installationFee={installationFee}
+                    terminalFee={terminalFee}
+                    routerFee={routerFee}
+                    simFee={simFee}
+                    simCreditAmount={simCreditAmount}
+                    simDeliveryCreditAmount={simDeliveryCreditAmount}
+                    terminalQuantity={terminalQuantity}
+                    baseAmount={baseAmount}
+                    tpsAmount={tpsAmount}
+                    tvqAmount={tvqAmount}
+                    totalAmount={totalAmount}
+                    oneTimeFeesWithTax={oneTimeFeesWithTax}
+                    monthlyRecurringWithTax={monthlyRecurringWithTax}
+                    hasMobileService={hasMobileService}
+                    hasTVService={hasTVService}
+                    hasInternetService={hasInternetService}
+                    isEquipmentOnlyOrder={isEquipmentOnlyOrder}
+                    isDeliveryOnlyOrder={isDeliveryOnlyOrder}
+                    deliveryChoice={deliveryChoice}
+                    installationChoice={installationChoice}
+                    onContinue={() => setStep(2)}
+                    continueDisabled={selectedServices.length === 0}
+                    welcomeDiscount={{
+                      isNewCustomer: welcomeDiscountHook.isNewCustomer,
+                      discountPercent: welcomeDiscountHook.discountPercent,
+                      discountAmount: welcomeDiscountAmount,
+                      label: welcomeDiscountHook.label,
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Right Column: Professional Order Summary (Sticky) */}
