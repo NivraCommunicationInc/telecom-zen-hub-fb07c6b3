@@ -5675,7 +5675,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2 text-sm">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mensuel</p>
+                    {/* ═══ SECTION A: Recurring Monthly ═══ */}
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Services mensuels</p>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Services récurrents</span>
                       <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
@@ -5684,12 +5685,14 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span className="text-muted-foreground">TPS + TVQ</span>
                       <span>{monthlyTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
-                    <div className="flex justify-between font-medium">
-                      <span className="text-muted-foreground">Total mensuel</span>
-                      <span>{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                    <div className="flex justify-between font-medium pt-1 border-t border-purple-500/30">
+                      <span className="text-purple-500">Total mensuel</span>
+                      <span className="text-purple-500">{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
 
                     <Separator className="my-1" />
+                    
+                    {/* ═══ SECTION B: One-time Fees ═══ */}
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Frais uniques</p>
                     {(hasInternetService || hasTVService) && routerFee > 0 && (
                       <div className="flex justify-between">
@@ -5705,8 +5708,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     {hasMobileService && simFee > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-blue-500">{SIM_CONFIG_DYNAMIC[simType].name}</span>
-                        <span className="text-blue-500">{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span className="text-muted-foreground">{SIM_CONFIG_DYNAMIC[simType].name}</span>
+                        <span>{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     {deliveryFee > 0 && (
@@ -5728,12 +5731,33 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     )}
                     <div className="flex justify-between font-medium">
-                      <span className="text-muted-foreground">Sous-total frais uniques</span>
+                      <span className="text-muted-foreground">Total frais uniques</span>
                       <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {monthlyRecurringNet > 0 && (
-                      <div className="flex justify-between font-medium">
-                        <span className="text-muted-foreground">Mensuel 1er mois (après rabais)</span>
+
+                    <Separator className="my-1" />
+
+                    {/* ═══ SECTION C: Today's Payment ═══ */}
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Paiement aujourd'hui</p>
+                    {oneTimeFees > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Frais uniques</span>
+                        <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Services 1er mois</span>
+                      <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    {totalDiscount > 0 && (
+                      <div className="flex justify-between text-xs text-emerald-500">
+                        <span>Rabais {appliedPromo?.code ? `(${appliedPromo.code})` : ""}</span>
+                        <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {totalDiscount > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Net 1er mois</span>
                         <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
@@ -5743,7 +5767,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  <div className="border-t border-border pt-4">
+                  <div className="border-t-2 border-cyan-500/50 pt-4">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
