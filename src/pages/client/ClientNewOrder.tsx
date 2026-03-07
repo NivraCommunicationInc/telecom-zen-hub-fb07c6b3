@@ -532,12 +532,15 @@ const ClientNewOrder = () => {
     discount_type: string;
     discount_value: number;
     discount_amount: number;
+    applies_to?: Record<string, boolean>;
+    duration?: string;
     // Referral code specific fields
     is_referral_code?: boolean;
     referral_code_id?: string;
     influencer_id?: string;
   } | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [promoValidationError, setPromoValidationError] = useState<string | null>(null);
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   
@@ -1399,13 +1402,15 @@ const ClientNewOrder = () => {
       if (invokeError) throw invokeError;
 
       if (!data?.valid) {
-        // If silent revalidation fails, remove the promo (it no longer applies)
+        const promoErrorMessage = data?.error || "Code promo invalide";
+        setAppliedPromo(null);
+        setInstallationCredit(0);
+        setPromoValidationError(promoErrorMessage);
+
         if (silent) {
-          setAppliedPromo(null);
-          setInstallationCredit(0);
           toast.error(data?.error || "Ce code promo ne s'applique plus à cette commande");
         } else {
-          toast.error(data?.error || "Code promo invalide");
+          toast.error(promoErrorMessage);
         }
         return false;
       }
@@ -1417,11 +1422,14 @@ const ClientNewOrder = () => {
         discount_type: data.promo.discount_type,
         discount_value: data.promo.discount_value,
         discount_amount: data.discount_amount,
+        applies_to: data.promo.applies_to,
+        duration: data.promo.duration,
         // Referral code specific fields
         is_referral_code: data.is_referral_code || false,
         referral_code_id: data.referral_code_id,
         influencer_id: data.influencer_id,
       });
+      setPromoValidationError(null);
 
       // IMPORTANT: Do not apply a separate installationCredit discount.
       // The promo is applied once via promoDiscount (discount_amount) in totals.
@@ -1436,6 +1444,7 @@ const ClientNewOrder = () => {
       return true;
     } catch (err: any) {
       console.error("Error validating promo:", err);
+      setPromoValidationError("Erreur lors de la validation du code promo");
       if (!silent) toast.error("Erreur lors de la validation du code promo");
       return false;
     } finally {
@@ -1452,6 +1461,7 @@ const ClientNewOrder = () => {
   const removePromo = () => {
     setAppliedPromo(null);
     setInstallationCredit(0);
+    setPromoValidationError(null);
     setDiscountCode("");
     toast.info("Code promo retiré");
   };
@@ -4922,16 +4932,24 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Entrez votre code promo"
-                        value={discountCode}
-                        onChange={(e) => setDiscountCode(e.target.value)}
-                        disabled={isValidatingPromo}
-                      />
-                      <Button variant="outline" onClick={applyDiscountCode} disabled={isValidatingPromo}>
-                        {isValidatingPromo ? "..." : "Appliquer"}
-                      </Button>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Entrez votre code promo"
+                          value={discountCode}
+                          onChange={(e) => {
+                            setDiscountCode(e.target.value);
+                            if (promoValidationError) setPromoValidationError(null);
+                          }}
+                          disabled={isValidatingPromo}
+                        />
+                        <Button variant="outline" onClick={applyDiscountCode} disabled={isValidatingPromo}>
+                          {isValidatingPromo ? "..." : "Appliquer"}
+                        </Button>
+                      </div>
+                      {promoValidationError && (
+                        <p className="text-xs text-destructive">{promoValidationError}</p>
+                      )}
                     </div>
                   )}
                 </CardContent>
