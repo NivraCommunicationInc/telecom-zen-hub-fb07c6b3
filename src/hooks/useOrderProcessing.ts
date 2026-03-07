@@ -316,19 +316,52 @@ export function useOrderProcessing(orderId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      // Fetch channel selections for TV/combo orders
+      // Fetch channel selections for TV/combo orders (strictly by order first)
       let channelSelection = null;
       const svcType = (order.service_type || "").toLowerCase();
       if (svcType.includes("tv") || svcType.includes("combo") || svcType.includes("bundle")) {
-        const { data: cs } = await supabase
+        const { data: csByOrder } = await supabase
           .from("channel_selections")
           .select("*")
-          .eq("user_id", order.user_id)
+          .eq("order_id", order.id)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        channelSelection = cs;
+
+        const { data: csByUser } = !csByOrder
+          ? await supabase
+              .from("channel_selections")
+              .select("*")
+              .eq("user_id", order.user_id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : { data: null as any };
+
+        channelSelection = csByOrder || csByUser || null;
+
+        if (!channelSelection && Array.isArray(order.selected_channels) && order.selected_channels.length > 0) {
+          channelSelection = {
+            id: null,
+            user_id: order.user_id,
+            order_id: order.id,
+            channels: order.selected_channels,
+            status: order.channel_selection_locked ? "confirmed" : "draft",
+            total_price: 0,
+          };
+        }
       }
+
+      // Fetch client service addresses for admin by-address management
+      const { data: serviceAddresses } = account?.id
+        ? await supabase
+            .from("service_addresses")
+            .select("*")
+            .eq("account_id", account.id)
+            .eq("is_active", true)
+            .order("is_default", { ascending: false })
+            .order("created_at", { ascending: true })
+        : { data: [] as any[] };
 
       // Compute installation time estimate
       const installationEstimate = computeInstallationEstimate(order, appointment);
@@ -350,6 +383,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         contracts: contracts || [],
         appointment,
         channelSelection,
+        serviceAddresses: serviceAddresses || [],
         installationEstimate,
         kycSession,
         activityLogs: activityLogs || [],
