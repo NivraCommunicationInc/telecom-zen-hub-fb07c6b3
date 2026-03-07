@@ -61,6 +61,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[${requestId}] Queuing appointment notification: status=${status}, to=${email?.substring(0, 3)}***`);
 
+    // SAFEGUARD: If this is a confirmation request, validate the appointment has a linked order
+    if (status === "confirmed" && appointmentId) {
+      const { data: apt } = await supabase
+        .from("appointments")
+        .select("id, status, order_id")
+        .eq("id", appointmentId)
+        .maybeSingle();
+
+      if (apt?.status === "hold" || !apt?.order_id) {
+        console.log(`[${requestId}] BLOCKED: Cannot send confirmation email for hold/unlinked appointment ${appointmentId} (status=${apt?.status}, order_id=${apt?.order_id})`);
+        return new Response(JSON.stringify({ 
+          success: false, 
+          blocked: true,
+          reason: "appointment_not_confirmed_yet",
+        }), { 
+          status: 200, 
+          headers: { "Content-Type": "application/json", ...corsHeaders } 
+        });
+      }
+    }
+
     // Map status to template key
     const templateKeyMap: Record<string, string> = {
       confirmed: "appointment_scheduled",
