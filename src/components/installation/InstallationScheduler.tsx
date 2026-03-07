@@ -66,6 +66,7 @@ export function InstallationScheduler({
   const [installationId, setInstallationId] = useState<string | null>(null);
   const [activeHold, setActiveHold] = useState<AppointmentHold | null>(null);
   const [holdLoading, setHoldLoading] = useState(false);
+  const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
 
   // Restore existing hold on mount
   useEffect(() => {
@@ -73,7 +74,7 @@ export function InstallationScheduler({
       const hold = await restoreAppointmentHold();
       if (hold) {
         setActiveHold(hold);
-        // Normalize scheduledAt to match SmartSlotPicker's date.toISOString() format
+        setAppointmentConfirmed(true); // Restored hold = already confirmed by user
         const normalizedDate = new Date(hold.scheduledAt).toISOString();
         onDateTimeChange(normalizedDate, hold.timeSlot);
         console.log("[InstallationScheduler] Restored hold:", hold.appointmentId, "date:", normalizedDate, "time:", hold.timeSlot);
@@ -179,14 +180,14 @@ export function InstallationScheduler({
 
   const handleSlotSelect = useCallback(async (date: string, time: string, slotId?: string) => {
     onDateTimeChange(date, time);
+    setAppointmentConfirmed(false); // New slot selected, needs re-confirmation
     setHoldLoading(true);
 
     try {
-      // Create a hold in DB immediately
       const hold = await createAppointmentHold({
         scheduledAt: date,
         timeSlot: time,
-        serviceType: decision?.messageKey?.includes("tech") ? "Internet" : "Internet",
+        serviceType: "Internet",
         installationMethod: decision?.installationType || "auto",
         installationId: installationId || undefined,
         slotId: slotId || undefined,
@@ -196,11 +197,16 @@ export function InstallationScheduler({
         setActiveHold(hold);
         console.log("[InstallationScheduler] Hold created:", hold.appointmentId);
       }
-
     } finally {
       setHoldLoading(false);
     }
   }, [onDateTimeChange, installationId, decision]);
+
+  const handleConfirmAppointment = useCallback(() => {
+    setAppointmentConfirmed(true);
+    onDateTimeChange(selectedDate, selectedTime);
+    console.log("[InstallationScheduler] Appointment confirmed by user:", selectedDate, selectedTime);
+  }, [onDateTimeChange, selectedDate, selectedTime]);
 
   return (
     <div className="space-y-4">
@@ -253,14 +259,28 @@ export function InstallationScheduler({
             selectedTime={selectedTime}
             onSelect={handleSlotSelect}
           />
-          {/* Confirm appointment button */}
-          {selectedDate && selectedTime && activeHold && !holdLoading && (
+          {/* Confirmed state */}
+          {appointmentConfirmed && activeHold && !holdLoading && (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10 border border-primary/30">
+              <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-primary">
+                  {isFrench ? "Rendez-vous confirmé ✓" : "Appointment confirmed ✓"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isFrench ? "Votre plage horaire est réservée." : "Your time slot is reserved."}
+                </p>
+              </div>
+            </div>
+          )}
+          {/* Confirm button — only when hold exists but not yet confirmed */}
+          {selectedDate && selectedTime && activeHold && !holdLoading && !appointmentConfirmed && (
             <div className="pt-2">
               <Button
                 variant="hero"
                 size="lg"
                 className="w-full"
-                onClick={() => onDateTimeChange(selectedDate, selectedTime)}
+                onClick={handleConfirmAppointment}
               >
                 <CheckCircle2 className="w-5 h-5 mr-2" />
                 {isFrench ? "Confirmer le rendez-vous" : "Confirm appointment"}
