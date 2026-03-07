@@ -67,8 +67,6 @@ import { checkAccountBlockedForAction } from "@/lib/accountBlockCheck";
 import { useClientBlockStatus } from "@/hooks/useClientBlockStatus";
 import BlockedActionWrapper from "@/components/client/BlockedActionWrapper";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
-import { InstallationScheduler } from "@/components/installation/InstallationScheduler";
-import type { InstallationDecision } from "@/lib/installationLogic";
 import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/validation/dob";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
