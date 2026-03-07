@@ -690,11 +690,13 @@ export function useOrderProcessing(orderId: string | undefined) {
     await queueClientEmail({
       to_email: email,
       template_key: templateKey,
-      event_key: `${templateKey}_${orderId}_${Date.now()}`,
+      event_key: `manual_${templateKey}_${orderId}_${Date.now()}`,
+      mode: "manual",
       subject,
       entity_id: orderId,
       template_vars: {
         client_name: getClientName(),
+        order_id: orderId,
         order_number: data?.order?.order_number || "",
         ...extraVars,
       },
