@@ -7,17 +7,27 @@ import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt } from "lucide-react";
+import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt, AlertCircle } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { generateInvoicePDF } from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { fetchInvoiceBreakdowns, breakdownToInvoiceDataV2, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
+import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
+import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
+
+/**
+ * ClientInvoices — CANONICAL DOCUMENT ARCHITECTURE
+ * 
+ * This page does NOT generate documents independently.
+ * It uses the canonical document service (same engine as admin).
+ * All financial data comes from compute_invoice_breakdown RPC.
+ * All PDF generation uses the canonical pipeline.
+ * Zero client-side math. Zero ad-hoc data assembly.
+ */
 
 // ─── Status config ───────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
@@ -66,7 +76,7 @@ const ClientInvoices = () => {
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payingInvoice, setPayingInvoice] = useState<InvoiceBreakdown | null>(null);
 
-  // ── Profile ──
+  // ── Profile (for pay dialog only, NOT for document generation) ──
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {
@@ -86,7 +96,6 @@ const ClientInvoices = () => {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      // Get billing_customer for this user
       const { data: customer } = await portalSupabase
         .from("billing_customers")
         .select("id")
@@ -94,7 +103,6 @@ const ClientInvoices = () => {
         .maybeSingle();
       if (!customer) return [];
 
-      // Get invoice IDs
       const { data: invoices } = await portalSupabase
         .from("billing_invoices")
         .select("id")
@@ -102,16 +110,13 @@ const ClientInvoices = () => {
         .order("created_at", { ascending: false });
       if (!invoices || invoices.length === 0) return [];
 
-      // Fetch all breakdowns from RPC using portal client for correct auth session
       const ids = invoices.map((i) => i.id);
       const bdMap = await fetchInvoiceBreakdowns(ids, portalSupabase);
 
-      // Convert to sorted array, add overdue detection
       const result: InvoiceBreakdown[] = [];
       for (const inv of invoices) {
         const bd = bdMap.get(inv.id);
         if (bd) {
-          // Override status to overdue if applicable
           if (bd.status !== "paid" && bd.status !== "void" && bd.status !== "cancelled" && bd.due_date && isPast(parseISO(bd.due_date))) {
             (bd as any).display_status = "overdue";
           } else {
@@ -144,26 +149,7 @@ const ClientInvoices = () => {
     });
   }, [breakdowns, filterTab]);
 
-  // ── PDF generation (from breakdown) ──
-  const buildPDFData = useCallback(
-    (bd: InvoiceBreakdown) => {
-      return breakdownToInvoiceDataV2(
-        bd,
-        {
-          full_name: profile?.full_name || "Non fourni par le client",
-          email: profile?.email || user?.email || "Non fourni par le client",
-          phone: profile?.phone || "Non fourni par le client",
-          address_line1: profile?.service_address || "Non fourni par le client",
-          city: profile?.service_city || "",
-          province: "QC",
-          postal_code: profile?.service_postal_code || "",
-        },
-        profile?.account_number || profile?.client_number || "Non fourni par le client",
-      );
-    },
-    [profile, user?.email],
-  );
-
+  // ── CANONICAL PDF generation — uses the same engine as admin ──
   const handleViewPDF = useCallback(
     async (bd: InvoiceBreakdown) => {
       try {
@@ -171,34 +157,42 @@ const ClientInvoices = () => {
         setPdfViewerOpen(true);
         setPdfTitle(`Facture ${bd.invoice_number}`);
         setPdfFilename(`Facture_${bd.invoice_number}.pdf`);
-        const result = await generateInvoicePDF(buildPDFData(bd));
-        if (result.success && result.blob) setPdfBlob(result.blob);
-        else throw new Error(result.error);
-      } catch (error) {
-        console.error("PDF error:", error);
-        toast.error("Erreur lors de la génération du PDF");
+        
+        // Use CANONICAL document service — identical to admin
+        const result = await generateCanonicalInvoicePDF(portalSupabase, bd.invoice_id);
+        if (result.success && result.blob) {
+          setPdfBlob(result.blob);
+        } else {
+          throw new Error(result.error || "Document non disponible");
+        }
+      } catch (error: any) {
+        console.error("[ClientInvoices] PDF error:", error);
+        toast.error(error.message || "Erreur lors de la génération du PDF");
         setPdfViewerOpen(false);
       } finally {
         setPdfLoading(false);
       }
     },
-    [buildPDFData],
+    [],
   );
 
   const handleDownloadPDF = useCallback(
     async (bd: InvoiceBreakdown) => {
       try {
-        const result = await generateInvoicePDF(buildPDFData(bd));
+        // Use CANONICAL document service — identical to admin
+        const result = await generateCanonicalInvoicePDF(portalSupabase, bd.invoice_id);
         if (result.success && result.blob && result.filename) {
           safePDFDownload(result.blob, result.filename);
           toast.success("Facture téléchargée");
-        } else throw new Error(result.error);
-      } catch (error) {
-        console.error("PDF download error:", error);
+        } else {
+          throw new Error(result.error || "Document non disponible");
+        }
+      } catch (error: any) {
+        console.error("[ClientInvoices] PDF download error:", error);
         toast.error("Impossible de générer la facture");
       }
     },
-    [buildPDFData],
+    [],
   );
 
   // ── Pay ──

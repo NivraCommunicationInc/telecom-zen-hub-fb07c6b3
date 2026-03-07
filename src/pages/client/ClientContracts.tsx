@@ -9,24 +9,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, Download, CheckCircle, Eye, Pen, AlertTriangle } from "lucide-react";
+import { FileText, Download, CheckCircle, Eye, Pen, AlertTriangle, AlertCircle } from "lucide-react";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { generateContractPDF, type ContractData } from "@/lib/pdf";
-import { safePDFOpen, safePDFDownload } from "@/lib/pdfUtils";
+import { safePDFDownload } from "@/lib/pdfUtils";
 import { BUSINESS_INFO, CONTRACT_TERMS } from "@/lib/contractPolicies";
-import { ACTIVE_CONTRACT_TEMPLATE } from "@/lib/contractTemplate";
-import { hashBlobSHA256Hex } from "@/lib/pdfHash";
-import { calculateLineItemTotals, extractLineItemsFromOrder } from "@/lib/orderLineItems";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { usePDFViewer } from "@/hooks/usePDFViewer";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { TypedSignatureInput } from "@/components/client/TypedSignatureInput";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
+
+/**
+ * ClientContracts — CANONICAL DOCUMENT ARCHITECTURE
+ * 
+ * This page does NOT generate contract documents independently.
+ * It uses the canonical document service (same engine as admin).
+ * Zero ad-hoc data assembly. Zero hardcoded prices.
+ * Zero client-side document math.
+ * 
+ * The signing flow remains client-side (it's a user action, not document generation).
+ */
 
 const ClientContracts = () => {
   const { user } = useClientAuth();
@@ -40,7 +48,7 @@ const ClientContracts = () => {
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const pdfViewer = usePDFViewer();
 
-  // Fetch contracts for current user - SECURITY: Filter by owner_user_id for RLS compliance
+  // Fetch contracts for current user
   const { data: contracts, isLoading } = useQuery({
     queryKey: ["client-contracts", user?.id],
     queryFn: async () => {
@@ -56,7 +64,7 @@ const ClientContracts = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch current profile for signature
+  // Fetch profile for signing display only (NOT for document generation)
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],
     queryFn: async () => {
@@ -65,14 +73,13 @@ const ClientContracts = () => {
         .select("*")
         .eq("user_id", user?.id)
         .maybeSingle();
-
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
   });
 
-  // Sign contract mutation with activity logging
+  // Sign contract mutation
   const signContractMutation = useMutation({
     mutationFn: async ({ contractId, signature }: { contractId: string; signature: string }) => {
       const signedAt = new Date().toISOString();
@@ -88,12 +95,9 @@ const ClientContracts = () => {
         .eq("user_id", user?.id);
 
       if (error) throw error;
-      
-      // Return data for logging
       return { contractId, signedAt, signature };
     },
     onSuccess: async (data) => {
-      // Log the signature activity
       await logActivity(
         "Signed",
         "contract",
@@ -113,12 +117,11 @@ const ClientContracts = () => {
           newValue: "true",
         }
       );
-      
-      // Invalidate with exact key used in query
+
       queryClient.invalidateQueries({ queryKey: ["client-contracts", user?.id] });
-      toast({ 
-        title: "Contrat signé avec succès", 
-        description: "Votre signature a été enregistrée. Vous pouvez télécharger le contrat signé." 
+      toast({
+        title: "Contrat signé avec succès",
+        description: "Votre signature a été enregistrée. Vous pouvez télécharger le contrat signé.",
       });
       setSignDialogOpen(false);
       setSelectedContract(null);
@@ -132,6 +135,7 @@ const ClientContracts = () => {
     },
   });
 
+  // ── CANONICAL PDF GENERATION — uses the same engine as admin ──
   const handleDownloadContract = async (contract: any) => {
     try {
       if (!contract) {
@@ -139,210 +143,26 @@ const ClientContracts = () => {
         return;
       }
 
-        // Fetch linked order with service details INCLUDING equipment_details for line_items
-        const { data: linkedOrder } = await portalSupabase
-          .from("orders")
-          .select(`
-            id, order_number, created_at, service_type,
-            subtotal, tps_amount, tvq_amount, total_amount, 
-            activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee,
-            equipment_details, promo_code, discount_amount, preauth_discount
-          `)
-          .eq("related_contract_id", contract.id)
-          .maybeSingle();
-
-        // Client account number (must always be shown in Contract PDF)
-        // Fallback:
-        // 1) linkedOrder.client_account_number (if present)
-        // 2) accounts.account_number where accounts.client_id = user.id
-        // 3) N/A (and log error)
-        let clientAccountNumber: string | undefined = (linkedOrder as any)?.client_account_number || undefined;
-
-        if (!clientAccountNumber && user?.id) {
-          const { data: acc, error: accError } = await portalSupabase
-            .from("accounts")
-            .select("account_number")
-            .eq("client_id", user.id)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle();
-
-          if (accError) {
-            console.error("[Contract PDF] Failed to lookup accounts.account_number", {
-              contractId: contract.id,
-              orderId: linkedOrder?.id,
-              userId: user.id,
-              error: accError,
-            });
-          } else {
-            clientAccountNumber = acc?.account_number || undefined;
-          }
-        }
-
-        if (!clientAccountNumber) {
-          console.error("[Contract PDF] Missing client account number (will render N/A)", {
-            contractId: contract.id,
-            orderId: linkedOrder?.id,
-            userId: user?.id,
-          });
-        }
-
-      // Parse service type to determine individual services and prices
-      const serviceType = String(linkedOrder?.service_type || contract.contract_name || "").toLowerCase();
-      const subtotal = Number(linkedOrder?.subtotal ?? 0);
-      const equipmentDetails = linkedOrder?.equipment_details;
-      const lineItems = extractLineItemsFromOrder(equipmentDetails);
-      
-      // Build individual service prices based on line_items OR fallback parsing
-      let internetPlan: string | undefined;
-      let internetPrice: number | undefined;
-      let tvBundle: string | undefined;
-      let tvPrice: number | undefined;
-      let mobilePlan: string | undefined;
-      let mobilePrice: number | undefined;
-      let streamingPlan: string | undefined;
-      let streamingPrice: number | undefined;
-      
-      if (lineItems && lineItems.length > 0) {
-        // Use structured line_items as primary source
-        for (const item of lineItems) {
-          if (item.category === 'service') {
-            const itemType = item.type?.toLowerCase() || '';
-            const price = item.unit_price >= 0 ? item.unit_price : undefined;
-            
-            if (itemType === 'internet') {
-              internetPlan = item.name;
-              internetPrice = price;
-            } else if (itemType === 'tv') {
-              tvBundle = item.name;
-              tvPrice = price;
-            } else if (itemType === 'mobile') {
-              mobilePlan = item.name;
-              mobilePrice = price;
-            } else if (itemType === 'streaming') {
-              // Aggregate streaming services
-              if (!streamingPlan) {
-                streamingPlan = item.name;
-                streamingPrice = price;
-              } else {
-                streamingPlan += `, ${item.name}`;
-                streamingPrice = (streamingPrice || 0) + (price || 0);
-              }
-            }
-          }
-        }
-      } else {
-        // Fallback: Parse service_type string if no line_items found
-        if (serviceType.includes("internet") || serviceType.includes("fibre")) {
-          internetPlan = "Internet Résidentiel";
-          internetPrice = subtotal > 0 ? subtotal : 0;
-        }
-        if (serviceType.includes("tv") || serviceType.includes("télé")) {
-          tvBundle = "Forfait TV";
-          tvPrice = 0;
-        }
-        if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
-          mobilePlan = "Forfait Mobile Prépayé";
-          mobilePrice = 0;
-        }
-        if (serviceType.includes("streaming")) {
-          streamingPlan = "Streaming+";
-          streamingPrice = 0;
-        }
-      }
-      
-      const hasSpecificServices = internetPlan || tvBundle || mobilePlan || streamingPlan;
-
-      const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
-      const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
-
-      const contractData: ContractData = {
-        contractId: contract.id,
-        templateId,
-        templateVersion,
-
-        contractNumber:
-          contract.contract_number ||
-          contract.contract_url ||
-          `CTR-${contract.id.slice(0, 8).toUpperCase()}`,
-        order_number: linkedOrder?.order_number || undefined,
-        order_date: linkedOrder?.created_at || contract.created_at,
-
-        client_name: profile?.full_name || "Client",
-        client_email: profile?.email || user?.email || "",
-        client_phone: profile?.phone || "",
-        account_number: clientAccountNumber,
-        billing_address: profile?.service_address || "",
-        service_address: profile?.service_address || "",
-
-        // Fallback service plan
-        service_plan: contract.contract_name || "Services",
-
-        activation_fee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
-        delivery_fee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
-        installation_fee: Number(linkedOrder?.installation_fee ?? 0),
-
-        subtotal_before_tax: subtotal,
-        tax_gst: Number(linkedOrder?.tps_amount ?? 0),
-        tax_qst: Number(linkedOrder?.tvq_amount ?? 0),
-        total_due_today: Number(linkedOrder?.total_amount ?? 0),
-        
-        // Promo/discounts
-        promo_code: linkedOrder?.promo_code || undefined,
-        total_discounts: Number(linkedOrder?.discount_amount ?? 0),
-
-        isSigned: Boolean(contract.is_signed),
-        signedAt: contract.signed_at || undefined,
-        clientSignature: contract.client_signature || undefined,
-        clientSignatureType: contract.client_signature_type || undefined,
-        
-        // CRITICAL: Pass structured line_items for dynamic PDF generation
-        equipment: equipmentDetails as any,
-      };
-
-      const result = generateContractPDF(contractData);
+      // Use CANONICAL document service — identical to admin
+      const result = await generateCanonicalContractPDF(portalSupabase, contract.id);
       if (!result.success || !result.blob) {
-        throw new Error(result.error || "Erreur de génération");
+        throw new Error(result.error || "Document non disponible");
       }
-      const blob = result.blob;
-      const pdfHash = await hashBlobSHA256Hex(blob);
-      const generatedAt = new Date().toISOString();
 
-      await portalSupabase
-        .from("contracts")
-        .update({
-          template_id: templateId,
-          template_version: templateVersion,
-          pdf_hash: pdfHash,
-          pdf_generated_at: generatedAt,
-        } as any)
-        .eq("id", contract.id)
-        .eq("user_id", user?.id);
+      const filename = `Contrat_Nivra_${contract.contract_number || contract.id.slice(0, 8)}.pdf`;
+      safePDFDownload(result.blob, filename);
 
-      await logActivity(
-        "Generated",
-        "contract_pdf",
-        contract.id,
-        {
-          orderId: linkedOrder?.id || null,
-          contractId: contract.id,
-          templateId,
-          templateVersion,
-          timestamp: generatedAt,
-          pdfHash,
-        },
-        { changedField: "pdf_generated_at", newValue: generatedAt }
-      );
-
-      const filename = `TSA-${contract.id}-${templateVersion}.pdf`;
-      safePDFDownload(blob, filename);
+      await logActivity("Downloaded", "contract_pdf", contract.id, {
+        contractId: contract.id,
+        timestamp: new Date().toISOString(),
+      });
 
       toast({ title: "Contrat téléchargé" });
     } catch (error: any) {
-      console.error("Download error:", error);
+      console.error("[ClientContracts] Download error:", error);
       toast({
         title: "Erreur lors du téléchargement",
-        description: "Veuillez réessayer",
+        description: error.message || "Veuillez réessayer",
         variant: "destructive",
       });
     }
@@ -355,167 +175,28 @@ const ClientContracts = () => {
         return;
       }
 
-        // Fetch linked order with service details
-        const { data: linkedOrder } = await portalSupabase
-          .from("orders")
-          .select(`
-            id, order_number, created_at, service_type,
-            subtotal, tps_amount, tvq_amount, total_amount, 
-            activation_fee, delivery_fee, installation_fee, terminal_fee, terminal_count, router_fee
-          `)
-          .eq("related_contract_id", contract.id)
-          .maybeSingle();
-
-        // Client account number (must always be shown in Contract PDF)
-        let clientAccountNumber: string | undefined = (linkedOrder as any)?.client_account_number || undefined;
-
-        if (!clientAccountNumber && user?.id) {
-          const { data: acc, error: accError } = await portalSupabase
-            .from("accounts")
-            .select("account_number")
-            .eq("client_id", user.id)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle();
-
-          if (accError) {
-            console.error("[Contract PDF] Failed to lookup accounts.account_number", {
-              contractId: contract.id,
-              orderId: linkedOrder?.id,
-              userId: user.id,
-              error: accError,
-            });
-          } else {
-            clientAccountNumber = acc?.account_number || undefined;
-          }
-        }
-
-        if (!clientAccountNumber) {
-          console.error("[Contract PDF] Missing client account number (will render N/A)", {
-            contractId: contract.id,
-            orderId: linkedOrder?.id,
-            userId: user?.id,
-          });
-        }
-
-      // Parse service type to determine individual services and prices
-      const serviceType = String(linkedOrder?.service_type || contract.contract_name || "").toLowerCase();
-      const subtotal = Number(linkedOrder?.subtotal ?? 0);
-      
-      // Build individual service prices based on service type
-      let internetPlan: string | undefined;
-      let internetPrice: number | undefined;
-      let tvBundle: string | undefined;
-      let tvPrice: number | undefined;
-      let mobilePlan: string | undefined;
-      let mobilePrice: number | undefined;
-      let streamingPlan: string | undefined;
-      let streamingPrice: number | undefined;
-      
-      if (serviceType.includes("internet") || serviceType.includes("fibre")) {
-        internetPlan = "Internet Résidentiel";
-        internetPrice = subtotal > 0 ? subtotal : 50;
-      }
-      if (serviceType.includes("tv") || serviceType.includes("télé")) {
-        tvBundle = "Forfait TV";
-        tvPrice = 35;
-      }
-      if (serviceType.includes("mobile") || serviceType.includes("cellulaire")) {
-        mobilePlan = "Forfait Mobile Prépayé";
-        mobilePrice = 60;
-      }
-      if (serviceType.includes("streaming")) {
-        streamingPlan = "Streaming+";
-        streamingPrice = 15;
-      }
-      
-      const hasSpecificServices = internetPlan || tvBundle || mobilePlan || streamingPlan;
-
-      const templateId = (contract as any).template_id || ACTIVE_CONTRACT_TEMPLATE.id;
-      const templateVersion = (contract as any).template_version || ACTIVE_CONTRACT_TEMPLATE.version;
-
-      const contractData: ContractData = {
-        contractId: contract.id,
-        templateId,
-        templateVersion,
-
-        contractNumber:
-          contract.contract_number ||
-          contract.contract_url ||
-          `CTR-${contract.id.slice(0, 8).toUpperCase()}`,
-        order_number: linkedOrder?.order_number || undefined,
-        order_date: linkedOrder?.created_at || contract.created_at,
-
-        client_name: profile?.full_name || "Client",
-        client_email: profile?.email || user?.email || "",
-        client_phone: profile?.phone || "",
-        account_number: clientAccountNumber,
-        billing_address: profile?.service_address || "",
-        service_address: profile?.service_address || "",
-
-        // Fallback service plan
-        service_plan: contract.contract_name || "Services",
-
-        activation_fee: Number(linkedOrder?.activation_fee ?? CONTRACT_TERMS.fees.activationSingle),
-        delivery_fee: Number(linkedOrder?.delivery_fee ?? CONTRACT_TERMS.fees.delivery),
-        installation_fee: Number(linkedOrder?.installation_fee ?? 0),
-
-        subtotal_before_tax: subtotal,
-        tax_gst: Number(linkedOrder?.tps_amount ?? 0),
-        tax_qst: Number(linkedOrder?.tvq_amount ?? 0),
-        total_due_today: Number(linkedOrder?.total_amount ?? 0),
-
-        isSigned: Boolean(contract.is_signed),
-        signedAt: contract.signed_at || undefined,
-        clientSignature: contract.client_signature || undefined,
-        clientSignatureType: contract.client_signature_type || undefined,
-      };
-
-      const filename = `TSA-${contract.id}-${templateVersion}.pdf`;
+      const filename = `Contrat_Nivra_${contract.contract_number || contract.id.slice(0, 8)}.pdf`;
 
       await pdfViewer.openWithGenerator(
         async () => {
-          const result = generateContractPDF(contractData);
+          // Use CANONICAL document service — identical to admin
+          const result = await generateCanonicalContractPDF(portalSupabase, contract.id);
           if (!result.success || !result.blob) {
-            throw new Error(result.error || "Erreur de génération");
+            throw new Error(result.error || "Document non disponible");
           }
-          const blob = result.blob;
-          const pdfHash = await hashBlobSHA256Hex(blob);
-          const generatedAt = new Date().toISOString();
 
-          await portalSupabase
-            .from("contracts")
-            .update({
-              template_id: templateId,
-              template_version: templateVersion,
-              pdf_hash: pdfHash,
-              pdf_generated_at: generatedAt,
-            } as any)
-            .eq("id", contract.id)
-            .eq("user_id", user?.id);
+          await logActivity("Viewed", "contract_pdf", contract.id, {
+            contractId: contract.id,
+            timestamp: new Date().toISOString(),
+          });
 
-          await logActivity(
-            "Generated",
-            "contract_pdf",
-            contract.id,
-            {
-              orderId: linkedOrder?.id || null,
-              contractId: contract.id,
-              templateId,
-              templateVersion,
-              timestamp: generatedAt,
-              pdfHash,
-            },
-            { changedField: "pdf_generated_at", newValue: generatedAt }
-          );
-
-          return blob;
+          return result.blob;
         },
-        `Contrat - ${contract.contract_name || contractData.contractNumber}`,
+        `Contrat - ${contract.contract_name || contract.contract_number || contract.id.slice(0, 8)}`,
         filename
       );
     },
-    [profile, user?.email, user?.id, pdfViewer, toast, logActivity]
+    [pdfViewer, toast, logActivity]
   );
 
   const openSignDialog = (contract: any) => {
@@ -527,7 +208,6 @@ const ClientContracts = () => {
   };
 
   const handleSign = () => {
-    // Validate signature
     if (!typedSignature.trim()) {
       setSignatureError("Veuillez taper votre nom pour signer");
       return;
@@ -536,11 +216,11 @@ const ClientContracts = () => {
       setSignatureError("Le nom doit contenir au moins 3 caractères");
       return;
     }
-    
+
     setSignatureError(null);
-    signContractMutation.mutate({ 
-      contractId: selectedContract.id, 
-      signature: typedSignature.trim() 
+    signContractMutation.mutate({
+      contractId: selectedContract.id,
+      signature: typedSignature.trim(),
     });
   };
 
@@ -587,7 +267,7 @@ const ClientContracts = () => {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        N° {contract.contract_url || contract.id.slice(0, 8).toUpperCase()}
+                        N° {contract.contract_number || contract.contract_url || contract.id.slice(0, 8).toUpperCase()}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Créé le {format(new Date(contract.created_at), "d MMMM yyyy", { locale: fr })}
@@ -662,7 +342,7 @@ const ClientContracts = () => {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="font-medium">Contrat N° :</span>{" "}
-                        {selectedContract.contract_url || selectedContract.id.slice(0, 8).toUpperCase()}
+                        {selectedContract.contract_number || selectedContract.contract_url || selectedContract.id.slice(0, 8).toUpperCase()}
                       </div>
                       <div>
                         <span className="font-medium">Version :</span> {CONTRACT_TERMS.version}
@@ -687,7 +367,7 @@ const ClientContracts = () => {
                     </div>
                     <div className="border border-cyan-500 rounded-lg p-4">
                       <h3 className="font-bold text-cyan-500 mb-2">LE CLIENT</h3>
-                      <p className="text-sm">{profile?.full_name || "N/A"}</p>
+                      <p className="text-sm">{profile?.full_name || "Non fourni par le client"}</p>
                       <p className="text-sm text-muted-foreground">{profile?.email || user?.email}</p>
                       {profile?.phone && (
                         <p className="text-sm text-muted-foreground">{profile.phone}</p>
