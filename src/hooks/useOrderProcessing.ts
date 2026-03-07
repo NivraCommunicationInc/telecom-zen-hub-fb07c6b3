@@ -465,10 +465,13 @@ export function useOrderProcessing(orderId: string | undefined) {
         to_email: email,
         template_key: templateKey,
         event_key: `order_status_${orderId}_${newStatus}_${Date.now()}`,
+        idempotency_key: `auto_order_status_${orderId}_${newStatus}`,
+        mode: "automatic",
         subject: `Mise à jour de votre commande — ${newStatus}`,
         entity_id: orderId,
         template_vars: {
           client_name: getClientName(),
+          order_id: orderId,
           order_number: data?.order?.order_number || "",
           old_status: oldStatus,
           new_status: newStatus,
