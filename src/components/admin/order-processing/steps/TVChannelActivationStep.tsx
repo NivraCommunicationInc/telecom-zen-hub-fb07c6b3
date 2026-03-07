@@ -238,7 +238,7 @@ export function TVChannelActivationStep({ proc }: Props) {
   const handleActivateChannels = async () => {
     setLoading("activate");
     try {
-      await persistSelection(true);
+      await persistSelection();
       toast.success("Chaînes activées sur le compte client");
     } catch (error: any) {
       console.error("[TVChannels] Activate error:", error);
