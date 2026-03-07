@@ -920,23 +920,36 @@ const ClientNewOrder = () => {
     notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
   };
 
-  // Fetch available services from Nivra external API (source of truth for pricing)
+  // Fetch available services from database (admin-managed, source of truth)
   const { data: services, isLoading } = useQuery({
     queryKey: ["available-services"],
     queryFn: async () => {
-      const products = await fetchNivraProducts();
-      return products
-        .filter((p) => ["internet_plan", "mobile_plan", "bundle"].includes(p.product_type))
-        .map((p): Service => ({
-          id: p.id,
-          sku: p.sku,
-          name: p.name,
-          description: "",
-          price: p.base_price,
-          category: mapProductTypeToCategory(p.product_type),
+      const { data, error } = await supabase
+        .from("services_public")
+        .select("id, name, category, price, description")
+        .order("category", { ascending: true })
+        .order("price", { ascending: true });
+
+      if (error) {
+        console.error("[ClientNewOrder] Failed to fetch services_public:", error);
+        throw error;
+      }
+
+      // Map DB services to the Service interface, filtering to orderable categories
+      const orderableCategories = ["Internet", "TV", "TV + Internet", "GIGA Bundles", "Mobile"];
+      return (data || [])
+        .filter((s) => s.category && orderableCategories.includes(s.category))
+        .map((s): Service => ({
+          id: s.id || "",
+          sku: findSkuByName(allNivraProducts, s.name || "") || "",
+          name: s.name || "",
+          description: s.description || "",
+          price: Number(s.price) || 0,
+          category: s.category || "",
         }));
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds — short to pick up admin changes quickly
+    refetchOnWindowFocus: true,
   });
 
   // Keep full product list for SKU lookup during checkout
@@ -3251,6 +3264,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardContent>
                 </Card>
               )}
+
+              {/* Mobile Continue Button - visible only on mobile when services selected */}
+              <div className="lg:hidden mt-6 pb-4">
+                {selectedServices.length > 0 && (
+                  <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{selectedServices.length} service(s) sélectionné(s)</span>
+                      <span className="font-bold text-foreground">{totalAmount.toFixed(2)} $</span>
+                    </div>
+                    <Button
+                      variant="hero"
+                      className="w-full"
+                      size="lg"
+                      onClick={() => setStep(2)}
+                    >
+                      Continuer
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Right Column: Professional Order Summary (Sticky) */}
