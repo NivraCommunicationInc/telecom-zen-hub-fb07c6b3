@@ -809,8 +809,15 @@ const ClientNewOrder = () => {
   }, [verificationSessionId]);
 
   // Restore existing KYC session from DB on mount — strict policy, no silent bypass
+  // CRITICAL: Skip if draft already hydrated valid KYC state (prevents overwriting completed state)
   useEffect(() => {
     if (!user?.id || !isHydrated) return;
+    
+    // If draft hydration already restored a valid KYC choice + session, don't re-query and risk resetting
+    if (kycChoice && verificationSessionId && (idVerificationApproved || existingKycStatus)) {
+      console.log("[KYC] Skipping DB restore — draft already has valid KYC state:", kycChoice, existingKycStatus);
+      return;
+    }
     
     const restoreKycSession = async () => {
       try {
