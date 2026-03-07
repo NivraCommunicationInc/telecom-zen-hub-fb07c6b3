@@ -79,6 +79,7 @@ import AdminInternalTickets from "@/pages/admin/AdminInternalTickets";
 import AdminEmailActivity from "@/pages/admin/AdminEmailActivity";
 import AdminEmailDeliverability from "@/pages/admin/AdminEmailDeliverability";
 import AdminAccount from "@/pages/admin/AdminAccount";
+import AdminAccountProfile from "@/pages/admin/AdminAccountProfile";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminUsersAccess from "@/pages/admin/AdminUsersAccess";
 import AdminAuditLog from "@/pages/admin/AdminAuditLog";
@@ -295,6 +296,7 @@ const AppRoutes = () => {
         <Route path="employees" element={<AdminEmployees />} />
         <Route path="promotions" element={<AdminPromotions />} />
         <Route path="accounts" element={<AdminAccounts />} />
+        <Route path="accounts/:accountId" element={<AdminAccountProfile />} />
         <Route path="recouvrement" element={<AdminRecouvrement />} />
         <Route path="streaming" element={<AdminStreaming />} />
         <Route path="streaming-catalog" element={<AdminStreamingCatalog />} />
