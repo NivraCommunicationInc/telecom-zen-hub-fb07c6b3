@@ -183,40 +183,97 @@ export function EquipmentStep({ proc }: Props) {
     setUnits(units.map(u => u.id === id ? { ...u, [field]: value } : u));
   };
 
+  // ── Serial uniqueness validation (intra-order) ──
+  function validateSerialUniqueness(): string | null {
+    // Collect all non-empty identifiers that must be unique
+    const serials: { value: string; unitLabel: string; field: string }[] = [];
+    for (const u of units) {
+      if (u.serial_number.trim()) {
+        serials.push({ value: u.serial_number.trim(), unitLabel: u.label, field: "Numéro de série" });
+      }
+      if (u.iccid.trim()) {
+        serials.push({ value: u.iccid.trim(), unitLabel: u.label, field: "ICCID" });
+      }
+      if (u.imei.trim()) {
+        serials.push({ value: u.imei.trim(), unitLabel: u.label, field: "IMEI" });
+      }
+      if (u.mac_address.trim()) {
+        serials.push({ value: u.mac_address.trim().toUpperCase(), unitLabel: u.label, field: "MAC" });
+      }
+    }
+
+    // Check for duplicates within this order
+    const seen = new Map<string, string>();
+    for (const s of serials) {
+      const key = `${s.field}:${s.value}`;
+      if (seen.has(key)) {
+        return `Doublon détecté : ${s.field} "${s.value}" est utilisé par "${seen.get(key)}" et "${s.unitLabel}". Chaque équipement doit avoir un identifiant unique.`;
+      }
+      seen.set(key, s.unitLabel);
+    }
+    return null;
+  }
+
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleSave = async () => {
-    // Save equipment_details as JSON array
-    const equipmentDetails = units.map(u => ({
-      id: u.id,
-      type: u.type,
-      label: u.label,
-      serial_number: u.serial_number,
-      mac_address: u.mac_address,
-      iccid: u.iccid,
-      imei: u.imei,
-      esim_ref: u.esim_ref,
-      status: u.status,
-    }));
-
-    // Also update legacy flat fields from the first relevant unit
-    const simUnit = units.find(u => isMobileType(u.type));
-    const hwUnit = units.find(u => isNetworkType(u.type));
-
-    const fields: Record<string, any> = {
-      equipment_details: equipmentDetails,
-    };
-
-    if (simUnit) {
-      if (simUnit.iccid) fields.sim_number = simUnit.iccid;
-      if (simUnit.imei) fields.imei_number = simUnit.imei;
+    // Client-side uniqueness check (intra-order)
+    const dupError = validateSerialUniqueness();
+    if (dupError) {
+      setValidationError(dupError);
+      toast.error(dupError);
+      return;
     }
-    if (hwUnit) {
-      if (hwUnit.serial_number) fields.serial_number = hwUnit.serial_number;
-    }
-    if (units.length > 0 && !fields.equipment_id) {
-      fields.equipment_id = units[0].type.toUpperCase();
-    }
+    setValidationError(null);
+    setSaving(true);
 
-    await proc.assignEquipment(fields);
+    try {
+      // Save equipment_details as JSON array
+      const equipmentDetails = units.map(u => ({
+        id: u.id,
+        type: u.type,
+        label: u.label,
+        serial_number: u.serial_number,
+        mac_address: u.mac_address,
+        iccid: u.iccid,
+        imei: u.imei,
+        esim_ref: u.esim_ref,
+        status: u.status,
+      }));
+
+      // Also update legacy flat fields from the first relevant unit
+      const simUnit = units.find(u => isMobileType(u.type));
+      const hwUnit = units.find(u => isNetworkType(u.type));
+
+      const fields: Record<string, any> = {
+        equipment_details: equipmentDetails,
+      };
+
+      if (simUnit) {
+        if (simUnit.iccid) fields.sim_number = simUnit.iccid;
+        if (simUnit.imei) fields.imei_number = simUnit.imei;
+      }
+      if (hwUnit) {
+        if (hwUnit.serial_number) fields.serial_number = hwUnit.serial_number;
+      }
+      if (units.length > 0 && !fields.equipment_id) {
+        fields.equipment_id = units[0].type.toUpperCase();
+      }
+
+      await proc.assignEquipment(fields);
+    } catch (err: any) {
+      // Catch DB-level uniqueness violations
+      if (err?.message?.includes("equipment_serial_unique") || err?.code === "23505") {
+        const msg = "Ce numéro de série est déjà assigné à une autre commande.";
+        setValidationError(msg);
+        toast.error(msg);
+      } else {
+        throw err;
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const hasExisting = order.sim_number || order.imei_number || order.serial_number || order.equipment_id;
@@ -344,8 +401,15 @@ export function EquipmentStep({ proc }: Props) {
         )}
       </div>
 
+      {/* Validation error banner */}
+      {validationError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-red-700 font-medium">⚠ {validationError}</p>
+        </div>
+      )}
+
       <div className="flex gap-2 pt-4 border-t border-gray-100">
-        <Button size="sm" onClick={handleSave} disabled={proc.isUpdating} className="text-xs h-8 bg-gray-900 text-white hover:bg-gray-800">
+        <Button size="sm" onClick={handleSave} disabled={saving || proc.isUpdating} className="text-xs h-8 bg-gray-900 text-white hover:bg-gray-800">
           <Save className="w-3 h-3 mr-1" /> Assigner l'équipement
         </Button>
         <Button size="sm" variant="outline" onClick={() => proc.setActiveStep("activation")} className="text-xs h-8 border-gray-300 text-gray-700">
