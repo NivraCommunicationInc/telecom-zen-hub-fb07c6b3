@@ -1939,14 +1939,14 @@ export type Database = {
           {
             foreignKeyName: "channel_selections_order_id_fkey"
             columns: ["order_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "order_next_actions"
             referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "channel_selections_order_id_fkey"
             columns: ["order_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
