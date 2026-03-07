@@ -170,7 +170,7 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
         const hasChannels =
           (Array.isArray(channelSelection?.channels) && channelSelection.channels.length > 0) ||
           (Array.isArray(order?.selected_channels) && order.selected_channels.length > 0);
-        if (channelStatus === "activated" || (hasChannels && order.channel_selection_locked === true)) {
+        if (order.tv_channels_activated === true || (channelStatus === "confirmed" && hasChannels && order.channel_selection_locked === true)) {
           status = "completed";
         }
         break;
