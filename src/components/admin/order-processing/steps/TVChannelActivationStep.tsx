@@ -2,12 +2,10 @@
  * TVChannelActivationStep — TV channel selection review, adjustment & activation
  * Shows customer's selected channels, allows admin to confirm/adjust, and activate on account.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tv, CheckCircle2, Loader2, Save, RefreshCw, Zap } from "lucide-react";
+import { Tv, CheckCircle2, Loader2, Save, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { adminClient as supabase } from "@/integrations/backend";
 
@@ -21,25 +19,45 @@ interface ChannelItem {
   selected: boolean;
 }
 
+interface PersistedChannel {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+}
+
+function normalizeChannelPayload(channels: ChannelItem[]): PersistedChannel[] {
+  return channels.map((ch) => ({
+    id: ch.id,
+    name: ch.name,
+    category: ch.category || "Autre",
+    price: Number(ch.price || 0),
+  }));
+}
+
 export function TVChannelActivationStep({ proc }: Props) {
   const { order, channelSelection } = proc;
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<any[]>([]);
 
-  // Load customer's selected channels from channel_selections
+  // Load selected channels from channel_selections, fallback to order.selected_channels
   useEffect(() => {
-    if (channelSelection?.channels && Array.isArray(channelSelection.channels)) {
-      const items: ChannelItem[] = channelSelection.channels.map((ch: any) => ({
-        id: ch.id || ch.channel_id || crypto.randomUUID(),
-        name: ch.name || ch.channel_name || "Canal inconnu",
-        category: ch.category || "Autre",
-        price: ch.price || ch.monthly_price || 0,
-        selected: true,
-      }));
-      setChannels(items);
-    }
-  }, [channelSelection]);
+    const sourceChannels =
+      (Array.isArray(channelSelection?.channels) && channelSelection.channels) ||
+      (Array.isArray(order?.selected_channels) && order.selected_channels) ||
+      [];
+
+    const items: ChannelItem[] = sourceChannels.map((ch: any, index: number) => ({
+      id: String(ch.id || ch.channel_id || ch.channelId || `${ch.name || "channel"}-${index}`),
+      name: ch.name || ch.channel_name || "Canal inconnu",
+      category: ch.category || "Autre",
+      price: Number(ch.price || ch.monthly_price || 0),
+      selected: true,
+    }));
+
+    setChannels(items);
+  }, [channelSelection, order?.selected_channels]);
 
   // Fetch available TV channels for adding
   useEffect(() => {
@@ -77,29 +95,51 @@ export function TVChannelActivationStep({ proc }: Props) {
   const handleSaveSelection = async () => {
     setLoading("save");
     try {
-      if (channelSelection?.id) {
-        await supabase
-          .from("channel_selections")
-          .update({
-            channels: selectedChannels.map(ch => ({
-              id: ch.id,
-              name: ch.name,
-              category: ch.category,
-              price: ch.price,
-            })),
-            total_price: totalPrice,
-            status: "confirmed",
-            confirmed_at: new Date().toISOString(),
-            confirmed_by: "admin",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", channelSelection.id);
+      if (!order?.id || !order?.user_id) {
+        throw new Error("Commande invalide");
       }
+
+      if (selectedChannels.length === 0) {
+        throw new Error("Sélectionnez au moins une chaîne");
+      }
+
+      const payload = {
+        user_id: order.user_id,
+        order_id: order.id,
+        channels: normalizeChannelPayload(selectedChannels),
+        total_price: totalPrice,
+        status: "confirmed",
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: proc.currentUserId || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (channelSelection?.id) {
+        const { error } = await supabase
+          .from("channel_selections")
+          .update(payload)
+          .eq("id", channelSelection.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("channel_selections")
+          .insert({ ...payload, created_at: new Date().toISOString() });
+        if (error) throw error;
+      }
+
+      await proc.updateOrder({
+        selected_channels: normalizeChannelPayload(selectedChannels),
+        channel_selection_locked: true,
+        tv_channels_count: selectedChannels.length,
+        tv_total_price: totalPrice,
+        updated_at: new Date().toISOString(),
+      });
+
       toast.success("Sélection de chaînes sauvegardée");
-      proc.refetch();
-    } catch (err) {
+      await proc.refetch();
+    } catch (err: any) {
       console.error("[TVChannels] Save error:", err);
-      toast.error("Erreur lors de la sauvegarde");
+      toast.error(err?.message || "Erreur lors de la sauvegarde");
     } finally {
       setLoading(null);
     }
@@ -108,38 +148,52 @@ export function TVChannelActivationStep({ proc }: Props) {
   const handleActivateChannels = async () => {
     setLoading("activate");
     try {
-      // Update the selection status to activated
-      if (channelSelection?.id) {
-        await supabase
-          .from("channel_selections")
-          .update({
-            channels: selectedChannels.map(ch => ({
-              id: ch.id,
-              name: ch.name,
-              category: ch.category,
-              price: ch.price,
-            })),
-            total_price: totalPrice,
-            status: "activated",
-            confirmed_at: new Date().toISOString(),
-            confirmed_by: "admin",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", channelSelection.id);
+      if (!order?.id || !order?.user_id) {
+        throw new Error("Commande invalide");
       }
 
-      // Update the order with TV channel info
+      if (selectedChannels.length === 0) {
+        throw new Error("Sélectionnez au moins une chaîne avant activation");
+      }
+
+      const payload = {
+        user_id: order.user_id,
+        order_id: order.id,
+        channels: normalizeChannelPayload(selectedChannels),
+        total_price: totalPrice,
+        status: "activated",
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: proc.currentUserId || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (channelSelection?.id) {
+        const { error } = await supabase
+          .from("channel_selections")
+          .update(payload)
+          .eq("id", channelSelection.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("channel_selections")
+          .insert({ ...payload, created_at: new Date().toISOString() });
+        if (error) throw error;
+      }
+
       await proc.updateOrder({
+        selected_channels: normalizeChannelPayload(selectedChannels),
+        channel_selection_locked: true,
         tv_channels_activated: true,
         tv_channels_count: selectedChannels.length,
         tv_total_price: totalPrice,
+        updated_at: new Date().toISOString(),
       });
 
       toast.success(`${selectedChannels.length} chaîne(s) activée(s) sur le compte client`);
-      proc.refetch();
-    } catch (err) {
+      await proc.refetch();
+    } catch (err: any) {
       console.error("[TVChannels] Activate error:", err);
-      toast.error("Erreur lors de l'activation");
+      toast.error(err?.message || "Erreur lors de l'activation");
     } finally {
       setLoading(null);
     }

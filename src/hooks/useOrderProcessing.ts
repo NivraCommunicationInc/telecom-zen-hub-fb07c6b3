@@ -199,6 +199,9 @@ const INVALIDATION_KEYS = [
   "client-billing-payments-canonical",
   "ledger-history-v2",
   "ledger-balance",
+  "service-addresses",
+  "address-service-counts",
+  "client-services-orders",
   "overdue-count-unified",
   "admin-activity-logs",
 ];
@@ -741,6 +744,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     contracts: data?.contracts || [],
     appointment: data?.appointment,
     channelSelection: data?.channelSelection || null,
+    serviceAddresses: data?.serviceAddresses || [],
     installationEstimate: data?.installationEstimate || null,
     kycSession: data?.kycSession,
     activityLogs: data?.activityLogs || [],
@@ -752,6 +756,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     workflow,
     activeStep,
     setActiveStep,
+    currentUserId: user?.id || null,
 
     // Mutations
     updateOrder: updateOrder.mutateAsync,
