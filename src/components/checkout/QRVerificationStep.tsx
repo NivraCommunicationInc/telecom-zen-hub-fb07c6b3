@@ -9,9 +9,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Shield, RefreshCw, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, QrCode } from "lucide-react";
+import { Shield, RefreshCw, Clock, CheckCircle2, XCircle, AlertCircle, Loader2, QrCode, Smartphone, Camera } from "lucide-react";
 import { portalClient as dbClient } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 
