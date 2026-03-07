@@ -911,6 +911,39 @@ export type Database = {
         }
         Relationships: []
       }
+      automatic_email_dispatches: {
+        Row: {
+          created_at: string
+          event_scope: string
+          event_type: string
+          event_version: string
+          first_email_queue_id: string | null
+          id: string
+          source_event_key: string
+          template_key: string
+        }
+        Insert: {
+          created_at?: string
+          event_scope: string
+          event_type: string
+          event_version?: string
+          first_email_queue_id?: string | null
+          id?: string
+          source_event_key: string
+          template_key: string
+        }
+        Update: {
+          created_at?: string
+          event_scope?: string
+          event_type?: string
+          event_version?: string
+          first_email_queue_id?: string | null
+          id?: string
+          source_event_key?: string
+          template_key?: string
+        }
+        Relationships: []
+      }
       billing: {
         Row: {
           activation_fee: number | null
@@ -12136,6 +12169,7 @@ export type Database = {
         Returns: string
       }
       expire_stale_holds: { Args: never; Returns: number }
+      extract_uuid_from_text: { Args: { p_text: string }; Returns: string }
       flag_client_for_risk: {
         Args: {
           p_alert_level?: string
@@ -12185,6 +12219,22 @@ export type Database = {
       }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
+      get_automatic_email_identity: {
+        Args: {
+          p_entity_id?: string
+          p_entity_type?: string
+          p_event_key: string
+          p_template_key: string
+          p_template_vars: Json
+        }
+        Returns: {
+          event_scope: string
+          event_type: string
+          event_version: string
+          is_manual: boolean
+          is_target: boolean
+        }[]
+      }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
       get_client_ledger_balance: {
         Args: { p_client_id: string }
