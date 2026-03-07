@@ -2375,6 +2375,16 @@ Deno.serve(async (req) => {
           'billing_new_invoice': 'invoice_created',
           'billing_payment_confirmed': 'payment_confirmed',
           'billing_renewal_reminder': 'invoice_overdue',
+          // --- Missing templates mapped to existing ones ---
+          'invoice_sent': 'invoice_created',
+          'document_contract_sent': 'order_completed',
+          'document_invoice_sent': 'invoice_created',
+          'document_summary_sent': 'order_submitted',
+          'document_terms_sent': 'order_submitted',
+          'appointment_confirmed': 'order_processed',
+          'shipment_created': 'shipping_created',
+          'order_status_changed': 'order_processed',
+          'all_documents_sent': 'order_completed',
         };
         
         // Support both template_key and template_type (Billing V2 uses template_type)

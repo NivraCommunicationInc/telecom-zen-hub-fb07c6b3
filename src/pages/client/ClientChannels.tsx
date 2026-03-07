@@ -423,7 +423,9 @@ END:VCALENDAR`;
       case "pending":
         return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
       case "confirmed":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300"><CheckCircle2 className="w-3 h-3 mr-1" /> Confirmé</Badge>;
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300"><CheckCircle2 className="w-3 h-3 mr-1" /> Confirmé</Badge>;
+      case "activated":
+        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300"><CheckCircle2 className="w-3 h-3 mr-1" /> Activé ✅</Badge>;
       case "cancelled":
         return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">Annulé</Badge>;
       default:
