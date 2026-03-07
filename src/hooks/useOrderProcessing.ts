@@ -756,6 +756,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     workflow,
     activeStep,
     setActiveStep,
+    currentUserId: user?.id || null,
 
     // Mutations
     updateOrder: updateOrder.mutateAsync,
