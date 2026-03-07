@@ -205,7 +205,7 @@ const ClientChannels = () => {
         .from("orders")
         .update({ 
           selected_channels: channels,
-          channel_assigned_by: 'client',
+          channel_assigned_by: user?.id || null,
         })
         .eq("id", orderId);
       if (error) throw error;
