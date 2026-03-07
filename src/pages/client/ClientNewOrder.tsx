@@ -3676,29 +3676,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
             {/* Equipment is auto-attached based on plan rules - no manual selection */}
 
-            {/* Mobile Channel Navigation - visible only on mobile */}
-            <div className="lg:hidden mt-6 pb-4">
-              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Chaînes de base</span>
-                    <span className="text-emerald-500">{baseChannels.length} incluses</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Chaînes au choix</span>
-                    <span className="text-cyan-500">{selectedFreeChannels.length}/{freeChannelLimit}</span>
-                  </div>
-                  {paidChannelTotal > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-amber-500">Chaînes premium ({selectedPaidChannels.length})</span>
-                      <span className="text-amber-500">+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-medium pt-1 border-t border-border">
-                    <span>Total mensuel</span>
-                    <span className="text-cyan-500">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                  </div>
-                </div>
+            {/* Spacer for fixed bottom bar on mobile */}
+            <div className="lg:hidden h-36" />
                 <Button
                   variant="hero"
                   className="w-full"
@@ -4011,24 +3990,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
             </div>
 
-            {/* Mobile Transfer Navigation - visible only on mobile */}
-            <div className="lg:hidden mt-6 pb-4">
-              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Type</span>
-                    <span className="text-foreground">
-                      {mobileTransferChoice === "transfer" ? "Transfert" : mobileTransferChoice === "new" ? "Nouveau numéro" : "Non sélectionné"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-500">{SIM_CONFIG_DYNAMIC.physical.name} (×{totalMobileLineQuantity})</span>
-                    <span className="text-blue-500">
-                      {(SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                    </span>
-                  </div>
-                </div>
-                <Button
+            {/* Spacer for fixed bottom bar on mobile */}
+            <div className="lg:hidden h-36" />
                   variant="hero"
                   className="w-full"
                   size="lg"
