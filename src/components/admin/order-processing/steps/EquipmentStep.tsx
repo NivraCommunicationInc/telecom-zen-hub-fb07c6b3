@@ -401,8 +401,15 @@ export function EquipmentStep({ proc }: Props) {
         )}
       </div>
 
+      {/* Validation error banner */}
+      {validationError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-red-700 font-medium">⚠ {validationError}</p>
+        </div>
+      )}
+
       <div className="flex gap-2 pt-4 border-t border-gray-100">
-        <Button size="sm" onClick={handleSave} disabled={proc.isUpdating} className="text-xs h-8 bg-gray-900 text-white hover:bg-gray-800">
+        <Button size="sm" onClick={handleSave} disabled={saving || proc.isUpdating} className="text-xs h-8 bg-gray-900 text-white hover:bg-gray-800">
           <Save className="w-3 h-3 mr-1" /> Assigner l'équipement
         </Button>
         <Button size="sm" variant="outline" onClick={() => proc.setActiveStep("activation")} className="text-xs h-8 border-gray-300 text-gray-700">
