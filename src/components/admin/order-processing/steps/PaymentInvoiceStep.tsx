@@ -29,8 +29,9 @@ export function PaymentInvoiceStep({ proc }: Props) {
   const total = invoice?.total ?? order.total_amount ?? 0;
   const amountPaid = invoice?.amount_paid ?? order.amount_paid ?? 0;
   const balanceDue = invoice?.balance_due ?? (Number(total) - Number(amountPaid));
-  const paymentStatus = order.payment_status || "pending";
-  const isPaid = ["paid", "captured", "confirmed"].includes(paymentStatus);
+  const invoiceStatus = String(invoice?.status || order.payment_status || "pending").toLowerCase();
+  const paymentStatus = invoiceStatus;
+  const isPaid = invoiceStatus === "paid" || Number(balanceDue) <= 0;
 
   const handleConfirm = async () => {
     setLoading("confirm");
