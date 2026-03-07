@@ -413,6 +413,8 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
     })) : [],
 
     subtotal: structured.subtotal,
+    subtotal_monthly: structured.subtotalMonthly,
+    subtotal_onetime: structured.subtotalOnetime,
     taxes: {
       gst_rate: TAX.GST_RATE,
       gst_amount: structured.tpsAmount,
