@@ -261,6 +261,9 @@ interface OrderDraft {
   // KYC session persistence (survives refresh/crash/order failure)
   verificationSessionId: string | null;
   idVerificationApproved: boolean;
+  kycChoice: "reuse" | "restart" | null;
+  existingKycStatus: string | null;
+  existingKycCaseNumber: string | null;
   // Promo code details (persisted to survive PayPal redirect)
   appliedPromo: {
     id: string;
