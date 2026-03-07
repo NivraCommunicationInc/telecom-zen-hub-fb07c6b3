@@ -948,7 +948,7 @@ const ClientNewOrder = () => {
           category: s.category || "",
         }));
     },
-    staleTime: 30 * 1000, // 30 seconds — short to pick up admin changes quickly
+    staleTime: 0, // Always revalidate — realtime subscription in usePublicServices handles instant sync
     refetchOnWindowFocus: true,
   });
 
@@ -3694,6 +3694,49 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
             {/* Equipment is auto-attached based on plan rules - no manual selection */}
 
+            {/* Mobile Channel Navigation - visible only on mobile */}
+            <div className="lg:hidden mt-6 pb-4">
+              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Chaînes de base</span>
+                    <span className="text-emerald-500">{baseChannels.length} incluses</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Chaînes au choix</span>
+                    <span className="text-cyan-500">{selectedFreeChannels.length}/{freeChannelLimit}</span>
+                  </div>
+                  {paidChannelTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-amber-500">Chaînes premium ({selectedPaidChannels.length})</span>
+                      <span className="text-amber-500">+{paidChannelTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium pt-1 border-t border-border">
+                    <span>Total mensuel</span>
+                    <span className="text-cyan-500">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  size="lg"
+                  onClick={() => setStep(hasMobileService ? 3 : 4)}
+                >
+                  Continuer
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setStep(1)}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Modifier les services
+                </Button>
+              </div>
+            </div>
+
             {/* Channel Selection Summary */}
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
               <div className="sticky top-6">
@@ -3984,6 +4027,44 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Mobile Transfer Navigation - visible only on mobile */}
+            <div className="lg:hidden mt-6 pb-4">
+              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Type</span>
+                    <span className="text-foreground">
+                      {mobileTransferChoice === "transfer" ? "Transfert" : mobileTransferChoice === "new" ? "Nouveau numéro" : "Non sélectionné"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-500">{SIM_CONFIG_DYNAMIC.physical.name} (×{totalMobileLineQuantity})</span>
+                    <span className="text-blue-500">
+                      {(SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  size="lg"
+                  onClick={() => setStep(hasTVService ? 4 : 3)}
+                  disabled={!isMobileTransferComplete()}
+                >
+                  Continuer
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setStep(hasTVService ? 2 : 1)}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
+                </Button>
+              </div>
             </div>
 
             {/* Mobile Transfer Summary */}
@@ -4754,6 +4835,61 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   />
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Mobile Verification Navigation - visible only on mobile */}
+            <div className="lg:hidden mt-6 pb-4">
+              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Services mensuels</span>
+                    <span className="font-medium text-foreground">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Frais uniques</span>
+                    <span className="text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                  <div className="flex justify-between font-bold pt-1 border-t border-border">
+                    <span>Total aujourd'hui</span>
+                    <span className="text-cyan-500">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  size="lg"
+                  onClick={() => {
+                    let nextStep = 4;
+                    if (hasTVService && hasMobileService) nextStep = 5;
+                    else if (hasTVService || hasMobileService) nextStep = 4;
+                    else nextStep = 3;
+                    setStep(nextStep);
+                  }}
+                  disabled={
+                    isEquipmentOnlyOrder 
+                      ? !deliveryChoice
+                      : isDeliveryOnlyOrder 
+                        ? (!isIdComplete || !deliveryChoice)
+                        : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime)))
+                  }
+                >
+                  Réviser et confirmer
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    if (hasMobileService && !hasTVService) setStep(2);
+                    else if (hasTVService && !hasMobileService) setStep(2);
+                    else if (hasTVService && hasMobileService) setStep(3);
+                    else setStep(1);
+                  }}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
+                </Button>
+              </div>
             </div>
 
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
@@ -5696,6 +5832,59 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Mobile Final Confirmation Navigation - visible only on mobile */}
+            <div className="lg:hidden mt-6 pb-4">
+              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total mensuel</span>
+                    <span className="text-foreground">{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Frais uniques</span>
+                    <span className="text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                  {totalDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-500">
+                      <span>Rabais {appliedPromo?.code ? `(${appliedPromo.code})` : ""}</span>
+                      <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold pt-1 border-t border-border">
+                    <span>Total à payer aujourd'hui</span>
+                    <span className="text-cyan-500">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  </div>
+                </div>
+                {isPaymentComplete && (
+                  <div className="p-2 bg-emerald-500/20 border border-emerald-500/50 rounded-lg text-center">
+                    <p className="text-sm font-medium text-emerald-500 flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Paiement complété
+                    </p>
+                  </div>
+                )}
+                <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
+                  <Button
+                    variant="hero"
+                    className="w-full"
+                    size="lg"
+                    onClick={handleSubmit}
+                    disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime))}
+                  >
+                    {createOrderMutation.isPending ? "Traitement..." : "Confirmer la commande"}
+                  </Button>
+                </BlockedActionWrapper>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setStep(3)}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
+                </Button>
+              </div>
             </div>
 
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
