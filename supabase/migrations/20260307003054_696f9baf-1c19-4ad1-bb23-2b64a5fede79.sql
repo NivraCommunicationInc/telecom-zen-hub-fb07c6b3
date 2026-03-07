@@ -1,0 +1,1 @@
+UPDATE email_queue SET status = 'queued', last_error = NULL, attempts = 0 WHERE status = 'failed' AND last_error LIKE '%Template inconnu%' AND created_at > '2026-03-06 00:00:00';
