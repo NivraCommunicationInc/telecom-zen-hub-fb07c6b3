@@ -191,7 +191,8 @@ export function InstallationScheduler({
 
   const handleSlotSelect = useCallback(async (date: string, time: string, slotId?: string) => {
     onDateTimeChange(date, time);
-    setAppointmentConfirmed(false); // New slot selected, needs re-confirmation
+    setAppointmentConfirmed(false);
+    onAppointmentConfirmedChange?.(false);
     setHoldLoading(true);
 
     try {
@@ -211,13 +212,14 @@ export function InstallationScheduler({
     } finally {
       setHoldLoading(false);
     }
-  }, [onDateTimeChange, installationId, decision]);
+  }, [onDateTimeChange, installationId, decision, onAppointmentConfirmedChange]);
 
   const handleConfirmAppointment = useCallback(() => {
     setAppointmentConfirmed(true);
+    onAppointmentConfirmedChange?.(true);
     onDateTimeChange(selectedDate, selectedTime);
     console.log("[InstallationScheduler] Appointment confirmed by user:", selectedDate, selectedTime);
-  }, [onDateTimeChange, selectedDate, selectedTime]);
+  }, [onDateTimeChange, selectedDate, selectedTime, onAppointmentConfirmedChange]);
 
   return (
     <div className="space-y-4">
