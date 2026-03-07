@@ -21,6 +21,7 @@ import {
 } from "@/lib/installationLogic";
 import { createAppointmentHold, restoreAppointmentHold, type AppointmentHold } from "@/lib/appointmentHold";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 
 interface SlotData {
@@ -252,6 +253,20 @@ export function InstallationScheduler({
             selectedTime={selectedTime}
             onSelect={handleSlotSelect}
           />
+          {/* Confirm appointment button */}
+          {selectedDate && selectedTime && activeHold && !holdLoading && (
+            <div className="pt-2">
+              <Button
+                variant="hero"
+                size="lg"
+                className="w-full"
+                onClick={() => onDateTimeChange(selectedDate, selectedTime)}
+              >
+                <CheckCircle2 className="w-5 h-5 mr-2" />
+                {isFrench ? "Confirmer le rendez-vous" : "Confirm appointment"}
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>
