@@ -1,0 +1,1 @@
+ALTER TABLE public.channel_selections ADD CONSTRAINT channel_selections_order_id_unique UNIQUE (order_id);
