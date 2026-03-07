@@ -912,69 +912,20 @@ const ClientMyServices = () => {
           )}
         </TabsContent>
 
-        {/* Equipment Tab — CANONICAL: billing_subscription_services where service_type='one_time' */}
+        {/* Equipment Tab — Grouped by Address */}
         <TabsContent value="equipment" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-foreground">Équipements associés</h3>
           </div>
 
-          {activeEquipment.length > 0 ? (
-            <div className="space-y-4">
-              <Card className="bg-emerald-500/5 border-emerald-500/20">
-                <CardContent className="p-3 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  <p className="text-sm text-emerald-600">Aucun problème d'équipement signalé</p>
-                </CardContent>
-              </Card>
-
-              {activeEquipment.map((eq: any) => (
-                <Card key={eq.id} className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Package className="w-5 h-5 text-cyan-500" />
-                          <h4 className="font-semibold text-foreground">{eq.service_name}</h4>
-                          <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>
-                        </div>
-                        <div className="space-y-1 text-sm">
-                          <p className="text-muted-foreground">Code: {eq.service_code}</p>
-                          <p className="text-muted-foreground">Forfait: {eq.parent_plan_name}</p>
-                          <p className="text-muted-foreground">
-                            Prix: {Number(eq.unit_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                            {eq.quantity > 1 && ` × ${eq.quantity}`}
-                          </p>
-                          {eq.added_at && (
-                            <p className="text-xs text-muted-foreground">
-                              Ajouté le {format(new Date(eq.added_at), "d MMM yyyy", { locale: fr })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedService(eq);
-                          setIssueDialogOpen(true);
-                        }}
-                      >
-                        <AlertTriangle className="w-4 h-4 mr-1" />
-                        Signaler problème
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
-                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Aucun équipement enregistré</p>
-              </CardContent>
-            </Card>
-          )}
+          <ServicesByAddress
+            services={[]}
+            equipment={activeEquipment}
+            onEquipmentReport={(eq) => {
+              setSelectedService(eq);
+              setIssueDialogOpen(true);
+            }}
+          />
         </TabsContent>
 
         {/* Mobile Tab */}
