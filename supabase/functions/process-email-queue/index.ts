@@ -2384,6 +2384,7 @@ Deno.serve(async (req) => {
           'appointment_confirmed': 'order_processed',
           'shipment_created': 'shipping_created',
           'order_status_changed': 'order_processed',
+          'all_documents_sent': 'order_completed',
         };
         
         // Support both template_key and template_type (Billing V2 uses template_type)
