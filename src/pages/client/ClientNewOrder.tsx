@@ -3678,25 +3678,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
             {/* Spacer for fixed bottom bar on mobile */}
             <div className="lg:hidden h-36" />
-                <Button
-                  variant="hero"
-                  className="w-full"
-                  size="lg"
-                  onClick={() => setStep(hasMobileService ? 3 : 4)}
-                >
-                  Continuer
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setStep(1)}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Modifier les services
-                </Button>
-              </div>
-            </div>
 
             {/* Channel Selection Summary */}
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
@@ -3992,25 +3973,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
             {/* Spacer for fixed bottom bar on mobile */}
             <div className="lg:hidden h-36" />
-                  variant="hero"
-                  className="w-full"
-                  size="lg"
-                  onClick={() => setStep(hasTVService ? 4 : 3)}
-                  disabled={!isMobileTransferComplete()}
-                >
-                  Continuer
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setStep(hasTVService ? 2 : 1)}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Retour
-                </Button>
-              </div>
-            </div>
 
             {/* Mobile Transfer Summary */}
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
