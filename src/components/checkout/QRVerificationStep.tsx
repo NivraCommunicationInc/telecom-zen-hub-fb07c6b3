@@ -535,6 +535,12 @@ export const QRVerificationStep = ({
   const isExpired = status === "expired";
   const canRegenerate = regenCount < maxRegen;
 
+  const handleMobileLaunch = () => {
+    if (verifyUrl) {
+      window.open(verifyUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Section header */}
@@ -556,74 +562,138 @@ export const QRVerificationStep = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Instructions */}
-            <div className="flex-1 space-y-4">
-              <h3 className="font-semibold text-slate-900">Instructions</h3>
-              <ol className="list-decimal list-inside space-y-3 text-sm text-slate-700">
-                <li>{isFrench ? "Vérifiez que votre appareil est connecté à Internet." : "Verify your device is connected to the Internet."}</li>
-                <li>{isFrench ? "Balayez le code QR avec l'appareil photo de votre téléphone." : "Scan the QR code with your phone camera."}</li>
-                <li>{isFrench ? "Suivez les instructions pour soumettre votre pièce d'identité." : "Follow the instructions to submit your ID."}</li>
-                <li>
-                  {isFrench
-                    ? <>Une fois votre pièce d'identité soumise, sélectionnez <strong>Continuer</strong>.</>
-                    : <>Once your ID is submitted, select <strong>Continue</strong>.</>}
-                </li>
-              </ol>
 
-              {!isTerminal && !isExpired && (
-                <p className="text-sm font-bold text-slate-900">
-                  {isFrench
-                    ? `Ce code QR expire dans ${timeLeft || "20:00"}. Ne fermez pas et n'actualisez pas votre navigateur.`
-                    : `This QR code expires in ${timeLeft || "20:00"}. Do not close or refresh your browser.`}
-                </p>
-              )}
-            </div>
+          {/* ===== MOBILE FLOW ===== */}
+          {isMobile ? (
+            <div className="space-y-4">
+              {/* Mobile instructions */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-slate-900">
+                  <Smartphone className="w-5 h-5" />
+                  <h3 className="font-semibold">
+                    {isFrench ? "Vérification sur cet appareil" : "Verification on this device"}
+                  </h3>
+                </div>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-slate-700">
+                  <li>{isFrench ? "Appuyez sur le bouton ci-dessous pour commencer." : "Tap the button below to begin."}</li>
+                  <li>{isFrench ? "Prenez une photo de votre pièce d'identité avec l'appareil photo." : "Take a photo of your ID with your camera."}</li>
+                  <li>{isFrench ? "Soumettez vos documents, puis revenez ici." : "Submit your documents, then come back here."}</li>
+                  <li>
+                    {isFrench
+                      ? <>Une fois soumis, sélectionnez <strong>Continuer</strong>.</>
+                      : <>Once submitted, select <strong>Continue</strong>.</>}
+                  </li>
+                </ol>
+              </div>
 
-            {/* QR Code */}
-            <div className="flex flex-col items-center gap-4">
+              {/* Mobile action button */}
               {loading ? (
-                <div className="w-[200px] h-[200px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
                 </div>
               ) : error ? (
-                <div className="w-[200px] h-[200px] flex flex-col items-center justify-center bg-red-50 rounded-lg border border-red-200 p-4 text-center">
+                <div className="flex flex-col items-center justify-center bg-red-50 rounded-lg border border-red-200 p-6 text-center">
                   <XCircle className="w-8 h-8 text-red-400 mb-2" />
-                  <p className="text-xs text-red-600 mb-1">{error}</p>
+                  <p className="text-sm text-red-600 mb-1">{error}</p>
                   {errorDetail && (
                     <p className="text-[10px] text-red-400 font-mono break-all">{errorDetail}</p>
                   )}
-                  <Button onClick={() => generateQR()} variant="outline" size="sm" className="mt-2">
+                  <Button onClick={() => generateQR()} variant="outline" size="sm" className="mt-3">
                     <RefreshCw className="w-3 h-3 mr-1" />
                     {isFrench ? "Réessayer" : "Retry"}
                   </Button>
                 </div>
-              ) : qrDataUrl ? (
-                <div className={`p-2 bg-white rounded-lg border-2 ${isExpired ? "border-slate-300 opacity-50" : "border-slate-200"}`}>
-                  <img src={qrDataUrl} alt="QR Code" className="w-[200px] h-[200px]" />
-                </div>
+              ) : verifyUrl && !isTerminal ? (
+                <Button
+                  onClick={handleMobileLaunch}
+                  className="w-full py-6 text-base font-semibold bg-slate-900 hover:bg-slate-800 text-white"
+                  disabled={isExpired}
+                >
+                  <Camera className="w-5 h-5 mr-2" />
+                  {isFrench ? "Commencer la vérification d'identité" : "Start identity verification"}
+                </Button>
               ) : null}
 
-              {/* Countdown */}
-              {!isTerminal && (
-                <div className="flex items-center gap-2">
-                  <Clock className={`w-4 h-4 ${isExpired ? "text-red-500" : "text-slate-500"}`} />
-                  <span className={`text-sm font-mono font-bold ${isExpired ? "text-red-500" : "text-slate-700"}`}>
-                    {isExpired ? (isFrench ? "Expiré" : "Expired") : timeLeft}
-                  </span>
-                </div>
-              )}
-
-              {/* Regen count indicator */}
-              {!isTerminal && sessionId && (
-                <p className="text-[10px] text-slate-400 font-mono">
-                  {isFrench ? `Régénérations: ${regenCount}/${maxRegen}` : `Regenerations: ${regenCount}/${maxRegen}`}
+              {/* Countdown on mobile */}
+              {!isTerminal && !isExpired && verifyUrl && (
+                <p className="text-sm font-bold text-slate-900 text-center">
+                  {isFrench
+                    ? `Cette session expire dans ${timeLeft || "20:00"}. Ne fermez pas votre navigateur.`
+                    : `This session expires in ${timeLeft || "20:00"}. Do not close your browser.`}
                 </p>
               )}
             </div>
-          </div>
+          ) : (
+            /* ===== DESKTOP FLOW (unchanged QR) ===== */
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Instructions */}
+              <div className="flex-1 space-y-4">
+                <h3 className="font-semibold text-slate-900">Instructions</h3>
+                <ol className="list-decimal list-inside space-y-3 text-sm text-slate-700">
+                  <li>{isFrench ? "Vérifiez que votre appareil est connecté à Internet." : "Verify your device is connected to the Internet."}</li>
+                  <li>{isFrench ? "Balayez le code QR avec l'appareil photo de votre téléphone." : "Scan the QR code with your phone camera."}</li>
+                  <li>{isFrench ? "Suivez les instructions pour soumettre votre pièce d'identité." : "Follow the instructions to submit your ID."}</li>
+                  <li>
+                    {isFrench
+                      ? <>Une fois votre pièce d'identité soumise, sélectionnez <strong>Continuer</strong>.</>
+                      : <>Once your ID is submitted, select <strong>Continue</strong>.</>}
+                  </li>
+                </ol>
 
-          {/* Status indicator */}
+                {!isTerminal && !isExpired && (
+                  <p className="text-sm font-bold text-slate-900">
+                    {isFrench
+                      ? `Ce code QR expire dans ${timeLeft || "20:00"}. Ne fermez pas et n'actualisez pas votre navigateur.`
+                      : `This QR code expires in ${timeLeft || "20:00"}. Do not close or refresh your browser.`}
+                  </p>
+                )}
+              </div>
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center gap-4">
+                {loading ? (
+                  <div className="w-[200px] h-[200px] flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                    <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+                  </div>
+                ) : error ? (
+                  <div className="w-[200px] h-[200px] flex flex-col items-center justify-center bg-red-50 rounded-lg border border-red-200 p-4 text-center">
+                    <XCircle className="w-8 h-8 text-red-400 mb-2" />
+                    <p className="text-xs text-red-600 mb-1">{error}</p>
+                    {errorDetail && (
+                      <p className="text-[10px] text-red-400 font-mono break-all">{errorDetail}</p>
+                    )}
+                    <Button onClick={() => generateQR()} variant="outline" size="sm" className="mt-2">
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      {isFrench ? "Réessayer" : "Retry"}
+                    </Button>
+                  </div>
+                ) : qrDataUrl ? (
+                  <div className={`p-2 bg-white rounded-lg border-2 ${isExpired ? "border-slate-300 opacity-50" : "border-slate-200"}`}>
+                    <img src={qrDataUrl} alt="QR Code" className="w-[200px] h-[200px]" />
+                  </div>
+                ) : null}
+
+                {/* Countdown */}
+                {!isTerminal && (
+                  <div className="flex items-center gap-2">
+                    <Clock className={`w-4 h-4 ${isExpired ? "text-red-500" : "text-slate-500"}`} />
+                    <span className={`text-sm font-mono font-bold ${isExpired ? "text-red-500" : "text-slate-700"}`}>
+                      {isExpired ? (isFrench ? "Expiré" : "Expired") : timeLeft}
+                    </span>
+                  </div>
+                )}
+
+                {/* Regen count indicator */}
+                {!isTerminal && sessionId && (
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    {isFrench ? `Régénérations: ${regenCount}/${maxRegen}` : `Regenerations: ${regenCount}/${maxRegen}`}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Status indicator (shared desktop + mobile) */}
           <div className={`flex items-center gap-3 p-4 rounded-lg ${
             status === "approved" ? "bg-emerald-50 border border-emerald-200" :
             status === "rejected" ? "bg-red-50 border border-red-200" :
@@ -637,7 +707,7 @@ export const QRVerificationStep = ({
             </span>
           </div>
 
-          {/* Regenerate button */}
+          {/* Regenerate button (shared) */}
           {(isExpired || status === "rejected") && (
             <Button
               onClick={handleRegenerate}
@@ -648,7 +718,9 @@ export const QRVerificationStep = ({
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               {!canRegenerate
                 ? (isFrench ? `Limite atteinte (${maxRegen}/${maxRegen})` : `Limit reached (${maxRegen}/${maxRegen})`)
-                : (isFrench ? "Régénérer le code QR" : "Regenerate QR Code")}
+                : isMobile
+                  ? (isFrench ? "Relancer la vérification" : "Restart verification")
+                  : (isFrench ? "Régénérer le code QR" : "Regenerate QR Code")}
             </Button>
           )}
 
@@ -664,6 +736,7 @@ export const QRVerificationStep = ({
                   <div><span className="font-medium">auth_present:</span> {String(debugState.authPresent)}</div>
                   <div><span className="font-medium">hasSession:</span> {String(debugState.hasSession)}</div>
                   <div><span className="font-medium">tokenLength:</span> {debugState.tokenLength}</div>
+                  <div><span className="font-medium">isMobile:</span> {String(isMobile)}</div>
                   <div className="md:col-span-2 break-all"><span className="font-medium">request_url:</span> {debugState.requestUrl || "-"}</div>
                   <div><span className="font-medium">HTTP status:</span> {debugState.httpStatus ?? "-"}</div>
                   <div className="break-all"><span className="font-medium">request_id:</span> {debugState.requestId || "-"}</div>
