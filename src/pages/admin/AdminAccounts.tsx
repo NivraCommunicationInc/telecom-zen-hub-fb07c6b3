@@ -374,9 +374,7 @@ const AdminAccounts = () => {
   };
 
   const openAccountDetails = (account: any) => {
-    setSelectedAccount(account);
-    setNewCreditClass(account.credit_class || "C");
-    setDetailsDialogOpen(true);
+    navigate(`/admin/accounts/${account.id}`);
   };
 
   return (
