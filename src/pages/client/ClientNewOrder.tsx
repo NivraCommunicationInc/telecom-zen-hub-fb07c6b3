@@ -853,7 +853,7 @@ const ClientNewOrder = () => {
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
     verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
-    appliedPromo, paypalCaptureId, paymentComplete, paymentMethod
+    appliedPromo, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
   ]);
 
   // Persist KYC session ID to localStorage whenever it changes (independent of order)
