@@ -392,7 +392,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   });
 
   const data = orderQuery.data;
-  const workflow = data?.order ? buildWorkflow(data.order) : [];
+  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection) : [];
 
   /* ── Invalidate everything ── */
   const invalidateAll = () => {
