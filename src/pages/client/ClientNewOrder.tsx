@@ -588,10 +588,14 @@ const ClientNewOrder = () => {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
 
   useEffect(() => {
-    if (!isDeliveryOnlyOrder && installationChoice !== DEFAULT_INSTALLATION_CHOICE) {
+    const hasInstallableService = selectedServices.some((service) =>
+      ["Internet", "TV", "Sécurité"].includes(service.category)
+    );
+
+    if (hasInstallableService && installationChoice !== DEFAULT_INSTALLATION_CHOICE) {
       setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
     }
-  }, [isDeliveryOnlyOrder, installationChoice]);
+  }, [selectedServices, installationChoice]);
 
   // Channel selection state (for TV orders)
   const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
