@@ -601,6 +601,7 @@ const ClientNewOrder = () => {
   const [transferImei, setTransferImei] = useState("");
   const [transferValidationResult, setTransferValidationResult] = useState<"valid" | "invalid" | null>(null);
   const [assignedPhoneNumber, setAssignedPhoneNumber] = useState<string>("");
+  const [preferredAreaCode, setPreferredAreaCode] = useState<string>("");
   
   // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
   const [simType, setSimType] = useState<"esim" | "physical">("physical");
@@ -1190,12 +1191,10 @@ const ClientNewOrder = () => {
     }
   };
 
-  // Handle new number assignment
+  // Handle new number selection (number assigned at activation, not during checkout)
   const handleNewNumberSelection = () => {
     setMobileTransferChoice("new");
-    const newNumber = generateQuebecPhoneNumber();
-    setAssignedPhoneNumber(newNumber);
-    toast.success("Un numéro québécois vous sera attribué après confirmation de la commande.");
+    setAssignedPhoneNumber("");
   };
 
   // Check if mobile transfer step is complete
@@ -3817,10 +3816,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         {((step === 2 && !hasTVService && hasMobileService) || (step === 3 && hasTVService && hasMobileService)) && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
             <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-              <Card className="bg-card border-blue-500/30">
+              <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Phone className="w-5 h-5 text-blue-500" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Phone className="w-5 h-5 text-primary" />
                     Transfert de numéro mobile
                   </CardTitle>
                   <CardDescription>
@@ -3830,47 +3829,49 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 <CardContent className="space-y-6">
                   {/* Choice selection */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Transfer option */}
                     <Card
                       className={`cursor-pointer transition-all ${
                         mobileTransferChoice === "transfer"
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-border hover:border-blue-500/50"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                          : "border-border hover:border-primary/50"
                       }`}
                       onClick={() => {
                         setMobileTransferChoice("transfer");
                         setTransferValidationResult(null);
                       }}
                     >
-                      <CardContent className="p-4 text-center">
+                      <CardContent className="p-5 text-center">
                         <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${
-                          mobileTransferChoice === "transfer" ? "bg-blue-500 text-white" : "bg-muted"
+                          mobileTransferChoice === "transfer" ? "bg-primary text-primary-foreground" : "bg-muted"
                         }`}>
                           <ArrowRight className="w-6 h-6" />
                         </div>
-                        <h3 className="font-semibold text-foreground">Transférer mon numéro</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Garder votre numéro québécois actuel
+                        <h3 className="font-semibold text-foreground">Transférer votre numéro actuel</h3>
+                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                          Conservez votre numéro actuel. Nous effectuerons le transfert auprès de votre fournisseur lors de l'activation de votre service.
                         </p>
                       </CardContent>
                     </Card>
 
+                    {/* New number option */}
                     <Card
                       className={`cursor-pointer transition-all ${
                         mobileTransferChoice === "new"
-                          ? "border-emerald-500 bg-emerald-500/10"
+                          ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/20"
                           : "border-border hover:border-emerald-500/50"
                       }`}
                       onClick={handleNewNumberSelection}
                     >
-                      <CardContent className="p-4 text-center">
+                      <CardContent className="p-5 text-center">
                         <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${
                           mobileTransferChoice === "new" ? "bg-emerald-500 text-white" : "bg-muted"
                         }`}>
                           <Plus className="w-6 h-6" />
                         </div>
-                        <h3 className="font-semibold text-foreground">Nouveau numéro</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Obtenir un nouveau numéro québécois
+                        <h3 className="font-semibold text-foreground">Obtenir un nouveau numéro québécois</h3>
+                        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                          Un numéro québécois disponible sera automatiquement attribué lors de l'activation de votre service.
                         </p>
                       </CardContent>
                     </Card>
@@ -3878,7 +3879,30 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
                   {/* Transfer flow */}
                   {mobileTransferChoice === "transfer" && (
-                    <div className="space-y-4 pt-4 border-t border-border">
+                    <div className="space-y-5 pt-5 border-t border-border">
+                      {/* Transfer steps explanation */}
+                      <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                        <h4 className="text-sm font-semibold text-foreground mb-3">Étapes du transfert :</h4>
+                        <ol className="space-y-2 text-sm text-muted-foreground">
+                          <li className="flex items-start gap-2.5">
+                            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">1</span>
+                            Entrez le numéro à transférer
+                          </li>
+                          <li className="flex items-start gap-2.5">
+                            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">2</span>
+                            Sélectionnez votre fournisseur actuel
+                          </li>
+                          <li className="flex items-start gap-2.5">
+                            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">3</span>
+                            Fournissez les informations de votre compte
+                          </li>
+                          <li className="flex items-start gap-2.5">
+                            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">4</span>
+                            Le transfert sera effectué lors de l'activation
+                          </li>
+                        </ol>
+                      </div>
+
                       <div className="space-y-2">
                         <Label>Numéro à transférer</Label>
                         <div className="flex gap-2">
@@ -3968,29 +3992,126 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           </div>
                         </div>
                       )}
+
+                      {/* Reassurance message */}
+                      <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                        <div className="flex items-start gap-2">
+                          <Shield className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-muted-foreground">
+                            Votre service actuel restera actif jusqu'à la complétion du transfert.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {/* New number confirmation */}
                   {mobileTransferChoice === "new" && (
-                    <Card className="bg-emerald-500/10 border-emerald-500/30">
-                      <CardContent className="py-4 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                          <p className="font-medium text-emerald-500">Nouveau numéro québécois</p>
+                    <div className="space-y-4 pt-5 border-t border-border">
+                      <Card className="bg-emerald-500/5 border-emerald-500/30">
+                        <CardContent className="py-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                            <p className="font-semibold text-emerald-600">Nouveau numéro québécois</p>
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            Un numéro québécois disponible sera automatiquement attribué lors de l'activation de votre service.
+                          </p>
+                          <ul className="text-sm text-muted-foreground space-y-1.5 mt-2">
+                            <li className="flex items-start gap-2">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                              Indicatif régional attribué selon votre adresse ou préférence
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                              Numéro final confirmé lors de l'activation
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                              Aucun frais pour l'attribution du numéro
+                            </li>
+                          </ul>
+                        </CardContent>
+                      </Card>
+
+                      {/* Area code preference */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Indicatif régional préféré (optionnel)</Label>
+                        <p className="text-xs text-muted-foreground">Nous tenterons d'attribuer un numéro avec l'indicatif de votre choix selon la disponibilité.</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {["514", "438", "450", "819", "873"].map((code) => (
+                            <button
+                              key={code}
+                              type="button"
+                              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                                preferredAreaCode === code
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                              }`}
+                              onClick={() => setPreferredAreaCode(preferredAreaCode === code ? "" : code)}
+                            >
+                              ({code})
+                            </button>
+                          ))}
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Un nouveau numéro québécois vous sera attribué automatiquement après la confirmation de votre commande. 
-                          Vous ne pouvez pas choisir ou réserver un numéro spécifique.
-                        </p>
-                        <p className="text-xs text-muted-foreground italic">
-                          Le numéro sera actif uniquement après validation de la commande.
-                        </p>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
+
+              {/* Information block */}
+              <Card className="bg-muted/30 border-border">
+                <CardContent className="py-5 space-y-4">
+                  <h4 className="font-semibold text-foreground flex items-center gap-2">
+                    <Info className="w-4 h-4 text-primary" />
+                    Comment fonctionne l'attribution ou le transfert de numéro
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span><strong className="text-foreground">Nouveau numéro :</strong> attribué automatiquement lors de l'activation du service</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      <span><strong className="text-foreground">Transfert de numéro :</strong> traité auprès de votre fournisseur actuel</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      Votre service actuel demeure actif jusqu'au transfert complet
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary font-bold">•</span>
+                      Le transfert peut prendre entre 30 minutes et 2 heures après activation
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Visual process timeline */}
+              <div className="flex items-center justify-between px-2 py-4">
+                {[
+                  { label: "Commande", active: true },
+                  { label: "Vérification", active: false },
+                  { label: "Activation", active: false },
+                  { label: mobileTransferChoice === "transfer" ? "Transfert complété" : "Numéro attribué", active: false },
+                ].map((timelineStep, idx, arr) => (
+                  <div key={idx} className="flex items-center flex-1 last:flex-none">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                        timelineStep.active
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground mt-1.5 text-center max-w-[80px] leading-tight">{timelineStep.label}</span>
+                    </div>
+                    {idx < arr.length - 1 && (
+                      <div className="flex-1 h-px bg-border mx-2 mt-[-16px]" />
+                    )}
+                  </div>
+                ))}</div>
 
               {/* SIM Cards (auto-attached; no manual selection) */}
               <Card className="bg-card border-blue-500/30">
