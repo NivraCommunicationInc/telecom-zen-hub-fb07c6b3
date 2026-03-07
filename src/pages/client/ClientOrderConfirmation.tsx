@@ -527,7 +527,7 @@ END:VCALENDAR`;
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Monthly Recurring Services */}
+                {/* ═══ SECTION A: Services mensuels (récurrent) ═══ */}
                 <div>
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                     Services mensuels (récurrent)
@@ -547,7 +547,7 @@ END:VCALENDAR`;
                   
                   <div className="flex justify-between font-medium">
                     <span>Sous-total mensuel</span>
-                    <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                   </div>
                   {recurringDiscountTotal > 0 && (
                     <div className="flex justify-between text-sm text-emerald-500 mt-1">
@@ -573,10 +573,10 @@ END:VCALENDAR`;
                 
                 <Separator className="my-4" />
                 
-                {/* One-time Fees (Today) */}
+                {/* ═══ SECTION B: Frais uniques ═══ */}
                 <div>
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                    Frais uniques (aujourd'hui)
+                    Frais uniques
                   </h4>
                   <div className="space-y-2 text-sm">
                     {activationFee > 0 && (
@@ -610,15 +610,49 @@ END:VCALENDAR`;
                       </div>
                     )}
                     {simFee > 0 && (
-                      <div className="flex justify-between text-blue-500">
-                        <span>Carte(s) SIM physique (×{equipment.find(e => e.type === "sim")?.quantity || 1})</span>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Carte(s) SIM physique (×{equipment.find(e => e.type === "sim")?.quantity || 1})</span>
                         <span>{simFee.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    {promoDiscount > 0 && (
+                    
+                    <Separator className="my-2" />
+                    
+                    <div className="flex justify-between font-medium">
+                      <span className="text-foreground">Total frais uniques</span>
+                      <span>{oneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator className="my-4" />
+                
+                {/* ═══ SECTION C: Paiement aujourd'hui ═══ */}
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    Paiement aujourd'hui
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    {oneTimeSubtotal > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Frais uniques</span>
+                        <span>{oneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Services 1er mois</span>
+                      <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+                    {recurringDiscountTotal > 0 && (
                       <div className="flex justify-between text-emerald-500">
-                        <span>Rabais promo ({order.promo_code})</span>
-                        <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>Rabais {order.promo_code ? `(${order.promo_code})` : "nouveau client"}</span>
+                        <span>-{recurringDiscountTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {recurringDiscountTotal > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Net 1er mois après rabais</span>
+                        <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     
@@ -634,7 +668,7 @@ END:VCALENDAR`;
                     </div>
                     
                     <div className="flex justify-between font-bold text-lg pt-3 border-t border-cyan-500/30">
-                      <span className="text-cyan-500">Total dû aujourd'hui</span>
+                      <span className="text-cyan-500">Total payé</span>
                       <span className="text-cyan-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </div>
