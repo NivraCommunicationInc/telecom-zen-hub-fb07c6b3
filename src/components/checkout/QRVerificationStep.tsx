@@ -68,6 +68,7 @@ export const QRVerificationStep = ({
   checkoutFields,
 }: QRVerificationStepProps) => {
   const { isAdmin } = useClientAuth();
+  const isMobile = useIsMobile();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<SessionStatus>("created");
