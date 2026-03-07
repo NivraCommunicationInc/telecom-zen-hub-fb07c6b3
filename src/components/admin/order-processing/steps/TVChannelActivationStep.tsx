@@ -19,6 +19,22 @@ interface ChannelItem {
   selected: boolean;
 }
 
+interface PersistedChannel {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+}
+
+function normalizeChannelPayload(channels: ChannelItem[]): PersistedChannel[] {
+  return channels.map((ch) => ({
+    id: ch.id,
+    name: ch.name,
+    category: ch.category || "Autre",
+    price: Number(ch.price || 0),
+  }));
+}
+
 export function TVChannelActivationStep({ proc }: Props) {
   const { order, channelSelection } = proc;
   const [channels, setChannels] = useState<ChannelItem[]>([]);
