@@ -470,7 +470,7 @@ const AdminReplacementWorkflow = () => {
         .update({
           payment_confirmed: true,
           payment_confirmed_at: new Date().toISOString(),
-          payment_confirmed_by: adminProfile?.full_name || "Admin",
+          payment_confirmed_by: user?.id || null,
           payment_reference: paymentRef,
           invoice_status: "paid",
           status: "ready_to_fulfill",

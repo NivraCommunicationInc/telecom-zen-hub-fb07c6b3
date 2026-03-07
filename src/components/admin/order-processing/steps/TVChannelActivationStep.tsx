@@ -199,7 +199,7 @@ export function TVChannelActivationStep({ proc }: Props) {
       total_price: totalPrice,
       status: "confirmed", // valeur valide selon channel_selections_status_check
       confirmed_at: nowIso,
-      confirmed_by: proc.currentUserId || "system",
+      confirmed_by: proc.currentUserId || null,
       updated_at: nowIso,
       created_at: nowIso,
     };
