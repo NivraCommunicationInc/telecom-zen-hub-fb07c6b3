@@ -7,7 +7,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import AppRoutes from "@/components/AppRoutes";
 import ChatbotWidget from "@/components/chatbot/ChatbotWidget";
 import { DevOverflowDetector } from "@/components/DevOverflowDetector";
-import { AppModeGate, InstallPrompt, NotificationPrompt } from "@/components/pwa";
+import { AppModeGate, InstallPrompt, NotificationPrompt, SWUpdateHandler } from "@/components/pwa";
 import LockdownGuard from "@/components/LockdownGuard";
 
 const queryClient = new QueryClient({
@@ -45,6 +45,7 @@ const App = () => (
           </LockdownGuard>
           <InstallPrompt />
           <NotificationPrompt />
+          <SWUpdateHandler />
         </BrowserRouter>
       </TooltipProvider>
     </LanguageProvider>
