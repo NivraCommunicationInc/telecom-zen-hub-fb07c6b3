@@ -1,13 +1,28 @@
 /**
- * AccountBillingTab — Financial overview, invoices, payments
+ * AccountBillingTab — Financial overview with operational actions: record payment, view/download invoice, adjustments
  */
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, FileText, Receipt, Calendar, DollarSign, Download } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { CreditCard, FileText, Receipt, Calendar, DollarSign, Download, Eye, PlusCircle, Send } from "lucide-react";
 import { format, addMonths, setDate } from "date-fns";
 import { fr } from "date-fns/locale";
+import { adminClient as supabase } from "@/integrations/backend";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { generateInvoicePDF, type InvoiceDataV2 } from "@/lib/pdf";
+import { safePDFDownload } from "@/lib/pdfUtils";
 
 interface AccountBillingTabProps {
   account: any;
@@ -19,6 +34,7 @@ interface AccountBillingTabProps {
 
 const invoiceStatusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   paid: { label: "Payée", variant: "default" },
+  unpaid: { label: "Impayée", variant: "destructive" },
   pending: { label: "En attente", variant: "outline" },
   overdue: { label: "En retard", variant: "destructive" },
   voided: { label: "Annulée", variant: "secondary" },
@@ -27,6 +43,25 @@ const invoiceStatusConfig: Record<string, { label: string; variant: "default" | 
 };
 
 export function AccountBillingTab({ account, invoices, payments, subscriptions, legacyBilling }: AccountBillingTabProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [payOpen, setPayOpen] = useState(false);
+  const [payInvoice, setPayInvoice] = useState<any>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("etransfer");
+  const [payRef, setPayRef] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustInvoice, setAdjustInvoice] = useState<any>(null);
+  const [adjustType, setAdjustType] = useState<"credit" | "charge">("credit");
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustDesc, setAdjustDesc] = useState("");
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfFilename, setPdfFilename] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const totalBalance = invoices.reduce((sum: number, inv: any) => sum + (inv.balance_due || 0), 0);
   const monthlyRecurring = subscriptions
     .filter((s: any) => s.status === "active")
@@ -39,6 +74,178 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
   const cycleEnd = new Date(addMonths(cycleStart, 1));
   cycleEnd.setDate(cycleEnd.getDate() - 1);
   const nextInvoice = addMonths(cycleStart, 1);
+
+  const openPayDialog = (inv: any) => {
+    setPayInvoice(inv);
+    setPayAmount(inv.balance_due?.toFixed(2) || "0");
+    setPayRef("");
+    setPayMethod("etransfer");
+    setPayOpen(true);
+  };
+
+  const handleRecordPayment = async () => {
+    if (!payInvoice || !payAmount) return;
+    const amount = parseFloat(payAmount);
+    if (isNaN(amount) || amount <= 0) { toast.error("Montant invalide"); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
+        p_invoice_id: payInvoice.id,
+        p_amount: amount,
+        p_method: payMethod,
+        p_reference: payRef || null,
+        p_source: "admin_manual_confirmation",
+        p_admin_id: user?.id || null,
+        p_admin_name: user?.email || "Admin",
+      });
+      if (error) throw error;
+      toast.success(`Paiement de ${amount.toFixed(2)} $ enregistré`);
+      setPayOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["account-profile-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["account-profile-payments"] });
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleViewInvoice = async (inv: any) => {
+    setPdfLoading(true);
+    setPdfOpen(true);
+    setPdfTitle(`Facture ${inv.invoice_number}`);
+    setPdfFilename(`Facture_${inv.invoice_number}.pdf`);
+    try {
+      const pdfData: InvoiceDataV2 = {
+        invoice_type: inv.type === "recurring" ? "MONTHLY" : "ONE_TIME",
+        invoice_number: inv.invoice_number,
+        invoice_date: inv.created_at,
+        due_date: inv.due_date,
+        billing_period_start: inv.cycle_start_date,
+        billing_period_end: inv.cycle_end_date,
+        customer: {
+          full_name: account?.account_name || "Client",
+          email: "",
+          phone: "",
+          address: account?.billing_address || account?.primary_service_address || "",
+          city: account?.billing_city || account?.primary_service_city || "",
+          province: account?.billing_province || "QC",
+          postal_code: account?.billing_postal_code || account?.primary_service_postal_code || "",
+          account_number: account?.account_number || "",
+        },
+        line_items: [],
+        subtotal: inv.subtotal || 0,
+        tps_amount: inv.tps_amount || 0,
+        tvq_amount: inv.tvq_amount || 0,
+        total: inv.total || 0,
+        amount_paid: inv.amount_paid || 0,
+        balance_due: inv.balance_due || 0,
+        payment_method: inv.payment_method || "etransfer",
+      };
+      const result = await generateInvoicePDF(pdfData);
+      if (result.success && result.blob) {
+        setPdfBlob(result.blob);
+      } else {
+        toast.error(result.error || "Erreur PDF");
+        setPdfOpen(false);
+      }
+    } catch (e: any) {
+      toast.error("Erreur de génération PDF");
+      setPdfOpen(false);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (inv: any) => {
+    try {
+      const pdfData: InvoiceDataV2 = {
+        invoice_type: inv.type === "recurring" ? "MONTHLY" : "ONE_TIME",
+        invoice_number: inv.invoice_number,
+        invoice_date: inv.created_at,
+        due_date: inv.due_date,
+        billing_period_start: inv.cycle_start_date,
+        billing_period_end: inv.cycle_end_date,
+        customer: {
+          full_name: account?.account_name || "Client",
+          email: "",
+          phone: "",
+          address: account?.billing_address || account?.primary_service_address || "",
+          city: account?.billing_city || "",
+          province: "QC",
+          postal_code: account?.billing_postal_code || "",
+          account_number: account?.account_number || "",
+        },
+        line_items: [],
+        subtotal: inv.subtotal || 0,
+        tps_amount: inv.tps_amount || 0,
+        tvq_amount: inv.tvq_amount || 0,
+        total: inv.total || 0,
+        amount_paid: inv.amount_paid || 0,
+        balance_due: inv.balance_due || 0,
+        payment_method: inv.payment_method || "etransfer",
+      };
+      const result = await generateInvoicePDF(pdfData);
+      if (result.success && result.blob && result.filename) {
+        safePDFDownload(result.blob, result.filename);
+      } else {
+        toast.error(result.error || "Erreur");
+      }
+    } catch {
+      toast.error("Erreur téléchargement");
+    }
+  };
+
+  const openAdjustDialog = (inv: any) => {
+    setAdjustInvoice(inv);
+    setAdjustAmount("");
+    setAdjustDesc("");
+    setAdjustType("credit");
+    setAdjustOpen(true);
+  };
+
+  const handleAdjustment = async () => {
+    if (!adjustInvoice || !adjustAmount || !adjustDesc) return;
+    const amount = parseFloat(adjustAmount);
+    if (isNaN(amount) || amount <= 0) { toast.error("Montant invalide"); return; }
+    setSaving(true);
+    try {
+      const lineTotal = adjustType === "credit" ? -amount : amount;
+      // Add invoice line
+      await supabase.from("billing_invoice_lines").insert({
+        invoice_id: adjustInvoice.id,
+        description: adjustDesc,
+        unit_price: lineTotal,
+        quantity: 1,
+        line_total: lineTotal,
+        line_type: adjustType === "credit" ? "credit" : "charge",
+      });
+
+      // Recalculate invoice totals
+      const newSubtotal = (adjustInvoice.subtotal || 0) + lineTotal;
+      const tps = Math.round(newSubtotal * 0.05 * 100) / 100;
+      const tvq = Math.round(newSubtotal * 0.09975 * 100) / 100;
+      const newTotal = Math.round((newSubtotal + tps + tvq) * 100) / 100;
+      const newBalance = Math.round((newTotal - (adjustInvoice.amount_paid || 0)) * 100) / 100;
+
+      await supabase.from("billing_invoices").update({
+        subtotal: newSubtotal,
+        tps_amount: tps,
+        tvq_amount: tvq,
+        total: newTotal,
+        balance_due: Math.max(0, newBalance),
+        status: newBalance <= 0 ? "paid" : adjustInvoice.status,
+      }).eq("id", adjustInvoice.id);
+
+      toast.success(`${adjustType === "credit" ? "Crédit" : "Charge"} de ${amount.toFixed(2)} $ appliqué(e)`);
+      setAdjustOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["account-profile-invoices"] });
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -76,14 +283,28 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <div className="text-right mr-2">
                       <p className="text-sm font-medium">{inv.total?.toFixed(2)} $</p>
                       {inv.balance_due > 0 && (
                         <p className="text-xs text-destructive">Dû: {inv.balance_due.toFixed(2)} $</p>
                       )}
                     </div>
                     <Badge variant={st.variant} className="text-[10px]">{st.label}</Badge>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleViewInvoice(inv)} title="Voir">
+                      <Eye className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadInvoice(inv)} title="Télécharger">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    {inv.balance_due > 0 && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPayDialog(inv)} title="Enregistrer paiement">
+                        <CreditCard className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openAdjustDialog(inv)} title="Ajustement">
+                      <PlusCircle className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -116,6 +337,90 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Record Payment Dialog */}
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enregistrer un paiement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Facture: {payInvoice?.invoice_number} — Solde: {payInvoice?.balance_due?.toFixed(2)} $</p>
+            <div>
+              <Label>Montant ($)</Label>
+              <Input type="number" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label>Méthode</Label>
+              <Select value={payMethod} onValueChange={setPayMethod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="etransfer">Virement Interac</SelectItem>
+                  <SelectItem value="credit_card">Carte de crédit</SelectItem>
+                  <SelectItem value="cash">Comptant</SelectItem>
+                  <SelectItem value="cheque">Chèque</SelectItem>
+                  <SelectItem value="paypal">PayPal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Référence (optionnel)</Label>
+              <Input value={payRef} onChange={e => setPayRef(e.target.value)} placeholder="Numéro de référence..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayOpen(false)}>Annuler</Button>
+            <Button onClick={handleRecordPayment} disabled={saving}>
+              {saving ? "Enregistrement..." : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjustment Dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajustement — {adjustInvoice?.invoice_number}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Type</Label>
+              <Select value={adjustType} onValueChange={(v) => setAdjustType(v as "credit" | "charge")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="credit">Crédit (réduction)</SelectItem>
+                  <SelectItem value="charge">Charge (supplément)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Montant ($)</Label>
+              <Input type="number" step="0.01" value={adjustAmount} onChange={e => setAdjustAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea value={adjustDesc} onChange={e => setAdjustDesc(e.target.value)} rows={2} placeholder="Raison de l'ajustement..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustOpen(false)}>Annuler</Button>
+            <Button onClick={handleAdjustment} disabled={saving || !adjustAmount || !adjustDesc}>
+              {saving ? "Application..." : "Appliquer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Viewer */}
+      <PDFViewerDialog
+        open={pdfOpen}
+        onOpenChange={setPdfOpen}
+        pdfBlob={pdfBlob}
+        title={pdfTitle}
+        filename={pdfFilename}
+        isLoading={pdfLoading}
+      />
     </div>
   );
 }
