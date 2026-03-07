@@ -64,7 +64,7 @@ function computeInstallationEstimate(order: any, appointment: any): {
 }
 
 /* ─── Dynamic workflow per order type ─── */
-function buildWorkflow(order: any): WorkflowStep[] {
+function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
   const serviceType = (order?.service_type || "").toLowerCase();
   const hasKyc = order?.kyc_policy !== "none" && order?.kyc_policy !== "skip";
 
@@ -119,10 +119,10 @@ function buildWorkflow(order: any): WorkflowStep[] {
     );
   }
 
-  return computeStepStatuses(base, order);
+  return computeStepStatuses(base, order, channelSelection);
 }
 
-function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] {
+function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any): WorkflowStep[] {
   if (!order) return steps;
 
   return steps.map((step) => {
@@ -154,7 +154,7 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
         else if ((order._kycSessionStatus || order.id_verification_status) === "rejected") status = "blocked";
         break;
       case "fulfillment":
-        if (order.fulfillment_type) status = "completed";
+        if (order.fulfillment_type && (order.service_location_id || order.shipping_address || order.client_full_address)) status = "completed";
         break;
       case "equipment":
         if (order.equipment_id || order.sim_number || order.serial_number) status = "completed";
@@ -165,9 +165,16 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
       case "contracts":
         if (order.related_contract_id) status = "completed";
         break;
-      case "tv_channels":
-        if (order.tv_channels_activated) status = "completed";
+      case "tv_channels": {
+        const channelStatus = String(channelSelection?.status || "").toLowerCase();
+        const hasChannels =
+          (Array.isArray(channelSelection?.channels) && channelSelection.channels.length > 0) ||
+          (Array.isArray(order?.selected_channels) && order.selected_channels.length > 0);
+        if (channelStatus === "activated" || (hasChannels && order.channel_selection_locked === true)) {
+          status = "completed";
+        }
         break;
+      }
       case "shipping":
         if (order.tracking_number || order.shipped_at || order.technician_id || order.status === "delivered") status = "completed";
         break;
@@ -187,6 +194,10 @@ const INVALIDATION_KEYS = [
   "client-orders",
   "client-invoices",
   "client-invoice-breakdowns",
+  "client-billing-subscriptions-canonical",
+  "client-billing-invoices-canonical",
+  "client-billing-payments-canonical",
+  "ledger-history-v2",
   "ledger-balance",
   "overdue-count-unified",
   "admin-activity-logs",
@@ -305,19 +316,52 @@ export function useOrderProcessing(orderId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      // Fetch channel selections for TV/combo orders
+      // Fetch channel selections for TV/combo orders (strictly by order first)
       let channelSelection = null;
       const svcType = (order.service_type || "").toLowerCase();
       if (svcType.includes("tv") || svcType.includes("combo") || svcType.includes("bundle")) {
-        const { data: cs } = await supabase
+        const { data: csByOrder } = await supabase
           .from("channel_selections")
           .select("*")
-          .eq("user_id", order.user_id)
+          .eq("order_id", order.id)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        channelSelection = cs;
+
+        const { data: csByUser } = !csByOrder
+          ? await supabase
+              .from("channel_selections")
+              .select("*")
+              .eq("user_id", order.user_id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : { data: null as any };
+
+        channelSelection = csByOrder || csByUser || null;
+
+        if (!channelSelection && Array.isArray(order.selected_channels) && order.selected_channels.length > 0) {
+          channelSelection = {
+            id: null,
+            user_id: order.user_id,
+            order_id: order.id,
+            channels: order.selected_channels,
+            status: order.channel_selection_locked ? "confirmed" : "draft",
+            total_price: 0,
+          };
+        }
       }
+
+      // Fetch client service addresses for admin by-address management
+      const { data: serviceAddresses } = account?.id
+        ? await supabase
+            .from("service_addresses")
+            .select("*")
+            .eq("account_id", account.id)
+            .eq("is_active", true)
+            .order("is_default", { ascending: false })
+            .order("created_at", { ascending: true })
+        : { data: [] as any[] };
 
       // Compute installation time estimate
       const installationEstimate = computeInstallationEstimate(order, appointment);
@@ -339,6 +383,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         contracts: contracts || [],
         appointment,
         channelSelection,
+        serviceAddresses: serviceAddresses || [],
         installationEstimate,
         kycSession,
         activityLogs: activityLogs || [],
@@ -347,7 +392,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   });
 
   const data = orderQuery.data;
-  const workflow = data?.order ? buildWorkflow(data.order) : [];
+  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection) : [];
 
   /* ── Invalidate everything ── */
   const invalidateAll = () => {
