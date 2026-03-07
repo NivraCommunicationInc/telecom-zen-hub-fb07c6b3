@@ -107,10 +107,9 @@ export async function restoreAppointmentHold(): Promise<AppointmentHold | null> 
       return null;
     }
 
-    // Update local copy with fresh DB data
+    // Update local copy with fresh DB data (preserve timeSlot from localStorage — DB description may differ)
     hold.holdExpiresAt = data.hold_expires_at || hold.holdExpiresAt;
     hold.scheduledAt = data.scheduled_at;
-    hold.timeSlot = data.description || hold.timeSlot;
     localStorage.setItem(HOLD_STORAGE_KEY, JSON.stringify(hold));
 
     console.log("[AppointmentHold] Hold restored:", hold.appointmentId);

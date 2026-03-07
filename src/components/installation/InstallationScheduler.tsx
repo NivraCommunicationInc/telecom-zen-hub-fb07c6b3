@@ -72,9 +72,10 @@ export function InstallationScheduler({
       const hold = await restoreAppointmentHold();
       if (hold) {
         setActiveHold(hold);
-        // Restore selected date/time from hold
-        onDateTimeChange(hold.scheduledAt, hold.timeSlot);
-        console.log("[InstallationScheduler] Restored hold:", hold.appointmentId);
+        // Normalize scheduledAt to match SmartSlotPicker's date.toISOString() format
+        const normalizedDate = new Date(hold.scheduledAt).toISOString();
+        onDateTimeChange(normalizedDate, hold.timeSlot);
+        console.log("[InstallationScheduler] Restored hold:", hold.appointmentId, "date:", normalizedDate, "time:", hold.timeSlot);
       }
     };
     restore();
