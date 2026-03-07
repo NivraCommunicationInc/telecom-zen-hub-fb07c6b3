@@ -225,7 +225,7 @@ export function TVChannelActivationStep({ proc }: Props) {
   const handleSaveSelection = async () => {
     setLoading("save");
     try {
-      await persistSelection(false);
+      await persistSelection();
       toast.success("Sélection TV confirmée");
     } catch (error: any) {
       console.error("[TVChannels] Confirm error:", error);
