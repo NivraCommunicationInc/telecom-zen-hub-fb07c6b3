@@ -157,7 +157,7 @@ export default function AdminAccountProfile() {
 
             <TabsContent value="contacts">
               {data.clientId && (
-                <AuthorizedUsersCard clientId={data.clientId} />
+                <AuthorizedUsersCard clientId={data.clientId} clientUserId={data.clientId} />
               )}
             </TabsContent>
 
@@ -183,7 +183,7 @@ export default function AdminAccountProfile() {
                   onlineAccessStatus={data.profile.online_access_status || "active"}
                   blockedReason={data.profile.blocked_reason}
                   blockedAt={data.profile.blocked_at}
-                  onStatusChange={() => data.refetch()}
+                  onUpdate={() => data.refetch()}
                 />
               )}
             </TabsContent>
@@ -196,7 +196,10 @@ export default function AdminAccountProfile() {
                   securityStatus={data.profile.security_status || "normal"}
                   securityAlertLevel={data.profile.security_alert_level || "none"}
                   securityReason={data.profile.security_reason}
-                  onStatusChange={() => data.refetch()}
+                  securityFlaggedAt={data.profile.security_flagged_at}
+                  securityFlaggedOrderId={data.profile.security_flagged_order_id}
+                  securityRequiresPinReset={data.profile.security_requires_pin_reset || false}
+                  onUpdate={() => data.refetch()}
                 />
               )}
             </TabsContent>
