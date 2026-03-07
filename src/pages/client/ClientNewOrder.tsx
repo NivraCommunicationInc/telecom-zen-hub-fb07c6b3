@@ -5849,6 +5849,121 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         )}
           </>
         )}
+
+        {/* ═══ MOBILE FIXED BOTTOM BAR — Always visible on phone ═══ */}
+        {isHydrated && (
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-4 py-3 safe-area-bottom" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+            {/* Step 1: Service Selection */}
+            {step === 1 && selectedServices.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{selectedServices.length} service(s)</span>
+                  <span className="font-bold text-foreground">{totalAmount.toFixed(2)} $/mois</span>
+                </div>
+                <Button variant="hero" className="w-full" size="lg" onClick={() => setStep(2)}>
+                  Continuer <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: TV Channels */}
+            {step === 2 && hasTVService && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Total mensuel</span>
+                  <span className="font-bold text-foreground">{(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Retour
+                  </Button>
+                  <Button variant="hero" className="flex-1" onClick={() => setStep(hasMobileService ? 3 : 4)}>
+                    Continuer <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2/3: Mobile Transfer */}
+            {((step === 2 && !hasTVService && hasMobileService) || (step === 3 && hasTVService && hasMobileService)) && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">SIM (×{totalMobileLineQuantity})</span>
+                  <span className="font-bold text-foreground">{(SIM_CONFIG_DYNAMIC.physical.price * totalMobileLineQuantity).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setStep(hasTVService ? 2 : 1)}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Retour
+                  </Button>
+                  <Button variant="hero" className="flex-1" onClick={() => setStep(hasTVService ? 4 : 3)} disabled={!isMobileTransferComplete()}>
+                    Continuer <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Verification/Installation step */}
+            {((step === 2 && !hasTVService && !hasMobileService) ||
+              (step === 3 && !hasTVService && hasMobileService) ||
+              (step === 3 && hasTVService && !hasMobileService) ||
+              (step === 4 && hasTVService && hasMobileService)) && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Total aujourd'hui</span>
+                  <span className="font-bold text-foreground">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => {
+                    if (hasMobileService && !hasTVService) setStep(2);
+                    else if (hasTVService && !hasMobileService) setStep(2);
+                    else if (hasTVService && hasMobileService) setStep(3);
+                    else setStep(1);
+                  }}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Retour
+                  </Button>
+                  <Button variant="hero" className="flex-1" onClick={() => {
+                    let nextStep = 4;
+                    if (hasTVService && hasMobileService) nextStep = 5;
+                    else if (hasTVService || hasMobileService) nextStep = 4;
+                    else nextStep = 3;
+                    setStep(nextStep);
+                  }} disabled={
+                    isEquipmentOnlyOrder 
+                      ? !deliveryChoice
+                      : isDeliveryOnlyOrder 
+                        ? (!isIdComplete || !deliveryChoice)
+                        : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime)))
+                  }>
+                    Réviser <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Final Confirmation step */}
+            {((step === 3 && !hasTVService && !hasMobileService) ||
+              (step === 4 && ((hasTVService && !hasMobileService) || (hasMobileService && !hasTVService))) ||
+              (step === 5 && hasTVService && hasMobileService)) && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Total à payer</span>
+                  <span className="font-bold text-foreground">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setStep(step - 1)}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Retour
+                  </Button>
+                  <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
+                    <Button variant="hero" className="flex-1" size="lg" onClick={handleSubmit}
+                      disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime))}>
+                      {createOrderMutation.isPending ? "..." : "Confirmer"}
+                    </Button>
+                  </BlockedActionWrapper>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </ClientLayout>
   );
