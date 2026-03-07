@@ -3265,26 +3265,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </Card>
               )}
 
-              {/* Mobile Continue Button - visible only on mobile when services selected */}
-              <div className="lg:hidden mt-6 pb-4">
-                {selectedServices.length > 0 && (
-                  <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{selectedServices.length} service(s) sélectionné(s)</span>
-                      <span className="font-bold text-foreground">{totalAmount.toFixed(2)} $</span>
-                    </div>
-                    <Button
-                      variant="hero"
-                      className="w-full"
-                      size="lg"
-                      onClick={() => setStep(2)}
-                    >
-                      Continuer
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              {/* Spacer for fixed bottom bar on mobile */}
+              {selectedServices.length > 0 && <div className="lg:hidden h-28" />}
             </div>
 
             {/* Right Column: Professional Order Summary (Sticky) */}
