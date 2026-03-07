@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchNivraProducts, mapProductTypeToCategory, type NivraProduct } from "@/lib/api/nivraApi";
 
 export interface PublicService {
   id: string;
@@ -98,6 +98,27 @@ const extractDataInfo = (description: string): { autoTopUp: string; noTopUp: str
  * Falls back to Nivra external API if DB returns empty.
  */
 export function usePublicServices() {
+  const queryClient = useQueryClient();
+
+  // Realtime subscription: invalidate cache instantly when admin changes services
+  useEffect(() => {
+    const channel = supabase
+      .channel('services-realtime-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'services' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["public-services"] });
+          queryClient.invalidateQueries({ queryKey: ["available-services"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["public-services"],
     queryFn: async () => {
@@ -131,7 +152,7 @@ export function usePublicServices() {
         description: null,
       }));
     },
-    staleTime: 30 * 1000, // 30 seconds — picks up admin changes quickly
+    staleTime: 0, // Always revalidate — realtime subscription handles instant updates
     refetchOnWindowFocus: true,
   });
 }
