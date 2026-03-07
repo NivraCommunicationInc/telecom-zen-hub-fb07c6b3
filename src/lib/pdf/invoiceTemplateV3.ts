@@ -340,150 +340,195 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     y = y + boxH + 8;
 
     // ========================================================================
-    // SERVICES TABLE
+    // STRUCTURED SECTIONS — separate recurring, one-time, discounts
     // ========================================================================
-    const tableTitle = isMonthly ? "DÉTAIL DES SERVICES ET FRAIS" : "DÉTAIL — FRAIS UNIQUES";
 
-    // Section header
-    doc.setFillColor(...C.lightBg);
-    doc.rect(m, y, cw, 7, "F");
-    doc.setFillColor(...C.teal);
-    doc.rect(m, y, 3, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...C.navy);
-    doc.text(tableTitle, m + 7, y + 5);
-    y += 10;
+    // Categorize items from canonical data (NO recalculation)
+    const recurringItems = data.items.filter(i => i.is_recurring);
+    const onetimeItems = data.items.filter(i => !i.is_recurring);
 
-    // Table header row
-    doc.setFillColor(...C.navy);
-    doc.rect(m, y, cw, 7, "F");
-    doc.setTextColor(...C.white);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
+    // Helper: draw a section header with teal accent
+    const drawSectionHeader = (title: string) => {
+      if (y > maxY - 30) {
+        drawNivraFooter(doc, 1, 2);
+        doc.addPage();
+        drawNivraHeader(doc, "FACTURE (suite)");
+        y = 40;
+      }
+      doc.setFillColor(...C.lightBg);
+      doc.rect(m, y, cw, 7, "F");
+      doc.setFillColor(...C.teal);
+      doc.rect(m, y, 3, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...C.navy);
+      doc.text(title, m + 7, y + 5);
+      y += 10;
+    };
 
-    const colDef = [
-      { label: "Description", x: m + 3, w: 75 },
-      { label: isMonthly ? "Période" : "Réf.", x: m + 78, w: 35 },
-      { label: "Qté", x: m + 115, w: 12 },
-      { label: "P.U.", x: m + 129, w: 22 },
-      { label: "Montant", x: m + 153, w: 27 },
-    ];
-    colDef.forEach(c => doc.text(c.label, c.x, y + 5));
-    y += 9;
+    // Helper: draw table header row
+    const drawTableHeader = (periodLabel: string) => {
+      doc.setFillColor(...C.navy);
+      doc.rect(m, y, cw, 7, "F");
+      doc.setTextColor(...C.white);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      const colDef = [
+        { label: "Description", x: m + 3 },
+        { label: periodLabel, x: m + 78 },
+        { label: "Qté", x: m + 115 },
+        { label: "P.U.", x: m + 129 },
+        { label: "Montant", x: m + 153 },
+      ];
+      colDef.forEach(c => doc.text(c.label, c.x, y + 5));
+      y += 9;
+    };
 
-    // Table rows
-    data.items.forEach((item, i) => {
+    // Helper: draw an item row
+    const drawItemRow = (item: typeof data.items[0], rowIndex: number, periodField: string) => {
       if (y > maxY - 20) {
         drawNivraFooter(doc, 1, 2);
         doc.addPage();
         drawNivraHeader(doc, "FACTURE (suite)");
         y = 40;
       }
-
       const rowH = item.reference ? 11 : 8;
-
-      if (i % 2 === 0) {
+      if (rowIndex % 2 === 0) {
         doc.setFillColor(250, 250, 252);
         doc.rect(m, y - 1, cw, rowH, "F");
       }
-
-      // Description
       const desc = sanitizeDescription(item.description);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...C.text);
-      doc.text(desc.substring(0, 48), colDef[0].x, y + 4);
-
-      // Category badge
+      doc.text(desc.substring(0, 48), m + 3, y + 4);
       if (item.category) {
         doc.setFontSize(6);
         doc.setTextColor(...C.teal);
-        doc.text(`[${item.category}]`, colDef[0].x + doc.getTextWidth(desc.substring(0, 48)) + 2, y + 4);
+        doc.text(`[${item.category}]`, m + 3 + doc.getTextWidth(desc.substring(0, 48)) + 2, y + 4);
       }
-
-      // Period / Reference
       doc.setFontSize(7);
       doc.setTextColor(...C.textMuted);
-      const periodVal = isMonthly ? (item.period || "—") : (item.reference || "—");
-      doc.text(periodVal.substring(0, 22), colDef[1].x, y + 4);
-
-      // Qty
+      doc.text((periodField || "—").substring(0, 22), m + 78, y + 4);
       doc.setTextColor(...C.text);
       doc.setFontSize(8);
-      doc.text(String(item.qty), colDef[2].x, y + 4);
-
-      // Unit price
-      doc.text(fmt(item.unit_price), colDef[3].x, y + 4);
-
-      // Amount
+      doc.text(String(item.qty), m + 115, y + 4);
+      doc.text(fmt(item.unit_price), m + 129, y + 4);
       doc.setFont("helvetica", "bold");
-      doc.text(fmt(item.amount), colDef[4].x, y + 4);
-
-      // Sub-reference line
+      doc.text(fmt(item.amount), m + 153, y + 4);
       if (item.reference && isMonthly) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
         doc.setTextColor(...C.textMuted);
-        doc.text(`Réf.: ${assertPrintableText(item.reference, "ref")}`, colDef[0].x, y + 8.5);
+        doc.text(`Réf.: ${assertPrintableText(item.reference, "ref")}`, m + 3, y + 8.5);
       }
-
       y += rowH;
-    });
+    };
 
-    // Table bottom border
-    doc.setDrawColor(...C.border);
-    doc.line(m, y, m + cw, y);
-    y += 5;
+    // Helper: draw section subtotal line
+    const drawSectionSubtotal = (label: string, amount: number) => {
+      doc.setDrawColor(...C.border);
+      doc.line(m, y, m + cw, y);
+      y += 2;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...C.navy);
+      doc.text(label, m + cw - 85, y + 4);
+      doc.text(fmt(amount), m + cw - 2, y + 4, { align: "right" });
+      y += 8;
+    };
 
-    // ========================================================================
-    // NOTE BOX (for one-time invoices)
-    // ========================================================================
-    if (!isMonthly) {
-      doc.setFillColor(...C.lightBg);
-      doc.setDrawColor(...C.blue);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(m, y, cw, 12, 1, 1, "FD");
-      doc.setLineWidth(0.2);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(...C.textMuted);
-      doc.text("Note.", m + 3, y + 4);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.5);
-      doc.text("Cette facture concerne des frais uniques (équipement, SIM/eSIM, activation, livraison, installation).", m + 3, y + 8);
-      y += 16;
-    } else {
-      // Prepaid reminder
-      doc.setFillColor(...C.lightBg);
-      doc.setDrawColor(...C.teal);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(m, y, cw, 14, 1, 1, "FD");
-      doc.setLineWidth(0.2);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(...C.textMuted);
-      doc.text("Rappel (prépayé)", m + 3, y + 5);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6.5);
-      doc.text("Facture affichée avant le cycle pour permettre le renouvellement. Sans paiement confirmé à J0, le service expire.", m + 3, y + 10);
-      y += 18;
+    // ────────────────────────────────────────────────────────────
+    // SECTION 1: MONTHLY / RECURRING SERVICES
+    // ────────────────────────────────────────────────────────────
+    if (recurringItems.length > 0) {
+      drawSectionHeader("SECTION A — SERVICES MENSUELS RÉCURRENTS");
+      drawTableHeader("Période");
+      recurringItems.forEach((item, i) => {
+        const period = item.period || (data.billing_period_start && data.billing_period_end
+          ? `${fmtShortDate(data.billing_period_start)} → ${fmtShortDate(data.billing_period_end)}`
+          : "—");
+        drawItemRow(item, i, period);
+      });
+      if (data.subtotal_monthly !== undefined) {
+        drawSectionSubtotal("Sous-total services mensuels", data.subtotal_monthly);
+      }
     }
 
-    // ========================================================================
-    // TOTALS
-    // ========================================================================
-    if (y > maxY - 45) {
+    // ────────────────────────────────────────────────────────────
+    // SECTION 2: ONE-TIME FEES (equipment, activation, delivery…)
+    // ────────────────────────────────────────────────────────────
+    if (onetimeItems.length > 0) {
+      drawSectionHeader("SECTION B — FRAIS UNIQUES");
+      drawTableHeader("Réf.");
+      onetimeItems.forEach((item, i) => {
+        drawItemRow(item, i, item.reference || "—");
+      });
+      if (data.subtotal_onetime !== undefined) {
+        drawSectionSubtotal("Sous-total frais uniques", data.subtotal_onetime);
+      }
+    }
+
+    // If no items at all (shouldn't happen but safety)
+    if (recurringItems.length === 0 && onetimeItems.length === 0) {
+      drawSectionHeader("DÉTAIL DES SERVICES ET FRAIS");
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      doc.setTextColor(...C.textMuted);
+      doc.text("Aucun item à facturer.", m + 7, y + 4);
+      y += 10;
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // SECTION 3: PROMOTIONS / DISCOUNTS
+    // ────────────────────────────────────────────────────────────
+    if (data.discounts && data.discounts.length > 0) {
+      drawSectionHeader("SECTION C — PROMOTIONS ET RABAIS");
+      data.discounts.forEach((d, i) => {
+        if (y > maxY - 15) {
+          drawNivraFooter(doc, 1, 2);
+          doc.addPage();
+          drawNivraHeader(doc, "FACTURE (suite)");
+          y = 40;
+        }
+        if (i % 2 === 0) {
+          doc.setFillColor(250, 250, 252);
+          doc.rect(m, y - 1, cw, 8, "F");
+        }
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(...C.text);
+        doc.text(assertPrintableText(d.label, "discount"), m + 3, y + 4);
+        if (d.applies_to) {
+          doc.setFontSize(6);
+          doc.setTextColor(...C.textMuted);
+          doc.text(`(sur ${d.applies_to})`, m + 3 + doc.getTextWidth(d.label) + 3, y + 4);
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(...C.success);
+        doc.text(`- ${fmt(d.amount)}`, m + cw - 2, y + 4, { align: "right" });
+        y += 8;
+      });
+      y += 3;
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // SECTION 4 & 5: TAXES + TOTAL PROGRESSION
+    // ────────────────────────────────────────────────────────────
+    if (y > maxY - 55) {
       drawNivraFooter(doc, 1, 2);
       doc.addPage();
       drawNivraHeader(doc, "FACTURE (suite)");
       y = 40;
     }
 
-    const totW = 85;
+    drawSectionHeader("SOMMAIRE FINANCIER");
+
+    const totW = 90;
     const tx = m + cw - totW;
 
-    const drawTotalLine = (label: string, value: string, opts: { bold?: boolean; bg?: [number, number, number]; textColor?: [number, number, number]; fontSize?: number } = {}) => {
+    const drawTotalLine = (label: string, value: string, opts: { bold?: boolean; bg?: [number, number, number]; textColor?: [number, number, number]; fontSize?: number; indent?: boolean } = {}) => {
       if (opts.bg) {
         doc.setFillColor(...opts.bg);
         doc.roundedRect(tx - 3, y - 2, totW + 6, 9, 1, 1, "F");
@@ -493,25 +538,52 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
       }
       doc.setFont("helvetica", opts.bold ? "bold" : "normal");
       doc.setFontSize(opts.fontSize || 9);
-      doc.text(label, tx, y + 4);
+      const labelX = opts.indent ? tx + 6 : tx;
+      doc.text(label, labelX, y + 4);
       doc.text(value, tx + totW, y + 4, { align: "right" });
-      y += opts.bg ? 12 : 6;
+      y += opts.bg ? 12 : 6.5;
     };
 
-    drawTotalLine("Sous-total", fmt(data.subtotal));
-
-    // Discounts
-    if (data.discounts && data.discounts.length > 0) {
-      data.discounts.forEach(d => {
-        drawTotalLine(assertPrintableText(d.label, "discount"), `- ${fmt(d.amount)}`, { textColor: C.success });
-      });
+    // Show structured subtotals if available
+    if (data.subtotal_monthly !== undefined && data.subtotal_monthly > 0) {
+      drawTotalLine("Services mensuels", fmt(data.subtotal_monthly), { indent: true });
+    }
+    if (data.subtotal_onetime !== undefined && data.subtotal_onetime > 0) {
+      drawTotalLine("Frais uniques", fmt(data.subtotal_onetime), { indent: true });
     }
 
-    drawTotalLine(TAX.GST_LABEL, fmt(data.taxes.gst_amount));
-    drawTotalLine(TAX.QST_LABEL, fmt(data.taxes.qst_amount));
-    drawTotalLine("Total", fmt(data.total), { bold: true });
+    drawTotalLine("Sous-total", fmt(data.subtotal), { bold: true });
 
-    if (data.payments_total && data.payments_total > 0) {
+    // Discounts summary
+    if (data.discounts && data.discounts.length > 0) {
+      const totalDiscount = data.discounts.reduce((sum, d) => sum + d.amount, 0);
+      drawTotalLine("Rabais / promotions", `- ${fmt(totalDiscount)}`, { textColor: C.success });
+    }
+
+    // Taxes — with name + percentage
+    drawTotalLine(`TPS (${(data.taxes.gst_rate * 100).toFixed(0)}%)`, fmt(data.taxes.gst_amount));
+    drawTotalLine(`TVQ (${(data.taxes.qst_rate * 100).toFixed(3).replace(".", ",")}%)`, fmt(data.taxes.qst_amount));
+
+    drawTotalLine("Total facture", fmt(data.total), { bold: true });
+
+    // ────────────────────────────────────────────────────────────
+    // SECTION 6: PAYMENTS
+    // ────────────────────────────────────────────────────────────
+    if (data.payments && data.payments.length > 0) {
+      const confirmedPayments = data.payments.filter(p =>
+        ["Confirmed", "confirmed", "Captured", "captured", "completed"].includes(p.status)
+      );
+      if (confirmedPayments.length > 0) {
+        confirmedPayments.forEach(p => {
+          const pData = sanitizePaymentData(p);
+          drawTotalLine(
+            `Paiement (${fmtPayMethod(pData.method)})`,
+            `- ${fmt(pData.paid_amount)}`,
+            { textColor: C.success }
+          );
+        });
+      }
+    } else if (data.payments_total && data.payments_total > 0) {
       drawTotalLine("Paiements reçus", `- ${fmt(data.payments_total)}`, { textColor: C.success });
     }
 

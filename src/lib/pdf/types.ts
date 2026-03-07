@@ -181,6 +181,8 @@ export interface InvoiceDataV2 extends InvoiceIdentity {
   
   // Totals
   subtotal: number;
+  subtotal_monthly?: number; // Sum of recurring service amounts (from billing engine)
+  subtotal_onetime?: number; // Sum of one-time fees/equipment (from billing engine)
   taxes: Taxes;
   total: number;
   balance_due: number;

@@ -338,6 +338,8 @@ export function buildCanonicalInvoiceData(data: CanonicalDocumentData): InvoiceD
     })) : [],
 
     subtotal: structured.subtotal,
+    subtotal_monthly: structured.subtotalMonthly,
+    subtotal_onetime: structured.subtotalOnetime,
     taxes: {
       gst_rate: TAX.GST_RATE, gst_amount: structured.tpsAmount,
       qst_rate: TAX.QST_RATE, qst_amount: structured.tvqAmount,
