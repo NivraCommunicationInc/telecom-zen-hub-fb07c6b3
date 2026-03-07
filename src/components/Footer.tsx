@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Mail, MapPin, Clock, MessageSquare } from "lucide-react";
+import { Mail, MapPin, Clock, MessageSquare, Facebook, Instagram } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT } from "@/config/company";
