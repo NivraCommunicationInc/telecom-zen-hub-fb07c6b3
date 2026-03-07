@@ -1960,7 +1960,7 @@ const ClientNewOrder = () => {
           (welcomeDiscountAmount > 0 ? `\n\n**Rabais nouveau client:** 50% sur services (1er mois) — ${welcomeDiscountAmount.toFixed(2)}$` : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
-        channel_assigned_by: hasTVService && channelData.length > 0 ? 'client' : null,
+        channel_assigned_by: hasTVService && channelData.length > 0 ? user.id : null,
         // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
         equipment_details: wrapLineItemsForOrder(lineItems, {
           subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
