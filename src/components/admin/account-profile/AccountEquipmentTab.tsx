@@ -330,7 +330,7 @@ export function AccountEquipmentTab({ accountId, clientId }: AccountEquipmentTab
         <TabsContent value="sim">
           {simEquipment.length === 0 ? (
             <div className="text-center py-8">
-              <Sim className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+              <Smartphone className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
               <p className="text-sm text-muted-foreground">Aucune SIM / eSIM assignée</p>
               <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => { resetForm(); setEqType("sim"); setAssignOpen(true); }}>
                 <PlusCircle className="h-3.5 w-3.5 mr-1" /> Assigner une SIM
