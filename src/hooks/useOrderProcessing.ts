@@ -357,7 +357,7 @@ export function useOrderProcessing(orderId: string | undefined) {
             user_id: order.user_id,
             order_id: order.id,
             channels: order.selected_channels,
-            status: order.channel_selection_locked ? "confirmed" : "draft",
+            status: order.channel_selection_locked ? "confirmed" : "pending",
             total_price: 0,
           };
         }
