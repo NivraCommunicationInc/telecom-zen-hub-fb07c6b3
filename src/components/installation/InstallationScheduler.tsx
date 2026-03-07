@@ -22,7 +22,7 @@ import {
 import { createAppointmentHold, restoreAppointmentHold, type AppointmentHold } from "@/lib/appointmentHold";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 
 interface SlotData {
   id: string;
@@ -46,6 +46,8 @@ interface Props {
   onDateTimeChange: (date: string, time: string) => void;
   onInstallationTypeChange: (type: "auto" | "technician", level: "level_1" | "level_2") => void;
   onDecisionMade?: (decision: InstallationDecision) => void;
+  confirmedAppointment?: boolean;
+  onAppointmentConfirmedChange?: (confirmed: boolean) => void;
 }
 
 export function InstallationScheduler({
@@ -58,6 +60,8 @@ export function InstallationScheduler({
   onDateTimeChange,
   onInstallationTypeChange,
   onDecisionMade,
+  confirmedAppointment,
+  onAppointmentConfirmedChange,
 }: Props) {
   const [cablingAnswers, setCablingAnswers] = useState<CablingData | null>(null);
   const [decision, setDecision] = useState<InstallationDecision | null>(null);
@@ -66,7 +70,13 @@ export function InstallationScheduler({
   const [installationId, setInstallationId] = useState<string | null>(null);
   const [activeHold, setActiveHold] = useState<AppointmentHold | null>(null);
   const [holdLoading, setHoldLoading] = useState(false);
-  const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+  const [appointmentConfirmed, setAppointmentConfirmed] = useState(confirmedAppointment ?? false);
+
+  useEffect(() => {
+    if (typeof confirmedAppointment === "boolean") {
+      setAppointmentConfirmed(confirmedAppointment);
+    }
+  }, [confirmedAppointment]);
 
   // Restore existing hold on mount
   useEffect(() => {
@@ -74,7 +84,8 @@ export function InstallationScheduler({
       const hold = await restoreAppointmentHold();
       if (hold) {
         setActiveHold(hold);
-        setAppointmentConfirmed(true); // Restored hold = already confirmed by user
+        setAppointmentConfirmed(true);
+        onAppointmentConfirmedChange?.(true);
         const normalizedDate = new Date(hold.scheduledAt).toISOString();
         onDateTimeChange(normalizedDate, hold.timeSlot);
         console.log("[InstallationScheduler] Restored hold:", hold.appointmentId, "date:", normalizedDate, "time:", hold.timeSlot);
@@ -180,7 +191,8 @@ export function InstallationScheduler({
 
   const handleSlotSelect = useCallback(async (date: string, time: string, slotId?: string) => {
     onDateTimeChange(date, time);
-    setAppointmentConfirmed(false); // New slot selected, needs re-confirmation
+    setAppointmentConfirmed(false);
+    onAppointmentConfirmedChange?.(false);
     setHoldLoading(true);
 
     try {
@@ -200,13 +212,14 @@ export function InstallationScheduler({
     } finally {
       setHoldLoading(false);
     }
-  }, [onDateTimeChange, installationId, decision]);
+  }, [onDateTimeChange, installationId, decision, onAppointmentConfirmedChange]);
 
   const handleConfirmAppointment = useCallback(() => {
     setAppointmentConfirmed(true);
+    onAppointmentConfirmedChange?.(true);
     onDateTimeChange(selectedDate, selectedTime);
     console.log("[InstallationScheduler] Appointment confirmed by user:", selectedDate, selectedTime);
-  }, [onDateTimeChange, selectedDate, selectedTime]);
+  }, [onDateTimeChange, selectedDate, selectedTime, onAppointmentConfirmedChange]);
 
   return (
     <div className="space-y-4">
