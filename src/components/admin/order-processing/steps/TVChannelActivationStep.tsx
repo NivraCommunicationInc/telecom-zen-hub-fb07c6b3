@@ -215,7 +215,6 @@ export function TVChannelActivationStep({ proc }: Props) {
       channel_selection_locked: true,
       tv_channels_count: selectedChannels.length,
       tv_total_price: totalPrice,
-      tv_channels_activated: activateOnAccount ? true : Boolean(order?.tv_channels_activated),
       channel_assigned_by: proc.currentUserId || order?.channel_assigned_by || null,
       updated_at: nowIso,
     });
@@ -249,7 +248,9 @@ export function TVChannelActivationStep({ proc }: Props) {
     }
   };
 
-  const isActivated = Boolean(order?.tv_channels_activated);
+  const isActivated =
+    ["activated", "completed", "delivered", "installation_completed"].includes(String(order?.status || "").toLowerCase()) &&
+    channelSelection?.status === "confirmed";
   const isConfirmed = !isActivated && channelSelection?.status === "confirmed";
 
   return (
