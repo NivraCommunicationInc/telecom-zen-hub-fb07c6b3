@@ -41,19 +41,23 @@ export function TVChannelActivationStep({ proc }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [allChannels, setAllChannels] = useState<any[]>([]);
 
-  // Load customer's selected channels from channel_selections
+  // Load selected channels from channel_selections, fallback to order.selected_channels
   useEffect(() => {
-    if (channelSelection?.channels && Array.isArray(channelSelection.channels)) {
-      const items: ChannelItem[] = channelSelection.channels.map((ch: any) => ({
-        id: ch.id || ch.channel_id || crypto.randomUUID(),
-        name: ch.name || ch.channel_name || "Canal inconnu",
-        category: ch.category || "Autre",
-        price: ch.price || ch.monthly_price || 0,
-        selected: true,
-      }));
-      setChannels(items);
-    }
-  }, [channelSelection]);
+    const sourceChannels =
+      (Array.isArray(channelSelection?.channels) && channelSelection.channels) ||
+      (Array.isArray(order?.selected_channels) && order.selected_channels) ||
+      [];
+
+    const items: ChannelItem[] = sourceChannels.map((ch: any, index: number) => ({
+      id: String(ch.id || ch.channel_id || ch.channelId || `${ch.name || "channel"}-${index}`),
+      name: ch.name || ch.channel_name || "Canal inconnu",
+      category: ch.category || "Autre",
+      price: Number(ch.price || ch.monthly_price || 0),
+      selected: true,
+    }));
+
+    setChannels(items);
+  }, [channelSelection, order?.selected_channels]);
 
   // Fetch available TV channels for adding
   useEffect(() => {
