@@ -21,6 +21,7 @@ import {
 } from "@/lib/installationLogic";
 import { createAppointmentHold, restoreAppointmentHold, type AppointmentHold } from "@/lib/appointmentHold";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 
 interface SlotData {
