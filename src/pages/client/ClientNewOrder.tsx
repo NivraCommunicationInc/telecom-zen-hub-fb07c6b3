@@ -4858,31 +4858,45 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <p className="text-xs text-muted-foreground mt-1">Équipements, livraison, activation</p>
                   </div>
 
-                  {/* Promo discount line - AFTER one-time fees, applies to total */}
-                  {appliedPromo && appliedPromo.discount_amount > 0 && (
-                    <div className="border-t border-emerald-500/30 pt-3">
+                  {/* ── SECTION C: Paiement aujourd'hui ── */}
+                  <div className="border-t border-border pt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Paiement aujourd'hui</p>
+                    
+                    {/* One-time fees subtotal */}
+                    {oneTimeFees > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-emerald-500 flex items-center gap-1">
+                        <span className="text-muted-foreground">Frais uniques</span>
+                        <span className="text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+
+                    {/* First month recurring gross */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Services 1er mois</span>
+                      <span className="text-foreground">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    </div>
+
+                    {/* Discount on recurring (first month) */}
+                    {appliedPromo && appliedPromo.discount_amount > 0 && (
+                      <div className="flex justify-between text-sm text-emerald-500">
+                        <span className="flex items-center gap-1">
                           <Check className="w-3 h-3" />
-                          Rabais promotionnel ({appliedPromo.code})
+                          Rabais ({appliedPromo.code})
                         </span>
-                        <span className="text-emerald-500 font-medium">
+                        <span className="font-medium">
                           -{appliedPromo.discount_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </span>
                       </div>
-                      <p className="text-xs text-emerald-600/70 mt-1">Appliqué sur le total de la commande</p>
-                    </div>
-                  )}
+                    )}
 
-                  {/* First month recurring (after discount) — included in today's total */}
-                  {monthlyRecurringNet > 0 && (
-                    <div className="border-t border-border pt-3 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Mensuel (1er mois après rabais)</span>
-                        <span className="text-foreground">{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                    {/* Net first month after discount */}
+                    {totalDiscount > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Net 1er mois après rabais</span>
+                        <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Taxes — on today's taxable base (one-time + discounted recurring) */}
                   <div className="border-t border-border pt-3 space-y-2">
