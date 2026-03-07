@@ -21,11 +21,11 @@ import {
   AccountStreamingTab,
   useAccountProfile,
 } from "@/components/admin/account-profile";
-import { ClientInternalNotes } from "@/components/admin/ClientInternalNotes";
-import { AccountBlockingControls } from "@/components/admin/AccountBlockingControls";
+import ClientInternalNotes from "@/components/admin/ClientInternalNotes";
+import AccountBlockingControls from "@/components/admin/AccountBlockingControls";
 import { AuthorizedUsersCard } from "@/components/admin/AuthorizedUsersCard";
-import { ClientActivityLogTable } from "@/components/admin/ClientActivityLogTable";
-import { AdminSecurityControls } from "@/components/admin/AdminSecurityControls";
+import ClientActivityLogTable from "@/components/admin/ClientActivityLogTable";
+import AdminSecurityControls from "@/components/admin/AdminSecurityControls";
 import { ClientCommunicationsPanel } from "@/components/admin/ClientCommunicationsPanel";
 
 export default function AdminAccountProfile() {
