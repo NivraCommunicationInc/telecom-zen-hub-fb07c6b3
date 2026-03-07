@@ -66,6 +66,7 @@ export function InstallationScheduler({
   const [installationId, setInstallationId] = useState<string | null>(null);
   const [activeHold, setActiveHold] = useState<AppointmentHold | null>(null);
   const [holdLoading, setHoldLoading] = useState(false);
+  const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
 
   // Restore existing hold on mount
   useEffect(() => {
