@@ -1,12 +1,19 @@
 /**
- * AccountDocumentsTab — Contracts, KYC, uploaded documents
+ * AccountDocumentsTab — Contracts, KYC, uploaded docs with view/download/send actions
  */
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
-import { FileText, Shield, Upload, Loader2 } from "lucide-react";
+import { FileText, Shield, Loader2, Eye, Download, Send } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { generateContractPDF, type ContractData } from "@/lib/pdf";
+import { safePDFDownload } from "@/lib/pdfUtils";
+import { useNavigate } from "react-router-dom";
 
 interface AccountDocumentsTabProps {
   clientId: string;
@@ -14,7 +21,14 @@ interface AccountDocumentsTabProps {
 }
 
 export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTabProps) {
-  // Contracts
+  const navigate = useNavigate();
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfFilename, setPdfFilename] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  // Contracts from order_snapshots
   const { data: contracts, isLoading: contractsLoading } = useQuery({
     queryKey: ["account-docs-contracts", accountId],
     queryFn: async () => {
@@ -24,14 +38,19 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
         .eq("account_id", accountId)
         .order("created_at", { ascending: false })
         .limit(20);
-      // Fallback: try by client_id if no account match
       if (error || !data?.length) {
-        const { data: fallback } = await supabase
-          .from("order_snapshots")
-          .select("id, order_id, created_at, contract_summary_snapshot")
-          .order("created_at", { ascending: false })
-          .limit(20);
-        return fallback || [];
+        // Fallback: get orders for account and find snapshots
+        const { data: orders } = await supabase.from("orders").select("id").eq("account_id", accountId);
+        if (orders?.length) {
+          const { data: fallback } = await supabase
+            .from("order_snapshots")
+            .select("id, order_id, created_at, contract_summary_snapshot")
+            .in("order_id", orders.map(o => o.id))
+            .order("created_at", { ascending: false })
+            .limit(20);
+          return fallback || [];
+        }
+        return [];
       }
       return data || [];
     },
@@ -54,7 +73,95 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
     enabled: !!clientId,
   });
 
+  // Client uploaded documents
+  const { data: clientDocs } = useQuery({
+    queryKey: ["account-docs-uploaded", clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_documents")
+        .select("*")
+        .eq("user_id", clientId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
   const isLoading = contractsLoading || kycLoading;
+
+  const handleViewContract = async (contract: any) => {
+    setPdfLoading(true);
+    setPdfOpen(true);
+    setPdfTitle(`Contrat — ${contract.order_id?.slice(0, 8)}`);
+    setPdfFilename(`Contrat_${contract.order_id?.slice(0, 8)}.pdf`);
+    try {
+      const snapshot = contract.contract_summary_snapshot || {};
+      const contractData: ContractData = {
+        contractNumber: snapshot.contract_number || contract.order_id?.slice(0, 8) || "N/A",
+        date: contract.created_at,
+        customer: snapshot.customer || { full_name: "Client", email: "", phone: "", address: "" },
+        services: snapshot.services || [],
+        pricing: snapshot.pricing || { subtotal: 0, tps: 0, tvq: 0, total: 0 },
+        terms: snapshot.terms || [],
+      };
+      const result = await generateContractPDF(contractData);
+      if (result.success && result.blob) {
+        setPdfBlob(result.blob);
+      } else {
+        toast.error("Erreur de génération du contrat");
+        setPdfOpen(false);
+      }
+    } catch {
+      toast.error("Erreur de génération");
+      setPdfOpen(false);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadContract = async (contract: any) => {
+    try {
+      const snapshot = contract.contract_summary_snapshot || {};
+      const contractData: ContractData = {
+        contractNumber: snapshot.contract_number || contract.order_id?.slice(0, 8) || "N/A",
+        date: contract.created_at,
+        customer: snapshot.customer || { full_name: "Client", email: "", phone: "", address: "" },
+        services: snapshot.services || [],
+        pricing: snapshot.pricing || { subtotal: 0, tps: 0, tvq: 0, total: 0 },
+        terms: snapshot.terms || [],
+      };
+      const result = await generateContractPDF(contractData);
+      if (result.success && result.blob && result.filename) {
+        safePDFDownload(result.blob, result.filename);
+      }
+    } catch {
+      toast.error("Erreur téléchargement");
+    }
+  };
+
+  const handleSendContract = async (contract: any) => {
+    try {
+      const { data: profile } = await supabase.from("profiles").select("email, full_name").eq("user_id", clientId).maybeSingle();
+      if (!profile?.email) { toast.error("Email client introuvable"); return; }
+
+      await supabase.from("email_queue").insert({
+        to_email: profile.email,
+        to_name: profile.full_name || "",
+        subject: `Votre contrat Nivra`,
+        template_key: "contract_ready_for_signature",
+        status: "pending",
+        metadata: { order_id: contract.order_id, contract_id: contract.id },
+      });
+      toast.success("Email de contrat envoyé au client");
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    }
+  };
+
+  const handleViewOrder = (orderId: string) => {
+    navigate(`/admin/orders/${orderId}`);
+  };
 
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -70,16 +177,26 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
         ) : (
           contracts.map((c: any) => (
             <div key={c.id} className="flex items-center justify-between p-3 rounded-md border">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleViewOrder(c.order_id)}>
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Contrat - {c.order_id?.slice(0, 8)}</p>
+                  <p className="text-sm font-medium hover:underline">Contrat — {c.order_id?.slice(0, 8)}</p>
                   <p className="text-xs text-muted-foreground">
                     {c.created_at && format(new Date(c.created_at), "d MMM yyyy", { locale: fr })}
                   </p>
                 </div>
               </div>
-              <Badge variant="outline" className="text-[10px]">Snapshot</Badge>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleViewContract(c)} title="Voir">
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadContract(c)} title="Télécharger">
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSendContract(c)} title="Envoyer au client">
+                  <Send className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))
         )}
@@ -98,9 +215,7 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
                 <div>
                   <p className="text-sm font-medium">{s.case_number || "KYC"}</p>
                   <p className="text-xs text-muted-foreground">
-                    {s.document_type || "ID"}
-                    {" • "}
-                    {s.created_at && format(new Date(s.created_at), "d MMM yyyy", { locale: fr })}
+                    {s.document_type || "ID"} • {s.created_at && format(new Date(s.created_at), "d MMM yyyy", { locale: fr })}
                   </p>
                 </div>
               </div>
@@ -114,6 +229,39 @@ export function AccountDocumentsTab({ clientId, accountId }: AccountDocumentsTab
           ))
         )}
       </div>
+
+      {/* Uploaded Documents */}
+      {(clientDocs?.length || 0) > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Documents téléversés ({clientDocs?.length})</h4>
+          {clientDocs?.map((doc: any) => (
+            <div key={doc.id} className="flex items-center justify-between p-3 rounded-md border">
+              <div className="flex items-center gap-3">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">{doc.document_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {doc.document_type || "Document"} • {doc.created_at && format(new Date(doc.created_at), "d MMM yyyy", { locale: fr })}
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(doc.document_url, "_blank")} title="Ouvrir">
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* PDF Viewer */}
+      <PDFViewerDialog
+        open={pdfOpen}
+        onOpenChange={setPdfOpen}
+        pdfBlob={pdfBlob}
+        title={pdfTitle}
+        filename={pdfFilename}
+        isLoading={pdfLoading}
+      />
     </div>
   );
 }

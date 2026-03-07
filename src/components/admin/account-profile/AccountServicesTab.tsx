@@ -1,12 +1,31 @@
 /**
- * AccountServicesTab — Services grouped by address (telecom-grade)
+ * AccountServicesTab — Services grouped by address with operational actions
  */
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, Tv, Smartphone, Play, Package, MapPin, PlusCircle } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Wifi, Tv, Smartphone, Play, Package, MapPin, PlusCircle, MoreHorizontal, Pause, RotateCcw, XCircle, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { adminClient as supabase } from "@/integrations/backend";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AccountServicesTabProps {
   subscriptions: any[];
@@ -16,19 +35,11 @@ interface AccountServicesTabProps {
 }
 
 const categoryIcons: Record<string, any> = {
-  internet: Wifi,
-  tv: Tv,
-  mobile: Smartphone,
-  streaming: Play,
+  internet: Wifi, tv: Tv, mobile: Smartphone, streaming: Play,
 };
-
 const categoryLabels: Record<string, string> = {
-  internet: "Internet",
-  tv: "Télévision",
-  mobile: "Mobile",
-  streaming: "Streaming",
+  internet: "Internet", tv: "Télévision", mobile: "Mobile", streaming: "Streaming",
 };
-
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active: { label: "Actif", variant: "default" },
   pending: { label: "En attente", variant: "outline" },
@@ -38,10 +49,16 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 };
 
 export function AccountServicesTab({ subscriptions, serviceAddresses, account, locations }: AccountServicesTabProps) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [actionSub, setActionSub] = useState<any>(null);
+  const [actionType, setActionType] = useState<"suspend" | "resume" | "cancel" | null>(null);
+  const [actionReason, setActionReason] = useState("");
+  const [saving, setSaving] = useState(false);
+
   // Group subscriptions by address
   const byAddress: Record<string, { address: any; subs: any[] }> = {};
-  
-  // Primary address group
   const primaryKey = "primary";
   byAddress[primaryKey] = {
     address: {
@@ -52,45 +69,54 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
     },
     subs: [],
   };
-
-  // Additional location groups
   locations.forEach((loc: any) => {
     byAddress[loc.id] = { address: loc, subs: [] };
   });
-
-  // Assign subscriptions to addresses
   subscriptions.forEach((sub: any) => {
-    if (sub.address_id) {
-      const matchedLoc = locations.find((l: any) => l.id === sub.address_id);
-      const matchedSA = serviceAddresses.find((sa: any) => sa.id === sub.address_id);
-      if (matchedLoc && byAddress[matchedLoc.id]) {
-        byAddress[matchedLoc.id].subs.push(sub);
-      } else if (matchedSA) {
-        // Create group if not exists
-        if (!byAddress[sub.address_id]) {
-          byAddress[sub.address_id] = {
-            address: {
-              label: matchedSA.label || "Adresse de service",
-              service_address: matchedSA.address || matchedSA.full_address,
-              service_city: matchedSA.city,
-              service_postal_code: matchedSA.postal_code,
-            },
-            subs: [],
-          };
-        }
-        byAddress[sub.address_id].subs.push(sub);
-      } else {
-        byAddress[primaryKey].subs.push(sub);
-      }
+    if (sub.address_id && byAddress[sub.address_id]) {
+      byAddress[sub.address_id].subs.push(sub);
     } else {
       byAddress[primaryKey].subs.push(sub);
     }
   });
-
-  // Filter out empty non-primary groups
   const addressGroups = Object.entries(byAddress).filter(
     ([key, val]) => key === primaryKey || val.subs.length > 0
   );
+
+  const handleServiceAction = async () => {
+    if (!actionSub || !actionType) return;
+    setSaving(true);
+    try {
+      const newStatus = actionType === "suspend" ? "suspended" : actionType === "resume" ? "active" : "cancelled";
+      const { error } = await supabase
+        .from("billing_subscriptions")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", actionSub.id);
+      if (error) throw error;
+
+      // Audit trail
+      await supabase.from("billing_subscription_trace_audit").insert({
+        subscription_id: actionSub.id,
+        customer_id: actionSub.customer_id,
+        action: `service_${actionType}`,
+        reason: actionReason || null,
+        actor_admin_id: user?.id || null,
+        details: { plan: actionSub.plan_name, previous_status: actionSub.status, new_status: newStatus },
+      });
+
+      toast.success(
+        actionType === "suspend" ? "Service suspendu" : actionType === "resume" ? "Service réactivé" : "Service annulé"
+      );
+      setActionSub(null);
+      setActionType(null);
+      setActionReason("");
+      queryClient.invalidateQueries({ queryKey: ["account-profile-subscriptions"] });
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -98,7 +124,10 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
         <h3 className="text-sm font-semibold text-foreground">
           Services par adresse ({subscriptions.length} total)
         </h3>
-        <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+        <Button
+          variant="outline" size="sm" className="gap-1.5 text-xs"
+          onClick={() => navigate(`/admin/orders?new=true&client=${account?.client_id}`)}
+        >
           <PlusCircle className="h-3.5 w-3.5" />
           Ajouter un service
         </Button>
@@ -153,6 +182,35 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
                           <p className="text-sm font-medium">{sub.plan_price?.toFixed(2)} $/mois</p>
                           <Badge variant={st.variant} className="text-[10px]">{st.label}</Badge>
                         </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {sub.status === "active" && (
+                              <DropdownMenuItem onClick={() => { setActionSub(sub); setActionType("suspend"); }}>
+                                <Pause className="h-3.5 w-3.5 mr-2" /> Suspendre
+                              </DropdownMenuItem>
+                            )}
+                            {sub.status === "suspended" && (
+                              <DropdownMenuItem onClick={() => { setActionSub(sub); setActionType("resume"); }}>
+                                <RotateCcw className="h-3.5 w-3.5 mr-2" /> Réactiver
+                              </DropdownMenuItem>
+                            )}
+                            {sub.status !== "cancelled" && (
+                              <DropdownMenuItem onClick={() => { setActionSub(sub); setActionType("cancel"); }} className="text-destructive">
+                                <XCircle className="h-3.5 w-3.5 mr-2" /> Annuler
+                              </DropdownMenuItem>
+                            )}
+                            {sub.order_id && (
+                              <DropdownMenuItem onClick={() => navigate(`/admin/orders/${sub.order_id}`)}>
+                                <Settings className="h-3.5 w-3.5 mr-2" /> Voir la commande
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   );
@@ -162,6 +220,30 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
           </CardContent>
         </Card>
       ))}
+
+      {/* Service Action Confirmation */}
+      <AlertDialog open={!!actionType} onOpenChange={() => { setActionType(null); setActionSub(null); setActionReason(""); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {actionType === "suspend" ? "Suspendre le service" : actionType === "resume" ? "Réactiver le service" : "Annuler le service"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {actionSub?.plan_name} — {actionSub?.plan_code}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label>Raison</Label>
+            <Textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={2} placeholder="Raison (optionnel)..." />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleServiceAction} disabled={saving}>
+              {saving ? "En cours..." : "Confirmer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
