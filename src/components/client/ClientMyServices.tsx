@@ -52,6 +52,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
+import { ServicesByAddress } from "./ServicesByAddress";
 
 // Plans matching website exactly - DO NOT modify
 const AVAILABLE_PLANS = {
@@ -528,6 +529,7 @@ const ClientMyServices = () => {
         created_at: sub.created_at,
         cycle_start_date: sub.cycle_start_date,
         cycle_end_date: sub.cycle_end_date,
+        address_id: sub.address_id || sub.service_addresses?.id || null,
         address_label: sub.service_addresses?.label,
         address_line: sub.service_addresses?.address_line,
         address_city: sub.service_addresses?.city,
@@ -546,6 +548,7 @@ const ClientMyServices = () => {
       cycle_end_date: sub.cycle_end_date,
       parent_subscription_id: sub.id,
       parent_plan_name: sub.plan_name,
+      address_id: sub.address_id || sub.service_addresses?.id || null,
       address_label: sub.service_addresses?.label,
       address_line: sub.service_addresses?.address_line,
       address_city: sub.service_addresses?.city,
@@ -565,6 +568,7 @@ const ClientMyServices = () => {
         added_at: svc.added_at || svc.created_at,
         parent_plan_name: sub.plan_name,
         subscription_status: sub.status,
+        address_id: sub.address_id || sub.service_addresses?.id || null,
         address_label: sub.service_addresses?.label,
         address_line: sub.service_addresses?.address_line,
         address_city: sub.service_addresses?.city,
@@ -742,7 +746,7 @@ const ClientMyServices = () => {
           <TabsTrigger value="support">Support</TabsTrigger>
         </TabsList>
 
-        {/* Active Services Tab */}
+        {/* Active Services Tab — Grouped by Address */}
         <TabsContent value="services" className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="text-lg font-semibold text-foreground">Services actifs</h3>
@@ -758,184 +762,21 @@ const ClientMyServices = () => {
             <div className="space-y-3">
               {[1, 2].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />)}
             </div>
-          ) : allActiveServices.length > 0 ? (
-            <div className="space-y-4">
-              {allActiveServices.map((service: any) => {
-                const Icon = getServiceIcon(service.plan_name || service.service_type);
-                const category = getServiceCategory(service.plan_name || service.service_type);
-                const isPaused = service.status === "paused" || service.status === "suspended";
-                const isMobile = category === "mobile";
-                const isCancelled = service.status === "cancelled" || service.status === "expired";
-                const isPending = service.status === "pending";
-                
-                const statusBadge = (() => {
-                  switch (service.status) {
-                    case "active": return <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>;
-                    case "pending": return <Badge className="bg-amber-500/20 text-amber-500"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
-                    case "paused":
-                    case "suspended": return <Badge className="bg-amber-500/20 text-amber-500"><Pause className="w-3 h-3 mr-1" />Suspendu</Badge>;
-                    case "cancelled":
-                    case "expired": return <Badge className="bg-red-500/20 text-red-500">Annulé</Badge>;
-                    default: return <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>;
-                  }
-                })();
-                
-                return (
-                  <Card key={service.id} className={cn("bg-card border-border", isCancelled && "opacity-60")}>
-                    <CardContent className="p-4">
-                      <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                          <div className="flex items-start gap-4">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              isPaused || isCancelled ? "bg-amber-500/20" : isPending ? "bg-sky-500/20" : "bg-accent/20"
-                            }`}>
-                              <Icon className={`w-6 h-6 ${isPaused || isCancelled ? "text-amber-500" : isPending ? "text-sky-500" : "text-accent"}`} />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="font-semibold text-foreground">{service.plan_name}</h4>
-                                {statusBadge}
-                                {service.source === "billing_v2_service" && service.parent_plan_name && (
-                                  <span className="text-xs text-muted-foreground">
-                                    ({service.parent_plan_name})
-                                  </span>
-                                )}
-                              </div>
-                              {service.address_line && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <MapPin className="w-3 h-3" />
-                                  {service.address_label || service.address_line}{service.address_city ? `, ${service.address_city}` : ''}
-                                </p>
-                              )}
-                              <p className="text-sm text-muted-foreground">
-                                {Number(service.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/
-                                {service.billing_cycle === "monthly" ? "mois" : "an"}
-                              </p>
-                              {/* Effective dates */}
-                              {service.cycle_start_date && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Période: {format(new Date(service.cycle_start_date), "d MMM yyyy", { locale: fr })}
-                                  {service.cycle_end_date && ` — ${format(new Date(service.cycle_end_date), "d MMM yyyy", { locale: fr })}`}
-                                </p>
-                              )}
-                              {!service.cycle_start_date && service.created_at && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Depuis le {format(new Date(service.created_at), "d MMM yyyy", { locale: fr })}
-                                </p>
-                              )}
-                              
-                              {/* Service Tags */}
-                              <div className="flex gap-1 mt-2">
-                                {SERVICE_TAGS.slice(0, 2).map(tag => (
-                                  <Badge key={tag.value} variant="outline" className="text-xs">
-                                    {tag.label}
-                                  </Badge>
-                                ))}
-                              </div>
-
-                              {/* SLA Tier */}
-                              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                                <ShieldCheck className="w-3 h-3" />
-                                <span>SLA: Standard</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedService(service);
-                                setUpgradeDialogOpen(true);
-                              }}
-                            >
-                              <ArrowUpCircle className="w-4 h-4 mr-1" />
-                              Changer forfait
-                            </Button>
-                            
-                            <div className="flex gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedService(service);
-                                  setScheduleDialogOpen(true);
-                                }}
-                              >
-                                <CalendarIcon className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedService(service);
-                                  setSuspensionDialogOpen(true);
-                                }}
-                              >
-                                <Pause className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedService(service);
-                                  setHistoryDialogOpen(true);
-                                }}
-                              >
-                                <History className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Mobile plan details */}
-                        {isMobile && service.data_allowance && (
-                          <div className="ml-16 grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
-                            <div>
-                              <p className="text-xs text-muted-foreground">Données</p>
-                              <p className="text-sm font-medium text-foreground">{service.data_allowance}</p>
-                              {service.data_used > 0 && (
-                                <p className="text-xs text-cyan-500">{service.data_used} GB utilisés</p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Appels</p>
-                              <p className="text-sm font-medium text-foreground">{service.calls_allowance || "Illimités"}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground">Textos</p>
-                              <p className="text-sm font-medium text-foreground">{service.texts_allowance || "Illimités"}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* TV channels info */}
-                        {service.selected_channels && Array.isArray(service.selected_channels) && service.selected_channels.length > 0 && (
-                          <div className="ml-16 p-3 bg-muted/50 rounded-lg">
-                            <p className="text-xs text-muted-foreground mb-1">Chaînes ({service.selected_channels.length})</p>
-                            <p className="text-sm text-foreground line-clamp-1">
-                              {service.selected_channels.slice(0, 5).map((ch: any) => ch.name || ch).join(", ")}
-                              {service.selected_channels.length > 5 && ` +${service.selected_channels.length - 5}`}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
           ) : (
-            <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
-                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Aucun service actif</p>
-                <Button variant="hero" className="mt-4" asChild>
-                  <a href="/portal/new-order">Commander un service</a>
-                </Button>
-              </CardContent>
-            </Card>
+            <ServicesByAddress
+              services={allActiveServices}
+              equipment={activeEquipment}
+              onServiceAction={(action, svc) => {
+                setSelectedService(svc);
+                if (action === "upgrade") setUpgradeDialogOpen(true);
+                else if (action === "schedule") setScheduleDialogOpen(true);
+                else if (action === "history") setHistoryDialogOpen(true);
+              }}
+              onEquipmentReport={(eq) => {
+                setSelectedService(eq);
+                setIssueDialogOpen(true);
+              }}
+            />
           )}
         </TabsContent>
 
@@ -1071,69 +912,20 @@ const ClientMyServices = () => {
           )}
         </TabsContent>
 
-        {/* Equipment Tab — CANONICAL: billing_subscription_services where service_type='one_time' */}
+        {/* Equipment Tab — Grouped by Address */}
         <TabsContent value="equipment" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-foreground">Équipements associés</h3>
           </div>
 
-          {activeEquipment.length > 0 ? (
-            <div className="space-y-4">
-              <Card className="bg-emerald-500/5 border-emerald-500/20">
-                <CardContent className="p-3 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  <p className="text-sm text-emerald-600">Aucun problème d'équipement signalé</p>
-                </CardContent>
-              </Card>
-
-              {activeEquipment.map((eq: any) => (
-                <Card key={eq.id} className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Package className="w-5 h-5 text-cyan-500" />
-                          <h4 className="font-semibold text-foreground">{eq.service_name}</h4>
-                          <Badge className="bg-emerald-500/20 text-emerald-500">Actif</Badge>
-                        </div>
-                        <div className="space-y-1 text-sm">
-                          <p className="text-muted-foreground">Code: {eq.service_code}</p>
-                          <p className="text-muted-foreground">Forfait: {eq.parent_plan_name}</p>
-                          <p className="text-muted-foreground">
-                            Prix: {Number(eq.unit_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                            {eq.quantity > 1 && ` × ${eq.quantity}`}
-                          </p>
-                          {eq.added_at && (
-                            <p className="text-xs text-muted-foreground">
-                              Ajouté le {format(new Date(eq.added_at), "d MMM yyyy", { locale: fr })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedService(eq);
-                          setIssueDialogOpen(true);
-                        }}
-                      >
-                        <AlertTriangle className="w-4 h-4 mr-1" />
-                        Signaler problème
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
-                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Aucun équipement enregistré</p>
-              </CardContent>
-            </Card>
-          )}
+          <ServicesByAddress
+            services={[]}
+            equipment={activeEquipment}
+            onEquipmentReport={(eq) => {
+              setSelectedService(eq);
+              setIssueDialogOpen(true);
+            }}
+          />
         </TabsContent>
 
         {/* Mobile Tab */}

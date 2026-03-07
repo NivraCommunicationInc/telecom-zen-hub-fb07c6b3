@@ -12219,22 +12219,39 @@ export type Database = {
       }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
-      get_automatic_email_identity: {
-        Args: {
-          p_entity_id?: string
-          p_entity_type?: string
-          p_event_key: string
-          p_template_key: string
-          p_template_vars: Json
-        }
-        Returns: {
-          event_scope: string
-          event_type: string
-          event_version: string
-          is_manual: boolean
-          is_target: boolean
-        }[]
-      }
+      get_automatic_email_identity:
+        | {
+            Args: {
+              p_entity_id?: string
+              p_entity_type?: string
+              p_event_key: string
+              p_template_key: string
+              p_template_vars: Json
+            }
+            Returns: {
+              event_scope: string
+              event_type: string
+              event_version: string
+              is_manual: boolean
+              is_target: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_entity_id?: string
+              p_entity_type?: string
+              p_event_key: string
+              p_template_key: string
+              p_template_vars: Json
+            }
+            Returns: {
+              event_scope: string
+              event_type: string
+              event_version: string
+              is_manual: boolean
+              is_target: boolean
+            }[]
+          }
       get_client_balance: { Args: { p_client_id: string }; Returns: number }
       get_client_ledger_balance: {
         Args: { p_client_id: string }
