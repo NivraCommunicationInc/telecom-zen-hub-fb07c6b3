@@ -24,7 +24,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import {
   Router, Tv, Smartphone, HardDrive, Loader2, PlusCircle, MoreHorizontal,
-  Unlink, MapPin, RefreshCw, Sim, ArrowRightLeft, Edit,
+  Unlink, MapPin, RefreshCw, ArrowRightLeft, Edit,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
