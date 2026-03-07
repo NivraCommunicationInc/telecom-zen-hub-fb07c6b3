@@ -740,10 +740,13 @@ export function useOrderProcessing(orderId: string | undefined) {
         to_email: email,
         template_key: "order_completed",
         event_key: `order_completed_${orderId}_${Date.now()}`,
+        idempotency_key: `auto_order_completed_${orderId}`,
+        mode: "automatic",
         subject: "Votre commande est complétée — Nivra",
         entity_id: orderId,
         template_vars: {
           client_name: getClientName(),
+          order_id: orderId,
           order_number: data?.order?.order_number || "",
         },
       });
