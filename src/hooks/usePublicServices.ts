@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchNivraProducts, mapProductTypeToCategory, type NivraProduct } from "@/lib/api/nivraApi";
 
 export interface PublicService {
@@ -93,15 +94,34 @@ const extractDataInfo = (description: string): { autoTopUp: string; noTopUp: str
 };
 
 /**
- * Fetch products from the Nivra external API.
- * Maps API products to PublicService format for backward compatibility.
+ * Fetch active services from the database (admin-managed source of truth).
+ * Falls back to Nivra external API if DB returns empty.
  */
 export function usePublicServices() {
   return useQuery({
     queryKey: ["public-services"],
     queryFn: async () => {
-      const products = await fetchNivraProducts();
+      // Primary source: database services_public view (admin-managed)
+      const { data: dbServices, error } = await supabase
+        .from("services_public")
+        .select("id, name, category, price, description, billing_type")
+        .order("category", { ascending: true })
+        .order("price", { ascending: true });
 
+      if (!error && dbServices && dbServices.length > 0) {
+        return dbServices.map((s): PublicService => ({
+          id: s.id || "",
+          sku: "",
+          name: s.name || "",
+          category: s.category || "",
+          price: Number(s.price) || 0,
+          description: s.description || null,
+        }));
+      }
+
+      // Fallback: external API (for backward compatibility during transition)
+      console.warn("[usePublicServices] DB empty or error, falling back to external API");
+      const products = await fetchNivraProducts();
       return products.map((p): PublicService => ({
         id: p.id,
         sku: p.sku,
@@ -111,8 +131,8 @@ export function usePublicServices() {
         description: null,
       }));
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 30 * 1000, // 30 seconds — picks up admin changes quickly
+    refetchOnWindowFocus: true,
   });
 }
 
