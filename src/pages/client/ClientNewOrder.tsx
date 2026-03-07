@@ -241,6 +241,7 @@ interface OrderDraft {
   deliveryChoice: "standard" | "uber" | "shipHome" | null;
   selectedDate: string;
   selectedTime: string;
+  appointmentConfirmed?: boolean;
   notes: string;
   discountCode: string;
   installationCredit: number;
@@ -584,6 +585,7 @@ const ClientNewOrder = () => {
   // Appointment scheduling state
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
+  const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
 
   // Channel selection state (for TV orders)
   const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
@@ -690,6 +692,12 @@ const ClientNewOrder = () => {
         if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
         if (draft.selectedDate) setSelectedDate(draft.selectedDate);
         if (draft.selectedTime) setSelectedTime(draft.selectedTime);
+        if (typeof draft.appointmentConfirmed === "boolean") {
+          setAppointmentConfirmed(draft.appointmentConfirmed);
+        } else if (draft.selectedDate && draft.selectedTime) {
+          // Backward compatibility for drafts saved before appointmentConfirmed existed
+          setAppointmentConfirmed(true);
+        }
         if (draft.notes) setNotes(draft.notes);
         if (draft.discountCode) setDiscountCode(draft.discountCode);
         if (draft.installationCredit) setInstallationCredit(draft.installationCredit);
@@ -752,6 +760,7 @@ const ClientNewOrder = () => {
 
           setSelectedDate(normalizedHoldDate);
           setSelectedTime(hold.timeSlot || "");
+          setAppointmentConfirmed(true);
         }
       } catch (err) {
         console.error("[OrderWizard] Failed to restore appointment hold:", err);
@@ -785,6 +794,7 @@ const ClientNewOrder = () => {
       deliveryChoice,
       selectedDate,
       selectedTime,
+      appointmentConfirmed,
       notes,
       discountCode,
       installationCredit,
@@ -822,7 +832,7 @@ const ClientNewOrder = () => {
     terminalQuantity, mobileLineQuantities, mobileTransferChoice, transferPhoneNumber, transferCarrier,
     transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
-    selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
+    selectedTime, appointmentConfirmed, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
     verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
