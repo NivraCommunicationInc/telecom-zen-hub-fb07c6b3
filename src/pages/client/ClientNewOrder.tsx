@@ -261,6 +261,9 @@ interface OrderDraft {
   // KYC session persistence (survives refresh/crash/order failure)
   verificationSessionId: string | null;
   idVerificationApproved: boolean;
+  kycChoice: "reuse" | "restart" | null;
+  existingKycStatus: string | null;
+  existingKycCaseNumber: string | null;
   // Promo code details (persisted to survive PayPal redirect)
   appliedPromo: {
     id: string;
@@ -707,6 +710,9 @@ const ClientNewOrder = () => {
           localStorage.setItem('nivra_kyc_session_id', draft.verificationSessionId);
         }
         if (draft.idVerificationApproved) setIdVerificationApproved(draft.idVerificationApproved);
+        if (draft.kycChoice) setKycChoice(draft.kycChoice);
+        if (draft.existingKycStatus) setExistingKycStatus(draft.existingKycStatus);
+        if (draft.existingKycCaseNumber) setExistingKycCaseNumber(draft.existingKycCaseNumber);
         // Promo code details
         if (draft.appliedPromo) {
           setAppliedPromo(draft.appliedPromo);
@@ -725,6 +731,29 @@ const ClientNewOrder = () => {
     setIsHydrated(true);
     isInitialMount.current = false;
   }, []);
+
+  // Restore appointment hold from localStorage on mount (validates against DB)
+  useEffect(() => {
+    if (!isHydrated) return;
+    const restoreHold = async () => {
+      try {
+        const { restoreAppointmentHold } = await import("@/lib/appointmentHold");
+        const hold = await restoreAppointmentHold();
+        if (hold) {
+          console.log("[OrderWizard] Restored appointment hold:", hold.appointmentId, "date:", hold.scheduledAt, "time:", hold.timeSlot);
+          // Only update if current state is empty (don't overwrite draft-hydrated values)
+          if (!selectedDate && !selectedTime) {
+            const dateStr = hold.scheduledAt.split('T')[0];
+            if (dateStr) setSelectedDate(dateStr);
+            if (hold.timeSlot) setSelectedTime(hold.timeSlot);
+          }
+        }
+      } catch (err) {
+        console.error("[OrderWizard] Failed to restore appointment hold:", err);
+      }
+    };
+    restoreHold();
+  }, [isHydrated]);
 
   // Persist state to sessionStorage on changes (after hydration)
   useEffect(() => {
@@ -770,6 +799,9 @@ const ClientNewOrder = () => {
       // KYC session persistence (independent of order)
       verificationSessionId,
       idVerificationApproved,
+      kycChoice,
+      existingKycStatus,
+      existingKycCaseNumber,
       // Promo code details (persisted to survive PayPal redirect)
       appliedPromo,
       // PayPal payment state
@@ -788,7 +820,7 @@ const ClientNewOrder = () => {
     selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
-    verificationSessionId, idVerificationApproved,
+    verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
     appliedPromo, paypalCaptureId, paymentComplete, paymentMethod
   ]);
 
@@ -800,8 +832,15 @@ const ClientNewOrder = () => {
   }, [verificationSessionId]);
 
   // Restore existing KYC session from DB on mount — strict policy, no silent bypass
+  // CRITICAL: Skip if draft already hydrated valid KYC state (prevents overwriting completed state)
   useEffect(() => {
     if (!user?.id || !isHydrated) return;
+    
+    // If draft hydration already restored a valid KYC choice + session, don't re-query and risk resetting
+    if (kycChoice && verificationSessionId && (idVerificationApproved || existingKycStatus)) {
+      console.log("[KYC] Skipping DB restore — draft already has valid KYC state:", kycChoice, existingKycStatus);
+      return;
+    }
     
     const restoreKycSession = async () => {
       try {
