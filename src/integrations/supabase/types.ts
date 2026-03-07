@@ -11935,37 +11935,21 @@ export type Database = {
         }
         Returns: Json
       }
-      apply_payment_to_invoice:
-        | {
-            Args: {
-              p_amount: number
-              p_created_by_name?: string
-              p_created_by_role?: string
-              p_customer_id?: string
-              p_invoice_id: string
-              p_method?: string
-              p_provider?: string
-              p_provider_order_id?: string
-              p_provider_payment_id?: string
-              p_source?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_created_by_name?: string
-              p_created_by_role?: string
-              p_customer_id?: string
-              p_invoice_id: string
-              p_method?: string
-              p_provider?: string
-              p_provider_order_id?: string
-              p_provider_payment_id?: string
-              p_source?: string
-            }
-            Returns: Json
-          }
+      apply_payment_to_invoice: {
+        Args: {
+          p_amount: number
+          p_created_by_name?: string
+          p_created_by_role?: string
+          p_customer_id?: string
+          p_invoice_id: string
+          p_method?: string
+          p_provider?: string
+          p_provider_order_id?: string
+          p_provider_payment_id?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
       approve_kyc_session: {
         Args: { p_decision: string; p_note?: string; p_session_id: string }
         Returns: Json
