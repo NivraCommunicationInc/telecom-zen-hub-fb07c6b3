@@ -258,12 +258,18 @@ export function useOrderProcessing(orderId: string | undefined) {
         .select("*")
         .eq("order_id", orderId!);
 
-      // Fetch invoice from billing_invoices
-      const { data: invoice } = await supabase
+      // Fetch canonical invoice from billing_invoices (prefer open invoice if multiple)
+      const { data: invoices } = await supabase
         .from("billing_invoices")
         .select("*")
         .eq("order_id", orderId!)
-        .maybeSingle();
+        .order("created_at", { ascending: false });
+
+      const invoice = (invoices || []).find((inv: any) => {
+        const status = String(inv?.status || "").toLowerCase();
+        const balanceDue = Number(inv?.balance_due ?? 0);
+        return !["paid", "paid_by_promo", "void", "cancelled"].includes(status) && balanceDue > 0;
+      }) || (invoices?.[0] ?? null);
 
       // Fetch contracts
       const { data: contracts } = await supabase
@@ -320,6 +326,8 @@ export function useOrderProcessing(orderId: string | undefined) {
       const enrichedOrder = {
         ...order,
         _kycSessionStatus: kycSession?.status || null,
+        _invoice_status: invoice?.status || null,
+        _invoice_balance_due: invoice?.balance_due ?? null,
       };
 
       return {
@@ -420,66 +428,87 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Confirm payment ── */
   const confirmPayment = async (reference?: string) => {
     try {
-      if (data?.invoice) {
-        // Check if invoice is already fully paid (prevent duplicate)
-        if (data.invoice.status === "paid" || (data.invoice.balance_due !== null && Number(data.invoice.balance_due) <= 0)) {
-          toast.info("Cette facture est déjà payée");
+      const targetInvoice = data?.invoice;
+      if (!targetInvoice?.id) {
+        throw new Error("Aucune facture canonique liée à cette commande");
+      }
+
+      const currentStatus = String(targetInvoice.status || "").toLowerCase();
+      const currentBalanceDue = Number(targetInvoice.balance_due ?? 0);
+
+      if (["paid", "paid_by_promo", "void", "cancelled"].includes(currentStatus) || currentBalanceDue <= 0) {
+        toast.info("Cette facture est déjà réglée");
+        return;
+      }
+
+      const amountToApply = Number(targetInvoice.balance_due ?? targetInvoice.total ?? 0);
+      if (amountToApply <= 0) {
+        toast.info("Aucun solde à confirmer");
+        return;
+      }
+
+      const { data: rpcResult, error } = await supabase.rpc("apply_payment_to_invoice" as any, {
+        p_invoice_id: targetInvoice.id,
+        p_amount: amountToApply,
+        p_method: data?.order?.payment_method || "interac",
+        p_provider: "admin_manual_confirmation",
+        p_provider_payment_id: reference || `admin-${Date.now()}`,
+        p_source: "admin",
+        p_created_by_name: user?.email || "Admin",
+        p_created_by_role: "admin",
+        p_customer_id: targetInvoice.customer_id || null,
+      });
+
+      if (error) throw error;
+
+      const rpcPayload = (rpcResult || {}) as any;
+      if (!rpcPayload.success) {
+        const message = rpcPayload.error || "Échec de synchronisation du paiement";
+        if (rpcPayload.already_paid) {
+          toast.info("Cette facture est déjà réglée");
           return;
         }
-
-        const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
-          p_invoice_id: data.invoice.id,
-          p_amount: Number(data.invoice.balance_due ?? data.invoice.total),
-          p_method: data.order?.payment_method || "manual",
-          p_provider: "admin",
-          p_provider_payment_id: reference || `admin-${Date.now()}`,
-          p_source: "admin",
-          p_created_by_name: user?.email || "Admin",
-          p_created_by_role: "admin",
-          p_customer_id: data.invoice.customer_id || null,
-        });
-        if (error) throw error;
-      } else {
-        await updateOrder.mutateAsync({
-          payment_status: "confirmed",
-          payment_confirmed_at: new Date().toISOString(),
-          payment_reference: reference || "admin-confirmed",
-        });
+        throw new Error(message);
       }
-    } catch (err: any) {
-      if (err?.message?.includes("function") || err?.code === "PGRST202") {
-        await updateOrder.mutateAsync({
-          payment_status: "confirmed",
-          payment_confirmed_at: new Date().toISOString(),
-          payment_reference: reference || "admin-confirmed",
-        });
-      } else {
-        throw err;
-      }
-    }
 
-    await logActivity("payment_confirmed", "order", orderId, { reference });
-
-    // Queue email notification
-    const email = getClientEmail();
-    if (email) {
-      await queueClientEmail({
-        to_email: email,
-        template_key: "payment_confirmed",
-        event_key: `payment_confirmed_${orderId}_${Date.now()}`,
-        subject: "Confirmation de paiement — Nivra",
-        entity_id: orderId,
-        template_vars: {
-          client_name: getClientName(),
-          order_number: data?.order?.order_number || "",
-          amount: data?.invoice?.total || data?.order?.total_amount || 0,
-          reference: reference || "",
-        },
+      await updateOrder.mutateAsync({
+        payment_confirmed_at: new Date().toISOString(),
+        payment_reference: reference || data?.order?.payment_reference || "admin-confirmed",
       });
-    }
 
-    invalidateAll();
-    toast.success("Paiement confirmé");
+      await logActivity("payment_confirmed", "order", orderId, {
+        reference,
+        invoice_id: targetInvoice.id,
+        invoice_number: targetInvoice.invoice_number,
+        amount_applied: amountToApply,
+        rpc_result: rpcPayload,
+      });
+
+      // Queue email notification
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "payment_confirmed",
+          event_key: `payment_confirmed_${orderId}_${Date.now()}`,
+          subject: "Confirmation de paiement — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_number: data?.order?.order_number || "",
+            amount: amountToApply,
+            reference: reference || "",
+          },
+        });
+      }
+
+      invalidateAll();
+      toast.success("Paiement confirmé et synchronisé");
+    } catch (err: any) {
+      console.error("[OrderProcessing] confirmPayment failed:", err);
+      toast.error(err?.message || "Erreur lors de la confirmation du paiement");
+      throw err;
+    }
   };
 
   /* ── Mark payment invalid ── */
