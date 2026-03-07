@@ -44,8 +44,10 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization") || "";
   const authPresent = authHeader.startsWith("Bearer ");
 
+  const corsHeaders = makeCorsHeaders(origin);
+
   const responseHeaders = {
-    ...CORS_HEADERS,
+    ...corsHeaders,
     "request-id": requestId,
     "x-request-id": requestId,
   };
