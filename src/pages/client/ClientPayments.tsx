@@ -10,6 +10,7 @@ import { CreditCard, Banknote, Wrench, Mail, Copy, Check, Info, ExternalLink, Do
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import AutoPayEnrollment from "@/components/client/AutoPayEnrollment";
+import { PaymentHistoryV2 } from "@/components/client/PaymentHistoryV2";
 
 const ClientPayments = () => {
   const { user } = useClientAuth();
@@ -116,6 +117,9 @@ const ClientPayments = () => {
 
         {/* Pre-authorized Payments / Auto-Pay */}
         <AutoPayEnrollment />
+
+        {/* Payment History - V2 canonical source */}
+        {user?.id && <PaymentHistoryV2 userId={user.id} />}
 
         {/* PayPal Section */}
         <Card className="bg-card border-blue-500/30 border-2">
