@@ -732,6 +732,29 @@ const ClientNewOrder = () => {
     isInitialMount.current = false;
   }, []);
 
+  // Restore appointment hold from localStorage on mount (validates against DB)
+  useEffect(() => {
+    if (!isHydrated) return;
+    const restoreHold = async () => {
+      try {
+        const { restoreAppointmentHold } = await import("@/lib/appointmentHold");
+        const hold = await restoreAppointmentHold();
+        if (hold) {
+          console.log("[OrderWizard] Restored appointment hold:", hold.appointmentId, "date:", hold.scheduledAt, "time:", hold.timeSlot);
+          // Only update if current state is empty (don't overwrite draft-hydrated values)
+          if (!selectedDate && !selectedTime) {
+            const dateStr = hold.scheduledAt.split('T')[0];
+            if (dateStr) setSelectedDate(dateStr);
+            if (hold.timeSlot) setSelectedTime(hold.timeSlot);
+          }
+        }
+      } catch (err) {
+        console.error("[OrderWizard] Failed to restore appointment hold:", err);
+      }
+    };
+    restoreHold();
+  }, [isHydrated]);
+
   // Persist state to sessionStorage on changes (after hydration)
   useEffect(() => {
     if (!isHydrated) return;
