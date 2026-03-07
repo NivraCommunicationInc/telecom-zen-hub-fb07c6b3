@@ -199,6 +199,9 @@ const INVALIDATION_KEYS = [
   "client-billing-payments-canonical",
   "ledger-history-v2",
   "ledger-balance",
+  "service-addresses",
+  "address-service-counts",
+  "client-services-orders",
   "overdue-count-unified",
   "admin-activity-logs",
 ];
