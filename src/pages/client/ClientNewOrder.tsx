@@ -948,7 +948,7 @@ const ClientNewOrder = () => {
           category: s.category || "",
         }));
     },
-    staleTime: 30 * 1000, // 30 seconds — short to pick up admin changes quickly
+    staleTime: 0, // Always revalidate — realtime subscription in usePublicServices handles instant sync
     refetchOnWindowFocus: true,
   });
 
