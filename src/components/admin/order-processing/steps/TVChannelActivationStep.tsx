@@ -181,7 +181,7 @@ export function TVChannelActivationStep({ proc }: Props) {
     );
   };
 
-  const persistSelection = async (activateOnAccount: boolean) => {
+  const persistSelection = async () => {
     if (!order?.id || !order?.user_id) {
       throw new Error("Commande invalide");
     }
