@@ -95,6 +95,27 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 <span>{businessHours}</span>
               </div>
             </div>
+
+            <div className="flex items-center gap-3 mt-4">
+              <a
+                href="https://www.facebook.com/profile.php?id=61584408712750"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-white transition-colors"
+                aria-label="Facebook"
+              >
+                <Facebook className="w-5 h-5" />
+              </a>
+              <a
+                href="https://www.instagram.com/nivratelecom/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-white transition-colors"
+                aria-label="Instagram"
+              >
+                <Instagram className="w-5 h-5" />
+              </a>
+            </div>
           </div>
 
           {/* Services */}
