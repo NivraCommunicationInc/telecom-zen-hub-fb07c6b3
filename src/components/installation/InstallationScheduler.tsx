@@ -195,14 +195,6 @@ export function InstallationScheduler({
         console.log("[InstallationScheduler] Hold created:", hold.appointmentId);
       }
 
-      // Legacy: also call book_slot RPC if both IDs exist
-      if (slotId && installationId) {
-        const { data } = await portalClient.rpc("book_slot", {
-          p_slot_id: slotId,
-          p_installation_id: installationId,
-        });
-        console.log("[InstallationScheduler] book_slot result:", data);
-      }
     } finally {
       setHoldLoading(false);
     }
