@@ -744,12 +744,14 @@ const ClientNewOrder = () => {
         const hold = await restoreAppointmentHold();
         if (hold) {
           console.log("[OrderWizard] Restored appointment hold:", hold.appointmentId, "date:", hold.scheduledAt, "time:", hold.timeSlot);
-          // Only update if current state is empty (don't overwrite draft-hydrated values)
-          if (!selectedDate && !selectedTime) {
-            const dateStr = hold.scheduledAt.split('T')[0];
-            if (dateStr) setSelectedDate(dateStr);
-            if (hold.timeSlot) setSelectedTime(hold.timeSlot);
-          }
+          // HOLD is the source of truth for appointment restoration on checkout reload/back navigation
+          const normalizedHoldDate = (() => {
+            const parsed = new Date(hold.scheduledAt);
+            return Number.isNaN(parsed.getTime()) ? hold.scheduledAt : parsed.toISOString();
+          })();
+
+          setSelectedDate(normalizedHoldDate);
+          setSelectedTime(hold.timeSlot || "");
         }
       } catch (err) {
         console.error("[OrderWizard] Failed to restore appointment hold:", err);
