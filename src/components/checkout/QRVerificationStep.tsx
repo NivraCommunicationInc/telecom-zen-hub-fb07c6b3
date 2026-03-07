@@ -278,7 +278,8 @@ export const QRVerificationStep = ({
       const data = (responseBody || {}) as Record<string, any>;
 
       // Use server-side QR PNG if available, otherwise generate client-side
-      const verifyUrl = data.verify_url;
+      const fetchedVerifyUrl = data.verify_url;
+      setVerifyUrl(fetchedVerifyUrl || null);
       let qrImage = data.qr_png || data.qr_data_url;
 
       if (!qrImage && verifyUrl) {
