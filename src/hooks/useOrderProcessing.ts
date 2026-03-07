@@ -64,7 +64,7 @@ function computeInstallationEstimate(order: any, appointment: any): {
 }
 
 /* ─── Dynamic workflow per order type ─── */
-function buildWorkflow(order: any): WorkflowStep[] {
+function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
   const serviceType = (order?.service_type || "").toLowerCase();
   const hasKyc = order?.kyc_policy !== "none" && order?.kyc_policy !== "skip";
 
@@ -119,10 +119,10 @@ function buildWorkflow(order: any): WorkflowStep[] {
     );
   }
 
-  return computeStepStatuses(base, order);
+  return computeStepStatuses(base, order, channelSelection);
 }
 
-function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] {
+function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any): WorkflowStep[] {
   if (!order) return steps;
 
   return steps.map((step) => {
@@ -154,7 +154,7 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
         else if ((order._kycSessionStatus || order.id_verification_status) === "rejected") status = "blocked";
         break;
       case "fulfillment":
-        if (order.fulfillment_type) status = "completed";
+        if (order.fulfillment_type && (order.service_location_id || order.shipping_address || order.client_full_address)) status = "completed";
         break;
       case "equipment":
         if (order.equipment_id || order.sim_number || order.serial_number) status = "completed";
@@ -165,9 +165,16 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
       case "contracts":
         if (order.related_contract_id) status = "completed";
         break;
-      case "tv_channels":
-        if (order.tv_channels_activated) status = "completed";
+      case "tv_channels": {
+        const channelStatus = String(channelSelection?.status || "").toLowerCase();
+        const hasChannels =
+          (Array.isArray(channelSelection?.channels) && channelSelection.channels.length > 0) ||
+          (Array.isArray(order?.selected_channels) && order.selected_channels.length > 0);
+        if (channelStatus === "activated" || (hasChannels && order.channel_selection_locked === true)) {
+          status = "completed";
+        }
         break;
+      }
       case "shipping":
         if (order.tracking_number || order.shipped_at || order.technician_id || order.status === "delivered") status = "completed";
         break;
