@@ -71,13 +71,20 @@ const AdminLogin = () => {
     };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
 
+    const formData = new FormData(e.currentTarget);
+    const submittedEmail = String(formData.get("email") ?? email).trim();
+    const submittedPassword = String(formData.get("password") ?? password);
+
+    if (submittedEmail !== email) setEmail(submittedEmail);
+    if (submittedPassword !== password) setPassword(submittedPassword);
+
     if (isForgotPassword) {
       // Forgot password flow
-      const emailResult = z.string().email("Adresse courriel invalide").safeParse(email);
+      const emailResult = z.string().email("Adresse courriel invalide").safeParse(submittedEmail);
       if (!emailResult.success) {
         setErrors({ email: emailResult.error.errors[0].message });
         return;
@@ -86,7 +93,7 @@ const AdminLogin = () => {
       setIsSubmitting(true);
 
       const redirectUrl = `${window.location.origin}/admin/reset-password`;
-      const { error } = await adminClient.auth.resetPasswordForEmail(email, {
+      const { error } = await adminClient.auth.resetPasswordForEmail(submittedEmail, {
         redirectTo: redirectUrl,
       });
 
@@ -108,7 +115,7 @@ const AdminLogin = () => {
       setIsSubmitting(false);
     } else {
       // Login flow: email + password, then secret code
-      const result = loginSchema.safeParse({ email, password });
+      const result = loginSchema.safeParse({ email: submittedEmail, password: submittedPassword });
       if (!result.success) {
         const fieldErrors: Record<string, string> = {};
         result.error.errors.forEach((err) => {
@@ -124,22 +131,23 @@ const AdminLogin = () => {
 
       // Authenticate with email/password via adminClient
       const { data, error: signInError } = await adminClient.auth.signInWithPassword({
-        email,
-        password,
+        email: submittedEmail,
+        password: submittedPassword,
       });
 
-      console.log("[AdminLogin] sign-in result", { 
-        hasUser: !!data?.user, 
-        hasSession: !!data?.session, 
-        error: signInError 
+      console.log("[AdminLogin] sign-in result", {
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
+        error: signInError,
       });
 
       if (signInError) {
         toast({
           title: "Erreur de connexion",
-          description: signInError.message === "Invalid login credentials" 
-            ? "Identifiants invalides" 
-            : signInError.message,
+          description:
+            signInError.message === "Invalid login credentials"
+              ? "Identifiants invalides"
+              : signInError.message,
           variant: "destructive",
         });
         setIsSubmitting(false);
@@ -199,10 +207,9 @@ const AdminLogin = () => {
         // Credentials OK - Show secret code dialog
         console.log("[AdminLogin] Credentials verified, showing secret code dialog");
         setPendingUserId(authUser.id);
-        setPendingUserEmail(authUser.email || email);
+        setPendingUserEmail(authUser.email || submittedEmail);
         setShowSecretDialog(true);
         setIsSubmitting(false);
-
       } catch (err: any) {
         await adminClient.auth.signOut();
         toast({
@@ -319,7 +326,9 @@ const AdminLogin = () => {
                 </Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@nivra.ca"
@@ -343,7 +352,9 @@ const AdminLogin = () => {
                   <div className="relative">
                     <Input
                       id="password"
+                      name="password"
                       type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
