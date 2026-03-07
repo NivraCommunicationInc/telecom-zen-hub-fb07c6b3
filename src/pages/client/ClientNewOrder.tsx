@@ -710,6 +710,9 @@ const ClientNewOrder = () => {
           localStorage.setItem('nivra_kyc_session_id', draft.verificationSessionId);
         }
         if (draft.idVerificationApproved) setIdVerificationApproved(draft.idVerificationApproved);
+        if (draft.kycChoice) setKycChoice(draft.kycChoice);
+        if (draft.existingKycStatus) setExistingKycStatus(draft.existingKycStatus);
+        if (draft.existingKycCaseNumber) setExistingKycCaseNumber(draft.existingKycCaseNumber);
         // Promo code details
         if (draft.appliedPromo) {
           setAppliedPromo(draft.appliedPromo);
@@ -773,6 +776,9 @@ const ClientNewOrder = () => {
       // KYC session persistence (independent of order)
       verificationSessionId,
       idVerificationApproved,
+      kycChoice,
+      existingKycStatus,
+      existingKycCaseNumber,
       // Promo code details (persisted to survive PayPal redirect)
       appliedPromo,
       // PayPal payment state
@@ -791,7 +797,7 @@ const ClientNewOrder = () => {
     selectedTime, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
-    verificationSessionId, idVerificationApproved,
+    verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
     appliedPromo, paypalCaptureId, paymentComplete, paymentMethod
   ]);
 
