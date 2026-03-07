@@ -277,9 +277,10 @@ interface OrderDraft {
     referral_code_id?: string;
     influencer_id?: string;
   } | null;
-  // PayPal payment state (persisted to avoid double-charging after redirect)
+  // Payment state (persisted to avoid double-charging after redirect)
   paypalCaptureId: string;
   paymentComplete: boolean;
+  paymentConfirmationNumber: string;
   paymentMethod: "credit_card" | "etransfer" | "paypal" | "promo_free" | null;
 }
 
@@ -743,9 +744,10 @@ const ClientNewOrder = () => {
           setAppliedPromo(draft.appliedPromo);
           console.log("[OrderWizard] Restored appliedPromo:", draft.appliedPromo.code, "discount:", draft.appliedPromo.discount_amount);
         }
-        // Payment state (critical for PayPal redirect)
+        // Payment state (critical — must restore ALL payment fields)
         if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
         if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
+        if (draft.paymentConfirmationNumber) setPaymentConfirmationNumber(draft.paymentConfirmationNumber);
         if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
       }
     } catch (e) {
@@ -833,9 +835,10 @@ const ClientNewOrder = () => {
       existingKycCaseNumber,
       // Promo code details (persisted to survive PayPal redirect)
       appliedPromo,
-      // PayPal payment state
+      // Payment state (all methods)
       paypalCaptureId,
       paymentComplete,
+      paymentConfirmationNumber,
       paymentMethod,
     };
     
@@ -2960,9 +2963,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // Check if ID details are complete
   const isIdComplete = idType && idNumber && idExpiration && idProvince;
   
-  // Check if payment is complete (including PayPal captures from redirect)
-  const isPaymentComplete = (paymentComplete && paymentConfirmationNumber) || 
-    (paymentMethod === "paypal" && paypalCaptureId);
+  // Check if payment is complete (paymentComplete is the authoritative flag, set only after valid confirmation)
+  const isPaymentComplete = paymentComplete || 
+    (paymentMethod === "paypal" && !!paypalCaptureId);
   
   // Validate credit card format
   const isCardValid = cardNumber.replace(/\s/g, '').length >= 15 && 
