@@ -134,10 +134,20 @@ function computeStepStatuses(steps: WorkflowStep[], order: any): WorkflowStep[] 
       case "order_review":
         if (order.status !== "pending" && order.status !== "submitted") status = "completed";
         break;
-      case "payment":
-        if (["paid", "captured", "confirmed"].includes(order.payment_status || "")) status = "completed";
-        else if (order.payment_status === "failed") status = "blocked";
+      case "payment": {
+        const invoiceStatus = String(order._invoice_status || "").toLowerCase();
+        const invoiceBalanceDue = Number(order._invoice_balance_due ?? NaN);
+
+        if (invoiceStatus === "paid" || (!Number.isNaN(invoiceBalanceDue) && invoiceBalanceDue <= 0)) {
+          status = "completed";
+        } else if (order.payment_status === "failed") {
+          status = "blocked";
+        } else if (["paid", "captured", "confirmed"].includes(order.payment_status || "")) {
+          // Backward-compatible fallback when invoice data is not available
+          status = "completed";
+        }
         break;
+      }
       case "kyc":
         // Read canonical KYC status from the linked session first, fallback to order field
         if ((order._kycSessionStatus || order.id_verification_status) === "approved") status = "completed";
