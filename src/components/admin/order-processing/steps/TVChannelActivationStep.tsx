@@ -2,12 +2,10 @@
  * TVChannelActivationStep — TV channel selection review, adjustment & activation
  * Shows customer's selected channels, allows admin to confirm/adjust, and activate on account.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tv, CheckCircle2, Loader2, Save, RefreshCw, Zap } from "lucide-react";
+import { Tv, CheckCircle2, Loader2, Save, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { adminClient as supabase } from "@/integrations/backend";
 
