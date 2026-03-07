@@ -5,12 +5,29 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "https://nivra-telecom.ca",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "content-type, authorization, x-nivra-debug",
-  "Cache-Control": "no-store",
-};
+const ALLOWED_ORIGINS = [
+  "https://nivra-telecom.ca",
+  "https://www.nivra-telecom.ca",
+  "https://telecom-zen-hub.lovable.app",
+];
+
+function getCorsOrigin(origin: string): string {
+  if (ALLOWED_ORIGINS.includes(origin)) return origin;
+  if (origin.endsWith(".lovable.app") || origin.endsWith(".lovableproject.com")) return origin;
+  if (origin.startsWith("http://localhost:")) return origin;
+  return ALLOWED_ORIGINS[0];
+}
+
+function makeCorsHeaders(origin: string) {
+  return {
+    "Access-Control-Allow-Origin": getCorsOrigin(origin),
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization, x-nivra-debug, apikey, x-client-info",
+    "Access-Control-Allow-Credentials": "true",
+    "Vary": "Origin",
+    "Cache-Control": "no-store",
+  };
+}
 
 /** SHA-256 hash a string and return hex */
 async function hashToken(token: string): Promise<string> {
