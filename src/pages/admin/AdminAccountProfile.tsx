@@ -139,11 +139,12 @@ export default function AdminAccountProfile() {
               <AccountSupportTab
                 tickets={data.tickets}
                 appointments={data.appointments}
+                clientId={data.clientId}
               />
             </TabsContent>
 
             <TabsContent value="streaming">
-              <AccountStreamingTab subscriptions={data.subscriptions} />
+              <AccountStreamingTab subscriptions={data.subscriptions} clientId={data.clientId} />
             </TabsContent>
 
             <TabsContent value="communications">
