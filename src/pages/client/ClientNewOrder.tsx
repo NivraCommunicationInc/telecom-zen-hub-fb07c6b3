@@ -577,7 +577,7 @@ const ClientNewOrder = () => {
   const [serviceAddressPostalCode, setServiceAddressPostalCode] = useState("");
   
   // Installation choice state
-  const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>(null);
+  const [installationChoice, setInstallationChoice] = useState<"auto" | "technician" | null>(DEFAULT_INSTALLATION_CHOICE);
   
   // Delivery choice state (for delivery-only orders: Mobile, Streaming, Accessories, Equipment)
   const [deliveryChoice, setDeliveryChoice] = useState<"standard" | "uber" | "shipHome" | null>(null);
@@ -586,6 +586,12 @@ const ClientNewOrder = () => {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+
+  useEffect(() => {
+    if (!isDeliveryOnlyOrder && installationChoice !== DEFAULT_INSTALLATION_CHOICE) {
+      setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
+    }
+  }, [isDeliveryOnlyOrder, installationChoice]);
 
   // Channel selection state (for TV orders)
   const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
@@ -688,7 +694,11 @@ const ClientNewOrder = () => {
         if (draft.transferValidationResult) setTransferValidationResult(draft.transferValidationResult);
         if (draft.assignedPhoneNumber) setAssignedPhoneNumber(draft.assignedPhoneNumber);
         setSimType("physical"); // enforced: no SIM choice in client checkout
-        if (draft.installationChoice) setInstallationChoice(draft.installationChoice);
+        if (INSTALLATION_APPOINTMENT_ENABLED && draft.installationChoice) {
+          setInstallationChoice(draft.installationChoice);
+        } else {
+          setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
+        }
         if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
         if (draft.selectedDate) setSelectedDate(draft.selectedDate);
         if (draft.selectedTime) setSelectedTime(draft.selectedTime);
@@ -745,7 +755,7 @@ const ClientNewOrder = () => {
 
   // Restore appointment hold from localStorage on mount (validates against DB)
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !INSTALLATION_APPOINTMENT_ENABLED) return;
     const restoreHold = async () => {
       try {
         const { restoreAppointmentHold } = await import("@/lib/appointmentHold");
@@ -2172,7 +2182,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       // The hold was already created when the user selected a slot (persisted in DB + localStorage)
       const requiresInstallationService = hasInternetService || hasTVService || selectedServices.some(s => s.category === "Sécurité");
       const hasScheduledSlot = selectedDate && selectedTime;
-      const shouldConfirmAppointment = requiresInstallationService && hasScheduledSlot;
+      const shouldConfirmAppointment = INSTALLATION_APPOINTMENT_ENABLED && requiresInstallationService && hasScheduledSlot;
       
       if (shouldConfirmAppointment) {
         try {
@@ -2940,8 +2950,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     return acc;
   }, {} as Record<string, Service[]>);
 
-  // Check if installation appointment is required (only for technician installation)
-  const requiresInstallation = installationChoice === "technician" && selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category));
+  // Check if installation appointment is required (disabled in checkout flow)
+  const requiresInstallation = INSTALLATION_APPOINTMENT_ENABLED && installationChoice === "technician" && selectedServices.some(s => ["Internet", "TV", "Sécurité"].includes(s.category));
   
   // Check if ID details are complete
   const isIdComplete = idType && idNumber && idExpiration && idProvince;
@@ -4609,22 +4619,25 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardContent>
                 </Card>
               ) : (
-                /* Installation — Coax Quick-Check + Smart Slot Picker */
-                <InstallationScheduler
-                  isFrench={true}
-                  fallbackDistanceKm={20}
-                  selectedDate={selectedDate}
-                  selectedTime={selectedTime}
-                  confirmedAppointment={appointmentConfirmed}
-                  onDateTimeChange={(date, time) => {
-                    setSelectedDate(date);
-                    setSelectedTime(time);
-                  }}
-                  onAppointmentConfirmedChange={setAppointmentConfirmed}
-                  onInstallationTypeChange={(type, level) => {
-                    setInstallationChoice(type);
-                  }}
-                />
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="w-5 h-5 text-primary" />
+                      Installation
+                    </CardTitle>
+                    <CardDescription>
+                      La prise de rendez-vous a été retirée du formulaire de commande.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-muted border border-border">
+                      <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <p className="text-sm text-foreground">
+                        Votre installation sera planifiée automatiquement après la confirmation de la commande.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               {/* ——— SECTION 4: Identity (read-only / locked) ——— */}
