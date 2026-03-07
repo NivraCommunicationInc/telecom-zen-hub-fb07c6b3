@@ -1,145 +1,235 @@
 /**
- * TVChannelActivationStep — TV channel selection review, adjustment & activation
- * Shows customer's selected channels, allows admin to confirm/adjust, and activate on account.
+ * TVChannelActivationStep — workflow admin TV complet
+ * - Affiche la sélection client
+ * - Affiche tout le catalogue actif
+ * - Permet correction, confirmation et activation
  */
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { adminClient as supabase } from "@/integrations/backend";
+import { toast } from "sonner";
+import { Tv, CheckCircle2, Loader2, Save, Zap, Search } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tv, CheckCircle2, Loader2, Save, Zap } from "lucide-react";
-import { toast } from "sonner";
-import { adminClient as supabase } from "@/integrations/backend";
+import { Input } from "@/components/ui/input";
 
-interface Props { proc: any; }
+interface Props {
+  proc: any;
+}
 
-interface ChannelItem {
-  id: string;
+interface ChannelOption {
+  key: string;
+  id: string | null;
   name: string;
   category: string;
   price: number;
   selected: boolean;
+  fromCatalog: boolean;
 }
 
-interface PersistedChannel {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
+function normalizeText(value: string): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
-function normalizeChannelPayload(channels: ChannelItem[]): PersistedChannel[] {
+function toMoney(value: unknown): number {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizePersistedChannels(channels: ChannelOption[]) {
   return channels.map((ch) => ({
-    id: ch.id,
+    id: ch.id || normalizeText(ch.name).replace(/\s+/g, "-"),
     name: ch.name,
     category: ch.category || "Autre",
-    price: Number(ch.price || 0),
+    price: toMoney(ch.price),
   }));
+}
+
+function mergeChannels(source: any[], catalog: any[]): ChannelOption[] {
+  const byKey = new Map<string, ChannelOption>();
+  const catalogById = new Map<string, ChannelOption>();
+  const catalogByName = new Map<string, ChannelOption>();
+
+  for (const row of catalog) {
+    const id = row?.id ? String(row.id) : null;
+    if (!id) continue;
+
+    const option: ChannelOption = {
+      key: `id:${id}`,
+      id,
+      name: String(row?.name || "Canal inconnu"),
+      category: String(row?.category || "Autre"),
+      price: toMoney(row?.monthly_price),
+      selected: false,
+      fromCatalog: true,
+    };
+
+    byKey.set(option.key, option);
+    catalogById.set(id, option);
+    catalogByName.set(normalizeText(option.name), option);
+  }
+
+  for (let i = 0; i < source.length; i += 1) {
+    const row = source[i] || {};
+    const sourceId = row.id ? String(row.id) : null;
+    const sourceName = String(row.name || row.channel_name || `Canal ${i + 1}`);
+    const sourceNameKey = normalizeText(sourceName);
+
+    const matched =
+      (sourceId ? catalogById.get(sourceId) : undefined) ||
+      catalogByName.get(sourceNameKey);
+
+    if (matched) {
+      byKey.set(matched.key, { ...matched, selected: true });
+      continue;
+    }
+
+    const key = sourceId ? `id:${sourceId}` : `name:${sourceNameKey}`;
+    byKey.set(key, {
+      key,
+      id: sourceId,
+      name: sourceName,
+      category: String(row.category || "Autre"),
+      price: toMoney(row.price ?? row.monthly_price),
+      selected: true,
+      fromCatalog: false,
+    });
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => {
+    const cat = a.category.localeCompare(b.category, "fr", { sensitivity: "base" });
+    if (cat !== 0) return cat;
+    return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
+  });
 }
 
 export function TVChannelActivationStep({ proc }: Props) {
   const { order, channelSelection } = proc;
-  const [channels, setChannels] = useState<ChannelItem[]>([]);
-  const [loading, setLoading] = useState<string | null>(null);
-  const [allChannels, setAllChannels] = useState<any[]>([]);
 
-  // Load selected channels from channel_selections, fallback to order.selected_channels
+  const [catalogChannels, setCatalogChannels] = useState<any[]>([]);
+  const [channelOptions, setChannelOptions] = useState<ChannelOption[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState<"save" | "activate" | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("tv_channels")
+        .select("id, name, category, monthly_price")
+        .eq("is_active", true)
+        .order("category")
+        .order("name");
+
+      if (error) {
+        console.error("[TVChannels] Catalog load error:", error);
+        toast.error("Impossible de charger le catalogue TV");
+        return;
+      }
+
+      setCatalogChannels(data || []);
+    })();
+  }, []);
+
   useEffect(() => {
     const sourceChannels =
       (Array.isArray(channelSelection?.channels) && channelSelection.channels) ||
       (Array.isArray(order?.selected_channels) && order.selected_channels) ||
       [];
 
-    const items: ChannelItem[] = sourceChannels.map((ch: any, index: number) => ({
-      id: String(ch.id || ch.channel_id || ch.channelId || `${ch.name || "channel"}-${index}`),
-      name: ch.name || ch.channel_name || "Canal inconnu",
-      category: ch.category || "Autre",
-      price: Number(ch.price || ch.monthly_price || 0),
-      selected: true,
-    }));
+    setChannelOptions(mergeChannels(sourceChannels, catalogChannels));
+  }, [catalogChannels, channelSelection?.channels, order?.selected_channels]);
 
-    setChannels(items);
-  }, [channelSelection, order?.selected_channels]);
+  const selectedChannels = useMemo(
+    () => channelOptions.filter((c) => c.selected),
+    [channelOptions],
+  );
 
-  // Fetch available TV channels for adding
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("tv_channels")
-        .select("id, name, category, monthly_price")
-        .eq("is_active", true)
-        .order("category")
-        .order("name");
-      setAllChannels(data || []);
-    })();
-  }, []);
+  const groupedSelected = useMemo(() => {
+    return selectedChannels.reduce<Record<string, ChannelOption[]>>((acc, channel) => {
+      if (!acc[channel.category]) acc[channel.category] = [];
+      acc[channel.category].push(channel);
+      return acc;
+    }, {});
+  }, [selectedChannels]);
 
-  const toggleChannel = (id: string) => {
-    setChannels(prev => prev.map(ch =>
-      ch.id === id ? { ...ch, selected: !ch.selected } : ch
-    ));
+  const filteredCatalog = useMemo(() => {
+    const needle = normalizeText(search);
+    if (!needle) return channelOptions;
+
+    return channelOptions.filter((channel) => {
+      return (
+        normalizeText(channel.name).includes(needle) ||
+        normalizeText(channel.category).includes(needle)
+      );
+    });
+  }, [channelOptions, search]);
+
+  const totalPrice = useMemo(
+    () => selectedChannels.reduce((sum, ch) => sum + toMoney(ch.price), 0),
+    [selectedChannels],
+  );
+
+  const toggleChannel = (key: string) => {
+    setChannelOptions((prev) =>
+      prev.map((channel) =>
+        channel.key === key ? { ...channel, selected: !channel.selected } : channel,
+      ),
+    );
   };
 
-  const addChannel = (ch: any) => {
-    if (channels.find(c => c.id === ch.id)) return;
-    setChannels(prev => [...prev, {
-      id: ch.id,
-      name: ch.name,
-      category: ch.category || "Autre",
-      price: ch.monthly_price || 0,
-      selected: true,
-    }]);
-  };
+  const persistSelection = async () => {
+    if (!order?.id || !order?.user_id) {
+      throw new Error("Commande invalide");
+    }
 
-  const selectedChannels = channels.filter(c => c.selected);
-  const totalPrice = selectedChannels.reduce((sum, ch) => sum + ch.price, 0);
+    if (selectedChannels.length === 0) {
+      throw new Error("Sélectionnez au moins une chaîne");
+    }
+
+    const nowIso = new Date().toISOString();
+
+    const payload = {
+      user_id: order.user_id,
+      order_id: order.id,
+      channels: normalizePersistedChannels(selectedChannels),
+      total_price: totalPrice,
+      status: "confirmed", // valeur valide selon channel_selections_status_check
+      confirmed_at: nowIso,
+      confirmed_by: proc.currentUserId || "system",
+      updated_at: nowIso,
+      created_at: nowIso,
+    };
+
+    const { error: upsertError } = await supabase
+      .from("channel_selections")
+      .upsert(payload, { onConflict: "order_id" });
+
+    if (upsertError) throw upsertError;
+
+    await proc.updateOrder({
+      selected_channels: normalizePersistedChannels(selectedChannels),
+      channel_selection_locked: true,
+      tv_channels_count: selectedChannels.length,
+      tv_total_price: totalPrice,
+      channel_assigned_by: proc.currentUserId || order?.channel_assigned_by || null,
+      updated_at: nowIso,
+    });
+
+    await proc.refetch();
+  };
 
   const handleSaveSelection = async () => {
     setLoading("save");
     try {
-      if (!order?.id || !order?.user_id) {
-        throw new Error("Commande invalide");
-      }
-
-      if (selectedChannels.length === 0) {
-        throw new Error("Sélectionnez au moins une chaîne");
-      }
-
-      const payload = {
-        user_id: order.user_id,
-        order_id: order.id,
-        channels: normalizeChannelPayload(selectedChannels),
-        total_price: totalPrice,
-        status: "confirmed",
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: proc.currentUserId || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (channelSelection?.id) {
-        const { error } = await supabase
-          .from("channel_selections")
-          .update(payload)
-          .eq("id", channelSelection.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("channel_selections")
-          .insert({ ...payload, created_at: new Date().toISOString() });
-        if (error) throw error;
-      }
-
-      await proc.updateOrder({
-        selected_channels: normalizeChannelPayload(selectedChannels),
-        channel_selection_locked: true,
-        tv_channels_count: selectedChannels.length,
-        tv_total_price: totalPrice,
-        updated_at: new Date().toISOString(),
-      });
-
-      toast.success("Sélection de chaînes sauvegardée");
-      await proc.refetch();
-    } catch (err: any) {
-      console.error("[TVChannels] Save error:", err);
-      toast.error(err?.message || "Erreur lors de la sauvegarde");
+      await persistSelection();
+      toast.success("Sélection TV confirmée");
+    } catch (error: any) {
+      console.error("[TVChannels] Confirm error:", error);
+      toast.error(error?.message || "Erreur lors de la confirmation");
     } finally {
       setLoading(null);
     }
@@ -148,163 +238,132 @@ export function TVChannelActivationStep({ proc }: Props) {
   const handleActivateChannels = async () => {
     setLoading("activate");
     try {
-      if (!order?.id || !order?.user_id) {
-        throw new Error("Commande invalide");
-      }
-
-      if (selectedChannels.length === 0) {
-        throw new Error("Sélectionnez au moins une chaîne avant activation");
-      }
-
-      const payload = {
-        user_id: order.user_id,
-        order_id: order.id,
-        channels: normalizeChannelPayload(selectedChannels),
-        total_price: totalPrice,
-        status: "activated",
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: proc.currentUserId || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (channelSelection?.id) {
-        const { error } = await supabase
-          .from("channel_selections")
-          .update(payload)
-          .eq("id", channelSelection.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("channel_selections")
-          .insert({ ...payload, created_at: new Date().toISOString() });
-        if (error) throw error;
-      }
-
-      await proc.updateOrder({
-        selected_channels: normalizeChannelPayload(selectedChannels),
-        channel_selection_locked: true,
-        tv_channels_activated: true,
-        tv_channels_count: selectedChannels.length,
-        tv_total_price: totalPrice,
-        updated_at: new Date().toISOString(),
-      });
-
-      toast.success(`${selectedChannels.length} chaîne(s) activée(s) sur le compte client`);
-      await proc.refetch();
-    } catch (err: any) {
-      console.error("[TVChannels] Activate error:", err);
-      toast.error(err?.message || "Erreur lors de l'activation");
+      await persistSelection();
+      toast.success("Chaînes activées sur le compte client");
+    } catch (error: any) {
+      console.error("[TVChannels] Activate error:", error);
+      toast.error(error?.message || "Erreur lors de l'activation");
     } finally {
       setLoading(null);
     }
   };
 
-  const isActivated = channelSelection?.status === "activated";
-  const isConfirmed = channelSelection?.status === "confirmed";
-
-  // Group channels by category
-  const grouped = selectedChannels.reduce<Record<string, ChannelItem[]>>((acc, ch) => {
-    if (!acc[ch.category]) acc[ch.category] = [];
-    acc[ch.category].push(ch);
-    return acc;
-  }, {});
+  const isActivated =
+    ["activated", "completed", "delivered", "installation_completed"].includes(String(order?.status || "").toLowerCase()) &&
+    channelSelection?.status === "confirmed";
+  const isConfirmed = !isActivated && channelSelection?.status === "confirmed";
 
   return (
-    <div>
-      <h3 className="text-base font-bold text-gray-900 mb-4">Chaînes TV — Sélection & Activation</h3>
+    <div className="space-y-4">
+      <h3 className="text-base font-semibold text-foreground">Chaînes TV — Révision, confirmation et activation</h3>
 
-      {/* Status badge */}
       {isActivated && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 mb-4">
-          <p className="text-sm text-emerald-800 flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4" /> Chaînes activées sur le compte client
-          </p>
-        </div>
-      )}
-      {isConfirmed && !isActivated && (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
-          <p className="text-sm text-blue-800 flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4" /> Sélection confirmée — en attente d'activation
+        <div className="rounded-lg border border-border bg-muted/40 p-3">
+          <p className="flex items-center gap-2 text-sm text-foreground">
+            <CheckCircle2 className="h-4 w-4" /> Chaînes activées sur le compte client
           </p>
         </div>
       )}
 
-      {!channelSelection && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-          <p className="text-sm text-amber-800">Aucune sélection de chaînes trouvée pour cette commande.</p>
+      {isConfirmed && (
+        <div className="rounded-lg border border-border bg-muted/40 p-3">
+          <p className="flex items-center gap-2 text-sm text-foreground">
+            <CheckCircle2 className="h-4 w-4" /> Sélection confirmée (en attente d'activation)
+          </p>
         </div>
       )}
 
-      {/* Customer's selected channels */}
-      {channels.length > 0 && (
-        <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase">Chaînes sélectionnées par le client</h4>
-            <span className="text-xs text-gray-500">{selectedChannels.length} chaîne(s) — {totalPrice.toFixed(2)} $/mois</span>
-          </div>
-          {Object.entries(grouped).map(([cat, chs]) => (
-            <div key={cat} className="mb-3">
-              <p className="text-xs font-semibold text-gray-600 mb-1">{cat}</p>
-              <div className="space-y-1">
-                {chs.map(ch => (
-                  <label key={ch.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 rounded px-2 py-1">
-                    <Checkbox
-                      checked={ch.selected}
-                      onCheckedChange={() => toggleChannel(ch.id)}
-                    />
-                    <span className="flex-1 text-gray-900">{ch.name}</span>
-                    <span className="text-xs text-gray-500 tabular-nums">{ch.price.toFixed(2)} $</span>
-                  </label>
-                ))}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Sélection actuelle du client
+          </h4>
+          <span className="text-xs text-muted-foreground">
+            {selectedChannels.length} chaîne(s) — {totalPrice.toFixed(2)} $/mois
+          </span>
+        </div>
+
+        {selectedChannels.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune chaîne sélectionnée pour le moment.</p>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(groupedSelected).map(([category, channels]) => (
+              <div key={category} className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{category}</p>
+                <div className="space-y-1">
+                  {channels.map((channel) => (
+                    <label
+                      key={channel.key}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+                    >
+                      <Checkbox
+                        checked={channel.selected}
+                        onCheckedChange={() => toggleChannel(channel.key)}
+                      />
+                      <span className="flex-1 text-sm text-foreground">{channel.name}</span>
+                      <span className="text-xs tabular-nums text-muted-foreground">{toMoney(channel.price).toFixed(2)} $</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add more channels from catalog */}
-      {allChannels.length > 0 && !isActivated && (
-        <details className="mb-4">
-          <summary className="text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-700 uppercase">
-            + Ajouter des chaînes du catalogue
-          </summary>
-          <div className="mt-2 max-h-48 overflow-y-auto space-y-1 bg-white rounded border border-gray-200 p-2">
-            {allChannels
-              .filter(ch => !channels.find(c => c.id === ch.id))
-              .map(ch => (
-                <button
-                  key={ch.id}
-                  onClick={() => addChannel(ch)}
-                  className="flex items-center gap-2 w-full text-left text-sm px-2 py-1 rounded hover:bg-gray-50"
-                >
-                  <Tv className="w-3 h-3 text-gray-400" />
-                  <span className="flex-1 text-gray-700">{ch.name}</span>
-                  <span className="text-xs text-gray-500">{ch.category}</span>
-                  <span className="text-xs text-gray-500 tabular-nums">{(ch.monthly_price || 0).toFixed(2)} $</span>
-                </button>
-              ))}
+            ))}
           </div>
-        </details>
-      )}
+        )}
+      </div>
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
-        <Button
-          size="sm"
-          onClick={handleSaveSelection}
-          disabled={loading === "save" || isActivated}
-          className="text-xs h-8 bg-gray-900 text-white hover:bg-gray-800"
-        >
-          {loading === "save" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Catalogue complet (sélection + autres chaînes disponibles)
+          </h4>
+          <span className="text-xs text-muted-foreground">{filteredCatalog.length} affichée(s)</span>
+        </div>
+
+        <div className="relative mb-3">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Rechercher une chaîne ou catégorie…"
+            className="pl-8"
+          />
+        </div>
+
+        <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-border bg-background p-2">
+          {filteredCatalog.length === 0 ? (
+            <p className="px-1 py-2 text-sm text-muted-foreground">Aucun résultat.</p>
+          ) : (
+            filteredCatalog.map((channel) => (
+              <label
+                key={channel.key}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+              >
+                <Checkbox
+                  checked={channel.selected}
+                  onCheckedChange={() => toggleChannel(channel.key)}
+                />
+                <Tv className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="flex-1 text-sm text-foreground">{channel.name}</span>
+                <span className="text-xs text-muted-foreground">{channel.category}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{toMoney(channel.price).toFixed(2)} $</span>
+              </label>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+        <Button size="sm" onClick={handleSaveSelection} disabled={loading !== null || selectedChannels.length === 0}>
+          {loading === "save" ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
           Confirmer la sélection
         </Button>
         <Button
           size="sm"
+          variant="secondary"
           onClick={handleActivateChannels}
-          disabled={loading === "activate" || isActivated || selectedChannels.length === 0}
-          className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+          disabled={loading !== null || selectedChannels.length === 0}
         >
-          {loading === "activate" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Zap className="w-3 h-3 mr-1" />}
+          {loading === "activate" ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Zap className="mr-1 h-3 w-3" />}
           Activer sur le compte
         </Button>
       </div>

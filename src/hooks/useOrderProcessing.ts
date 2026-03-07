@@ -170,7 +170,8 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
         const hasChannels =
           (Array.isArray(channelSelection?.channels) && channelSelection.channels.length > 0) ||
           (Array.isArray(order?.selected_channels) && order.selected_channels.length > 0);
-        if (channelStatus === "activated" || (hasChannels && order.channel_selection_locked === true)) {
+        if ((channelStatus === "confirmed" && hasChannels && order.channel_selection_locked === true) ||
+            (["activated", "completed", "delivered", "installation_completed"].includes(String(order?.status || "").toLowerCase()) && hasChannels)) {
           status = "completed";
         }
         break;
@@ -357,7 +358,7 @@ export function useOrderProcessing(orderId: string | undefined) {
             user_id: order.user_id,
             order_id: order.id,
             channels: order.selected_channels,
-            status: order.channel_selection_locked ? "confirmed" : "draft",
+            status: order.channel_selection_locked ? "confirmed" : "pending",
             total_price: 0,
           };
         }
@@ -465,10 +466,13 @@ export function useOrderProcessing(orderId: string | undefined) {
         to_email: email,
         template_key: templateKey,
         event_key: `order_status_${orderId}_${newStatus}_${Date.now()}`,
+        idempotency_key: `auto_order_status_${orderId}_${newStatus}`,
+        mode: "automatic",
         subject: `Mise à jour de votre commande — ${newStatus}`,
         entity_id: orderId,
         template_vars: {
           client_name: getClientName(),
+          order_id: orderId,
           order_number: data?.order?.order_number || "",
           old_status: oldStatus,
           new_status: newStatus,
@@ -547,10 +551,15 @@ export function useOrderProcessing(orderId: string | undefined) {
           to_email: email,
           template_key: "payment_confirmed",
           event_key: `payment_confirmed_${orderId}_${Date.now()}`,
+          idempotency_key: `auto_payment_confirmed_${orderId}_${targetInvoice.id}`,
+          mode: "automatic",
           subject: "Confirmation de paiement — Nivra",
           entity_id: orderId,
           template_vars: {
             client_name: getClientName(),
+            order_id: orderId,
+            invoice_id: targetInvoice.id,
+            invoice_number: targetInvoice.invoice_number || "",
             order_number: data?.order?.order_number || "",
             amount: amountToApply,
             reference: reference || "",
@@ -682,11 +691,13 @@ export function useOrderProcessing(orderId: string | undefined) {
     await queueClientEmail({
       to_email: email,
       template_key: templateKey,
-      event_key: `${templateKey}_${orderId}_${Date.now()}`,
+      event_key: `manual_${templateKey}_${orderId}_${Date.now()}`,
+      mode: "manual",
       subject,
       entity_id: orderId,
       template_vars: {
         client_name: getClientName(),
+        order_id: orderId,
         order_number: data?.order?.order_number || "",
         ...extraVars,
       },
@@ -730,10 +741,13 @@ export function useOrderProcessing(orderId: string | undefined) {
         to_email: email,
         template_key: "order_completed",
         event_key: `order_completed_${orderId}_${Date.now()}`,
+        idempotency_key: `auto_order_completed_${orderId}`,
+        mode: "automatic",
         subject: "Votre commande est complétée — Nivra",
         entity_id: orderId,
         template_vars: {
           client_name: getClientName(),
+          order_id: orderId,
           order_number: data?.order?.order_number || "",
         },
       });
