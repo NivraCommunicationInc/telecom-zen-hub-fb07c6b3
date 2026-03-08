@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
+import { notifyNivraCorePaid } from "@/lib/nivraCore";
 
 interface CustomerInfo {
   first_name?: string;
@@ -26,6 +27,8 @@ interface PayPalButtonProps {
   orderId?: string;
   description?: string;
   customer?: CustomerInfo;
+  /** Payment number from Nivra Core — used to notify backend after capture */
+  paymentNumber?: string;
   onSuccess?: (captureId: string) => void;
   onError?: (error: string) => void;
   onCancel?: () => void;
@@ -49,6 +52,7 @@ export const PayPalButton = ({
   orderId,
   description,
   customer,
+  paymentNumber,
   onSuccess,
   onError,
   onCancel,
@@ -205,6 +209,16 @@ export const PayPalButton = ({
           if (!captureData?.capture_id) throw new Error("No capture ID returned");
 
           toast.success("Paiement PayPal réussi!");
+
+          // Notify Nivra Core backend (fire-and-forget)
+          if (paymentNumber) {
+            notifyNivraCorePaid({
+              paymentNumber,
+              paypalOrderId: data.orderID,
+              paypalCaptureId: captureData.capture_id,
+            });
+          }
+
           callbacksRef.current.onSuccess?.(captureData.capture_id);
         } catch (err) {
           console.error("PayPal capture error:", err);

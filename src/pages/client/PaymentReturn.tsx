@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { Button } from "@/components/ui/button";
 import ClientLayout from "@/components/client/ClientLayout";
 
@@ -23,6 +24,7 @@ const PaymentReturn = () => {
 
   useEffect(() => {
     const token = params.get("token"); // PayPal order ID
+    const paymentNumber = params.get("payment_number"); // Nivra Core payment number
     if (!token) {
       setStatus("error");
       setErrorMsg("Aucun identifiant de commande PayPal trouvé.");
@@ -44,6 +46,15 @@ const PaymentReturn = () => {
         setCaptureDetails(data);
         setStatus("success");
         toast.success("Paiement confirmé!");
+
+        // Notify Nivra Core backend (fire-and-forget)
+        if (paymentNumber && data.capture_id) {
+          notifyNivraCorePaid({
+            paymentNumber,
+            paypalOrderId: token,
+            paypalCaptureId: data.capture_id,
+          });
+        }
 
         // ★ Invalidate ALL billing-related queries for instant UI refresh
         queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
