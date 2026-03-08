@@ -24,6 +24,7 @@ const PaymentReturn = () => {
 
   useEffect(() => {
     const token = params.get("token"); // PayPal order ID
+    const paymentNumber = params.get("payment_number"); // Nivra Core payment number
     if (!token) {
       setStatus("error");
       setErrorMsg("Aucun identifiant de commande PayPal trouvé.");
