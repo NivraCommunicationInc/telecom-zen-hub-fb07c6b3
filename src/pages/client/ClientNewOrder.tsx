@@ -3375,47 +3375,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
               <div className="sticky top-6">
                 <ProfessionalOrderSummary
-                  selectedServices={selectedServices}
-                  selectedMobileServices={selectedMobileServices}
-                  mobileLineQuantities={mobileLineQuantities}
-                  totalMobileLineQuantity={totalMobileLineQuantity}
-                  selectedPaidChannels={selectedPaidChannels}
-                  paidChannelTotal={paidChannelTotal}
-                  selectedStreamingAddons={selectedStreamingServices}
-                  streamingAddonsTotal={streamingAddonsTotal}
-                  monthlyRecurring={monthlyRecurring}
-                  oneTimeFees={oneTimeFees}
-                  oneTimeFeesGross={oneTimeFeesGross}
-                  activationFee={activationFee}
-                  deliveryFee={deliveryFee}
-                  installationFee={installationFee}
-                  terminalFee={terminalFee}
-                  routerFee={routerFee}
-                  simFee={simFee}
-                  simCreditAmount={simCreditAmount}
-                  simDeliveryCreditAmount={simDeliveryCreditAmount}
-                  terminalQuantity={terminalQuantity}
-                  baseAmount={baseAmount}
-                  tpsAmount={tpsAmount}
-                  tvqAmount={tvqAmount}
-                  totalAmount={totalAmount}
-                  oneTimeFeesWithTax={oneTimeFeesWithTax}
-                  monthlyRecurringWithTax={monthlyRecurringWithTax}
-                  hasMobileService={hasMobileService}
-                  hasTVService={hasTVService}
-                  hasInternetService={hasInternetService}
-                  isEquipmentOnlyOrder={isEquipmentOnlyOrder}
-                  isDeliveryOnlyOrder={isDeliveryOnlyOrder}
-                  deliveryChoice={deliveryChoice}
-                  installationChoice={installationChoice}
+                  pricing={authoritativePricing}
+                  isLoading={isServerPricingLoading}
+                  selectedServicesCount={selectedServices.length}
                   onContinue={() => setStep(2)}
                   continueDisabled={selectedServices.length === 0}
-                  welcomeDiscount={{
-                    isNewCustomer: welcomeDiscountHook.isNewCustomer,
-                    discountPercent: welcomeDiscountHook.discountPercent,
-                    discountAmount: welcomeDiscountAmount,
-                    label: welcomeDiscountHook.label,
-                  }}
                 />
                 <SecurityTrustBox isFrench={true} />
               </div>
