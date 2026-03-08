@@ -1877,6 +1877,16 @@ const ClientNewOrder = () => {
       });
       console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
 
+      // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
+      // PayPal payment happened before order submission, so paypalCaptureId is already set
+      if (paypalCaptureId && nivraOrderResponse.payment_number) {
+        notifyNivraCorePaid({
+          paymentNumber: nivraOrderResponse.payment_number,
+          paypalOrderId: paypalCaptureId, // The PayPal order ID used as capture ref
+          paypalCaptureId: paypalCaptureId,
+        });
+      }
+
       // Use external API response as authoritative pricing
       const serverPricing = {
         grand_total: nivraOrderResponse.total,
