@@ -2801,53 +2801,37 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     user?.id,
   ]);
 
-  // === UNIFIED CHECKOUT PRICING — ALL VALUES FROM SERVER ===
-  // Zero client-side tax/total math. All derived from liveServerPricing (computeCheckoutPricing RPC)
-  // or Nivra Core response at order submission.
+  // === UNIFIED CHECKOUT PRICING — SINGLE AUTHORITATIVE OBJECT ===
+  const authoritativePricing = nivraCoreOrderPricing
+    ? {
+        subtotal: Number(nivraCoreOrderPricing.subtotal),
+        gst: Number(nivraCoreOrderPricing.gst),
+        qst: Number(nivraCoreOrderPricing.qst),
+        total: Number(nivraCoreOrderPricing.total),
+        orderNumber: nivraCoreOrderPricing.order_number,
+        invoiceNumber: nivraCoreOrderPricing.invoice_number,
+        paymentNumber: nivraCoreOrderPricing.payment_number,
+      }
+    : liveServerPricing
+      ? {
+          subtotal: Number(liveServerPricing.taxable_base),
+          gst: Number(liveServerPricing.tps_amount),
+          qst: Number(liveServerPricing.tvq_amount),
+          total: Number(liveServerPricing.grand_total),
+        }
+      : null;
 
-  // Derived display values — default to 0 until server responds
-  const todayTaxableBase = liveServerPricing?.taxable_base ?? 0;
-  const todayTps = liveServerPricing?.tps_amount ?? 0;
-  const todayTvq = liveServerPricing?.tvq_amount ?? 0;
-  const todayTotal = liveServerPricing?.grand_total ?? 0;
-  const monthlyRecurringNet = Math.max(0, monthlyRecurring - totalDiscount);
+  const todayTaxableBase = authoritativePricing?.subtotal ?? 0;
+  const todayTps = authoritativePricing?.gst ?? 0;
+  const todayTvq = authoritativePricing?.qst ?? 0;
+  const todayTotal = authoritativePricing?.total ?? 0;
 
-  // Future monthly values from server (recurring without first-cycle-only discounts)
-  const monthlyFutureDiscount = ((appliedPromo as any)?.duration === 'first_cycle_only' ? 0 : promoDiscount);
-  const monthlyFutureNet = Math.max(0, monthlyRecurring - monthlyFutureDiscount);
+  // Keep legacy aliases for existing flow, but all values now come from authoritativePricing.
+  const monthlyRecurringNet = todayTaxableBase;
+  const monthlyTaxes = todayTps + todayTvq;
+  const monthlyRecurringWithTax = todayTotal;
+  const oneTimeFeesWithTax = todayTotal;
 
-  // All tax breakdowns from server — no hardcoded rates
-  const serverOneTimeTps = liveServerPricing ? round2((liveServerPricing.tps_amount * oneTimeFees) / Math.max(1, liveServerPricing.taxable_base)) : 0;
-  const serverOneTimeTvq = liveServerPricing ? round2((liveServerPricing.tvq_amount * oneTimeFees) / Math.max(1, liveServerPricing.taxable_base)) : 0;
-  const oneTimeTps = serverOneTimeTps;
-  const oneTimeTvq = serverOneTimeTvq;
-  const oneTimeTaxes = round2(oneTimeTps + oneTimeTvq);
-  const oneTimeTotalWithTax = round2(oneTimeFees + oneTimeTaxes);
-
-  const monthlyNetTps = liveServerPricing ? round2(liveServerPricing.tps_amount - serverOneTimeTps) : 0;
-  const monthlyNetTvq = liveServerPricing ? round2(liveServerPricing.tvq_amount - serverOneTimeTvq) : 0;
-  const monthlyNetTaxes = round2(monthlyNetTps + monthlyNetTvq);
-  const monthlyNetWithTax = round2(monthlyRecurringNet + monthlyNetTaxes);
-
-  // Monthly gross taxes (from server proportional split)
-  const monthlyTps = monthlyNetTps;
-  const monthlyTvq = monthlyNetTvq;
-  const monthlyTaxes = monthlyNetTaxes;
-  const monthlyRecurringWithTax = monthlyNetWithTax;
-
-  // Future monthly with taxes — use same server tax rates
-  const serverTpsRate = liveServerPricing && liveServerPricing.taxable_base > 0
-    ? liveServerPricing.tps_amount / liveServerPricing.taxable_base : 0.05;
-  const serverTvqRate = liveServerPricing && liveServerPricing.taxable_base > 0
-    ? liveServerPricing.tvq_amount / liveServerPricing.taxable_base : 0.09975;
-  const monthlyFutureTps = round2(monthlyFutureNet * serverTpsRate);
-  const monthlyFutureTvq = round2(monthlyFutureNet * serverTvqRate);
-  const monthlyFutureTotal = round2(monthlyFutureNet + monthlyFutureTps + monthlyFutureTvq);
-
-  // Legacy aliases
-  const oneTimeFeesWithTax = oneTimeTotalWithTax;
-
-  // Step 7: Reuse the same pricing object across all steps
   const baseAmount = todayTaxableBase;
   const tpsAmount = todayTps;
   const tvqAmount = todayTvq;
