@@ -1876,6 +1876,7 @@ const ClientNewOrder = () => {
         customer_email: customerEmail,
         items: nivraItems,
       });
+      setNivraCoreOrderPricing(nivraOrderResponse);
       console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
 
       // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
