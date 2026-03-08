@@ -77,7 +77,7 @@ import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
 import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
-import { InstallationScheduler } from "@/components/installation/InstallationScheduler";
+import { InstallationSection } from "@/components/checkout/InstallationSection";
 
 interface Service {
   id: string;
