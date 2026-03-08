@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
+import { notifyNivraCorePaid } from "@/lib/nivraCore";
 
 interface CustomerInfo {
   first_name?: string;
