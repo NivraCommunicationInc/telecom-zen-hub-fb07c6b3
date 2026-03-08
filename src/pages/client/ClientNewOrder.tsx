@@ -589,15 +589,17 @@ const ClientNewOrder = () => {
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
 
+  // Initialize installation choice for installable services (only on first selection, not on every change)
   useEffect(() => {
     const hasInstallableService = selectedServices.some((service) =>
       ["Internet", "TV", "Sécurité"].includes(service.category)
     );
 
-    if (hasInstallableService && installationChoice !== DEFAULT_INSTALLATION_CHOICE) {
+    // Only set default if no choice has been made yet (null)
+    if (hasInstallableService && installationChoice === null) {
       setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
     }
-  }, [selectedServices, installationChoice]);
+  }, [selectedServices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Channel selection state (for TV orders)
   const [selectedFreeChannels, setSelectedFreeChannels] = useState<Channel[]>([]);
