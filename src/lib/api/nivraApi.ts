@@ -27,16 +27,16 @@ export interface NivraCreateOrderPayload {
 }
 
 export interface NivraOrderResponse {
-  order_id: string;
+  order_id: number;
   order_number: string;
   subtotal: number;
   gst: number;
   qst: number;
   total: number;
   /** Payment number returned by Nivra Core — used to notify mark-paid after PayPal capture */
-  payment_number?: string;
+  payment_number: string;
   /** Invoice number returned by Nivra Core */
-  invoice_number?: string;
+  invoice_number: string;
 }
 
 // ── Category mapping (API product_type → internal category) ──
