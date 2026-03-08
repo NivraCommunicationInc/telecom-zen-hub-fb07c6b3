@@ -209,6 +209,16 @@ export const PayPalButton = ({
           if (!captureData?.capture_id) throw new Error("No capture ID returned");
 
           toast.success("Paiement PayPal réussi!");
+
+          // Notify Nivra Core backend (fire-and-forget)
+          if (paymentNumber) {
+            notifyNivraCorePaid({
+              paymentNumber,
+              paypalOrderId: data.orderID,
+              paypalCaptureId: captureData.capture_id,
+            });
+          }
+
           callbacksRef.current.onSuccess?.(captureData.capture_id);
         } catch (err) {
           console.error("PayPal capture error:", err);
