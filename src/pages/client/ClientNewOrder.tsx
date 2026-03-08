@@ -206,7 +206,7 @@ const generateQuebecPhoneNumber = (): string => {
 };
 
 const ORDER_DRAFT_KEY = "nivra_order_draft";
-const INSTALLATION_APPOINTMENT_ENABLED = false;
+const INSTALLATION_APPOINTMENT_ENABLED = true;
 const DEFAULT_INSTALLATION_CHOICE: "auto" | "technician" = "auto";
 
 // Streaming service interface for Streaming+ add-ons
