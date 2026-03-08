@@ -52,6 +52,7 @@ export const PayPalButton = ({
   orderId,
   description,
   customer,
+  paymentNumber,
   onSuccess,
   onError,
   onCancel,
