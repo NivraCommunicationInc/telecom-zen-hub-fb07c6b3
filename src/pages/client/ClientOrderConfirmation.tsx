@@ -380,9 +380,13 @@ END:VCALENDAR`;
   const tvqAmount = hasSnapshot ? Number(ps.tvq_amount) : (order.tvq_amount ?? 0);
   const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.total_amount ?? 0);
   
-  // Future monthly total (recurring net + taxes on recurring net only)
-  const monthlyTps = Math.round(monthlyRecurringNet * 0.05 * 100) / 100;
-  const monthlyTvq = Math.round(monthlyRecurringNet * 0.09975 * 100) / 100;
+  // Future monthly total — derived from pricing_snapshot tax rates (no hardcoded rates)
+  const snapshotTpsRate = (hasSnapshot && Number(ps.taxable_base) > 0) 
+    ? Number(ps.tps_amount) / Number(ps.taxable_base) : 0.05;
+  const snapshotTvqRate = (hasSnapshot && Number(ps.taxable_base) > 0) 
+    ? Number(ps.tvq_amount) / Number(ps.taxable_base) : 0.09975;
+  const monthlyTps = Math.round(monthlyRecurringNet * snapshotTpsRate * 100) / 100;
+  const monthlyTvq = Math.round(monthlyRecurringNet * snapshotTvqRate * 100) / 100;
   const monthlyWithTaxes = Math.round((monthlyRecurringNet + monthlyTps + monthlyTvq) * 100) / 100;
 
   // Determine fulfillment type

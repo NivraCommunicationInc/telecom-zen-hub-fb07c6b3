@@ -1,7 +1,10 @@
 /**
- * Nivra Billing Calculator - V2.5
- * Single source of truth for all billing/tax calculations
- * Moved from pdfEngine/ to pdf/ for unified engine
+ * @deprecated — DO NOT USE FOR TRANSACTIONAL CALCULATIONS.
+ * All pricing, taxes, and totals must come from Nivra Core API or
+ * the compute_checkout_pricing / compute_invoice_breakdown server RPCs.
+ * This file is retained only for legacy PDF rendering compatibility.
+ * No frontend component should import TAX_RATES or calculateBillingTotals
+ * for checkout, orders, payments, or confirmation flows.
  */
 
 export const TAX_RATES = {
