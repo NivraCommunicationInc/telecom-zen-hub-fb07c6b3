@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
 import { fetchNivraProducts, createNivraOrder, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, SKU } from "@/lib/api/nivraApi";
+import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { 
@@ -1875,6 +1876,16 @@ const ClientNewOrder = () => {
         items: nivraItems,
       });
       console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
+
+      // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
+      // PayPal payment happened before order submission, so paypalCaptureId is already set
+      if (paypalCaptureId && nivraOrderResponse.payment_number) {
+        notifyNivraCorePaid({
+          paymentNumber: nivraOrderResponse.payment_number,
+          paypalOrderId: paypalCaptureId, // The PayPal order ID used as capture ref
+          paypalCaptureId: paypalCaptureId,
+        });
+      }
 
       // Use external API response as authoritative pricing
       const serverPricing = {
