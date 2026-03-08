@@ -27,6 +27,8 @@ interface PayPalButtonProps {
   orderId?: string;
   description?: string;
   customer?: CustomerInfo;
+  /** Payment number from Nivra Core — used to notify backend after capture */
+  paymentNumber?: string;
   onSuccess?: (captureId: string) => void;
   onError?: (error: string) => void;
   onCancel?: () => void;
