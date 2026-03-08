@@ -77,6 +77,7 @@ import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
 import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
+import { InstallationScheduler } from "@/components/installation/InstallationScheduler";
 
 interface Service {
   id: string;
@@ -206,7 +207,7 @@ const generateQuebecPhoneNumber = (): string => {
 };
 
 const ORDER_DRAFT_KEY = "nivra_order_draft";
-const INSTALLATION_APPOINTMENT_ENABLED = false;
+const INSTALLATION_APPOINTMENT_ENABLED = true;
 const DEFAULT_INSTALLATION_CHOICE: "auto" | "technician" = "auto";
 
 // Streaming service interface for Streaming+ add-ons
@@ -4633,16 +4634,114 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       Installation
                     </CardTitle>
                     <CardDescription>
-                      La prise de rendez-vous a été retirée du formulaire de commande.
+                      Choisissez votre mode d'installation pour activer vos services.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-muted border border-border">
-                      <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <p className="text-sm text-foreground">
-                        Votre installation sera planifiée automatiquement après la confirmation de la commande.
-                      </p>
+                  <CardContent className="space-y-6">
+                    {/* Installation type selector */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Auto-installation option */}
+                      <div
+                        className={`p-5 rounded-lg border-2 cursor-pointer transition-all ${
+                          installationChoice === "auto"
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                        onClick={() => {
+                          setInstallationChoice("auto");
+                          setSelectedDate("");
+                          setSelectedTime("");
+                          setAppointmentConfirmed(false);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            installationChoice === "auto" ? "bg-primary" : "bg-muted"
+                          }`}>
+                            <Package className={`w-5 h-5 ${installationChoice === "auto" ? "text-primary-foreground" : "text-muted-foreground"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground">Auto-installation</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Nous expédions l'équipement à votre adresse avec les instructions. 
+                              Branchez-le vous-même en quelques minutes.
+                            </p>
+                            <div className="mt-3 flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">Livraison 2-5 jours</Badge>
+                              <Badge className="bg-primary/20 text-primary border-0 text-xs">30,00 $</Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Technician installation option */}
+                      <div
+                        className={`p-5 rounded-lg border-2 cursor-pointer transition-all ${
+                          installationChoice === "technician"
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                        onClick={() => setInstallationChoice("technician")}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            installationChoice === "technician" ? "bg-primary" : "bg-muted"
+                          }`}>
+                            <Wrench className={`w-5 h-5 ${installationChoice === "technician" ? "text-primary-foreground" : "text-muted-foreground"}`} />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground">Installation par technicien</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Un technicien Nivra se déplace chez vous pour installer et activer vos services.
+                            </p>
+                            <div className="mt-3 flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">Sur rendez-vous</Badge>
+                              <Badge className="bg-primary/20 text-primary border-0 text-xs">50,00 $</Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Auto-installation confirmation */}
+                    {installationChoice === "auto" && (
+                      <div className="flex items-start gap-3 p-4 rounded-lg bg-primary/10 border border-primary/30 animate-in fade-in duration-300">
+                        <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-primary">Auto-installation sélectionnée</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            L'équipement sera expédié à votre adresse de service sous 2 à 5 jours ouvrables. 
+                            Vous recevrez un guide d'installation par courriel. Si vous rencontrez des difficultés, 
+                            notre équipe pourra planifier une visite technique.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Technician installation — show questionnaire + slot picker */}
+                    {installationChoice === "technician" && (
+                      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <InstallationScheduler
+                          isFrench={true}
+                          fallbackDistanceKm={20}
+                          selectedDate={selectedDate}
+                          selectedTime={selectedTime}
+                          onDateTimeChange={(date, time) => {
+                            setSelectedDate(date);
+                            setSelectedTime(time);
+                          }}
+                          onInstallationTypeChange={(type, level) => {
+                            // Keep installationChoice as "technician" regardless
+                            console.log("[Checkout] Installation type:", type, "level:", level);
+                          }}
+                          onDecisionMade={(decision) => {
+                            console.log("[Checkout] Installation decision:", decision);
+                          }}
+                          confirmedAppointment={appointmentConfirmed}
+                          onAppointmentConfirmedChange={(confirmed) => setAppointmentConfirmed(confirmed)}
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
