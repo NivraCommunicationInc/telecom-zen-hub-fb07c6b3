@@ -647,6 +647,7 @@ const ClientNewOrder = () => {
 
   // === LIVE SERVER PRICING (authoritative for summary display) ===
   const [liveServerPricing, setLiveServerPricing] = useState<import("@/lib/pricing/serverPricing").ServerPricingResult | null>(null);
+  const [nivraCoreOrderPricing, setNivraCoreOrderPricing] = useState<NivraOrderResponse | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
