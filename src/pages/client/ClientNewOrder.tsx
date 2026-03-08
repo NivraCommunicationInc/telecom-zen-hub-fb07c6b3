@@ -5817,6 +5817,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </p>
                       <PayPalButton
                         amount={totalAmount}
+                        paymentNumber={authoritativePricing?.paymentNumber}
                         description="Commande Nivra Telecom"
                         onSuccess={(captureId) => {
                           setPaypalCaptureId(captureId);
