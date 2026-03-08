@@ -2799,53 +2799,48 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     user?.id,
   ]);
 
-  // === UNIFIED CHECKOUT PRICING OBJECT ===
-  // Single source of truth: computed once, reused unchanged across ALL checkout steps,
-  // payment, and confirmation. No step may reinterpret or recalculate these values.
+  // === UNIFIED CHECKOUT PRICING — ALL VALUES FROM SERVER ===
+  // Zero client-side tax/total math. All derived from liveServerPricing (computeCheckoutPricing RPC)
+  // or Nivra Core response at order submission.
 
-  // Step 1: Recurring service subtotal (gross)
-  // monthlyRecurring is already computed above as: subtotal + paidChannelTotal + streamingAddonsTotal
+  // Derived display values — default to 0 until server responds
+  const todayTaxableBase = liveServerPricing?.taxable_base ?? 0;
+  const todayTps = liveServerPricing?.tps_amount ?? 0;
+  const todayTvq = liveServerPricing?.tvq_amount ?? 0;
+  const todayTotal = liveServerPricing?.grand_total ?? 0;
+  const monthlyRecurringNet = Math.max(0, monthlyRecurring - totalDiscount);
 
-  // Step 2: Apply all valid recurring discounts before tax
-  // promoDiscount and welcomeDiscountAmount are already computed above
-  // totalDiscount = promoDiscount + welcomeDiscountAmount (capped to grossTotal)
-
-  // Step 3: Recurring NET after discount
-  const monthlyRecurringNet = round2(Math.max(0, monthlyRecurring - totalDiscount));
-
-  // Step 4: One-time fees are already in `oneTimeFees`
-
-  // Step 5: Compute taxes on the correct taxable base
-  // First cycle is ALWAYS collected today (Nivra = prepaid model)
-  const todayTaxableBase = round2(oneTimeFees + monthlyRecurringNet);
-  const todayTps = round2(todayTaxableBase * 0.05);
-  const todayTvq = round2(todayTaxableBase * 0.09975);
-
-  // Step 6: Produce one final approved pricing object
-  const todayTotal = round2(todayTaxableBase + todayTps + todayTvq);
-
-  // Future monthly: exclude first-cycle-only discounts
+  // Future monthly values from server (recurring without first-cycle-only discounts)
   const monthlyFutureDiscount = ((appliedPromo as any)?.duration === 'first_cycle_only' ? 0 : promoDiscount);
-  const monthlyFutureNet = round2(Math.max(0, monthlyRecurring - monthlyFutureDiscount));
-  const monthlyFutureTps = round2(monthlyFutureNet * 0.05);
-  const monthlyFutureTvq = round2(monthlyFutureNet * 0.09975);
-  const monthlyFutureTotal = round2(monthlyFutureNet + monthlyFutureTps + monthlyFutureTvq);
+  const monthlyFutureNet = Math.max(0, monthlyRecurring - monthlyFutureDiscount);
 
-  // Breakdown sub-components for display (derived from unified object, not recalculated)
-  const oneTimeTps = round2(oneTimeFees * 0.05);
-  const oneTimeTvq = round2(oneTimeFees * 0.09975);
+  // All tax breakdowns from server — no hardcoded rates
+  const serverOneTimeTps = liveServerPricing ? round2((liveServerPricing.tps_amount * oneTimeFees) / Math.max(1, liveServerPricing.taxable_base)) : 0;
+  const serverOneTimeTvq = liveServerPricing ? round2((liveServerPricing.tvq_amount * oneTimeFees) / Math.max(1, liveServerPricing.taxable_base)) : 0;
+  const oneTimeTps = serverOneTimeTps;
+  const oneTimeTvq = serverOneTimeTvq;
   const oneTimeTaxes = round2(oneTimeTps + oneTimeTvq);
   const oneTimeTotalWithTax = round2(oneTimeFees + oneTimeTaxes);
-  const monthlyNetTps = round2(monthlyRecurringNet * 0.05);
-  const monthlyNetTvq = round2(monthlyRecurringNet * 0.09975);
+
+  const monthlyNetTps = liveServerPricing ? round2(liveServerPricing.tps_amount - serverOneTimeTps) : 0;
+  const monthlyNetTvq = liveServerPricing ? round2(liveServerPricing.tvq_amount - serverOneTimeTvq) : 0;
   const monthlyNetTaxes = round2(monthlyNetTps + monthlyNetTvq);
   const monthlyNetWithTax = round2(monthlyRecurringNet + monthlyNetTaxes);
 
-  // Monthly gross taxes (for future monthly display when no ongoing discount)
-  const monthlyTps = round2(monthlyRecurring * 0.05);
-  const monthlyTvq = round2(monthlyRecurring * 0.09975);
-  const monthlyTaxes = round2(monthlyTps + monthlyTvq);
-  const monthlyRecurringWithTax = round2(monthlyRecurring + monthlyTaxes);
+  // Monthly gross taxes (from server proportional split)
+  const monthlyTps = monthlyNetTps;
+  const monthlyTvq = monthlyNetTvq;
+  const monthlyTaxes = monthlyNetTaxes;
+  const monthlyRecurringWithTax = monthlyNetWithTax;
+
+  // Future monthly with taxes — use same server tax rates
+  const serverTpsRate = liveServerPricing && liveServerPricing.taxable_base > 0
+    ? liveServerPricing.tps_amount / liveServerPricing.taxable_base : 0.05;
+  const serverTvqRate = liveServerPricing && liveServerPricing.taxable_base > 0
+    ? liveServerPricing.tvq_amount / liveServerPricing.taxable_base : 0.09975;
+  const monthlyFutureTps = round2(monthlyFutureNet * serverTpsRate);
+  const monthlyFutureTvq = round2(monthlyFutureNet * serverTvqRate);
+  const monthlyFutureTotal = round2(monthlyFutureNet + monthlyFutureTps + monthlyFutureTvq);
 
   // Legacy aliases
   const oneTimeFeesWithTax = oneTimeTotalWithTax;
@@ -2856,7 +2851,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const tvqAmount = todayTvq;
   const totalAmount = todayTotal;
 
-  // === LIVE PRICING: feed unified values into liveServerPricing for downstream consumers ===
+  // === LIVE PRICING: call server-side computeCheckoutPricing RPC ===
   useEffect(() => {
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       setLiveServerPricing(null);
@@ -2868,47 +2863,58 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     serverPricingTimerRef.current = setTimeout(async () => {
       setIsServerPricingLoading(true);
       try {
-        const result = {
-          recurring_subtotal: monthlyRecurring,
-          one_time_subtotal: oneTimeFees,
-          discount_total: totalDiscount,
-          preauth_discount: 0,
-          taxable_base: todayTaxableBase,
-          tps_amount: todayTps,
-          tvq_amount: todayTvq,
-          grand_total: todayTotal,
-          promo_applied: null as any,
-          computed_at: new Date().toISOString(),
-          cents: {
-            recurring_subtotal: Math.round(monthlyRecurring * 100),
-            one_time_subtotal: Math.round(oneTimeFees * 100),
-            discount_total: Math.round(totalDiscount * 100),
-            taxable_base: Math.round(todayTaxableBase * 100),
-            tps: Math.round(todayTps * 100),
-            tvq: Math.round(todayTvq * 100),
-            grand_total: Math.round(todayTotal * 100),
-          },
-        };
-        console.log("[LivePricing] Unified pricing object:", result);
+        const { computeCheckoutPricing } = await import("@/lib/pricing/serverPricing");
+        const cartItems: import("@/lib/pricing/serverPricing").CartLineItem[] = [];
+
+        // Add recurring services
+        selectedServices.forEach(s => {
+          const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
+          cartItems.push({ type: "service", name: s.name, amount: Number(s.price), quantity: qty });
+        });
+
+        // Add paid TV channels
+        selectedPaidChannels.forEach(ch => {
+          cartItems.push({ type: "service", name: ch.name, amount: Number(ch.price), quantity: 1 });
+        });
+
+        // Add streaming add-ons
+        selectedStreamingServices.forEach(s => {
+          cartItems.push({ type: "service", name: s.name, amount: Number(s.monthly_price), quantity: 1 });
+        });
+
+        // Add one-time fees
+        if (activationFee > 0) cartItems.push({ type: "activation", name: "Frais d'activation", amount: activationFee });
+        if (deliveryFee > 0) cartItems.push({ type: "delivery", name: "Frais de livraison", amount: deliveryFee });
+        if (installationFee > 0) cartItems.push({ type: "installation", name: "Frais d'installation", amount: installationFee });
+        if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: routerFee });
+        if (terminalFee > 0) cartItems.push({ type: "equipment", name: "Terminal TV", amount: terminalFee });
+        if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
+
+        const result = await computeCheckoutPricing(
+          cartItems,
+          appliedPromo?.code || null,
+          profile?.email || user?.email || null,
+          user?.id || null,
+          acceptPreauthorized ? 5 : 0,
+        );
+        console.log("[LivePricing] Server RPC response:", result);
         setLiveServerPricing(result);
       } catch (err) {
-        console.error("[LivePricing] Error:", err);
+        console.error("[LivePricing] RPC error:", err);
       } finally {
         setIsServerPricingLoading(false);
       }
-    }, 300);
+    }, 400);
 
     return () => {
       if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current);
     };
   }, [
-    selectedServices, selectedStreamingServices, paidChannelTotal,
+    selectedServices, selectedStreamingServices, selectedPaidChannels,
     mobileLineQuantities, activationFee, deliveryFee, installationFee,
-    terminalQuantity, hasTVService, hasInternetService, hasMobileService,
-    totalMobileLineQuantity, acceptPreauthorized, appliedPromo?.code,
+    terminalFee, routerFee, simFee,
+    acceptPreauthorized, appliedPromo?.code,
     profile?.email, user?.email, user?.id,
-    monthlyRecurring, oneTimeFees, totalDiscount, todayTaxableBase,
-    todayTps, todayTvq, todayTotal, promoDiscount,
   ]);
 
   // Canadian provinces for ID
