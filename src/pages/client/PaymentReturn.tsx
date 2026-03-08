@@ -47,6 +47,15 @@ const PaymentReturn = () => {
         setStatus("success");
         toast.success("Paiement confirmé!");
 
+        // Notify Nivra Core backend (fire-and-forget)
+        if (paymentNumber && data.capture_id) {
+          notifyNivraCorePaid({
+            paymentNumber,
+            paypalOrderId: token,
+            paypalCaptureId: data.capture_id,
+          });
+        }
+
         // ★ Invalidate ALL billing-related queries for instant UI refresh
         queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
         queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
