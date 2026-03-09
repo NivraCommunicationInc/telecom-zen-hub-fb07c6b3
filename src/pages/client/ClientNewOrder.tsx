@@ -5570,7 +5570,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               )}
 
               {/* Payment Section - Required before order submission */}
-              {totalAmount > 0 && (
+              {(authoritativePricing?.total ?? 0) > 0 && (
               <Card className="bg-card border-emerald-500/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
