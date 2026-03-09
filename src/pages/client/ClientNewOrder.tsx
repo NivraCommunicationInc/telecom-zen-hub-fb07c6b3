@@ -5536,7 +5536,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </p>
 
               {/* FREE ORDER - No payment required when total is 0 */}
-              {totalAmount <= 0 && (
+              {(authoritativePricing?.total ?? 0) <= 0 && (
                 <Card className="bg-emerald-500/10 border-emerald-500/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-emerald-600">
