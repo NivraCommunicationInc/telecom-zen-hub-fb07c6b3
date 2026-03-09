@@ -19,6 +19,7 @@ export interface WorkQueueItem {
   created_at: string;
   invoice_number: string | null;
   invoice_id: string | null;
+  failure_reason: string | null;
 }
 
 export interface AppointmentQueueItem {
