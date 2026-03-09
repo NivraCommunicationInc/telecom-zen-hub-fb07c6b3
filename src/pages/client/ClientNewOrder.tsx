@@ -6176,7 +6176,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Total aujourd'hui</span>
-                  <span className="font-bold text-foreground">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  <span className="font-bold text-foreground">{uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => {
