@@ -207,8 +207,8 @@ const AccountsPage = () => {
                     {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    {c.user_id ? (
-                      <Link to={`/admin/accounts/${c.user_id}`}>
+                    {c.id ? (
+                      <Link to={`/core/accounts/${c.id}`}>
                         <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-[hsl(220,15%,30%)] transition-colors">
                           <ArrowRight className="h-3.5 w-3.5" />
                         </button>
