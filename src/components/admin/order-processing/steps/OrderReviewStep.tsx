@@ -13,7 +13,7 @@ export function OrderReviewStep({ proc }: Props) {
 
   // Derive amounts from pricing snapshot (canonical) or fallback to order columns
   const recurringSubtotal = ps?.recurring_subtotal ?? order.subtotal ?? 0;
-  const discountTotal = ps?.discount_total ?? order.discount_amount ?? 0;
+  const discountTotal = ps?.discount_total_combined ?? order.discount_amount ?? 0;
   const recurringNet = Math.max(0, Number(recurringSubtotal) - Number(discountTotal));
   const oneTimeSubtotal = ps?.one_time_subtotal ?? 0;
 

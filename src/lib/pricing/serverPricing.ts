@@ -16,7 +16,8 @@ export interface CartLineItem {
 export interface ServerPricingResult {
   recurring_subtotal: number;
   one_time_subtotal: number;
-  discount_total: number;
+  /** Combined total: promo_discount + welcome_discount (display only) */
+  discount_total_combined: number;
   promo_discount: number;
   welcome_discount: number;
   welcome_applied: boolean;
@@ -43,7 +44,8 @@ export interface ServerPricingResult {
   cents: {
     recurring_subtotal: number;
     one_time_subtotal: number;
-    discount_total: number;
+    /** Combined total: promo_discount + welcome_discount (display only) */
+    discount_total_combined: number;
     promo_discount: number;
     welcome_discount: number;
     taxable_base: number;

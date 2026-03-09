@@ -37,7 +37,7 @@ export function OrderSummaryPanel({ proc }: Props) {
   
   // Recurring
   const recurringSubtotal = pricingSnapshot?.recurring_subtotal ?? order.subtotal ?? 0;
-  const discountTotal = pricingSnapshot?.discount_total ?? order.discount_amount ?? 0;
+  const discountTotal = pricingSnapshot?.discount_total_combined ?? order.discount_amount ?? 0;
   const recurringNet = Math.max(0, Number(recurringSubtotal) - Number(discountTotal));
   
   // One-time

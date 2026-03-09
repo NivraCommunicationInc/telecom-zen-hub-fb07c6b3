@@ -370,7 +370,7 @@ END:VCALENDAR`;
   
   // ===== All totals from pricing_snapshot (canonical) =====
   const monthlyRecurringGross = hasSnapshot ? Number(ps.recurring_subtotal) : (order.subtotal ?? 0);
-  const recurringDiscountTotal = hasSnapshot ? Number(ps.discount_total) : (order.promo_discount_amount ?? 0);
+  const recurringDiscountTotal = hasSnapshot ? Number(ps.discount_total_combined) : (order.promo_discount_amount ?? 0);
   const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - recurringDiscountTotal);
   const oneTimeSubtotal = hasSnapshot ? Number(ps.one_time_subtotal) : (deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
   const promoDiscount = recurringDiscountTotal;

@@ -1897,7 +1897,7 @@ const ClientNewOrder = () => {
         taxable_base: nivraOrderResponse.subtotal,
         recurring_subtotal: monthlyRecurring,
         one_time_subtotal: oneTimeFees,
-        discount_total: liveServerPricing?.discount_total ?? 0,
+        discount_total_combined: liveServerPricing?.discount_total_combined ?? 0,
         promo_discount: liveServerPricing?.promo_discount ?? 0,
         welcome_discount: liveServerPricing?.welcome_discount ?? 0,
         welcome_applied: liveServerPricing?.welcome_applied ?? false,
@@ -1908,7 +1908,7 @@ const ClientNewOrder = () => {
         cents: {
           recurring_subtotal: Math.round(monthlyRecurring * 100),
           one_time_subtotal: Math.round(oneTimeFees * 100),
-          discount_total: liveServerPricing?.cents?.discount_total ?? 0,
+          discount_total_combined: liveServerPricing?.cents?.discount_total_combined ?? 0,
           promo_discount: liveServerPricing?.cents?.promo_discount ?? 0,
           welcome_discount: liveServerPricing?.cents?.welcome_discount ?? 0,
           taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
@@ -1924,7 +1924,7 @@ const ClientNewOrder = () => {
       const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
       
       // Cap discount using server-side computed discount (enforces min_payable_cents)
-      const cappedDiscount = serverPricing.discount_total;
+      const cappedDiscount = serverPricing.discount_total_combined;
       
       // Determine payment method value NOW (before insert) to avoid null
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
@@ -2102,7 +2102,7 @@ const ClientNewOrder = () => {
           // V2.4: ALL pricing from server-side compute_checkout_pricing RPC — no client-computed discounts
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
-            discount_amount: serverPricing.discount_total,
+            discount_amount: serverPricing.discount_total_combined,
             welcome_discount_amount: serverPricing.welcome_discount ?? 0, // SERVER-SIDE — from RPC
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
@@ -2764,7 +2764,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
   
   // Total discount now comes from server (includes promo + welcome, no stacking)
-  const totalDiscount = liveServerPricing?.discount_total ?? Math.min(round2(promoDiscount), grossTotal);
+  const totalDiscount = liveServerPricing?.discount_total_combined ?? Math.min(round2(promoDiscount), grossTotal);
 
   // Enforce min_payable_cents from promo: discount cannot reduce below minimum
   const minPayableDollars = 0; // Enforced server-side; client cap is defense-in-depth
