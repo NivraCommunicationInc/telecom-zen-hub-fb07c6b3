@@ -5,6 +5,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useAccountProfile } from "@/core-app/hooks/useAccountProfile";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Loader2, ArrowLeft, RefreshCw, User, FileText, CreditCard, Repeat, ShoppingCart, Mail, Phone, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
