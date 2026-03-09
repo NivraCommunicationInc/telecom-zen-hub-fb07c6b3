@@ -5114,7 +5114,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
-                        <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                   </div>
