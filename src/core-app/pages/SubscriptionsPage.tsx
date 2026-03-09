@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { useAdminSubscriptions } from "@/hooks/admin/useAdminSubscriptions";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
 import { Search, RefreshCw, Filter, Repeat, Zap } from "lucide-react";
+import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -25,7 +27,8 @@ const fmtDate = (d: string | null) => {
 };
 
 const SubscriptionsPage = () => {
-  const { data: subs = [], isLoading, refetch } = useAdminSubscriptions();
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
+  const { data: subs = [], isLoading, refetch } = useAdminSubscriptions(envFilter);
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -63,9 +66,12 @@ const SubscriptionsPage = () => {
             Gestion des abonnements · {stats.total} abonnement{stats.total !== 1 ? "s" : ""}
           </p>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Actualiser
-        </button>
+        <div className="flex items-center gap-3">
+          <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+          </button>
+        </div>
       </div>
 
       {/* KPI */}
@@ -128,7 +134,10 @@ const SubscriptionsPage = () => {
               ) : (
                 filtered.map((s) => (
                   <tr key={s.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors cursor-pointer" onClick={() => navigate(`/core/subscriptions/${s.id}`)}>
-                    <td className="px-3 py-2.5"><span className="font-mono text-[hsl(220,10%,50%)]">{s.account_number || "—"}</span></td>
+                    <td className="px-3 py-2.5">
+                      <span className="font-mono text-[hsl(220,10%,50%)]">{s.account_number || "—"}</span>
+                      {s.environment === 'test' && <span className="ml-1.5"><TestBadge /></span>}
+                    </td>
                     <td className="px-3 py-2.5">
                       <div className="max-w-[150px]">
                         <p className="text-white truncate">{s.client_name || "—"}</p>

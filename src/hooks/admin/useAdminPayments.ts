@@ -5,6 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface AdminPayment {
   id: string;
@@ -21,32 +22,32 @@ export interface AdminPayment {
   confirmed_by: string | null;
   legacy_note: string | null;
   created_by_name: string | null;
-  // Joined invoice
   invoice_id: string;
   invoice_number: string | null;
-  // Joined customer
   customer_id: string;
   customer_name: string | null;
   customer_email: string | null;
-  // Account (from invoice snapshot)
   account_number: string | null;
+  environment?: string;
 }
 
-export function useAdminPayments() {
+export function useAdminPayments(environment: EnvironmentFilter = 'all') {
   return useQuery<AdminPayment[]>({
-    queryKey: ["admin-payments-v2"],
+    queryKey: ["admin-payments-v2", environment],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("billing_payments")
         .select(`
           id, payment_number, amount, method, status, reference, provider,
           provider_payment_id, source, received_at, created_at, confirmed_by,
-          legacy_note, created_by_name, invoice_id, customer_id,
+          legacy_note, created_by_name, invoice_id, customer_id, environment,
           invoice:billing_invoices(invoice_number, billing_snapshot_account_number),
           customer:billing_customers(id, first_name, last_name, email)
         `)
         .order("created_at", { ascending: false })
         .limit(500);
+      if (environment !== 'all') query = query.eq("environment", environment);
+      const { data, error } = await query;
       if (error) throw error;
       if (!data) return [];
 
@@ -71,6 +72,7 @@ export function useAdminPayments() {
         customer_name: p.customer ? `${p.customer.first_name} ${p.customer.last_name}`.trim() : null,
         customer_email: p.customer?.email ?? null,
         account_number: p.invoice?.billing_snapshot_account_number ?? null,
+        environment: p.environment,
       }));
     },
   });

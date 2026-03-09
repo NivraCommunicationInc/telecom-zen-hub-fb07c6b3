@@ -6,6 +6,8 @@ import { useState, useMemo } from "react";
 import { useAdminOrders } from "@/hooks/admin/useAdminOrders";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
 import { Link } from "react-router-dom";
+import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { Search, ArrowRight, ShoppingCart, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -23,7 +25,8 @@ const STATUS_FILTERS = [
 ];
 
 const OrdersPage = () => {
-  const { data: orders, isLoading, refetch } = useAdminOrders();
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
+  const { data: orders, isLoading, refetch } = useAdminOrders(envFilter);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -64,9 +67,12 @@ const OrdersPage = () => {
             Gestion des commandes · {counts.total} commande{counts.total !== 1 ? "s" : ""}
           </p>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Actualiser
-        </button>
+        <div className="flex items-center gap-3">
+          <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+          </button>
+        </div>
       </div>
 
       {/* KPI strip */}
@@ -145,6 +151,7 @@ const OrdersPage = () => {
                   <tr key={o.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors">
                     <td className="px-3 py-2.5">
                       <span className="font-mono font-medium text-white">{o.order_number || o.id.slice(0, 8)}</span>
+                      {o.environment === 'test' && <span className="ml-1.5"><TestBadge /></span>}
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="max-w-[160px]">

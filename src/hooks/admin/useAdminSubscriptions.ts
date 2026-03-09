@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface AdminSubscription {
   id: string;
@@ -18,25 +19,27 @@ export interface AdminSubscription {
   order_id: string | null;
   customer_id: string;
   created_at: string | null;
+  environment?: string;
   // Joined
   client_name: string | null;
   client_email: string | null;
   account_number: string | null;
 }
 
-export function useAdminSubscriptions() {
+export function useAdminSubscriptions(environment: EnvironmentFilter = 'all') {
   return useQuery<AdminSubscription[]>({
-    queryKey: ["admin-subscriptions"],
+    queryKey: ["admin-subscriptions", environment],
     queryFn: async () => {
-      const { data: subs, error } = await supabase
+      let query = supabase
         .from("billing_subscriptions")
-        .select("id, plan_name, plan_code, plan_price, status, service_category, cycle_start_date, cycle_end_date, auto_billing_enabled, order_id, customer_id, created_at")
+        .select("id, plan_name, plan_code, plan_price, status, service_category, cycle_start_date, cycle_end_date, auto_billing_enabled, order_id, customer_id, created_at, environment")
         .order("created_at", { ascending: false })
         .limit(500);
+      if (environment !== 'all') query = query.eq("environment", environment);
+      const { data: subs, error } = await query;
       if (error) throw error;
       if (!subs?.length) return [];
 
-      // Join billing_customers
       const customerIds = [...new Set(subs.map(s => s.customer_id))];
       const { data: customers } = await supabase
         .from("billing_customers")
@@ -45,7 +48,6 @@ export function useAdminSubscriptions() {
 
       const customerMap = new Map((customers || []).map(c => [c.id, c]));
 
-      // Join profiles for account_number
       const userIds = [...new Set((customers || []).map(c => c.user_id).filter(Boolean))] as string[];
       const { data: profiles } = userIds.length > 0
         ? await supabase.from("profiles").select("user_id, account_number").in("user_id", userIds)
@@ -68,6 +70,7 @@ export function useAdminSubscriptions() {
           order_id: s.order_id,
           customer_id: s.customer_id,
           created_at: s.created_at,
+          environment: (s as any).environment,
           client_name: cust ? `${cust.first_name} ${cust.last_name}` : null,
           client_email: cust?.email ?? null,
           account_number: prof?.account_number ?? null,

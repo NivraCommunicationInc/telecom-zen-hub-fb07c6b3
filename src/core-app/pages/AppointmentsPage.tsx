@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
@@ -32,12 +34,13 @@ const TYPE_FILTERS = [
 ];
 
 const AppointmentsPage = () => {
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
 
   const { data: appointments, isLoading, refetch } = useQuery({
-    queryKey: ["core-appointments", statusFilter],
+    queryKey: ["core-appointments", statusFilter, envFilter],
     queryFn: async () => {
       let query = supabase
         .from("appointments")
@@ -45,6 +48,7 @@ const AppointmentsPage = () => {
         .order("scheduled_at", { ascending: false })
         .limit(200);
 
+      if (envFilter !== 'all') query = query.eq("environment", envFilter);
       if (statusFilter) {
         query = query.eq("status", statusFilter);
       }
@@ -107,12 +111,15 @@ const AppointmentsPage = () => {
             Planification opérationnelle — installations, livraisons, service
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-white hover:bg-[hsl(220,15%,16%)] transition-colors"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-3">
+          <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
+          <button
+            onClick={() => refetch()}
+            className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-white hover:bg-[hsl(220,15%,16%)] transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── KPI cards ── */}
