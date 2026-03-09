@@ -2831,16 +2831,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const todayTvq = authoritativePricing?.qst ?? 0;
   const todayTotal = authoritativePricing?.total ?? 0;
 
-  // Keep legacy aliases for existing flow, but all values now come from authoritativePricing.
-  const monthlyRecurringNet = todayTaxableBase;
-  const monthlyTaxes = todayTps + todayTvq;
-  const monthlyRecurringWithTax = todayTotal;
-  const oneTimeFeesWithTax = todayTotal;
-
-  const baseAmount = todayTaxableBase;
-  const tpsAmount = todayTps;
-  const tvqAmount = todayTvq;
-  const totalAmount = todayTotal;
+  // All display values come exclusively from authoritativePricing.
+  // These aliases exist ONLY for backward-compat in the order-submission function
+  // where serverPricing (Nivra Core response) is the authoritative source.
+  // DO NOT use these for UI display — use authoritativePricing directly.
 
   // === LIVE PRICING: call server-side computeCheckoutPricing RPC ===
   useEffect(() => {
