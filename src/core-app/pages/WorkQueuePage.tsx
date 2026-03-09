@@ -3,8 +3,8 @@
  * Reuses useWorkQueue hook (same data source as /admin/work-queue).
  * Dark ops-grade visual style, routed at /core/work-queue.
  */
-import { useWorkQueue, type WorkQueueItem, type AppointmentQueueItem } from "@/hooks/admin/useWorkQueue";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { useWorkQueue, type WorkQueueItem, type AppointmentQueueItem } from "@/core-app/hooks/useWorkQueue";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Link } from "react-router-dom";
 import {
   Package, CreditCard, Calendar, Zap, AlertTriangle, ArrowRight, ExternalLink, RefreshCw,

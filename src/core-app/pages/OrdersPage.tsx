@@ -3,10 +3,10 @@
  * Reuses useAdminOrders hook (same data source as /admin/orders).
  */
 import { useState, useMemo } from "react";
-import { useAdminOrders } from "@/hooks/admin/useAdminOrders";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { useAdminOrders } from "@/core-app/hooks/useAdminOrders";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Link } from "react-router-dom";
-import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { Search, ArrowRight, ShoppingCart, RefreshCw } from "lucide-react";
 import { format } from "date-fns";

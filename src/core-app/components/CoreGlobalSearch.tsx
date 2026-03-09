@@ -6,8 +6,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X, Users, ShoppingCart, FileText, CreditCard, RefreshCcw, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCoreGlobalSearch, type SearchResult } from "@/hooks/admin/useCoreGlobalSearch";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { useCoreGlobalSearch, type SearchResult } from "@/core-app/hooks/useCoreGlobalSearch";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 
 const TYPE_META: Record<SearchResult["type"], { label: string; icon: typeof Users; color: string }> = {
