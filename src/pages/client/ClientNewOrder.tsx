@@ -2094,10 +2094,11 @@ const ClientNewOrder = () => {
           const isPayPalPaid = actualPaymentMethod === "paypal" && !!paypalCaptureId;
           
           // V2.3: Use server-side pricing as billing source of truth
+          // ⚠️ EXCEPTION: welcome_discount_amount is still client-computed (architectural debt)
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
             discount_amount: serverPricing.discount_total,
-            welcome_discount_amount: welcomeDiscountAmount,
+            welcome_discount_amount: welcomeDiscountAmount, // ⚠️ CLIENT-SIDE — TODO: migrate to RPC
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
             tvq_amount: serverPricing.tvq_amount,
@@ -2747,7 +2748,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
   
-  // Welcome discount: 50% off services for new customers (first bill only)
+  // ⚠️ ARCHITECTURAL DEBT: Welcome discount (50%) is computed CLIENT-SIDE.
+  // TODO: Move this logic to compute_checkout_pricing RPC for security + consistency.
+  // Current implementation: hook checks orders table to determine new customer status,
+  // then applies 50% to monthlyRecurring locally. This bypasses server pricing authority.
   const welcomeDiscountAmount = welcomeDiscountHook.getDiscountAmount(monthlyRecurring);
   
   const grossTotal = round2(monthlyRecurring + oneTimeFees);
