@@ -73,7 +73,7 @@ const CoreAccountDetail = () => {
     <div className="space-y-4">
       {/* Back + Refresh */}
       <div className="flex items-center justify-between">
-        <Link to="/core/accounts" className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
+        <Link to={corePath("/accounts")} className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Comptes
         </Link>
         <button onClick={() => data.refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
