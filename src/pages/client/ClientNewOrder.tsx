@@ -1801,9 +1801,9 @@ const ClientNewOrder = () => {
           amount: appliedPromo.discount_amount,
           description: appliedPromo.name,
         }] : []),
-        ...(serverPricing.welcome_discount > 0 ? [{
+        ...((liveServerPricing?.welcome_discount ?? 0) > 0 ? [{
           name: "Rabais nouveau client (50% — 1er mois)",
-          amount: serverPricing.welcome_discount,
+          amount: liveServerPricing?.welcome_discount ?? 0,
           description: "50% de rabais sur les services — première facture uniquement",
         }] : []),
         ...(acceptPreauthorized ? [{
