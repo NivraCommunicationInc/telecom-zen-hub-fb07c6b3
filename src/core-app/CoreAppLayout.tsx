@@ -115,6 +115,13 @@ const CoreAppLayout = () => {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Core Online
             </span>
+            <button
+              onClick={handleLogout}
+              title="Déconnexion"
+              className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </header>
 
