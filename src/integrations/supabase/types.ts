@@ -1394,6 +1394,7 @@ export type Database = {
           invoice_id: string
           legacy_note: string | null
           method: Database["public"]["Enums"]["billing_payment_method"]
+          payment_number: string
           provider: string | null
           provider_payment_id: string | null
           received_at: string | null
@@ -1413,6 +1414,7 @@ export type Database = {
           invoice_id: string
           legacy_note?: string | null
           method?: Database["public"]["Enums"]["billing_payment_method"]
+          payment_number: string
           provider?: string | null
           provider_payment_id?: string | null
           received_at?: string | null
@@ -1432,6 +1434,7 @@ export type Database = {
           invoice_id?: string
           legacy_note?: string | null
           method?: Database["public"]["Enums"]["billing_payment_method"]
+          payment_number?: string
           provider?: string | null
           provider_payment_id?: string | null
           received_at?: string | null
