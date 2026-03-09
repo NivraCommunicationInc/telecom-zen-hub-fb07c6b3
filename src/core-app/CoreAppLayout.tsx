@@ -74,7 +74,7 @@ const CoreAppLayout = () => {
             return (
               <Link
                 key={item.href}
-                to={item.href}
+                to={corePath(item.href)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-colors",

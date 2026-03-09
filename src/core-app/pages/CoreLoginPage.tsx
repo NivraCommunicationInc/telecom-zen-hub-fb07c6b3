@@ -10,7 +10,7 @@ import { Terminal, LogIn, AlertCircle, Eye, EyeOff } from "lucide-react";
 export default function CoreLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || "/core/dashboard";
+  const from = (location.state as any)?.from?.pathname || (await import("@/core-app/lib/corePaths")).corePath("/dashboard");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

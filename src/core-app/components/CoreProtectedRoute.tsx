@@ -82,7 +82,7 @@ export default function CoreProtectedRoute() {
   }
 
   if (state === "unauthorized") {
-    return <Navigate to="/core/login" state={{ from: location }} replace />;
+    return <Navigate to={corePath("/login")} state={{ from: location }} replace />;
   }
 
   return <Outlet />;
