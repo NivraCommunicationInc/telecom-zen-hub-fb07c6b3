@@ -7,6 +7,8 @@ import { Link } from "react-router-dom";
 import { useAdminPayments } from "@/hooks/admin/useAdminPayments";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
 import { Search, Wallet, RefreshCw, ArrowRight, Filter } from "lucide-react";
+import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
