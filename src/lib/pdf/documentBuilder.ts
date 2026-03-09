@@ -240,12 +240,13 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
       fees.push({ label: item.description, amount });
       invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
     } else {
-      // service
-      const type = descLower.includes("internet") ? "Internet"
-        : descLower.includes("mobile") ? "Mobile"
-        : descLower.includes("tv") || descLower.includes("télé") ? "TV"
+      // service — detect type from description keywords
+      const type = descLower.includes("internet") || descLower.includes("giga") ? "Internet"
+        : descLower.includes("mobile") || descLower.includes("talk") || descLower.includes("text") ? "Mobile"
+        : descLower.includes("tv") || descLower.includes("télé") || descLower.includes("chaîne") ? "TV"
         : descLower.includes("streaming") ? "Streaming"
-        : "Service";
+        : descLower.includes("sécurité") || descLower.includes("security") ? "Sécurité"
+        : "Télécom";
       services.push({ type, name: item.description, monthly_price: amount });
       invoiceItems.push({
         category: type as any,
