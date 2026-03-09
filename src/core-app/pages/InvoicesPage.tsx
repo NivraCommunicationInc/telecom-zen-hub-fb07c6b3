@@ -27,7 +27,8 @@ const fmtDate = (d: string | null) => {
 };
 
 const InvoicesPage = () => {
-  const { data: invoices = [], isLoading, refetch } = useAdminInvoices();
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
+  const { data: invoices = [], isLoading, refetch } = useAdminInvoices(envFilter);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
