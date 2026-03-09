@@ -1,5 +1,6 @@
 /**
  * useAdminInvoiceDetail — Fetches a single invoice with lines, payments, customer, order
+ * confirmed_by resolved to profile name when available
  */
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
@@ -23,6 +24,7 @@ export interface InvoiceDetailPayment {
   received_at: string | null;
   created_at: string | null;
   created_by_name: string | null;
+  confirmed_by_name: string | null;
 }
 
 export interface InvoiceDetail {
@@ -46,17 +48,13 @@ export interface InvoiceDetail {
   fees: number | null;
   activation_fee: number | null;
   account_number: string | null;
-  // Order
   order_id: string | null;
   order_number: string | null;
-  // Customer
   customer_id: string;
   customer_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
-  // Lines
   lines: InvoiceDetailLine[];
-  // Payments
   payments: InvoiceDetailPayment[];
 }
 
@@ -91,12 +89,30 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         .eq("invoice_id", invoiceId)
         .order("created_at", { ascending: true });
 
-      // Fetch payments
+      // Fetch payments with confirmed_by
       const { data: payments } = await supabase
         .from("billing_payments")
-        .select("id, payment_number, amount, method, status, reference, received_at, created_at, created_by_name")
+        .select("id, payment_number, amount, method, status, reference, received_at, created_at, created_by_name, confirmed_by")
         .eq("invoice_id", invoiceId)
         .order("created_at", { ascending: true });
+
+      // Resolve confirmed_by UUIDs to profile names
+      const confirmedByIds = (payments ?? [])
+        .map((p: any) => p.confirmed_by)
+        .filter((id: string | null) => id && id.length > 10);
+      
+      let confirmedByMap: Record<string, string> = {};
+      if (confirmedByIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", confirmedByIds);
+        if (profiles) {
+          for (const p of profiles) {
+            confirmedByMap[p.id] = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.id;
+          }
+        }
+      }
 
       const c = inv.customer as any;
       const o = inv.order as any;
@@ -146,6 +162,9 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
           received_at: p.received_at,
           created_at: p.created_at,
           created_by_name: p.created_by_name,
+          confirmed_by_name: p.confirmed_by
+            ? confirmedByMap[p.confirmed_by] || p.confirmed_by
+            : null,
         })),
       };
     },
