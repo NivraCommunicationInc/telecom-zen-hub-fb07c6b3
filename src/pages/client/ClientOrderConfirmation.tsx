@@ -654,13 +654,13 @@ END:VCALENDAR`;
                       <span className="text-muted-foreground">Services 1er mois</span>
                       <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {recurringDiscountTotal > 0 && (
+                    {promoDiscount > 0 && (
                       <div className="flex justify-between text-emerald-500">
                         <span>Rabais {order.promo_code ? `(${order.promo_code})` : "nouveau client"}</span>
-                        <span>-{recurringDiscountTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    {recurringDiscountTotal > 0 && (
+                    {promoDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
                         <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
