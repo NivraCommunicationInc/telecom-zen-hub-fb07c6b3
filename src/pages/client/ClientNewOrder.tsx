@@ -2859,6 +2859,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const monthlyTvq = round2(monthlyRecurring * 0.09975);
   const monthlyTotalWithTax = round2(monthlyRecurring + monthlyTps + monthlyTvq);
 
+  // ── SINGLE UI SOURCES OF TRUTH (locked during submission) ───────────────────
+  const monthlyRecurringWithTax = monthlyTotalWithTax;
+  const isUiLocked = createOrderMutation.isPending && !!lockedUiTotals;
+
+  // During submission, freeze the UI to the exact values shown right before click.
+  const uiMonthlyRecurringWithTax = isUiLocked
+    ? lockedUiTotals!.monthlyRecurringWithTax
+    : monthlyRecurringWithTax;
+  const uiTodayTotal = isUiLocked ? lockedUiTotals!.todayTotal : todayTotal;
+  const capturedPaymentAmount = isUiLocked
+    ? lockedUiTotals!.capturedPaymentAmount
+    : todayTotal;
+
   // All display values come exclusively from authoritativePricing.
   // These aliases exist ONLY for backward-compat in the order-submission function
   // where serverPricing (Nivra Core response) is the authoritative source.
