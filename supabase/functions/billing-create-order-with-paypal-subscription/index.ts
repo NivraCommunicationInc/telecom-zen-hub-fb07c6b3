@@ -391,21 +391,23 @@ serve(async (req) => {
       
       if (invoiceError) throw invoiceError;
       
-      // Create invoice lines
-      const lines = [
+      // Create invoice lines — ALWAYS set line_type explicitly
+      const lines: Array<Record<string, any>> = [
         {
           invoice_id: invoice.id,
           description: `${service.plan_name} – 30 jours`,
           unit_price: service.plan_price,
           quantity: 1,
-          line_total: service.plan_price
+          line_total: service.plan_price,
+          line_type: 'service'
         },
         {
           invoice_id: invoice.id,
           description: `Rabais paiement automatique`,
           unit_price: -serviceDiscountShare,
           quantity: 1,
-          line_total: -serviceDiscountShare
+          line_total: -serviceDiscountShare,
+          line_type: 'discount'
         }
       ];
       
@@ -415,7 +417,8 @@ serve(async (req) => {
           description: serviceCount === 1 ? "Frais d'activation (1 service)" : "Frais d'activation (multi-services)",
           unit_price: invoiceActivationFee,
           quantity: 1,
-          line_total: invoiceActivationFee
+          line_total: invoiceActivationFee,
+          line_type: 'fee'
         });
       }
       
