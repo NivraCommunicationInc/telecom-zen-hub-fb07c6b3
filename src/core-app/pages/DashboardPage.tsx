@@ -9,6 +9,7 @@ import { useAdminInvoices } from "@/core-app/hooks/useAdminInvoices";
 import { useAdminPayments } from "@/core-app/hooks/useAdminPayments";
 import { useAdminOrders } from "@/core-app/hooks/useAdminOrders";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import { ShoppingCart, CreditCard, FileText, AlertTriangle, ArrowRight, Zap, CalendarDays, ListTodo } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
