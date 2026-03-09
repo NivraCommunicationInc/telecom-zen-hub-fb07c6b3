@@ -3,6 +3,7 @@
  * Reuses useAdminSubscriptions hook — zero duplicated business logic.
  */
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useAdminSubscriptions } from "@/hooks/admin/useAdminSubscriptions";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
 import { Search, RefreshCw, Filter, Repeat, Zap } from "lucide-react";
