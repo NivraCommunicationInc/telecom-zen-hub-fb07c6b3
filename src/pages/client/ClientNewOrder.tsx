@@ -1967,7 +1967,7 @@ const ClientNewOrder = () => {
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
-        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? totalAmount : 0,
+        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? Math.max(0, serverPricing.grand_total) : 0,
         payment_reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : null,
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
@@ -1979,17 +1979,17 @@ const ClientNewOrder = () => {
         channel_assigned_by: hasTVService && channelData.length > 0 ? user.id : null,
         // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
         equipment_details: wrapLineItemsForOrder(lineItems, {
-          subtotal: grossSubtotal + orderActivationFee + orderDeliveryFee + installationFee + routerFee + terminalFee + simFee,
+          subtotal: serverPricing.taxable_base,
           discount_amount: cappedDiscount,
-          base_amount: baseAmount,
-          tps_amount: tpsAmount,
-          tvq_amount: tvqAmount,
-          total: totalAmount,
+          base_amount: serverPricing.taxable_base,
+          tps_amount: serverPricing.tps_amount,
+          tvq_amount: serverPricing.tvq_amount,
+          total: Math.max(0, serverPricing.grand_total),
           promo_code: appliedPromo?.code || null,
           promo_name: appliedPromo?.name || null,
           payment_method: paymentMethodValue,
-          monthly_recurring: monthlyRecurring,
-          one_time_fees: oneTimeFees,
+          monthly_recurring: serverPricing.recurring_subtotal,
+          one_time_fees: serverPricing.one_time_subtotal,
         }),
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
@@ -2376,11 +2376,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             promo_code: appliedPromo?.code || null,
           },
           billing_snapshot: {
-            subtotal: subtotal + paidChannelTotal,
-            one_time_fees: oneTimeFees,
-            tps: tpsAmount,
-            tvq: tvqAmount,
-            total: totalAmount,
+            subtotal: serverPricing.taxable_base,
+            one_time_fees: serverPricing.one_time_subtotal,
+            tps: serverPricing.tps_amount,
+            tvq: serverPricing.tvq_amount,
+            total: Math.max(0, serverPricing.grand_total),
             payment_method: paymentMethod || null,
             payment_reference: paymentConfirmationNumber || nivraPaymentRef || null,
           },
@@ -2490,8 +2490,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             client_phone: checkoutPhone || profile?.phone,
             order_number: orderData.order_number,
             services: servicesForEmail,
-            monthly_total_tax_in: monthlyRecurringWithTax,
-            one_time_total: oneTimeFeesWithTax,
+            monthly_total_tax_in: authoritativePricing?.total ?? 0,
+            one_time_total: oneTimeFees,
             delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
             payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
             payment_method: paymentMethodLabel,
@@ -2515,7 +2515,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           summary: `Nouvelle commande: ${servicesDesc}`,
           details: {
             "Services": servicesDesc,
-            "Total": `$${totalAmount.toFixed(2)}`,
+            "Total": `$${(authoritativePricing?.total ?? 0).toFixed(2)}`,
             "Méthode paiement": paymentMethod === "paypal" ? "PayPal" : paymentMethod === "etransfer" ? "Virement Interac" : paymentMethod === "credit_card" ? "Carte de crédit" : paymentMethod || "Non spécifié",
           },
           priority: "normal",
@@ -2831,16 +2831,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const todayTvq = authoritativePricing?.qst ?? 0;
   const todayTotal = authoritativePricing?.total ?? 0;
 
-  // Keep legacy aliases for existing flow, but all values now come from authoritativePricing.
-  const monthlyRecurringNet = todayTaxableBase;
-  const monthlyTaxes = todayTps + todayTvq;
-  const monthlyRecurringWithTax = todayTotal;
-  const oneTimeFeesWithTax = todayTotal;
-
-  const baseAmount = todayTaxableBase;
-  const tpsAmount = todayTps;
-  const tvqAmount = todayTvq;
-  const totalAmount = todayTotal;
+  // All display values come exclusively from authoritativePricing.
+  // These aliases exist ONLY for backward-compat in the order-submission function
+  // where serverPricing (Nivra Core response) is the authoritative source.
+  // DO NOT use these for UI display — use authoritativePricing directly.
 
   // === LIVE PRICING: call server-side computeCheckoutPricing RPC ===
   useEffect(() => {
@@ -5120,7 +5114,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
-                        <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                   </div>
@@ -5526,11 +5520,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
-                      <span>{monthlyTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{((authoritativePricing?.gst ?? 0) + (authoritativePricing?.qst ?? 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-purple-500/50">
                       <span className="font-bold text-purple-500 text-base">Total mensuel estimé</span>
-                      <span className="font-bold text-purple-500 text-lg">{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="font-bold text-purple-500 text-lg">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Facturation le 1er de chaque mois après activation</p>
                   </CardContent>
@@ -5542,7 +5536,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </p>
 
               {/* FREE ORDER - No payment required when total is 0 */}
-              {totalAmount <= 0 && (
+              {(authoritativePricing?.total ?? 0) <= 0 && (
                 <Card className="bg-emerald-500/10 border-emerald-500/50">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-emerald-600">
@@ -5576,7 +5570,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               )}
 
               {/* Payment Section - Required before order submission */}
-              {totalAmount > 0 && (
+              {(authoritativePricing?.total ?? 0) > 0 && (
               <Card className="bg-card border-emerald-500/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -5706,7 +5700,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             <div className="text-sm">
                               <p className="font-medium text-foreground mb-2">Instructions de paiement Interac</p>
                               <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                                <li>Envoyez <strong className="text-amber-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong> à:</li>
+                                <li>Envoyez <strong className="text-amber-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong> à:</li>
                                 <li className="ml-4"><strong className="text-foreground">Support@nivra-telecom.ca</strong></li>
                                 <li>Entrez le numéro de confirmation Interac ci-dessous</li>
                               </ol>
@@ -5793,7 +5787,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             Réf. PayPal: <span className="font-mono font-bold text-foreground">{paypalCaptureId}</span>
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Montant: <span className="font-bold text-emerald-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                            Montant: <span className="font-bold text-emerald-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                           </p>
                           <p className="text-xs text-emerald-600 mt-1">
                             ✓ Votre paiement a été capturé. Vous pouvez soumettre votre commande.
@@ -5829,7 +5823,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             Confirmation: <span className="font-mono font-bold text-foreground">{paymentConfirmationNumber}</span>
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Montant: <span className="font-bold text-emerald-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                            Montant: <span className="font-bold text-emerald-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                           </p>
                           {paymentMethod === "paypal" && (
                             <Badge className="mt-2 bg-blue-500/20 text-blue-600 border-0">
@@ -5915,11 +5909,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS + TVQ</span>
-                      <span>{monthlyTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span>{((authoritativePricing?.gst ?? 0) + (authoritativePricing?.qst ?? 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <div className="flex justify-between font-medium pt-1 border-t border-purple-500/30">
                       <span className="text-purple-500">Total mensuel</span>
-                      <span className="text-purple-500">{monthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="text-purple-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
 
                     <Separator className="my-1" />
@@ -5990,7 +5984,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois</span>
-                        <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
@@ -6062,7 +6056,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{selectedServices.length} service(s)</span>
-                  <span className="font-bold text-foreground">{totalAmount.toFixed(2)} $/mois</span>
+                  <span className="font-bold text-foreground">{(authoritativePricing?.total ?? 0).toFixed(2)} $/mois</span>
                 </div>
                 <Button variant="hero" className="w-full" size="lg" onClick={() => setStep(2)}>
                   Continuer <ArrowRight className="w-4 h-4 ml-2" />
