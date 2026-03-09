@@ -80,6 +80,7 @@ interface OrderData {
   promo_code?: string;
   promo_discount_amount?: number;
   preauth_discount?: number;
+  amount_paid?: number;
   account_id?: string;
   pricing_snapshot?: any;
   // Address fields from order
