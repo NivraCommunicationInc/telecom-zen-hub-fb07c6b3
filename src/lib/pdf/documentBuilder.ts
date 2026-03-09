@@ -436,9 +436,10 @@ export function buildContractData(data: OrderDocumentData): ContractDataV3 {
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis pour le contrat.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   return {
     contract_number: contract?.contract_number || order.related_contract_id || `CTR-${order.order_number || order.id.slice(0, 8)}`,
