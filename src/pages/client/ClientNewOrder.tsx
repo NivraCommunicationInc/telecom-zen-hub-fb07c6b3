@@ -6059,15 +6059,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  <div className="border-t-2 border-cyan-500/50 pt-4">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
-                      <span className="text-2xl font-bold text-cyan-500">
-                        {todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
-                  </div>
+                   <div className="border-t-2 border-cyan-500/50 pt-4">
+                     <div className="flex justify-between items-center">
+                       <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
+                       <span className="text-2xl font-bold text-cyan-500">
+                         {uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                       </span>
+                     </div>
+                     <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
+                   </div>
 
                   {/* Payment Status Indicator */}
                   {isPaymentComplete && (
