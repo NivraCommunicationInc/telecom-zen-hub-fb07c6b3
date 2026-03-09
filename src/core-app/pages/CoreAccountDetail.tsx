@@ -60,7 +60,7 @@ const CoreAccountDetail = () => {
       <div className="py-20 text-center">
         <User className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,30%)]" />
         <p className="text-[hsl(220,10%,40%)] text-xs">Compte introuvable</p>
-        <Link to="/core/accounts" className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux comptes</Link>
+        <Link to={corePath("/accounts")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux comptes</Link>
       </div>
     );
   }
