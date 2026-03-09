@@ -6122,7 +6122,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{selectedServices.length} service(s)</span>
-                  <span className="font-bold text-foreground">{(authoritativePricing?.total ?? 0).toFixed(2)} $/mois</span>
+                  <span className="font-bold text-foreground">
+                    {uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                  </span>
                 </div>
                 <Button variant="hero" className="w-full" size="lg" onClick={() => setStep(2)}>
                   Continuer <ArrowRight className="w-4 h-4 ml-2" />
