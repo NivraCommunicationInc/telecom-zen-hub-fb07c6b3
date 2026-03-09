@@ -2860,13 +2860,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const monthlyTotalWithTax = round2(monthlyRecurring + monthlyTps + monthlyTvq);
 
   // ── SINGLE UI SOURCES OF TRUTH (locked during submission) ───────────────────
-  const monthlyRecurringWithTax = monthlyTotalWithTax;
+  // Monthly totals are pure local computations (from selectedServices) and NEVER change
+  // during submission — no locking needed. Only todayTotal needs locking because
+  // liveServerPricing can refresh mid-flight.
   const isUiLocked = createOrderMutation.isPending && !!lockedUiTotals;
-
-  // During submission, freeze the UI to the exact values shown right before click.
-  const uiMonthlyRecurringWithTax = isUiLocked
-    ? lockedUiTotals!.monthlyRecurringWithTax
-    : monthlyRecurringWithTax;
   const uiTodayTotal = isUiLocked ? lockedUiTotals!.todayTotal : todayTotal;
   const capturedPaymentAmount = isUiLocked
     ? lockedUiTotals!.capturedPaymentAmount
