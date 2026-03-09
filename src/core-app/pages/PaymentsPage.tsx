@@ -163,7 +163,7 @@ const PaymentsPage = () => {
                     </td>
                     <td className="px-3 py-2.5">
                       {p.invoice_number ? (
-                        <Link to={`/core/invoices/${p.invoice_id}`} className="font-mono text-[11px] text-blue-400 hover:underline">{p.invoice_number}</Link>
+                        <Link to={corePath(`/invoices/${p.invoice_id}`)} className="font-mono text-[11px] text-blue-400 hover:underline">{p.invoice_number}</Link>
                       ) : (
                         <span className="text-[hsl(220,10%,30%)]">—</span>
                       )}
