@@ -50,6 +50,10 @@
 /verify-id /index.html 200
 /verify-id/* /index.html 200
 
+# Explicit SPA rewrites for Nivra Core internal app
+/core /index.html 200
+/core/* /index.html 200
+
 # SPA catch-all - must be LAST
 /* /index.html 200
 
