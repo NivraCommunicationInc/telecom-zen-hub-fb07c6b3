@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Search, ArrowRight, Users, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
