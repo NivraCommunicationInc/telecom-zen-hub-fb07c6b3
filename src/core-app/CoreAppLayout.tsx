@@ -12,6 +12,7 @@ import {
   FileText,
   CreditCard,
   RefreshCcw,
+  Calendar,
   ChevronLeft,
   ChevronRight,
   Terminal,
