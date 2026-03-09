@@ -549,6 +549,20 @@ const AppRoutes = () => {
       {/* Field Sales Portal - Redirect to Admin POS */}
       <Route path="/field-sales/*" element={<Navigate to="/admin/pos" replace />} />
 
+      {/* ============================================ */}
+      {/* NIVRA CORE — Internal Operations App        */}
+      {/* ============================================ */}
+      <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreAppLayout /></Suspense>}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Suspense fallback={null}><CoreDashboard /></Suspense>} />
+        <Route path="work-queue" element={<Suspense fallback={null}><CoreWorkQueue /></Suspense>} />
+        <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
+        <Route path="accounts" element={<Suspense fallback={null}><CoreAccounts /></Suspense>} />
+        <Route path="invoices" element={<Suspense fallback={null}><CoreInvoices /></Suspense>} />
+        <Route path="payments" element={<Suspense fallback={null}><CorePayments /></Suspense>} />
+        <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
+      </Route>
+
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
