@@ -34,7 +34,13 @@ const NAV_SECTIONS = [
 
 const CoreAppLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/core/login", { replace: true });
+  };
 
   const isActive = (href: string) => {
     if (href === "/core") return location.pathname === "/core";
