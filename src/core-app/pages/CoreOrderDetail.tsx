@@ -12,6 +12,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Loader2, ArrowLeft, RefreshCw, ShoppingCart, User, Mail, Phone, MapPin, Hash, FileText, CreditCard, Repeat, Package, Eye, AlertTriangle, FileBadge, ScrollText, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
