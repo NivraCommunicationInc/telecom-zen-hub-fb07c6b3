@@ -38,6 +38,44 @@ const InfoRow = ({ label, value, mono }: { label: string; value: string; mono?: 
 const CoreInvoiceDetail = () => {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const { data: inv, isLoading, refetch } = useAdminInvoiceDetail(invoiceId);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const handleViewInvoicePDF = async () => {
+    if (!invoiceId) return;
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const result = await generateCanonicalInvoicePDF(adminClient, invoiceId);
+      if (result.success && result.blob) {
+        setPdfBlob(result.blob);
+        setPdfOpen(true);
+      } else {
+        setPdfError(result.error || "Erreur de génération");
+        toast.error(result.error || "Erreur de génération du PDF");
+      }
+    } catch (err: any) {
+      setPdfError(err.message || "Erreur inattendue");
+      toast.error("Erreur lors de la génération du PDF");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadInvoicePDF = async () => {
+    if (pdfBlob) {
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Facture_${inv?.invoice_number || ""}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    await handleViewInvoicePDF();
+  };
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[hsl(220,10%,40%)]" /></div>;
