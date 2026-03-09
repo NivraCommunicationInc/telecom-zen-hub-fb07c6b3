@@ -558,18 +558,25 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* NIVRA CORE — Internal Operations App        */}
       {/* ============================================ */}
-      <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreAppLayout /></Suspense>}>
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<Suspense fallback={null}><CoreDashboard /></Suspense>} />
-        <Route path="work-queue" element={<Suspense fallback={null}><CoreWorkQueue /></Suspense>} />
-        <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
-        <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
-        <Route path="accounts" element={<Suspense fallback={null}><CoreAccounts /></Suspense>} />
-        <Route path="accounts/:accountId" element={<Suspense fallback={null}><CoreAccountDetail /></Suspense>} />
-        <Route path="invoices" element={<Suspense fallback={null}><CoreInvoices /></Suspense>} />
-        <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
-        <Route path="payments" element={<Suspense fallback={null}><CorePayments /></Suspense>} />
-        <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
+      {/* Public: Core login (no auth required) */}
+      <Route path="/core/login" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreLoginPage /></Suspense>} />
+
+      {/* Protected: All /core/* routes behind auth gate */}
+      <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense>}>
+        <Route element={<CoreAppLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={null}><CoreDashboard /></Suspense>} />
+          <Route path="work-queue" element={<Suspense fallback={null}><CoreWorkQueue /></Suspense>} />
+          <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
+          <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
+          <Route path="accounts" element={<Suspense fallback={null}><CoreAccounts /></Suspense>} />
+          <Route path="accounts/:accountId" element={<Suspense fallback={null}><CoreAccountDetail /></Suspense>} />
+          <Route path="invoices" element={<Suspense fallback={null}><CoreInvoices /></Suspense>} />
+          <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={null}><CorePayments /></Suspense>} />
+          <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
+          <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
+        </Route>
       </Route>
 
       {/* Catch-all 404 */}
