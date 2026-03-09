@@ -505,16 +505,34 @@ serve(async (req) => {
       }
       
       // Welcome discount line (50% on services for new customers - first invoice only)
-      const welcomeDiscountAmt = hasBillingTotals && i === 0 ? (body.billing_totals!.welcome_discount_amount || 0) : 0;
-      if (welcomeDiscountAmt > 0) {
+      // ⚠️ SECURITY: IGNORE client-provided welcome_discount_amount — re-compute server-side
+      let serverWelcomeDiscount = 0;
+      if (i === 0 && body.user_id) {
+        // Check if user has any completed orders (same logic as compute_checkout_pricing RPC)
+        const { data: existingOrders } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("user_id", body.user_id)
+          .in("status", ["completed", "installation_completed", "activated", "active"])
+          .limit(1);
+        
+        const isNewCustomer = !existingOrders || existingOrders.length === 0;
+        if (isNewCustomer && service.plan_price > 0) {
+          // 50% discount on recurring service price
+          serverWelcomeDiscount = Math.round(service.plan_price * 0.50 * 100) / 100;
+          console.log(`[billing-create-order] SERVER-SIDE welcome discount computed: -${serverWelcomeDiscount} (new customer)`);
+        }
+      }
+      
+      if (serverWelcomeDiscount > 0) {
         lines.push({
           invoice_id: invoice.id,
           description: "Rabais nouveau client (50% — 1er mois)",
-          unit_price: -welcomeDiscountAmt,
+          unit_price: -serverWelcomeDiscount,
           quantity: 1,
-          line_total: -welcomeDiscountAmt
+          line_total: -serverWelcomeDiscount
         });
-        console.log(`[billing-create-order] Added welcome discount line: -${welcomeDiscountAmt}`);
+        console.log(`[billing-create-order] Added welcome discount line: -${serverWelcomeDiscount}`);
       }
       
       await supabase.from("billing_invoice_lines").insert(lines);
