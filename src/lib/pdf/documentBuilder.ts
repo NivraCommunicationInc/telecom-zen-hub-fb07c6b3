@@ -459,9 +459,10 @@ export function buildOrderSummaryData(data: OrderDocumentData): OrderSummaryV3Da
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis pour le sommaire de commande.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   return {
     order_number: requireField(order.order_number?.toString(), "order_number"),
