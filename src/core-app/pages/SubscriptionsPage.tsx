@@ -52,15 +52,16 @@ const SubscriptionsPage = () => {
   }), [subs]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Abonnements</h1>
-          <p className="text-[13px] text-[hsl(220,10%,50%)] mt-0.5">
-            {filtered.length} résultat{filtered.length !== 1 ? "s" : ""}
+          <h1 className="text-lg font-bold text-white tracking-tight">Abonnements</h1>
+          <p className="text-[12px] text-[hsl(220,10%,45%)] mt-0.5">
+            Gestion des abonnements · {stats.total} abonnement{stats.total !== 1 ? "s" : ""}
           </p>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[12px] text-[hsl(220,10%,55%)] hover:text-white transition-colors">
+        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
           <RefreshCw className="h-3.5 w-3.5" /> Actualiser
         </button>
       </div>
@@ -73,9 +74,9 @@ const SubscriptionsPage = () => {
           { label: "En attente", value: stats.pending, color: "text-amber-400" },
           { label: "Suspendus / Annulés", value: stats.suspended, color: "text-red-400" },
         ].map((s) => (
-          <div key={s.label} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
-            <p className="text-[11px] uppercase tracking-wider text-[hsl(220,10%,40%)]">{s.label}</p>
-            <p className={`text-lg font-semibold mt-1 ${s.color}`}>{isLoading ? "…" : s.value}</p>
+          <div key={s.label} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,40%)] font-medium">{s.label}</p>
+            <p className={`text-lg font-bold tabular-nums mt-1 ${s.color}`}>{isLoading ? "—" : s.value}</p>
           </div>
         ))}
       </div>
@@ -84,10 +85,10 @@ const SubscriptionsPage = () => {
       <div className="flex items-center gap-3">
         <div className="flex-1 flex items-center gap-2 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-2">
           <Search className="h-4 w-4 text-[hsl(220,10%,40%)]" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par plan, client, compte, catégorie…" className="flex-1 bg-transparent text-[13px] text-white placeholder:text-[hsl(220,10%,35%)] outline-none" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par plan, client, compte, catégorie…" className="flex-1 bg-transparent text-xs text-white placeholder:text-[hsl(220,10%,35%)] outline-none" />
         </div>
         <div className="relative">
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="appearance-none rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-2 pr-8 text-[13px] text-[hsl(220,10%,55%)] outline-none cursor-pointer">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="appearance-none rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-2 pr-8 text-xs text-[hsl(220,10%,55%)] outline-none cursor-pointer">
             <option value="">Tous les statuts</option>
             {STATUS_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
@@ -98,11 +99,11 @@ const SubscriptionsPage = () => {
       {/* Table */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[hsl(220,15%,16%)]">
                 {["Compte", "Client", "Plan", "Catégorie", "Prix/mois", "Statut", "Cycle début", "Cycle fin", "Auto-billing", "Commande", "Créé le"].map((h) => (
-                  <th key={h} className="text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[hsl(220,10%,40%)] whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -118,31 +119,31 @@ const SubscriptionsPage = () => {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="text-center py-12 text-[hsl(220,10%,35%)]">
-                    <Repeat className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                    Aucun abonnement trouvé
+                    <Repeat className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">Aucun abonnement trouvé</p>
                   </td>
                 </tr>
               ) : (
                 filtered.map((s) => (
                   <tr key={s.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors">
-                    <td className="px-3 py-2.5"><span className="font-mono text-[hsl(220,10%,50%)] text-xs">{s.account_number || "—"}</span></td>
+                    <td className="px-3 py-2.5"><span className="font-mono text-[hsl(220,10%,50%)]">{s.account_number || "—"}</span></td>
                     <td className="px-3 py-2.5">
                       <div className="max-w-[150px]">
-                        <p className="text-white text-xs truncate">{s.client_name || "—"}</p>
+                        <p className="text-white truncate">{s.client_name || "—"}</p>
                         <p className="text-[hsl(220,10%,40%)] text-[11px] truncate">{s.client_email || ""}</p>
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
-                      <p className="text-white text-xs font-medium truncate max-w-[180px]">{s.plan_name}</p>
+                      <p className="text-white font-medium truncate max-w-[180px]">{s.plan_name}</p>
                       <p className="text-[hsl(220,10%,40%)] text-[11px] font-mono">{s.plan_code}</p>
                     </td>
-                    <td className="px-3 py-2.5"><span className="text-[hsl(220,10%,55%)] text-xs">{CATEGORY_LABELS[s.service_category ?? ""] || s.service_category || "—"}</span></td>
-                    <td className="px-3 py-2.5"><span className="tabular-nums text-emerald-400 text-xs font-medium">{fmtCAD(s.plan_price)}</span></td>
+                    <td className="px-3 py-2.5"><span className="text-[hsl(220,10%,55%)]">{CATEGORY_LABELS[s.service_category ?? ""] || s.service_category || "—"}</span></td>
+                    <td className="px-3 py-2.5"><span className="tabular-nums text-emerald-400 font-medium">{fmtCAD(s.plan_price)}</span></td>
                     <td className="px-3 py-2.5">
                       <StatusBadge label={STATUS_LABELS[s.status ?? ""] || s.status || "—"} variant={statusToVariant(s.status ?? "")} size="sm" />
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)] text-xs">{fmtDate(s.cycle_start_date)}</span></td>
-                    <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)] text-xs">{fmtDate(s.cycle_end_date)}</span></td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)]">{fmtDate(s.cycle_start_date)}</span></td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)]">{fmtDate(s.cycle_end_date)}</span></td>
                     <td className="px-3 py-2.5">
                       {s.auto_billing_enabled ? (
                         <span className="inline-flex items-center gap-1 text-emerald-400 text-[11px]"><Zap className="h-3 w-3" /> Oui</span>
@@ -151,9 +152,9 @@ const SubscriptionsPage = () => {
                       )}
                     </td>
                     <td className="px-3 py-2.5">
-                      {s.order_id ? <span className="font-mono text-xs text-blue-400">Lié</span> : <span className="text-[hsl(220,10%,30%)] text-xs">—</span>}
+                      {s.order_id ? <span className="font-mono text-blue-400">Lié</span> : <span className="text-[hsl(220,10%,30%)]">—</span>}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)] text-xs">{fmtDate(s.created_at)}</span></td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)]">{fmtDate(s.created_at)}</span></td>
                   </tr>
                 ))
               )}
@@ -161,6 +162,13 @@ const SubscriptionsPage = () => {
           </table>
         </div>
       </div>
+
+      {!isLoading && filtered.length > 0 && (
+        <p className="text-[11px] text-[hsl(220,10%,30%)] text-center">
+          {filtered.length} abonnement{filtered.length !== 1 ? "s" : ""} affiché{filtered.length !== 1 ? "s" : ""}
+          {(search || statusFilter) && ` sur ${stats.total}`}
+        </p>
+      )}
     </div>
   );
 };
