@@ -13,6 +13,7 @@ const AccountsPage = lazy(() => import("@/core-app/pages/AccountsPage"));
 const InvoicesPage = lazy(() => import("@/core-app/pages/InvoicesPage"));
 const PaymentsPage = lazy(() => import("@/core-app/pages/PaymentsPage"));
 const SubscriptionsPage = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
+const SubscriptionDetailPage = lazy(() => import("@/core-app/pages/SubscriptionDetailPage"));
 const AppointmentsPage = lazy(() => import("@/core-app/pages/AppointmentsPage"));
 
 export const coreRoutes: RouteObject = {
