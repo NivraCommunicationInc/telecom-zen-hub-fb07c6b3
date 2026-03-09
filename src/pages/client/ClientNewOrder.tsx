@@ -650,7 +650,17 @@ const ClientNewOrder = () => {
   const [nivraCoreOrderPricing, setNivraCoreOrderPricing] = useState<NivraOrderResponse | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
+  /**
+   * UI lock to prevent totals from changing during the final submission (mutation pending).
+   * This eliminates any “jump” caused by late live pricing refreshes.
+   */
+  const [lockedUiTotals, setLockedUiTotals] = useState<{
+    monthlyRecurringWithTax: number;
+    todayTotal: number;
+    capturedPaymentAmount: number;
+  } | null>(null);
+
   // Query client billing preferences to check if preauth already opted-in
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
     queryKey: ["client-billing-preferences", user?.id],
