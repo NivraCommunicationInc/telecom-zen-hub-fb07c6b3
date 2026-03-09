@@ -233,10 +233,15 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
 
     const descLower = item.description.toLowerCase();
 
+    // Heuristic: items with fee-like descriptions should be fees even if line_type is wrong
+    const isFeeByDescription = descLower.includes("frais d'activation") || descLower.includes("frais de livraison")
+      || descLower.includes("frais d'installation") || descLower.includes("installation fee")
+      || descLower.includes("activation fee") || descLower.includes("delivery fee");
+
     if (item.line_type === "equipment") {
       equipment.push({ name: item.description, quantity: qty, unit_price: unitPrice });
       invoiceItems.push({ category: "Equipment", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
-    } else if (item.line_type === "fee") {
+    } else if (item.line_type === "fee" || isFeeByDescription) {
       fees.push({ label: item.description, amount });
       invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
     } else {
