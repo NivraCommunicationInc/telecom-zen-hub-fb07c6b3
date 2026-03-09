@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_SECTIONS = [
   { label: "Dashboard", href: "/core", icon: LayoutDashboard },
-  { label: "Work Queue", href: "/core/queue", icon: ListTodo },
+  { label: "Work Queue", href: "/core/work-queue", icon: ListTodo },
   { label: "Orders", href: "/core/orders", icon: ShoppingCart },
   { label: "Accounts", href: "/core/accounts", icon: Users },
   { label: "Invoices", href: "/core/invoices", icon: FileText },
