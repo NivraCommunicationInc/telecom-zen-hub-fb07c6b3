@@ -169,10 +169,10 @@ export function useWorkQueue() {
     queryFn: () => fetchQueueOrders(["delivered", "installed"], 20),
   });
 
-  // 5. On hold / blocked
+  // 5. On hold / blocked / provisioning failed
   const onHold = useQuery({
     queryKey: ["work-queue-hold"],
-    queryFn: () => fetchQueueOrders(["on_hold", "incomplete", "invalid_payment", "fraud"], 20),
+    queryFn: () => fetchQueueOrders(["on_hold", "hold", "incomplete", "invalid_payment", "fraud", "provisioning_failed"], 20),
   });
 
   return {
