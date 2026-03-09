@@ -80,6 +80,7 @@ interface OrderData {
   promo_code?: string;
   promo_discount_amount?: number;
   preauth_discount?: number;
+  amount_paid?: number;
   account_id?: string;
   pricing_snapshot?: any;
   // Address fields from order
@@ -370,23 +371,30 @@ END:VCALENDAR`;
   
   // ===== All totals from pricing_snapshot (canonical) =====
   const monthlyRecurringGross = hasSnapshot ? Number(ps.recurring_subtotal) : (order.subtotal ?? 0);
-  const recurringDiscountTotal = hasSnapshot ? Number(ps.discount_total_combined) : (order.promo_discount_amount ?? 0);
-  const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - recurringDiscountTotal);
+  // CRITICAL FIX: discount_total_combined may include equipment/delivery discounts
+  // that do NOT reduce the monthly recurring amount. Only subtract welcome_discount
+  // and service-specific promo discounts from the monthly recurring.
+  const promoApplied = hasSnapshot ? ps.promo_applied : null;
+  const promoAppliesToServices = promoApplied?.applies_to?.services === true;
+  const serviceOnlyDiscount = hasSnapshot
+    ? (promoAppliesToServices ? Number(ps.promo_discount ?? 0) : 0) + Number(ps.welcome_discount ?? 0)
+    : (order.promo_discount_amount ?? 0);
+  const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - serviceOnlyDiscount);
   const oneTimeSubtotal = hasSnapshot ? Number(ps.one_time_subtotal) : (deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
-  const promoDiscount = recurringDiscountTotal;
+  const promoDiscount = hasSnapshot ? Number(ps.discount_total_combined) : (order.promo_discount_amount ?? 0);
   
-  // Taxes and total — directly from canonical snapshot, zero recalculation
+  // Taxes and total — use order.total_amount as authoritative (set from RPC at commit time)
+  // If amount_paid > 0 (PayPal captured), use that as the definitive "total paid"
   const tpsAmount = hasSnapshot ? Number(ps.tps_amount) : (order.tps_amount ?? 0);
   const tvqAmount = hasSnapshot ? Number(ps.tvq_amount) : (order.tvq_amount ?? 0);
-  const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.total_amount ?? 0);
+  // CRITICAL FIX: "Total payé" uses pricing_snapshot.grand_total (from compute_checkout_pricing RPC)
+  // as the authoritative total, since the order trigger recalculates total_amount without all discounts.
+  // Fallback: order.amount_paid (actual captured amount) > order.total_amount
+  const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.amount_paid ?? order.total_amount ?? 0);
   
-  // Future monthly total — derived from pricing_snapshot tax rates (no hardcoded rates)
-  const snapshotTpsRate = (hasSnapshot && Number(ps.taxable_base) > 0) 
-    ? Number(ps.tps_amount) / Number(ps.taxable_base) : 0.05;
-  const snapshotTvqRate = (hasSnapshot && Number(ps.taxable_base) > 0) 
-    ? Number(ps.tvq_amount) / Number(ps.taxable_base) : 0.09975;
-  const monthlyTps = Math.round(monthlyRecurringNet * snapshotTpsRate * 100) / 100;
-  const monthlyTvq = Math.round(monthlyRecurringNet * snapshotTvqRate * 100) / 100;
+  // Future monthly total — use standard QC tax rates
+  const monthlyTps = Math.round(monthlyRecurringNet * 0.05 * 100) / 100;
+  const monthlyTvq = Math.round(monthlyRecurringNet * 0.09975 * 100) / 100;
   const monthlyWithTaxes = Math.round((monthlyRecurringNet + monthlyTps + monthlyTvq) * 100) / 100;
 
   // Determine fulfillment type
@@ -553,13 +561,13 @@ END:VCALENDAR`;
                     <span>Sous-total mensuel</span>
                     <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                   </div>
-                  {recurringDiscountTotal > 0 && (
+                  {promoDiscount > 0 && (
                     <div className="flex justify-between text-sm text-emerald-500 mt-1">
                       <span>Rabais {order.promo_code ? `(${order.promo_code})` : "nouveau client"}</span>
-                      <span>-{recurringDiscountTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   )}
-                  {recurringDiscountTotal > 0 && (
+                  {serviceOnlyDiscount > 0 && (
                     <div className="flex justify-between text-sm mt-1">
                       <span className="text-muted-foreground">Net mensuel après rabais</span>
                       <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
@@ -647,13 +655,13 @@ END:VCALENDAR`;
                       <span className="text-muted-foreground">Services 1er mois</span>
                       <span>{monthlyRecurringGross.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {recurringDiscountTotal > 0 && (
+                    {promoDiscount > 0 && (
                       <div className="flex justify-between text-emerald-500">
                         <span>Rabais {order.promo_code ? `(${order.promo_code})` : "nouveau client"}</span>
-                        <span>-{recurringDiscountTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    {recurringDiscountTotal > 0 && (
+                    {promoDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
                         <span>{monthlyRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
