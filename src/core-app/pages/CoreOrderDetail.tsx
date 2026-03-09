@@ -96,6 +96,14 @@ function useOrderDetail(orderId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(20);
 
+      const { data: contract } = await supabase
+        .from("contracts")
+        .select("id, contract_number, status, is_signed, created_at, client_signed_at, admin_signed_at")
+        .eq("order_id", orderId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       return {
         order,
         profile,
@@ -106,6 +114,7 @@ function useOrderDetail(orderId: string | undefined) {
         subscriptions: subscriptions || [],
         appointment,
         activityLogs: activityLogs || [],
+        contract,
       };
     },
   });
