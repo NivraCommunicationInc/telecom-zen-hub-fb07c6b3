@@ -33,6 +33,7 @@ import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { hashPin } from "@/lib/pinUtils";
+import { generateAccountNumber } from "@/lib/secureIdGenerator";
 
 const createClientSchema = z.object({
   // Identity
