@@ -125,6 +125,7 @@ export function useWorkQueue() {
           created_at: o.created_at,
           invoice_number: null,
           invoice_id: null,
+          failure_reason: null,
         };
       });
     },
