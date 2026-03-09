@@ -1897,7 +1897,7 @@ const ClientNewOrder = () => {
         taxable_base: nivraOrderResponse.subtotal,
         recurring_subtotal: monthlyRecurring,
         one_time_subtotal: oneTimeFees,
-        discount_total: liveServerPricing?.discount_total ?? 0,
+        discount_total_combined: liveServerPricing?.discount_total_combined ?? 0,
         promo_discount: liveServerPricing?.promo_discount ?? 0,
         welcome_discount: liveServerPricing?.welcome_discount ?? 0,
         welcome_applied: liveServerPricing?.welcome_applied ?? false,
