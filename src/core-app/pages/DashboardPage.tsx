@@ -74,11 +74,11 @@ const DashboardPage = () => {
       {/* Quick Links */}
       <div className="flex items-center gap-2">
         {[
-          { label: "Work Queue", href: "/core/work-queue", icon: ListTodo },
-          { label: "Commandes", href: "/core/orders", icon: ShoppingCart },
-          { label: "Factures", href: "/core/invoices", icon: FileText },
-          { label: "Paiements", href: "/core/payments", icon: CreditCard },
-          { label: "RDV", href: "/core/work-queue", icon: CalendarDays },
+          { label: "Work Queue", href: corePath("/work-queue"), icon: ListTodo },
+          { label: "Commandes", href: corePath("/orders"), icon: ShoppingCart },
+          { label: "Factures", href: corePath("/invoices"), icon: FileText },
+          { label: "Paiements", href: corePath("/payments"), icon: CreditCard },
+          { label: "RDV", href: corePath("/work-queue"), icon: CalendarDays },
         ].map(q => (
           <Link key={q.label} to={q.href} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
             <q.icon className="h-3.5 w-3.5" /> {q.label}
