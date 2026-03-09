@@ -5823,7 +5823,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             Confirmation: <span className="font-mono font-bold text-foreground">{paymentConfirmationNumber}</span>
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Montant: <span className="font-bold text-emerald-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                            Montant: <span className="font-bold text-emerald-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                           </p>
                           {paymentMethod === "paypal" && (
                             <Badge className="mt-2 bg-blue-500/20 text-blue-600 border-0">
