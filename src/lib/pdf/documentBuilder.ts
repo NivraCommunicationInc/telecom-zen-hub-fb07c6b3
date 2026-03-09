@@ -325,7 +325,7 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
     status: invoiceStatus as any,
 
     customer: {
-      full_name: requireField(snapshotClient?.full_name || clientName, "client_name"),
+      full_name: requireField(snapshotClient?.full_name || snapshotClient?.name || clientName, "client_name"),
       email: requireField(snapshotClient?.email || order.client_email || profile?.email, "client_email"),
       phone: requireField(snapshotClient?.phone || order.client_phone || profile?.phone, "client_phone"),
       address_line1: requireField(snapshotClient?.address_line1 || addr.address_line1, "address_line1"),
