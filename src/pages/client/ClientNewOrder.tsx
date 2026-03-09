@@ -1908,7 +1908,7 @@ const ClientNewOrder = () => {
         cents: {
           recurring_subtotal: Math.round(monthlyRecurring * 100),
           one_time_subtotal: Math.round(oneTimeFees * 100),
-          discount_total: liveServerPricing?.cents?.discount_total ?? 0,
+          discount_total_combined: liveServerPricing?.cents?.discount_total_combined ?? 0,
           promo_discount: liveServerPricing?.cents?.promo_discount ?? 0,
           welcome_discount: liveServerPricing?.cents?.welcome_discount ?? 0,
           taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
