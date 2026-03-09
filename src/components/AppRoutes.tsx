@@ -7,6 +7,8 @@ import { lazy, Suspense } from "react";
 
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
+const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
+const CoreLoginPage = lazy(() => import("@/core-app/pages/CoreLoginPage"));
 const CoreDashboard = lazy(() => import("@/core-app/pages/DashboardPage"));
 const CoreWorkQueue = lazy(() => import("@/core-app/pages/WorkQueuePage"));
 const CoreOrders = lazy(() => import("@/core-app/pages/OrdersPage"));
@@ -14,6 +16,7 @@ const CoreAccounts = lazy(() => import("@/core-app/pages/AccountsPage"));
 const CoreInvoices = lazy(() => import("@/core-app/pages/InvoicesPage"));
 const CorePayments = lazy(() => import("@/core-app/pages/PaymentsPage"));
 const CoreSubscriptions = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
+const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"));
 const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
 const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
