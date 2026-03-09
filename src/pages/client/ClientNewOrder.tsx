@@ -71,7 +71,7 @@ import { AddressAutocomplete, type AddressValue } from "@/components/shared/Addr
 import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/validation/dob";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
-import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
+// useWelcomeDiscount REMOVED — welcome discount is now 100% server-side via compute_checkout_pricing RPC
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
