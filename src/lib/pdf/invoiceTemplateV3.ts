@@ -319,7 +319,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
 
     // Status badge
     const statusLabel = fmtStatus(data.status);
-    const isPaidStatus = data.status?.toLowerCase() === "paid" || data.status === "paid_by_promo";
+    const isPaidStatus = data.status?.toLowerCase() === "paid" || String(data.status) === "paid_by_promo";
     const isPartial = data.status?.toLowerCase() === "partially_paid";
     const badgeColor: [number, number, number] = isPaidStatus ? C.success : isPartial ? C.warning : C.error;
     
