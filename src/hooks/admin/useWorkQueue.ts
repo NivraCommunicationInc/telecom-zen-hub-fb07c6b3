@@ -98,6 +98,7 @@ export function useWorkQueue() {
         .from("orders")
         .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at")
         .eq("payment_status", "paid")
+        .eq("environment", "live")
         .not("status", "in", '("completed","cancelled")')
         .order("created_at", { ascending: true })
         .limit(20);
