@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { corePath } from "@/core-app/lib/corePaths";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface SearchResult {
