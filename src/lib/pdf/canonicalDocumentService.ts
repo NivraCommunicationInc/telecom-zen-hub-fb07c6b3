@@ -234,56 +234,7 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
   };
 }
 
-function fallbackStructure(order: any, billingInvoice: any, billingInvoiceLines: any[], billingPayments: any[]): StructuredFromBreakdown {
-  const services: StructuredFromBreakdown["services"] = [];
-  const equipment: StructuredFromBreakdown["equipment"] = [];
-  const fees: StructuredFromBreakdown["fees"] = [];
-  const invoiceItems: InvoiceItem[] = [];
-
-  if (billingInvoiceLines?.length > 0) {
-    for (const line of billingInvoiceLines) {
-      const desc = line.description || "Service";
-      const amount = Number(line.line_total || 0);
-      const qty = Number(line.quantity || 1);
-      const unitPrice = Number(line.unit_price || amount);
-      const lineType = line.line_type || "service";
-      if (lineType === "discount" || lineType === "credit" || amount < 0) continue;
-      if (lineType === "equipment") {
-        equipment.push({ name: desc, quantity: qty, unit_price: unitPrice });
-        invoiceItems.push({ category: "Equipment", description: desc, qty, unit_price: unitPrice, amount, is_recurring: false });
-      } else if (lineType === "fee") {
-        fees.push({ label: desc, amount });
-        invoiceItems.push({ category: "Fees", description: desc, qty, unit_price: unitPrice, amount, is_recurring: false });
-      } else {
-        services.push({ type: "Service", name: desc, monthly_price: amount });
-        invoiceItems.push({ category: "Other" as any, description: desc, qty, unit_price: unitPrice, amount, is_recurring: true });
-      }
-    }
-  } else if (order.service_type) {
-    const price = Number(order.subtotal || order.total_amount || 0);
-    services.push({ type: order.category || "Service", name: order.service_type, monthly_price: price });
-    invoiceItems.push({ category: "Other" as any, description: order.service_type, qty: 1, unit_price: price, amount: price, is_recurring: true });
-  }
-
-  const subtotalMonthly = services.reduce((s, sv) => s + sv.monthly_price, 0);
-  const subtotalOnetime = equipment.reduce((s, e) => s + e.unit_price * e.quantity, 0) + fees.reduce((s, f) => s + f.amount, 0);
-  const subtotal = billingInvoice ? Number(billingInvoice.subtotal || 0) : subtotalMonthly + subtotalOnetime;
-  const discountAmount = Number(order.discount_amount || 0);
-  const taxableBase = Math.max(0, subtotal - discountAmount);
-  const tpsAmount = billingInvoice ? Number(billingInvoice.tps_amount || 0) : Math.round(taxableBase * TAX.GST_RATE * 100) / 100;
-  const tvqAmount = billingInvoice ? Number(billingInvoice.tvq_amount || 0) : Math.round(taxableBase * TAX.QST_RATE * 100) / 100;
-  const total = billingInvoice ? Number(billingInvoice.total || 0) : Math.round((taxableBase + tpsAmount + tvqAmount) * 100) / 100;
-  const amountPaid = billingPayments
-    .filter((p: any) => p.status === "confirmed" || p.status === "completed" || p.status === "captured")
-    .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0) || Number(order.amount_paid || 0);
-  const balanceDue = Math.max(0, Math.round((total - amountPaid) * 100) / 100);
-
-  return {
-    services, equipment, fees, invoiceItems,
-    discounts: discountAmount > 0 ? [{ label: order.promo_code ? `Promo: ${order.promo_code}` : "Rabais appliqué", amount: discountAmount }] : [],
-    subtotal, subtotalMonthly, subtotalOnetime, discountAmount, tpsAmount, tvqAmount, total, amountPaid, balanceDue,
-  };
-}
+// fallbackStructure SUPPRIMÉ — génération bloquée si compute_invoice_breakdown échoue
 
 // ============================================================================
 // CANONICAL BUILDERS — identical output to documentBuilder.ts
