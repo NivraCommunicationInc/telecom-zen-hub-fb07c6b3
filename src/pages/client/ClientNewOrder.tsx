@@ -5766,7 +5766,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             <div className="text-sm">
                               <p className="font-medium text-foreground mb-2">Instructions de paiement Interac</p>
                               <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                                <li>Envoyez <strong className="text-amber-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong> à:</li>
+                                <li>Envoyez <strong className="text-amber-500">{uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong> à:</li>
                                 <li className="ml-4"><strong className="text-foreground">Support@nivra-telecom.ca</strong></li>
                                 <li>Entrez le numéro de confirmation Interac ci-dessous</li>
                               </ol>
