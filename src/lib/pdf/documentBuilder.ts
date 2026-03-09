@@ -610,11 +610,19 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     // Continue generation — documents will show "Non fourni par le client" for missing fields
   }
 
-  if (data.breakdown) {
-    console.log(`[DocumentBuilder V4] ✅ Using compute_invoice_breakdown RPC (source of truth)`);
-  } else {
-    console.error(`[DocumentBuilder V4] ⛔ No breakdown — fallback will produce UNRELIABLE documents`);
+  if (!data.breakdown) {
+    console.error(`[DocumentBuilder V4] ⛔ compute_invoice_breakdown RPC a échoué — génération BLOQUÉE`);
+    const blockedResult: PDFGenerationResult = { success: false, error: "Données de facturation indisponibles (RPC breakdown requis)" };
+    return {
+      invoice: blockedResult,
+      orderSummary: blockedResult,
+      contract: blockedResult,
+      contractSummary: blockedResult,
+      terms: generateServiceTermsPDF(),
+    };
   }
+
+  console.log(`[DocumentBuilder V4] ✅ Using compute_invoice_breakdown RPC (source of truth)`);
 
   const invoiceData = buildInvoiceData(data);
   const invoice = generateInvoiceV3PDF(invoiceData);
