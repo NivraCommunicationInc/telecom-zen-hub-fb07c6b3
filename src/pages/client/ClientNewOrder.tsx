@@ -2510,7 +2510,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             client_phone: checkoutPhone || profile?.phone,
             order_number: orderData.order_number,
             services: servicesForEmail,
-            monthly_total_tax_in: lockedUiTotals?.monthlyRecurringWithTax ?? monthlyTotalWithTax,
+            monthly_total_tax_in: monthlyTotalWithTax,
             one_time_total: oneTimeFees,
             delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
             payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
@@ -2860,13 +2860,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const monthlyTotalWithTax = round2(monthlyRecurring + monthlyTps + monthlyTvq);
 
   // ── SINGLE UI SOURCES OF TRUTH (locked during submission) ───────────────────
-  const monthlyRecurringWithTax = monthlyTotalWithTax;
+  // Monthly totals are pure local computations (from selectedServices) and NEVER change
+  // during submission — no locking needed. Only todayTotal needs locking because
+  // liveServerPricing can refresh mid-flight.
   const isUiLocked = createOrderMutation.isPending && !!lockedUiTotals;
-
-  // During submission, freeze the UI to the exact values shown right before click.
-  const uiMonthlyRecurringWithTax = isUiLocked
-    ? lockedUiTotals!.monthlyRecurringWithTax
-    : monthlyRecurringWithTax;
   const uiTodayTotal = isUiLocked ? lockedUiTotals!.todayTotal : todayTotal;
   const capturedPaymentAmount = isUiLocked
     ? lockedUiTotals!.capturedPaymentAmount
@@ -5041,7 +5038,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-foreground">Total mensuel estimé</span>
                         <span className="font-bold text-lg text-cyan-500">
-                          {uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                          {monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Services récurrents, taxes incluses</p>
@@ -5590,7 +5587,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-purple-500/50">
                       <span className="font-bold text-purple-500 text-base">Total mensuel estimé</span>
-                      <span className="font-bold text-purple-500 text-lg">{uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="font-bold text-purple-500 text-lg">{monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Facturation le 1er de chaque mois après activation</p>
                   </CardContent>
@@ -5979,7 +5976,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between font-medium pt-1 border-t border-purple-500/30">
                       <span className="text-purple-500">Total mensuel estimé</span>
-                      <span className="text-purple-500">{uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="text-purple-500">{monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
 
                     <Separator className="my-1" />
@@ -6123,7 +6120,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{selectedServices.length} service(s)</span>
                   <span className="font-bold text-foreground">
-                    {uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                    {monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                   </span>
                 </div>
                 <Button variant="hero" className="w-full" size="lg" onClick={() => setStep(2)}>
