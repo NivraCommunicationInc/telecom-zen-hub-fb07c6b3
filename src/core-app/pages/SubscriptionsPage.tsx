@@ -126,7 +126,7 @@ const SubscriptionsPage = () => {
                 </tr>
               ) : (
                 filtered.map((s) => (
-                  <tr key={s.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors">
+                  <tr key={s.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors cursor-pointer" onClick={() => window.location.href = `/core/subscriptions/${s.id}`}>
                     <td className="px-3 py-2.5"><span className="font-mono text-[hsl(220,10%,50%)]">{s.account_number || "—"}</span></td>
                     <td className="px-3 py-2.5">
                       <div className="max-w-[150px]">

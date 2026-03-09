@@ -28,6 +28,7 @@ export const coreRoutes: RouteObject = {
     { path: "invoices", element: <InvoicesPage /> },
     { path: "payments", element: <PaymentsPage /> },
     { path: "subscriptions", element: <SubscriptionsPage /> },
+    { path: "subscriptions/:id", element: <SubscriptionDetailPage /> },
     { path: "appointments", element: <AppointmentsPage /> },
   ],
 };
