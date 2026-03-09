@@ -143,6 +143,7 @@ export function useWorkQueue() {
         .from("appointments")
         .select("id, appointment_number, title, scheduled_at, status, service_type, client_email, service_address, service_city, order_id, technician_id")
         .gte("scheduled_at", today.toISOString())
+        .eq("environment", "live")
         .in("status", ["confirmed", "scheduled", "pending"])
         .order("scheduled_at", { ascending: true })
         .limit(20);
