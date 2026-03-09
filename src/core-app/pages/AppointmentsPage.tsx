@@ -34,6 +34,7 @@ const TYPE_FILTERS = [
 ];
 
 const AppointmentsPage = () => {
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
