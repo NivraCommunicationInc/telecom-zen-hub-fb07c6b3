@@ -6,6 +6,8 @@ import { useState, useMemo } from "react";
 import { useAdminOrders } from "@/hooks/admin/useAdminOrders";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
 import { Link } from "react-router-dom";
+import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { Search, ArrowRight, ShoppingCart, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
