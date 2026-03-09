@@ -90,10 +90,9 @@ export function validateDocumentData(data: OrderDocumentData): string[] {
     }
   }
 
-  // breakdown is preferred but not blocking — fallback path exists
-  // Only block if we have zero financial data at all
-  if (!data.breakdown && !data.billingInvoice && !data.order?.total_amount && !data.order?.subtotal) {
-    missing.push("financial_data");
+  // breakdown is MANDATORY — no fallback path
+  if (!data.breakdown) {
+    missing.push("breakdown_rpc");
   }
 
   return missing;
