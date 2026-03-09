@@ -1,0 +1,186 @@
+/**
+ * useWorkQueue — Fetches operational queue data for the Work Queue page.
+ * All data from authoritative DB tables, zero mock data.
+ */
+import { useQuery } from "@tanstack/react-query";
+import { adminClient as supabase } from "@/integrations/backend";
+
+export interface WorkQueueItem {
+  id: string;
+  order_number: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  account_number: string | null;
+  account_id: string | null;
+  status: string;
+  payment_status: string | null;
+  service_type: string | null;
+  total_amount: number | null;
+  created_at: string;
+  invoice_number: string | null;
+  invoice_id: string | null;
+}
+
+export interface AppointmentQueueItem {
+  id: string;
+  appointment_number: string | null;
+  title: string;
+  scheduled_at: string;
+  status: string | null;
+  service_type: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  service_address: string | null;
+  service_city: string | null;
+  order_id: string | null;
+  technician_id: string | null;
+}
+
+async function fetchQueueOrders(statuses: string[], limit: number): Promise<WorkQueueItem[]> {
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at")
+    .in("status", statuses)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  if (!orders?.length) return [];
+
+  const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
+  const orderIds = orders.map(o => o.id);
+
+  const [profilesRes, invoicesRes] = await Promise.all([
+    userIds.length > 0
+      ? supabase.from("profiles").select("user_id, full_name, email, account_number").in("user_id", userIds)
+      : Promise.resolve({ data: [] }),
+    supabase.from("billing_invoices").select("order_id, invoice_number, id").in("order_id", orderIds),
+  ]);
+
+  const profileMap = new Map((profilesRes.data || []).map(p => [p.user_id, p]));
+  const invoiceMap = new Map((invoicesRes.data || []).map(i => [i.order_id, i]));
+
+  return orders.map(o => {
+    const profile = profileMap.get(o.user_id);
+    const invoice = invoiceMap.get(o.id);
+    return {
+      id: o.id,
+      order_number: o.order_number,
+      client_name: profile?.full_name ?? null,
+      client_email: profile?.email ?? null,
+      account_number: profile?.account_number ?? null,
+      account_id: o.account_id,
+      status: o.status,
+      payment_status: o.payment_status,
+      service_type: o.service_type,
+      total_amount: o.total_amount,
+      created_at: o.created_at,
+      invoice_number: invoice?.invoice_number ?? null,
+      invoice_id: invoice?.id ?? null,
+    };
+  });
+}
+
+export function useWorkQueue() {
+  // 1. New orders (pending)
+  const newOrders = useQuery({
+    queryKey: ["work-queue-new"],
+    queryFn: () => fetchQueueOrders(["pending"], 20),
+  });
+
+  // 2. Paid orders to process
+  const paidOrders = useQuery({
+    queryKey: ["work-queue-paid"],
+    queryFn: async () => {
+      const { data: orders, error } = await supabase
+        .from("orders")
+        .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at")
+        .eq("payment_status", "paid")
+        .not("status", "in", '("completed","cancelled")')
+        .order("created_at", { ascending: true })
+        .limit(20);
+      if (error) throw error;
+      if (!orders?.length) return [];
+
+      const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from("profiles").select("user_id, full_name, email, account_number").in("user_id", userIds)
+        : { data: [] };
+      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+
+      return orders.map(o => {
+        const profile = profileMap.get(o.user_id);
+        return {
+          id: o.id,
+          order_number: o.order_number,
+          client_name: profile?.full_name ?? null,
+          client_email: profile?.email ?? null,
+          account_number: profile?.account_number ?? null,
+          account_id: o.account_id,
+          status: o.status,
+          payment_status: o.payment_status,
+          service_type: o.service_type,
+          total_amount: o.total_amount,
+          created_at: o.created_at,
+          invoice_number: null,
+          invoice_id: null,
+        };
+      });
+    },
+  });
+
+  // 3. Upcoming appointments (today + future)
+  const appointments = useQuery<AppointmentQueueItem[]>({
+    queryKey: ["work-queue-appointments"],
+    queryFn: async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("id, appointment_number, title, scheduled_at, status, service_type, client_email, service_address, service_city, order_id, technician_id")
+        .gte("scheduled_at", today.toISOString())
+        .in("status", ["confirmed", "scheduled", "pending"])
+        .order("scheduled_at", { ascending: true })
+        .limit(20);
+      if (error) throw error;
+      if (!data?.length) return [];
+
+      const clientIds = [...new Set(data.map(a => a.client_email).filter(Boolean))];
+      // We'll use client_email from appointments directly as client_name fallback
+      return data.map(a => ({
+        id: a.id,
+        appointment_number: a.appointment_number,
+        title: a.title,
+        scheduled_at: a.scheduled_at,
+        status: a.status,
+        service_type: a.service_type,
+        client_name: null,
+        client_email: a.client_email,
+        service_address: a.service_address,
+        service_city: a.service_city,
+        order_id: a.order_id,
+        technician_id: a.technician_id,
+      }));
+    },
+  });
+
+  // 4. Awaiting activation (delivered/installed but not completed)
+  const activations = useQuery({
+    queryKey: ["work-queue-activations"],
+    queryFn: () => fetchQueueOrders(["delivered", "installed"], 20),
+  });
+
+  // 5. On hold / blocked
+  const onHold = useQuery({
+    queryKey: ["work-queue-hold"],
+    queryFn: () => fetchQueueOrders(["on_hold", "incomplete", "invalid_payment", "fraud"], 20),
+  });
+
+  return {
+    newOrders: newOrders.data || [],
+    paidOrders: paidOrders.data || [],
+    appointments: appointments.data || [],
+    activations: activations.data || [],
+    onHold: onHold.data || [],
+    isLoading: newOrders.isLoading || paidOrders.isLoading || appointments.isLoading || activations.isLoading || onHold.isLoading,
+  };
+}

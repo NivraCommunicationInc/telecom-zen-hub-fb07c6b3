@@ -410,6 +410,9 @@ export function AccountServicesTab({ subscriptions, serviceAddresses, account, l
                                   </DropdownMenuItem>
                                 </>
                               )}
+                              <DropdownMenuItem onClick={() => navigate(`/admin/subscriptions/${sub.id}`)}>
+                                <Eye className="h-3.5 w-3.5 mr-2" /> Voir l'abonnement
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

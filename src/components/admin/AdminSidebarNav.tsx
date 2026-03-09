@@ -48,8 +48,8 @@ const navGroups: NavGroup[] = [
     label: "Opérations",
     icon: ShoppingCart,
     items: [
+      { icon: Activity, label: "File de travail", href: "/admin/work-queue" },
       { icon: Package, label: "Commandes", href: "/admin/orders" },
-      { icon: Activity, label: "Queues", href: "/admin/queues" },
       { icon: ShoppingCart, label: "POS", href: "/admin/pos" },
       { icon: Shield, label: "KYC", href: "/admin/kyc-verifications" },
       { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
@@ -74,6 +74,7 @@ const navGroups: NavGroup[] = [
       { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
       { icon: FileText, label: "Factures", href: "/admin/invoices" },
       { icon: DollarSign, label: "Paiements", href: "/admin/payments" },
+      { icon: Package, label: "Abonnements", href: "/admin/subscriptions" },
       { icon: FileText, label: "Templates PDF", href: "/admin/pdf-templates-v2" },
       { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
       { icon: Gavel, label: "Contestations", href: "/admin/contested-payments" },

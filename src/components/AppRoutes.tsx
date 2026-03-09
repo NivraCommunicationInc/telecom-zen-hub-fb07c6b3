@@ -117,6 +117,9 @@ import LiveActivityPage from "@/pages/admin/LiveActivityPage";
 import AdminDocumentRequests from "@/pages/admin/AdminDocumentRequests";
 import AdminContestedInvoices from "@/pages/admin/AdminContestedInvoices";
 import AdminContestedPayments from "@/pages/admin/AdminContestedPayments";
+import AdminWorkQueue from "@/pages/admin/AdminWorkQueue";
+import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
+import AdminSubscriptionDetail from "@/pages/admin/AdminSubscriptionDetail";
 import AdminNotificationsSettings from "@/pages/admin/AdminNotificationsSettings";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminPOS from "@/pages/admin/AdminPOS";
@@ -354,6 +357,9 @@ const AppRoutes = () => {
         <Route path="payments/legacy" element={<AdminPayments />} />
         <Route path="invoices" element={<AdminInvoices />} />
         <Route path="invoices/:invoiceId" element={<AdminInvoiceDetail />} />
+        <Route path="work-queue" element={<AdminWorkQueue />} />
+        <Route path="subscriptions" element={<AdminSubscriptions />} />
+        <Route path="subscriptions/:subscriptionId" element={<AdminSubscriptionDetail />} />
 
         {/* Identity Verification Admin */}
         <Route path="identity-verification" element={<AdminIdentityVerification />} />

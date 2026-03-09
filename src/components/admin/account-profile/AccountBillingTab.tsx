@@ -13,9 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CreditCard, FileText, Receipt, Calendar, DollarSign, Download, Eye, PlusCircle, Send } from "lucide-react";
+import { CreditCard, FileText, Receipt, Calendar, DollarSign, Download, Eye, PlusCircle, Send, ExternalLink } from "lucide-react";
 import { format, addMonths, setDate } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Link } from "react-router-dom";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -284,7 +285,9 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-mono font-medium">{inv.invoice_number}</p>
+                      <Link to={`/admin/invoices/${inv.id}`} className="text-sm font-mono font-medium text-primary hover:underline">
+                        {inv.invoice_number}
+                      </Link>
                       <p className="text-xs text-muted-foreground">
                         {inv.type === "recurring" ? "Récurrente" : "Ponctuelle"}
                         {" • "}
@@ -331,9 +334,12 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
                 <div className="flex items-center gap-3">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">{pay.amount?.toFixed(2)} $</p>
+                    <p className="text-sm font-mono font-semibold text-foreground">
+                      {pay.payment_number || "—"}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {pay.method} {pay.reference && `• Réf: ${pay.reference}`}
+                      {pay.amount?.toFixed(2)} $ • {pay.method}
+                      {pay.reference && <span className="ml-1 opacity-70">Réf: {pay.reference}</span>}
                       {" • "}
                       {pay.created_at && format(new Date(pay.created_at), "d MMM yyyy", { locale: fr })}
                     </p>
