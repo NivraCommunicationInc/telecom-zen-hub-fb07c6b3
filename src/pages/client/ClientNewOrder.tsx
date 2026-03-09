@@ -2491,7 +2491,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             order_number: orderData.order_number,
             services: servicesForEmail,
             monthly_total_tax_in: authoritativePricing?.total ?? 0,
-            one_time_total: serverPricing?.one_time_subtotal ?? 0,
+            one_time_total: oneTimeFees,
             delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
             payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
             payment_method: paymentMethodLabel,
