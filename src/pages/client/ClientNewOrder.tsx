@@ -5750,9 +5750,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit.
                       </p>
                       <PayPalButton
-                        amount={totalAmount}
+                        amount={authoritativePricing?.total ?? 0}
                         paymentNumber={authoritativePricing?.paymentNumber}
                         description="Commande Nivra Telecom"
+                        disabled={!authoritativePricing || (authoritativePricing.total ?? 0) <= 0}
                         onSuccess={(captureId) => {
                           setPaypalCaptureId(captureId);
                           setPaymentConfirmationNumber(captureId);
