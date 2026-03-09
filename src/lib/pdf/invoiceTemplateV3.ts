@@ -81,12 +81,13 @@ const fmtShortDate = (dateStr: string | undefined | null): string => {
 const fmtStatus = (status: string): string => {
   const map: Record<string, string> = {
     paid: "Payée", Paid: "Payée",
+    paid_by_promo: "Payée (promo)", 
     pending: "En attente", Pending: "En attente",
     unpaid: "Non payée", Unpaid: "Non payée",
     partially_paid: "Partiellement payée",
     Issued: "Émise", cancelled: "Annulée", Cancelled: "Annulée",
     expired: "Expirée", Expired: "Expirée", void: "Annulée",
-    overdue: "Renouvellement requis",
+    overdue: "Renouvellement requis", not_renewed: "Non renouvelée",
   };
   return map[status] || status;
 };
