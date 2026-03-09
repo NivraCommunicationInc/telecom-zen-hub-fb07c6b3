@@ -60,7 +60,7 @@ function OrderRow({ item }: { item: WorkQueueItem }) {
           </span>
         )}
         <StatusBadge label={item.status} variant={statusToVariant(item.status)} size="sm" />
-        <Link to={`/admin/orders/${item.id}`}>
+        <Link to={`/core/orders/${item.id}`}>
           <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors">
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
