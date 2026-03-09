@@ -286,7 +286,9 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-mono font-medium">{inv.invoice_number}</p>
+                      <Link to={`/admin/invoices/${inv.id}`} className="text-sm font-mono font-medium text-primary hover:underline">
+                        {inv.invoice_number}
+                      </Link>
                       <p className="text-xs text-muted-foreground">
                         {inv.type === "recurring" ? "Récurrente" : "Ponctuelle"}
                         {" • "}
