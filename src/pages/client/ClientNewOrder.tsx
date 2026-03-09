@@ -5517,7 +5517,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-cyan-500/50">
                       <span className="font-bold text-cyan-500 text-base">Total à payer aujourd'hui</span>
-                      <span className="font-bold text-cyan-500 text-lg">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="font-bold text-cyan-500 text-lg">{uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </CardContent>
                 </Card>
