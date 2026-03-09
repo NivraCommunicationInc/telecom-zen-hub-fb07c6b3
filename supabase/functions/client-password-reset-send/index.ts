@@ -317,7 +317,7 @@ const generatePasswordResetEmail = (resetLink: string, supportEmail: string): st
 </html>`.trim();
 };
 
-serve(async (req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
   const preflight = handleCorsPreflightRequest(req);
   if (preflight) return preflight;
 
