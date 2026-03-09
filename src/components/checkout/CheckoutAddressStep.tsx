@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
+import { generateAccountNumber } from "@/lib/secureIdGenerator";
 import { formatPostalCode } from "@/components/shared/AddressTypes";
 import {
   MapPin, Plus, Star, Loader2, Home, AlertCircle, Check
@@ -111,7 +112,7 @@ export const CheckoutAddressStep = ({
           .from("accounts")
           .insert({
             client_id: userId,
-            account_number: `ACCT-${Date.now()}`,
+            account_number: generateAccountNumber(),
             status: "active",
           })
           .select("id")

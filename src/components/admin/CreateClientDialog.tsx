@@ -33,6 +33,7 @@ import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { hashPin } from "@/lib/pinUtils";
+import { generateAccountNumber } from "@/lib/secureIdGenerator";
 
 const createClientSchema = z.object({
   // Identity
@@ -156,7 +157,7 @@ export function CreateClientDialog({
         .from("accounts")
         .insert({
           client_id: userId,
-          account_number: `NIV-ACCT-${Date.now().toString().slice(-6)}`,
+          account_number: generateAccountNumber(),
           billing_cycle_day: billCycleDay, // Store actual day (1-31), clamping applied at invoice generation
           billing_anchor_date: today.toISOString().split('T')[0],
           next_invoice_date: today.toISOString().split('T')[0],
