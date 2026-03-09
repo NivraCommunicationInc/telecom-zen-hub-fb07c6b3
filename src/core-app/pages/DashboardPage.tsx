@@ -176,10 +176,10 @@ const DashboardPage = () => {
           </div>
           <div className="space-y-1 text-xs text-[hsl(220,10%,55%)]">
             {metrics.onHold > 0 && (
-              <p>⚠️ <strong className="text-amber-400">{metrics.onHold}</strong> commande{metrics.onHold > 1 ? "s" : ""} bloquée{metrics.onHold > 1 ? "s" : ""} / en hold — <Link to="/core/work-queue" className="text-blue-400 hover:underline">voir la file</Link></p>
+              <p>⚠️ <strong className="text-amber-400">{metrics.onHold}</strong> commande{metrics.onHold > 1 ? "s" : ""} bloquée{metrics.onHold > 1 ? "s" : ""} / en hold — <Link to={corePath("/work-queue")} className="text-blue-400 hover:underline">voir la file</Link></p>
             )}
             {metrics.pendingActivations > 0 && (
-              <p>⏳ <strong className="text-amber-400">{metrics.pendingActivations}</strong> activation{metrics.pendingActivations > 1 ? "s" : ""} en attente — <Link to="/core/work-queue" className="text-blue-400 hover:underline">voir la file</Link></p>
+              <p>⏳ <strong className="text-amber-400">{metrics.pendingActivations}</strong> activation{metrics.pendingActivations > 1 ? "s" : ""} en attente — <Link to={corePath("/work-queue")} className="text-blue-400 hover:underline">voir la file</Link></p>
             )}
           </div>
         </div>

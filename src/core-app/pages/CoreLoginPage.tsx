@@ -5,12 +5,13 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Terminal, LogIn, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export default function CoreLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || (await import("@/core-app/lib/corePaths")).corePath("/dashboard");
+  const from = (location.state as any)?.from?.pathname || corePath("/dashboard");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
