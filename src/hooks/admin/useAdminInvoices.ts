@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface AdminInvoice {
   id: string;
@@ -23,33 +24,33 @@ export interface AdminInvoice {
   created_at: string | null;
   paid_at: string | null;
   notes: string | null;
-  // Joined order
   order_id: string | null;
   order_number: string | null;
-  // Joined customer
   customer_id: string;
   customer_name: string | null;
   customer_email: string | null;
-  // Account
   account_number: string | null;
+  environment?: string;
 }
 
-export function useAdminInvoices() {
+export function useAdminInvoices(environment: EnvironmentFilter = 'all') {
   return useQuery<AdminInvoice[]>({
-    queryKey: ["admin-invoices-v2"],
+    queryKey: ["admin-invoices-v2", environment],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("billing_invoices")
         .select(`
           id, invoice_number, type, subtotal, tps_amount, tvq_amount, total,
           amount_paid, balance_due, status, payment_method, due_date,
           cycle_start_date, cycle_end_date, created_at, paid_at, notes,
-          order_id, billing_snapshot_account_number,
+          order_id, billing_snapshot_account_number, environment,
           customer:billing_customers(id, first_name, last_name, email),
           order:orders(order_number)
         `)
         .order("created_at", { ascending: false })
         .limit(500);
+      if (environment !== 'all') query = query.eq("environment", environment);
+      const { data, error } = await query;
       if (error) throw error;
       if (!data) return [];
 
@@ -77,6 +78,7 @@ export function useAdminInvoices() {
         customer_name: inv.customer ? `${inv.customer.first_name} ${inv.customer.last_name}`.trim() : null,
         customer_email: inv.customer?.email ?? null,
         account_number: inv.billing_snapshot_account_number ?? null,
+        environment: inv.environment,
       }));
     },
   });
