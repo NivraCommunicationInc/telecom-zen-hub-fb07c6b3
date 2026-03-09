@@ -2562,7 +2562,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       });
     },
     onSettled: () => {
-      // Reset the submit guard so user can try again if it truly failed
+      // Always unlock UI totals + reset guard so user can retry if it truly failed
+      setLockedUiTotals(null);
       submittingRef.current = false;
     },
   });
