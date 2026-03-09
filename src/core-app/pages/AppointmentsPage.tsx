@@ -111,12 +111,15 @@ const AppointmentsPage = () => {
             Planification opérationnelle — installations, livraisons, service
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-white hover:bg-[hsl(220,15%,16%)] transition-colors"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-3">
+          <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
+          <button
+            onClick={() => refetch()}
+            className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-white hover:bg-[hsl(220,15%,16%)] transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── KPI cards ── */}
