@@ -763,6 +763,7 @@ export type Database = {
           created_by: string | null
           delivery_fee: number | null
           description: string | null
+          environment: string
           equipment_details: Json | null
           hold_expires_at: string | null
           id: string
@@ -792,6 +793,7 @@ export type Database = {
           created_by?: string | null
           delivery_fee?: number | null
           description?: string | null
+          environment?: string
           equipment_details?: Json | null
           hold_expires_at?: string | null
           id?: string
@@ -821,6 +823,7 @@ export type Database = {
           created_by?: string | null
           delivery_fee?: number | null
           description?: string | null
+          environment?: string
           equipment_details?: Json | null
           hold_expires_at?: string | null
           id?: string
@@ -957,6 +960,7 @@ export type Database = {
           delivery_fee: number | null
           discount_amount: number | null
           due_date: string | null
+          environment: string
           equipment_id: string | null
           etransfer_reference: string | null
           etransfer_status: string | null
@@ -1000,6 +1004,7 @@ export type Database = {
           delivery_fee?: number | null
           discount_amount?: number | null
           due_date?: string | null
+          environment?: string
           equipment_id?: string | null
           etransfer_reference?: string | null
           etransfer_status?: string | null
@@ -1043,6 +1048,7 @@ export type Database = {
           delivery_fee?: number | null
           discount_amount?: number | null
           due_date?: string | null
+          environment?: string
           equipment_id?: string | null
           etransfer_reference?: string | null
           etransfer_status?: string | null
@@ -1258,6 +1264,7 @@ export type Database = {
           cycle_end_date: string
           cycle_start_date: string
           due_date: string
+          environment: string
           fees: number | null
           id: string
           invoice_number: string
@@ -1291,6 +1298,7 @@ export type Database = {
           cycle_end_date: string
           cycle_start_date: string
           due_date: string
+          environment?: string
           fees?: number | null
           id?: string
           invoice_number: string
@@ -1324,6 +1332,7 @@ export type Database = {
           cycle_end_date?: string
           cycle_start_date?: string
           due_date?: string
+          environment?: string
           fees?: number | null
           id?: string
           invoice_number?: string
@@ -1390,6 +1399,7 @@ export type Database = {
           created_by_name: string | null
           created_by_role: string | null
           customer_id: string
+          environment: string
           id: string
           invoice_id: string
           legacy_note: string | null
@@ -1410,6 +1420,7 @@ export type Database = {
           created_by_name?: string | null
           created_by_role?: string | null
           customer_id: string
+          environment?: string
           id?: string
           invoice_id: string
           legacy_note?: string | null
@@ -1430,6 +1441,7 @@ export type Database = {
           created_by_name?: string | null
           created_by_role?: string | null
           customer_id?: string
+          environment?: string
           id?: string
           invoice_id?: string
           legacy_note?: string | null
@@ -1595,6 +1607,7 @@ export type Database = {
           customer_id: string
           cycle_end_date: string
           cycle_start_date: string
+          environment: string
           id: string
           last_invoice_id: string | null
           order_id: string | null
@@ -1618,6 +1631,7 @@ export type Database = {
           customer_id: string
           cycle_end_date: string
           cycle_start_date: string
+          environment?: string
           id?: string
           last_invoice_id?: string | null
           order_id?: string | null
@@ -1641,6 +1655,7 @@ export type Database = {
           customer_id?: string
           cycle_end_date?: string
           cycle_start_date?: string
+          environment?: string
           id?: string
           last_invoice_id?: string | null
           order_id?: string | null
@@ -6531,6 +6546,7 @@ export type Database = {
           delivery_method: string | null
           discount_amount: number | null
           discount_code: string | null
+          environment: string
           equipment_details: Json | null
           equipment_id: string | null
           equipment_line_details: Json | null
@@ -6632,6 +6648,7 @@ export type Database = {
           delivery_method?: string | null
           discount_amount?: number | null
           discount_code?: string | null
+          environment?: string
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
@@ -6733,6 +6750,7 @@ export type Database = {
           delivery_method?: string | null
           discount_amount?: number | null
           discount_code?: string | null
+          environment?: string
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
