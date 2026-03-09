@@ -116,7 +116,7 @@ const DashboardPage = () => {
                 <tr key={o.id} className="border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)]">
                   <td className="px-3 py-2 font-mono text-white text-xs">{o.order_number || "—"}</td>
                   <td className="px-3 py-2 text-white text-xs truncate max-w-[120px]">{o.client_full_name || "—"}</td>
-                  <td className="px-3 py-2 text-[hsl(220,10%,50%)] text-xs">{o.service_type || o.service_category || "—"}</td>
+                  <td className="px-3 py-2 text-[hsl(220,10%,50%)] text-xs">{o.service_type || "—"}</td>
                   <td className="px-3 py-2"><StatusBadge label={o.status || "—"} variant={statusToVariant(o.status || "")} size="sm" /></td>
                   <td className="px-3 py-2 text-[hsl(220,10%,40%)] text-xs whitespace-nowrap">{fmtDate(o.created_at)}</td>
                 </tr>
