@@ -2094,10 +2094,11 @@ const ClientNewOrder = () => {
           const isPayPalPaid = actualPaymentMethod === "paypal" && !!paypalCaptureId;
           
           // V2.3: Use server-side pricing as billing source of truth
+          // ⚠️ EXCEPTION: welcome_discount_amount is still client-computed (architectural debt)
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
             discount_amount: serverPricing.discount_total,
-            welcome_discount_amount: welcomeDiscountAmount,
+            welcome_discount_amount: welcomeDiscountAmount, // ⚠️ CLIENT-SIDE — TODO: migrate to RPC
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
             tvq_amount: serverPricing.tvq_amount,
