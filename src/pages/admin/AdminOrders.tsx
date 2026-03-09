@@ -1,7 +1,7 @@
 /**
- * AdminOrders — Orders Center (carrier-grade list view)
- * Full-width DataTable, no card wrappers, no detail dialog.
- * All detail work is done in the Workbench (/admin/orders/:id).
+ * AdminOrders v2 — Carrier-grade orders list
+ * Joins: profiles (client), billing_invoices (invoice_number, invoice_status)
+ * All amounts from DB. No local math.
  */
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -20,17 +20,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Package, Plus, RefreshCw, Wrench, Wifi, ShoppingCart, ChevronDown,
-  CreditCard, Filter, AlertTriangle, Eye,
+  Filter, AlertTriangle,
 } from "lucide-react";
 import ManualOrderWizard from "@/components/admin/ManualOrderWizard";
 import EquipmentOrderDialog from "@/components/admin/EquipmentOrderDialog";
-import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { useAdminOrders, AdminOrder } from "@/hooks/admin/useAdminOrders";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-/* ── Status configs ── */
-const ORDER_STATUS: Record<string, string> = {
+const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: "En attente",
   pending_verification: "Vérification KYC",
   confirmed: "Confirmé",
@@ -45,80 +43,55 @@ const ORDER_STATUS: Record<string, string> = {
   technician_en_route: "Tech en route",
   installation_in_progress: "Installation en cours",
   installation_completed: "Installation terminée",
+  provisioning_failed: "Échec provisionnement",
 };
 
-const PAYMENT_STATUS: Record<string, string> = {
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
   pending: "En attente",
   pre_authorized: "Pré-autorisé",
   authorized: "Autorisé",
   captured: "Capturé",
   confirmed: "Confirmé",
+  paid: "Payé",
   refunded: "Remboursé",
-  disputed: "Contesté",
-  chargeback: "Rétrofacturation",
-  fraud: "Fraude",
   failed: "Échoué",
-  not_renewed: "Non renouvelé",
 };
 
-const statusOptions = Object.entries(ORDER_STATUS).map(([value, label]) => ({ value, label }));
-const paymentOptions = Object.entries(PAYMENT_STATUS).map(([value, label]) => ({ value, label }));
+const statusOptions = Object.entries(ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label }));
 
-/* ── Component ── */
+const formatCAD = (n: number | null) =>
+  n != null ? `${n.toFixed(2)} $` : "—";
+
 const AdminOrders = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [paymentFilter, setPaymentFilter] = useState("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [equipmentDialogOpen, setEquipmentDialogOpen] = useState(false);
 
-  const { data: orders = [], isLoading, refetch } = useQuery({
-    queryKey: ["admin-orders"],
-    queryFn: async () => {
-      const { data: ordersData, error } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-
-      if (ordersData && ordersData.length > 0) {
-        const userIds = [...new Set(ordersData.map((o: any) => o.user_id))];
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, email, full_name, phone, account_number")
-          .in("user_id", userIds);
-
-        return ordersData.map((order: any) => ({
-          ...order,
-          profiles: profiles?.find((p: any) => p.user_id === order.user_id) || null,
-        }));
-      }
-      return ordersData || [];
-    },
-  });
+  const { data: orders = [], isLoading, refetch } = useAdminOrders();
 
   const filtered = useMemo(() => {
-    return orders.filter((order: any) => {
+    return orders.filter((o) => {
       const q = searchTerm.toLowerCase();
       const matchesSearch =
         !q ||
-        order.order_number?.toLowerCase().includes(q) ||
-        order.profiles?.full_name?.toLowerCase().includes(q) ||
-        order.profiles?.email?.toLowerCase().includes(q) ||
-        order.profiles?.account_number?.toLowerCase().includes(q) ||
-        order.service_type?.toLowerCase().includes(q);
-      const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-      const matchesPayment = paymentFilter === "all" || order.payment_status === paymentFilter;
-      return matchesSearch && matchesStatus && matchesPayment;
+        o.order_number?.toLowerCase().includes(q) ||
+        o.client_full_name?.toLowerCase().includes(q) ||
+        o.client_email?.toLowerCase().includes(q) ||
+        o.account_number?.toLowerCase().includes(q) ||
+        o.invoice_number?.toLowerCase().includes(q) ||
+        o.service_type?.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === "all" || o.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  }, [orders, searchTerm, statusFilter, paymentFilter]);
+  }, [orders, searchTerm, statusFilter]);
 
-  const columns: Column<any>[] = useMemo(() => [
+  const columns: Column<AdminOrder>[] = useMemo(() => [
     {
       key: "order_number",
       label: "Commande",
-      render: (o: any) => (
+      render: (o) => (
         <div className="flex items-center gap-2">
           <Link to={`/admin/orders/${o.id}`} className="font-mono font-medium text-foreground hover:text-primary transition-colors">
             {o.order_number || `#${o.id.slice(0, 8)}`}
@@ -126,62 +99,71 @@ const AdminOrders = () => {
           {o.order_type === "equipment" && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Équip.</Badge>
           )}
-          {o.risk_flags?.length > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
+          {(o.risk_flags?.length ?? 0) > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
         </div>
       ),
     },
     {
       key: "account_number",
       label: "Compte",
-      render: (o: any) => (
-        <span className="font-mono text-muted-foreground text-xs">{o.profiles?.account_number || "—"}</span>
+      render: (o) => (
+        <span className="font-mono text-muted-foreground text-xs">{o.account_number || "—"}</span>
       ),
     },
     {
-      key: "client",
+      key: "client_full_name",
       label: "Client",
       sortable: false,
-      render: (o: any) => (
+      render: (o) => (
         <div>
-          <p className="font-medium text-foreground text-sm truncate max-w-[180px]">
-            {o.profiles?.full_name?.trim() || [o.client_first_name, o.client_last_name].filter(Boolean).join(" ").trim() || "—"}
-          </p>
-          <p className="text-xs text-muted-foreground truncate max-w-[180px]">{o.profiles?.email || o.client_email || ""}</p>
+          <p className="font-medium text-foreground text-sm truncate max-w-[180px]">{o.client_full_name || "—"}</p>
+          <p className="text-xs text-muted-foreground truncate max-w-[180px]">{o.client_email || ""}</p>
         </div>
       ),
     },
     {
       key: "service_type",
       label: "Service",
-      render: (o: any) => <span className="text-sm">{o.service_type || "—"}</span>,
+      render: (o) => <span className="text-sm">{o.service_type || "—"}</span>,
     },
     {
       key: "total_amount",
       label: "Total",
-      render: (o: any) => (
-        <span className="tabular-nums text-sm">
-          {Number(o.total_amount || 0).toFixed(2)} $
-        </span>
+      render: (o) => <span className="tabular-nums text-sm">{formatCAD(o.total_amount)}</span>,
+    },
+    {
+      key: "invoice_number",
+      label: "Facture",
+      render: (o) => (
+        o.invoice_number ? (
+          <Link to={`/admin/invoices`} className="font-mono text-xs text-primary hover:underline">
+            {o.invoice_number}
+          </Link>
+        ) : <span className="text-xs text-muted-foreground">—</span>
       ),
     },
     {
       key: "status",
       label: "Statut",
-      render: (o: any) => (
-        <StatusBadge label={ORDER_STATUS[o.status] || o.status} variant={statusToVariant(o.status)} size="sm" />
+      render: (o) => (
+        <StatusBadge label={ORDER_STATUS_LABELS[o.status] || o.status} variant={statusToVariant(o.status)} size="sm" />
       ),
     },
     {
       key: "payment_status",
       label: "Paiement",
-      render: (o: any) => (
-        <StatusBadge label={PAYMENT_STATUS[o.payment_status] || o.payment_status} variant={statusToVariant(o.payment_status)} size="sm" />
+      render: (o) => (
+        <StatusBadge
+          label={PAYMENT_STATUS_LABELS[o.payment_status ?? ""] || o.payment_status || "—"}
+          variant={statusToVariant(o.payment_status ?? "")}
+          size="sm"
+        />
       ),
     },
     {
       key: "created_at",
       label: "Date",
-      render: (o: any) => (
+      render: (o) => (
         <span className="text-muted-foreground text-xs whitespace-nowrap">
           {format(new Date(o.created_at), "d MMM yyyy", { locale: fr })}
         </span>
@@ -192,7 +174,7 @@ const AdminOrders = () => {
       label: "",
       sortable: false,
       className: "w-[100px]",
-      render: (o: any) => (
+      render: (o) => (
         <Link to={`/admin/orders/${o.id}`}>
           <Button size="sm" className="gap-1.5 h-7 text-xs">
             <Wrench className="w-3 h-3" /> Détails
@@ -233,11 +215,10 @@ const AdminOrders = () => {
           }
         />
 
-        {/* Filters — flat, no card wrapper */}
         <FilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Rechercher par #, client, compte, service…"
+          searchPlaceholder="Rechercher par #, client, compte, facture, service…"
           resultCount={filtered.length}
           resultLabel="commande"
         >
@@ -253,34 +234,20 @@ const AdminOrders = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-            <SelectTrigger className="w-[170px] h-9 text-xs">
-              <CreditCard className="w-3.5 h-3.5 mr-1.5" />
-              <SelectValue placeholder="Paiement" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les paiements</SelectItem>
-              {paymentOptions.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </FilterBar>
 
-        {/* DataTable — full width, NO card wrapper */}
         <DataTable
           columns={columns}
           data={filtered}
-          keyExtractor={(o: any) => o.id}
+          keyExtractor={(o) => o.id}
           isLoading={isLoading}
           emptyMessage="Aucune commande trouvée"
           emptyIcon={<Package className="w-10 h-10 text-muted-foreground" />}
           pageSize={30}
           selectable
-          onRowClick={(o: any) => navigate(`/admin/orders/${o.id}`)}
+          onRowClick={(o) => navigate(`/admin/orders/${o.id}`)}
         />
 
-        {/* Dialogs */}
         <ManualOrderWizard open={createDialogOpen} onOpenChange={setCreateDialogOpen} onSuccess={() => refetch()} />
         <EquipmentOrderDialog open={equipmentDialogOpen} onOpenChange={setEquipmentDialogOpen} clients={[]} onSuccess={() => refetch()} />
       </div>

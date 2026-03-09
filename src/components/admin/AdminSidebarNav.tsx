@@ -72,6 +72,7 @@ const navGroups: NavGroup[] = [
     icon: CreditCard,
     items: [
       { icon: CreditCard, label: "Facturation", href: "/admin/billing" },
+      { icon: FileText, label: "Factures", href: "/admin/invoices" },
       { icon: DollarSign, label: "Paiements", href: "/admin/payments" },
       { icon: FileText, label: "Templates PDF", href: "/admin/pdf-templates-v2" },
       { icon: AlertTriangle, label: "Recouvrement", href: "/admin/recouvrement" },
