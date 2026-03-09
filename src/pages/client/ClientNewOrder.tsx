@@ -503,7 +503,7 @@ const ClientNewOrder = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAccountBlocked } = useClientBlockStatus();
-  const welcomeDiscountHook = useWelcomeDiscount(user?.id);
+  // Welcome discount is now computed server-side by compute_checkout_pricing RPC
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates

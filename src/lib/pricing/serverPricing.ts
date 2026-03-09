@@ -17,6 +17,10 @@ export interface ServerPricingResult {
   recurring_subtotal: number;
   one_time_subtotal: number;
   discount_total: number;
+  promo_discount: number;
+  welcome_discount: number;
+  welcome_applied: boolean;
+  is_new_customer: boolean;
   preauth_discount: number;
   taxable_base: number;
   tps_amount: number;
@@ -33,12 +37,15 @@ export interface ServerPricingResult {
     min_payable_cents: number;
     duration: string;
     applies_to: Record<string, boolean>;
+    blocked_reason?: string;
   } | null;
   computed_at: string;
   cents: {
     recurring_subtotal: number;
     one_time_subtotal: number;
     discount_total: number;
+    promo_discount: number;
+    welcome_discount: number;
     taxable_base: number;
     tps: number;
     tvq: number;
