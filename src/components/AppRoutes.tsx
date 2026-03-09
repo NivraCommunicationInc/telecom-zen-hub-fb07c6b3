@@ -5,6 +5,16 @@ import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { PublicLayout } from "@/components/PublicLayout";
 import { lazy, Suspense } from "react";
 
+// Nivra Core internal app (lazy-loaded, fully isolated)
+const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
+const CoreDashboard = lazy(() => import("@/core-app/pages/DashboardPage"));
+const CoreWorkQueue = lazy(() => import("@/core-app/pages/WorkQueuePage"));
+const CoreOrders = lazy(() => import("@/core-app/pages/OrdersPage"));
+const CoreAccounts = lazy(() => import("@/core-app/pages/AccountsPage"));
+const CoreInvoices = lazy(() => import("@/core-app/pages/InvoicesPage"));
+const CorePayments = lazy(() => import("@/core-app/pages/PaymentsPage"));
+const CoreSubscriptions = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
+
 // Public pages
 import Index from "@/pages/Index";
 import About from "@/pages/About";
