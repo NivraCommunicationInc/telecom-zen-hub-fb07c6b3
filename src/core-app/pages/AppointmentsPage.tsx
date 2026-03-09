@@ -40,7 +40,7 @@ const AppointmentsPage = () => {
   const [typeFilter, setTypeFilter] = useState("");
 
   const { data: appointments, isLoading, refetch } = useQuery({
-    queryKey: ["core-appointments", statusFilter],
+    queryKey: ["core-appointments", statusFilter, envFilter],
     queryFn: async () => {
       let query = supabase
         .from("appointments")
@@ -48,6 +48,7 @@ const AppointmentsPage = () => {
         .order("scheduled_at", { ascending: false })
         .limit(200);
 
+      if (envFilter !== 'all') query = query.eq("environment", envFilter);
       if (statusFilter) {
         query = query.eq("status", statusFilter);
       }
