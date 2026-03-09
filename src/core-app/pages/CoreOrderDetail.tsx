@@ -117,7 +117,7 @@ const CoreOrderDetail = () => {
     <div className="space-y-4">
       {/* ═══ TOP NAV ═══ */}
       <div className="flex items-center justify-between">
-        <Link to="/core/orders" className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
+        <Link to={corePath("/orders")} className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Commandes
         </Link>
         <div className="flex items-center gap-1.5">

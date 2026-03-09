@@ -58,7 +58,7 @@ export default function SubscriptionDetailPage() {
       {/* Back + Header */}
       <div className="flex items-center gap-3">
         <Link
-          to="/core/subscriptions"
+          to={corePath("/subscriptions")}
           className="flex items-center gap-1 text-[hsl(220,10%,45%)] hover:text-white text-xs transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Abonnements

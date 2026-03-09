@@ -180,7 +180,7 @@ const PaymentsPage = () => {
                     <td className="px-3 py-2.5"><span className="text-[hsl(220,10%,45%)] truncate max-w-[100px] block">{p.confirmed_by || p.created_by_name || "—"}</span></td>
                     <td className="px-3 py-2.5">
                       {p.invoice_id && (
-                        <Link to={`/core/invoices/${p.invoice_id}`}>
+                        <Link to={corePath(`/invoices/${p.invoice_id}`)}>
                           <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors">
                             <ArrowRight className="h-3.5 w-3.5" />
                           </button>

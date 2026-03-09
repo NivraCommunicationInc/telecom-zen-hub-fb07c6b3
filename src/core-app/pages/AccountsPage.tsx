@@ -188,7 +188,7 @@ const AccountsPage = () => {
                     <td className="px-3 py-2.5 text-[hsl(220,10%,45%)] whitespace-nowrap">{c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}</td>
                     <td className="px-3 py-2.5">
                       {c.id ? (
-                        <Link to={`/core/accounts/${c.id}`}>
+                        <Link to={corePath(`/accounts/${c.id}`)}>
                           <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors">
                             <ArrowRight className="h-3.5 w-3.5" />
                           </button>

@@ -144,7 +144,7 @@ const CoreAccountDetail = () => {
           {data.invoices.slice(0, 20).map((inv: any) => (
             <tr key={inv.id} className="border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)]">
               <td className="px-3 py-2">
-                <Link to={`/core/invoices/${inv.id}`} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
+                <Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
               </td>
               <td className="px-3 py-2"><span className="text-[hsl(220,10%,50%)] capitalize">{inv.type}</span></td>
               <td className="px-3 py-2"><span className="tabular-nums text-white">{fmtCAD(inv.total)}</span></td>
