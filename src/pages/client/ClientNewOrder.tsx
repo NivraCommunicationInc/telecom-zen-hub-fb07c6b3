@@ -5909,7 +5909,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS + TVQ</span>
-                      <span>{monthlyTaxes.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span>{((authoritativePricing?.gst ?? 0) + (authoritativePricing?.qst ?? 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <div className="flex justify-between font-medium pt-1 border-t border-purple-500/30">
                       <span className="text-purple-500">Total mensuel</span>
