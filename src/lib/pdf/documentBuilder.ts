@@ -56,9 +56,9 @@ const _missingFields: string[] = [];
 
 function requireField(value: string | undefined | null, fieldName: string): string {
   if (!value || value === "—" || value === "N/A" || value === "À confirmer" || value === "000000" || value.trim() === "") {
-    console.error(`[DocumentBuilder] ❌ CHAMP OBLIGATOIRE MANQUANT: ${fieldName}`);
+    console.warn(`[DocumentBuilder] ⚠️ Champ manquant: ${fieldName}`);
     _missingFields.push(fieldName);
-    return `[MANQUANT: ${fieldName}]`;
+    return "Non fourni par le client";
   }
   return value.trim();
 }
