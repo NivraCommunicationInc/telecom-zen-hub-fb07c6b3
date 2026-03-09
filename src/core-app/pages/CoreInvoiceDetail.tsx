@@ -247,6 +247,15 @@ const CoreInvoiceDetail = () => {
           <p className="text-[hsl(220,10%,55%)] text-xs whitespace-pre-wrap">{inv.notes}</p>
         </div>
       )}
+
+      {/* PDF Viewer Dialog */}
+      <PDFViewerDialog
+        open={pdfOpen}
+        onOpenChange={setPdfOpen}
+        pdfBlob={pdfBlob}
+        title={`Facture ${inv.invoice_number}`}
+        filename={`Facture_${inv.invoice_number}.pdf`}
+      />
     </div>
   );
 };
