@@ -55,11 +55,11 @@ const DashboardPage = () => {
       {/* KPI Strip */}
       <div className="grid grid-cols-5 gap-3">
         {[
-          { label: "Commandes aujourd'hui", value: metrics.ordersToday, icon: ShoppingCart, color: "text-white", link: "/core/orders" },
-          { label: "Paiements confirmés (auj.)", value: metrics.paymentsToday, icon: CreditCard, color: "text-emerald-400", link: "/core/payments" },
-          { label: "Factures impayées", value: metrics.unpaidInvoices, icon: FileText, color: metrics.unpaidInvoices > 0 ? "text-red-400" : "text-white", link: "/core/invoices" },
-          { label: "Activations en attente", value: metrics.pendingActivations, icon: Zap, color: metrics.pendingActivations > 0 ? "text-amber-400" : "text-white", link: "/core/work-queue" },
-          { label: "Bloquées / Hold", value: metrics.onHold, icon: AlertTriangle, color: metrics.onHold > 0 ? "text-red-400" : "text-white", link: "/core/work-queue" },
+          { label: "Commandes aujourd'hui", value: metrics.ordersToday, icon: ShoppingCart, color: "text-white", link: corePath("/orders") },
+          { label: "Paiements confirmés (auj.)", value: metrics.paymentsToday, icon: CreditCard, color: "text-emerald-400", link: corePath("/payments") },
+          { label: "Factures impayées", value: metrics.unpaidInvoices, icon: FileText, color: metrics.unpaidInvoices > 0 ? "text-red-400" : "text-white", link: corePath("/invoices") },
+          { label: "Activations en attente", value: metrics.pendingActivations, icon: Zap, color: metrics.pendingActivations > 0 ? "text-amber-400" : "text-white", link: corePath("/work-queue") },
+          { label: "Bloquées / Hold", value: metrics.onHold, icon: AlertTriangle, color: metrics.onHold > 0 ? "text-red-400" : "text-white", link: corePath("/work-queue") },
         ].map((kpi) => (
           <Link key={kpi.label} to={kpi.link} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 hover:border-emerald-500/30 transition-colors group">
             <div className="flex items-center justify-between">
