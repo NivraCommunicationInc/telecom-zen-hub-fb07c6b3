@@ -2804,22 +2804,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // === UNIFIED CHECKOUT PRICING — SINGLE AUTHORITATIVE OBJECT ===
   const authoritativePricing = nivraCoreOrderPricing
     ? {
-        subtotal: Number(nivraCoreOrderPricing.subtotal),
-        gst: Number(nivraCoreOrderPricing.gst),
-        qst: Number(nivraCoreOrderPricing.qst),
-        total: Number(nivraCoreOrderPricing.total),
-        orderNumber: nivraCoreOrderPricing.order_number,
-        invoiceNumber: nivraCoreOrderPricing.invoice_number,
-        paymentNumber: nivraCoreOrderPricing.payment_number,
+        subtotal: Number(nivraCoreOrderPricing.subtotal ?? 0),
+        gst: Number(nivraCoreOrderPricing.gst ?? 0),
+        qst: Number(nivraCoreOrderPricing.qst ?? 0),
+        total: Number(nivraCoreOrderPricing.total ?? 0),
+        orderNumber: nivraCoreOrderPricing.order_number ?? undefined,
+        invoiceNumber: nivraCoreOrderPricing.invoice_number ?? undefined,
+        paymentNumber: nivraCoreOrderPricing.payment_number ?? undefined,
       }
     : liveServerPricing
-      ? {
-          subtotal: Number(liveServerPricing.taxable_base),
-          gst: Number(liveServerPricing.tps_amount),
-          qst: Number(liveServerPricing.tvq_amount),
-          total: Number(liveServerPricing.grand_total),
-        }
-      : null;
+    ? {
+        subtotal: Number(liveServerPricing.taxable_base ?? 0),
+        gst: Number(liveServerPricing.tps_amount ?? 0),
+        qst: Number(liveServerPricing.tvq_amount ?? 0),
+        total: Number(liveServerPricing.grand_total ?? 0),
+      }
+    : {
+        subtotal: 0,
+        gst: 0,
+        qst: 0,
+        total: 0,
+      };
 
   const todayTaxableBase = authoritativePricing?.subtotal ?? 0;
   const todayTps = authoritativePricing?.gst ?? 0;
