@@ -2843,6 +2843,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const todayTvq = authoritativePricing?.qst ?? 0;
   const todayTotal = authoritativePricing?.total ?? 0;
 
+  // === MONTHLY RECURRING WITH TAX (display only — distinct from today's payment) ===
+  // monthlyRecurring is the pre-tax monthly total (services + channels + streaming)
+  // These are QC standard tax rates applied to the recurring portion ONLY.
+  const monthlyTps = round2(monthlyRecurring * 0.05);
+  const monthlyTvq = round2(monthlyRecurring * 0.09975);
+  const monthlyTotalWithTax = round2(monthlyRecurring + monthlyTps + monthlyTvq);
+
   // All display values come exclusively from authoritativePricing.
   // These aliases exist ONLY for backward-compat in the order-submission function
   // where serverPricing (Nivra Core response) is the authoritative source.
