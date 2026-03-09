@@ -55,17 +55,10 @@ const formatDateTime = (d: string | null | undefined) =>
   d ? format(new Date(d), "d MMM yyyy HH:mm", { locale: fr }) : "—";
 
 // ─── PDF Download (canonical pipeline) ─────────────────────────────────────
-async function handleDownloadPDF(invoiceId: string, invoiceNumber: string) {
-  try {
-    const data = await fetchCanonicalDocumentData(adminClient, { invoiceId });
-    if (!data) throw new Error("Données introuvables pour cette facture.");
-    const invoiceData = buildCanonicalInvoiceData(data);
-    const pdf = generateCanonicalInvoicePDF(invoiceData);
-    pdf.save(`Facture-${invoiceNumber}.pdf`);
-    toast.success("Facture téléchargée");
-  } catch (err: any) {
-    console.error("[AdminInvoiceDetail] PDF error:", err);
-    toast.error(err?.message || "Erreur lors de la génération du PDF");
+async function handleDownloadPDF(invoiceId: string) {
+  const result: PDFGenerationResult = await generateCanonicalInvoicePDF(adminClient, invoiceId);
+  if (!result.success) {
+    throw new Error(result.error || "Erreur lors de la génération du PDF");
   }
 }
 
