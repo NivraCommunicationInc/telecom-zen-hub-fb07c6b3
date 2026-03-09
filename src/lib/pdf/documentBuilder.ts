@@ -166,10 +166,10 @@ function buildFullAddress(parts: { line1?: string; city?: string; province?: str
 }
 
 function buildCustomerAddress(order: any, profile: any, account: any) {
-  const address_line1 = order.shipping_address || account?.primary_service_address || profile?.address || "";
-  const city = order.shipping_city || account?.primary_service_city || "";
-  const province = order.shipping_province || account?.primary_service_province || "QC";
-  const postal_code = order.shipping_postal_code || account?.primary_service_postal_code || "";
+  const address_line1 = order.shipping_address || account?.primary_service_address || profile?.address || profile?.service_address || "";
+  const city = order.shipping_city || account?.primary_service_city || profile?.service_city || "";
+  const province = order.shipping_province || account?.primary_service_province || profile?.service_province || "QC";
+  const postal_code = order.shipping_postal_code || account?.primary_service_postal_code || profile?.service_postal_code || "";
   const serviceAddr = buildFullAddress({ line1: address_line1, city, province, postal: postal_code });
   const billingAddr = account?.billing_address
     ? buildFullAddress({ line1: account.billing_address, city: account.billing_city, province: account.billing_province || "QC", postal: account.billing_postal_code })
