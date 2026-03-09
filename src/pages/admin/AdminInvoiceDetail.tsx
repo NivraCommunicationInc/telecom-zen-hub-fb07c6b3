@@ -72,7 +72,11 @@ const AdminInvoiceDetail = () => {
     if (!invoice) return;
     setPdfLoading(true);
     try {
-      await handleDownloadPDF(invoice.id, invoice.invoice_number);
+      await handleDownloadPDF(invoice.id);
+      toast.success("Facture téléchargée");
+    } catch (err: any) {
+      console.error("[AdminInvoiceDetail] PDF error:", err);
+      toast.error(err?.message || "Erreur lors de la génération du PDF");
     } finally {
       setPdfLoading(false);
     }
