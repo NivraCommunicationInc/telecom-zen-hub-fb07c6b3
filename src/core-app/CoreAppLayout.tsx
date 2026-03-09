@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { CoreGlobalSearch } from "./components/CoreGlobalSearch";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard,
@@ -111,6 +112,7 @@ const CoreAppLayout = () => {
             Internal Operations Console
           </span>
           <div className="flex items-center gap-3">
+            <CoreGlobalSearch />
             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-600/10 px-2 py-0.5 rounded-full">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Core Online
