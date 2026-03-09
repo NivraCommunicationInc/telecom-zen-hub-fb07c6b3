@@ -386,10 +386,10 @@ END:VCALENDAR`;
   // If amount_paid > 0 (PayPal captured), use that as the definitive "total paid"
   const tpsAmount = hasSnapshot ? Number(ps.tps_amount) : (order.tps_amount ?? 0);
   const tvqAmount = hasSnapshot ? Number(ps.tvq_amount) : (order.tvq_amount ?? 0);
-  // CRITICAL FIX: "Total payé" must reflect the actual captured/committed amount,
-  // not the snapshot grand_total which may be from an external API with different discount logic.
-  // Priority: order.total_amount (set by commit from correct RPC) > snapshot
-  const totalAmount = order.total_amount ?? (hasSnapshot ? Number(ps.grand_total) : 0);
+  // CRITICAL FIX: "Total payé" uses pricing_snapshot.grand_total (from compute_checkout_pricing RPC)
+  // as the authoritative total, since the order trigger recalculates total_amount without all discounts.
+  // Fallback: order.amount_paid (actual captured amount) > order.total_amount
+  const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.amount_paid ?? order.total_amount ?? 0);
   
   // Future monthly total — use standard QC tax rates
   const monthlyTps = Math.round(monthlyRecurringNet * 0.05 * 100) / 100;
