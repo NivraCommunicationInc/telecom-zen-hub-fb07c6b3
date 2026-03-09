@@ -2098,7 +2098,7 @@ const ClientNewOrder = () => {
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
             discount_amount: serverPricing.discount_total,
-            welcome_discount_amount: welcomeDiscountAmount, // ⚠️ CLIENT-SIDE — TODO: migrate to RPC
+            welcome_discount_amount: serverPricing.welcome_discount ?? 0, // SERVER-SIDE — from RPC
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
             tvq_amount: serverPricing.tvq_amount,
