@@ -650,7 +650,17 @@ const ClientNewOrder = () => {
   const [nivraCoreOrderPricing, setNivraCoreOrderPricing] = useState<NivraOrderResponse | null>(null);
   const [isServerPricingLoading, setIsServerPricingLoading] = useState(false);
   const serverPricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
+  /**
+   * UI lock to prevent totals from changing during the final submission (mutation pending).
+   * This eliminates any “jump” caused by late live pricing refreshes.
+   */
+  const [lockedUiTotals, setLockedUiTotals] = useState<{
+    monthlyRecurringWithTax: number;
+    todayTotal: number;
+    capturedPaymentAmount: number;
+  } | null>(null);
+
   // Query client billing preferences to check if preauth already opted-in
   const { data: billingPreferences, isLoading: isBillingPrefsLoading } = useQuery({
     queryKey: ["client-billing-preferences", user?.id],
@@ -2500,7 +2510,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             client_phone: checkoutPhone || profile?.phone,
             order_number: orderData.order_number,
             services: servicesForEmail,
-            monthly_total_tax_in: authoritativePricing?.total ?? 0,
+            monthly_total_tax_in: lockedUiTotals?.monthlyRecurringWithTax ?? monthlyTotalWithTax,
             one_time_total: oneTimeFees,
             delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
             payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
@@ -2552,7 +2562,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       });
     },
     onSettled: () => {
-      // Reset the submit guard so user can try again if it truly failed
+      // Always unlock UI totals + reset guard so user can retry if it truly failed
+      setLockedUiTotals(null);
       submittingRef.current = false;
     },
   });
@@ -2848,6 +2859,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const monthlyTvq = round2(monthlyRecurring * 0.09975);
   const monthlyTotalWithTax = round2(monthlyRecurring + monthlyTps + monthlyTvq);
 
+  // ── SINGLE UI SOURCES OF TRUTH (locked during submission) ───────────────────
+  const monthlyRecurringWithTax = monthlyTotalWithTax;
+  const isUiLocked = createOrderMutation.isPending && !!lockedUiTotals;
+
+  // During submission, freeze the UI to the exact values shown right before click.
+  const uiMonthlyRecurringWithTax = isUiLocked
+    ? lockedUiTotals!.monthlyRecurringWithTax
+    : monthlyRecurringWithTax;
+  const uiTodayTotal = isUiLocked ? lockedUiTotals!.todayTotal : todayTotal;
+  const capturedPaymentAmount = isUiLocked
+    ? lockedUiTotals!.capturedPaymentAmount
+    : todayTotal;
+
   // All display values come exclusively from authoritativePricing.
   // These aliases exist ONLY for backward-compat in the order-submission function
   // where serverPricing (Nivra Core response) is the authoritative source.
@@ -2855,6 +2879,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   // === LIVE PRICING: call server-side computeCheckoutPricing RPC ===
   useEffect(() => {
+    // Freeze live pricing while the order is being submitted to prevent any late refresh
+    // from changing the UI totals mid-confirmation.
+    if (createOrderMutation.isPending || submittingRef.current) {
+      if (serverPricingTimerRef.current) {
+        clearTimeout(serverPricingTimerRef.current);
+        serverPricingTimerRef.current = null;
+      }
+      return;
+    }
+
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       setLiveServerPricing(null);
       return;
@@ -2917,6 +2951,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     terminalFee, routerFee, simFee,
     acceptPreauthorized, appliedPromo?.code,
     profile?.email, user?.email, user?.id,
+    createOrderMutation.isPending,
   ]);
 
   // Canadian provinces for ID
@@ -3123,6 +3158,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       toast.error("Veuillez accepter les termes et conditions");
       return;
     }
+
+    // Lock UI totals during submission to prevent any mid-flight live pricing refresh
+    // from changing the displayed amounts (e.g., 109,23$ -> 183,96$).
+    setLockedUiTotals({
+      monthlyRecurringWithTax: monthlyTotalWithTax,
+      todayTotal,
+      capturedPaymentAmount: todayTotal,
+    });
+
+    // Stop any scheduled live pricing refresh while we submit
+    if (serverPricingTimerRef.current) {
+      clearTimeout(serverPricingTimerRef.current);
+      serverPricingTimerRef.current = null;
+    }
+
     createOrderMutation.mutate();
   };
 
@@ -4987,16 +5037,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                   </div>
                   
-                  {/* Monthly Total */}
-                  <div className="border-t border-border pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-foreground">Total mensuel estimé</span>
-                      <span className="font-bold text-lg text-cyan-500">
-                        {monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
-                      </span>
+                    <div className="border-t border-border pt-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-foreground">Total mensuel estimé</span>
+                        <span className="font-bold text-lg text-cyan-500">
+                          {uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Services récurrents, taxes incluses</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Services récurrents, taxes incluses</p>
-                  </div>
                   
                   {/* One-Time Fees Section */}
                   <div className="space-y-2">
@@ -5153,7 +5202,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
@@ -5468,7 +5517,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-cyan-500/50">
                       <span className="font-bold text-cyan-500 text-base">Total à payer aujourd'hui</span>
-                      <span className="font-bold text-cyan-500 text-lg">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="font-bold text-cyan-500 text-lg">{uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -5537,11 +5586,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
-                      <span>{((authoritativePricing?.gst ?? 0) + (authoritativePricing?.qst ?? 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{round2(monthlyTps + monthlyTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-purple-500/50">
                       <span className="font-bold text-purple-500 text-base">Total mensuel estimé</span>
-                      <span className="font-bold text-purple-500 text-lg">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="font-bold text-purple-500 text-lg">{uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Facturation le 1er de chaque mois après activation</p>
                   </CardContent>
@@ -5717,7 +5766,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             <div className="text-sm">
                               <p className="font-medium text-foreground mb-2">Instructions de paiement Interac</p>
                               <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                                <li>Envoyez <strong className="text-amber-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong> à:</li>
+                                <li>Envoyez <strong className="text-amber-500">{uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</strong> à:</li>
                                 <li className="ml-4"><strong className="text-foreground">Support@nivra-telecom.ca</strong></li>
                                 <li>Entrez le numéro de confirmation Interac ci-dessous</li>
                               </ol>
@@ -5761,10 +5810,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         Payez de façon sécurisée avec votre compte PayPal ou carte de crédit/débit.
                       </p>
                       <PayPalButton
-                        amount={authoritativePricing?.total ?? 0}
+                        amount={uiTodayTotal}
                         paymentNumber={authoritativePricing?.paymentNumber}
                         description="Commande Nivra Telecom"
-                        disabled={!authoritativePricing || (authoritativePricing.total ?? 0) <= 0}
+                        disabled={!authoritativePricing || uiTodayTotal <= 0}
                         onSuccess={(captureId) => {
                           setPaypalCaptureId(captureId);
                           setPaymentConfirmationNumber(captureId);
@@ -5930,7 +5979,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between font-medium pt-1 border-t border-purple-500/30">
                       <span className="text-purple-500">Total mensuel estimé</span>
-                      <span className="text-purple-500">{monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="text-purple-500">{uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
 
                     <Separator className="my-1" />
@@ -6010,15 +6059,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  <div className="border-t-2 border-cyan-500/50 pt-4">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
-                      <span className="text-2xl font-bold text-cyan-500">
-                        {todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
-                  </div>
+                   <div className="border-t-2 border-cyan-500/50 pt-4">
+                     <div className="flex justify-between items-center">
+                       <span className="font-medium text-foreground">Total à payer aujourd'hui</span>
+                       <span className="text-2xl font-bold text-cyan-500">
+                         {uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                       </span>
+                     </div>
+                     <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
+                   </div>
 
                   {/* Payment Status Indicator */}
                   {isPaymentComplete && (
@@ -6073,7 +6122,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{selectedServices.length} service(s)</span>
-                  <span className="font-bold text-foreground">{(authoritativePricing?.total ?? 0).toFixed(2)} $/mois</span>
+                  <span className="font-bold text-foreground">
+                    {uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                  </span>
                 </div>
                 <Button variant="hero" className="w-full" size="lg" onClick={() => setStep(2)}>
                   Continuer <ArrowRight className="w-4 h-4 ml-2" />
@@ -6125,7 +6176,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Total aujourd'hui</span>
-                  <span className="font-bold text-foreground">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  <span className="font-bold text-foreground">{uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => {
@@ -6162,7 +6213,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Total à payer</span>
-                  <span className="font-bold text-foreground">{todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                  <span className="font-bold text-foreground">{uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => setStep(step - 1)}>
