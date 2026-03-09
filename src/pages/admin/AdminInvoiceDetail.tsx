@@ -21,7 +21,7 @@ import { fr } from "date-fns/locale";
 import { useState } from "react";
 import { toast } from "sonner";
 import { adminClient } from "@/integrations/backend";
-import { generateCanonicalInvoicePDF, fetchCanonicalDocumentData, buildCanonicalInvoiceData } from "@/lib/pdf/canonicalDocumentService";
+import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
 
 // ─── Labels ────────────────────────────────────────────────────────────────
 const INVOICE_STATUS_LABELS: Record<string, string> = {
