@@ -14,6 +14,7 @@ import {
   CreditCard,
   RefreshCcw,
   Calendar,
+  LogOut,
   ChevronLeft,
   ChevronRight,
   Terminal,
