@@ -2102,7 +2102,7 @@ const ClientNewOrder = () => {
           // V2.4: ALL pricing from server-side compute_checkout_pricing RPC — no client-computed discounts
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
-            discount_amount: serverPricing.discount_total,
+            discount_amount: serverPricing.discount_total_combined,
             welcome_discount_amount: serverPricing.welcome_discount ?? 0, // SERVER-SIDE — from RPC
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
