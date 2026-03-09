@@ -2814,22 +2814,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   ]);
 
   // === UNIFIED CHECKOUT PRICING — SINGLE AUTHORITATIVE OBJECT ===
-  const authoritativePricing = nivraCoreOrderPricing
-    ? {
-        subtotal: Number(nivraCoreOrderPricing.subtotal ?? 0),
-        gst: Number(nivraCoreOrderPricing.gst ?? 0),
-        qst: Number(nivraCoreOrderPricing.qst ?? 0),
-        total: Number(nivraCoreOrderPricing.total ?? 0),
-        orderNumber: nivraCoreOrderPricing.order_number ?? undefined,
-        invoiceNumber: nivraCoreOrderPricing.invoice_number ?? undefined,
-        paymentNumber: nivraCoreOrderPricing.payment_number ?? undefined,
-      }
-    : liveServerPricing
+  // CRITICAL: liveServerPricing (from compute_checkout_pricing RPC) is the SOLE authority
+  // for pricing display. nivraCoreOrderPricing (from Nivra API) is ONLY used for
+  // order/invoice/payment reference numbers — NEVER for amounts, because the Nivra API
+  // returns gross totals that don't reflect discounts applied by the RPC.
+  const authoritativePricing = liveServerPricing
     ? {
         subtotal: Number(liveServerPricing.taxable_base ?? 0),
         gst: Number(liveServerPricing.tps_amount ?? 0),
         qst: Number(liveServerPricing.tvq_amount ?? 0),
         total: Number(liveServerPricing.grand_total ?? 0),
+        // Reference numbers come from Nivra Core response (if available)
+        orderNumber: nivraCoreOrderPricing?.order_number ?? undefined,
+        invoiceNumber: nivraCoreOrderPricing?.invoice_number ?? undefined,
+        paymentNumber: nivraCoreOrderPricing?.payment_number ?? undefined,
       }
     : {
         subtotal: 0,
@@ -2842,6 +2840,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const todayTps = authoritativePricing?.gst ?? 0;
   const todayTvq = authoritativePricing?.qst ?? 0;
   const todayTotal = authoritativePricing?.total ?? 0;
+
+  // === MONTHLY RECURRING WITH TAX (display only — distinct from today's payment) ===
+  // monthlyRecurring is the pre-tax monthly total (services + channels + streaming)
+  // These are QC standard tax rates applied to the recurring portion ONLY.
+  const monthlyTps = round2(monthlyRecurring * 0.05);
+  const monthlyTvq = round2(monthlyRecurring * 0.09975);
+  const monthlyTotalWithTax = round2(monthlyRecurring + monthlyTps + monthlyTvq);
 
   // All display values come exclusively from authoritativePricing.
   // These aliases exist ONLY for backward-compat in the order-submission function
@@ -4987,10 +4992,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-foreground">Total mensuel estimé</span>
                       <span className="font-bold text-lg text-cyan-500">
-                        {(subtotal + paidChannelTotal).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                        {monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Avant taxes, services récurrents</p>
+                    <p className="text-xs text-muted-foreground mt-1">Services récurrents, taxes incluses</p>
                   </div>
                   
                   {/* One-Time Fees Section */}
@@ -5921,11 +5926,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS + TVQ</span>
-                      <span>{((authoritativePricing?.gst ?? 0) + (authoritativePricing?.qst ?? 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span>{round2(monthlyTps + monthlyTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <div className="flex justify-between font-medium pt-1 border-t border-purple-500/30">
-                      <span className="text-purple-500">Total mensuel</span>
-                      <span className="text-purple-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="text-purple-500">Total mensuel estimé</span>
+                      <span className="text-purple-500">{monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
 
                     <Separator className="my-1" />
