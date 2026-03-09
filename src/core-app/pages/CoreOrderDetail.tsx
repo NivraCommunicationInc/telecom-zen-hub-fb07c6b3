@@ -123,6 +123,77 @@ function useOrderDetail(orderId: string | undefined) {
 const CoreOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const { data, isLoading, refetch } = useOrderDetail(orderId);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfFilename, setPdfFilename] = useState("");
+  const [docLoading, setDocLoading] = useState<string | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  const openPdf = (blob: Blob, title: string, filename: string) => {
+    setPdfBlob(blob);
+    setPdfTitle(title);
+    setPdfFilename(filename);
+    setPdfOpen(true);
+  };
+
+  const handleViewInvoicePDF = async (invoiceId: string, invoiceNumber: string) => {
+    setDocLoading("invoice");
+    setDocError(null);
+    try {
+      const result = await generateCanonicalInvoicePDF(supabase, invoiceId);
+      if (result.success && result.blob) {
+        openPdf(result.blob, `Facture ${invoiceNumber}`, `Facture_${invoiceNumber}.pdf`);
+      } else {
+        setDocError(result.error || "Erreur de génération de la facture");
+        toast.error(result.error || "Erreur de génération");
+      }
+    } catch (err: any) {
+      setDocError(err.message);
+      toast.error("Erreur lors de la génération de la facture");
+    } finally {
+      setDocLoading(null);
+    }
+  };
+
+  const handleViewContractPDF = async (contractId: string, contractNumber: string) => {
+    setDocLoading("contract");
+    setDocError(null);
+    try {
+      const result = await generateCanonicalContractPDF(supabase, contractId);
+      if (result.success && result.blob) {
+        openPdf(result.blob, `Contrat ${contractNumber}`, `Contrat_${contractNumber}.pdf`);
+      } else {
+        setDocError(result.error || "Erreur de génération du contrat");
+        toast.error(result.error || "Erreur de génération");
+      }
+    } catch (err: any) {
+      setDocError(err.message);
+      toast.error("Erreur lors de la génération du contrat");
+    } finally {
+      setDocLoading(null);
+    }
+  };
+
+  const handleViewAllDocs = async () => {
+    if (!orderId) return;
+    setDocLoading("all");
+    setDocError(null);
+    try {
+      const result = await generateOrderDocuments(orderId);
+      if (result?.invoice?.blob) {
+        openPdf(result.invoice.blob, "Facture", `Facture_${data?.order?.order_number || ""}.pdf`);
+      } else {
+        setDocError("Impossible de générer les documents");
+        toast.error("Erreur lors de la génération des documents");
+      }
+    } catch (err: any) {
+      setDocError(err.message);
+      toast.error("Erreur lors de la génération");
+    } finally {
+      setDocLoading(null);
+    }
+  };
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[hsl(220,10%,40%)]" /></div>;
@@ -138,7 +209,7 @@ const CoreOrderDetail = () => {
     );
   }
 
-  const { order, profile, account, items, invoices, payments, subscriptions, appointment, activityLogs } = data;
+  const { order, profile, account, items, invoices, payments, subscriptions, appointment, activityLogs, contract } = data;
   const clientName = profile?.full_name
     || [order.client_first_name, order.client_last_name].filter(Boolean).join(" ")
     || "—";
