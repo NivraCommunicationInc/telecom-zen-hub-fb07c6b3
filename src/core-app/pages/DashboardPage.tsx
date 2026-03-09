@@ -4,11 +4,11 @@
  */
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useWorkQueue } from "@/hooks/admin/useWorkQueue";
-import { useAdminInvoices } from "@/hooks/admin/useAdminInvoices";
-import { useAdminPayments } from "@/hooks/admin/useAdminPayments";
-import { useAdminOrders } from "@/hooks/admin/useAdminOrders";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { useWorkQueue } from "@/core-app/hooks/useWorkQueue";
+import { useAdminInvoices } from "@/core-app/hooks/useAdminInvoices";
+import { useAdminPayments } from "@/core-app/hooks/useAdminPayments";
+import { useAdminOrders } from "@/core-app/hooks/useAdminOrders";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { ShoppingCart, CreditCard, FileText, AlertTriangle, ArrowRight, Zap, CalendarDays, ListTodo } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { fr } from "date-fns/locale";

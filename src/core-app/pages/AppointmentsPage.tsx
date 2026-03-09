@@ -7,14 +7,14 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import {
   Calendar, Search, RefreshCw, ArrowRight,
   MapPin, User, Clock, Wrench,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 
 const STATUS_FILTERS = [

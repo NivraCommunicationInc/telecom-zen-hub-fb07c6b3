@@ -3,8 +3,8 @@
  * Reuses useAdminSubscriptionDetail — zero duplicated business logic.
  */
 import { useParams, Link } from "react-router-dom";
-import { useAdminSubscriptionDetail } from "@/hooks/admin/useAdminSubscriptionDetail";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { useAdminSubscriptionDetail } from "@/core-app/hooks/useAdminSubscriptionDetail";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import {
   ArrowLeft, User, MapPin, Package, FileText, History,
   Zap, ExternalLink, ToggleRight, Calendar, CreditCard,

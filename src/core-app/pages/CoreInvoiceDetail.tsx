@@ -5,8 +5,8 @@
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useAdminInvoiceDetail } from "@/hooks/admin/useAdminInvoiceDetail";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { useAdminInvoiceDetail } from "@/core-app/hooks/useAdminInvoiceDetail";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

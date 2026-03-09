@@ -4,10 +4,10 @@
  */
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdminSubscriptions } from "@/hooks/admin/useAdminSubscriptions";
-import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
+import { useAdminSubscriptions } from "@/core-app/hooks/useAdminSubscriptions";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Search, RefreshCw, Filter, Repeat, Zap } from "lucide-react";
-import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

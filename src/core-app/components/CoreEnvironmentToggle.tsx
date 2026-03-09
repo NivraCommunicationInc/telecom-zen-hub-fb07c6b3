@@ -1,7 +1,7 @@
 /**
  * CoreEnvironmentToggle — shared live/test/all filter for Core list pages.
  */
-import type { EnvironmentFilter } from "@/hooks/admin/useEnvironmentFilter";
+import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { cn } from "@/lib/utils";
 
 const OPTIONS: { value: EnvironmentFilter; label: string }[] = [
