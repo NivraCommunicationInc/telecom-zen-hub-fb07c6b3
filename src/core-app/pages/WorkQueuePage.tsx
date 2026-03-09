@@ -96,7 +96,7 @@ function AppointmentRow({ item }: { item: AppointmentQueueItem }) {
       <div className="flex items-center gap-2 shrink-0">
         <StatusBadge label={item.status || "pending"} variant={statusToVariant(item.status || "pending")} size="sm" />
         {item.order_id && (
-          <Link to={`/admin/orders/${item.order_id}`}>
+          <Link to={`/core/orders/${item.order_id}`}>
             <button className="h-7 w-7 flex items-center justify-center rounded-md text-[hsl(220,10%,50%)] hover:text-white transition-colors" title="Voir commande">
               <ExternalLink className="h-3.5 w-3.5" />
             </button>
