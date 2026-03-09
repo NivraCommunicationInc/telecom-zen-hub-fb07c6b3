@@ -5202,7 +5202,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-foreground">Total à payer aujourd'hui</span>
                       <span className="text-2xl font-bold text-cyan-500">
-                        {todayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {uiTodayTotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Frais uniques + 1er mois, taxes incluses</p>
