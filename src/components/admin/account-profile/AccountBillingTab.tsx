@@ -335,9 +335,12 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
                 <div className="flex items-center gap-3">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">{pay.amount?.toFixed(2)} $</p>
+                    <p className="text-sm font-mono font-semibold text-foreground">
+                      {pay.payment_number || "—"}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {pay.method} {pay.reference && `• Réf: ${pay.reference}`}
+                      {pay.amount?.toFixed(2)} $ • {pay.method}
+                      {pay.reference && <span className="ml-1 opacity-70">Réf: {pay.reference}</span>}
                       {" • "}
                       {pay.created_at && format(new Date(pay.created_at), "d MMM yyyy", { locale: fr })}
                     </p>
