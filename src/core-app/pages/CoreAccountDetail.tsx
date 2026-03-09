@@ -3,7 +3,7 @@
  * Reuses useAccountProfile hook — zero duplicated business logic.
  */
 import { useParams, Link } from "react-router-dom";
-import { useAccountProfile } from "@/components/admin/account-profile";
+import { useAccountProfile } from "@/core-app/hooks/useAccountProfile";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Loader2, ArrowLeft, RefreshCw, User, FileText, CreditCard, Repeat, ShoppingCart, Mail, Phone, MapPin } from "lucide-react";
 import { format } from "date-fns";
