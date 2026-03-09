@@ -15,6 +15,7 @@ const CoreInvoices = lazy(() => import("@/core-app/pages/InvoicesPage"));
 const CorePayments = lazy(() => import("@/core-app/pages/PaymentsPage"));
 const CoreSubscriptions = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
 const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
+const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
 
 // Public pages
 import Index from "@/pages/Index";
