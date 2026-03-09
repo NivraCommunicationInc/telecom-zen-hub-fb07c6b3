@@ -3134,6 +3134,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       toast.error("Veuillez accepter les termes et conditions");
       return;
     }
+
+    // Lock UI totals during submission to prevent any mid-flight live pricing refresh
+    // from changing the displayed amounts (e.g., 109,23$ -> 183,96$).
+    setLockedUiTotals({
+      monthlyRecurringWithTax: monthlyTotalWithTax,
+      todayTotal,
+      capturedPaymentAmount: todayTotal,
+    });
+
+    // Stop any scheduled live pricing refresh while we submit
+    if (serverPricingTimerRef.current) {
+      clearTimeout(serverPricingTimerRef.current);
+      serverPricingTimerRef.current = null;
+    }
+
     createOrderMutation.mutate();
   };
 
