@@ -5,6 +5,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useAdminSubscriptionDetail } from "@/core-app/hooks/useAdminSubscriptionDetail";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import {
   ArrowLeft, User, MapPin, Package, FileText, History,
   Zap, ExternalLink, ToggleRight, Calendar, CreditCard,
@@ -42,7 +43,7 @@ export default function SubscriptionDetailPage() {
     return (
       <div className="text-center py-20">
         <p className="text-[hsl(220,10%,40%)] text-sm">Abonnement introuvable</p>
-        <Link to="/core/subscriptions" className="text-emerald-400 text-xs hover:underline mt-2 inline-block">
+        <Link to={corePath("/subscriptions")} className="text-emerald-400 text-xs hover:underline mt-2 inline-block">
           ← Retour aux abonnements
         </Link>
       </div>
@@ -57,7 +58,7 @@ export default function SubscriptionDetailPage() {
       {/* Back + Header */}
       <div className="flex items-center gap-3">
         <Link
-          to="/core/subscriptions"
+          to={corePath("/subscriptions")}
           className="flex items-center gap-1 text-[hsl(220,10%,45%)] hover:text-white text-xs transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Abonnements

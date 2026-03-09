@@ -9,6 +9,7 @@ import { useAdminInvoices } from "@/core-app/hooks/useAdminInvoices";
 import { useAdminPayments } from "@/core-app/hooks/useAdminPayments";
 import { useAdminOrders } from "@/core-app/hooks/useAdminOrders";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import { ShoppingCart, CreditCard, FileText, AlertTriangle, ArrowRight, Zap, CalendarDays, ListTodo } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -54,11 +55,11 @@ const DashboardPage = () => {
       {/* KPI Strip */}
       <div className="grid grid-cols-5 gap-3">
         {[
-          { label: "Commandes aujourd'hui", value: metrics.ordersToday, icon: ShoppingCart, color: "text-white", link: "/core/orders" },
-          { label: "Paiements confirmés (auj.)", value: metrics.paymentsToday, icon: CreditCard, color: "text-emerald-400", link: "/core/payments" },
-          { label: "Factures impayées", value: metrics.unpaidInvoices, icon: FileText, color: metrics.unpaidInvoices > 0 ? "text-red-400" : "text-white", link: "/core/invoices" },
-          { label: "Activations en attente", value: metrics.pendingActivations, icon: Zap, color: metrics.pendingActivations > 0 ? "text-amber-400" : "text-white", link: "/core/work-queue" },
-          { label: "Bloquées / Hold", value: metrics.onHold, icon: AlertTriangle, color: metrics.onHold > 0 ? "text-red-400" : "text-white", link: "/core/work-queue" },
+          { label: "Commandes aujourd'hui", value: metrics.ordersToday, icon: ShoppingCart, color: "text-white", link: corePath("/orders") },
+          { label: "Paiements confirmés (auj.)", value: metrics.paymentsToday, icon: CreditCard, color: "text-emerald-400", link: corePath("/payments") },
+          { label: "Factures impayées", value: metrics.unpaidInvoices, icon: FileText, color: metrics.unpaidInvoices > 0 ? "text-red-400" : "text-white", link: corePath("/invoices") },
+          { label: "Activations en attente", value: metrics.pendingActivations, icon: Zap, color: metrics.pendingActivations > 0 ? "text-amber-400" : "text-white", link: corePath("/work-queue") },
+          { label: "Bloquées / Hold", value: metrics.onHold, icon: AlertTriangle, color: metrics.onHold > 0 ? "text-red-400" : "text-white", link: corePath("/work-queue") },
         ].map((kpi) => (
           <Link key={kpi.label} to={kpi.link} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 hover:border-emerald-500/30 transition-colors group">
             <div className="flex items-center justify-between">
@@ -73,11 +74,11 @@ const DashboardPage = () => {
       {/* Quick Links */}
       <div className="flex items-center gap-2">
         {[
-          { label: "Work Queue", href: "/core/work-queue", icon: ListTodo },
-          { label: "Commandes", href: "/core/orders", icon: ShoppingCart },
-          { label: "Factures", href: "/core/invoices", icon: FileText },
-          { label: "Paiements", href: "/core/payments", icon: CreditCard },
-          { label: "RDV", href: "/core/work-queue", icon: CalendarDays },
+          { label: "Work Queue", href: corePath("/work-queue"), icon: ListTodo },
+          { label: "Commandes", href: corePath("/orders"), icon: ShoppingCart },
+          { label: "Factures", href: corePath("/invoices"), icon: FileText },
+          { label: "Paiements", href: corePath("/payments"), icon: CreditCard },
+          { label: "RDV", href: corePath("/work-queue"), icon: CalendarDays },
         ].map(q => (
           <Link key={q.label} to={q.href} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
             <q.icon className="h-3.5 w-3.5" /> {q.label}
@@ -91,7 +92,7 @@ const DashboardPage = () => {
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
             <h2 className="text-xs font-semibold text-white">Commandes récentes</h2>
-            <Link to="/core/orders" className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
+            <Link to={corePath("/orders")} className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -129,7 +130,7 @@ const DashboardPage = () => {
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
             <h2 className="text-xs font-semibold text-white">Factures impayées prioritaires</h2>
-            <Link to="/core/invoices" className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
+            <Link to={corePath("/invoices")} className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -153,7 +154,7 @@ const DashboardPage = () => {
               ) : unpaidList.map((inv) => (
                 <tr key={inv.id} className="border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)]">
                   <td className="px-3 py-2">
-                    <Link to={`/core/invoices/${inv.id}`} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
+                    <Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
                   </td>
                   <td className="px-3 py-2 text-white truncate max-w-[120px]">{inv.customer_name || "—"}</td>
                   <td className="px-3 py-2 tabular-nums text-red-400 font-medium font-mono">{fmtCAD(inv.balance_due)}</td>
@@ -175,10 +176,10 @@ const DashboardPage = () => {
           </div>
           <div className="space-y-1 text-xs text-[hsl(220,10%,55%)]">
             {metrics.onHold > 0 && (
-              <p>⚠️ <strong className="text-amber-400">{metrics.onHold}</strong> commande{metrics.onHold > 1 ? "s" : ""} bloquée{metrics.onHold > 1 ? "s" : ""} / en hold — <Link to="/core/work-queue" className="text-blue-400 hover:underline">voir la file</Link></p>
+              <p>⚠️ <strong className="text-amber-400">{metrics.onHold}</strong> commande{metrics.onHold > 1 ? "s" : ""} bloquée{metrics.onHold > 1 ? "s" : ""} / en hold — <Link to={corePath("/work-queue")} className="text-blue-400 hover:underline">voir la file</Link></p>
             )}
             {metrics.pendingActivations > 0 && (
-              <p>⏳ <strong className="text-amber-400">{metrics.pendingActivations}</strong> activation{metrics.pendingActivations > 1 ? "s" : ""} en attente — <Link to="/core/work-queue" className="text-blue-400 hover:underline">voir la file</Link></p>
+              <p>⏳ <strong className="text-amber-400">{metrics.pendingActivations}</strong> activation{metrics.pendingActivations > 1 ? "s" : ""} en attente — <Link to={corePath("/work-queue")} className="text-blue-400 hover:underline">voir la file</Link></p>
             )}
           </div>
         </div>

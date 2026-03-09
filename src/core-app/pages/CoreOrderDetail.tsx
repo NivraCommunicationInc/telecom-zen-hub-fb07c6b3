@@ -12,6 +12,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Loader2, ArrowLeft, RefreshCw, ShoppingCart, User, Mail, Phone, MapPin, Hash, FileText, CreditCard, Repeat, Package, Eye, AlertTriangle, FileBadge, ScrollText, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -107,7 +108,7 @@ const CoreOrderDetail = () => {
       <div className="py-20 text-center">
         <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,30%)]" />
         <p className="text-[hsl(220,10%,40%)] text-xs">Commande introuvable</p>
-        <Link to="/core/orders" className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux commandes</Link>
+        <Link to={corePath("/orders")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux commandes</Link>
       </div>
     );
   }
@@ -116,7 +117,7 @@ const CoreOrderDetail = () => {
     <div className="space-y-4">
       {/* ═══ TOP NAV ═══ */}
       <div className="flex items-center justify-between">
-        <Link to="/core/orders" className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
+        <Link to={corePath("/orders")} className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Commandes
         </Link>
         <div className="flex items-center gap-1.5">

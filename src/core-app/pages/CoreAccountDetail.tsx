@@ -5,6 +5,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useAccountProfile } from "@/core-app/hooks/useAccountProfile";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Loader2, ArrowLeft, RefreshCw, User, FileText, CreditCard, Repeat, ShoppingCart, Mail, Phone, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -59,7 +60,7 @@ const CoreAccountDetail = () => {
       <div className="py-20 text-center">
         <User className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,30%)]" />
         <p className="text-[hsl(220,10%,40%)] text-xs">Compte introuvable</p>
-        <Link to="/core/accounts" className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux comptes</Link>
+        <Link to={corePath("/accounts")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux comptes</Link>
       </div>
     );
   }
@@ -72,7 +73,7 @@ const CoreAccountDetail = () => {
     <div className="space-y-4">
       {/* Back + Refresh */}
       <div className="flex items-center justify-between">
-        <Link to="/core/accounts" className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
+        <Link to={corePath("/accounts")} className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Comptes
         </Link>
         <button onClick={() => data.refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
@@ -143,7 +144,7 @@ const CoreAccountDetail = () => {
           {data.invoices.slice(0, 20).map((inv: any) => (
             <tr key={inv.id} className="border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)]">
               <td className="px-3 py-2">
-                <Link to={`/core/invoices/${inv.id}`} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
+                <Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
               </td>
               <td className="px-3 py-2"><span className="text-[hsl(220,10%,50%)] capitalize">{inv.type}</span></td>
               <td className="px-3 py-2"><span className="tabular-nums text-white">{fmtCAD(inv.total)}</span></td>

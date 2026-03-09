@@ -7,6 +7,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import {
   Calendar, Search, RefreshCw, ArrowRight,
@@ -284,7 +285,7 @@ const AppointmentsPage = () => {
                       <div className="flex items-center justify-end gap-1">
                         {apt.order_id && (
                           <Link
-                            to={`/core/orders/${apt.order_id}`}
+                            to={corePath(`/orders/${apt.order_id}`)}
                             className="px-2 py-1 rounded text-[10px] font-medium bg-[hsl(220,15%,16%)] text-[hsl(220,10%,60%)] hover:text-emerald-400 hover:bg-emerald-600/10 transition-colors"
                             title="Voir commande"
                           >
@@ -292,7 +293,7 @@ const AppointmentsPage = () => {
                           </Link>
                         )}
                         <Link
-                          to={`/core/appointments/${apt.id}`}
+                          to={corePath(`/appointments/${apt.id}`)}
                           className="p-1 rounded text-[hsl(220,10%,45%)] hover:text-emerald-400 hover:bg-emerald-600/10 transition-colors"
                           title="Détail"
                         >

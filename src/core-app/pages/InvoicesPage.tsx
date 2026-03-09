@@ -4,6 +4,7 @@
  */
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
 import { useAdminInvoices } from "@/core-app/hooks/useAdminInvoices";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Search, FileText, RefreshCw, ArrowRight, Filter } from "lucide-react";
@@ -168,7 +169,7 @@ const InvoicesPage = () => {
                     <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)]">{fmtDate(inv.due_date)}</span></td>
                     <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[hsl(220,10%,45%)]">{fmtDate(inv.created_at)}</span></td>
                     <td className="px-3 py-2.5">
-                      <Link to={`/core/invoices/${inv.id}`}>
+                      <Link to={corePath(`/invoices/${inv.id}`)}>
                         <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors">
                           <ArrowRight className="h-3.5 w-3.5" />
                         </button>

@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
+import { corePath } from "@/core-app/lib/corePaths";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface SearchResult {
@@ -55,12 +56,12 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
     })(),
   ]);
 
-  if (accounts.data) for (const a of accounts.data) results.push({ id: a.id, type: "account", title: a.account_number, subtitle: a.account_name || null, badge: a.status || null, href: `/core/accounts/${a.id}` });
-  if (customers.data) for (const c of customers.data) results.push({ id: c.id, type: "customer", title: `${c.first_name} ${c.last_name}`, subtitle: c.email, badge: null, href: `/core/accounts` });
-  if (orders.data) for (const o of orders.data) results.push({ id: o.id, type: "order", title: o.order_number || o.id.slice(0, 8), subtitle: o.service_type || null, badge: o.status || null, href: `/core/orders/${o.id}`, environment: (o as any).environment });
-  if (invoices.data) for (const inv of invoices.data) results.push({ id: inv.id, type: "invoice", title: inv.invoice_number, subtitle: inv.total != null ? `${inv.total.toFixed(2)} $` : null, badge: inv.status || null, href: `/core/invoices/${inv.id}`, environment: (inv as any).environment });
-  if (payments.data) for (const p of payments.data) results.push({ id: p.id, type: "payment", title: p.payment_number, subtitle: `${p.amount.toFixed(2)} $ · ${p.method}`, badge: p.status || null, href: `/core/payments`, environment: (p as any).environment });
-  if (subscriptions.data) for (const s of subscriptions.data) results.push({ id: s.id, type: "subscription", title: s.plan_name, subtitle: s.plan_code, badge: s.status || null, href: `/core/subscriptions/${s.id}`, environment: (s as any).environment });
+  if (accounts.data) for (const a of accounts.data) results.push({ id: a.id, type: "account", title: a.account_number, subtitle: a.account_name || null, badge: a.status || null, href: corePath(`/accounts/${a.id}`) });
+  if (customers.data) for (const c of customers.data) results.push({ id: c.id, type: "customer", title: `${c.first_name} ${c.last_name}`, subtitle: c.email, badge: null, href: corePath("/accounts") });
+  if (orders.data) for (const o of orders.data) results.push({ id: o.id, type: "order", title: o.order_number || o.id.slice(0, 8), subtitle: o.service_type || null, badge: o.status || null, href: corePath(`/orders/${o.id}`), environment: (o as any).environment });
+  if (invoices.data) for (const inv of invoices.data) results.push({ id: inv.id, type: "invoice", title: inv.invoice_number, subtitle: inv.total != null ? `${inv.total.toFixed(2)} $` : null, badge: inv.status || null, href: corePath(`/invoices/${inv.id}`), environment: (inv as any).environment });
+  if (payments.data) for (const p of payments.data) results.push({ id: p.id, type: "payment", title: p.payment_number, subtitle: `${p.amount.toFixed(2)} $ · ${p.method}`, badge: p.status || null, href: corePath("/payments"), environment: (p as any).environment });
+  if (subscriptions.data) for (const s of subscriptions.data) results.push({ id: s.id, type: "subscription", title: s.plan_name, subtitle: s.plan_code, badge: s.status || null, href: corePath(`/subscriptions/${s.id}`), environment: (s as any).environment });
 
   return results;
 }

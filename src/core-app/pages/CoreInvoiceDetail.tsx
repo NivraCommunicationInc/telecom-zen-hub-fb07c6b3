@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAdminInvoiceDetail } from "@/core-app/hooks/useAdminInvoiceDetail";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -86,7 +87,7 @@ const CoreInvoiceDetail = () => {
       <div className="py-20 text-center">
         <FileText className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,30%)]" />
         <p className="text-[hsl(220,10%,40%)] text-xs">Facture introuvable</p>
-        <Link to="/core/invoices" className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux factures</Link>
+        <Link to={corePath("/invoices")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux factures</Link>
       </div>
     );
   }
@@ -95,7 +96,7 @@ const CoreInvoiceDetail = () => {
     <div className="space-y-4">
       {/* Nav */}
       <div className="flex items-center justify-between">
-        <Link to="/core/invoices" className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
+        <Link to={corePath("/invoices")} className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Factures
         </Link>
         <div className="flex items-center gap-2">

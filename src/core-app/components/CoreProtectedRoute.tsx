@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Terminal } from "lucide-react";
 
 type InternalRole = "admin" | "employee" | "technician";
@@ -81,7 +82,7 @@ export default function CoreProtectedRoute() {
   }
 
   if (state === "unauthorized") {
-    return <Navigate to="/core/login" state={{ from: location }} replace />;
+    return <Navigate to={corePath("/login")} state={{ from: location }} replace />;
   }
 
   return <Outlet />;
