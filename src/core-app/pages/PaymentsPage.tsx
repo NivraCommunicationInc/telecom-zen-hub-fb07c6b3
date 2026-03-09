@@ -5,6 +5,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAdminPayments } from "@/core-app/hooks/useAdminPayments";
+import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Search, Wallet, RefreshCw, ArrowRight, Filter } from "lucide-react";
 import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
