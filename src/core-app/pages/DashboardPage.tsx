@@ -45,10 +45,10 @@ const DashboardPage = () => {
   const anyLoading = wq.isLoading || invLoading || payLoading || ordLoading;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold text-white">Dashboard</h1>
-        <p className="text-[13px] text-[hsl(220,10%,50%)] mt-0.5">Vue opérationnelle en temps réel</p>
+        <h1 className="text-lg font-bold text-white tracking-tight">Dashboard</h1>
+        <p className="text-[12px] text-[hsl(220,10%,45%)] mt-0.5">Vue opérationnelle en temps réel</p>
       </div>
 
       {/* KPI Strip */}
@@ -60,12 +60,12 @@ const DashboardPage = () => {
           { label: "Activations en attente", value: metrics.pendingActivations, icon: Zap, color: metrics.pendingActivations > 0 ? "text-amber-400" : "text-white", link: "/core/work-queue" },
           { label: "Bloquées / Hold", value: metrics.onHold, icon: AlertTriangle, color: metrics.onHold > 0 ? "text-red-400" : "text-white", link: "/core/work-queue" },
         ].map((kpi) => (
-          <Link key={kpi.label} to={kpi.link} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4 hover:border-[hsl(220,15%,22%)] transition-colors group">
+          <Link key={kpi.label} to={kpi.link} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 hover:border-emerald-500/30 transition-colors group">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-medium uppercase tracking-wider text-[hsl(220,10%,40%)]">{kpi.label}</p>
               <kpi.icon className="h-3.5 w-3.5 text-[hsl(220,10%,30%)] group-hover:text-[hsl(220,10%,50%)] transition-colors" />
             </div>
-            <p className={`mt-2 text-2xl font-semibold ${kpi.color}`}>{anyLoading ? "…" : kpi.value}</p>
+            <p className={`mt-1.5 text-lg font-bold tabular-nums ${kpi.color}`}>{anyLoading ? "—" : kpi.value}</p>
           </Link>
         ))}
       </div>
@@ -79,21 +79,21 @@ const DashboardPage = () => {
           { label: "Paiements", href: "/core/payments", icon: CreditCard },
           { label: "RDV", href: "/core/work-queue", icon: CalendarDays },
         ].map(q => (
-          <Link key={q.label} to={q.href} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white hover:border-[hsl(220,15%,22%)] transition-colors">
+          <Link key={q.label} to={q.href} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
             <q.icon className="h-3.5 w-3.5" /> {q.label}
           </Link>
         ))}
       </div>
 
       {/* Two-panel layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Recent Orders */}
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(220,15%,14%)]">
-            <h2 className="text-sm font-semibold text-white">Commandes récentes</h2>
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
+            <h2 className="text-xs font-semibold text-white">Commandes récentes</h2>
             <Link to="/core/orders" className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
           </div>
-          <table className="w-full text-[12px]">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[hsl(220,15%,14%)]">
                 {["#", "Client", "Service", "Statut", "Date"].map(h => (
@@ -111,14 +111,14 @@ const DashboardPage = () => {
                   </tr>
                 ))
               ) : recentOrders.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-6 text-[hsl(220,10%,30%)] text-xs">Aucune commande</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-[hsl(220,10%,30%)] text-xs">Aucune commande</td></tr>
               ) : recentOrders.map((o: any) => (
                 <tr key={o.id} className="border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)]">
-                  <td className="px-3 py-2 font-mono text-white text-xs">{o.order_number || "—"}</td>
-                  <td className="px-3 py-2 text-white text-xs truncate max-w-[120px]">{o.client_full_name || "—"}</td>
-                  <td className="px-3 py-2 text-[hsl(220,10%,50%)] text-xs">{o.service_type || "—"}</td>
+                  <td className="px-3 py-2 font-mono text-white">{o.order_number || "—"}</td>
+                  <td className="px-3 py-2 text-white truncate max-w-[120px]">{o.client_full_name || "—"}</td>
+                  <td className="px-3 py-2 text-[hsl(220,10%,50%)]">{o.service_type || "—"}</td>
                   <td className="px-3 py-2"><StatusBadge label={o.status || "—"} variant={statusToVariant(o.status || "")} size="sm" /></td>
-                  <td className="px-3 py-2 text-[hsl(220,10%,40%)] text-xs whitespace-nowrap">{fmtDate(o.created_at)}</td>
+                  <td className="px-3 py-2 text-[hsl(220,10%,40%)] whitespace-nowrap">{fmtDate(o.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -127,11 +127,11 @@ const DashboardPage = () => {
 
         {/* Unpaid Invoices */}
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(220,15%,14%)]">
-            <h2 className="text-sm font-semibold text-white">Factures impayées prioritaires</h2>
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
+            <h2 className="text-xs font-semibold text-white">Factures impayées prioritaires</h2>
             <Link to="/core/invoices" className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
           </div>
-          <table className="w-full text-[12px]">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[hsl(220,15%,14%)]">
                 {["Facture", "Client", "Solde dû", "Statut", "Échéance"].map(h => (
@@ -149,16 +149,16 @@ const DashboardPage = () => {
                   </tr>
                 ))
               ) : unpaidList.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-6 text-emerald-400/60 text-xs">Aucune facture impayée 🎉</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-emerald-400/60 text-xs">Aucune facture impayée 🎉</td></tr>
               ) : unpaidList.map((inv) => (
                 <tr key={inv.id} className="border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)]">
                   <td className="px-3 py-2">
-                    <Link to={`/core/invoices/${inv.id}`} className="font-mono text-white text-xs hover:text-blue-400">{inv.invoice_number}</Link>
+                    <Link to={`/core/invoices/${inv.id}`} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
                   </td>
-                  <td className="px-3 py-2 text-white text-xs truncate max-w-[120px]">{inv.customer_name || "—"}</td>
-                  <td className="px-3 py-2 tabular-nums text-red-400 text-xs font-medium font-mono">{fmtCAD(inv.balance_due)}</td>
+                  <td className="px-3 py-2 text-white truncate max-w-[120px]">{inv.customer_name || "—"}</td>
+                  <td className="px-3 py-2 tabular-nums text-red-400 font-medium font-mono">{fmtCAD(inv.balance_due)}</td>
                   <td className="px-3 py-2"><StatusBadge label={inv.status || "—"} variant={statusToVariant(inv.status || "")} size="sm" /></td>
-                  <td className="px-3 py-2 text-[hsl(220,10%,40%)] text-xs whitespace-nowrap">{fmtDate(inv.due_date)}</td>
+                  <td className="px-3 py-2 text-[hsl(220,10%,40%)] whitespace-nowrap">{fmtDate(inv.due_date)}</td>
                 </tr>
               ))}
             </tbody>
@@ -171,7 +171,7 @@ const DashboardPage = () => {
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="h-4 w-4 text-amber-400" />
-            <h2 className="text-sm font-semibold text-amber-400">Alertes opérationnelles</h2>
+            <h2 className="text-xs font-semibold text-amber-400">Alertes opérationnelles</h2>
           </div>
           <div className="space-y-1 text-xs text-[hsl(220,10%,55%)]">
             {metrics.onHold > 0 && (
