@@ -4,6 +4,7 @@
  */
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
 import { useAdminInvoices } from "@/core-app/hooks/useAdminInvoices";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Search, FileText, RefreshCw, ArrowRight, Filter } from "lucide-react";
