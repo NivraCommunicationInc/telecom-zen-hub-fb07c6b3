@@ -5,6 +5,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useAdminSubscriptionDetail } from "@/core-app/hooks/useAdminSubscriptionDetail";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { corePath } from "@/core-app/lib/corePaths";
 import {
   ArrowLeft, User, MapPin, Package, FileText, History,
   Zap, ExternalLink, ToggleRight, Calendar, CreditCard,
