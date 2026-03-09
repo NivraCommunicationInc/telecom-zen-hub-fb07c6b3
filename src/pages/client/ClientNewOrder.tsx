@@ -1973,7 +1973,7 @@ const ClientNewOrder = () => {
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
           (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : '') +
           (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${cappedDiscount.toFixed(2)}$` : '') +
-          (welcomeDiscountAmount > 0 ? `\n\n**Rabais nouveau client:** 50% sur services (1er mois) — ${welcomeDiscountAmount.toFixed(2)}$` : ''),
+          (serverPricing.welcome_discount > 0 ? `\n\n**Rabais nouveau client:** 50% sur services (1er mois) — ${serverPricing.welcome_discount.toFixed(2)}$` : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? user.id : null,
