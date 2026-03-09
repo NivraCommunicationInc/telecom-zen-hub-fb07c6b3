@@ -544,9 +544,10 @@ export function buildContractSummaryData(data: OrderDocumentData): ContractSumma
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis pour le résumé de contrat.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   const allOneTimeFees = [
     ...structured.equipment.map(e => ({ label: e.name, amount: e.unit_price * e.quantity })),
