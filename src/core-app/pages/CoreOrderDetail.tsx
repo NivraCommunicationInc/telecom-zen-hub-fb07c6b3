@@ -1,15 +1,21 @@
 /**
  * Nivra Core — Order Detail (ops-grade)
  * Reuses the same data queries as OrderOverview + enriched with billing data.
+ * Document actions use canonical PDF services.
  * Zero duplicated business logic.
  */
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
-import { Loader2, ArrowLeft, RefreshCw, ShoppingCart, User, Mail, Phone, MapPin, Hash, FileText, CreditCard, Repeat, Wrench, Package } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, ShoppingCart, User, Mail, Phone, MapPin, Hash, FileText, CreditCard, Repeat, Wrench, Package, Eye, Download, AlertTriangle, FileBadge, ScrollText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { generateOrderDocuments } from "@/lib/pdf";
+import { generateCanonicalInvoicePDF, generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { toast } from "sonner";
 
 const fmtCAD = (n: number | null | undefined) => (n != null ? `${n.toFixed(2)} $` : "—");
 const fmtDate = (d: string | null | undefined) => {
