@@ -2764,7 +2764,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
   
   // Total discount now comes from server (includes promo + welcome, no stacking)
-  const totalDiscount = liveServerPricing?.discount_total ?? Math.min(round2(promoDiscount), grossTotal);
+  const totalDiscount = liveServerPricing?.discount_total_combined ?? Math.min(round2(promoDiscount), grossTotal);
 
   // Enforce min_payable_cents from promo: discount cannot reduce below minimum
   const minPayableDollars = 0; // Enforced server-side; client cap is defense-in-depth
