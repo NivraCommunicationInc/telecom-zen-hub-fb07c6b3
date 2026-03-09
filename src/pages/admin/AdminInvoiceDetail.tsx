@@ -57,9 +57,15 @@ const formatDateTime = (d: string | null | undefined) =>
 // ─── PDF Download (canonical pipeline) ─────────────────────────────────────
 async function handleDownloadPDF(invoiceId: string) {
   const result: PDFGenerationResult = await generateCanonicalInvoicePDF(adminClient, invoiceId);
-  if (!result.success) {
+  if (!result.success || !result.blob) {
     throw new Error(result.error || "Erreur lors de la génération du PDF");
   }
+  const url = URL.createObjectURL(result.blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = result.filename || `Facture-${invoiceId}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────
