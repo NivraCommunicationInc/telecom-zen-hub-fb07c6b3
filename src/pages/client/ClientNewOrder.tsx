@@ -2747,7 +2747,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
   
-  // Welcome discount: 50% off services for new customers (first bill only)
+  // ⚠️ ARCHITECTURAL DEBT: Welcome discount (50%) is computed CLIENT-SIDE.
+  // TODO: Move this logic to compute_checkout_pricing RPC for security + consistency.
+  // Current implementation: hook checks orders table to determine new customer status,
+  // then applies 50% to monthlyRecurring locally. This bypasses server pricing authority.
   const welcomeDiscountAmount = welcomeDiscountHook.getDiscountAmount(monthlyRecurring);
   
   const grossTotal = round2(monthlyRecurring + oneTimeFees);
