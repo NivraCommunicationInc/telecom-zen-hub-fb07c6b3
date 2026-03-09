@@ -108,7 +108,7 @@ const CoreOrderDetail = () => {
       <div className="py-20 text-center">
         <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,30%)]" />
         <p className="text-[hsl(220,10%,40%)] text-xs">Commande introuvable</p>
-        <Link to="/core/orders" className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux commandes</Link>
+        <Link to={corePath("/orders")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux commandes</Link>
       </div>
     );
   }
