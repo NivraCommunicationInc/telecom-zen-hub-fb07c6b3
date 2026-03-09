@@ -1889,32 +1889,36 @@ const ClientNewOrder = () => {
         });
       }
 
-      // Use external API response as authoritative pricing
+      // Use compute_checkout_pricing RPC as authoritative for totals (discounts applied correctly).
+      // Nivra API response is used for order/invoice/payment numbers only.
+      // CRITICAL: liveServerPricing (from compute_checkout_pricing RPC) correctly subtracts discounts
+      // from taxable_base. The Nivra API may return gross totals without promo discounts.
+      const rpcPricing = liveServerPricing;
       const serverPricing = {
-        grand_total: nivraOrderResponse.total,
-        tps_amount: nivraOrderResponse.gst,
-        tvq_amount: nivraOrderResponse.qst,
-        taxable_base: nivraOrderResponse.subtotal,
+        grand_total: rpcPricing ? Number(rpcPricing.grand_total) : nivraOrderResponse.total,
+        tps_amount: rpcPricing ? Number(rpcPricing.tps_amount) : nivraOrderResponse.gst,
+        tvq_amount: rpcPricing ? Number(rpcPricing.tvq_amount) : nivraOrderResponse.qst,
+        taxable_base: rpcPricing ? Number(rpcPricing.taxable_base) : nivraOrderResponse.subtotal,
         recurring_subtotal: monthlyRecurring,
         one_time_subtotal: oneTimeFees,
-        discount_total_combined: liveServerPricing?.discount_total_combined ?? 0,
-        promo_discount: liveServerPricing?.promo_discount ?? 0,
-        welcome_discount: liveServerPricing?.welcome_discount ?? 0,
-        welcome_applied: liveServerPricing?.welcome_applied ?? false,
-        is_new_customer: liveServerPricing?.is_new_customer ?? false,
-        preauth_discount: liveServerPricing?.preauth_discount ?? 0,
-        promo_applied: liveServerPricing?.promo_applied ?? null,
+        discount_total_combined: rpcPricing?.discount_total_combined ?? 0,
+        promo_discount: rpcPricing?.promo_discount ?? 0,
+        welcome_discount: rpcPricing?.welcome_discount ?? 0,
+        welcome_applied: rpcPricing?.welcome_applied ?? false,
+        is_new_customer: rpcPricing?.is_new_customer ?? false,
+        preauth_discount: rpcPricing?.preauth_discount ?? 0,
+        promo_applied: rpcPricing?.promo_applied ?? null,
         computed_at: new Date().toISOString(),
         cents: {
           recurring_subtotal: Math.round(monthlyRecurring * 100),
           one_time_subtotal: Math.round(oneTimeFees * 100),
-          discount_total_combined: liveServerPricing?.cents?.discount_total_combined ?? 0,
-          promo_discount: liveServerPricing?.cents?.promo_discount ?? 0,
-          welcome_discount: liveServerPricing?.cents?.welcome_discount ?? 0,
-          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
-          tps: Math.round(nivraOrderResponse.gst * 100),
-          tvq: Math.round(nivraOrderResponse.qst * 100),
-          grand_total: Math.round(nivraOrderResponse.total * 100),
+          discount_total_combined: rpcPricing?.cents?.discount_total_combined ?? 0,
+          promo_discount: rpcPricing?.cents?.promo_discount ?? 0,
+          welcome_discount: rpcPricing?.cents?.welcome_discount ?? 0,
+          taxable_base: rpcPricing ? rpcPricing.cents.taxable_base : Math.round(nivraOrderResponse.subtotal * 100),
+          tps: rpcPricing ? rpcPricing.cents.tps : Math.round(nivraOrderResponse.gst * 100),
+          tvq: rpcPricing ? rpcPricing.cents.tvq : Math.round(nivraOrderResponse.qst * 100),
+          grand_total: rpcPricing ? rpcPricing.cents.grand_total : Math.round(nivraOrderResponse.total * 100),
         },
       };
       console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
