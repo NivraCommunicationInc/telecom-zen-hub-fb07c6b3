@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { corePath } from "@/core-app/lib/corePaths";
 import { Terminal } from "lucide-react";
 
 type InternalRole = "admin" | "employee" | "technician";
