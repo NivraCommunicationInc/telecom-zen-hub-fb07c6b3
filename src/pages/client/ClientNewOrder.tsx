@@ -1924,7 +1924,7 @@ const ClientNewOrder = () => {
       const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
       
       // Cap discount using server-side computed discount (enforces min_payable_cents)
-      const cappedDiscount = serverPricing.discount_total;
+      const cappedDiscount = serverPricing.discount_total_combined;
       
       // Determine payment method value NOW (before insert) to avoid null
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
