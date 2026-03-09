@@ -130,7 +130,7 @@ const DashboardPage = () => {
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
             <h2 className="text-xs font-semibold text-white">Factures impayées prioritaires</h2>
-            <Link to="/core/invoices" className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
+            <Link to={corePath("/invoices")} className="text-[11px] text-blue-400 hover:underline flex items-center gap-1">Tout voir <ArrowRight className="h-3 w-3" /></Link>
           </div>
           <table className="w-full text-xs">
             <thead>
