@@ -1,13 +1,19 @@
 /**
  * Nivra Core — Invoice Detail (ops-grade)
  * Reuses useAdminInvoiceDetail hook — zero duplicated business logic.
+ * Document actions use canonical PDF services.
  */
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAdminInvoiceDetail } from "@/hooks/admin/useAdminInvoiceDetail";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
-import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
+import { adminClient } from "@/integrations/backend";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { toast } from "sonner";
 
 const fmtCAD = (n: number | null | undefined) => (n != null ? `${n.toFixed(2)} $` : "—");
 const fmtDate = (d: string | null | undefined) => {
@@ -32,6 +38,44 @@ const InfoRow = ({ label, value, mono }: { label: string; value: string; mono?: 
 const CoreInvoiceDetail = () => {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const { data: inv, isLoading, refetch } = useAdminInvoiceDetail(invoiceId);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const handleViewInvoicePDF = async () => {
+    if (!invoiceId) return;
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const result = await generateCanonicalInvoicePDF(adminClient, invoiceId);
+      if (result.success && result.blob) {
+        setPdfBlob(result.blob);
+        setPdfOpen(true);
+      } else {
+        setPdfError(result.error || "Erreur de génération");
+        toast.error(result.error || "Erreur de génération du PDF");
+      }
+    } catch (err: any) {
+      setPdfError(err.message || "Erreur inattendue");
+      toast.error("Erreur lors de la génération du PDF");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadInvoicePDF = async () => {
+    if (pdfBlob) {
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Facture_${inv?.invoice_number || ""}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    await handleViewInvoicePDF();
+  };
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[hsl(220,10%,40%)]" /></div>;
@@ -54,10 +98,26 @@ const CoreInvoiceDetail = () => {
         <Link to="/core/invoices" className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Factures
         </Link>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleViewInvoicePDF} disabled={pdfLoading} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:border-blue-500/30 transition-colors disabled:opacity-50">
+            {pdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Voir PDF
+          </button>
+          <button onClick={handleDownloadInvoicePDF} disabled={pdfLoading} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors disabled:opacity-50">
+            <Download className="h-3.5 w-3.5" /> Télécharger
+          </button>
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+          </button>
+        </div>
       </div>
+
+      {/* PDF Error */}
+      {pdfError && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+          <p className="text-xs text-amber-300">{pdfError}</p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
@@ -187,6 +247,15 @@ const CoreInvoiceDetail = () => {
           <p className="text-[hsl(220,10%,55%)] text-xs whitespace-pre-wrap">{inv.notes}</p>
         </div>
       )}
+
+      {/* PDF Viewer Dialog */}
+      <PDFViewerDialog
+        open={pdfOpen}
+        onOpenChange={setPdfOpen}
+        pdfBlob={pdfBlob}
+        title={`Facture ${inv.invoice_number}`}
+        filename={`Facture_${inv.invoice_number}.pdf`}
+      />
     </div>
   );
 };

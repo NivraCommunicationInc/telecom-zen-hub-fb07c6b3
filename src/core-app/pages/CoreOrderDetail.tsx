@@ -1,15 +1,21 @@
 /**
  * Nivra Core — Order Detail (ops-grade)
  * Reuses the same data queries as OrderOverview + enriched with billing data.
+ * Document actions use canonical PDF services.
  * Zero duplicated business logic.
  */
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
-import { Loader2, ArrowLeft, RefreshCw, ShoppingCart, User, Mail, Phone, MapPin, Hash, FileText, CreditCard, Repeat, Wrench, Package } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, ShoppingCart, User, Mail, Phone, MapPin, Hash, FileText, CreditCard, Repeat, Wrench, Package, Eye, Download, AlertTriangle, FileBadge, ScrollText } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { generateOrderDocuments } from "@/lib/pdf";
+import { generateCanonicalInvoicePDF, generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { toast } from "sonner";
 
 const fmtCAD = (n: number | null | undefined) => (n != null ? `${n.toFixed(2)} $` : "—");
 const fmtDate = (d: string | null | undefined) => {
@@ -90,6 +96,14 @@ function useOrderDetail(orderId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(20);
 
+      const { data: contract } = await supabase
+        .from("contracts")
+        .select("id, contract_number, status, is_signed, created_at, client_signed_at, admin_signed_at")
+        .eq("order_id", orderId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       return {
         order,
         profile,
@@ -100,6 +114,7 @@ function useOrderDetail(orderId: string | undefined) {
         subscriptions: subscriptions || [],
         appointment,
         activityLogs: activityLogs || [],
+        contract,
       };
     },
   });
@@ -108,6 +123,77 @@ function useOrderDetail(orderId: string | undefined) {
 const CoreOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const { data, isLoading, refetch } = useOrderDetail(orderId);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfFilename, setPdfFilename] = useState("");
+  const [docLoading, setDocLoading] = useState<string | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  const openPdf = (blob: Blob, title: string, filename: string) => {
+    setPdfBlob(blob);
+    setPdfTitle(title);
+    setPdfFilename(filename);
+    setPdfOpen(true);
+  };
+
+  const handleViewInvoicePDF = async (invoiceId: string, invoiceNumber: string) => {
+    setDocLoading("invoice");
+    setDocError(null);
+    try {
+      const result = await generateCanonicalInvoicePDF(supabase, invoiceId);
+      if (result.success && result.blob) {
+        openPdf(result.blob, `Facture ${invoiceNumber}`, `Facture_${invoiceNumber}.pdf`);
+      } else {
+        setDocError(result.error || "Erreur de génération de la facture");
+        toast.error(result.error || "Erreur de génération");
+      }
+    } catch (err: any) {
+      setDocError(err.message);
+      toast.error("Erreur lors de la génération de la facture");
+    } finally {
+      setDocLoading(null);
+    }
+  };
+
+  const handleViewContractPDF = async (contractId: string, contractNumber: string) => {
+    setDocLoading("contract");
+    setDocError(null);
+    try {
+      const result = await generateCanonicalContractPDF(supabase, contractId);
+      if (result.success && result.blob) {
+        openPdf(result.blob, `Contrat ${contractNumber}`, `Contrat_${contractNumber}.pdf`);
+      } else {
+        setDocError(result.error || "Erreur de génération du contrat");
+        toast.error(result.error || "Erreur de génération");
+      }
+    } catch (err: any) {
+      setDocError(err.message);
+      toast.error("Erreur lors de la génération du contrat");
+    } finally {
+      setDocLoading(null);
+    }
+  };
+
+  const handleViewAllDocs = async () => {
+    if (!orderId) return;
+    setDocLoading("all");
+    setDocError(null);
+    try {
+      const result = await generateOrderDocuments(orderId);
+      if (result?.invoice?.blob) {
+        openPdf(result.invoice.blob, "Facture", `Facture_${data?.order?.order_number || ""}.pdf`);
+      } else {
+        setDocError("Impossible de générer les documents");
+        toast.error("Erreur lors de la génération des documents");
+      }
+    } catch (err: any) {
+      setDocError(err.message);
+      toast.error("Erreur lors de la génération");
+    } finally {
+      setDocLoading(null);
+    }
+  };
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[hsl(220,10%,40%)]" /></div>;
@@ -123,7 +209,7 @@ const CoreOrderDetail = () => {
     );
   }
 
-  const { order, profile, account, items, invoices, payments, subscriptions, appointment, activityLogs } = data;
+  const { order, profile, account, items, invoices, payments, subscriptions, appointment, activityLogs, contract } = data;
   const clientName = profile?.full_name
     || [order.client_first_name, order.client_last_name].filter(Boolean).join(" ")
     || "—";
@@ -367,6 +453,93 @@ const CoreOrderDetail = () => {
         </div>
       )}
 
+      {/* Documents Panel */}
+      <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <ScrollText className="h-4 w-4 text-emerald-400" />
+          <p className="text-xs font-semibold text-white">Documents</p>
+        </div>
+
+        {docError && (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+            <p className="text-[11px] text-amber-300">{docError}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-2">
+          {/* Invoice PDF */}
+          {invoice ? (
+            <button
+              onClick={() => handleViewInvoicePDF(invoice.id, invoice.invoice_number)}
+              disabled={docLoading === "invoice"}
+              className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] p-3 text-left hover:border-blue-500/30 transition-colors disabled:opacity-50"
+            >
+              <FileText className="h-5 w-5 text-blue-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-white truncate">Facture</p>
+                <p className="text-[10px] text-[hsl(220,10%,40%)] font-mono truncate">{invoice.invoice_number}</p>
+                <p className="text-[10px] text-emerald-400">{docLoading === "invoice" ? "Génération…" : "Disponible"}</p>
+              </div>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,10%)] p-3 opacity-50">
+              <FileText className="h-5 w-5 text-[hsl(220,10%,30%)] flex-shrink-0" />
+              <div>
+                <p className="text-[11px] font-medium text-[hsl(220,10%,35%)]">Facture</p>
+                <p className="text-[10px] text-[hsl(220,10%,25%)]">Non disponible</p>
+              </div>
+            </div>
+          )}
+
+          {/* Contract PDF */}
+          {contract ? (
+            <button
+              onClick={() => handleViewContractPDF(contract.id, contract.contract_number || "")}
+              disabled={docLoading === "contract"}
+              className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] p-3 text-left hover:border-blue-500/30 transition-colors disabled:opacity-50"
+            >
+              <FileBadge className="h-5 w-5 text-blue-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-white truncate">Contrat</p>
+                <p className="text-[10px] text-[hsl(220,10%,40%)] font-mono truncate">{contract.contract_number || "—"}</p>
+                <p className="text-[10px]">
+                  {docLoading === "contract" ? (
+                    <span className="text-amber-400">Génération…</span>
+                  ) : contract.is_signed || contract.status === "fully_signed" ? (
+                    <span className="text-emerald-400">Signé</span>
+                  ) : (
+                    <span className="text-amber-400">{contract.status || "En attente"}</span>
+                  )}
+                </p>
+              </div>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,10%)] p-3 opacity-50">
+              <FileBadge className="h-5 w-5 text-[hsl(220,10%,30%)] flex-shrink-0" />
+              <div>
+                <p className="text-[11px] font-medium text-[hsl(220,10%,35%)]">Contrat</p>
+                <p className="text-[10px] text-[hsl(220,10%,25%)]">Non disponible</p>
+              </div>
+            </div>
+          )}
+
+          {/* Order Summary via generateOrderDocuments */}
+          <button
+            onClick={handleViewAllDocs}
+            disabled={!!docLoading}
+            className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] p-3 text-left hover:border-blue-500/30 transition-colors disabled:opacity-50"
+          >
+            <Package className="h-5 w-5 text-blue-400 flex-shrink-0" />
+            <div>
+              <p className="text-[11px] font-medium text-white">Sommaire</p>
+              <p className="text-[10px] text-[hsl(220,10%,40%)]">Tous les documents</p>
+              <p className="text-[10px] text-emerald-400">{docLoading === "all" ? "Génération…" : "Générer"}</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Appointment */}
       {appointment && (
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
@@ -412,6 +585,15 @@ const CoreOrderDetail = () => {
           </div>
         </div>
       )}
+
+      {/* PDF Viewer Dialog */}
+      <PDFViewerDialog
+        open={pdfOpen}
+        onOpenChange={setPdfOpen}
+        pdfBlob={pdfBlob}
+        title={pdfTitle}
+        filename={pdfFilename}
+      />
     </div>
   );
 };
