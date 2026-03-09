@@ -111,7 +111,7 @@ export const CheckoutAddressStep = ({
           .from("accounts")
           .insert({
             client_id: userId,
-            account_number: `ACCT-${Date.now()}`,
+            account_number: generateAccountNumber(),
             status: "active",
           })
           .select("id")
