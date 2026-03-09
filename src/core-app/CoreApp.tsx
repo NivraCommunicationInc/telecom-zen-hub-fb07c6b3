@@ -53,50 +53,45 @@ const CoreLoadingFallback = () => (
   </div>
 );
 
-/**
- * Route structure mirrors the main app's /core/* routes,
- * but here paths are relative to root (/) since Core IS the root app
- * when deployed standalone on app.nivra-telecom.ca.
- *
- * We use a CORE_BASE_PATH env var to allow the same code to work
- * under both /core (embedded) and / (standalone).
- */
-const BASE = import.meta.env.VITE_CORE_BASE_PATH || "/core";
+const CoreApp = () => {
+  // Determine router base: standalone mode may use "/" or "/core"
+  const routerBase = CORE_BASE || "/";
 
-const CoreApp = () => (
-  <QueryClientProvider client={queryClient}>
-    <Toaster />
-    <BrowserRouter>
-      <Suspense fallback={<CoreLoadingFallback />}>
-        <Routes>
-          {/* Login — no auth required */}
-          <Route path={`${BASE}/login`} element={<CoreLoginPage />} />
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Toaster />
+      <BrowserRouter basename={routerBase}>
+        <Suspense fallback={<CoreLoadingFallback />}>
+          <Routes>
+            {/* Login — no auth required */}
+            <Route path="/login" element={<CoreLoginPage />} />
 
-          {/* Protected routes */}
-          <Route path={BASE} element={<CoreProtectedRoute />}>
-            <Route element={<CoreAppLayout />}>
-              <Route index element={<Navigate to="dashboard" replace />} />
-              <Route path="dashboard" element={<Suspense fallback={null}><DashboardPage /></Suspense>} />
-              <Route path="work-queue" element={<Suspense fallback={null}><WorkQueuePage /></Suspense>} />
-              <Route path="orders" element={<Suspense fallback={null}><OrdersPage /></Suspense>} />
-              <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
-              <Route path="accounts" element={<Suspense fallback={null}><AccountsPage /></Suspense>} />
-              <Route path="accounts/:accountId" element={<Suspense fallback={null}><CoreAccountDetail /></Suspense>} />
-              <Route path="invoices" element={<Suspense fallback={null}><InvoicesPage /></Suspense>} />
-              <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
-              <Route path="payments" element={<Suspense fallback={null}><PaymentsPage /></Suspense>} />
-              <Route path="subscriptions" element={<Suspense fallback={null}><SubscriptionsPage /></Suspense>} />
-              <Route path="subscriptions/:id" element={<Suspense fallback={null}><SubscriptionDetailPage /></Suspense>} />
-              <Route path="appointments" element={<Suspense fallback={null}><AppointmentsPage /></Suspense>} />
+            {/* Protected routes */}
+            <Route path="/" element={<CoreProtectedRoute />}>
+              <Route element={<CoreAppLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<Suspense fallback={null}><DashboardPage /></Suspense>} />
+                <Route path="work-queue" element={<Suspense fallback={null}><WorkQueuePage /></Suspense>} />
+                <Route path="orders" element={<Suspense fallback={null}><OrdersPage /></Suspense>} />
+                <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
+                <Route path="accounts" element={<Suspense fallback={null}><AccountsPage /></Suspense>} />
+                <Route path="accounts/:accountId" element={<Suspense fallback={null}><CoreAccountDetail /></Suspense>} />
+                <Route path="invoices" element={<Suspense fallback={null}><InvoicesPage /></Suspense>} />
+                <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
+                <Route path="payments" element={<Suspense fallback={null}><PaymentsPage /></Suspense>} />
+                <Route path="subscriptions" element={<Suspense fallback={null}><SubscriptionsPage /></Suspense>} />
+                <Route path="subscriptions/:id" element={<Suspense fallback={null}><SubscriptionDetailPage /></Suspense>} />
+                <Route path="appointments" element={<Suspense fallback={null}><AppointmentsPage /></Suspense>} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Catch-all → redirect to dashboard */}
-          <Route path="*" element={<Navigate to={`${BASE}/dashboard`} replace />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
-  </QueryClientProvider>
-);
+            {/* Catch-all → redirect to dashboard */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+};
 
 export default CoreApp;
