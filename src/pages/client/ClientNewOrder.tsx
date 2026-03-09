@@ -71,7 +71,7 @@ import { AddressAutocomplete, type AddressValue } from "@/components/shared/Addr
 import { validateDob, MIN_AGE_TELECOM, parseDate as parseDobDate } from "@/lib/validation/dob";
 import { buildOrderLineItems, wrapLineItemsForOrder } from "@/lib/orderLineItems";
 import { AuditNotes } from "@/lib/clientAuditNotes";
-import { useWelcomeDiscount } from "@/hooks/useWelcomeDiscount";
+// useWelcomeDiscount REMOVED — welcome discount is now 100% server-side via compute_checkout_pricing RPC
 import { getAdminPortalLink, notifyAdmin } from "@/hooks/useAdminNotification";
 import { QRVerificationStep } from "@/components/checkout/QRVerificationStep";
 import { KycSessionChoice } from "@/components/kyc/KycSessionChoice";
@@ -503,7 +503,7 @@ const ClientNewOrder = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAccountBlocked } = useClientBlockStatus();
-  const welcomeDiscountHook = useWelcomeDiscount(user?.id);
+  // Welcome discount is now computed server-side by compute_checkout_pricing RPC
   
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
@@ -1801,9 +1801,9 @@ const ClientNewOrder = () => {
           amount: appliedPromo.discount_amount,
           description: appliedPromo.name,
         }] : []),
-        ...(welcomeDiscountAmount > 0 ? [{
+        ...((liveServerPricing?.welcome_discount ?? 0) > 0 ? [{
           name: "Rabais nouveau client (50% — 1er mois)",
-          amount: welcomeDiscountAmount,
+          amount: liveServerPricing?.welcome_discount ?? 0,
           description: "50% de rabais sur les services — première facture uniquement",
         }] : []),
         ...(acceptPreauthorized ? [{
@@ -1897,14 +1897,20 @@ const ClientNewOrder = () => {
         taxable_base: nivraOrderResponse.subtotal,
         recurring_subtotal: monthlyRecurring,
         one_time_subtotal: oneTimeFees,
-        discount_total: 0,
-        preauth_discount: 0,
-        promo_applied: null,
+        discount_total: liveServerPricing?.discount_total ?? 0,
+        promo_discount: liveServerPricing?.promo_discount ?? 0,
+        welcome_discount: liveServerPricing?.welcome_discount ?? 0,
+        welcome_applied: liveServerPricing?.welcome_applied ?? false,
+        is_new_customer: liveServerPricing?.is_new_customer ?? false,
+        preauth_discount: liveServerPricing?.preauth_discount ?? 0,
+        promo_applied: liveServerPricing?.promo_applied ?? null,
         computed_at: new Date().toISOString(),
         cents: {
           recurring_subtotal: Math.round(monthlyRecurring * 100),
           one_time_subtotal: Math.round(oneTimeFees * 100),
-          discount_total: 0,
+          discount_total: liveServerPricing?.cents?.discount_total ?? 0,
+          promo_discount: liveServerPricing?.cents?.promo_discount ?? 0,
+          welcome_discount: liveServerPricing?.cents?.welcome_discount ?? 0,
           taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
           tps: Math.round(nivraOrderResponse.gst * 100),
           tvq: Math.round(nivraOrderResponse.qst * 100),
@@ -1973,7 +1979,7 @@ const ClientNewOrder = () => {
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
           (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : '') +
           (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${cappedDiscount.toFixed(2)}$` : '') +
-          (welcomeDiscountAmount > 0 ? `\n\n**Rabais nouveau client:** 50% sur services (1er mois) — ${welcomeDiscountAmount.toFixed(2)}$` : ''),
+          ((liveServerPricing?.welcome_discount ?? 0) > 0 ? `\n\n**Rabais nouveau client:** 50% sur services (1er mois) — ${(liveServerPricing?.welcome_discount ?? 0).toFixed(2)}$` : ''),
         selected_channels: channelData,
         channel_selection_locked: false,
         channel_assigned_by: hasTVService && channelData.length > 0 ? user.id : null,
@@ -2098,7 +2104,7 @@ const ClientNewOrder = () => {
           const billingTotalsSnapshot = {
             subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
             discount_amount: serverPricing.discount_total,
-            welcome_discount_amount: welcomeDiscountAmount, // ⚠️ CLIENT-SIDE — TODO: migrate to RPC
+            welcome_discount_amount: serverPricing.welcome_discount ?? 0, // SERVER-SIDE — from RPC
             base_amount: serverPricing.taxable_base,
             tps_amount: serverPricing.tps_amount,
             tvq_amount: serverPricing.tvq_amount,
@@ -2748,22 +2754,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
   
-  // ⚠️ ARCHITECTURAL DEBT: Welcome discount (50%) is computed CLIENT-SIDE.
-  // TODO: Move this logic to compute_checkout_pricing RPC for security + consistency.
-  // Current implementation: hook checks orders table to determine new customer status,
-  // then applies 50% to monthlyRecurring locally. This bypasses server pricing authority.
-  const welcomeDiscountAmount = welcomeDiscountHook.getDiscountAmount(monthlyRecurring);
+  // Welcome discount is now computed 100% SERVER-SIDE by compute_checkout_pricing RPC.
+  // liveServerPricing.welcome_discount contains the authoritative value.
+  // No client-side calculation — display only from server response.
+  const welcomeDiscountAmount = liveServerPricing?.welcome_discount ?? 0;
   
   const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
   // Cap discount to never exceed the cart total (prevents negative amounts)
   const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
   
-  // Total discount = promo + welcome (capped to gross total)
-  const totalDiscount = Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
+  // Total discount now comes from server (includes promo + welcome, no stacking)
+  const totalDiscount = liveServerPricing?.discount_total ?? Math.min(round2(promoDiscount), grossTotal);
 
   // Enforce min_payable_cents from promo: discount cannot reduce below minimum
-  const minPayableDollars = 0; // Will be enforced server-side; client cap is defense-in-depth
+  const minPayableDollars = 0; // Enforced server-side; client cap is defense-in-depth
   const effectiveTotalDiscount = minPayableDollars > 0 
     ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
     : totalDiscount;
@@ -5430,8 +5435,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     
-                    {/* Show all applicable discounts */}
-                    {welcomeDiscountAmount > 0 && (
+                    {/* Show all applicable discounts — SERVER-SIDE values only */}
+                    {(liveServerPricing?.welcome_applied || welcomeDiscountAmount > 0) && (
                       <div className="flex justify-between text-emerald-500 font-medium">
                         <span>Rabais nouveau client (50%)</span>
                         <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
