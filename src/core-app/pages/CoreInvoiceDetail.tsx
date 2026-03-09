@@ -1,13 +1,19 @@
 /**
  * Nivra Core — Invoice Detail (ops-grade)
  * Reuses useAdminInvoiceDetail hook — zero duplicated business logic.
+ * Document actions use canonical PDF services.
  */
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAdminInvoiceDetail } from "@/hooks/admin/useAdminInvoiceDetail";
 import { StatusBadge, statusToVariant } from "@/components/admin/ui/StatusBadge";
-import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
+import { adminClient } from "@/integrations/backend";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { toast } from "sonner";
 
 const fmtCAD = (n: number | null | undefined) => (n != null ? `${n.toFixed(2)} $` : "—");
 const fmtDate = (d: string | null | undefined) => {
