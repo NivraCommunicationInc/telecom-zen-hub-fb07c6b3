@@ -293,7 +293,7 @@ const AppointmentsPage = () => {
                           </Link>
                         )}
                         <Link
-                          to={`/core/appointments/${apt.id}`}
+                          to={corePath(`/appointments/${apt.id}`)}
                           className="p-1 rounded text-[hsl(220,10%,45%)] hover:text-emerald-400 hover:bg-emerald-600/10 transition-colors"
                           title="Détail"
                         >
