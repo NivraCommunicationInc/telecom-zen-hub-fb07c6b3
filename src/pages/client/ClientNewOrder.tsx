@@ -5926,11 +5926,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS + TVQ</span>
-                      <span>{((authoritativePricing?.gst ?? 0) + (authoritativePricing?.qst ?? 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span>{round2(monthlyTps + monthlyTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <div className="flex justify-between font-medium pt-1 border-t border-purple-500/30">
-                      <span className="text-purple-500">Total mensuel</span>
-                      <span className="text-purple-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="text-purple-500">Total mensuel estimé</span>
+                      <span className="text-purple-500">{monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
 
                     <Separator className="my-1" />
