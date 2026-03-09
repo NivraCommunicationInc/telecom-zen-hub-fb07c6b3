@@ -233,10 +233,15 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
 
     const descLower = item.description.toLowerCase();
 
+    // Heuristic: items with fee-like descriptions should be fees even if line_type is wrong
+    const isFeeByDescription = descLower.includes("frais d'activation") || descLower.includes("frais de livraison")
+      || descLower.includes("frais d'installation") || descLower.includes("installation fee")
+      || descLower.includes("activation fee") || descLower.includes("delivery fee");
+
     if (item.line_type === "equipment") {
       equipment.push({ name: item.description, quantity: qty, unit_price: unitPrice });
       invoiceItems.push({ category: "Equipment", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
-    } else if (item.line_type === "fee") {
+    } else if (item.line_type === "fee" || isFeeByDescription) {
       fees.push({ label: item.description, amount });
       invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
     } else {
@@ -325,7 +330,7 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
     status: invoiceStatus as any,
 
     customer: {
-      full_name: requireField(snapshotClient?.full_name || clientName, "client_name"),
+      full_name: requireField(snapshotClient?.full_name || snapshotClient?.name || clientName, "client_name"),
       email: requireField(snapshotClient?.email || order.client_email || profile?.email, "client_email"),
       phone: requireField(snapshotClient?.phone || order.client_phone || profile?.phone, "client_phone"),
       address_line1: requireField(snapshotClient?.address_line1 || addr.address_line1, "address_line1"),
