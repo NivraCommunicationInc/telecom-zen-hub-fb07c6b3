@@ -60,7 +60,7 @@ function OrderRow({ item }: { item: WorkQueueItem }) {
           </span>
         )}
         <StatusBadge label={item.status} variant={statusToVariant(item.status)} size="sm" />
-        <Link to={`/admin/orders/${item.id}`}>
+        <Link to={`/core/orders/${item.id}`}>
           <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors">
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
@@ -96,7 +96,7 @@ function AppointmentRow({ item }: { item: AppointmentQueueItem }) {
       <div className="flex items-center gap-2 shrink-0">
         <StatusBadge label={item.status || "pending"} variant={statusToVariant(item.status || "pending")} size="sm" />
         {item.order_id && (
-          <Link to={`/admin/orders/${item.order_id}`}>
+          <Link to={`/core/orders/${item.order_id}`}>
             <button className="h-7 w-7 flex items-center justify-center rounded-md text-[hsl(220,10%,50%)] hover:text-white transition-colors" title="Voir commande">
               <ExternalLink className="h-3.5 w-3.5" />
             </button>
