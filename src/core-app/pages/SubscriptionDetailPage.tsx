@@ -43,7 +43,7 @@ export default function SubscriptionDetailPage() {
     return (
       <div className="text-center py-20">
         <p className="text-[hsl(220,10%,40%)] text-sm">Abonnement introuvable</p>
-        <Link to="/core/subscriptions" className="text-emerald-400 text-xs hover:underline mt-2 inline-block">
+        <Link to={corePath("/subscriptions")} className="text-emerald-400 text-xs hover:underline mt-2 inline-block">
           ← Retour aux abonnements
         </Link>
       </div>
