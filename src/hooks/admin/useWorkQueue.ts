@@ -77,6 +77,7 @@ async function fetchQueueOrders(statuses: string[], limit: number): Promise<Work
       created_at: o.created_at,
       invoice_number: invoice?.invoice_number ?? null,
       invoice_id: invoice?.id ?? null,
+      failure_reason: (o as any).failure_reason ?? null,
     };
   });
 }
