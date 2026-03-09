@@ -370,23 +370,30 @@ END:VCALENDAR`;
   
   // ===== All totals from pricing_snapshot (canonical) =====
   const monthlyRecurringGross = hasSnapshot ? Number(ps.recurring_subtotal) : (order.subtotal ?? 0);
-  const recurringDiscountTotal = hasSnapshot ? Number(ps.discount_total_combined) : (order.promo_discount_amount ?? 0);
-  const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - recurringDiscountTotal);
+  // CRITICAL FIX: discount_total_combined may include equipment/delivery discounts
+  // that do NOT reduce the monthly recurring amount. Only subtract welcome_discount
+  // and service-specific promo discounts from the monthly recurring.
+  const promoApplied = hasSnapshot ? ps.promo_applied : null;
+  const promoAppliesToServices = promoApplied?.applies_to?.services === true;
+  const serviceOnlyDiscount = hasSnapshot
+    ? (promoAppliesToServices ? Number(ps.promo_discount ?? 0) : 0) + Number(ps.welcome_discount ?? 0)
+    : (order.promo_discount_amount ?? 0);
+  const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - serviceOnlyDiscount);
   const oneTimeSubtotal = hasSnapshot ? Number(ps.one_time_subtotal) : (deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
-  const promoDiscount = recurringDiscountTotal;
+  const promoDiscount = hasSnapshot ? Number(ps.discount_total_combined) : (order.promo_discount_amount ?? 0);
   
-  // Taxes and total — directly from canonical snapshot, zero recalculation
+  // Taxes and total — use order.total_amount as authoritative (set from RPC at commit time)
+  // If amount_paid > 0 (PayPal captured), use that as the definitive "total paid"
   const tpsAmount = hasSnapshot ? Number(ps.tps_amount) : (order.tps_amount ?? 0);
   const tvqAmount = hasSnapshot ? Number(ps.tvq_amount) : (order.tvq_amount ?? 0);
-  const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.total_amount ?? 0);
+  // CRITICAL FIX: "Total payé" must reflect the actual captured/committed amount,
+  // not the snapshot grand_total which may be from an external API with different discount logic.
+  // Priority: order.total_amount (set by commit from correct RPC) > snapshot
+  const totalAmount = order.total_amount ?? (hasSnapshot ? Number(ps.grand_total) : 0);
   
-  // Future monthly total — derived from pricing_snapshot tax rates (no hardcoded rates)
-  const snapshotTpsRate = (hasSnapshot && Number(ps.taxable_base) > 0) 
-    ? Number(ps.tps_amount) / Number(ps.taxable_base) : 0.05;
-  const snapshotTvqRate = (hasSnapshot && Number(ps.taxable_base) > 0) 
-    ? Number(ps.tvq_amount) / Number(ps.taxable_base) : 0.09975;
-  const monthlyTps = Math.round(monthlyRecurringNet * snapshotTpsRate * 100) / 100;
-  const monthlyTvq = Math.round(monthlyRecurringNet * snapshotTvqRate * 100) / 100;
+  // Future monthly total — use standard QC tax rates
+  const monthlyTps = Math.round(monthlyRecurringNet * 0.05 * 100) / 100;
+  const monthlyTvq = Math.round(monthlyRecurringNet * 0.09975 * 100) / 100;
   const monthlyWithTaxes = Math.round((monthlyRecurringNet + monthlyTps + monthlyTvq) * 100) / 100;
 
   // Determine fulfillment type
