@@ -21,9 +21,9 @@ const fmtDate = (d: string | null | undefined) => {
 
 const DashboardPage = () => {
   const wq = useWorkQueue();
-  const { data: invoices = [], isLoading: invLoading } = useAdminInvoices();
-  const { data: payments = [], isLoading: payLoading } = useAdminPayments();
-  const { data: orders = [], isLoading: ordLoading } = useAdminOrders();
+  const { data: invoices = [], isLoading: invLoading } = useAdminInvoices('live');
+  const { data: payments = [], isLoading: payLoading } = useAdminPayments('live');
+  const { data: orders = [], isLoading: ordLoading } = useAdminOrders('live');
 
   const metrics = useMemo(() => {
     const ordersToday = orders.filter(o => o.created_at && isToday(new Date(o.created_at))).length;

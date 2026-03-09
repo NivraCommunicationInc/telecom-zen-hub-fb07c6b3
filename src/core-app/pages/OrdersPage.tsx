@@ -25,7 +25,8 @@ const STATUS_FILTERS = [
 ];
 
 const OrdersPage = () => {
-  const { data: orders, isLoading, refetch } = useAdminOrders();
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
+  const { data: orders, isLoading, refetch } = useAdminOrders(envFilter);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
