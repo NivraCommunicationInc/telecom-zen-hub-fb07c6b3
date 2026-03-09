@@ -453,6 +453,93 @@ const CoreOrderDetail = () => {
         </div>
       )}
 
+      {/* Documents Panel */}
+      <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <ScrollText className="h-4 w-4 text-emerald-400" />
+          <p className="text-xs font-semibold text-white">Documents</p>
+        </div>
+
+        {docError && (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+            <p className="text-[11px] text-amber-300">{docError}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-2">
+          {/* Invoice PDF */}
+          {invoice ? (
+            <button
+              onClick={() => handleViewInvoicePDF(invoice.id, invoice.invoice_number)}
+              disabled={docLoading === "invoice"}
+              className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] p-3 text-left hover:border-blue-500/30 transition-colors disabled:opacity-50"
+            >
+              <FileText className="h-5 w-5 text-blue-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-white truncate">Facture</p>
+                <p className="text-[10px] text-[hsl(220,10%,40%)] font-mono truncate">{invoice.invoice_number}</p>
+                <p className="text-[10px] text-emerald-400">{docLoading === "invoice" ? "Génération…" : "Disponible"}</p>
+              </div>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,10%)] p-3 opacity-50">
+              <FileText className="h-5 w-5 text-[hsl(220,10%,30%)] flex-shrink-0" />
+              <div>
+                <p className="text-[11px] font-medium text-[hsl(220,10%,35%)]">Facture</p>
+                <p className="text-[10px] text-[hsl(220,10%,25%)]">Non disponible</p>
+              </div>
+            </div>
+          )}
+
+          {/* Contract PDF */}
+          {contract ? (
+            <button
+              onClick={() => handleViewContractPDF(contract.id, contract.contract_number || "")}
+              disabled={docLoading === "contract"}
+              className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] p-3 text-left hover:border-blue-500/30 transition-colors disabled:opacity-50"
+            >
+              <FileBadge className="h-5 w-5 text-blue-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-white truncate">Contrat</p>
+                <p className="text-[10px] text-[hsl(220,10%,40%)] font-mono truncate">{contract.contract_number || "—"}</p>
+                <p className="text-[10px]">
+                  {docLoading === "contract" ? (
+                    <span className="text-amber-400">Génération…</span>
+                  ) : contract.is_signed || contract.status === "fully_signed" ? (
+                    <span className="text-emerald-400">Signé</span>
+                  ) : (
+                    <span className="text-amber-400">{contract.status || "En attente"}</span>
+                  )}
+                </p>
+              </div>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,10%)] p-3 opacity-50">
+              <FileBadge className="h-5 w-5 text-[hsl(220,10%,30%)] flex-shrink-0" />
+              <div>
+                <p className="text-[11px] font-medium text-[hsl(220,10%,35%)]">Contrat</p>
+                <p className="text-[10px] text-[hsl(220,10%,25%)]">Non disponible</p>
+              </div>
+            </div>
+          )}
+
+          {/* Order Summary via generateOrderDocuments */}
+          <button
+            onClick={handleViewAllDocs}
+            disabled={!!docLoading}
+            className="flex items-center gap-2 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] p-3 text-left hover:border-blue-500/30 transition-colors disabled:opacity-50"
+          >
+            <Package className="h-5 w-5 text-blue-400 flex-shrink-0" />
+            <div>
+              <p className="text-[11px] font-medium text-white">Sommaire</p>
+              <p className="text-[10px] text-[hsl(220,10%,40%)]">Tous les documents</p>
+              <p className="text-[10px] text-emerald-400">{docLoading === "all" ? "Génération…" : "Générer"}</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Appointment */}
       {appointment && (
         <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
@@ -498,6 +585,15 @@ const CoreOrderDetail = () => {
           </div>
         </div>
       )}
+
+      {/* PDF Viewer Dialog */}
+      <PDFViewerDialog
+        open={pdfOpen}
+        onOpenChange={setPdfOpen}
+        pdfBlob={pdfBlob}
+        title={pdfTitle}
+        filename={pdfFilename}
+      />
     </div>
   );
 };
