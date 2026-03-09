@@ -36,6 +36,9 @@ function OrderRow({ item }: { item: WorkQueueItem }) {
           {item.client_name || item.client_email || "—"}
           {item.account_number && <span className="ml-2 font-mono opacity-70">#{item.account_number}</span>}
           {item.service_type && <span className="ml-2">• {item.service_type}</span>}
+          {item.failure_reason && (
+            <span className="ml-2 text-destructive font-medium">⚠ {item.failure_reason}</span>
+          )}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">

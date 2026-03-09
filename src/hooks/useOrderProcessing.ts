@@ -731,6 +731,19 @@ export function useOrderProcessing(orderId: string | undefined) {
 
   /* ── Complete order ── */
   const completeOrder = async () => {
+    // SYSTEMIC GUARD: Verify invoice is paid before allowing completion
+    const invoice = data?.invoice;
+    if (!invoice) {
+      toast.error("Impossible de compléter : aucune facture liée à cette commande.");
+      return;
+    }
+    const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
+    const invoiceStatus = invoice.status;
+    if (!["paid", "partially_paid"].includes(invoiceStatus || "") && balanceDue > 0) {
+      toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+      return;
+    }
+
     await changeStatus("completed");
     await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
 

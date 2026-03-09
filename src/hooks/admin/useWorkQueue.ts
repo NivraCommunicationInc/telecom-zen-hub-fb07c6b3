@@ -19,6 +19,7 @@ export interface WorkQueueItem {
   created_at: string;
   invoice_number: string | null;
   invoice_id: string | null;
+  failure_reason: string | null;
 }
 
 export interface AppointmentQueueItem {
@@ -39,7 +40,7 @@ export interface AppointmentQueueItem {
 async function fetchQueueOrders(statuses: string[], limit: number): Promise<WorkQueueItem[]> {
   const { data: orders, error } = await supabase
     .from("orders")
-    .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at")
+    .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at, failure_reason")
     .in("status", statuses)
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -76,6 +77,7 @@ async function fetchQueueOrders(statuses: string[], limit: number): Promise<Work
       created_at: o.created_at,
       invoice_number: invoice?.invoice_number ?? null,
       invoice_id: invoice?.id ?? null,
+      failure_reason: (o as any).failure_reason ?? null,
     };
   });
 }
@@ -123,6 +125,7 @@ export function useWorkQueue() {
           created_at: o.created_at,
           invoice_number: null,
           invoice_id: null,
+          failure_reason: null,
         };
       });
     },
@@ -169,10 +172,10 @@ export function useWorkQueue() {
     queryFn: () => fetchQueueOrders(["delivered", "installed"], 20),
   });
 
-  // 5. On hold / blocked
+  // 5. On hold / blocked / provisioning failed
   const onHold = useQuery({
     queryKey: ["work-queue-hold"],
-    queryFn: () => fetchQueueOrders(["on_hold", "incomplete", "invalid_payment", "fraud"], 20),
+    queryFn: () => fetchQueueOrders(["on_hold", "hold", "incomplete", "invalid_payment", "fraud", "provisioning_failed"], 20),
   });
 
   return {
