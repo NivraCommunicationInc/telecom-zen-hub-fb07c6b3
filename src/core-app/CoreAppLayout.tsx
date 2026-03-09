@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { CoreGlobalSearch } from "./components/CoreGlobalSearch";
 import { supabase } from "@/integrations/supabase/client";
+import { corePath, isCorePathActive } from "@/core-app/lib/corePaths";
 import {
   LayoutDashboard,
   ListTodo,
@@ -23,14 +24,14 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV_SECTIONS = [
-  { label: "Dashboard", href: "/core", icon: LayoutDashboard },
-  { label: "Work Queue", href: "/core/work-queue", icon: ListTodo },
-  { label: "Orders", href: "/core/orders", icon: ShoppingCart },
-  { label: "Accounts", href: "/core/accounts", icon: Users },
-  { label: "Invoices", href: "/core/invoices", icon: FileText },
-  { label: "Payments", href: "/core/payments", icon: CreditCard },
-  { label: "Subscriptions", href: "/core/subscriptions", icon: RefreshCcw },
-  { label: "Rendez-vous", href: "/core/appointments", icon: Calendar },
+  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Work Queue", href: "/work-queue", icon: ListTodo },
+  { label: "Orders", href: "/orders", icon: ShoppingCart },
+  { label: "Accounts", href: "/accounts", icon: Users },
+  { label: "Invoices", href: "/invoices", icon: FileText },
+  { label: "Payments", href: "/payments", icon: CreditCard },
+  { label: "Subscriptions", href: "/subscriptions", icon: RefreshCcw },
+  { label: "Rendez-vous", href: "/appointments", icon: Calendar },
 ] as const;
 
 const CoreAppLayout = () => {
@@ -40,13 +41,10 @@ const CoreAppLayout = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/core/login", { replace: true });
+    navigate(corePath("/login"), { replace: true });
   };
 
-  const isActive = (href: string) => {
-    if (href === "/core") return location.pathname === "/core";
-    return location.pathname.startsWith(href);
-  };
+  const isActive = (href: string) => isCorePathActive(location.pathname, href);
 
   return (
     <div className="min-h-screen flex bg-[hsl(220,20%,8%)] text-[hsl(220,10%,85%)]">
