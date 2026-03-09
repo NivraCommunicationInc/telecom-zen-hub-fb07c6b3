@@ -56,9 +56,9 @@ const _missingFields: string[] = [];
 
 function requireField(value: string | undefined | null, fieldName: string): string {
   if (!value || value === "—" || value === "N/A" || value === "À confirmer" || value === "000000" || value.trim() === "") {
-    console.error(`[DocumentBuilder] ❌ CHAMP OBLIGATOIRE MANQUANT: ${fieldName}`);
+    console.warn(`[DocumentBuilder] ⚠️ Champ manquant: ${fieldName}`);
     _missingFields.push(fieldName);
-    return `[MANQUANT: ${fieldName}]`;
+    return "Non fourni par le client";
   }
   return value.trim();
 }
@@ -166,10 +166,10 @@ function buildFullAddress(parts: { line1?: string; city?: string; province?: str
 }
 
 function buildCustomerAddress(order: any, profile: any, account: any) {
-  const address_line1 = order.shipping_address || account?.primary_service_address || profile?.address || "";
-  const city = order.shipping_city || account?.primary_service_city || "";
-  const province = order.shipping_province || account?.primary_service_province || "QC";
-  const postal_code = order.shipping_postal_code || account?.primary_service_postal_code || "";
+  const address_line1 = order.shipping_address || account?.primary_service_address || profile?.address || profile?.service_address || "";
+  const city = order.shipping_city || account?.primary_service_city || profile?.service_city || "";
+  const province = order.shipping_province || account?.primary_service_province || profile?.service_province || "QC";
+  const postal_code = order.shipping_postal_code || account?.primary_service_postal_code || profile?.service_postal_code || "";
   const serviceAddr = buildFullAddress({ line1: address_line1, city, province, postal: postal_code });
   const billingAddr = account?.billing_address
     ? buildFullAddress({ line1: account.billing_address, city: account.billing_city, province: account.billing_province || "QC", postal: account.billing_postal_code })
@@ -240,12 +240,13 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
       fees.push({ label: item.description, amount });
       invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
     } else {
-      // service
-      const type = descLower.includes("internet") ? "Internet"
-        : descLower.includes("mobile") ? "Mobile"
-        : descLower.includes("tv") || descLower.includes("télé") ? "TV"
+      // service — detect type from description keywords
+      const type = descLower.includes("internet") || descLower.includes("giga") ? "Internet"
+        : descLower.includes("mobile") || descLower.includes("talk") || descLower.includes("text") ? "Mobile"
+        : descLower.includes("tv") || descLower.includes("télé") || descLower.includes("chaîne") ? "TV"
         : descLower.includes("streaming") ? "Streaming"
-        : "Service";
+        : descLower.includes("sécurité") || descLower.includes("security") ? "Sécurité"
+        : "Télécom";
       services.push({ type, name: item.description, monthly_price: amount });
       invoiceItems.push({
         category: type as any,
@@ -419,7 +420,9 @@ export function buildOrderSummaryData(data: OrderDocumentData): OrderSummaryV3Da
     subtotal_monthly: structured.subtotalMonthly,
     subtotal_onetime: structured.subtotalOnetime,
     discount_amount: structured.discountAmount,
-    discount_label: order.promo_code ? `Promo: ${order.promo_code}` : undefined,
+    discount_label: structured.discounts.length > 0
+      ? structured.discounts.map(d => d.label).join(", ")
+      : order.promo_code ? `Promo: ${order.promo_code}` : undefined,
     tax_gst: structured.tpsAmount,
     tax_qst: structured.tvqAmount,
     total_due: structured.total,

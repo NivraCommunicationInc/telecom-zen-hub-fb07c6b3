@@ -81,12 +81,13 @@ const fmtShortDate = (dateStr: string | undefined | null): string => {
 const fmtStatus = (status: string): string => {
   const map: Record<string, string> = {
     paid: "Payée", Paid: "Payée",
+    paid_by_promo: "Payée (promo)", 
     pending: "En attente", Pending: "En attente",
     unpaid: "Non payée", Unpaid: "Non payée",
     partially_paid: "Partiellement payée",
     Issued: "Émise", cancelled: "Annulée", Cancelled: "Annulée",
     expired: "Expirée", Expired: "Expirée", void: "Annulée",
-    overdue: "Renouvellement requis",
+    overdue: "Renouvellement requis", not_renewed: "Non renouvelée",
   };
   return map[status] || status;
 };
@@ -318,7 +319,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
 
     // Status badge
     const statusLabel = fmtStatus(data.status);
-    const isPaidStatus = data.status?.toLowerCase() === "paid";
+    const isPaidStatus = data.status?.toLowerCase() === "paid" || String(data.status) === "paid_by_promo";
     const isPartial = data.status?.toLowerCase() === "partially_paid";
     const badgeColor: [number, number, number] = isPaidStatus ? C.success : isPartial ? C.warning : C.error;
     
