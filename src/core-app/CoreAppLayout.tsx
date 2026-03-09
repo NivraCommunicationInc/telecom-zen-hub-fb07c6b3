@@ -12,6 +12,7 @@ import {
   FileText,
   CreditCard,
   RefreshCcw,
+  Calendar,
   ChevronLeft,
   ChevronRight,
   Terminal,
@@ -26,6 +27,7 @@ const NAV_SECTIONS = [
   { label: "Invoices", href: "/core/invoices", icon: FileText },
   { label: "Payments", href: "/core/payments", icon: CreditCard },
   { label: "Subscriptions", href: "/core/subscriptions", icon: RefreshCcw },
+  { label: "Rendez-vous", href: "/core/appointments", icon: Calendar },
 ] as const;
 
 const CoreAppLayout = () => {
