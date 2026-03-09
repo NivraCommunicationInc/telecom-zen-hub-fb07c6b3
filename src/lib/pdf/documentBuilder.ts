@@ -367,10 +367,11 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  // USE BREAKDOWN (source of truth) or fallback
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  // BREAKDOWN IS MANDATORY — no fallback path
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis. Génération bloquée sans données autoritaires.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   const invoiceStatus = breakdown?.status || billingInvoice?.status ||
     (["captured", "paid", "confirmed"].includes(order.payment_status) ? "paid" : "unpaid");
