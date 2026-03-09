@@ -5586,11 +5586,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS (5%) + TVQ (9.975%)</span>
-                      <span>{((authoritativePricing?.gst ?? 0) + (authoritativePricing?.qst ?? 0)).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{round2(monthlyTps + monthlyTvq).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     <div className="flex justify-between pt-3 border-t-2 border-purple-500/50">
                       <span className="font-bold text-purple-500 text-base">Total mensuel estimé</span>
-                      <span className="font-bold text-purple-500 text-lg">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <span className="font-bold text-purple-500 text-lg">{uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">Facturation le 1er de chaque mois après activation</p>
                   </CardContent>
