@@ -20,12 +20,12 @@ import { generateCanonicalInvoicePDF, generateCanonicalContractPDF } from "@/lib
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { toast } from "sonner";
 
-// Order Processing reuse
-import { useOrderProcessing, WorkflowStepId } from "@/hooks/useOrderProcessing";
-import { WorkflowStepNav } from "@/components/admin/order-processing/WorkflowStepNav";
-import { StepContent } from "@/components/admin/order-processing/StepContent";
-import { OrderSummaryPanel } from "@/components/admin/order-processing/OrderSummaryPanel";
-import { ActivityTimeline } from "@/components/admin/order-processing/ActivityTimeline";
+// Order Processing reuse — Core-local copies
+import { useOrderProcessing, WorkflowStepId } from "@/core-app/hooks/useOrderProcessing";
+import { WorkflowStepNav } from "@/core-app/components/order-processing/WorkflowStepNav";
+import { StepContent } from "@/core-app/components/order-processing/StepContent";
+import { OrderSummaryPanel } from "@/core-app/components/order-processing/OrderSummaryPanel";
+import { ActivityTimeline } from "@/core-app/components/order-processing/ActivityTimeline";
 
 // Dark theme overrides for processing components
 import "@/core-app/styles/core-dark-processing.css";
