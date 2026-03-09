@@ -357,6 +357,9 @@ const AppRoutes = () => {
         <Route path="payments/legacy" element={<AdminPayments />} />
         <Route path="invoices" element={<AdminInvoices />} />
         <Route path="invoices/:invoiceId" element={<AdminInvoiceDetail />} />
+        <Route path="work-queue" element={<AdminWorkQueue />} />
+        <Route path="subscriptions" element={<AdminSubscriptions />} />
+        <Route path="subscriptions/:subscriptionId" element={<AdminSubscriptionDetail />} />
 
         {/* Identity Verification Admin */}
         <Route path="identity-verification" element={<AdminIdentityVerification />} />

@@ -100,7 +100,7 @@ function QueueSection({
   isLoading,
 }: {
   title: string;
-  icon: React.ElementType;
+  icon: any;
   count: number;
   children: React.ReactNode;
   emptyMessage: string;
