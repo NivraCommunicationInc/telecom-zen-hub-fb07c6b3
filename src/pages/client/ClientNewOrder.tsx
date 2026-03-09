@@ -5037,16 +5037,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                   </div>
                   
-                  {/* Monthly Total */}
-                  <div className="border-t border-border pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-foreground">Total mensuel estimé</span>
-                      <span className="font-bold text-lg text-cyan-500">
-                        {monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
-                      </span>
+                    <div className="border-t border-border pt-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-foreground">Total mensuel estimé</span>
+                        <span className="font-bold text-lg text-cyan-500">
+                          {uiMonthlyRecurringWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Services récurrents, taxes incluses</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Services récurrents, taxes incluses</p>
-                  </div>
                   
                   {/* One-Time Fees Section */}
                   <div className="space-y-2">
