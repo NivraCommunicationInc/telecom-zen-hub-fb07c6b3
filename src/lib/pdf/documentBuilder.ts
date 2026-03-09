@@ -420,7 +420,9 @@ export function buildOrderSummaryData(data: OrderDocumentData): OrderSummaryV3Da
     subtotal_monthly: structured.subtotalMonthly,
     subtotal_onetime: structured.subtotalOnetime,
     discount_amount: structured.discountAmount,
-    discount_label: order.promo_code ? `Promo: ${order.promo_code}` : undefined,
+    discount_label: structured.discounts.length > 0
+      ? structured.discounts.map(d => d.label).join(", ")
+      : order.promo_code ? `Promo: ${order.promo_code}` : undefined,
     tax_gst: structured.tpsAmount,
     tax_qst: structured.tvqAmount,
     total_due: structured.total,
