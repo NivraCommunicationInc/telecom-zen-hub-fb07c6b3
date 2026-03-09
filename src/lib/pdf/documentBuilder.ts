@@ -90,10 +90,9 @@ export function validateDocumentData(data: OrderDocumentData): string[] {
     }
   }
 
-  // breakdown is preferred but not blocking — fallback path exists
-  // Only block if we have zero financial data at all
-  if (!data.breakdown && !data.billingInvoice && !data.order?.total_amount && !data.order?.subtotal) {
-    missing.push("financial_data");
+  // breakdown is MANDATORY — no fallback path
+  if (!data.breakdown) {
+    missing.push("breakdown_rpc");
   }
 
   return missing;
@@ -278,74 +277,7 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
     balanceDue: bd.balance_due,
   };
 }
-
-// ============================================================================
-// FALLBACK: FAIL HARD — No silent legacy path allowed
-// ============================================================================
-
-function fallbackStructure(order: any, billingInvoice: any, billingInvoiceLines: any[], billingPayments: any[]): StructuredFromBreakdown {
-  console.error("[DocumentBuilder] ⛔ FALLBACK INTERDIT — compute_invoice_breakdown RPC n'a pas retourné de données. Les totaux seront INCORRECTS.");
-  // We still parse lines if available but flag this as a critical error
-  const services: StructuredFromBreakdown["services"] = [];
-  const equipment: StructuredFromBreakdown["equipment"] = [];
-  const fees: StructuredFromBreakdown["fees"] = [];
-  const invoiceItems: InvoiceItem[] = [];
-
-  // Try billing_invoice_lines first
-  if (billingInvoiceLines?.length > 0) {
-    for (const line of billingInvoiceLines) {
-      const desc = line.description || "Service";
-      const amount = Number(line.line_total || 0);
-      const qty = Number(line.quantity || 1);
-      const unitPrice = Number(line.unit_price || amount);
-      const lineType = line.line_type || "service";
-
-      if (lineType === "discount" || lineType === "credit" || amount < 0) continue;
-
-      if (lineType === "equipment") {
-        equipment.push({ name: desc, quantity: qty, unit_price: unitPrice });
-        invoiceItems.push({ category: "Equipment", description: desc, qty, unit_price: unitPrice, amount, is_recurring: false });
-      } else if (lineType === "fee") {
-        fees.push({ label: desc, amount });
-        invoiceItems.push({ category: "Fees", description: desc, qty, unit_price: unitPrice, amount, is_recurring: false });
-      } else {
-        services.push({ type: "Service", name: desc, monthly_price: amount });
-        invoiceItems.push({ category: "Other" as any, description: desc, qty, unit_price: unitPrice, amount, is_recurring: true });
-      }
-    }
-  } else if (order.service_type) {
-    const price = Number(order.subtotal || order.total_amount || 0);
-    services.push({ type: order.category || "Service", name: order.service_type, monthly_price: price });
-    invoiceItems.push({ category: "Other" as any, description: order.service_type, qty: 1, unit_price: price, amount: price, is_recurring: true });
-    if (Number(order.activation_fee) > 0) {
-      fees.push({ label: "Frais d'activation", amount: order.activation_fee });
-      invoiceItems.push({ category: "Fees", description: "Frais d'activation", qty: 1, unit_price: order.activation_fee, amount: order.activation_fee, is_recurring: false });
-    }
-    if (Number(order.delivery_fee) > 0) {
-      fees.push({ label: "Frais de livraison", amount: order.delivery_fee });
-      invoiceItems.push({ category: "Fees", description: "Frais de livraison", qty: 1, unit_price: order.delivery_fee, amount: order.delivery_fee, is_recurring: false });
-    }
-  }
-
-  const subtotalMonthly = services.reduce((s, sv) => s + sv.monthly_price, 0);
-  const subtotalOnetime = equipment.reduce((s, e) => s + e.unit_price * e.quantity, 0) + fees.reduce((s, f) => s + f.amount, 0);
-  const subtotal = billingInvoice ? Number(billingInvoice.subtotal || 0) : subtotalMonthly + subtotalOnetime;
-  const discountAmount = Number(order.discount_amount || 0);
-  const taxableBase = Math.max(0, subtotal - discountAmount);
-  const tpsAmount = billingInvoice ? Number(billingInvoice.tps_amount || 0) : Math.round(taxableBase * TAX.GST_RATE * 100) / 100;
-  const tvqAmount = billingInvoice ? Number(billingInvoice.tvq_amount || 0) : Math.round(taxableBase * TAX.QST_RATE * 100) / 100;
-  const total = billingInvoice ? Number(billingInvoice.total || 0) : Math.round((taxableBase + tpsAmount + tvqAmount) * 100) / 100;
-  const amountPaid = billingPayments
-    .filter((p: any) => p.status === "confirmed" || p.status === "completed" || p.status === "captured")
-    .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0) || Number(order.amount_paid || 0);
-  const balanceDue = Math.max(0, Math.round((total - amountPaid) * 100) / 100);
-
-  return {
-    services, equipment, fees, invoiceItems,
-    discounts: discountAmount > 0 ? [{ label: order.promo_code ? `Promo: ${order.promo_code}` : "Rabais appliqué", amount: discountAmount }] : [],
-    subtotal, subtotalMonthly, subtotalOnetime, discountAmount, tpsAmount, tvqAmount, total, amountPaid, balanceDue,
-  };
-}
+// fallbackStructure SUPPRIMÉ — génération bloquée si compute_invoice_breakdown échoue
 
 // ============================================================================
 // PAYMENT METHOD RESOLVER
@@ -367,10 +299,11 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  // USE BREAKDOWN (source of truth) or fallback
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  // BREAKDOWN IS MANDATORY — no fallback path
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis. Génération bloquée sans données autoritaires.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   const invoiceStatus = breakdown?.status || billingInvoice?.status ||
     (["captured", "paid", "confirmed"].includes(order.payment_status) ? "paid" : "unpaid");
@@ -458,9 +391,10 @@ export function buildOrderSummaryData(data: OrderDocumentData): OrderSummaryV3Da
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis pour le sommaire de commande.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   return {
     order_number: requireField(order.order_number?.toString(), "order_number"),
@@ -501,9 +435,10 @@ export function buildContractData(data: OrderDocumentData): ContractDataV3 {
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis pour le contrat.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   return {
     contract_number: contract?.contract_number || order.related_contract_id || `CTR-${order.order_number || order.id.slice(0, 8)}`,
@@ -542,9 +477,10 @@ export function buildContractSummaryData(data: OrderDocumentData): ContractSumma
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  if (!breakdown) {
+    throw new Error("[DocumentBuilder] ⛔ compute_invoice_breakdown RPC requis pour le résumé de contrat.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   const allOneTimeFees = [
     ...structured.equipment.map(e => ({ label: e.name, amount: e.unit_price * e.quantity })),
@@ -607,11 +543,19 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     // Continue generation — documents will show "Non fourni par le client" for missing fields
   }
 
-  if (data.breakdown) {
-    console.log(`[DocumentBuilder V4] ✅ Using compute_invoice_breakdown RPC (source of truth)`);
-  } else {
-    console.error(`[DocumentBuilder V4] ⛔ No breakdown — fallback will produce UNRELIABLE documents`);
+  if (!data.breakdown) {
+    console.error(`[DocumentBuilder V4] ⛔ compute_invoice_breakdown RPC a échoué — génération BLOQUÉE`);
+    const blockedResult: PDFGenerationResult = { success: false, error: "Données de facturation indisponibles (RPC breakdown requis)" };
+    return {
+      invoice: blockedResult,
+      orderSummary: blockedResult,
+      contract: blockedResult,
+      contractSummary: blockedResult,
+      terms: generateServiceTermsPDF(),
+    };
   }
+
+  console.log(`[DocumentBuilder V4] ✅ Using compute_invoice_breakdown RPC (source of truth)`);
 
   const invoiceData = buildInvoiceData(data);
   const invoice = generateInvoiceV3PDF(invoiceData);
