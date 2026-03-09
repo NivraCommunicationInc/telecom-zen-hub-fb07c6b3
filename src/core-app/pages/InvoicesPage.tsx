@@ -193,7 +193,7 @@ const InvoicesPage = () => {
                       <span className="text-[hsl(220,10%,45%)] text-xs">{fmtDate(inv.created_at)}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <Link to={`/admin/invoices/${inv.id}`}>
+                      <Link to={`/core/invoices/${inv.id}`}>
                         <button className="flex items-center gap-1 rounded border border-[hsl(220,15%,20%)] bg-[hsl(220,20%,14%)] px-2 py-1 text-[11px] text-[hsl(220,10%,55%)] hover:text-white transition-colors">
                           <Eye className="h-3 w-3" /> Voir
                         </button>
