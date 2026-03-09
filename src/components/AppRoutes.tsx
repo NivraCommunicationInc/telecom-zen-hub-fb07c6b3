@@ -350,7 +350,10 @@ const AppRoutes = () => {
         {/* Field Sales Admin - Redirect to POS */}
         <Route path="field-sales" element={<Navigate to="/admin/pos" replace />} />
         <Route path="pos" element={<AdminPOS />} />
-        <Route path="payments" element={<AdminPayments />} />
+        <Route path="payments" element={<AdminPaymentsV2 />} />
+        <Route path="payments/legacy" element={<AdminPayments />} />
+        <Route path="invoices" element={<AdminInvoices />} />
+        <Route path="invoices/:invoiceId" element={<AdminInvoiceDetail />} />
 
         {/* Identity Verification Admin */}
         <Route path="identity-verification" element={<AdminIdentityVerification />} />
