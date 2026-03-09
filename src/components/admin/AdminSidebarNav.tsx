@@ -48,8 +48,8 @@ const navGroups: NavGroup[] = [
     label: "Opérations",
     icon: ShoppingCart,
     items: [
+      { icon: Activity, label: "File de travail", href: "/admin/work-queue" },
       { icon: Package, label: "Commandes", href: "/admin/orders" },
-      { icon: Activity, label: "Queues", href: "/admin/queues" },
       { icon: ShoppingCart, label: "POS", href: "/admin/pos" },
       { icon: Shield, label: "KYC", href: "/admin/kyc-verifications" },
       { icon: Calendar, label: "Rendez-vous", href: "/admin/appointments" },
