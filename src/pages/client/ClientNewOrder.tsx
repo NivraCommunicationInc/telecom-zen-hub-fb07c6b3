@@ -2510,7 +2510,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             client_phone: checkoutPhone || profile?.phone,
             order_number: orderData.order_number,
             services: servicesForEmail,
-            monthly_total_tax_in: lockedUiTotals?.monthlyRecurringWithTax ?? monthlyTotalWithTax,
+            monthly_total_tax_in: monthlyTotalWithTax,
             one_time_total: oneTimeFees,
             delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
             payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
