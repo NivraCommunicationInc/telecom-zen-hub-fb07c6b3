@@ -28,7 +28,8 @@ const fmtDate = (d: string | null) => {
 };
 
 const PaymentsPage = () => {
-  const { data: payments = [], isLoading, refetch } = useAdminPayments();
+  const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
+  const { data: payments = [], isLoading, refetch } = useAdminPayments(envFilter);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
