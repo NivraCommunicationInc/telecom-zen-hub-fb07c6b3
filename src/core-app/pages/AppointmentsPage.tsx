@@ -269,7 +269,7 @@ const AppointmentsPage = () => {
 
                     {/* Status */}
                     <td className="px-3 py-2.5">
-                      <StatusBadge status={statusLabel(apt.status || "scheduled")} variant={statusToVariant(apt.status || "scheduled")} />
+                      <StatusBadge label={statusLabel(apt.status || "scheduled")} variant={statusToVariant(apt.status || "scheduled")} />
                     </td>
 
                     {/* Actions */}
