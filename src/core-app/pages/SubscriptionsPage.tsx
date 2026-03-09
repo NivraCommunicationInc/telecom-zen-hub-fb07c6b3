@@ -26,6 +26,7 @@ const fmtDate = (d: string | null) => {
 
 const SubscriptionsPage = () => {
   const { data: subs = [], isLoading, refetch } = useAdminSubscriptions();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
