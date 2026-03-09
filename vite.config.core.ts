@@ -12,6 +12,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 export default defineConfig({
+  publicDir: path.resolve(__dirname, "src/core-app/public"),
   build: {
     outDir: "dist-core",
     emptyOutDir: true,
@@ -24,9 +25,5 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },
-  define: {
-    // When built standalone, Core routes from root /core
-    // Override with VITE_CORE_BASE_PATH="" to use / as base
   },
 });
