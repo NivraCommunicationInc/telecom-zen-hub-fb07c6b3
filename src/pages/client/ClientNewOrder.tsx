@@ -2879,6 +2879,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   // === LIVE PRICING: call server-side computeCheckoutPricing RPC ===
   useEffect(() => {
+    // Freeze live pricing while the order is being submitted to prevent any late refresh
+    // from changing the UI totals mid-confirmation.
+    if (createOrderMutation.isPending || submittingRef.current) {
+      if (serverPricingTimerRef.current) {
+        clearTimeout(serverPricingTimerRef.current);
+        serverPricingTimerRef.current = null;
+      }
+      return;
+    }
+
     if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       setLiveServerPricing(null);
       return;
@@ -2941,6 +2951,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     terminalFee, routerFee, simFee,
     acceptPreauthorized, appliedPromo?.code,
     profile?.email, user?.email, user?.id,
+    createOrderMutation.isPending,
   ]);
 
   // Canadian provinces for ID
