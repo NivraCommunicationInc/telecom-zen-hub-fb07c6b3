@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   FileText, User, Calendar, CreditCard, Package, ArrowLeft, Loader2, Download, Hash, Mail, Phone, Receipt,
 } from "lucide-react";
+import type { PDFGenerationResult } from "@/lib/pdf/types";
 import { useAdminInvoiceDetail } from "@/hooks/admin/useAdminInvoiceDetail";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
