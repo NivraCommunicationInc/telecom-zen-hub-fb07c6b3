@@ -271,7 +271,7 @@ async function processRenewals(
 
       if (invErr) throw invErr;
 
-      // Create invoice lines — one per active service
+      // Create invoice lines — one per active service, always set line_type
       if (hasServices) {
         const lines = subServices.map((svc) => ({
           invoice_id: invoice.id,
@@ -279,6 +279,7 @@ async function processRenewals(
           unit_price: Number(svc.unit_price),
           quantity: svc.quantity || 1,
           line_total: Number(svc.unit_price) * (svc.quantity || 1),
+          line_type: 'service' as const,
         }));
         await supabase.from("billing_invoice_lines").insert(lines);
       } else {
@@ -288,6 +289,7 @@ async function processRenewals(
           unit_price: sub.plan_price,
           quantity: 1,
           line_total: sub.plan_price,
+          line_type: 'service',
         });
       }
 
