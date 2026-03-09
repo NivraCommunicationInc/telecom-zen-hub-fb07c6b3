@@ -2814,22 +2814,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   ]);
 
   // === UNIFIED CHECKOUT PRICING — SINGLE AUTHORITATIVE OBJECT ===
-  const authoritativePricing = nivraCoreOrderPricing
-    ? {
-        subtotal: Number(nivraCoreOrderPricing.subtotal ?? 0),
-        gst: Number(nivraCoreOrderPricing.gst ?? 0),
-        qst: Number(nivraCoreOrderPricing.qst ?? 0),
-        total: Number(nivraCoreOrderPricing.total ?? 0),
-        orderNumber: nivraCoreOrderPricing.order_number ?? undefined,
-        invoiceNumber: nivraCoreOrderPricing.invoice_number ?? undefined,
-        paymentNumber: nivraCoreOrderPricing.payment_number ?? undefined,
-      }
-    : liveServerPricing
+  // CRITICAL: liveServerPricing (from compute_checkout_pricing RPC) is the SOLE authority
+  // for pricing display. nivraCoreOrderPricing (from Nivra API) is ONLY used for
+  // order/invoice/payment reference numbers — NEVER for amounts, because the Nivra API
+  // returns gross totals that don't reflect discounts applied by the RPC.
+  const authoritativePricing = liveServerPricing
     ? {
         subtotal: Number(liveServerPricing.taxable_base ?? 0),
         gst: Number(liveServerPricing.tps_amount ?? 0),
         qst: Number(liveServerPricing.tvq_amount ?? 0),
         total: Number(liveServerPricing.grand_total ?? 0),
+        // Reference numbers come from Nivra Core response (if available)
+        orderNumber: nivraCoreOrderPricing?.order_number ?? undefined,
+        invoiceNumber: nivraCoreOrderPricing?.invoice_number ?? undefined,
+        paymentNumber: nivraCoreOrderPricing?.payment_number ?? undefined,
       }
     : {
         subtotal: 0,
