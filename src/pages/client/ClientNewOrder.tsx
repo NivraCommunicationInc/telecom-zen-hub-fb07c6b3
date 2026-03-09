@@ -5435,8 +5435,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     
-                    {/* Show all applicable discounts */}
-                    {welcomeDiscountAmount > 0 && (
+                    {/* Show all applicable discounts — SERVER-SIDE values only */}
+                    {(liveServerPricing?.welcome_applied || welcomeDiscountAmount > 0) && (
                       <div className="flex justify-between text-emerald-500 font-medium">
                         <span>Rabais nouveau client (50%)</span>
                         <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
