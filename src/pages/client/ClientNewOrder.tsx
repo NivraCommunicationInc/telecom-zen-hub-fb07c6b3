@@ -2748,22 +2748,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
   const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
   
-  // ⚠️ ARCHITECTURAL DEBT: Welcome discount (50%) is computed CLIENT-SIDE.
-  // TODO: Move this logic to compute_checkout_pricing RPC for security + consistency.
-  // Current implementation: hook checks orders table to determine new customer status,
-  // then applies 50% to monthlyRecurring locally. This bypasses server pricing authority.
-  const welcomeDiscountAmount = welcomeDiscountHook.getDiscountAmount(monthlyRecurring);
+  // Welcome discount is now computed 100% SERVER-SIDE by compute_checkout_pricing RPC.
+  // liveServerPricing.welcome_discount contains the authoritative value.
+  // No client-side calculation — display only from server response.
+  const welcomeDiscountAmount = liveServerPricing?.welcome_discount ?? 0;
   
   const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
   // Cap discount to never exceed the cart total (prevents negative amounts)
   const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
   
-  // Total discount = promo + welcome (capped to gross total)
-  const totalDiscount = Math.min(round2(promoDiscount + welcomeDiscountAmount), grossTotal);
+  // Total discount now comes from server (includes promo + welcome, no stacking)
+  const totalDiscount = liveServerPricing?.discount_total ?? Math.min(round2(promoDiscount), grossTotal);
 
   // Enforce min_payable_cents from promo: discount cannot reduce below minimum
-  const minPayableDollars = 0; // Will be enforced server-side; client cap is defense-in-depth
+  const minPayableDollars = 0; // Enforced server-side; client cap is defense-in-depth
   const effectiveTotalDiscount = minPayableDollars > 0 
     ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
     : totalDiscount;
