@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+// Deno.serve is built-in, no import needed
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "../_shared/ResendProxy.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -317,7 +317,7 @@ const generatePasswordResetEmail = (resetLink: string, supportEmail: string): st
 </html>`.trim();
 };
 
-serve(async (req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
   const preflight = handleCorsPreflightRequest(req);
   if (preflight) return preflight;
 
