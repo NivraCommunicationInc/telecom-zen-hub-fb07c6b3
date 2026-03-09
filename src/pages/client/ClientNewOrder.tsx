@@ -2515,7 +2515,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
           summary: `Nouvelle commande: ${servicesDesc}`,
           details: {
             "Services": servicesDesc,
-            "Total": `$${totalAmount.toFixed(2)}`,
+            "Total": `$${(authoritativePricing?.total ?? 0).toFixed(2)}`,
             "Méthode paiement": paymentMethod === "paypal" ? "PayPal" : paymentMethod === "etransfer" ? "Virement Interac" : paymentMethod === "credit_card" ? "Carte de crédit" : paymentMethod || "Non spécifié",
           },
           priority: "normal",
