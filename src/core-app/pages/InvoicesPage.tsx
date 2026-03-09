@@ -142,7 +142,10 @@ const InvoicesPage = () => {
               ) : (
                 filtered.map((inv) => (
                   <tr key={inv.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors">
-                    <td className="px-3 py-2.5"><span className="font-mono font-medium text-white">{inv.invoice_number}</span></td>
+                    <td className="px-3 py-2.5">
+                      <span className="font-mono font-medium text-white">{inv.invoice_number}</span>
+                      {inv.environment === 'test' && <span className="ml-1.5"><TestBadge /></span>}
+                    </td>
                     <td className="px-3 py-2.5"><span className="font-mono text-[hsl(220,10%,50%)]">{inv.account_number || "—"}</span></td>
                     <td className="px-3 py-2.5">
                       <div className="max-w-[160px]">
