@@ -36,14 +36,16 @@ interface ServiceItem {
 }
 
 /**
- * BILLING TOTALS - Source of Truth from Checkout Snapshot (v2.2)
- * These values come directly from the client's checkout and MUST be used as-is
- * to ensure PDF invoices match exactly what the client saw.
+ * BILLING TOTALS - Source of Truth from Server-Side compute_checkout_pricing RPC (v2.3)
+ * These values come from the server-side RPC and MUST be used as-is.
+ * 
+ * ⚠️ SECURITY: welcome_discount_amount is IGNORED from client payload.
+ * Welcome discount is RE-COMPUTED server-side to prevent manipulation.
  */
 interface BillingTotals {
   subtotal: number;           // Gross subtotal before taxes and discounts
-  discount_amount: number;    // Applied promo/preauth discount
-  welcome_discount_amount?: number; // Welcome discount for new customers (50% on services)
+  discount_amount: number;    // Applied promo discount (NOT welcome discount)
+  welcome_discount_amount?: number; // ⚠️ IGNORED — re-computed server-side for security
   base_amount: number;        // Taxable amount (subtotal - discount)
   tps_amount: number;         // TPS (5%)
   tvq_amount: number;         // TVQ (9.975%)
