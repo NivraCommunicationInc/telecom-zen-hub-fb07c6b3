@@ -5787,7 +5787,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             Réf. PayPal: <span className="font-mono font-bold text-foreground">{paypalCaptureId}</span>
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Montant: <span className="font-bold text-emerald-500">{totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                            Montant: <span className="font-bold text-emerald-500">{(authoritativePricing?.total ?? 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                           </p>
                           <p className="text-xs text-emerald-600 mt-1">
                             ✓ Votre paiement a été capturé. Vous pouvez soumettre votre commande.
