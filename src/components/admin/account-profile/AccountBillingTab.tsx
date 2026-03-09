@@ -17,7 +17,6 @@ import { CreditCard, FileText, Receipt, Calendar, DollarSign, Download, Eye, Plu
 import { format, addMonths, setDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
-import { fr } from "date-fns/locale";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
