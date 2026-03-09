@@ -154,7 +154,7 @@ const DashboardPage = () => {
               ) : unpaidList.map((inv) => (
                 <tr key={inv.id} className="border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)]">
                   <td className="px-3 py-2">
-                    <Link to={`/core/invoices/${inv.id}`} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
+                    <Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-white hover:text-blue-400">{inv.invoice_number}</Link>
                   </td>
                   <td className="px-3 py-2 text-white truncate max-w-[120px]">{inv.customer_name || "—"}</td>
                   <td className="px-3 py-2 tabular-nums text-red-400 font-medium font-mono">{fmtCAD(inv.balance_due)}</td>
