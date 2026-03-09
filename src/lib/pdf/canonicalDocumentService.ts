@@ -246,9 +246,10 @@ export function buildCanonicalInvoiceData(data: CanonicalDocumentData): InvoiceD
   const paymentMethod = resolvePaymentMethod(order, billingPayments);
   const clientName = buildClientName(order, profile);
 
-  const structured = breakdown
-    ? structureFromBreakdown(breakdown, order)
-    : fallbackStructure(order, billingInvoice, billingInvoiceLines || [], billingPayments);
+  if (!breakdown) {
+    throw new Error("[CanonicalDocService] ⛔ compute_invoice_breakdown RPC requis. Génération bloquée.");
+  }
+  const structured = structureFromBreakdown(breakdown, order);
 
   const invoiceStatus = breakdown?.status || billingInvoice?.status ||
     (["captured", "paid", "confirmed"].includes(order.payment_status) ? "paid" : "unpaid");
