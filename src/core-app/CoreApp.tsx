@@ -6,6 +6,7 @@ import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
+import { CORE_BASE, corePath } from "@/core-app/lib/corePaths";
 import { Terminal } from "lucide-react";
 
 // Core pages (lazy-loaded)
