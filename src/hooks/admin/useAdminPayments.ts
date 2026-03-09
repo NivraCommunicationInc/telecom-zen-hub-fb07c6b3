@@ -1,0 +1,77 @@
+/**
+ * useAdminPayments — Fetches billing_payments with payment_number as primary ID
+ * Joins invoice + customer for full context.
+ * All amounts are authoritative DB values.
+ */
+import { useQuery } from "@tanstack/react-query";
+import { adminClient as supabase } from "@/integrations/backend";
+
+export interface AdminPayment {
+  id: string;
+  payment_number: string;
+  amount: number;
+  method: string;
+  status: string | null;
+  reference: string | null;
+  provider: string | null;
+  provider_payment_id: string | null;
+  source: string | null;
+  received_at: string | null;
+  created_at: string | null;
+  confirmed_by: string | null;
+  legacy_note: string | null;
+  created_by_name: string | null;
+  // Joined invoice
+  invoice_id: string;
+  invoice_number: string | null;
+  // Joined customer
+  customer_id: string;
+  customer_name: string | null;
+  customer_email: string | null;
+  // Account (from invoice snapshot)
+  account_number: string | null;
+}
+
+export function useAdminPayments() {
+  return useQuery<AdminPayment[]>({
+    queryKey: ["admin-payments-v2"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_payments")
+        .select(`
+          id, payment_number, amount, method, status, reference, provider,
+          provider_payment_id, source, received_at, created_at, confirmed_by,
+          legacy_note, created_by_name, invoice_id, customer_id,
+          invoice:billing_invoices(invoice_number, billing_snapshot_account_number),
+          customer:billing_customers(id, first_name, last_name, email)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      if (!data) return [];
+
+      return data.map((p: any): AdminPayment => ({
+        id: p.id,
+        payment_number: p.payment_number,
+        amount: p.amount,
+        method: p.method,
+        status: p.status,
+        reference: p.reference,
+        provider: p.provider,
+        provider_payment_id: p.provider_payment_id,
+        source: p.source,
+        received_at: p.received_at,
+        created_at: p.created_at,
+        confirmed_by: p.confirmed_by,
+        legacy_note: p.legacy_note,
+        created_by_name: p.created_by_name,
+        invoice_id: p.invoice_id,
+        invoice_number: p.invoice?.invoice_number ?? null,
+        customer_id: p.customer?.id ?? p.customer_id,
+        customer_name: p.customer ? `${p.customer.first_name} ${p.customer.last_name}`.trim() : null,
+        customer_email: p.customer?.email ?? null,
+        account_number: p.invoice?.billing_snapshot_account_number ?? null,
+      }));
+    },
+  });
+}
