@@ -3,7 +3,8 @@
  * Dark ops-grade layout with sidebar navigation, header bar, and routed content area.
  */
 import { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard,
   ListTodo,
@@ -13,6 +14,7 @@ import {
   CreditCard,
   RefreshCcw,
   Calendar,
+  LogOut,
   ChevronLeft,
   ChevronRight,
   Terminal,
@@ -32,7 +34,13 @@ const NAV_SECTIONS = [
 
 const CoreAppLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/core/login", { replace: true });
+  };
 
   const isActive = (href: string) => {
     if (href === "/core") return location.pathname === "/core";
@@ -107,6 +115,13 @@ const CoreAppLayout = () => {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Core Online
             </span>
+            <button
+              onClick={handleLogout}
+              title="Déconnexion"
+              className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </header>
 
