@@ -1,0 +1,83 @@
+/**
+ * Core Dark Processing Wrapper
+ * Overrides the white-themed order processing workspace components
+ * to match Nivra Core's dark ops-grade aesthetic.
+ * Scoped under .core-dark-processing to avoid leaking.
+ */
+
+.core-dark-processing {
+  /* ─── Base surfaces ─── */
+  & .bg-white { background-color: hsl(220, 20%, 11%) !important; }
+  & .bg-gray-50 { background-color: hsl(220, 20%, 13%) !important; }
+  & .bg-gray-100 { background-color: hsl(220, 15%, 14%) !important; }
+  
+  /* ─── Borders ─── */
+  & .border-gray-200,
+  & .border-gray-300 { border-color: hsl(220, 15%, 18%) !important; }
+  & .border-gray-100 { border-color: hsl(220, 15%, 14%) !important; }
+
+  /* ─── Text ─── */
+  & .text-gray-900 { color: hsl(220, 10%, 92%) !important; }
+  & .text-gray-800 { color: hsl(220, 10%, 85%) !important; }
+  & .text-gray-700 { color: hsl(220, 10%, 70%) !important; }
+  & .text-gray-600 { color: hsl(220, 10%, 60%) !important; }
+  & .text-gray-500 { color: hsl(220, 10%, 50%) !important; }
+  & .text-gray-400 { color: hsl(220, 10%, 40%) !important; }
+
+  /* ─── Hover states ─── */
+  & .hover\:bg-gray-50:hover { background-color: hsl(220, 15%, 16%) !important; }
+  & .hover\:bg-gray-100:hover { background-color: hsl(220, 15%, 18%) !important; }
+
+  /* ─── Active step (dark nav) — already dark bg, but ensure text contrast ─── */
+  & .bg-gray-900 { background-color: hsl(220, 20%, 18%) !important; }
+  & .hover\:bg-gray-800:hover { background-color: hsl(220, 20%, 22%) !important; }
+
+  /* ─── Emerald accents (keep as-is, they work on dark) ─── */
+  & .bg-emerald-50 { background-color: hsl(160, 40%, 12%) !important; }
+  & .border-emerald-100 { border-color: hsl(160, 40%, 18%) !important; }
+  & .text-emerald-800 { color: hsl(160, 60%, 65%) !important; }
+
+  /* ─── Red accents ─── */
+  & .bg-red-50 { background-color: hsl(0, 40%, 12%) !important; }
+  & .border-red-200 { border-color: hsl(0, 40%, 20%) !important; }
+  & .text-red-600 { color: hsl(0, 70%, 65%) !important; }
+
+  /* ─── Amber accents ─── */
+  & .bg-amber-50 { background-color: hsl(40, 40%, 12%) !important; }
+  & .border-amber-200 { border-color: hsl(40, 40%, 20%) !important; }
+
+  /* ─── Buttons with explicit bg-gray-900 / text-white (action buttons) ─── */
+  & button.bg-gray-900,
+  & .bg-gray-900.text-white { 
+    background-color: hsl(152, 60%, 35%) !important; 
+    color: white !important;
+  }
+  & button.bg-gray-900:hover,
+  & .hover\:bg-gray-800.text-white:hover { 
+    background-color: hsl(152, 60%, 40%) !important; 
+  }
+
+  /* ─── Dialog / Modal overrides ─── */
+  & [role="dialog"] .bg-white,
+  & [data-radix-dialog-content] { 
+    background-color: hsl(220, 20%, 13%) !important; 
+    border-color: hsl(220, 15%, 20%) !important;
+  }
+
+  /* ─── Input / Textarea ─── */
+  & input, & textarea, & select,
+  & [role="combobox"] {
+    background-color: hsl(220, 20%, 10%) !important;
+    border-color: hsl(220, 15%, 22%) !important;
+    color: hsl(220, 10%, 90%) !important;
+  }
+
+  /* ─── Cards with border-2 (fulfillment options etc.) ─── */
+  & .border-2.border-gray-200 { border-color: hsl(220, 15%, 22%) !important; }
+  & .border-2.border-gray-900 { border-color: hsl(152, 60%, 40%) !important; }
+
+  /* ─── Badge overrides ─── */
+  & [data-slot="badge"] {
+    border-color: hsl(220, 15%, 25%) !important;
+  }
+}

@@ -192,6 +192,7 @@ const INVALIDATION_KEYS = [
   "admin-orders",
   "admin-order-detail",
   "admin-order-overview",
+  "core-order-detail",
   "client-orders",
   "client-invoices",
   "client-invoice-breakdowns",
