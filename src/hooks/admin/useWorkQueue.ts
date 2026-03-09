@@ -40,7 +40,7 @@ export interface AppointmentQueueItem {
 async function fetchQueueOrders(statuses: string[], limit: number): Promise<WorkQueueItem[]> {
   const { data: orders, error } = await supabase
     .from("orders")
-    .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at")
+    .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at, failure_reason")
     .in("status", statuses)
     .order("created_at", { ascending: true })
     .limit(limit);
