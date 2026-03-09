@@ -42,6 +42,7 @@ async function fetchQueueOrders(statuses: string[], limit: number): Promise<Work
     .from("orders")
     .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at, failure_reason")
     .in("status", statuses)
+    .eq("environment", "live")
     .order("created_at", { ascending: true })
     .limit(limit);
   if (error) throw error;
