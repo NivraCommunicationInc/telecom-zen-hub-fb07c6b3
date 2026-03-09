@@ -3,7 +3,8 @@
  * Dark ops-grade layout with sidebar navigation, header bar, and routed content area.
  */
 import { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard,
   ListTodo,
