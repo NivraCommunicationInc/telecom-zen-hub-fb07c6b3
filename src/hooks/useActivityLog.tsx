@@ -1,5 +1,5 @@
 import { backendClient } from "@/integrations/backend/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useOptionalAuth } from "@/hooks/useAuth";
 
 interface ActivityLogOptions {
   changedField?: string;
