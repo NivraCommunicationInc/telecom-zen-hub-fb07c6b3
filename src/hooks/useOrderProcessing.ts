@@ -10,6 +10,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { toast } from "sonner";
 
+/** Map order payment_method values to valid billing_payment_method enum values */
+function mapToBillingMethod(method?: string | null): "interac" | "manual" | "paypal" {
+  if (!method) return "interac";
+  const m = method.toLowerCase();
+  if (m === "paypal") return "paypal";
+  if (m === "manual") return "manual";
+  return "interac";
+}
+
 /* ─── Types ─── */
 export type WorkflowStepId =
   | "client_info"
@@ -511,7 +520,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       const { data: rpcResult, error } = await supabase.rpc("apply_payment_to_invoice" as any, {
         p_invoice_id: targetInvoice.id,
         p_amount: amountToApply,
-        p_method: data?.order?.payment_method || "interac",
+        p_method: mapToBillingMethod(data?.order?.payment_method),
         p_provider: "admin_manual_confirmation",
         p_provider_payment_id: reference || `admin-${Date.now()}`,
         p_source: "admin",
