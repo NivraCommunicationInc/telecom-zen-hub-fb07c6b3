@@ -9,7 +9,7 @@ interface ActivityLogOptions {
 }
 
 export const useActivityLog = () => {
-  const { user, role } = useAuth();
+  const { user, role } = useOptionalAuth();
 
   const logActivity = async (
     action: string,
