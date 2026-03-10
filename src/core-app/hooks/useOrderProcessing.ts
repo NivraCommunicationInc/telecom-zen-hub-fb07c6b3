@@ -827,6 +827,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     markPaymentInvalid,
     markPaymentPartial,
     setFulfillmentType,
+    updateFulfillmentDetails,
     assignEquipment,
     updateShipping,
     assignTechnician,
