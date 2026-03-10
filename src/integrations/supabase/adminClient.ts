@@ -1,28 +1,55 @@
-// Dedicated Supabase client for ADMIN PORTAL only.
-// Uses a distinct auth storage key so admin and employee sessions cannot cross-pollinate.
+// Nivra API admin client
 
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "./types";
+const API_BASE_URL = "https://nivra-api.proud-band-c162.workers.dev";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+type RequestOptions = {
+  method?: string;
+  body?: any;
+  headers?: Record<string, string>;
+};
 
-// CRITICAL: Different storage key than employee (sb-{PROJECT_ID}-employee-auth-token) and client portal (portal-auth-token)
-const ADMIN_STORAGE_KEY = `sb-${PROJECT_ID}-staff-auth-token`;
-
-export const adminClient = createClient<Database>(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY,
-  {
-    auth: {
-      storageKey: ADMIN_STORAGE_KEY,
-      storage: localStorage,
-      persistSession: true,
-      autoRefreshToken: true,
+async function request(endpoint: string, options: RequestOptions = {}) {
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
     },
-  }
-);
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
 
-// Alias for backward compatibility during migration
+  const text = await res.text();
+
+  if (!res.ok) {
+    throw new Error(text || "API request failed");
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+export const adminClient = {
+  get: (endpoint: string) => request(endpoint),
+
+  post: (endpoint: string, body: any) =>
+    request(endpoint, {
+      method: "POST",
+      body,
+    }),
+
+  put: (endpoint: string, body: any) =>
+    request(endpoint, {
+      method: "PUT",
+      body,
+    }),
+
+  delete: (endpoint: string) =>
+    request(endpoint, {
+      method: "DELETE",
+    }),
+};
+
 export const adminSupabase = adminClient;
