@@ -1,4 +1,4 @@
-// Nivra API client (replaces Supabase)
+// Nivra API client (compatibility layer)
 
 const API_BASE_URL = "https://nivra-api.proud-band-c162.workers.dev";
 
@@ -13,36 +13,44 @@ async function request(endpoint: string, options: RequestOptions = {}) {
     method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
-      ...(options.headers || {})
+      ...(options.headers || {}),
     },
-    body: options.body ? JSON.stringify(options.body) : undefined
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
+  const text = await res.text();
+
   if (!res.ok) {
-    const text = await res.text();
     throw new Error(text || "API request failed");
   }
 
-  return res.json();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
-export const api = {
+export const nivraClient = {
   get: (endpoint: string) => request(endpoint),
 
   post: (endpoint: string, body: any) =>
     request(endpoint, {
       method: "POST",
-      body
+      body,
     }),
 
   put: (endpoint: string, body: any) =>
     request(endpoint, {
       method: "PUT",
-      body
+      body,
     }),
 
   delete: (endpoint: string) =>
     request(endpoint, {
-      method: "DELETE"
-    })
+      method: "DELETE",
+    }),
 };
+
+// IMPORTANT: alias for legacy code still importing "supabase"
+export const supabase = nivraClient;
