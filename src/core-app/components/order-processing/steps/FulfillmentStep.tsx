@@ -307,9 +307,9 @@ export function FulfillmentStep({ proc }: Props) {
 
       {/* ── Status summary ── */}
       {current && (
-        <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg dark:bg-emerald-950/20 dark:border-emerald-900/30">
-          <p className="text-sm text-emerald-800 dark:text-emerald-300">
-            <CheckCircle2 className="w-4 h-4 inline mr-1" />
+        <div className="mt-4 p-3 bg-accent/50 border border-border rounded-lg">
+          <p className="text-sm text-foreground">
+            <CheckCircle2 className="w-4 h-4 inline mr-1 text-primary" />
             Mode sélectionné: <span className="font-semibold">{FULFILLMENT_OPTIONS.find(o => o.value === current)?.label || current}</span>
           </p>
         </div>
