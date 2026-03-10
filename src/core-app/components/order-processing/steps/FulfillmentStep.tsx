@@ -285,7 +285,7 @@ export function FulfillmentStep({ proc }: Props) {
                 <p className={cn("text-sm font-medium", isSelected ? "text-foreground" : "text-muted-foreground")}>{opt.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
               </div>
-              {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-600 ml-auto mt-0.5" />}
+              {isSelected && <CheckCircle2 className="w-4 h-4 text-primary ml-auto mt-0.5" />}
             </button>
           );
         })}
