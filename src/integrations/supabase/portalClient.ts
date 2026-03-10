@@ -1,6 +1,6 @@
 // Nivra API portal client
 
-const API_BASE_URL = "https://nivra-api.proud-band-c162.workers.dev";
+const API_BASE_URL = "https://telecom-zen-hub-b5f9c7c4.proud-band-c162.workers.dev";
 
 type RequestOptions = {
   method?: string;
