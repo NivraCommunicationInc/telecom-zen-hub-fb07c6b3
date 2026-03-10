@@ -318,13 +318,23 @@ export function useOrderProcessing(orderId: string | undefined) {
         .eq("order_id", orderId!)
         .maybeSingle();
 
-      // Fetch KYC session if linked
+      // Fetch KYC session: try by session ID first, then by order_id
       let kycSession = null;
       if (order.identity_verification_session_id) {
         const { data } = await supabase
           .from("identity_verification_sessions")
           .select("*")
           .eq("id", order.identity_verification_session_id)
+          .maybeSingle();
+        kycSession = data;
+      }
+      if (!kycSession) {
+        const { data } = await supabase
+          .from("identity_verification_sessions")
+          .select("*")
+          .eq("order_id", orderId!)
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
         kycSession = data;
       }
