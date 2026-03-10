@@ -1,5 +1,5 @@
 import { backendClient } from "@/integrations/backend/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useOptionalAuth } from "@/hooks/useAuth";
 
 interface ActivityLogOptions {
   changedField?: string;
@@ -9,7 +9,7 @@ interface ActivityLogOptions {
 }
 
 export const useActivityLog = () => {
-  const { user, role } = useAuth();
+  const { user, role } = useOptionalAuth();
 
   const logActivity = async (
     action: string,
