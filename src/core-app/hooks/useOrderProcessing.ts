@@ -246,7 +246,7 @@ async function queueClientEmail(params: {
 /* ─── Main hook ─── */
 export function useOrderProcessing(orderId: string | undefined) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user } = useOptionalAuth();
   const { logActivity } = useActivityLog();
   const [activeStep, setActiveStep] = useState<WorkflowStepId>("client_info");
 
