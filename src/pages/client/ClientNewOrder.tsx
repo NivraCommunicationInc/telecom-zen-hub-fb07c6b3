@@ -2047,14 +2047,28 @@ const ClientNewOrder = () => {
 
       // Post-order steps: payment, billing, tickets, appointments
       // These are wrapped in try-catch so that order success is not blocked by post-step failures
-      let nivraPaymentRef = '';
+      // ★ Use Nivra Core payment reference (not locally generated)
+      let nivraPaymentRef = nivraOrderResponse.payment_number || '';
       const postStepErrors: string[] = [];
 
+      // ★ Update account billing_cycle_day to match order creation day (Nivra Core source of truth)
       try {
-        // Generate NIVRA payment reference
-        const year = new Date().getFullYear();
-        const random = Math.floor(10000 + Math.random() * 90000);
-        nivraPaymentRef = `NIVRA-PAY-QC-${year}-${random}`;
+        const orderDay = new Date().getDate();
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("client_id", user.id)
+          .maybeSingle();
+        if (accountData) {
+          await supabase
+            .from("accounts")
+            .update({ billing_cycle_day: orderDay })
+            .eq("id", accountData.id);
+          console.log("[BillingCycle] Account billing_cycle_day set to:", orderDay);
+        }
+      } catch (cyclErr) {
+        console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
+      }
 
         // Create payment record with correct status based on method
         const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
