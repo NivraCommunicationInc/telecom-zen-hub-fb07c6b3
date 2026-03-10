@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface Props { proc: any; }
 
-const DOC_BUCKET = "identity-documents";
+const DOC_BUCKET = "id-documents";
 
 export function KycStep({ proc }: Props) {
   const { order, kycSession } = proc;
