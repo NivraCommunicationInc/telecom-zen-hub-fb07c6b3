@@ -86,7 +86,8 @@ function Row({ label, value, mono, accent }: { label: string; value?: string | n
 }
 
 export function CoreOrderFilePanel({ proc }: Props) {
-  const { order, invoice, appointment, items, profile, account, contract, kycSession } = proc;
+  const { order, invoice, appointment, items, profile, account, contracts, kycSession } = proc;
+  const contract = contracts?.[0] || null;
 
   // Financial calculations from invoice (source of truth)
   const total = invoice?.total ?? order.total_amount;
