@@ -44,10 +44,8 @@ const queryClient = new QueryClient({
 
 const CoreLoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,8%)]">
-    <div className="flex flex-col items-center gap-4">
-      <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center">
-        <Terminal className="h-5 w-5 text-white animate-pulse" />
-      </div>
+    <div className="flex flex-col items-center gap-3">
+      <p className="text-xl font-semibold text-white tracking-tight">Nivra Telecom</p>
       <p className="text-sm text-[hsl(220,10%,50%)]">Chargement…</p>
     </div>
   </div>
