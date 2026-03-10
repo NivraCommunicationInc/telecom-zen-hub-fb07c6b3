@@ -48,7 +48,7 @@ const CoreLoadingFallback = () => (
       <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center">
         <Terminal className="h-5 w-5 text-white animate-pulse" />
       </div>
-      <p className="text-sm text-[hsl(220,10%,50%)]">Chargement de Nivra Core…</p>
+      <p className="text-sm text-[hsl(220,10%,50%)]">Chargement…</p>
     </div>
   </div>
 );
