@@ -1,6 +1,6 @@
 // Nivra API client (compatibility layer)
 
-const API_BASE_URL = "https://nivra-api.proud-band-c162.workers.dev";
+const API_BASE_URL = "https://nivra-api.proud-band-c162.workers.dev/";
 
 type RequestOptions = {
   method?: string;
@@ -9,7 +9,7 @@ type RequestOptions = {
 };
 
 async function request(endpoint: string, options: RequestOptions = {}) {
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const res = await fetch(`${API_BASE_URL}${endpoint.replace(/^\/+/, "")}`, {
     method: options.method || "GET",
     headers: {
       "Content-Type": "application/json",
@@ -52,5 +52,22 @@ export const nivraClient = {
     }),
 };
 
-// IMPORTANT: alias for legacy code still importing "supabase"
-export const supabase = nivraClient;
+// Compatibility layer so old code importing "supabase" doesn't break
+export const supabase = {
+  auth: {
+    signInWithPassword: async ({ email, password }: any) => {
+      return nivraClient.post("auth/login", { email, password });
+    },
+    signOut: async () => {
+      return { data: true };
+    },
+  },
+
+  from: () => {
+    throw new Error("Database access moved to Nivra Core API.");
+  },
+
+  rpc: () => {
+    throw new Error("RPC calls moved to Nivra Core API.");
+  },
+};
