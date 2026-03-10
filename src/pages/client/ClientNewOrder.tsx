@@ -1903,14 +1903,16 @@ const ClientNewOrder = () => {
       // Nivra API response is used for order/invoice/payment numbers only.
       // CRITICAL: liveServerPricing (from compute_checkout_pricing RPC) correctly subtracts discounts
       // from taxable_base. The Nivra API may return gross totals without promo discounts.
+      // ★ NIVRA CORE IS THE SINGLE SOURCE OF TRUTH for pricing
+      // Use Nivra API response as authoritative totals. RPC is fallback only.
       const rpcPricing = liveServerPricing;
       const serverPricing = {
-        grand_total: rpcPricing ? Number(rpcPricing.grand_total) : nivraOrderResponse.total,
-        tps_amount: rpcPricing ? Number(rpcPricing.tps_amount) : nivraOrderResponse.gst,
-        tvq_amount: rpcPricing ? Number(rpcPricing.tvq_amount) : nivraOrderResponse.qst,
-        taxable_base: rpcPricing ? Number(rpcPricing.taxable_base) : nivraOrderResponse.subtotal,
-        recurring_subtotal: monthlyRecurring,
-        one_time_subtotal: oneTimeFees,
+        grand_total: nivraOrderResponse.total,
+        tps_amount: nivraOrderResponse.gst,
+        tvq_amount: nivraOrderResponse.qst,
+        taxable_base: nivraOrderResponse.subtotal,
+        recurring_subtotal: rpcPricing ? Number(rpcPricing.recurring_subtotal) : monthlyRecurring,
+        one_time_subtotal: rpcPricing ? Number(rpcPricing.one_time_subtotal) : oneTimeFees,
         discount_total_combined: rpcPricing?.discount_total_combined ?? 0,
         promo_discount: rpcPricing?.promo_discount ?? 0,
         welcome_discount: rpcPricing?.welcome_discount ?? 0,
@@ -1919,16 +1921,23 @@ const ClientNewOrder = () => {
         preauth_discount: rpcPricing?.preauth_discount ?? 0,
         promo_applied: rpcPricing?.promo_applied ?? null,
         computed_at: new Date().toISOString(),
+        // ★ Nivra Core canonical references
+        nivra_order_number: nivraOrderResponse.order_number,
+        nivra_payment_number: nivraOrderResponse.payment_number,
+        nivra_invoice_number: nivraOrderResponse.invoice_number,
+        nivra_order_id: nivraOrderResponse.order_id,
+        // Billing cycle anchored to order creation day
+        billing_cycle_day: new Date().getDate(),
         cents: {
-          recurring_subtotal: Math.round(monthlyRecurring * 100),
-          one_time_subtotal: Math.round(oneTimeFees * 100),
+          recurring_subtotal: rpcPricing ? rpcPricing.cents.recurring_subtotal : Math.round(monthlyRecurring * 100),
+          one_time_subtotal: rpcPricing ? rpcPricing.cents.one_time_subtotal : Math.round(oneTimeFees * 100),
           discount_total_combined: rpcPricing?.cents?.discount_total_combined ?? 0,
           promo_discount: rpcPricing?.cents?.promo_discount ?? 0,
           welcome_discount: rpcPricing?.cents?.welcome_discount ?? 0,
-          taxable_base: rpcPricing ? rpcPricing.cents.taxable_base : Math.round(nivraOrderResponse.subtotal * 100),
-          tps: rpcPricing ? rpcPricing.cents.tps : Math.round(nivraOrderResponse.gst * 100),
-          tvq: rpcPricing ? rpcPricing.cents.tvq : Math.round(nivraOrderResponse.qst * 100),
-          grand_total: rpcPricing ? rpcPricing.cents.grand_total : Math.round(nivraOrderResponse.total * 100),
+          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
+          tps: Math.round(nivraOrderResponse.gst * 100),
+          tvq: Math.round(nivraOrderResponse.qst * 100),
+          grand_total: Math.round(nivraOrderResponse.total * 100),
         },
       };
       console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
@@ -2038,16 +2047,30 @@ const ClientNewOrder = () => {
 
       // Post-order steps: payment, billing, tickets, appointments
       // These are wrapped in try-catch so that order success is not blocked by post-step failures
-      let nivraPaymentRef = '';
+      // ★ Use Nivra Core payment reference (not locally generated)
+      let nivraPaymentRef = nivraOrderResponse.payment_number || '';
       const postStepErrors: string[] = [];
 
+      // ★ Update account billing_cycle_day to match order creation day (Nivra Core source of truth)
       try {
-        // Generate NIVRA payment reference
-        const year = new Date().getFullYear();
-        const random = Math.floor(10000 + Math.random() * 90000);
-        nivraPaymentRef = `NIVRA-PAY-QC-${year}-${random}`;
+        const orderDay = new Date().getDate();
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("client_id", user.id)
+          .maybeSingle();
+        if (accountData) {
+          await supabase
+            .from("accounts")
+            .update({ billing_cycle_day: orderDay })
+            .eq("id", accountData.id);
+          console.log("[BillingCycle] Account billing_cycle_day set to:", orderDay);
+        }
+      } catch (cyclErr) {
+        console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
+      }
 
-        // Create payment record with correct status based on method
+      try {
         const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
         const actualPaymentMethod = paymentMethod === "paypal" ? "paypal" 
           : paymentMethod === "etransfer" ? "etransfer" 

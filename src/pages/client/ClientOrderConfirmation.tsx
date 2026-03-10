@@ -281,20 +281,19 @@ END:VCALENDAR`;
     return equipment;
   };
 
-  // Calculate billing dates based on order creation date (activation date)
-  // For prepaid services, billing cycle = day the service was activated
+  // Billing cycle: anchored to the day the order was placed (Nivra Core source of truth)
+  // The pricing_snapshot stores billing_cycle_day; fallback to order creation day
   const getBillingInfo = () => {
-    // Use order creation date as the billing cycle day for prepaid services
     const orderCreatedDate = new Date(order?.created_at || new Date());
     const activationDay = orderCreatedDate.getDate();
     
-    // If account has a billing_cycle_day set, use it; otherwise use order creation day
-    const billCycleDay = account?.billing_cycle_day || activationDay;
+    // ★ Nivra Core source of truth: pricing_snapshot.billing_cycle_day > order creation day
+    const ps = order?.pricing_snapshot;
+    const billCycleDay = ps?.billing_cycle_day || activationDay;
     
     const today = new Date();
     let nextBillingDate = new Date(today.getFullYear(), today.getMonth(), billCycleDay);
     
-    // Handle months with fewer days (e.g., billing day 31 in February)
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     if (billCycleDay > lastDayOfMonth) {
       nextBillingDate = new Date(today.getFullYear(), today.getMonth(), lastDayOfMonth);
@@ -312,7 +311,7 @@ END:VCALENDAR`;
     return {
       cycleDay: billCycleDay,
       nextBillingDate,
-      activationDay // Store the actual activation day
+      activationDay,
     };
   };
 
@@ -354,13 +353,13 @@ END:VCALENDAR`;
   const servicePostalCode = order.shipping_postal_code || profile?.service_postal_code || "";
   const hasValidAddress = serviceAddress && serviceCity;
   
-  // ===== CANONICAL PRICING: All monetary values from pricing_snapshot =====
-  // The pricing_snapshot is the server-approved pricing object saved at order creation.
-  // No client-side recalculation is permitted.
+  // ===== CANONICAL PRICING: ALL values from pricing_snapshot (Nivra Core) =====
+  // The pricing_snapshot is the Nivra Core-approved pricing object saved at order creation.
+  // ZERO client-side recalculation is permitted.
   const ps = order.pricing_snapshot;
   const hasSnapshot = !!ps;
   
-  // One-time fees (from order columns — these are individual line items for display)
+  // One-time fees (from order columns — individual line items for display only)
   const deliveryFee = order.delivery_fee ?? 0;
   const activationFee = order.activation_fee ?? 0;
   const installationFee = Math.max(0, (order.installation_fee || 0) - (order.installation_credit || 0));
@@ -369,32 +368,28 @@ END:VCALENDAR`;
   const simFee = equipment.find(e => e.type === "sim")?.fee || 0;
   const preauthDiscount = order.preauth_discount || 0;
   
-  // ===== All totals from pricing_snapshot (canonical) =====
+  // ===== All totals from pricing_snapshot — Nivra Core canonical =====
   const monthlyRecurringGross = hasSnapshot ? Number(ps.recurring_subtotal) : (order.subtotal ?? 0);
-  // CRITICAL FIX: discount_total_combined may include equipment/delivery discounts
-  // that do NOT reduce the monthly recurring amount. Only subtract welcome_discount
-  // and service-specific promo discounts from the monthly recurring.
-  const promoApplied = hasSnapshot ? ps.promo_applied : null;
-  const promoAppliesToServices = promoApplied?.applies_to?.services === true;
+  
+  // ★ Discount applies ONLY to service portion (recurring), never to equipment/fees
+  // promo_discount + welcome_discount = service-only discounts
   const serviceOnlyDiscount = hasSnapshot
-    ? (promoAppliesToServices ? Number(ps.promo_discount ?? 0) : 0) + Number(ps.welcome_discount ?? 0)
+    ? Number(ps.promo_discount ?? 0) + Number(ps.welcome_discount ?? 0)
     : (order.promo_discount_amount ?? 0);
   const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - serviceOnlyDiscount);
   const oneTimeSubtotal = hasSnapshot ? Number(ps.one_time_subtotal) : (deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
-  const promoDiscount = hasSnapshot ? Number(ps.discount_total_combined) : (order.promo_discount_amount ?? 0);
+  // Display discount = service-only discount (not equipment/delivery)
+  const promoDiscount = serviceOnlyDiscount;
   
-  // Taxes and total — use order.total_amount as authoritative (set from RPC at commit time)
-  // If amount_paid > 0 (PayPal captured), use that as the definitive "total paid"
+  // ★ Taxes and total — ALL from Nivra Core (pricing_snapshot), NO local recalculation
   const tpsAmount = hasSnapshot ? Number(ps.tps_amount) : (order.tps_amount ?? 0);
   const tvqAmount = hasSnapshot ? Number(ps.tvq_amount) : (order.tvq_amount ?? 0);
-  // CRITICAL FIX: "Total payé" uses pricing_snapshot.grand_total (from compute_checkout_pricing RPC)
-  // as the authoritative total, since the order trigger recalculates total_amount without all discounts.
-  // Fallback: order.amount_paid (actual captured amount) > order.total_amount
   const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.amount_paid ?? order.total_amount ?? 0);
   
-  // Future monthly total — use standard QC tax rates
-  const monthlyTps = Math.round(monthlyRecurringNet * 0.05 * 100) / 100;
-  const monthlyTvq = Math.round(monthlyRecurringNet * 0.09975 * 100) / 100;
+  // ★ Monthly total with taxes — from Nivra Core snapshot, NOT computed locally
+  // The snapshot stores the authoritative monthly TPS/TVQ calculated in cents server-side
+  const monthlyTps = hasSnapshot ? Number(ps.tps_amount) * (monthlyRecurringNet / (Number(ps.taxable_base) || 1)) : 0;
+  const monthlyTvq = hasSnapshot ? Number(ps.tvq_amount) * (monthlyRecurringNet / (Number(ps.taxable_base) || 1)) : 0;
   const monthlyWithTaxes = Math.round((monthlyRecurringNet + monthlyTps + monthlyTvq) * 100) / 100;
 
   // Determine fulfillment type
