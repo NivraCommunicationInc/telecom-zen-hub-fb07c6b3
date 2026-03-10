@@ -42,7 +42,7 @@ const Hero = () => {
       <div className="container mx-auto px-4 max-w-[1320px]">
         <div className="py-6 sm:py-8 lg:py-12">
           <div className="bg-gradient-to-br from-slate-50 via-blue-50/60 to-slate-100 rounded-2xl sm:rounded-3xl overflow-hidden">
-            <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-center p-6 sm:p-8 lg:p-14">
+            <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-center p-6 sm:p-8 lg:py-14 lg:px-10">
               {/* Left Content */}
               <div>
                 {/* Mobile: 22-26px, Tablet: 28-32px, Desktop: up to 44px */}
