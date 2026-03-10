@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { backendClient as supabase } from "@/integrations/backend/client";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchNivraProducts, mapProductTypeToCategory, type NivraProduct } from "@/lib/api/nivraApi";
 
 export interface PublicService {
