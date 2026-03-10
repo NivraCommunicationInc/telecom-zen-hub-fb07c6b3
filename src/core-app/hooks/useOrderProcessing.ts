@@ -636,6 +636,13 @@ export function useOrderProcessing(orderId: string | undefined) {
     toast.success(`Mode de livraison: ${type}`);
   };
 
+  /* ── Update fulfillment details (dynamic fields per type) ── */
+  const updateFulfillmentDetails = async (fields: Record<string, any>) => {
+    await updateOrder.mutateAsync(fields);
+    await logActivity("fulfillment_details_updated", "order", orderId, fields);
+    toast.success("Détails de fulfillment mis à jour");
+  };
+
   /* ── Assign equipment ── */
   const assignEquipment = async (fields: {
     sim_number?: string;
