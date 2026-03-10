@@ -281,20 +281,19 @@ END:VCALENDAR`;
     return equipment;
   };
 
-  // Calculate billing dates based on order creation date (activation date)
-  // For prepaid services, billing cycle = day the service was activated
+  // Billing cycle: anchored to the day the order was placed (Nivra Core source of truth)
+  // The pricing_snapshot stores billing_cycle_day; fallback to order creation day
   const getBillingInfo = () => {
-    // Use order creation date as the billing cycle day for prepaid services
     const orderCreatedDate = new Date(order?.created_at || new Date());
     const activationDay = orderCreatedDate.getDate();
     
-    // If account has a billing_cycle_day set, use it; otherwise use order creation day
-    const billCycleDay = account?.billing_cycle_day || activationDay;
+    // ★ Nivra Core source of truth: pricing_snapshot.billing_cycle_day > order creation day
+    const ps = order?.pricing_snapshot;
+    const billCycleDay = ps?.billing_cycle_day || activationDay;
     
     const today = new Date();
     let nextBillingDate = new Date(today.getFullYear(), today.getMonth(), billCycleDay);
     
-    // Handle months with fewer days (e.g., billing day 31 in February)
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     if (billCycleDay > lastDayOfMonth) {
       nextBillingDate = new Date(today.getFullYear(), today.getMonth(), lastDayOfMonth);
@@ -312,7 +311,7 @@ END:VCALENDAR`;
     return {
       cycleDay: billCycleDay,
       nextBillingDate,
-      activationDay // Store the actual activation day
+      activationDay,
     };
   };
 
