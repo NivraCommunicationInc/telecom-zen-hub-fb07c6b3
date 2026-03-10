@@ -2070,7 +2070,7 @@ const ClientNewOrder = () => {
         console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
       }
 
-        // Create payment record with correct status based on method
+      try {
         const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
         const actualPaymentMethod = paymentMethod === "paypal" ? "paypal" 
           : paymentMethod === "etransfer" ? "etransfer" 
