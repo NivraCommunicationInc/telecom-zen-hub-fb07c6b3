@@ -1,11 +1,16 @@
 /**
- * CoreActivityTimeline — Dark-native activity timeline
- * Replaces CSS-overridden white version with native ops-grade component
+ * CoreActivityTimeline — Enhanced dark-native activity timeline
+ * Operational event types with icons and color coding
  */
 import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Clock, Plus, User, ChevronDown, ChevronUp, Send, Loader2 } from "lucide-react";
+import {
+  Clock, Plus, ChevronDown, ChevronUp, Send, Loader2,
+  ShoppingCart, CreditCard, Shield, Wrench, Package,
+  Wifi, FileText, Truck, MessageSquare, AlertTriangle,
+  CheckCircle2, XCircle, Edit
+} from "lucide-react";
 
 interface Log {
   id: string;
@@ -22,6 +27,33 @@ interface Log {
 interface Props {
   logs: Log[];
   onAddNote: (note: string) => Promise<void>;
+}
+
+/* ─── Event type mapping ─── */
+const EVENT_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
+  order_created:        { icon: ShoppingCart,  color: "text-blue-400",    label: "Commande créée" },
+  status_change:        { icon: Edit,          color: "text-sky-400",     label: "Changement de statut" },
+  payment_confirmed:    { icon: CreditCard,    color: "text-emerald-400", label: "Paiement confirmé" },
+  payment_received:     { icon: CreditCard,    color: "text-emerald-400", label: "Paiement reçu" },
+  payment_invalidated:  { icon: XCircle,       color: "text-red-400",     label: "Paiement invalidé" },
+  payment_partial:      { icon: CreditCard,    color: "text-amber-400",   label: "Paiement partiel" },
+  payment_failed:       { icon: AlertTriangle,  color: "text-red-400",    label: "Paiement échoué" },
+  kyc_approved:         { icon: Shield,        color: "text-emerald-400", label: "KYC approuvé" },
+  kyc_rejected:         { icon: Shield,        color: "text-red-400",     label: "KYC rejeté" },
+  kyc_submitted:        { icon: Shield,        color: "text-blue-400",    label: "KYC soumis" },
+  technician_assigned:  { icon: Wrench,        color: "text-purple-400",  label: "Technicien assigné" },
+  equipment_assigned:   { icon: Package,       color: "text-cyan-400",    label: "Équipement assigné" },
+  shipment_updated:     { icon: Truck,         color: "text-orange-400",  label: "Expédition MAJ" },
+  fulfillment_assigned: { icon: Truck,         color: "text-sky-400",     label: "Fulfillment assigné" },
+  service_activated:    { icon: Wifi,          color: "text-emerald-400", label: "Service activé" },
+  contract_signed_admin:{ icon: FileText,      color: "text-emerald-400", label: "Contrat signé (admin)" },
+  notification_sent:    { icon: Send,          color: "text-blue-400",    label: "Notification envoyée" },
+  note_added:           { icon: MessageSquare, color: "text-[hsl(220,10%,55%)]", label: "Note ajoutée" },
+  completed:            { icon: CheckCircle2,  color: "text-emerald-400", label: "Commande complétée" },
+};
+
+function getEventConfig(action: string) {
+  return EVENT_CONFIG[action] || { icon: Clock, color: "text-[hsl(220,10%,45%)]", label: action };
 }
 
 export function CoreActivityTimeline({ logs, onAddNote }: Props) {
@@ -95,7 +127,7 @@ export function CoreActivityTimeline({ logs, onAddNote }: Props) {
 
       {/* Timeline entries */}
       {expanded && (
-        <div className="max-h-[280px] overflow-y-auto">
+        <div className="max-h-[350px] overflow-y-auto">
           {logs.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <Clock className="h-5 w-5 mx-auto mb-2 text-[hsl(220,10%,25%)]" />
@@ -103,44 +135,60 @@ export function CoreActivityTimeline({ logs, onAddNote }: Props) {
             </div>
           ) : (
             <div>
-              {logs.map((log, idx) => (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 px-4 py-2.5 border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)] transition-colors"
-                >
-                  {/* Timeline dot */}
-                  <div className="mt-1 shrink-0">
-                    <div className={`h-2 w-2 rounded-full ${idx === 0 ? "bg-emerald-400" : "bg-[hsl(220,15%,25%)]"}`} />
-                  </div>
+              {logs.map((log, idx) => {
+                const config = getEventConfig(log.action);
+                const EventIcon = config.icon;
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] font-medium text-white">
-                        {log.actor_name || "Système"}
-                      </span>
-                      {log.actor_role && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[hsl(220,15%,16%)] text-[hsl(220,10%,45%)] uppercase tracking-wider font-medium">
-                          {log.actor_role}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-[hsl(220,10%,30%)] font-mono ml-auto shrink-0">
-                        {format(new Date(log.created_at), "d MMM HH:mm", { locale: fr })}
-                      </span>
+                return (
+                  <div
+                    key={log.id}
+                    className="flex items-start gap-3 px-4 py-2.5 border-b border-[hsl(220,15%,13%)] last:border-0 hover:bg-[hsl(220,20%,12%)] transition-colors"
+                  >
+                    {/* Event icon */}
+                    <div className="mt-0.5 shrink-0">
+                      <div className={`h-6 w-6 rounded-md flex items-center justify-center ${idx === 0 ? "bg-[hsl(220,15%,18%)]" : "bg-[hsl(220,15%,14%)]"}`}>
+                        <EventIcon className={`h-3 w-3 ${config.color}`} />
+                      </div>
                     </div>
-                    <p className="text-[11px] text-[hsl(220,10%,55%)] mt-0.5 leading-relaxed">
-                      {log.action}
-                      {log.changed_field && (
-                        <span className="text-[hsl(220,10%,38%)]">
-                          {" "}— {log.changed_field}:{" "}
-                          <span className="text-red-400 line-through">{log.old_value}</span>
-                          {" → "}
-                          <span className="text-emerald-400">{log.new_value}</span>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] font-semibold ${config.color}`}>
+                          {config.label}
                         </span>
+                        <span className="text-[11px] font-medium text-white">
+                          {log.actor_name || "Système"}
+                        </span>
+                        {log.actor_role && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[hsl(220,15%,16%)] text-[hsl(220,10%,45%)] uppercase tracking-wider font-medium">
+                            {log.actor_role}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-[hsl(220,10%,30%)] font-mono ml-auto shrink-0">
+                          {format(new Date(log.created_at), "d MMM HH:mm", { locale: fr })}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[hsl(220,10%,50%)] mt-0.5 leading-relaxed">
+                        {log.action !== config.label ? log.action : ""}
+                        {log.changed_field && (
+                          <span className="text-[hsl(220,10%,38%)]">
+                            {log.action !== config.label ? " — " : ""}{log.changed_field}:{" "}
+                            <span className="text-red-400 line-through">{log.old_value}</span>
+                            {" → "}
+                            <span className="text-emerald-400">{log.new_value}</span>
+                          </span>
+                        )}
+                      </p>
+                      {/* Details preview for certain events */}
+                      {log.details && typeof log.details === "object" && log.action === "note_added" && (log.details as any).note && (
+                        <p className="text-[10px] text-[hsl(220,10%,40%)] mt-1 pl-2 border-l-2 border-[hsl(220,15%,20%)] italic">
+                          {(log.details as any).note}
+                        </p>
                       )}
-                    </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

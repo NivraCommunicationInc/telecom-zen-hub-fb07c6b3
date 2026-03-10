@@ -1,21 +1,21 @@
 /**
  * CoreOrderDetail — Unified professional order file & processing console
  * 
- * Single-mode layout: Header → [ Workflow Nav | Processing Steps | Order File ]
- * No dual-mode toggle. Everything visible at once for maximum operational efficiency.
- * All components are dark-native — no CSS overrides needed for dark theme.
+ * Layout: Header → Account Summary → Quick Actions → [ Workflow Nav | Processing Steps | Order File ]
+ * → Activity Timeline
  */
 import { useParams, Link } from "react-router-dom";
 import { useOrderProcessing, WorkflowStepId } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
 import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHeader";
+import { CoreAccountSummary } from "@/core-app/components/order-detail/CoreAccountSummary";
+import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { CoreWorkflowNav } from "@/core-app/components/order-detail/CoreWorkflowNav";
 import { CoreOrderFilePanel } from "@/core-app/components/order-detail/CoreOrderFilePanel";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 
-// Dark theme overrides for legacy white processing step components
 import "@/core-app/styles/core-dark-processing.css";
 
 const CoreOrderDetail = () => {
@@ -81,6 +81,12 @@ function OrderConsole({ orderId }: { orderId: string }) {
         onRefresh={() => proc.refetch()}
       />
 
+      {/* ═══ ACCOUNT SUMMARY ═══ */}
+      <CoreAccountSummary account={proc.account} />
+
+      {/* ═══ QUICK ACTIONS ═══ */}
+      <CoreQuickActions proc={proc} />
+
       {/* ═══ MAIN LAYOUT: Workflow | Steps | Order File ═══ */}
       <div className="core-dark-processing grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-3">
         {/* LEFT: Workflow Navigation */}
@@ -90,7 +96,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
           onStepClick={(id: WorkflowStepId) => proc.setActiveStep(id)}
         />
 
-        {/* CENTER: Active Step Content (uses legacy white components + dark CSS) */}
+        {/* CENTER: Active Step Content */}
         <div className="bg-white border border-gray-200 rounded-lg p-5 min-h-[520px]">
           <StepContent proc={proc} />
         </div>
