@@ -9,8 +9,11 @@ const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 const DashboardPage = lazy(() => import("@/core-app/pages/DashboardPage"));
 const WorkQueuePage = lazy(() => import("@/core-app/pages/WorkQueuePage"));
 const OrdersPage = lazy(() => import("@/core-app/pages/OrdersPage"));
+const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const AccountsPage = lazy(() => import("@/core-app/pages/AccountsPage"));
+const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
 const InvoicesPage = lazy(() => import("@/core-app/pages/InvoicesPage"));
+const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
 const PaymentsPage = lazy(() => import("@/core-app/pages/PaymentsPage"));
 const SubscriptionsPage = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
 const SubscriptionDetailPage = lazy(() => import("@/core-app/pages/SubscriptionDetailPage"));
@@ -24,8 +27,11 @@ export const coreRoutes: RouteObject = {
     { path: "dashboard", element: <DashboardPage /> },
     { path: "work-queue", element: <WorkQueuePage /> },
     { path: "orders", element: <OrdersPage /> },
+    { path: "orders/:orderId", element: <CoreOrderDetail /> },
     { path: "accounts", element: <AccountsPage /> },
+    { path: "accounts/:accountId", element: <CoreAccountDetail /> },
     { path: "invoices", element: <InvoicesPage /> },
+    { path: "invoices/:invoiceId", element: <CoreInvoiceDetail /> },
     { path: "payments", element: <PaymentsPage /> },
     { path: "subscriptions", element: <SubscriptionsPage /> },
     { path: "subscriptions/:id", element: <SubscriptionDetailPage /> },
