@@ -233,19 +233,23 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
 
     const descLower = item.description.toLowerCase();
 
-    // Heuristic: items with fee-like descriptions should be fees even if line_type is wrong
     const isFeeByDescription = descLower.includes("frais d'activation") || descLower.includes("frais de livraison")
       || descLower.includes("frais d'installation") || descLower.includes("installation fee")
-      || descLower.includes("activation fee") || descLower.includes("delivery fee");
+      || descLower.includes("activation fee") || descLower.includes("delivery fee")
+      || descLower.includes("livraison") || descLower.includes("shipping");
 
-    if (item.line_type === "equipment") {
+    const isEquipmentByDescription = descLower.includes("routeur") || descLower.includes("router")
+      || descLower.includes("terminal") || descLower.includes("modem")
+      || descLower.includes("décodeur") || descLower.includes("équipement")
+      || descLower.includes("sim card") || descLower.includes("carte sim");
+
+    if (item.line_type === "equipment" || isEquipmentByDescription) {
       equipment.push({ name: item.description, quantity: qty, unit_price: unitPrice });
       invoiceItems.push({ category: "Equipment", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
     } else if (item.line_type === "fee" || isFeeByDescription) {
       fees.push({ label: item.description, amount });
       invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
     } else {
-      // service — detect type from description keywords
       const type = descLower.includes("internet") || descLower.includes("giga") ? "Internet"
         : descLower.includes("mobile") || descLower.includes("talk") || descLower.includes("text") ? "Mobile"
         : descLower.includes("tv") || descLower.includes("télé") || descLower.includes("chaîne") ? "TV"
@@ -260,6 +264,37 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
         is_recurring: bd.type === "renewal",
         service_address: order.shipping_address,
       });
+    }
+  }
+
+  // ═══ SUPPLEMENT: Add order-level fees not captured in billing_invoice_lines ═══
+  const allDescLower = invoiceItems.map(i => i.description.toLowerCase()).join(" ");
+  const ps = order.pricing_snapshot as any;
+
+  const supplementFees: Array<{ label: string; amount: number; keyword: string }> = [
+    { label: "Frais d'activation", amount: Number(order.activation_fee || ps?.activation_fee || 0), keyword: "activation" },
+    { label: "Frais de livraison", amount: Number(order.delivery_fee || ps?.delivery_fee || 0), keyword: "livraison" },
+    { label: "Frais d'installation", amount: Number(order.installation_fee || ps?.installation_fee || 0), keyword: "installation" },
+  ];
+
+  const supplementEquipment: Array<{ label: string; amount: number; keyword: string }> = [
+    { label: "Routeur", amount: Number(order.router_fee || ps?.router_fee || 0), keyword: "routeur" },
+    { label: "Terminal(s)", amount: Number(order.terminal_fee || ps?.terminal_fee || 0), keyword: "terminal" },
+  ];
+
+  for (const sf of supplementFees) {
+    if (sf.amount > 0 && !allDescLower.includes(sf.keyword)) {
+      fees.push({ label: sf.label, amount: sf.amount });
+      invoiceItems.push({ category: "Fees", description: sf.label, qty: 1, unit_price: sf.amount, amount: sf.amount, is_recurring: false });
+      console.log(`[DocumentBuilder] ➕ Supplemented missing fee: ${sf.label} = ${sf.amount}`);
+    }
+  }
+
+  for (const se of supplementEquipment) {
+    if (se.amount > 0 && !allDescLower.includes(se.keyword)) {
+      equipment.push({ name: se.label, quantity: 1, unit_price: se.amount });
+      invoiceItems.push({ category: "Equipment", description: se.label, qty: 1, unit_price: se.amount, amount: se.amount, is_recurring: false });
+      console.log(`[DocumentBuilder] ➕ Supplemented missing equipment: ${se.label} = ${se.amount}`);
     }
   }
 
@@ -314,8 +349,10 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
   const invoiceStatus = breakdown?.status || billingInvoice?.status ||
     (["captured", "paid", "confirmed"].includes(order.payment_status) ? "paid" : "unpaid");
 
-  // Use snapshot data if available
+  // Use snapshot data if available, but prefer LIVE account number
   const snapshotClient = billingInvoice?.billing_snapshot_client as any;
+  // Live account number takes priority over potentially stale snapshot
+  const liveAccountNumber = account?.account_number;
   const snapshotAccountNumber = billingInvoice?.billing_snapshot_account_number;
 
   const invoiceData: InvoiceDataV2 = {
@@ -323,7 +360,7 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
     invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || requireField(null, "invoice_number"),
     invoice_date: billingInvoice?.created_at || order.created_at,
     due_date: billingInvoice?.due_date || new Date(new Date(order.created_at).getTime() + 30 * 86400000).toISOString(),
-    account_number: requireField(snapshotAccountNumber || account?.account_number, "account_number"),
+    account_number: requireField(liveAccountNumber || snapshotAccountNumber, "account_number"),
     billing_period_start: billingInvoice?.cycle_start_date,
     billing_period_end: billingInvoice?.cycle_end_date,
     currency: "CAD",
@@ -371,7 +408,7 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
             status: "Confirmed" as const,
             paid_amount: Number(p.amount || 0),
             paid_at: p.received_at || p.created_at,
-            payment_reference: p.reference || "—",
+            payment_reference: p.payment_number || p.reference || "—",
             processor_txn_id: p.provider_payment_id,
           }))
       : structured.amountPaid > 0
@@ -458,7 +495,7 @@ export function buildContractData(data: OrderDocumentData): ContractDataV3 {
     client_dob: order.client_dob,
     billing_address: requireField(addr.billing, "billing_address"),
     service_address: requireField(addr.service, "service_address"),
-    account_number: requireField(account?.account_number, "account_number"),
+    account_number: requireField(account?.account_number || billingInvoice?.billing_snapshot_account_number, "account_number"),
     order_number: requireField(order.order_number?.toString(), "order_number"),
     services: structured.services,
     equipment: structured.equipment,
