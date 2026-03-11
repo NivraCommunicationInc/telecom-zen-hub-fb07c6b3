@@ -1,0 +1,248 @@
+/**
+ * ClientsPage — Nivra Core CRM: All people in the system.
+ * Distinct from Accounts: lists ALL profiles even without an active account/service.
+ */
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
+import { Search, ArrowRight, Users, RefreshCw, UserPlus, Mail, Phone, Hash } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+
+interface ClientRow {
+  user_id: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  created_at: string;
+  // joined from accounts
+  account_id: string | null;
+  account_number: string | null;
+  account_status: string | null;
+}
+
+const ClientsPage = () => {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "with_account" | "without_account">("all");
+
+  const { data: clients, isLoading, refetch } = useQuery<ClientRow[]>({
+    queryKey: ["core-clients-all"],
+    queryFn: async () => {
+      // Get all profiles
+      const { data: profiles, error: profErr } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, first_name, last_name, email, phone, created_at")
+        .order("created_at", { ascending: false });
+      if (profErr) throw profErr;
+      if (!profiles || profiles.length === 0) return [];
+
+      // Get all accounts to map client_id → account info
+      const { data: accounts } = await supabase
+        .from("accounts")
+        .select("id, account_number, status, client_id");
+
+      const accountMap = new Map(
+        (accounts || []).map(a => [a.client_id, a])
+      );
+
+      return profiles.map(p => {
+        const acct = accountMap.get(p.user_id);
+        return {
+          ...p,
+          account_id: acct?.id || null,
+          account_number: acct?.account_number || null,
+          account_status: acct?.status || null,
+        };
+      });
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const filtered = useMemo(() => {
+    if (!clients) return [];
+    let list = clients;
+    if (filter === "with_account") list = list.filter(c => c.account_id);
+    if (filter === "without_account") list = list.filter(c => !c.account_id);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(c =>
+        (c.full_name?.toLowerCase().includes(q)) ||
+        (c.first_name?.toLowerCase().includes(q)) ||
+        (c.last_name?.toLowerCase().includes(q)) ||
+        (c.email?.toLowerCase().includes(q)) ||
+        (c.phone?.includes(q)) ||
+        (c.account_number?.includes(q))
+      );
+    }
+    return list;
+  }, [clients, search, filter]);
+
+  const counts = useMemo(() => {
+    if (!clients) return { total: 0, withAccount: 0, withoutAccount: 0 };
+    return {
+      total: clients.length,
+      withAccount: clients.filter(c => c.account_id).length,
+      withoutAccount: clients.filter(c => !c.account_id).length,
+    };
+  }, [clients]);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-white tracking-tight">Clients</h1>
+          <p className="text-[12px] text-[hsl(220,10%,45%)] mt-0.5">
+            Répertoire CRM complet · {counts.total} personne{counts.total !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
+          <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+        </button>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Total clients", value: counts.total, color: "text-white" },
+          { label: "Avec compte", value: counts.withAccount, color: "text-emerald-400" },
+          { label: "Sans compte", value: counts.withoutAccount, color: "text-amber-400" },
+        ].map(k => (
+          <div key={k.label} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,40%)] font-medium">{k.label}</p>
+            <p className={`text-lg font-bold tabular-nums mt-1 ${k.color}`}>{isLoading ? "—" : k.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 flex items-center gap-2 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-2">
+          <Search className="h-4 w-4 text-[hsl(220,10%,40%)]" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher par nom, courriel, téléphone, numéro de compte…"
+            className="flex-1 bg-transparent text-xs text-white placeholder:text-[hsl(220,10%,35%)] outline-none"
+          />
+        </div>
+        <div className="flex items-center gap-0.5 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-1 py-1">
+          {([
+            { label: "Tous", value: "all" as const },
+            { label: "Avec compte", value: "with_account" as const },
+            { label: "Sans compte", value: "without_account" as const },
+          ]).map(f => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap ${
+                filter === f.value
+                  ? "bg-emerald-600/20 text-emerald-400"
+                  : "text-[hsl(220,10%,45%)] hover:text-white"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-[hsl(220,15%,16%)]">
+                {["Nom", "Courriel", "Téléphone", "N° compte", "Statut compte", "Inscrit le", ""].map(h => (
+                  <th key={h} className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="border-b border-[hsl(220,15%,14%)]">
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <td key={j} className="px-3 py-2.5"><div className="h-3.5 w-16 rounded bg-[hsl(220,15%,14%)] animate-pulse" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-[hsl(220,10%,35%)]">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">{search || filter !== "all" ? "Aucun client ne correspond aux filtres." : "Aucun client trouvé."}</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map(c => (
+                  <tr key={c.user_id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors">
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${
+                          c.account_id ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-[hsl(220,15%,16%)] text-[hsl(220,10%,40%)]"
+                        }`}>
+                          {(c.first_name?.[0] || c.full_name?.[0] || "?").toUpperCase()}
+                        </div>
+                        <p className="text-white truncate max-w-[160px]">
+                          {c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-[hsl(220,10%,55%)] truncate max-w-[180px]">{c.email || "—"}</td>
+                    <td className="px-3 py-2.5 text-[hsl(220,10%,55%)] font-mono text-[11px]">{c.phone || "—"}</td>
+                    <td className="px-3 py-2.5">
+                      {c.account_number ? (
+                        <span className="font-mono font-medium text-white">{c.account_number}</span>
+                      ) : (
+                        <span className="text-[hsl(220,10%,30%)] text-[10px] italic">Aucun compte</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {c.account_id ? (
+                        <StatusBadge label={c.account_status || "active"} variant={statusToVariant(c.account_status || "active")} size="sm" />
+                      ) : (
+                        <span className="text-[10px] text-[hsl(220,10%,30%)] bg-[hsl(220,15%,14%)] px-1.5 py-0.5 rounded">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-[hsl(220,10%,45%)] whitespace-nowrap">
+                      {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {c.account_id ? (
+                        <Link to={corePath(`/accounts/${c.account_id}`)}>
+                          <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors">
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </button>
+                        </Link>
+                      ) : (
+                        <span className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,14%)] text-[hsl(220,10%,25%)]">
+                          <UserPlus className="h-3.5 w-3.5" />
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {!isLoading && filtered.length > 0 && (
+        <p className="text-[11px] text-[hsl(220,10%,30%)] text-center">
+          {filtered.length} client{filtered.length !== 1 ? "s" : ""} affiché{filtered.length !== 1 ? "s" : ""}
+          {(search || filter !== "all") && ` sur ${counts.total}`}
+        </p>
+      )}
+    </div>
+  );
+};
+
+export default ClientsPage;
