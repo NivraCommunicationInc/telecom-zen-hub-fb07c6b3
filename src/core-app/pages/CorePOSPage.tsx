@@ -828,10 +828,12 @@ export default function CorePOSPage() {
                       {(eqCatalogGrouped[eqTab] || []).map(item => (
                         <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-[hsl(220,20%,12%)] border border-[hsl(220,15%,18%)]">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[#E4E4E7]">{item.name}</p>
-                            <p className="text-xs text-[#A1A1AA] truncate">{item.description || ""}</p>
+                            <p className="text-sm font-medium text-[#E4E4E7]">{item.catalog_name}</p>
+                            <p className="text-xs text-[#A1A1AA] truncate">
+                              {item.serial_number ? `S/N: ${item.serial_number}` : ""}{item.sku ? ` · SKU: ${item.sku}` : ""}{item.condition ? ` · ${item.condition}` : ""}
+                            </p>
                           </div>
-                          <p className="text-sm font-bold text-cyan-400">{(item.price || 0).toFixed(2)} $</p>
+                          <p className="text-sm font-bold text-cyan-400">{(Number(item.price_client) || 0).toFixed(2)} $</p>
                           <Button size="sm" onClick={() => addEquipmentItem(item)} className="bg-cyan-600 hover:bg-cyan-500 text-white h-7 px-2">
                             <Plus className="h-3.5 w-3.5" />
                           </Button>
