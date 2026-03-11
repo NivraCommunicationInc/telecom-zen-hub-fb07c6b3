@@ -349,8 +349,10 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
   const invoiceStatus = breakdown?.status || billingInvoice?.status ||
     (["captured", "paid", "confirmed"].includes(order.payment_status) ? "paid" : "unpaid");
 
-  // Use snapshot data if available
+  // Use snapshot data if available, but prefer LIVE account number
   const snapshotClient = billingInvoice?.billing_snapshot_client as any;
+  // Live account number takes priority over potentially stale snapshot
+  const liveAccountNumber = account?.account_number;
   const snapshotAccountNumber = billingInvoice?.billing_snapshot_account_number;
 
   const invoiceData: InvoiceDataV2 = {
@@ -358,7 +360,7 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
     invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || requireField(null, "invoice_number"),
     invoice_date: billingInvoice?.created_at || order.created_at,
     due_date: billingInvoice?.due_date || new Date(new Date(order.created_at).getTime() + 30 * 86400000).toISOString(),
-    account_number: requireField(snapshotAccountNumber || account?.account_number, "account_number"),
+    account_number: requireField(liveAccountNumber || snapshotAccountNumber, "account_number"),
     billing_period_start: billingInvoice?.cycle_start_date,
     billing_period_end: billingInvoice?.cycle_end_date,
     currency: "CAD",
