@@ -223,9 +223,10 @@ const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
   </Panel>
 );
 
-const OrdersSection = ({ data }: any) => (
+const OrdersSection = ({ data, accountId, clientId, clientEmail, clientName, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={ShoppingCart} title="Commandes" count={data.orders.length} />
+    <PanelHeader icon={ShoppingCart} title="Commandes" count={data.orders.length}
+      actions={<OrderActionMenu orders={data.orders} accountId={accountId} clientId={clientId} clientEmail={clientEmail} clientName={clientName} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Service", "Statut", "Total", "Paiement", "Date", ""]} empty={data.orders.length === 0}>
       {data.orders.slice(0, 50).map((o: any) => (
         <tr key={o.id} className={trClass}>
