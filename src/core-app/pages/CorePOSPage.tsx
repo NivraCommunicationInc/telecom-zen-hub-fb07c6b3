@@ -314,12 +314,15 @@ export default function CorePOSPage() {
   const addEquipmentItem = (item: typeof equipmentCatalog[0]) => {
     setEquipment(prev => [...prev, {
       id: genId(),
-      type: inferEqType(item.name),
-      name: item.name,
-      description: item.description || "",
-      price: item.price || 0,
+      type: inferEqType(item.catalog_name),
+      name: item.catalog_name,
+      description: item.serial_number ? `S/N: ${item.serial_number}` : (item.sku || ""),
+      price: Number(item.price_client) || 0,
       quantity: 1,
+      serialNumber: item.serial_number || undefined,
     }]);
+    // Reserve in inventory
+    supabase.from("equipment_inventory").update({ status: "reserved" } as any).eq("id", item.id).then(() => {});
   };
 
   // ═══ ADJUSTMENT ACTIONS ═══
