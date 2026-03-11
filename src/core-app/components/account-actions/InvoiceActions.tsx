@@ -363,7 +363,7 @@ function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge
       });
       if (error) throw error;
 
-      await supabase.rpc("reconcile_invoice_from_payments" as any, { target_invoice_id: selectedInvoice });
+      await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: selectedInvoice });
 
       toast.success(`${isCharge ? "Frais" : "Crédit"} de ${parsedAmount.toFixed(2)} $ ajouté`);
       onRefresh();
