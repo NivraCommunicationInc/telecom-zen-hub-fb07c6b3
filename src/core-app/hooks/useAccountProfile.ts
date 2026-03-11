@@ -241,20 +241,24 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!clientId,
   });
 
-  // Equipment via order lines from account orders
-  const orderIds = orders.data?.map(o => o.id) || [];
+  const equipmentOrderIds = Array.from(new Set([
+    ...(orders.data?.map((o: any) => o.id) || []),
+    ...(subscriptions.data?.map((s: any) => s.order_id).filter(Boolean) || []),
+    ...(invoices.data?.map((inv: any) => inv.order_id).filter(Boolean) || []),
+  ]));
+
   const equipment = useQuery({
-    queryKey: ["account-profile-equipment", accountId, orderIds.length],
+    queryKey: ["account-profile-equipment", accountId, equipmentOrderIds.join("|")],
     queryFn: async () => {
-      if (orderIds.length === 0) return [];
+      if (equipmentOrderIds.length === 0) return [];
       const { data, error } = await supabase
         .from("equipment_order_lines")
         .select("*")
-        .in("order_id", orderIds.slice(0, 50));
+        .in("order_id", equipmentOrderIds.slice(0, 100));
       if (error) throw error;
       return data || [];
     },
-    enabled: orderIds.length > 0,
+    enabled: equipmentOrderIds.length > 0,
   });
 
   const activityLogs = useQuery({
