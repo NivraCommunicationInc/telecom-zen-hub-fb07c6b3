@@ -33,6 +33,7 @@ export const coreRoutes: RouteObject = {
     { path: "accounts", element: <AccountsPage /> },
     { path: "accounts/:accountId", element: <CoreAccountDetail /> },
     { path: "clients", element: <ClientsPage /> },
+    { path: "clients/:clientId", element: <CoreClientProfile /> },
     { path: "invoices", element: <InvoicesPage /> },
     { path: "invoices/:invoiceId", element: <CoreInvoiceDetail /> },
     { path: "payments", element: <PaymentsPage /> },
