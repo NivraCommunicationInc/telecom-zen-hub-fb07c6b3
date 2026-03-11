@@ -1,46 +1,68 @@
 /**
  * Invoice & Payment visible action bar for the Account 360 console.
  * All financial mutations go through canonical RPCs / DB operations.
- * NO DROPDOWNS — all actions are visible buttons.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CreditCard, DollarSign, FileText, Mail, CheckCircle, RotateCcw, Plus, Minus, Banknote, Wallet,
 } from "lucide-react";
 
-/* ── styling tokens ── */
-const inputCls = "w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50";
-const btnPrimary = "rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors";
-const btnSecondary = "rounded-md border border-[hsl(220,15%,16%)] px-4 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white transition-colors";
+const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
+const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
+const btnSecondary = "rounded-md border border-border px-4 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors";
 
-const actionBtn = "flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,13%)] px-2.5 py-1.5 text-[10px] font-medium transition-all whitespace-nowrap";
-const actionDefault = `${actionBtn} text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30`;
-const actionAccent = `${actionBtn} text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40`;
-const actionWarning = `${actionBtn} text-amber-400 hover:text-amber-300 hover:border-amber-500/40`;
-const actionDanger = `${actionBtn} text-red-400 hover:text-red-300 hover:border-red-500/40`;
+const actionBtn = "flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-[10px] font-semibold transition-all whitespace-nowrap";
+const actionDefault = `${actionBtn} text-foreground/80 hover:text-foreground hover:border-primary/30`;
+const actionAccent = `${actionBtn} text-primary hover:text-primary hover:border-primary/40`;
+const actionWarning = `${actionBtn} text-amber-500 hover:text-amber-400 hover:border-amber-500/40`;
 
-/* ── types ── */
 interface InvoiceActionsProps {
   invoices: any[];
   customerId: string | undefined;
-  clientId: string | undefined;
-  accountId: string | undefined;
+  customerUserId?: string;
+  fallbackRecipientEmail?: string;
+  fallbackCustomerEmail?: string;
   onRefresh: () => void;
 }
 
 type ModalType = null | "recordPayment" | "markPaid" | "sendInvoice" | "addCharge" | "addCredit" | "refundPayment";
 
-export function InvoiceActionMenu({ invoices, customerId, clientId, accountId, onRefresh }: InvoiceActionsProps) {
+type ManualMethod = "paypal" | "interac" | "cash" | "debit_credit" | "bank_transfer" | "other";
+type ApplyMode = "invoice" | "account";
+
+const mapToBillingMethod = (method: ManualMethod): "paypal" | "interac" | "manual" => {
+  if (method === "paypal") return "paypal";
+  if (method === "interac") return "interac";
+  return "manual";
+};
+
+const methodLabels: Record<ManualMethod, string> = {
+  paypal: "PayPal",
+  interac: "Interac e-Transfer",
+  cash: "Espèces",
+  debit_credit: "Débit / crédit",
+  bank_transfer: "Virement bancaire",
+  other: "Autre",
+};
+
+export function InvoiceActionMenu({
+  invoices,
+  customerId,
+  customerUserId,
+  fallbackRecipientEmail,
+  fallbackCustomerEmail,
+  onRefresh,
+}: InvoiceActionsProps) {
   const [modal, setModal] = useState<ModalType>(null);
 
   return (
     <>
-      {/* ── Visible Action Bar ── */}
       <div className="flex flex-wrap items-center gap-1.5">
         <button onClick={() => setModal("recordPayment")} className={actionAccent}>
           <Banknote className="h-3 w-3" /> Paiement manuel
@@ -49,22 +71,36 @@ export function InvoiceActionMenu({ invoices, customerId, clientId, accountId, o
           <CheckCircle className="h-3 w-3" /> Marquer payée
         </button>
         <button onClick={() => setModal("addCharge")} className={actionDefault}>
-          <Plus className="h-3 w-3" /> Frais
+          <Plus className="h-3 w-3" /> Ajouter frais
         </button>
         <button onClick={() => setModal("addCredit")} className={actionDefault}>
-          <Minus className="h-3 w-3" /> Crédit
+          <Minus className="h-3 w-3" /> Ajouter crédit
         </button>
         <button onClick={() => setModal("sendInvoice")} className={actionDefault}>
-          <Mail className="h-3 w-3" /> Envoyer
+          <Mail className="h-3 w-3" /> Envoyer facture
         </button>
         <button onClick={() => setModal("refundPayment")} className={actionWarning}>
           <RotateCcw className="h-3 w-3" /> Remboursement
         </button>
       </div>
 
-      {modal === "recordPayment" && <RecordPaymentModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
-      {modal === "markPaid" && <MarkPaidModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
-      {modal === "sendInvoice" && <SendInvoiceModal invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
+      {modal === "recordPayment" && (
+        <RecordPaymentModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />
+      )}
+      {modal === "markPaid" && (
+        <MarkPaidModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />
+      )}
+      {modal === "sendInvoice" && (
+        <SendInvoiceModal
+          invoices={invoices}
+          customerId={customerId}
+          customerUserId={customerUserId}
+          fallbackRecipientEmail={fallbackRecipientEmail}
+          fallbackCustomerEmail={fallbackCustomerEmail}
+          onClose={() => setModal(null)}
+          onRefresh={onRefresh}
+        />
+      )}
       {modal === "addCharge" && <AdjustmentModal type="charge" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "addCredit" && <AdjustmentModal type="credit" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "refundPayment" && <RefundModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
@@ -72,43 +108,81 @@ export function InvoiceActionMenu({ invoices, customerId, clientId, accountId, o
   );
 }
 
-/* ── Record Manual Payment Modal ── */
 function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invoices: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
-  const unpaid = invoices.filter((i: any) => (i.balance_due ?? 0) > 0);
+  const unpaid = useMemo(
+    () => invoices.filter((i: any) => (i.balance_due ?? 0) > 0).sort((a: any, b: any) => new Date(a.due_date ?? a.created_at).getTime() - new Date(b.due_date ?? b.created_at).getTime()),
+    [invoices],
+  );
+
+  const [applyMode, setApplyMode] = useState<ApplyMode>("invoice");
   const [selectedInvoice, setSelectedInvoice] = useState(unpaid[0]?.id || "");
-  const [method, setMethod] = useState<string>("interac");
+  const [amountMode, setAmountMode] = useState<"partial" | "full">("full");
+  const [method, setMethod] = useState<ManualMethod>("interac");
   const [amount, setAmount] = useState("");
   const [reference, setReference] = useState("");
+  const [internalNote, setInternalNote] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const inv = unpaid.find((i: any) => i.id === selectedInvoice);
+  const targetInvoice = applyMode === "account"
+    ? unpaid[0]
+    : unpaid.find((i: any) => i.id === selectedInvoice);
+
+  const amountToApply = amountMode === "full"
+    ? Number(targetInvoice?.balance_due ?? 0)
+    : Number.parseFloat(amount || "0");
 
   const handleSubmit = async () => {
-    const parsedAmount = parseFloat(amount) || inv?.balance_due;
-    if (!inv || !customerId || !parsedAmount) return;
+    if (!customerId || !targetInvoice) {
+      toast.error("Aucune facture admissible pour appliquer le paiement");
+      return;
+    }
+
+    if (!Number.isFinite(amountToApply) || amountToApply <= 0) {
+      toast.error("Montant de paiement invalide");
+      return;
+    }
+
     setLoading(true);
     try {
-      // Map method to billing_payment_method enum
-      const methodMap: Record<string, string> = {
-        paypal: "paypal", interac: "interac", cash: "manual",
-        debit_credit: "manual", bank_transfer: "manual", manual: "manual",
-      };
-      const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+      const providerPaymentId = reference?.trim() || `manual_${method}_${Date.now()}`;
+      const source = applyMode === "account" ? "admin_account_balance" : "admin_invoice_payment";
+
       const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
-        p_invoice_id: inv.id,
+        p_invoice_id: targetInvoice.id,
         p_customer_id: customerId,
-        p_amount: parsedAmount,
-        p_method: methodMap[method] || "manual",
-        p_reference: reference || `${method}${reference ? ` - ${reference}` : ""}`,
-        p_payment_number: paymentNumber,
-        p_source: "admin_account_360",
+        p_amount: amountToApply,
+        p_method: mapToBillingMethod(method),
+        p_provider: method,
+        p_provider_payment_id: providerPaymentId,
+        p_source: source,
+        p_created_by_name: "Account 360",
+        p_created_by_role: "admin",
       });
       if (error) throw error;
-      toast.success(`Paiement de ${parsedAmount.toFixed(2)} $ enregistré (${method})`);
+
+      if (internalNote.trim()) {
+        const user = (await supabase.auth.getUser()).data.user;
+        await supabase.from("activity_logs").insert({
+          user_id: user?.id || "system",
+          entity_type: "billing_payment",
+          entity_id: targetInvoice.id,
+          action: "manual_payment_note",
+          reason: internalNote.trim(),
+          details: {
+            amount: amountToApply,
+            method,
+            reference: reference || null,
+            apply_mode: applyMode,
+            source: "account_360",
+          },
+        });
+      }
+
+      toast.success(`Paiement ${amountToApply.toFixed(2)} $ appliqué (${methodLabels[method]})`);
       onRefresh();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Erreur lors du paiement");
+      toast.error(e.message || "Erreur lors de l'application du paiement");
     } finally {
       setLoading(false);
     }
@@ -116,40 +190,58 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white max-w-md">
+      <DialogContent className="max-w-xl border-border bg-card text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-sm font-bold flex items-center gap-2"><Banknote className="h-4 w-4 text-emerald-400" /> Enregistrer un paiement manuel</DialogTitle>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2"><Banknote className="h-4 w-4 text-primary" /> Paiement manuel</DialogTitle>
         </DialogHeader>
+
         {unpaid.length === 0 ? (
-          <p className="text-[11px] text-[hsl(220,10%,45%)] py-4">Aucune facture impayée.</p>
+          <p className="text-[11px] text-muted-foreground py-4">Aucune facture ouverte pour appliquer un paiement.</p>
         ) : (
           <div className="space-y-3">
-            <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Facture</label>
-              <select value={selectedInvoice} onChange={e => setSelectedInvoice(e.target.value)} className={inputCls}>
-                {unpaid.map((i: any) => (
-                  <option key={i.id} value={i.id}>{i.invoice_number} — Solde: {i.balance_due?.toFixed(2)} $</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setApplyMode("invoice")} className={`${btnSecondary} ${applyMode === "invoice" ? "border-primary text-primary" : ""}`}>
+                Appliquer à une facture
+              </button>
+              <button type="button" onClick={() => setApplyMode("account")} className={`${btnSecondary} ${applyMode === "account" ? "border-primary text-primary" : ""}`}>
+                Appliquer au solde compte
+              </button>
             </div>
+
+            {applyMode === "invoice" ? (
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Facture cible</label>
+                <select value={selectedInvoice} onChange={(e) => setSelectedInvoice(e.target.value)} className={inputCls}>
+                  {unpaid.map((i: any) => (
+                    <option key={i.id} value={i.id}>{i.invoice_number} — Solde: {Number(i.balance_due || 0).toFixed(2)} $</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="rounded-md border border-border bg-background p-2.5 text-[11px]">
+                <p className="text-muted-foreground">Paiement appliqué automatiquement à la plus ancienne facture ouverte.</p>
+                {targetInvoice && <p className="mt-1 font-medium">{targetInvoice.invoice_number} — Solde: {Number(targetInvoice.balance_due || 0).toFixed(2)} $</p>}
+              </div>
+            )}
+
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Méthode de paiement</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Méthode de paiement</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
                   { value: "paypal", label: "PayPal", icon: Wallet },
                   { value: "interac", label: "Interac", icon: CreditCard },
                   { value: "cash", label: "Espèces", icon: Banknote },
-                  { value: "debit_credit", label: "Débit/Crédit", icon: CreditCard },
+                  { value: "debit_credit", label: "Débit / crédit", icon: CreditCard },
                   { value: "bank_transfer", label: "Virement", icon: DollarSign },
-                  { value: "manual", label: "Autre", icon: FileText },
-                ].map(m => (
+                  { value: "other", label: "Autre", icon: FileText },
+                ].map((m) => (
                   <button
                     key={m.value}
-                    onClick={() => setMethod(m.value)}
-                    className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] font-medium transition-all ${
+                    onClick={() => setMethod(m.value as ManualMethod)}
+                    className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] font-semibold transition-all ${
                       method === m.value
-                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                        : "border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] text-[hsl(220,10%,45%)] hover:text-white"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-foreground/80 hover:text-foreground"
                     }`}
                   >
                     <m.icon className="h-3 w-3 shrink-0" /> {m.label}
@@ -157,34 +249,54 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
                 ))}
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Montant ($)</label>
-                <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder={inv?.balance_due?.toFixed(2) || "0.00"} className={inputCls} />
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Montant</label>
+                <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                  <button type="button" onClick={() => setAmountMode("full")} className={`${btnSecondary} !px-2 ${amountMode === "full" ? "border-primary text-primary" : ""}`}>
+                    Complet
+                  </button>
+                  <button type="button" onClick={() => setAmountMode("partial")} className={`${btnSecondary} !px-2 ${amountMode === "partial" ? "border-primary text-primary" : ""}`}>
+                    Partiel
+                  </button>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={amountMode === "partial" ? amount : Number(targetInvoice?.balance_due || 0).toFixed(2)}
+                  onChange={(e) => setAmount(e.target.value)}
+                  disabled={amountMode === "full"}
+                  className={inputCls}
+                />
               </div>
               <div>
-                <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Référence</label>
-                <input value={reference} onChange={e => setReference(e.target.value)} placeholder="No. transaction" className={inputCls} />
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Référence</label>
+                <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="No. transaction" className={inputCls} />
               </div>
             </div>
-            {inv && (
-              <div className="rounded-md bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,16%)] p-2.5 flex items-center justify-between">
-                <p className="text-[10px] text-[hsl(220,10%,40%)]">Solde dû</p>
-                <p className="text-lg font-bold text-red-400 tabular-nums">{inv.balance_due?.toFixed(2)} $</p>
-              </div>
-            )}
+
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Note interne</label>
+              <Textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={2} placeholder="Notes opérationnelles" className="text-[11px]" />
+            </div>
           </div>
         )}
+
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          {unpaid.length > 0 && <button onClick={handleSubmit} disabled={loading || !selectedInvoice} className={btnPrimary}>{loading ? "…" : "Enregistrer le paiement"}</button>}
+          {unpaid.length > 0 && (
+            <button onClick={handleSubmit} disabled={loading} className={btnPrimary}>
+              {loading ? "…" : "Appliquer le paiement"}
+            </button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-/* ── Mark Paid Modal ── */
 function MarkPaidModal({ invoices, customerId, onClose, onRefresh }: { invoices: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
   const unpaid = invoices.filter((i: any) => (i.balance_due ?? 0) > 0);
   const [selectedInvoice, setSelectedInvoice] = useState(unpaid[0]?.id || "");
@@ -198,18 +310,19 @@ function MarkPaidModal({ invoices, customerId, onClose, onRefresh }: { invoices:
     if (!inv || !customerId) return;
     setLoading(true);
     try {
-      const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
       const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
         p_invoice_id: inv.id,
         p_customer_id: customerId,
-        p_amount: inv.balance_due,
+        p_amount: Number(inv.balance_due || 0),
         p_method: method,
-        p_reference: reference || null,
-        p_payment_number: paymentNumber,
-        p_source: "admin_account_360",
+        p_provider: method,
+        p_provider_payment_id: reference || `mark_paid_${Date.now()}`,
+        p_source: "admin_mark_paid",
+        p_created_by_name: "Account 360",
+        p_created_by_role: "admin",
       });
       if (error) throw error;
-      toast.success(`Facture ${inv.invoice_number} marquée comme payée`);
+      toast.success(`Facture ${inv.invoice_number} marquée payée`);
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -221,24 +334,24 @@ function MarkPaidModal({ invoices, customerId, onClose, onRefresh }: { invoices:
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white max-w-md">
+      <DialogContent className="max-w-md border-border bg-card text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-sm font-bold flex items-center gap-2"><CheckCircle className="h-4 w-4 text-emerald-400" /> Marquer une facture payée</DialogTitle>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary" /> Marquer une facture payée</DialogTitle>
         </DialogHeader>
         {unpaid.length === 0 ? (
-          <p className="text-[11px] text-[hsl(220,10%,45%)] py-4">Aucune facture impayée.</p>
+          <p className="text-[11px] text-muted-foreground py-4">Aucune facture impayée.</p>
         ) : (
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Facture</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Facture</label>
               <select value={selectedInvoice} onChange={e => setSelectedInvoice(e.target.value)} className={inputCls}>
                 {unpaid.map((i: any) => (
-                  <option key={i.id} value={i.id}>{i.invoice_number} — Solde: {i.balance_due?.toFixed(2)} $</option>
+                  <option key={i.id} value={i.id}>{i.invoice_number} — Solde: {Number(i.balance_due || 0).toFixed(2)} $</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Méthode</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Méthode</label>
               <select value={method} onChange={e => setMethod(e.target.value as any)} className={inputCls}>
                 <option value="interac">Interac</option>
                 <option value="paypal">PayPal</option>
@@ -246,28 +359,70 @@ function MarkPaidModal({ invoices, customerId, onClose, onRefresh }: { invoices:
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Référence (optionnel)</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Référence (optionnel)</label>
               <input value={reference} onChange={e => setReference(e.target.value)} placeholder="No. de transaction" className={inputCls} />
             </div>
-            {inv && (
-              <div className="rounded-md bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,16%)] p-2.5">
-                <p className="text-[10px] text-[hsl(220,10%,40%)]">Montant à appliquer</p>
-                <p className="text-lg font-bold text-emerald-400 tabular-nums">{inv.balance_due?.toFixed(2)} $</p>
-              </div>
-            )}
           </div>
         )}
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          {unpaid.length > 0 && <button onClick={handleSubmit} disabled={loading || !selectedInvoice} className={btnPrimary}>{loading ? "…" : "Confirmer le paiement"}</button>}
+          {unpaid.length > 0 && <button onClick={handleSubmit} disabled={loading || !selectedInvoice} className={btnPrimary}>{loading ? "…" : "Confirmer"}</button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-/* ── Send Invoice Modal ── */
-function SendInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; onClose: () => void; onRefresh: () => void }) {
+async function resolveRecipientEmail(inv: any, options: { fallbackRecipientEmail?: string; fallbackCustomerEmail?: string; customerId?: string; customerUserId?: string }) {
+  const localCandidates = [
+    inv?.billing_snapshot_client?.email,
+    inv?.customer?.email,
+    options.fallbackRecipientEmail,
+    options.fallbackCustomerEmail,
+  ]
+    .filter(Boolean)
+    .map((e: string) => e.trim().toLowerCase());
+
+  if (localCandidates.length > 0) return localCandidates[0];
+
+  if (options.customerId) {
+    const { data: billingCustomer } = await supabase
+      .from("billing_customers")
+      .select("email")
+      .eq("id", options.customerId)
+      .maybeSingle();
+    if (billingCustomer?.email) return billingCustomer.email.trim().toLowerCase();
+  }
+
+  if (options.customerUserId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("user_id", options.customerUserId)
+      .maybeSingle();
+    if (profile?.email) return profile.email.trim().toLowerCase();
+  }
+
+  return "";
+}
+
+function SendInvoiceModal({
+  invoices,
+  customerId,
+  customerUserId,
+  fallbackRecipientEmail,
+  fallbackCustomerEmail,
+  onClose,
+  onRefresh,
+}: {
+  invoices: any[];
+  customerId?: string;
+  customerUserId?: string;
+  fallbackRecipientEmail?: string;
+  fallbackCustomerEmail?: string;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
   const [selectedInvoice, setSelectedInvoice] = useState(invoices[0]?.id || "");
   const [loading, setLoading] = useState(false);
 
@@ -275,13 +430,21 @@ function SendInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; o
 
   const handleSend = async () => {
     if (!inv) return;
-    const recipientEmail = inv.billing_snapshot_client?.email || inv.customer?.email || "";
-    if (!recipientEmail) {
-      toast.error("Aucune adresse courriel trouvée pour ce client");
-      return;
-    }
+
     setLoading(true);
     try {
+      const recipientEmail = await resolveRecipientEmail(inv, {
+        fallbackRecipientEmail,
+        fallbackCustomerEmail,
+        customerId,
+        customerUserId,
+      });
+
+      if (!recipientEmail) {
+        toast.error("Aucune adresse courriel trouvée pour ce client");
+        return;
+      }
+
       const eventKey = `manual_invoice_sent_${inv.id}_${Date.now()}`;
       const { error } = await supabase.from("email_queue").insert({
         event_key: eventKey,
@@ -301,7 +464,9 @@ function SendInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; o
         status: "queued",
       });
       if (error) throw error;
+
       toast.success(`Facture ${inv.invoice_number} envoyée à ${recipientEmail}`);
+      onRefresh();
       onClose();
     } catch (e: any) {
       toast.error(e.message || "Erreur d'envoi");
@@ -312,16 +477,16 @@ function SendInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; o
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white max-w-md">
+      <DialogContent className="max-w-md border-border bg-card text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-sm font-bold flex items-center gap-2"><Mail className="h-4 w-4 text-emerald-400" /> Envoyer une facture</DialogTitle>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Envoyer une facture</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Facture</label>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Facture</label>
             <select value={selectedInvoice} onChange={e => setSelectedInvoice(e.target.value)} className={inputCls}>
               {invoices.map((i: any) => (
-                <option key={i.id} value={i.id}>{i.invoice_number} — {i.total?.toFixed(2)} $ ({i.status})</option>
+                <option key={i.id} value={i.id}>{i.invoice_number} — {Number(i.total || 0).toFixed(2)} $ ({i.status})</option>
               ))}
             </select>
           </div>
@@ -335,7 +500,6 @@ function SendInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; o
   );
 }
 
-/* ── Adjustment Modal (Charge / Credit) ── */
 function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge" | "credit"; invoices: any[]; onClose: () => void; onRefresh: () => void }) {
   const [selectedInvoice, setSelectedInvoice] = useState(invoices[0]?.id || "");
   const [amount, setAmount] = useState("");
@@ -345,7 +509,7 @@ function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge
   const isCharge = type === "charge";
 
   const handleSubmit = async () => {
-    const parsedAmount = parseFloat(amount);
+    const parsedAmount = Number.parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0 || !selectedInvoice || !description.trim()) {
       toast.error("Veuillez remplir tous les champs");
       return;
@@ -377,29 +541,29 @@ function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white max-w-md">
+      <DialogContent className="max-w-md border-border bg-card text-foreground">
         <DialogHeader>
           <DialogTitle className="text-sm font-bold flex items-center gap-2">
-            {isCharge ? <Plus className="h-4 w-4 text-amber-400" /> : <Minus className="h-4 w-4 text-emerald-400" />}
-            {isCharge ? "Ajouter un frais" : "Appliquer un crédit"}
+            {isCharge ? <Plus className="h-4 w-4 text-amber-500" /> : <Minus className="h-4 w-4 text-primary" />}
+            {isCharge ? "Ajouter un frais" : "Ajouter un crédit"}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Facture cible</label>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Facture cible</label>
             <select value={selectedInvoice} onChange={e => setSelectedInvoice(e.target.value)} className={inputCls}>
               {invoices.map((i: any) => (
-                <option key={i.id} value={i.id}>{i.invoice_number} — Solde: {i.balance_due?.toFixed(2)} $</option>
+                <option key={i.id} value={i.id}>{i.invoice_number} — Solde: {Number(i.balance_due || 0).toFixed(2)} $</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Montant ($)</label>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Montant ($)</label>
             <input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className={inputCls} />
           </div>
           <div>
-            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Description</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} placeholder={isCharge ? "Ex: Frais administratif" : "Ex: Crédit promotionnel"} className={inputCls} />
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Description</label>
+            <input value={description} onChange={e => setDescription(e.target.value)} placeholder={isCharge ? "Ex: Frais administratif" : "Ex: Crédit commercial"} className={inputCls} />
           </div>
         </div>
         <DialogFooter className="gap-2">
@@ -411,7 +575,6 @@ function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge
   );
 }
 
-/* ── Refund Modal ── */
 function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
   const paidInvoices = invoices.filter((i: any) => (i.amount_paid ?? 0) > 0);
   const [selectedInvoice, setSelectedInvoice] = useState(paidInvoices[0]?.id || "");
@@ -422,21 +585,26 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
   const inv = paidInvoices.find((i: any) => i.id === selectedInvoice);
 
   const handleRefund = async () => {
-    const parsedAmount = parseFloat(amount);
+    const parsedAmount = Number.parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0 || !inv || !reason.trim()) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
-    if (parsedAmount > (inv.amount_paid ?? 0)) {
+    if (parsedAmount > Number(inv.amount_paid ?? 0)) {
       toast.error("Le montant dépasse le total payé");
       return;
     }
+    if (!customerId) {
+      toast.error("Client introuvable pour le remboursement");
+      return;
+    }
+
     setLoading(true);
     try {
       const paymentNumber = `REF-${Date.now().toString(36).toUpperCase()}`;
       const { error } = await supabase.from("billing_payments").insert({
         invoice_id: inv.id,
-        customer_id: customerId!,
+        customer_id: customerId,
         amount: -parsedAmount,
         method: "manual" as const,
         status: "confirmed" as const,
@@ -461,28 +629,28 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white max-w-md">
+      <DialogContent className="max-w-md border-border bg-card text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-sm font-bold flex items-center gap-2"><RotateCcw className="h-4 w-4 text-amber-400" /> Rembourser un paiement</DialogTitle>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2"><RotateCcw className="h-4 w-4 text-amber-500" /> Rembourser un paiement</DialogTitle>
         </DialogHeader>
         {paidInvoices.length === 0 ? (
-          <p className="text-[11px] text-[hsl(220,10%,45%)] py-4">Aucune facture avec paiement.</p>
+          <p className="text-[11px] text-muted-foreground py-4">Aucune facture avec paiement.</p>
         ) : (
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Facture</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Facture</label>
               <select value={selectedInvoice} onChange={e => setSelectedInvoice(e.target.value)} className={inputCls}>
                 {paidInvoices.map((i: any) => (
-                  <option key={i.id} value={i.id}>{i.invoice_number} — Payé: {i.amount_paid?.toFixed(2)} $</option>
+                  <option key={i.id} value={i.id}>{i.invoice_number} — Payé: {Number(i.amount_paid || 0).toFixed(2)} $</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Montant à rembourser ($)</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Montant à rembourser ($)</label>
               <input type="number" step="0.01" min="0" max={inv?.amount_paid ?? 0} value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className={inputCls} />
             </div>
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Raison</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Raison</label>
               <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Raison du remboursement" className={inputCls} />
             </div>
           </div>

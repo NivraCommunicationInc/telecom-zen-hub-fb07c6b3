@@ -245,10 +245,10 @@ const OrdersSection = ({ data, accountId, clientId, clientEmail, clientName, onR
   </Panel>
 );
 
-const InvoicesSection = ({ data, customerId, onRefresh }: any) => (
+const InvoicesSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
   <Panel>
     <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length}
-      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
     <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance"]} empty={data.invoices.length === 0}>
       {data.invoices.slice(0, 50).map((inv: any) => (
         <tr key={inv.id} className={trClass}>
@@ -265,10 +265,10 @@ const InvoicesSection = ({ data, customerId, onRefresh }: any) => (
   </Panel>
 );
 
-const PaymentsSection = ({ data, customerId, onRefresh }: any) => (
+const PaymentsSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
   <Panel>
     <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length}
-      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le"]} empty={data.payments.length === 0}>
       {data.payments.slice(0, 50).map((p: any) => (
         <tr key={p.id} className={trClass}>
@@ -287,7 +287,7 @@ const PaymentsSection = ({ data, customerId, onRefresh }: any) => (
 const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
   <Panel>
     <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
-      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} onRefresh={onRefresh} />} />
+      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} subscriptions={data.subscriptions} onRefresh={onRefresh} />} />
     <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
       {data.equipment.map((eq: any) => (
         <tr key={eq.id} className={trClass}>
@@ -494,8 +494,8 @@ const CoreAccountDetail = () => {
       case "overview": return <OverviewSection {...baseProps} />;
       case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "orders": return <OrdersSection data={data} accountId={accountId} clientId={data.clientId} clientEmail={prof?.email} clientName={clientName} onRefresh={data.refetch} />;
-      case "invoices": return <InvoicesSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
-      case "payments": return <PaymentsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
+      case "invoices": return <InvoicesSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;
+      case "payments": return <PaymentsSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;
       case "equipment": return <EquipmentSection data={data} accountId={accountId} onRefresh={data.refetch} />;
       case "tickets": return <TicketsSection data={data} {...actionProps} />;
       case "appointments": return <AppointmentsSection data={data} {...actionProps} />;
@@ -544,7 +544,7 @@ const CoreAccountDetail = () => {
         {/* LEFT: Section Navigation */}
         <Panel className="p-0 self-start lg:sticky lg:top-4">
           <div className="px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">Navigation</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground/70">Navigation</span>
           </div>
           <nav className="py-1">
             {SECTIONS.map(s => {
@@ -554,10 +554,10 @@ const CoreAccountDetail = () => {
                 <button
                   key={s.id}
                   onClick={() => setActiveSection(s.id)}
-                  className={`flex items-center gap-2 w-full px-3 py-2 text-[11px] font-medium transition-colors ${
+                  className={`flex items-center gap-2 w-full px-3 py-2 text-[11px] font-semibold transition-colors ${
                     isActive
-                      ? "bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400"
-                      : "text-[hsl(220,10%,50%)] hover:text-white hover:bg-[hsl(220,20%,13%)] border-l-2 border-transparent"
+                      ? "bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-400"
+                      : "text-foreground/80 hover:text-foreground hover:bg-[hsl(220,20%,13%)] border-l-2 border-transparent"
                   }`}
                 >
                   <s.icon className="h-3.5 w-3.5 shrink-0" />
