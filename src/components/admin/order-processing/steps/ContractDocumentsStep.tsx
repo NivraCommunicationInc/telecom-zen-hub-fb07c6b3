@@ -60,7 +60,9 @@ export function ContractDocumentsStep({ proc }: Props) {
         case "receipt":
           blob = result.invoice.blob || null;
           title = "Reçu";
-          filename = `Recu_${order.order_number || ""}.pdf`;
+          filename = result.invoice.filename
+            ? result.invoice.filename.replace("Facture", "Recu de paiement")
+            : `Nivra Telecom - Recu de paiement - ${order.order_number || ""}.pdf`;
           break;
         case "terms":
           blob = result.terms.blob || null;
