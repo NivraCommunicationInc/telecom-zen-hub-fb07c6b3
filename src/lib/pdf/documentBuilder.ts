@@ -495,7 +495,7 @@ export function buildContractData(data: OrderDocumentData): ContractDataV3 {
     client_dob: order.client_dob,
     billing_address: requireField(addr.billing, "billing_address"),
     service_address: requireField(addr.service, "service_address"),
-    account_number: requireField(account?.account_number, "account_number"),
+    account_number: requireField(account?.account_number || billingInvoice?.billing_snapshot_account_number, "account_number"),
     order_number: requireField(order.order_number?.toString(), "order_number"),
     services: structured.services,
     equipment: structured.equipment,
