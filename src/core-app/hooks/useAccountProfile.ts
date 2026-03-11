@@ -253,13 +253,15 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!customerId,
   });
 
-  const isLoading = account.isLoading || profile.isLoading;
+  const isLoading = account.isLoading || (!!account.data?.client_id && profile.isLoading);
+  const accountError = account.error;
 
   const refetch = () => {
     account.refetch();
     profile.refetch();
     locations.refetch();
     orders.refetch();
+    billingCustomer.refetch();
     invoices.refetch();
     payments.refetch();
     subscriptions.refetch();
@@ -268,6 +270,8 @@ export function useAccountProfile(accountId: string | undefined) {
     kycSessions.refetch();
     equipment.refetch();
     activityLogs.refetch();
+    authorizedUsers.refetch();
+    serviceAddresses.refetch();
   };
 
   return {
@@ -289,6 +293,7 @@ export function useAccountProfile(accountId: string | undefined) {
     customerId,
     clientId,
     isLoading,
+    accountError,
     refetch,
   };
 }
