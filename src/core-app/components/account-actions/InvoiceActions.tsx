@@ -447,7 +447,7 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
       });
       if (error) throw error;
 
-      await supabase.rpc("reconcile_invoice_from_payments" as any, { target_invoice_id: inv.id });
+      await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
 
       toast.success(`Remboursement de ${parsedAmount.toFixed(2)} $ appliqué`);
       onRefresh();
