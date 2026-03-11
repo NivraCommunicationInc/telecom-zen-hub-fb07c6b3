@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Terminal,
   Receipt,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ const NAV_SECTIONS = [
   { label: "Invoices", href: "/invoices", icon: FileText },
   { label: "Payments", href: "/payments", icon: CreditCard },
   { label: "Subscriptions", href: "/subscriptions", icon: RefreshCcw },
+  { label: "Équipements", href: "/equipment", icon: Package },
   { label: "Rendez-vous", href: "/appointments", icon: Calendar },
   { label: "POS", href: "/pos", icon: Receipt },
 ] as const;
