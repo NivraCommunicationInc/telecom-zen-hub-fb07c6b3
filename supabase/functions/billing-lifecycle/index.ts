@@ -44,7 +44,6 @@ function addDays(dateStr: string, days: number): string {
 
 // ========================================
 // STEP 1 — Expire subscriptions past cycle_end_date
-// Handles BOTH 'active' AND 'pending' statuses
 // Scenario A: No debt. subscription=expired, invoice=void
 // ========================================
 async function processExpirations(
@@ -53,7 +52,6 @@ async function processExpirations(
 ) {
   const today = todayStr();
 
-  // Find subscriptions with cycle_end_date <= today in active OR pending status
   const { data: expired, error } = await supabase
     .from("billing_subscriptions")
     .select("*, customer:billing_customers(id, email, first_name, last_name)")
@@ -66,7 +64,7 @@ async function processExpirations(
     return;
   }
 
-  console.log(`[lifecycle] Found ${expired?.length || 0} expired subscriptions (active + pending)`);
+  console.log(`[lifecycle] Found ${expired?.length || 0} expired subscriptions`);
 
   for (const sub of expired || []) {
     try {
@@ -82,7 +80,6 @@ async function processExpirations(
         .maybeSingle();
 
       if (paidRenewal) {
-        // Renewal was paid — extend the subscription
         const newEnd = addDays(nextCycleStart, 30);
         await supabase
           .from("billing_subscriptions")
@@ -103,14 +100,13 @@ async function processExpirations(
         continue;
       }
 
-      // No paid renewal → Scenario A: expire (no debt, never "overdue")
+      // Scenario A: expire (no debt)
       const { error: expErr } = await supabase
         .from("billing_subscriptions")
         .update({ status: "expired", updated_at: new Date().toISOString() })
         .eq("id", sub.id);
 
       if (expErr) {
-        console.error(`[lifecycle] Failed to expire sub ${sub.id}:`, expErr);
         stats.errors.push(`Failed to expire ${sub.id}: ${expErr.message}`);
         stats.errors_count++;
         continue;
@@ -118,7 +114,7 @@ async function processExpirations(
 
       stats.subscriptions_expired++;
 
-      // Void ALL unpaid invoices for this subscription (pending, overdue, draft)
+      // Void ALL unpaid invoices for this subscription
       const { data: unpaidInvoices } = await supabase
         .from("billing_invoices")
         .select("id, status")
@@ -131,13 +127,9 @@ async function processExpirations(
           .update({ status: "void" })
           .eq("id", inv.id);
         if (!voidErr) stats.invoices_voided++;
-        else {
-          stats.errors.push(`Failed to void ${inv.id}: ${voidErr.message}`);
-          stats.errors_count++;
-        }
       }
 
-      // Also void any invoices linked by customer_id (for subs without subscription_id on invoice)
+      // Also void customer-level orphan invoices
       const { data: customerUnpaid } = await supabase
         .from("billing_invoices")
         .select("id, status")
@@ -163,7 +155,7 @@ async function processExpirations(
       });
 
       console.log(
-        `[lifecycle] Expired subscription ${sub.id} (${sub.plan_name}, was: ${sub.status}), voided ${(unpaidInvoices?.length || 0) + (customerUnpaid?.length || 0)} invoices`,
+        `[lifecycle] Expired subscription ${sub.id} (${sub.plan_name}), voided ${(unpaidInvoices?.length || 0) + (customerUnpaid?.length || 0)} invoices`,
       );
     } catch (err: unknown) {
       const msg = `Expiration error for ${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
@@ -176,8 +168,124 @@ async function processExpirations(
 
 // ========================================
 // STEP 2 — Generate renewal invoices at J-3
+// ANCHORED TO accounts.next_invoice_date + billing_cycle_day
+// Uses generate_account_renewal_invoice RPC for atomicity
 // ========================================
 async function processRenewals(
+  supabase: ReturnType<typeof createClient>,
+  stats: RunStats,
+) {
+  const today = new Date();
+  const targetDate = new Date();
+  targetDate.setDate(today.getDate() + 3);
+  const targetDateStr = targetDate.toISOString().split("T")[0];
+
+  // Find accounts whose next_invoice_date is within 3 days
+  const { data: accounts, error } = await supabase
+    .from("accounts")
+    .select("id, account_number, client_id, billing_cycle_day, next_invoice_date, status")
+    .in("status", ["active", null])
+    .lte("next_invoice_date", targetDateStr)
+    .not("next_invoice_date", "is", null);
+
+  if (error) {
+    stats.errors.push(`Renewal account query error: ${error.message}`);
+    stats.errors_count++;
+    return;
+  }
+
+  console.log(
+    `[lifecycle] Found ${accounts?.length || 0} accounts with next_invoice_date <= ${targetDateStr}`,
+  );
+
+  for (const acct of accounts || []) {
+    try {
+      // Call the atomic RPC to generate renewal invoice
+      const { data: result, error: rpcErr } = await supabase
+        .rpc("generate_account_renewal_invoice", { p_account_id: acct.id });
+
+      if (rpcErr) {
+        stats.errors.push(`RPC error for account ${acct.account_number}: ${rpcErr.message}`);
+        stats.errors_count++;
+        continue;
+      }
+
+      const res = result as any;
+
+      if (res?.error) {
+        if (res.error === "RENEWAL_ALREADY_EXISTS") {
+          console.log(`[lifecycle] Renewal already exists for account ${acct.account_number}, skipping`);
+          continue;
+        }
+        if (res.error === "NO_ACTIVE_SERVICES") {
+          console.log(`[lifecycle] No active services for account ${acct.account_number}, skipping`);
+          continue;
+        }
+        stats.errors.push(`Account ${acct.account_number}: ${res.error}`);
+        stats.errors_count++;
+        continue;
+      }
+
+      // Queue reminder email
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("email, first_name, last_name")
+        .eq("user_id", acct.client_id)
+        .maybeSingle();
+
+      if (customer?.email) {
+        const idempotencyKey = `billing_renewal_${acct.id}_${res.cycle_start}`;
+        await supabase.from("email_queue").insert({
+          event_key: idempotencyKey,
+          idempotency_key: idempotencyKey,
+          to_email: customer.email,
+          from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+          subject: `Nivra — Facture de renouvellement #${res.invoice_number}`,
+          template_key: "invoice_created",
+          template_vars: {
+            client_name: `${customer.first_name} ${customer.last_name}`,
+            invoice_number: res.invoice_number,
+            total: Number(res.total).toFixed(2),
+            amount: Number(res.total).toFixed(2),
+            due_date: res.cycle_start,
+            cycle_start: res.cycle_start,
+            cycle_end: res.cycle_end,
+          },
+          status: "queued",
+          attempts: 0,
+          max_attempts: 3,
+          max_retries: 3,
+        });
+      }
+
+      stats.renewals_generated++;
+      stats.processed_items.push({
+        action: "renewal_created",
+        account_id: acct.id,
+        account_number: acct.account_number,
+        invoice_number: res.invoice_number,
+        total: res.total,
+        lines: res.lines,
+      });
+
+      console.log(
+        `[lifecycle] Created renewal ${res.invoice_number} for account ${acct.account_number} (${res.total} $)`,
+      );
+    } catch (err: unknown) {
+      const msg = `Renewal error for account ${acct.account_number}: ${err instanceof Error ? err.message : String(err)}`;
+      stats.errors.push(msg);
+      stats.errors_count++;
+      console.error(`[lifecycle] ${msg}`);
+    }
+  }
+
+  // FALLBACK: Also process subscriptions with cycle_end_date approach
+  // for subscriptions not yet linked to an account
+  await processLegacyRenewals(supabase, stats);
+}
+
+// Legacy renewal for subscriptions without account linkage
+async function processLegacyRenewals(
   supabase: ReturnType<typeof createClient>,
   stats: RunStats,
 ) {
@@ -189,22 +297,41 @@ async function processRenewals(
     .eq("status", "active")
     .eq("cycle_end_date", targetDate);
 
-  if (error) {
-    stats.errors.push(`Renewal query error: ${error.message}`);
-    stats.errors_count++;
-    return;
-  }
-
-  console.log(
-    `[lifecycle] Found ${subscriptions?.length || 0} subscriptions ending on ${targetDate} (J-3)`,
-  );
+  if (error) return;
 
   for (const sub of subscriptions || []) {
     try {
+      // Skip if customer is linked to an account (handled by account-based renewal)
+      if (sub.customer?.id) {
+        const { data: acctCheck } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("client_id", sub.customer.id)
+          .not("next_invoice_date", "is", null)
+          .maybeSingle();
+        // If account has user_id matching, check via billing_customers.user_id
+        const { data: bcCheck } = await supabase
+          .from("billing_customers")
+          .select("user_id")
+          .eq("id", sub.customer_id)
+          .maybeSingle();
+        if (bcCheck?.user_id) {
+          const { data: acctByClient } = await supabase
+            .from("accounts")
+            .select("id")
+            .eq("client_id", bcCheck.user_id)
+            .maybeSingle();
+          if (acctByClient) {
+            console.log(`[lifecycle] Skipping legacy renewal for ${sub.id} — handled by account-based flow`);
+            continue;
+          }
+        }
+      }
+
       const newCycleStart = sub.cycle_end_date;
       const newCycleEnd = addDays(newCycleStart, 30);
 
-      // Idempotency: check if renewal already exists for this period
+      // Idempotency check
       const { data: existing } = await supabase
         .from("billing_invoices")
         .select("id")
@@ -213,25 +340,17 @@ async function processRenewals(
         .eq("cycle_start_date", newCycleStart)
         .maybeSingle();
 
-      if (existing) {
-        console.log(`[lifecycle] Renewal already exists for ${sub.id}, skipping`);
-        continue;
-      }
+      if (existing) continue;
 
-      // Generate invoice number
-      const { data: invoiceNumberData } = await supabase.rpc(
-        "generate_billing_invoice_number",
-      );
+      const { data: invoiceNumberData } = await supabase.rpc("generate_billing_invoice_number");
       const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
 
-      // Fetch active subscription services for multi-line invoice
       const { data: subServices } = await supabase
         .from("billing_subscription_services")
         .select("*")
         .eq("subscription_id", sub.id)
         .eq("is_active", true);
 
-      // Calculate subtotal from individual services (or fallback to plan_price)
       let subtotal: number;
       const hasServices = subServices && subServices.length > 0;
       if (hasServices) {
@@ -246,7 +365,6 @@ async function processRenewals(
       const hasPayPal = !!sub.paypal_subscription_id;
       const paymentMethod = hasPayPal ? "paypal" : "interac";
 
-      // Create renewal invoice
       const { data: invoice, error: invErr } = await supabase
         .from("billing_invoices")
         .insert({
@@ -271,7 +389,6 @@ async function processRenewals(
 
       if (invErr) throw invErr;
 
-      // Create invoice lines — one per active service, always set line_type
       if (hasServices) {
         const lines = subServices.map((svc) => ({
           invoice_id: invoice.id,
@@ -293,16 +410,10 @@ async function processRenewals(
         });
       }
 
-      // PayPal auto-charge if applicable
       if (hasPayPal) {
-        console.log(`[lifecycle] Triggering PayPal auto-charge for ${sub.id}`);
         try {
           await supabase.functions.invoke("paypal-charge-subscription", {
-            body: {
-              subscription_id: sub.id,
-              invoice_id: invoice.id,
-              amount: total,
-            },
+            body: { subscription_id: sub.id, invoice_id: invoice.id, amount: total },
           });
         } catch (chargeErr) {
           console.error(`[lifecycle] PayPal charge error:`, chargeErr);
@@ -311,22 +422,18 @@ async function processRenewals(
 
       stats.renewals_generated++;
       stats.processed_items.push({
-        action: "renewal_created",
+        action: "legacy_renewal_created",
         subscription_id: sub.id,
         invoice_number: invoiceNumber,
         total,
         plan: sub.plan_name,
-        customer: sub.customer?.email,
       });
 
-      console.log(
-        `[lifecycle] Created renewal ${invoiceNumber} for ${sub.id} (${sub.plan_name})`,
-      );
+      console.log(`[lifecycle] Created legacy renewal ${invoiceNumber} for sub ${sub.id}`);
     } catch (err: unknown) {
-      const msg = `Renewal error for ${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
+      const msg = `Legacy renewal error for ${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
       stats.errors.push(msg);
       stats.errors_count++;
-      console.error(`[lifecycle] ${msg}`);
     }
   }
 }
@@ -349,7 +456,6 @@ async function processReminders(
   for (const offset of reminderOffsets) {
     const targetDate = addDays(today, offset.days);
 
-    // Find pending invoices due on this date
     const { data: invoices, error } = await supabase
       .from("billing_invoices")
       .select(
@@ -367,10 +473,8 @@ async function processReminders(
     for (const inv of invoices || []) {
       if (!inv.customer?.email) continue;
 
-      // Idempotency key: unique per invoice + reminder type + date
       const idempotencyKey = `billing_reminder_${inv.id}_${offset.label}_${today}`;
 
-      // Check if already queued (by event_key OR idempotency_key)
       const { data: existing } = await supabase
         .from("email_queue")
         .select("id")
@@ -425,10 +529,6 @@ async function processReminders(
         console.log(`[lifecycle] Queued ${offset.label} reminder for ${inv.invoice_number} → ${inv.customer.email}`);
       }
     }
-
-    console.log(
-      `[lifecycle] Processed ${offset.label} reminders: ${invoices?.length || 0} invoices checked`,
-    );
   }
 }
 
@@ -441,7 +541,6 @@ async function cleanupOverdueInvoices(
 ) {
   const today = todayStr();
 
-  // Find all overdue invoices with due_date in the past — prepaid model never has overdue
   const { data: overdueInvoices, error } = await supabase
     .from("billing_invoices")
     .select("id, invoice_number, due_date")
@@ -462,7 +561,7 @@ async function cleanupOverdueInvoices(
 
     if (!voidErr) {
       stats.invoices_voided++;
-      console.log(`[lifecycle] Voided overdue invoice ${inv.invoice_number} (prepaid cleanup)`);
+      console.log(`[lifecycle] Voided overdue invoice ${inv.invoice_number}`);
     }
   }
 }
@@ -490,7 +589,6 @@ serve(async (req) => {
 
   const stats = newStats();
 
-  // Create run record
   const { data: run } = await supabase
     .from("billing_automation_runs")
     .insert({ run_type: mode, status: "running" })
@@ -502,23 +600,22 @@ serve(async (req) => {
   console.log(`[lifecycle] Starting ${mode} run (id: ${runId})`);
 
   try {
-    // STEP 1: Process expirations (active + pending with past cycle_end)
+    // STEP 1: Process expirations
     await processExpirations(supabase, stats);
 
-    // STEP 2: Generate renewals at J-3 (not for backfill)
+    // STEP 2: Generate renewals (account-anchored + legacy fallback)
     if (mode !== "backfill") {
       await processRenewals(supabase, stats);
     }
 
-    // STEP 3: Queue reminders (not for backfill)
+    // STEP 3: Queue reminders
     if (mode !== "backfill") {
       await processReminders(supabase, stats);
     }
 
-    // STEP 4: Cleanup any leftover overdue invoices (prepaid model)
+    // STEP 4: Cleanup overdue invoices
     await cleanupOverdueInvoices(supabase, stats);
 
-    // Update run record
     const summary = [
       `Expired: ${stats.subscriptions_expired}`,
       `Voided: ${stats.invoices_voided}`,
