@@ -21,6 +21,8 @@ const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"))
 const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
 const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
+const CoreClients = lazy(() => import("@/core-app/pages/ClientsPage"));
+const CoreClientProfile = lazy(() => import("@/core-app/pages/CoreClientProfile"));
 
 // Public pages
 import Index from "@/pages/Index";
@@ -578,6 +580,8 @@ const AppRoutes = () => {
           <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
           <Route path="subscriptions/:id" element={<Suspense fallback={null}><CoreSubscriptionDetail /></Suspense>} />
           <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
+          <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
+          <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
         </Route>
       </Route>
 

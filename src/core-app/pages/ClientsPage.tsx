@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Link } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Search, ArrowRight, Users, RefreshCw, UserPlus, Mail, Phone, Hash } from "lucide-react";
+import { Search, Users, RefreshCw, UserPlus, ShoppingCart, UserCircle, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -20,7 +20,6 @@ interface ClientRow {
   email: string | null;
   phone: string | null;
   created_at: string;
-  // joined from accounts
   account_id: string | null;
   account_number: string | null;
   account_status: string | null;
@@ -33,7 +32,6 @@ const ClientsPage = () => {
   const { data: clients, isLoading, refetch } = useQuery<ClientRow[]>({
     queryKey: ["core-clients-all"],
     queryFn: async () => {
-      // Get all profiles
       const { data: profiles, error: profErr } = await supabase
         .from("profiles")
         .select("user_id, full_name, first_name, last_name, email, phone, created_at")
@@ -41,7 +39,6 @@ const ClientsPage = () => {
       if (profErr) throw profErr;
       if (!profiles || profiles.length === 0) return [];
 
-      // Get all accounts to map client_id → account info
       const { data: accounts } = await supabase
         .from("accounts")
         .select("id, account_number, status, client_id");
@@ -90,6 +87,9 @@ const ClientsPage = () => {
       withoutAccount: clients.filter(c => !c.account_id).length,
     };
   }, [clients]);
+
+  const getDisplayName = (c: ClientRow) =>
+    c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "—";
 
   return (
     <div className="space-y-4">
@@ -159,7 +159,7 @@ const ClientsPage = () => {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-[hsl(220,15%,16%)]">
-                {["Nom", "Courriel", "Téléphone", "N° compte", "Statut compte", "Inscrit le", ""].map(h => (
+                {["Nom", "Courriel", "Téléphone", "N° compte", "Statut", "Inscrit le", "Actions"].map(h => (
                   <th key={h} className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -190,9 +190,7 @@ const ClientsPage = () => {
                         }`}>
                           {(c.first_name?.[0] || c.full_name?.[0] || "?").toUpperCase()}
                         </div>
-                        <p className="text-white truncate max-w-[160px]">
-                          {c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
-                        </p>
+                        <p className="text-white truncate max-w-[160px]">{getDisplayName(c)}</p>
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-[hsl(220,10%,55%)] truncate max-w-[180px]">{c.email || "—"}</td>
@@ -201,7 +199,7 @@ const ClientsPage = () => {
                       {c.account_number ? (
                         <span className="font-mono font-medium text-white">{c.account_number}</span>
                       ) : (
-                        <span className="text-[hsl(220,10%,30%)] text-[10px] italic">Aucun compte</span>
+                        <span className="text-[hsl(220,10%,30%)] text-[10px] italic">Aucun</span>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
@@ -214,18 +212,53 @@ const ClientsPage = () => {
                     <td className="px-3 py-2.5 text-[hsl(220,10%,45%)] whitespace-nowrap">
                       {c.created_at ? format(new Date(c.created_at), "d MMM yyyy", { locale: fr }) : "—"}
                     </td>
+
+                    {/* ═══ VISIBLE ACTION BUTTONS ═══ */}
                     <td className="px-3 py-2.5">
-                      {c.account_id ? (
-                        <Link to={corePath(`/accounts/${c.account_id}`)}>
-                          <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors">
-                            <ArrowRight className="h-3.5 w-3.5" />
+                      <div className="flex items-center gap-1.5">
+                        {/* Open client profile */}
+                        <Link to={corePath(`/clients/${c.user_id}`)}>
+                          <button
+                            title="Profil client"
+                            className="h-7 px-2 flex items-center gap-1 rounded-md border border-[hsl(220,15%,20%)] text-[10px] font-medium text-[hsl(220,10%,55%)] hover:text-white hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors"
+                          >
+                            <UserCircle className="h-3.5 w-3.5" />
+                            Profil
                           </button>
                         </Link>
-                      ) : (
-                        <span className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,14%)] text-[hsl(220,10%,25%)]">
-                          <UserPlus className="h-3.5 w-3.5" />
-                        </span>
-                      )}
+
+                        {/* Open linked account OR Create account */}
+                        {c.account_id ? (
+                          <Link to={corePath(`/accounts/${c.account_id}`)}>
+                            <button
+                              title="Ouvrir le compte"
+                              className="h-7 px-2 flex items-center gap-1 rounded-md border border-emerald-500/20 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Compte
+                            </button>
+                          </Link>
+                        ) : (
+                          <button
+                            title="Créer un compte"
+                            className="h-7 px-2 flex items-center gap-1 rounded-md border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 transition-colors"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" />
+                            Créer compte
+                          </button>
+                        )}
+
+                        {/* Create new order */}
+                        <Link to={corePath(`/orders?newOrder=true&clientId=${c.user_id}`)}>
+                          <button
+                            title="Nouvelle commande"
+                            className="h-7 px-2 flex items-center gap-1 rounded-md border border-blue-500/20 text-[10px] font-medium text-blue-400 hover:bg-blue-500/10 transition-colors"
+                          >
+                            <ShoppingCart className="h-3.5 w-3.5" />
+                            Commande
+                          </button>
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
