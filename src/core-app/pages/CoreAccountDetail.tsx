@@ -591,10 +591,21 @@ const CoreAccountDetail = () => {
 
           {/* Billing cycle */}
           <Panel>
-            <PanelHeader icon={Clock} title="Facturation" />
+           <PanelHeader icon={Clock} title="Cycle de facturation" />
             <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
-              <InfoLine label="Jour de cycle" value={acct.billing_cycle_day ?? "—"} accent />
+              <InfoLine label="Jour de cycle" value={acct.billing_cycle_day ? `Le ${acct.billing_cycle_day} de chaque mois` : "—"} accent />
               <InfoLine label="Prochaine facture" value={fmtDate(acct.next_invoice_date)} accent />
+              <InfoLine label="Montant mensuel" value={fmtCAD(monthlyRevenue)} accent />
+              <InfoLine label="Solde impayé" value={
+                <span className={totalDue > 0 ? "text-red-400 font-semibold" : "text-emerald-400"}>
+                  {fmtCAD(totalDue)}
+                </span>
+              } />
+              <InfoLine label="Factures impayées" value={
+                <span className={unpaidInvoices.length > 0 ? "text-red-400" : "text-emerald-400"}>
+                  {unpaidInvoices.length}
+                </span>
+              } />
               <InfoLine label="Date d'ancrage" value={fmtDate(acct.billing_anchor_date)} />
             </div>
           </Panel>

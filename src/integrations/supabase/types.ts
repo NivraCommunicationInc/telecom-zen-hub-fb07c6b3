@@ -12188,6 +12188,10 @@ export type Database = {
         Returns: undefined
       }
       generate_account_number: { Args: never; Returns: string }
+      generate_account_renewal_invoice: {
+        Args: { p_account_id: string }
+        Returns: Json
+      }
       generate_appointment_number: { Args: never; Returns: string }
       generate_billing_invoice_number: { Args: never; Returns: string }
       generate_billing_renewals: { Args: never; Returns: undefined }
