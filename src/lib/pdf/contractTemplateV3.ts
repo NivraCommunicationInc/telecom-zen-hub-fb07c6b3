@@ -307,11 +307,17 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       y += 3;
     }
 
-    // Totals summary
+    // ── CONTRACT FINANCIAL SUMMARY (commercially clear for prepaid) ──
     y += 5;
     const totX = pw / 2;
+    const netMonthly = Math.max(0, data.subtotal_monthly - data.discount_amount);
+
+    // Calculate box height dynamically
+    let boxLines = 3; // monthly, discount/net, one-time fees
+    if (data.discount_amount > 0) boxLines += 1;
+    const boxH = 7 + boxLines * 6 + 14; // header padding + lines + note area
     doc.setFillColor(...C.lightBg);
-    doc.roundedRect(totX, y, pw / 2 - m, 38, 2, 2, "F");
+    doc.roundedRect(totX, y, pw / 2 - m, boxH, 2, 2, "F");
 
     let ty = y + 7;
     const drawTot = (label: string, value: string, bold = false) => {
@@ -323,20 +329,25 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       ty += 6;
     };
 
-    drawTot("Mensuel récurrent:", fmt(data.subtotal_monthly));
-    drawTot("Frais uniques:", fmt(data.subtotal_one_time));
-    if (data.discount_amount > 0) drawTot("Rabais:", `- ${fmt(data.discount_amount)}`);
-    drawTot(`${TAX.GST_LABEL}:`, fmt(data.tax_gst));
-    drawTot(`${TAX.QST_LABEL}:`, fmt(data.tax_qst));
+    drawTot("Services mensuels récurrents:", fmt(data.subtotal_monthly));
+    if (data.discount_amount > 0) {
+      drawTot("Rabais 1ère période:", `- ${fmt(data.discount_amount)}`);
+      drawTot("Net mensuel (1ère période prépayée):", fmt(netMonthly), true);
+    }
+    if (data.subtotal_one_time > 0) {
+      drawTot("Frais uniques applicables:", fmt(data.subtotal_one_time));
+    }
 
-    // Total due box
-    doc.setFillColor(...C.navy);
-    doc.roundedRect(totX, ty - 1, pw / 2 - m, 9, 1, 1, "F");
-    doc.setTextColor(...C.white);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text("TOTAL DÛ AUJOURD'HUI", totX + 5, ty + 5);
-    doc.text(fmt(data.total_due_today), pw - m - 5, ty + 5, { align: "right" });
+    // Note instead of misleading total
+    ty += 2;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(6.5);
+    doc.setTextColor(...C.textMuted);
+    const noteLines = doc.splitTextToSize(
+      "Le montant total facturé incluant taxes est détaillé sur la facture officielle jointe à ce contrat.",
+      pw / 2 - m - 10
+    );
+    doc.text(noteLines, totX + 5, ty);
 
     drawFooter(doc, 1, totalPages);
 

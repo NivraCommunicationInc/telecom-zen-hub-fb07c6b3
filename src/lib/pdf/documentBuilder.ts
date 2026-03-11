@@ -359,7 +359,7 @@ export function buildInvoiceData(data: OrderDocumentData): InvoiceDataV2 {
     invoice_type: order.category === "Delivery" || !structured.invoiceItems.some(i => i.is_recurring) ? "ONETIME" : "MONTHLY",
     invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || requireField(null, "invoice_number"),
     invoice_date: billingInvoice?.created_at || order.created_at,
-    due_date: billingInvoice?.due_date || new Date(new Date(order.created_at).getTime() + 30 * 86400000).toISOString(),
+    due_date: billingInvoice?.due_date || billingInvoice?.created_at || order.created_at,
     account_number: requireField(liveAccountNumber || snapshotAccountNumber, "account_number"),
     billing_period_start: billingInvoice?.cycle_start_date,
     billing_period_end: billingInvoice?.cycle_end_date,
