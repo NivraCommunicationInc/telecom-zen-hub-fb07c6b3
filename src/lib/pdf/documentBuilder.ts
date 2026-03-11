@@ -557,6 +557,35 @@ export function buildContractSummaryData(data: OrderDocumentData): ContractSumma
 }
 
 // ============================================================================
+// FILENAME HELPERS
+// ============================================================================
+
+function sanitizeFilename(s: string): string {
+  return s.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function buildDocFilenames(data: OrderDocumentData) {
+  const clientName = sanitizeFilename(buildClientName(data.order, data.profile) || "Client");
+  const acct = data.account?.account_number || "";
+  const orderNum = data.order.order_number?.toString() || "";
+  const invoiceNum = data.billingInvoice?.invoice_number || orderNum;
+  const payRef = data.billingPayments?.[0]?.payment_number || data.billingPayments?.[0]?.reference || invoiceNum;
+
+  // Billing month from invoice cycle or order date
+  const billingDate = data.billingInvoice?.cycle_start_date || data.order.created_at;
+  const billingMonth = billingDate ? new Date(billingDate).toLocaleDateString("fr-CA", { year: "numeric", month: "long" }) : "";
+
+  return {
+    contract: sanitizeFilename(`Nivra Telecom - Contrat de service - ${clientName} - Compte ${acct} - Commande ${orderNum}.pdf`),
+    invoice: sanitizeFilename(`Nivra Telecom - Facture ${invoiceNum} - ${clientName} - ${billingMonth}.pdf`),
+    summary: sanitizeFilename(`Nivra Telecom - Sommaire de commande ${orderNum} - ${clientName}.pdf`),
+    receipt: sanitizeFilename(`Nivra Telecom - Recu de paiement - ${payRef} - ${clientName}.pdf`),
+    contractSummary: sanitizeFilename(`Nivra Telecom - Resume de contrat - ${clientName} - Commande ${orderNum}.pdf`),
+    terms: `Nivra Telecom - Conditions de service - ${CURRENT_TERMS_VERSION}.pdf`,
+  };
+}
+
+// ============================================================================
 // MAIN PIPELINE
 // ============================================================================
 
@@ -570,11 +599,9 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
   }
 
   // VALIDATION GATE: Warn about missing fields but DO NOT block generation
-  // Documents must still be viewable even with partial data
   const missingFields = validateDocumentData(data);
   if (missingFields.length > 0) {
     console.warn(`[DocumentBuilder] ⚠️ Champs manquants (non bloquant): ${missingFields.join(", ")}`);
-    // Log alert for admin awareness, but continue generation
     try {
       await supabase.from("billing_system_alerts").insert({
         alert_type: "pdf_missing_data_warning",
@@ -585,7 +612,6 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     } catch (alertErr) {
       console.error("[DocumentBuilder] Could not create alert:", alertErr);
     }
-    // Continue generation — documents will show "Non fourni par le client" for missing fields
   }
 
   if (!data.breakdown) {
@@ -602,19 +628,26 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
 
   console.log(`[DocumentBuilder V4] ✅ Using compute_invoice_breakdown RPC (source of truth)`);
 
+  const filenames = buildDocFilenames(data);
+
   const invoiceData = buildInvoiceData(data);
   const invoice = generateInvoiceV3PDF(invoiceData);
+  if (invoice.success) invoice.filename = filenames.invoice;
 
   const orderSummaryData = buildOrderSummaryData(data);
   const orderSummary = generateOrderSummaryPDF(orderSummaryData);
+  if (orderSummary.success) orderSummary.filename = filenames.summary;
 
   const contractData = buildContractData(data);
   const contract = generateContractV3PDF(contractData);
+  if (contract.success) contract.filename = filenames.contract;
 
   const contractSummaryData = buildContractSummaryData(data);
   const contractSummary = generateContractSummaryPDF(contractSummaryData);
+  if (contractSummary.success) contractSummary.filename = filenames.contractSummary;
 
   const terms = generateServiceTermsPDF();
+  if (terms.success) terms.filename = filenames.terms;
 
   console.log(`[DocumentBuilder V4] Generated: invoice=${invoice.success}, summary=${orderSummary.success}, contract=${contract.success}, rre=${contractSummary.success}, terms=${terms.success}`);
 
