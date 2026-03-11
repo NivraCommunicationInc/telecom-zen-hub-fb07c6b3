@@ -112,7 +112,21 @@ function mapPaymentMethodForDB(method: PaymentMethod): string {
 export default function CorePOSPage() {
   // ── Data Sources ──
   const { data: offers = [], isLoading: offersLoading } = useFieldSalesOffers();
-  const { data: equipmentCatalog = [], isLoading: eqLoading } = usePOSEquipmentCatalog();
+  
+  // Equipment from real inventory (in_stock items only)
+  const { data: equipmentCatalog = [], isLoading: eqLoading } = useQuery({
+    queryKey: ["pos-equipment-inventory-stock"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("equipment_inventory")
+        .select("id, catalog_name, catalog_item_id, sku, serial_number, imei, mac_address, price_client, cost_internal, condition, status")
+        .eq("status", "in_stock")
+        .order("catalog_name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 15_000,
+  });
 
   // ── Client State ──
   const [clientMode, setClientMode] = useState<"search" | "new">("search");
