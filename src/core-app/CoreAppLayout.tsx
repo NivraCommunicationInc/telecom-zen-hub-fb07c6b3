@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Terminal,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
