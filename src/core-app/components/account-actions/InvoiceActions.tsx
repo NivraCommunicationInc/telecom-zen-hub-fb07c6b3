@@ -275,22 +275,33 @@ function SendInvoiceModal({ invoices, onClose, onRefresh }: { invoices: any[]; o
 
   const handleSend = async () => {
     if (!inv) return;
+    const recipientEmail = inv.billing_snapshot_client?.email || inv.customer?.email || "";
+    if (!recipientEmail) {
+      toast.error("Aucune adresse courriel trouvée pour ce client");
+      return;
+    }
     setLoading(true);
     try {
+      const eventKey = `manual_invoice_sent_${inv.id}_${Date.now()}`;
       const { error } = await supabase.from("email_queue").insert({
+        event_key: eventKey,
         template_key: "invoice_sent",
-        to_email: inv.billing_snapshot_client?.email || "",
+        to_email: recipientEmail,
         subject: `Facture ${inv.invoice_number}`,
         template_vars: {
           invoice_number: inv.invoice_number,
           total: inv.total,
           due_date: inv.due_date,
+          balance_due: inv.balance_due,
           manual_send: true,
         },
-        status: "pending",
+        entity_type: "invoice",
+        entity_id: inv.id,
+        message_type: "invoice_sent",
+        status: "queued",
       });
       if (error) throw error;
-      toast.success(`Facture ${inv.invoice_number} envoyée`);
+      toast.success(`Facture ${inv.invoice_number} envoyée à ${recipientEmail}`);
       onClose();
     } catch (e: any) {
       toast.error(e.message || "Erreur d'envoi");
