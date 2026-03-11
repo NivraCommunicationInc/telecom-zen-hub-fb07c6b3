@@ -3,7 +3,7 @@
  * Identical logic to @/hooks/admin/useAdminSubscriptionDetail.
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 
 export function useAdminSubscriptionDetail(subscriptionId: string | undefined) {
   const subscription = useQuery({
