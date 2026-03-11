@@ -17,6 +17,10 @@ import {
   ExternalLink, Activity, AlertTriangle, DollarSign, Hash, CircleDot,
   LayoutGrid,
 } from "lucide-react";
+import { InvoiceActionMenu } from "@/core-app/components/account-actions/InvoiceActions";
+import { SubscriptionActionMenu } from "@/core-app/components/account-actions/SubscriptionActions";
+import { EquipmentActionMenu } from "@/core-app/components/account-actions/EquipmentActions";
+import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
