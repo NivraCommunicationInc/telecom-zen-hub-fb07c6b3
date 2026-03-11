@@ -1,17 +1,22 @@
 /**
  * Nivra Core — Subscription Detail (ops-grade)
- * Reuses useAdminSubscriptionDetail — zero duplicated business logic.
+ * Full subscription view with quick actions.
  */
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAdminSubscriptionDetail } from "@/core-app/hooks/useAdminSubscriptionDetail";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { corePath } from "@/core-app/lib/corePaths";
 import {
   ArrowLeft, User, MapPin, Package, FileText, History,
-  Zap, ExternalLink, ToggleRight, Calendar, CreditCard,
+  Zap, ExternalLink, ToggleRight, CreditCard,
+  PauseCircle, PlayCircle, XCircle, ShoppingCart, Users,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const fmtCAD = (n: number | null | undefined) =>
   n != null ? `${n.toFixed(2)} $` : "—";
@@ -26,8 +31,40 @@ const fmtDateTime = (d: string | null | undefined) => {
 
 export default function SubscriptionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { subscription, customer, address, invoices, audit, accountNumber, isLoading } =
     useAdminSubscriptionDetail(id);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const updateStatus = async (newStatus: string, label: string) => {
+    if (!id || !subscription) return;
+    setActionLoading(newStatus);
+    try {
+      const { error } = await supabase
+        .from("billing_subscriptions")
+        .update({ status: newStatus as any, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+
+      // Audit trail
+      await supabase.from("billing_subscription_trace_audit").insert({
+        subscription_id: id,
+        customer_id: subscription.customer_id,
+        action: `status_changed_to_${newStatus}`,
+        reason: `Action manuelle depuis Core: ${label}`,
+        details: { previous_status: subscription.status, new_status: newStatus },
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["admin-subscription-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-subscriptions"] });
+      toast.success(`Abonnement ${label.toLowerCase()}`);
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de la mise à jour");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -52,6 +89,10 @@ export default function SubscriptionDetailPage() {
 
   const services = subscription.billing_subscription_services || [];
   const clientName = customer ? `${customer.first_name} ${customer.last_name}` : "—";
+  const status = subscription.status || "";
+  const isActive = status === "active";
+  const isSuspended = status === "suspended";
+  const isCancelled = status === "cancelled";
 
   return (
     <div className="space-y-5 max-w-6xl">
@@ -71,11 +112,27 @@ export default function SubscriptionDetailPage() {
           <p className="text-[12px] text-[hsl(220,10%,45%)] font-mono mt-0.5">{subscription.plan_code}</p>
         </div>
         <StatusBadge
-          label={subscription.status || "—"}
-          variant={statusToVariant(subscription.status || "")}
+          label={status || "—"}
+          variant={statusToVariant(status)}
           size="md"
         />
       </div>
+
+      {/* Quick Actions */}
+      <QuickActions
+        status={status}
+        isActive={isActive}
+        isSuspended={isSuspended}
+        isCancelled={isCancelled}
+        actionLoading={actionLoading}
+        orderId={subscription.order_id}
+        customerId={subscription.customer_id}
+        customer={customer}
+        onSuspend={() => updateStatus("suspended", "Suspendu")}
+        onResume={() => updateStatus("active", "Réactivé")}
+        onCancel={() => updateStatus("cancelled", "Annulé")}
+        navigate={navigate}
+      />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -113,6 +170,16 @@ export default function SubscriptionDetailPage() {
           )}
         </Section>
       </div>
+
+      {/* Subscription details */}
+      <Section title="Détails de l'abonnement" icon={Package}>
+        <Row label="Type de service" value={subscription.service_category || "—"} />
+        <Row label="Plan" value={subscription.plan_name || "—"} />
+        <Row label="Date d'activation" value={fmtDate(subscription.created_at)} />
+        <Row label="Cycle de facturation" value={`${fmtDate(subscription.cycle_start_date)} → ${fmtDate(subscription.cycle_end_date)}`} />
+        <Row label="Prochaine facturation" value={fmtDate(subscription.cycle_end_date)} />
+        <Row label="Statut" value={status || "—"} />
+      </Section>
 
       {/* Services inclus */}
       <Section title="Services inclus" icon={Package} noPad>
@@ -157,7 +224,7 @@ export default function SubscriptionDetailPage() {
       {subscription.order_id && (
         <Section title="Commande source" icon={CreditCard}>
           <Link
-            to={`/core/orders/${subscription.order_id}`}
+            to={corePath(`/orders/${subscription.order_id}`)}
             className="text-xs text-emerald-400 hover:underline flex items-center gap-1.5"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Voir la commande
@@ -185,7 +252,7 @@ export default function SubscriptionDetailPage() {
                 {invoices.map((inv: any) => (
                   <tr key={inv.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors">
                     <td className="px-4 py-2.5">
-                      <Link to={`/core/invoices/${inv.id}`} className="font-mono text-emerald-400 hover:underline">
+                      <Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-emerald-400 hover:underline">
                         {inv.invoice_number}
                       </Link>
                     </td>
@@ -234,6 +301,127 @@ export default function SubscriptionDetailPage() {
         )}
       </Section>
     </div>
+  );
+}
+
+/* ── Quick Actions Bar ── */
+function QuickActions({
+  status, isActive, isSuspended, isCancelled, actionLoading,
+  orderId, customerId, customer, onSuspend, onResume, onCancel, navigate,
+}: {
+  status: string;
+  isActive: boolean;
+  isSuspended: boolean;
+  isCancelled: boolean;
+  actionLoading: string | null;
+  orderId: string | null;
+  customerId: string;
+  customer: any;
+  onSuspend: () => void;
+  onResume: () => void;
+  onCancel: () => void;
+  navigate: (path: string) => void;
+}) {
+  const [confirmAction, setConfirmAction] = useState<string | null>(null);
+
+  const handleConfirm = (action: string, fn: () => void) => {
+    if (confirmAction === action) {
+      fn();
+      setConfirmAction(null);
+    } else {
+      setConfirmAction(action);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
+      <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,40%)] font-medium mb-2.5">Actions rapides</p>
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Suspend */}
+        {isActive && (
+          <ActionBtn
+            icon={PauseCircle}
+            label={confirmAction === "suspend" ? "Confirmer suspension" : "Suspendre"}
+            variant={confirmAction === "suspend" ? "warning-confirm" : "warning"}
+            loading={actionLoading === "suspended"}
+            onClick={() => handleConfirm("suspend", onSuspend)}
+          />
+        )}
+
+        {/* Resume */}
+        {isSuspended && (
+          <ActionBtn
+            icon={PlayCircle}
+            label={confirmAction === "resume" ? "Confirmer réactivation" : "Réactiver"}
+            variant={confirmAction === "resume" ? "success-confirm" : "success"}
+            loading={actionLoading === "active"}
+            onClick={() => handleConfirm("resume", onResume)}
+          />
+        )}
+
+        {/* Cancel */}
+        {!isCancelled && (
+          <ActionBtn
+            icon={XCircle}
+            label={confirmAction === "cancel" ? "Confirmer annulation" : "Annuler l'abonnement"}
+            variant={confirmAction === "cancel" ? "danger-confirm" : "danger"}
+            loading={actionLoading === "cancelled"}
+            onClick={() => handleConfirm("cancel", onCancel)}
+          />
+        )}
+
+        {/* Divider */}
+        <div className="h-5 w-px bg-[hsl(220,15%,18%)] mx-1" />
+
+        {/* Open linked order */}
+        {orderId && (
+          <ActionBtn
+            icon={ShoppingCart}
+            label="Voir la commande"
+            variant="neutral"
+            onClick={() => navigate(corePath(`/orders/${orderId}`))}
+          />
+        )}
+
+        {/* Open account */}
+        {customer?.user_id && (
+          <ActionBtn
+            icon={Users}
+            label="Voir le compte"
+            variant="neutral"
+            onClick={() => navigate(corePath(`/accounts/${customer.user_id}`))}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Action Button ── */
+type ActionVariant = "warning" | "warning-confirm" | "success" | "success-confirm" | "danger" | "danger-confirm" | "neutral";
+
+function ActionBtn({ icon: Icon, label, variant, loading, onClick }: {
+  icon: any; label: string; variant: ActionVariant; loading?: boolean; onClick: () => void;
+}) {
+  const styles: Record<ActionVariant, string> = {
+    warning: "border-amber-500/20 text-amber-400 hover:bg-amber-500/10",
+    "warning-confirm": "border-amber-500/40 bg-amber-500/15 text-amber-300 font-semibold",
+    success: "border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10",
+    "success-confirm": "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 font-semibold",
+    danger: "border-red-500/20 text-red-400 hover:bg-red-500/10",
+    "danger-confirm": "border-red-500/40 bg-red-500/15 text-red-300 font-semibold",
+    neutral: "border-[hsl(220,15%,18%)] text-[hsl(220,10%,55%)] hover:text-white hover:border-emerald-500/30",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 ${styles[variant]}`}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {loading ? "..." : label}
+    </button>
   );
 }
 
