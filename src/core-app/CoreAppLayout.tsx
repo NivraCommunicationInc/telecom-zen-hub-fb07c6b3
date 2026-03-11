@@ -12,6 +12,7 @@ import {
   ListTodo,
   ShoppingCart,
   Users,
+  UserCircle,
   FileText,
   CreditCard,
   RefreshCcw,
