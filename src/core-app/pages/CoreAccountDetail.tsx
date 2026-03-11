@@ -21,6 +21,7 @@ import { InvoiceActionMenu } from "@/core-app/components/account-actions/Invoice
 import { SubscriptionActionMenu } from "@/core-app/components/account-actions/SubscriptionActions";
 import { EquipmentActionMenu } from "@/core-app/components/account-actions/EquipmentActions";
 import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
+import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
