@@ -120,12 +120,34 @@ const CoreAccountDetail = () => {
     );
   }
 
+  if (data.accountError) {
+    return (
+      <div className="py-20 text-center space-y-2">
+        <User className="h-8 w-8 mx-auto mb-2 text-red-400/50" />
+        <p className="text-red-400 text-xs font-medium">Erreur de chargement du compte</p>
+        <p className="text-[hsl(220,10%,35%)] text-[11px] max-w-md mx-auto">{(data.accountError as any)?.message || "Vérifiez votre session et réessayez."}</p>
+        <div className="flex items-center justify-center gap-3 mt-3">
+          <button onClick={() => data.refetch()} className="rounded-lg bg-emerald-600 px-4 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-500 transition-colors">
+            <RefreshCw className="h-3 w-3 inline mr-1.5" />Réessayer
+          </button>
+          <Link to={corePath("/accounts")} className="text-blue-400 text-xs hover:underline">← Retour aux comptes</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!data.account) {
     return (
-      <div className="py-20 text-center">
+      <div className="py-20 text-center space-y-2">
         <User className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,30%)]" />
         <p className="text-[hsl(220,10%,40%)] text-xs">Compte introuvable</p>
-        <Link to={corePath("/accounts")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour aux comptes</Link>
+        <p className="text-[hsl(220,10%,28%)] text-[10px]">ID: {accountId}</p>
+        <div className="flex items-center justify-center gap-3 mt-3">
+          <button onClick={() => data.refetch()} className="rounded-lg border border-[hsl(220,15%,20%)] px-3 py-1.5 text-[11px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
+            <RefreshCw className="h-3 w-3 inline mr-1.5" />Réessayer
+          </button>
+          <Link to={corePath("/accounts")} className="text-blue-400 text-xs hover:underline">← Retour aux comptes</Link>
+        </div>
       </div>
     );
   }
