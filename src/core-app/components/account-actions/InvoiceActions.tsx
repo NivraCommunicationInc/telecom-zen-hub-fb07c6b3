@@ -1,6 +1,7 @@
 /**
- * Invoice & Payment action modals for the Account 360 console.
+ * Invoice & Payment visible action bar for the Account 360 console.
  * All financial mutations go through canonical RPCs / DB operations.
+ * NO DROPDOWNS — all actions are visible buttons.
  */
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,16 +10,19 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
-import {
-  ChevronDown, CreditCard, DollarSign, FileText, Mail, CheckCircle, RotateCcw, Plus, Minus,
+  CreditCard, DollarSign, FileText, Mail, CheckCircle, RotateCcw, Plus, Minus, Banknote, Wallet,
 } from "lucide-react";
 
 /* ── styling tokens ── */
 const inputCls = "w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50";
 const btnPrimary = "rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors";
 const btnSecondary = "rounded-md border border-[hsl(220,15%,16%)] px-4 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white transition-colors";
+
+const actionBtn = "flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,13%)] px-2.5 py-1.5 text-[10px] font-medium transition-all whitespace-nowrap";
+const actionDefault = `${actionBtn} text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30`;
+const actionAccent = `${actionBtn} text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40`;
+const actionWarning = `${actionBtn} text-amber-400 hover:text-amber-300 hover:border-amber-500/40`;
+const actionDanger = `${actionBtn} text-red-400 hover:text-red-300 hover:border-red-500/40`;
 
 /* ── types ── */
 interface InvoiceActionsProps {
@@ -29,48 +33,154 @@ interface InvoiceActionsProps {
   onRefresh: () => void;
 }
 
-type ModalType = null | "markPaid" | "sendInvoice" | "addCharge" | "addCredit" | "refundPayment";
+type ModalType = null | "recordPayment" | "markPaid" | "sendInvoice" | "addCharge" | "addCredit" | "refundPayment";
 
 export function InvoiceActionMenu({ invoices, customerId, clientId, accountId, onRefresh }: InvoiceActionsProps) {
   const [modal, setModal] = useState<ModalType>(null);
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,13%)] px-2 py-1 text-[10px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-            Actions <ChevronDown className="h-3 w-3" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white">
-          <DropdownMenuLabel className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider">Facturation</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setModal("markPaid")} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <CheckCircle className="h-3.5 w-3.5" /> Marquer une facture payée
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setModal("sendInvoice")} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <Mail className="h-3.5 w-3.5" /> Envoyer une facture au client
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-[hsl(220,15%,16%)]" />
-          <DropdownMenuLabel className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider">Ajustements</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setModal("addCharge")} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <Plus className="h-3.5 w-3.5" /> Ajouter un frais
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setModal("addCredit")} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <Minus className="h-3.5 w-3.5" /> Appliquer un crédit
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-[hsl(220,15%,16%)]" />
-          <DropdownMenuItem onClick={() => setModal("refundPayment")} className="text-[11px] gap-2 text-amber-400 focus:bg-amber-500/10 focus:text-amber-300">
-            <RotateCcw className="h-3.5 w-3.5" /> Rembourser un paiement
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* ── Visible Action Bar ── */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button onClick={() => setModal("recordPayment")} className={actionAccent}>
+          <Banknote className="h-3 w-3" /> Paiement manuel
+        </button>
+        <button onClick={() => setModal("markPaid")} className={actionDefault}>
+          <CheckCircle className="h-3 w-3" /> Marquer payée
+        </button>
+        <button onClick={() => setModal("addCharge")} className={actionDefault}>
+          <Plus className="h-3 w-3" /> Frais
+        </button>
+        <button onClick={() => setModal("addCredit")} className={actionDefault}>
+          <Minus className="h-3 w-3" /> Crédit
+        </button>
+        <button onClick={() => setModal("sendInvoice")} className={actionDefault}>
+          <Mail className="h-3 w-3" /> Envoyer
+        </button>
+        <button onClick={() => setModal("refundPayment")} className={actionWarning}>
+          <RotateCcw className="h-3 w-3" /> Remboursement
+        </button>
+      </div>
 
+      {modal === "recordPayment" && <RecordPaymentModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "markPaid" && <MarkPaidModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "sendInvoice" && <SendInvoiceModal invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "addCharge" && <AdjustmentModal type="charge" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "addCredit" && <AdjustmentModal type="credit" invoices={invoices} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "refundPayment" && <RefundModal invoices={invoices} customerId={customerId} onClose={() => setModal(null)} onRefresh={onRefresh} />}
     </>
+  );
+}
+
+/* ── Record Manual Payment Modal ── */
+function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invoices: any[]; customerId?: string; onClose: () => void; onRefresh: () => void }) {
+  const unpaid = invoices.filter((i: any) => (i.balance_due ?? 0) > 0);
+  const [selectedInvoice, setSelectedInvoice] = useState(unpaid[0]?.id || "");
+  const [method, setMethod] = useState<string>("interac");
+  const [amount, setAmount] = useState("");
+  const [reference, setReference] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const inv = unpaid.find((i: any) => i.id === selectedInvoice);
+
+  const handleSubmit = async () => {
+    const parsedAmount = parseFloat(amount) || inv?.balance_due;
+    if (!inv || !customerId || !parsedAmount) return;
+    setLoading(true);
+    try {
+      // Map method to billing_payment_method enum
+      const methodMap: Record<string, string> = {
+        paypal: "paypal", interac: "interac", cash: "manual",
+        debit_credit: "manual", bank_transfer: "manual", manual: "manual",
+      };
+      const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+      const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
+        p_invoice_id: inv.id,
+        p_customer_id: customerId,
+        p_amount: parsedAmount,
+        p_method: methodMap[method] || "manual",
+        p_reference: reference || `${method}${reference ? ` - ${reference}` : ""}`,
+        p_payment_number: paymentNumber,
+        p_source: "admin_account_360",
+      });
+      if (error) throw error;
+      toast.success(`Paiement de ${parsedAmount.toFixed(2)} $ enregistré (${method})`);
+      onRefresh();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors du paiement");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2"><Banknote className="h-4 w-4 text-emerald-400" /> Enregistrer un paiement manuel</DialogTitle>
+        </DialogHeader>
+        {unpaid.length === 0 ? (
+          <p className="text-[11px] text-[hsl(220,10%,45%)] py-4">Aucune facture impayée.</p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Facture</label>
+              <select value={selectedInvoice} onChange={e => setSelectedInvoice(e.target.value)} className={inputCls}>
+                {unpaid.map((i: any) => (
+                  <option key={i.id} value={i.id}>{i.invoice_number} — Solde: {i.balance_due?.toFixed(2)} $</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Méthode de paiement</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { value: "paypal", label: "PayPal", icon: Wallet },
+                  { value: "interac", label: "Interac", icon: CreditCard },
+                  { value: "cash", label: "Espèces", icon: Banknote },
+                  { value: "debit_credit", label: "Débit/Crédit", icon: CreditCard },
+                  { value: "bank_transfer", label: "Virement", icon: DollarSign },
+                  { value: "manual", label: "Autre", icon: FileText },
+                ].map(m => (
+                  <button
+                    key={m.value}
+                    onClick={() => setMethod(m.value)}
+                    className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] font-medium transition-all ${
+                      method === m.value
+                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                        : "border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] text-[hsl(220,10%,45%)] hover:text-white"
+                    }`}
+                  >
+                    <m.icon className="h-3 w-3 shrink-0" /> {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Montant ($)</label>
+                <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder={inv?.balance_due?.toFixed(2) || "0.00"} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Référence</label>
+                <input value={reference} onChange={e => setReference(e.target.value)} placeholder="No. transaction" className={inputCls} />
+              </div>
+            </div>
+            {inv && (
+              <div className="rounded-md bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,16%)] p-2.5 flex items-center justify-between">
+                <p className="text-[10px] text-[hsl(220,10%,40%)]">Solde dû</p>
+                <p className="text-lg font-bold text-red-400 tabular-nums">{inv.balance_due?.toFixed(2)} $</p>
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter className="gap-2">
+          <button onClick={onClose} className={btnSecondary}>Annuler</button>
+          {unpaid.length > 0 && <button onClick={handleSubmit} disabled={loading || !selectedInvoice} className={btnPrimary}>{loading ? "…" : "Enregistrer le paiement"}</button>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -242,7 +352,6 @@ function AdjustmentModal({ type, invoices, onClose, onRefresh }: { type: "charge
       });
       if (error) throw error;
 
-      // Recalculate invoice totals
       await supabase.rpc("reconcile_invoice_from_payments" as any, { target_invoice_id: selectedInvoice });
 
       toast.success(`${isCharge ? "Frais" : "Crédit"} de ${parsedAmount.toFixed(2)} $ ajouté`);
@@ -313,7 +422,6 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
     }
     setLoading(true);
     try {
-      // Add a negative payment as refund
       const paymentNumber = `REF-${Date.now().toString(36).toUpperCase()}`;
       const { error } = await supabase.from("billing_payments").insert({
         invoice_id: inv.id,
@@ -370,7 +478,7 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
         )}
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          {paidInvoices.length > 0 && <button onClick={handleRefund} disabled={loading} className={`${btnPrimary} !bg-amber-600 hover:!bg-amber-500`}>{loading ? "…" : "Rembourser"}</button>}
+          {paidInvoices.length > 0 && <button onClick={handleRefund} disabled={loading} className={btnPrimary}>{loading ? "…" : "Rembourser"}</button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

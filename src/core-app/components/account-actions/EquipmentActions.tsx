@@ -1,6 +1,6 @@
 /**
- * Equipment management actions for Account 360.
- * Add, remove, replace, exchange, change status.
+ * Equipment management visible action bar for Account 360.
+ * NO DROPDOWNS — all actions are visible buttons.
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,16 +9,19 @@ import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, ShoppingCart, RefreshCw, Package, Trash2, ArrowRightLeft, AlertTriangle, DollarSign } from "lucide-react";
+import { ShoppingCart, RefreshCw, Package, Trash2, ArrowRightLeft, DollarSign } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 
 const inputCls = "w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50";
 const textareaCls = `${inputCls} resize-none`;
 const btnPrimary = "rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors";
 const btnSecondary = "rounded-md border border-[hsl(220,15%,16%)] px-4 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white transition-colors";
+
+const actionBtn = "flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,13%)] px-2.5 py-1.5 text-[10px] font-medium transition-all whitespace-nowrap disabled:opacity-30";
+const actionDefault = `${actionBtn} text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30`;
+const actionAccent = `${actionBtn} text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40`;
+const actionWarning = `${actionBtn} text-amber-400 hover:text-amber-300 hover:border-amber-500/40`;
+const actionDanger = `${actionBtn} text-red-400 hover:text-red-300 hover:border-red-500/40`;
 
 interface Props {
   equipment: any[];
@@ -36,37 +39,26 @@ export function EquipmentActionMenu({ equipment, accountId, clientId, orders, on
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,13%)] px-2 py-1 text-[10px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-            Actions <ChevronDown className="h-3 w-3" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white">
-          <DropdownMenuLabel className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider">Vente</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => navigate(corePath("/pos"))} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <ShoppingCart className="h-3.5 w-3.5" /> Ouvrir le POS (vente)
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setModal("addEquipment")} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <Package className="h-3.5 w-3.5" /> Ajouter un équipement
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-[hsl(220,15%,16%)]" />
-          <DropdownMenuLabel className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider">Gestion</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setModal("replaceEquipment")} disabled={equipment.length === 0} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <RefreshCw className="h-3.5 w-3.5" /> Remplacer (perte/bris)
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setModal("exchangeEquipment")} disabled={equipment.length === 0} className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400">
-            <ArrowRightLeft className="h-3.5 w-3.5" /> Échanger un équipement
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setModal("chargeReplacement")} disabled={equipment.length === 0} className="text-[11px] gap-2 text-amber-400 focus:bg-amber-500/10 focus:text-amber-300">
-            <DollarSign className="h-3.5 w-3.5" /> Facturer un remplacement
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-[hsl(220,15%,16%)]" />
-          <DropdownMenuItem onClick={() => setModal("removeEquipment")} disabled={equipment.length === 0} className="text-[11px] gap-2 text-red-400 focus:bg-red-500/10 focus:text-red-300">
-            <Trash2 className="h-3.5 w-3.5" /> Retirer un équipement
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button onClick={() => setModal("addEquipment")} className={actionAccent}>
+          <Package className="h-3 w-3" /> Ajouter
+        </button>
+        <button onClick={() => setModal("replaceEquipment")} disabled={equipment.length === 0} className={actionDefault}>
+          <RefreshCw className="h-3 w-3" /> Remplacer
+        </button>
+        <button onClick={() => setModal("exchangeEquipment")} disabled={equipment.length === 0} className={actionDefault}>
+          <ArrowRightLeft className="h-3 w-3" /> Échanger
+        </button>
+        <button onClick={() => setModal("chargeReplacement")} disabled={equipment.length === 0} className={actionWarning}>
+          <DollarSign className="h-3 w-3" /> Facturer
+        </button>
+        <button onClick={() => navigate(corePath("/pos"))} className={actionDefault}>
+          <ShoppingCart className="h-3 w-3" /> POS
+        </button>
+        <button onClick={() => setModal("removeEquipment")} disabled={equipment.length === 0} className={actionDanger}>
+          <Trash2 className="h-3 w-3" /> Retirer
+        </button>
+      </div>
 
       {modal === "addEquipment" && <AddEquipmentModal orders={orders} onClose={() => setModal(null)} onRefresh={onRefresh} />}
       {modal === "removeEquipment" && <RemoveEquipmentModal equipment={equipment} onClose={() => setModal(null)} onRefresh={onRefresh} />}
@@ -88,32 +80,21 @@ function AddEquipmentModal({ orders, onClose, onRefresh }: { orders: any[]; onCl
   const [loading, setLoading] = useState(false);
 
   const handleAdd = async () => {
-    if (!orderId || !itemName.trim()) {
-      toast.error("Veuillez remplir le nom de l'article et sélectionner une commande");
-      return;
-    }
+    if (!orderId || !itemName.trim()) { toast.error("Veuillez remplir le nom et sélectionner une commande"); return; }
     setLoading(true);
     try {
       const qty = parseInt(quantity) || 1;
       const price = parseFloat(unitPrice) || 0;
       const { error } = await supabase.from("equipment_order_lines").insert({
-        order_id: orderId,
-        item_name: itemName.trim(),
-        item_sku: itemSku || null,
-        unit_price: price,
-        quantity: qty,
-        line_total: price * qty,
+        order_id: orderId, item_name: itemName.trim(), item_sku: itemSku || null,
+        unit_price: price, quantity: qty, line_total: price * qty,
         serial_numbers: serialNumber ? [serialNumber] : null,
       });
       if (error) throw error;
       toast.success(`Équipement "${itemName}" ajouté`);
-      onRefresh();
-      onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
+      onRefresh(); onClose();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -129,9 +110,7 @@ function AddEquipmentModal({ orders, onClose, onRefresh }: { orders: any[]; onCl
             <div>
               <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Commande</label>
               <select value={orderId} onChange={e => setOrderId(e.target.value)} className={inputCls}>
-                {orders.map((o: any) => (
-                  <option key={o.id} value={o.id}>{o.order_number || o.id.slice(0, 8)} — {o.status}</option>
-                ))}
+                {orders.map((o: any) => (<option key={o.id} value={o.id}>{o.order_number || o.id.slice(0, 8)} — {o.status}</option>))}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -181,13 +160,9 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
       const { error } = await supabase.from("equipment_order_lines").delete().eq("id", selectedId);
       if (error) throw error;
       toast.success("Équipement retiré");
-      onRefresh();
-      onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
+      onRefresh(); onClose();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -200,9 +175,7 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((eq: any) => (
-                <option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>
-              ))}
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
             </select>
           </div>
         </div>
@@ -215,45 +188,33 @@ function RemoveEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
   );
 }
 
-/* ── Replace Equipment (lost/damaged) ── */
+/* ── Replace Equipment ── */
 function ReplaceEquipmentModal({ equipment, orders, onClose, onRefresh }: { equipment: any[]; orders: any[]; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(equipment[0]?.id || "");
   const [newSerial, setNewSerial] = useState("");
   const [reason, setReason] = useState("lost");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
-
   const eq = equipment.find((e: any) => e.id === selectedId);
 
   const handleReplace = async () => {
     if (!eq) return;
     setLoading(true);
     try {
-      // Update the serial number on the existing line to mark it as replaced
       const { error } = await supabase.from("equipment_order_lines").update({
         serial_numbers: newSerial ? [newSerial] : eq.serial_numbers,
       }).eq("id", selectedId);
       if (error) throw error;
-
-      // Log the replacement
       const user = (await supabase.auth.getUser()).data.user;
       await supabase.from("activity_logs").insert({
-        user_id: user?.id || "system",
-        entity_type: "equipment",
-        entity_id: selectedId,
-        action: "equipment_replaced",
-        reason: reason,
+        user_id: user?.id || "system", entity_type: "equipment", entity_id: selectedId,
+        action: "equipment_replaced", reason,
         details: { old_serial: eq.serial_numbers, new_serial: newSerial, notes, source: "account_360" },
       });
-
       toast.success(`Équipement "${eq.item_name}" remplacé`);
-      onRefresh();
-      onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
+      onRefresh(); onClose();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -266,9 +227,7 @@ function ReplaceEquipmentModal({ equipment, orders, onClose, onRefresh }: { equi
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Équipement à remplacer</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((eq: any) => (
-                <option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>
-              ))}
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
             </select>
           </div>
           <div>
@@ -305,41 +264,27 @@ function ExchangeEquipmentModal({ equipment, orders, onClose, onRefresh }: { equ
   const [newItemSku, setNewItemSku] = useState("");
   const [newSerial, setNewSerial] = useState("");
   const [loading, setLoading] = useState(false);
-
   const eq = equipment.find((e: any) => e.id === selectedId);
 
   const handleExchange = async () => {
-    if (!eq || !newItemName.trim()) {
-      toast.error("Veuillez remplir le nom du nouvel article");
-      return;
-    }
+    if (!eq || !newItemName.trim()) { toast.error("Veuillez remplir le nom du nouvel article"); return; }
     setLoading(true);
     try {
-      // Update the existing line with new equipment info
       const { error } = await supabase.from("equipment_order_lines").update({
-        item_name: newItemName.trim(),
-        item_sku: newItemSku || eq.item_sku,
+        item_name: newItemName.trim(), item_sku: newItemSku || eq.item_sku,
         serial_numbers: newSerial ? [newSerial] : null,
       }).eq("id", selectedId);
       if (error) throw error;
-
       const user = (await supabase.auth.getUser()).data.user;
       await supabase.from("activity_logs").insert({
-        user_id: user?.id || "system",
-        entity_type: "equipment",
-        entity_id: selectedId,
+        user_id: user?.id || "system", entity_type: "equipment", entity_id: selectedId,
         action: "equipment_exchanged",
         details: { old_item: eq.item_name, new_item: newItemName, source: "account_360" },
       });
-
       toast.success(`Équipement échangé : ${eq.item_name} → ${newItemName}`);
-      onRefresh();
-      onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
+      onRefresh(); onClose();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -352,29 +297,27 @@ function ExchangeEquipmentModal({ equipment, orders, onClose, onRefresh }: { equ
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Équipement actuel</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((eq: any) => (
-                <option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>
-              ))}
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
             </select>
           </div>
           {eq && (
             <div className="rounded-md bg-[hsl(220,20%,9%)] border border-[hsl(220,15%,16%)] p-2.5 text-[10px] text-[hsl(220,10%,45%)]">
-              Actuel : <span className="text-white font-medium">{eq.item_name}</span> · SKU: {eq.item_sku || "—"}
+              Actuel: <span className="text-white font-medium">{eq.item_name}</span> — S/N: {Array.isArray(eq.serial_numbers) ? eq.serial_numbers.join(", ") : "—"}
             </div>
           )}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Nouvel article</label>
-              <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="Nom du nouvel article" className={inputCls} />
+              <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="Nom" className={inputCls} />
             </div>
             <div>
-              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Nouveau SKU</label>
+              <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">SKU</label>
               <input value={newItemSku} onChange={e => setNewItemSku(e.target.value)} placeholder="SKU" className={inputCls} />
             </div>
           </div>
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Nouveau S/N</label>
-            <input value={newSerial} onChange={e => setNewSerial(e.target.value)} placeholder="Numéro de série" className={inputCls} />
+            <input value={newSerial} onChange={e => setNewSerial(e.target.value)} placeholder="S/N, MAC, IMEI…" className={inputCls} />
           </div>
         </div>
         <DialogFooter className="gap-2">
@@ -389,43 +332,26 @@ function ExchangeEquipmentModal({ equipment, orders, onClose, onRefresh }: { equ
 /* ── Charge Replacement Fee ── */
 function ChargeReplacementModal({ equipment, orders, clientId, onClose, onRefresh }: { equipment: any[]; orders: any[]; clientId?: string; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(equipment[0]?.id || "");
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("Frais de remplacement d'équipement");
+  const [fee, setFee] = useState("50.00");
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-
   const eq = equipment.find((e: any) => e.id === selectedId);
 
   const handleCharge = async () => {
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0 || !description.trim()) {
-      toast.error("Veuillez remplir le montant et la description");
-      return;
-    }
+    const parsedFee = parseFloat(fee);
+    if (!parsedFee || parsedFee <= 0 || !eq) { toast.error("Montant invalide"); return; }
     setLoading(true);
     try {
-      // Add charge as activity log — actual billing should go through invoice lines
       const user = (await supabase.auth.getUser()).data.user;
       await supabase.from("activity_logs").insert({
-        user_id: user?.id || "system",
-        entity_type: "equipment",
-        entity_id: selectedId,
+        user_id: user?.id || "system", entity_type: "equipment", entity_id: selectedId,
         action: "replacement_fee_charged",
-        details: {
-          amount: parsedAmount,
-          description: description.trim(),
-          equipment_name: eq?.item_name,
-          source: "account_360",
-        },
+        details: { item_name: eq.item_name, fee: parsedFee, reason, source: "account_360" },
       });
-
-      toast.success(`Frais de remplacement de ${parsedAmount.toFixed(2)} $ enregistré. Utilisez la section Factures pour ajouter le frais à une facture.`);
-      onRefresh();
-      onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
+      toast.success(`Frais de remplacement de ${parsedFee.toFixed(2)} $ enregistré pour "${eq.item_name}"`);
+      onRefresh(); onClose();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -438,29 +364,21 @@ function ChargeReplacementModal({ equipment, orders, clientId, onClose, onRefres
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Équipement</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
-              {equipment.map((eq: any) => (
-                <option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>
-              ))}
+              {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
             </select>
           </div>
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Montant ($)</label>
-            <input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className={inputCls} />
+            <input type="number" step="0.01" value={fee} onChange={e => setFee(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Description</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} className={inputCls} />
-          </div>
-          <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-[10px] text-amber-300">Ce frais sera enregistré dans l'historique. Pour facturer le client, ajoutez un frais dans la section Factures.</p>
-            </div>
+            <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Raison</label>
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Ex: Perte confirmée" className={inputCls} />
           </div>
         </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          <button onClick={handleCharge} disabled={loading} className={`${btnPrimary} !bg-amber-600 hover:!bg-amber-500`}>{loading ? "…" : "Enregistrer le frais"}</button>
+          <button onClick={handleCharge} disabled={loading} className={`${btnPrimary} !bg-amber-600 hover:!bg-amber-500`}>{loading ? "…" : "Facturer"}</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

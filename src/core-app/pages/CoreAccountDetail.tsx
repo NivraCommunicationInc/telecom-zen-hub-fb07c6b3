@@ -69,15 +69,17 @@ const Panel = ({ children, className = "" }: { children: React.ReactNode; classN
 );
 
 const PanelHeader = ({ icon: Icon, title, count, actions }: { icon: any; title: string; count?: number; actions?: React.ReactNode }) => (
-  <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
-    <div className="flex items-center gap-1.5">
-      <Icon className="h-3.5 w-3.5 text-emerald-400" />
-      <span className="text-[11px] font-semibold text-white">{title}</span>
-      {count != null && (
-        <span className="text-[10px] text-[hsl(220,10%,50%)] bg-[hsl(220,15%,14%)] px-1.5 py-0.5 rounded-full tabular-nums font-medium ml-1">{count}</span>
-      )}
+  <div className="border-b border-[hsl(220,15%,14%)]">
+    <div className="flex items-center justify-between px-3 py-2.5">
+      <div className="flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-emerald-400" />
+        <span className="text-[11px] font-semibold text-white">{title}</span>
+        {count != null && (
+          <span className="text-[10px] text-[hsl(220,10%,50%)] bg-[hsl(220,15%,14%)] px-1.5 py-0.5 rounded-full tabular-nums font-medium ml-1">{count}</span>
+        )}
+      </div>
     </div>
-    {actions && <div className="flex items-center gap-1.5">{actions}</div>}
+    {actions && <div className="px-3 pb-2.5 -mt-1">{actions}</div>}
   </div>
 );
 
