@@ -63,33 +63,70 @@ export function useAccountProfile(accountId: string | undefined) {
   });
 
   const orders = useQuery({
-    queryKey: ["account-profile-orders", accountId],
+    queryKey: ["account-profile-orders", accountId, clientId],
     queryFn: async () => {
-      if (!accountId) return [];
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("account_id", accountId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      if (!accountId && !clientId) return [];
+
+      const [byAccount, byClient] = await Promise.all([
+        accountId
+          ? supabase
+              .from("orders")
+              .select("*")
+              .eq("account_id", accountId)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+        clientId
+          ? supabase
+              .from("orders")
+              .select("*")
+              .eq("client_id", clientId)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (byAccount.error) throw byAccount.error;
+      if (byClient.error) throw byClient.error;
+
+      const merged = [...(byAccount.data || []), ...(byClient.data || [])];
+      const unique = new Map(merged.map((o: any) => [o.id, o]));
+
+      return Array.from(unique.values()).sort(
+        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
     },
-    enabled: !!accountId,
+    enabled: !!accountId || !!clientId,
   });
 
   const billingCustomer = useQuery({
-    queryKey: ["account-profile-billing-customer", clientId],
+    queryKey: ["account-profile-billing-customer", clientId, profile.data?.email],
     queryFn: async () => {
-      if (!clientId) return null;
-      const { data, error } = await supabase
-        .from("billing_customers")
-        .select("*")
-        .eq("user_id", clientId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const normalizedEmail = profile.data?.email?.trim().toLowerCase();
+
+      if (clientId) {
+        const { data, error } = await supabase
+          .from("billing_customers")
+          .select("*")
+          .eq("user_id", clientId)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) return data;
+      }
+
+      if (normalizedEmail) {
+        const { data, error } = await supabase
+          .from("billing_customers")
+          .select("*")
+          .eq("email", normalizedEmail)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      }
+
+      return null;
     },
-    enabled: !!clientId,
+    enabled: !!clientId || !!profile.data?.email,
   });
 
   const customerId = billingCustomer.data?.id;
@@ -100,7 +137,7 @@ export function useAccountProfile(accountId: string | undefined) {
       if (!customerId) return [];
       const { data, error } = await supabase
         .from("billing_invoices")
-        .select("*")
+        .select("*, customer:billing_customers(id, email, first_name, last_name, user_id)")
         .eq("customer_id", customerId)
         .order("created_at", { ascending: false })
         .limit(50);
