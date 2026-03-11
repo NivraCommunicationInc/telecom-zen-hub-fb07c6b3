@@ -1,12 +1,12 @@
 /**
  * CorePOSPage — Full telecom POS for Nivra Core internal operations.
  * 3-column layout: Client + Catalog | Cart | Financial Summary
- * Connected to: services_public, billing_customers, profiles, accounts, orders, commit_order_atomic
+ * Connected to: services_public, equipment_inventory, profiles, accounts, orders, commit_order_atomic
  */
 import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useFieldSalesOffers, FieldSalesOffer, SelectedService, TAX_RATES } from "@/hooks/useFieldSalesOffers";
-import { usePOSEquipmentCatalog } from "@/hooks/usePOSEquipmentCatalog";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Search, UserPlus, UserCheck, ShoppingCart, Package, Wrench, DollarSign,
