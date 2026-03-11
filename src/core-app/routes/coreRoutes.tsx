@@ -20,6 +20,7 @@ const PaymentsPage = lazy(() => import("@/core-app/pages/PaymentsPage"));
 const SubscriptionsPage = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
 const SubscriptionDetailPage = lazy(() => import("@/core-app/pages/SubscriptionDetailPage"));
 const AppointmentsPage = lazy(() => import("@/core-app/pages/AppointmentsPage"));
+const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
 
 export const coreRoutes: RouteObject = {
   path: "/core",
