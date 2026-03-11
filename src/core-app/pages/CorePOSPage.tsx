@@ -304,7 +304,7 @@ export default function CorePOSPage() {
   const eqCatalogGrouped = useMemo(() => {
     const groups: Record<string, typeof equipmentCatalog> = { router: [], decoder: [], sim: [], security: [] };
     for (const item of equipmentCatalog) {
-      const t = inferEqType(item.name);
+      const t = inferEqType(item.catalog_name);
       groups[t] = groups[t] || [];
       groups[t].push(item);
     }
