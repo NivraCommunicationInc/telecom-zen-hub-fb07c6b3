@@ -165,6 +165,33 @@ export default function CorePOSPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState<{ orderId: string; orderNumber: string } | null>(null);
 
+  // ── Address Qualification ──
+  const [qualificationResult, setQualificationResult] = useState<any>(null);
+  const [qualifyingAddress, setQualifyingAddress] = useState(false);
+
+  const qualifyAddress = useCallback(async (addr: AddressValue) => {
+    setQualifyingAddress(true);
+    setQualificationResult(null);
+    try {
+      const { data, error } = await backendClient.functions.invoke("address-qualify", {
+        body: {
+          postal_code: addr.postalCode,
+          city: addr.city,
+          province: addr.region,
+          address_line: addr.line1 || addr.formatted,
+        },
+      });
+      if (error) throw error;
+      if (data?.ok) {
+        setQualificationResult(data);
+      }
+    } catch (e) {
+      console.error("[CorePOS] Qualification error:", e);
+    } finally {
+      setQualifyingAddress(false);
+    }
+  }, []);
+
   // ── Sections expanded ──
   const [clientExpanded, setClientExpanded] = useState(true);
 
