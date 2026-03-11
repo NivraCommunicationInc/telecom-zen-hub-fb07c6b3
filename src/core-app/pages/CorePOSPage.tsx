@@ -1,12 +1,12 @@
 /**
  * CorePOSPage — Full telecom POS for Nivra Core internal operations.
  * 3-column layout: Client + Catalog | Cart | Financial Summary
- * Connected to: services_public, billing_customers, profiles, accounts, orders, commit_order_atomic
+ * Connected to: services_public, equipment_inventory, profiles, accounts, orders, commit_order_atomic
  */
 import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useFieldSalesOffers, FieldSalesOffer, SelectedService, TAX_RATES } from "@/hooks/useFieldSalesOffers";
-import { usePOSEquipmentCatalog } from "@/hooks/usePOSEquipmentCatalog";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Search, UserPlus, UserCheck, ShoppingCart, Package, Wrench, DollarSign,
@@ -112,7 +112,21 @@ function mapPaymentMethodForDB(method: PaymentMethod): string {
 export default function CorePOSPage() {
   // ── Data Sources ──
   const { data: offers = [], isLoading: offersLoading } = useFieldSalesOffers();
-  const { data: equipmentCatalog = [], isLoading: eqLoading } = usePOSEquipmentCatalog();
+  
+  // Equipment from real inventory (in_stock items only)
+  const { data: equipmentCatalog = [], isLoading: eqLoading } = useQuery({
+    queryKey: ["pos-equipment-inventory-stock"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("equipment_inventory")
+        .select("id, catalog_name, catalog_item_id, sku, serial_number, imei, mac_address, price_client, cost_internal, condition, status")
+        .eq("status", "in_stock")
+        .order("catalog_name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 15_000,
+  });
 
   // ── Client State ──
   const [clientMode, setClientMode] = useState<"search" | "new">("search");
@@ -290,7 +304,7 @@ export default function CorePOSPage() {
   const eqCatalogGrouped = useMemo(() => {
     const groups: Record<string, typeof equipmentCatalog> = { router: [], decoder: [], sim: [], security: [] };
     for (const item of equipmentCatalog) {
-      const t = inferEqType(item.name);
+      const t = inferEqType(item.catalog_name);
       groups[t] = groups[t] || [];
       groups[t].push(item);
     }
@@ -300,12 +314,15 @@ export default function CorePOSPage() {
   const addEquipmentItem = (item: typeof equipmentCatalog[0]) => {
     setEquipment(prev => [...prev, {
       id: genId(),
-      type: inferEqType(item.name),
-      name: item.name,
-      description: item.description || "",
-      price: item.price || 0,
+      type: inferEqType(item.catalog_name),
+      name: item.catalog_name,
+      description: item.serial_number ? `S/N: ${item.serial_number}` : (item.sku || ""),
+      price: Number(item.price_client) || 0,
       quantity: 1,
+      serialNumber: item.serial_number || undefined,
     }]);
+    // Reserve in inventory
+    supabase.from("equipment_inventory").update({ status: "reserved" } as any).eq("id", item.id).then(() => {});
   };
 
   // ═══ ADJUSTMENT ACTIONS ═══
@@ -811,10 +828,12 @@ export default function CorePOSPage() {
                       {(eqCatalogGrouped[eqTab] || []).map(item => (
                         <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-[hsl(220,20%,12%)] border border-[hsl(220,15%,18%)]">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[#E4E4E7]">{item.name}</p>
-                            <p className="text-xs text-[#A1A1AA] truncate">{item.description || ""}</p>
+                            <p className="text-sm font-medium text-[#E4E4E7]">{item.catalog_name}</p>
+                            <p className="text-xs text-[#A1A1AA] truncate">
+                              {item.serial_number ? `S/N: ${item.serial_number}` : ""}{item.sku ? ` · SKU: ${item.sku}` : ""}{item.condition ? ` · ${item.condition}` : ""}
+                            </p>
                           </div>
-                          <p className="text-sm font-bold text-cyan-400">{(item.price || 0).toFixed(2)} $</p>
+                          <p className="text-sm font-bold text-cyan-400">{(Number(item.price_client) || 0).toFixed(2)} $</p>
                           <Button size="sm" onClick={() => addEquipmentItem(item)} className="bg-cyan-600 hover:bg-cyan-500 text-white h-7 px-2">
                             <Plus className="h-3.5 w-3.5" />
                           </Button>
