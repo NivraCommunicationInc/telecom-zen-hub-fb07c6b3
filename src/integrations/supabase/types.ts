@@ -4209,6 +4209,158 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          details: Json | null
+          equipment_id: string
+          id: string
+          new_status: string | null
+          old_status: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json | null
+          equipment_id: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json | null
+          equipment_id?: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_audit_log_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_inventory: {
+        Row: {
+          account_id: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          catalog_item_id: string | null
+          catalog_name: string
+          category: string
+          condition: string | null
+          cost_internal: number | null
+          created_at: string
+          id: string
+          imei: string | null
+          mac_address: string | null
+          notes: string | null
+          order_id: string | null
+          price_client: number | null
+          serial_number: string | null
+          sku: string | null
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          warehouse_location: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          catalog_item_id?: string | null
+          catalog_name: string
+          category?: string
+          condition?: string | null
+          cost_internal?: number | null
+          created_at?: string
+          id?: string
+          imei?: string | null
+          mac_address?: string | null
+          notes?: string | null
+          order_id?: string | null
+          price_client?: number | null
+          serial_number?: string | null
+          sku?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          warehouse_location?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          catalog_item_id?: string | null
+          catalog_name?: string
+          category?: string
+          condition?: string | null
+          cost_internal?: number | null
+          created_at?: string
+          id?: string
+          imei?: string | null
+          mac_address?: string | null
+          notes?: string | null
+          order_id?: string | null
+          price_client?: number | null
+          serial_number?: string | null
+          sku?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          warehouse_location?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_inventory_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_catalog_item_id_fkey"
+            columns: ["catalog_item_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_catalog_item_id_fkey"
+            columns: ["catalog_item_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_order_lines: {
         Row: {
           created_at: string
