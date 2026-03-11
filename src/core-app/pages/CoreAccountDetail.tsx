@@ -279,9 +279,10 @@ const PaymentsSection = ({ data }: any) => (
   </Panel>
 );
 
-const EquipmentSection = ({ data }: any) => (
+const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={Package} title="Équipements" count={data.equipment.length} />
+    <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
+      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} onRefresh={onRefresh} />} />
     <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
       {data.equipment.map((eq: any) => (
         <tr key={eq.id} className={trClass}>
