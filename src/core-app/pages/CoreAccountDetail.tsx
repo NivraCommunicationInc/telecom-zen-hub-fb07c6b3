@@ -241,9 +241,10 @@ const OrdersSection = ({ data }: any) => (
   </Panel>
 );
 
-const InvoicesSection = ({ data }: any) => (
+const InvoicesSection = ({ data, customerId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length} />
+    <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length}
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
     <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance"]} empty={data.invoices.length === 0}>
       {data.invoices.slice(0, 50).map((inv: any) => (
         <tr key={inv.id} className={trClass}>
