@@ -28,7 +28,7 @@ const NAV_SECTIONS = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Work Queue", href: "/work-queue", icon: ListTodo },
   { label: "Orders", href: "/orders", icon: ShoppingCart },
-  { label: "Clients", href: "/clients", icon: Users },
+  { label: "Clients", href: "/clients", icon: UserCircle },
   { label: "Accounts", href: "/accounts", icon: Users },
   { label: "Invoices", href: "/invoices", icon: FileText },
   { label: "Payments", href: "/payments", icon: CreditCard },
