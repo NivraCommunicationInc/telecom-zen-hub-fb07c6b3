@@ -483,16 +483,17 @@ const CoreAccountDetail = () => {
   };
 
   const renderSection = () => {
-    const props = { data, acct, prof, clientName, totalDue, unpaidInvoices, activeSubs, latestKyc, monthlyRevenue, totalPaid };
+    const baseProps = { data, acct, prof, clientName, totalDue, unpaidInvoices, activeSubs, latestKyc, monthlyRevenue, totalPaid };
+    const actionProps = { customerId: data.customerId, clientId: data.clientId, clientEmail: prof?.email, clientName, accountId, onRefresh: data.refetch };
     switch (activeSection) {
-      case "overview": return <OverviewSection {...props} />;
-      case "subscriptions": return <SubscriptionsSection data={data} />;
+      case "overview": return <OverviewSection {...baseProps} />;
+      case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "orders": return <OrdersSection data={data} />;
-      case "invoices": return <InvoicesSection data={data} />;
-      case "payments": return <PaymentsSection data={data} />;
-      case "equipment": return <EquipmentSection data={data} />;
-      case "tickets": return <TicketsSection data={data} />;
-      case "appointments": return <AppointmentsSection data={data} />;
+      case "invoices": return <InvoicesSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
+      case "payments": return <PaymentsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
+      case "equipment": return <EquipmentSection data={data} accountId={accountId} onRefresh={data.refetch} />;
+      case "tickets": return <TicketsSection data={data} {...actionProps} />;
+      case "appointments": return <AppointmentsSection data={data} {...actionProps} />;
       case "kyc": return <KycSection data={data} />;
       case "timeline": return <TimelineSection data={data} />;
       default: return null;
