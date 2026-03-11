@@ -544,7 +544,7 @@ const CoreAccountDetail = () => {
         {/* LEFT: Section Navigation */}
         <Panel className="p-0 self-start lg:sticky lg:top-4">
           <div className="px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)]">Navigation</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground/70">Navigation</span>
           </div>
           <nav className="py-1">
             {SECTIONS.map(s => {
@@ -554,10 +554,10 @@ const CoreAccountDetail = () => {
                 <button
                   key={s.id}
                   onClick={() => setActiveSection(s.id)}
-                  className={`flex items-center gap-2 w-full px-3 py-2 text-[11px] font-medium transition-colors ${
+                  className={`flex items-center gap-2 w-full px-3 py-2 text-[11px] font-semibold transition-colors ${
                     isActive
-                      ? "bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400"
-                      : "text-[hsl(220,10%,50%)] hover:text-white hover:bg-[hsl(220,20%,13%)] border-l-2 border-transparent"
+                      ? "bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-400"
+                      : "text-foreground/80 hover:text-foreground hover:bg-[hsl(220,20%,13%)] border-l-2 border-transparent"
                   }`}
                 >
                   <s.icon className="h-3.5 w-3.5 shrink-0" />
