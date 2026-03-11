@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Edit2, AlertTriangle, Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 
 interface Props { proc: any; }
 
@@ -62,7 +63,23 @@ export function ClientInfoStep({ proc }: Props) {
         <FieldBlock label="Téléphone" value={fields.client_phone} editing={editing} onChange={(v) => setFields({ ...fields, client_phone: v })} />
         <FieldBlock label="Date de naissance" value={fields.client_dob} editing={editing} onChange={(v) => setFields({ ...fields, client_dob: v })} type="date" />
         <div className="md:col-span-2">
-          <FieldBlock label="Adresse" value={fields.client_full_address} editing={editing} onChange={(v) => setFields({ ...fields, client_full_address: v })} />
+          {editing ? (
+            <div>
+              <Label className="text-xs text-gray-500 mb-1">Adresse</Label>
+              <AddressAutocomplete
+                value={fields.client_full_address}
+                onValueChange={(v) => setFields({ ...fields, client_full_address: v })}
+                onSelect={(addr: AddressValue) => {
+                  setFields({ ...fields, client_full_address: addr.formatted || addr.line1 });
+                }}
+                placeholder="Commencez à taper l'adresse..."
+                restrictToQuebec={true}
+                className="h-9 text-sm border-gray-300 text-gray-900"
+              />
+            </div>
+          ) : (
+            <FieldBlock label="Adresse" value={fields.client_full_address} editing={false} onChange={() => {}} />
+          )}
         </div>
       </div>
 

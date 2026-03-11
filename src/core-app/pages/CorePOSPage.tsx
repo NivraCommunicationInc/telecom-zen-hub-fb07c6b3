@@ -5,6 +5,7 @@
  */
 import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { backendClient } from "@/integrations/backend/client";
 import { useFieldSalesOffers, FieldSalesOffer, SelectedService, TAX_RATES } from "@/hooks/useFieldSalesOffers";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,7 +13,7 @@ import {
   Search, UserPlus, UserCheck, ShoppingCart, Package, Wrench, DollarSign,
   Plus, Minus, X, Loader2, CreditCard, Banknote, ArrowRight, Check,
   Wifi, Tv, Smartphone, Shield, Truck, FileText, Receipt, ChevronDown, ChevronUp,
-  Hash, Mail, Phone, MapPin, Calendar,
+  Hash, Mail, Phone, MapPin, Calendar, AlertTriangle, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
@@ -162,6 +164,33 @@ export default function CorePOSPage() {
   const [paymentNote, setPaymentNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState<{ orderId: string; orderNumber: string } | null>(null);
+
+  // ── Address Qualification ──
+  const [qualificationResult, setQualificationResult] = useState<any>(null);
+  const [qualifyingAddress, setQualifyingAddress] = useState(false);
+
+  const qualifyAddress = useCallback(async (addr: AddressValue) => {
+    setQualifyingAddress(true);
+    setQualificationResult(null);
+    try {
+      const { data, error } = await backendClient.functions.invoke("address-qualify", {
+        body: {
+          postal_code: addr.postalCode,
+          city: addr.city,
+          province: addr.region,
+          address_line: addr.line1 || addr.formatted,
+        },
+      });
+      if (error) throw error;
+      if (data?.ok) {
+        setQualificationResult(data);
+      }
+    } catch (e) {
+      console.error("[CorePOS] Qualification error:", e);
+    } finally {
+      setQualifyingAddress(false);
+    }
+  }, []);
 
   // ── Sections expanded ──
   const [clientExpanded, setClientExpanded] = useState(true);
@@ -666,10 +695,27 @@ export default function CorePOSPage() {
                   <Input type="date" value={newClient.date_of_birth} onChange={e => setNewClient(p => ({ ...p, date_of_birth: e.target.value }))}
                     className="h-8 text-sm bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] text-white" />
                 </div>
-                <div>
-                  <Label className="text-[11px] text-[#A1A1AA]">Adresse service</Label>
-                  <Input value={newClient.service_address} onChange={e => setNewClient(p => ({ ...p, service_address: e.target.value }))}
-                    className="h-8 text-sm bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] text-white" />
+                <div className="col-span-2 lg:col-span-3">
+                  <Label className="text-[11px] text-[#A1A1AA]">Adresse service *</Label>
+                  <AddressAutocomplete
+                    value={newClient.service_address}
+                    onValueChange={(v) => setNewClient(p => ({ ...p, service_address: v }))}
+                    onSelect={(addr) => {
+                      setNewClient(p => ({
+                        ...p,
+                        service_address: addr.line1 || addr.formatted,
+                        service_city: addr.city || p.service_city,
+                        service_postal_code: addr.postalCode || p.service_postal_code,
+                      }));
+                      // Trigger qualification check
+                      if (addr.postalCode) {
+                        qualifyAddress(addr);
+                      }
+                    }}
+                    placeholder="Commencez à taper l'adresse..."
+                    restrictToQuebec={true}
+                    className="h-8 text-sm bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] text-white"
+                  />
                 </div>
                 <div>
                   <Label className="text-[11px] text-[#A1A1AA]">Ville service</Label>
@@ -681,6 +727,55 @@ export default function CorePOSPage() {
                   <Input value={newClient.service_postal_code} onChange={e => setNewClient(p => ({ ...p, service_postal_code: e.target.value }))}
                     className="h-8 text-sm bg-[hsl(220,20%,12%)] border-[hsl(220,15%,20%)] text-white" />
                 </div>
+                {/* Service Qualification Result */}
+                {qualificationResult && (
+                  <div className={cn(
+                    "col-span-2 lg:col-span-3 p-3 rounded-lg border text-xs",
+                    qualificationResult.serviceable
+                      ? "bg-emerald-950/30 border-emerald-600/30"
+                      : "bg-red-950/30 border-red-600/30"
+                  )}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {qualificationResult.serviceable
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        : <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                      }
+                      <span className={cn("font-semibold", qualificationResult.serviceable ? "text-emerald-300" : "text-red-300")}>
+                        {qualificationResult.serviceable ? "Adresse desservie" : "Hors couverture"}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] h-5 border-[hsl(220,15%,20%)] text-[#A1A1AA]">
+                        {qualificationResult.technology_label}
+                      </Badge>
+                      {qualificationResult.max_speed_mbps > 0 && (
+                        <Badge variant="outline" className="text-[10px] h-5 border-emerald-600/30 text-emerald-400">
+                          Max {qualificationResult.max_speed_mbps} Mbps
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[#A1A1AA]">{qualificationResult.notes}</p>
+                    {qualificationResult.existing_services?.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-[hsl(220,15%,16%)]">
+                        <p className="text-amber-400 font-medium mb-1">Services existants à cette adresse:</p>
+                        {qualificationResult.existing_services.map((s: any, i: number) => (
+                          <p key={i} className="text-[#A1A1AA]">• {s.plan_name} ({s.category}) — {s.status}</p>
+                        ))}
+                      </div>
+                    )}
+                    {qualificationResult.available_categories?.length > 0 && qualificationResult.serviceable && (
+                      <div className="mt-1">
+                        <span className="text-[#A1A1AA]">Catégories disponibles: </span>
+                        {qualificationResult.available_categories.map((c: string) => (
+                          <Badge key={c} variant="outline" className="text-[10px] h-4 mr-1 border-emerald-600/30 text-emerald-400">{c}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {qualifyingAddress && (
+                  <div className="col-span-2 lg:col-span-3 flex items-center gap-2 text-xs text-[#A1A1AA]">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Vérification de la couverture...
+                  </div>
+                )}
                 <div className="col-span-2 lg:col-span-3">
                   <Label className="text-[11px] text-[#A1A1AA]">Notes internes</Label>
                   <Textarea value={newClient.internal_notes} onChange={e => setNewClient(p => ({ ...p, internal_notes: e.target.value }))}

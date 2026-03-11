@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -273,7 +274,16 @@ function ScheduleVisitModal({ clientId, clientEmail, accountId, onClose, onRefre
           </div>
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Adresse</label>
-            <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Adresse de service" className={inputCls} />
+            <AddressAutocomplete
+              value={address}
+              onValueChange={(v) => setAddress(v)}
+              onSelect={(addr: AddressValue) => {
+                setAddress(addr.formatted || addr.line1);
+              }}
+              placeholder="Adresse de service"
+              restrictToQuebec={true}
+              className="bg-[hsl(220,20%,9%)] border-[hsl(220,15%,16%)] text-white text-[11px]"
+            />
           </div>
           <div>
             <label className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider block mb-1">Notes internes</label>
