@@ -25,6 +25,7 @@ const AppointmentsPage = lazy(() => import("./pages/AppointmentsPage"));
 const CoreOrderDetail = lazy(() => import("./pages/CoreOrderDetail"));
 const CoreAccountDetail = lazy(() => import("./pages/CoreAccountDetail"));
 const CoreInvoiceDetail = lazy(() => import("./pages/CoreInvoiceDetail"));
+const CorePOSPage = lazy(() => import("./pages/CorePOSPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
