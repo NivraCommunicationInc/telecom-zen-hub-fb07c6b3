@@ -199,9 +199,10 @@ const OverviewSection = ({ data, acct, prof, clientName, totalDue, unpaidInvoice
   </div>
 );
 
-const SubscriptionsSection = ({ data }: any) => (
+const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={Repeat} title="Abonnements" count={data.subscriptions.length} />
+    <PanelHeader icon={Repeat} title="Abonnements" count={data.subscriptions.length}
+      actions={<SubscriptionActionMenu subscriptions={data.subscriptions} customerId={customerId} onRefresh={onRefresh} />} />
     <MiniTable headers={["Plan", "Cat.", "Prix/mois", "Statut", "Cycle", "Auto", ""]} empty={data.subscriptions.length === 0}>
       {data.subscriptions.map((s: any) => (
         <tr key={s.id} className={trClass}>
