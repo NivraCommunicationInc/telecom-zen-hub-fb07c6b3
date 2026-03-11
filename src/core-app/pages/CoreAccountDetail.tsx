@@ -261,9 +261,10 @@ const InvoicesSection = ({ data, customerId, onRefresh }: any) => (
   </Panel>
 );
 
-const PaymentsSection = ({ data }: any) => (
+const PaymentsSection = ({ data, customerId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length} />
+    <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length}
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le"]} empty={data.payments.length === 0}>
       {data.payments.slice(0, 50).map((p: any) => (
         <tr key={p.id} className={trClass}>
