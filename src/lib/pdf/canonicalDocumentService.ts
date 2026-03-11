@@ -350,7 +350,7 @@ export function buildCanonicalInvoiceData(data: CanonicalDocumentData): InvoiceD
             status: "Confirmed" as const,
             paid_amount: Number(p.amount || 0),
             paid_at: p.received_at || p.created_at,
-            payment_reference: p.reference || "—",
+            payment_reference: p.payment_number || p.reference || "—",
             processor_txn_id: p.provider_payment_id,
           }))
       : structured.amountPaid > 0
