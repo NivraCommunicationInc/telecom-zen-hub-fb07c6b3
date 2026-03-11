@@ -3,7 +3,7 @@
  * Identical logic to @/hooks/admin/useAdminSubscriptions.
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface AdminSubscription {
