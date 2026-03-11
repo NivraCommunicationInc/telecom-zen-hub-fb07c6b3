@@ -914,6 +914,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     updateShipping,
     assignTechnician,
     addNote,
+    activateService,
     completeOrder,
     signContract,
     sendClientNotification,
