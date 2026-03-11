@@ -5,6 +5,7 @@
  */
 import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { backendClient } from "@/integrations/backend/client";
 import { useFieldSalesOffers, FieldSalesOffer, SelectedService, TAX_RATES } from "@/hooks/useFieldSalesOffers";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,7 +13,7 @@ import {
   Search, UserPlus, UserCheck, ShoppingCart, Package, Wrench, DollarSign,
   Plus, Minus, X, Loader2, CreditCard, Banknote, ArrowRight, Check,
   Wifi, Tv, Smartphone, Shield, Truck, FileText, Receipt, ChevronDown, ChevronUp,
-  Hash, Mail, Phone, MapPin, Calendar,
+  Hash, Mail, Phone, MapPin, Calendar, AlertTriangle, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
