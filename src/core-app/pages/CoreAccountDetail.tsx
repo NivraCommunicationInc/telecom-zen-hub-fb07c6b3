@@ -17,6 +17,10 @@ import {
   ExternalLink, Activity, AlertTriangle, DollarSign, Hash, CircleDot,
   LayoutGrid,
 } from "lucide-react";
+import { InvoiceActionMenu } from "@/core-app/components/account-actions/InvoiceActions";
+import { SubscriptionActionMenu } from "@/core-app/components/account-actions/SubscriptionActions";
+import { EquipmentActionMenu } from "@/core-app/components/account-actions/EquipmentActions";
+import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -63,7 +67,7 @@ const Panel = ({ children, className = "" }: { children: React.ReactNode; classN
   <div className={`rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] ${className}`}>{children}</div>
 );
 
-const PanelHeader = ({ icon: Icon, title, count }: { icon: any; title: string; count?: number }) => (
+const PanelHeader = ({ icon: Icon, title, count, actions }: { icon: any; title: string; count?: number; actions?: React.ReactNode }) => (
   <div className="flex items-center justify-between px-3 py-2.5 border-b border-[hsl(220,15%,14%)]">
     <div className="flex items-center gap-1.5">
       <Icon className="h-3.5 w-3.5 text-emerald-400" />
@@ -72,6 +76,7 @@ const PanelHeader = ({ icon: Icon, title, count }: { icon: any; title: string; c
         <span className="text-[10px] text-[hsl(220,10%,50%)] bg-[hsl(220,15%,14%)] px-1.5 py-0.5 rounded-full tabular-nums font-medium ml-1">{count}</span>
       )}
     </div>
+    {actions && <div className="flex items-center gap-1.5">{actions}</div>}
   </div>
 );
 
@@ -194,9 +199,10 @@ const OverviewSection = ({ data, acct, prof, clientName, totalDue, unpaidInvoice
   </div>
 );
 
-const SubscriptionsSection = ({ data }: any) => (
+const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={Repeat} title="Abonnements" count={data.subscriptions.length} />
+    <PanelHeader icon={Repeat} title="Abonnements" count={data.subscriptions.length}
+      actions={<SubscriptionActionMenu subscriptions={data.subscriptions} customerId={customerId} onRefresh={onRefresh} />} />
     <MiniTable headers={["Plan", "Cat.", "Prix/mois", "Statut", "Cycle", "Auto", ""]} empty={data.subscriptions.length === 0}>
       {data.subscriptions.map((s: any) => (
         <tr key={s.id} className={trClass}>
@@ -235,9 +241,10 @@ const OrdersSection = ({ data }: any) => (
   </Panel>
 );
 
-const InvoicesSection = ({ data }: any) => (
+const InvoicesSection = ({ data, customerId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length} />
+    <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length}
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
     <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance"]} empty={data.invoices.length === 0}>
       {data.invoices.slice(0, 50).map((inv: any) => (
         <tr key={inv.id} className={trClass}>
@@ -254,9 +261,10 @@ const InvoicesSection = ({ data }: any) => (
   </Panel>
 );
 
-const PaymentsSection = ({ data }: any) => (
+const PaymentsSection = ({ data, customerId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length} />
+    <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length}
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le"]} empty={data.payments.length === 0}>
       {data.payments.slice(0, 50).map((p: any) => (
         <tr key={p.id} className={trClass}>
@@ -272,9 +280,10 @@ const PaymentsSection = ({ data }: any) => (
   </Panel>
 );
 
-const EquipmentSection = ({ data }: any) => (
+const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={Package} title="Équipements" count={data.equipment.length} />
+    <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
+      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} onRefresh={onRefresh} />} />
     <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
       {data.equipment.map((eq: any) => (
         <tr key={eq.id} className={trClass}>
@@ -292,9 +301,10 @@ const EquipmentSection = ({ data }: any) => (
   </Panel>
 );
 
-const TicketsSection = ({ data }: any) => (
+const TicketsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={MessageSquare} title="Tickets de support" count={data.tickets.length} />
+    <PanelHeader icon={MessageSquare} title="Tickets de support" count={data.tickets.length}
+      actions={<AccountActionMenu clientId={clientId} clientEmail={clientEmail} clientName={clientName} accountId={accountId} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Sujet", "Cat.", "Statut", "Créé le"]} empty={data.tickets.length === 0}>
       {data.tickets.slice(0, 30).map((t: any) => (
         <tr key={t.id} className={trClass}>
@@ -309,9 +319,10 @@ const TicketsSection = ({ data }: any) => (
   </Panel>
 );
 
-const AppointmentsSection = ({ data }: any) => (
+const AppointmentsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={Calendar} title="Rendez-vous" count={data.appointments.length} />
+    <PanelHeader icon={Calendar} title="Rendez-vous" count={data.appointments.length}
+      actions={<AccountActionMenu clientId={clientId} clientEmail={clientEmail} clientName={clientName} accountId={accountId} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Titre", "Type", "Statut", "Date", "Adresse"]} empty={data.appointments.length === 0}>
       {data.appointments.map((a: any) => (
         <tr key={a.id} className={trClass}>
@@ -473,16 +484,17 @@ const CoreAccountDetail = () => {
   };
 
   const renderSection = () => {
-    const props = { data, acct, prof, clientName, totalDue, unpaidInvoices, activeSubs, latestKyc, monthlyRevenue, totalPaid };
+    const baseProps = { data, acct, prof, clientName, totalDue, unpaidInvoices, activeSubs, latestKyc, monthlyRevenue, totalPaid };
+    const actionProps = { customerId: data.customerId, clientId: data.clientId, clientEmail: prof?.email, clientName, accountId, onRefresh: data.refetch };
     switch (activeSection) {
-      case "overview": return <OverviewSection {...props} />;
-      case "subscriptions": return <SubscriptionsSection data={data} />;
+      case "overview": return <OverviewSection {...baseProps} />;
+      case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "orders": return <OrdersSection data={data} />;
-      case "invoices": return <InvoicesSection data={data} />;
-      case "payments": return <PaymentsSection data={data} />;
-      case "equipment": return <EquipmentSection data={data} />;
-      case "tickets": return <TicketsSection data={data} />;
-      case "appointments": return <AppointmentsSection data={data} />;
+      case "invoices": return <InvoicesSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
+      case "payments": return <PaymentsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
+      case "equipment": return <EquipmentSection data={data} accountId={accountId} onRefresh={data.refetch} />;
+      case "tickets": return <TicketsSection data={data} {...actionProps} />;
+      case "appointments": return <AppointmentsSection data={data} {...actionProps} />;
       case "kyc": return <KycSection data={data} />;
       case "timeline": return <TimelineSection data={data} />;
       default: return null;
@@ -637,11 +649,12 @@ const CoreAccountDetail = () => {
                 <QuickAction icon={PlayCircle} label="Réactiver le compte" onClick={() => updateAccountStatus("active")} variant="success" loading={actionLoading} />
               )}
               <QuickAction icon={StickyNote} label="Ajouter une note interne" onClick={() => setShowNoteInput(!showNoteInput)} />
+              <QuickAction icon={CreditCard} label="Gérer facturation" onClick={() => setActiveSection("invoices")} />
+              <QuickAction icon={Repeat} label="Gérer abonnements" onClick={() => setActiveSection("subscriptions")} />
+              <QuickAction icon={Package} label="Équipements" onClick={() => setActiveSection("equipment")} />
+              <QuickAction icon={MessageSquare} label="Tickets" onClick={() => setActiveSection("tickets")} />
               {data.orders[0] && (
                 <QuickAction icon={ShoppingCart} label="Dernière commande" onClick={() => navigate(corePath(`/orders/${data.orders[0].id}`))} />
-              )}
-              {data.subscriptions[0] && (
-                <QuickAction icon={Repeat} label="Ouvrir abonnement" onClick={() => navigate(corePath(`/subscriptions/${(data.subscriptions[0] as any).id}`))} />
               )}
             </div>
             {showNoteInput && (
@@ -658,6 +671,20 @@ const CoreAccountDetail = () => {
                 </button>
               </div>
             )}
+          </Panel>
+
+          {/* Operational shortcuts */}
+          <Panel>
+            <PanelHeader icon={Mail} title="Communication" />
+            <div className="p-2">
+              <AccountActionMenu
+                clientId={data.clientId}
+                clientEmail={prof?.email}
+                clientName={clientName}
+                accountId={accountId}
+                onRefresh={data.refetch}
+              />
+            </div>
           </Panel>
         </div>
       </div>
