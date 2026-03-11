@@ -494,8 +494,8 @@ const CoreAccountDetail = () => {
       case "overview": return <OverviewSection {...baseProps} />;
       case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "orders": return <OrdersSection data={data} accountId={accountId} clientId={data.clientId} clientEmail={prof?.email} clientName={clientName} onRefresh={data.refetch} />;
-      case "invoices": return <InvoicesSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
-      case "payments": return <PaymentsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
+      case "invoices": return <InvoicesSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;
+      case "payments": return <PaymentsSection data={data} customerId={data.customerId} customerUserId={data.clientId} profileEmail={prof?.email} billingCustomerEmail={data.billingCustomer?.email} onRefresh={data.refetch} />;
       case "equipment": return <EquipmentSection data={data} accountId={accountId} onRefresh={data.refetch} />;
       case "tickets": return <TicketsSection data={data} {...actionProps} />;
       case "appointments": return <AppointmentsSection data={data} {...actionProps} />;
