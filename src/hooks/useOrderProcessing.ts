@@ -749,9 +749,100 @@ export function useOrderProcessing(orderId: string | undefined) {
     toast.success("Contrat signé (admin)");
   };
 
+  /* ── Activate service — provisions subscription + marks order completed ── */
+  const activateService = async (opts?: {
+    providerRef?: string;
+    activationNotes?: string;
+  }) => {
+    const invoice = data?.invoice;
+    if (!invoice) {
+      toast.error("Impossible d'activer : aucune facture liée à cette commande.");
+      return;
+    }
+    const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
+    const invoiceStatus = invoice.status;
+    if (!["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") && balanceDue > 0) {
+      toast.error(`Impossible d'activer : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+      return;
+    }
+
+    const { data: provResult, error: provError } = await supabase.rpc(
+      "provision_services_for_order" as any,
+      { p_order_id: orderId }
+    );
+
+    const provPayload = (provResult || {}) as any;
+    if (provError || !provPayload.success) {
+      const errMsg = provPayload?.error || provError?.message || "Échec du provisionnement";
+      if (errMsg !== "DUPLICATE_SERVICE_AT_ADDRESS") {
+        console.error("[Activation] Provisioning failed:", errMsg, provPayload);
+        toast.error(`Provisionnement échoué: ${errMsg}`);
+        return;
+      }
+    }
+
+    const account = data?.account;
+    if (account?.id) {
+      const activationDay = new Date().getDate();
+      const nextInvoice = new Date();
+      nextInvoice.setMonth(nextInvoice.getMonth() + 1);
+      nextInvoice.setDate(activationDay);
+
+      await supabase
+        .from("accounts")
+        .update({
+          billing_cycle_day: activationDay,
+          next_invoice_date: nextInvoice.toISOString().split("T")[0],
+          status: "active",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", account.id);
+    }
+
+    const orderUpdates: Record<string, any> = {
+      status: "activated",
+      processed_at: new Date().toISOString(),
+      processed_by: user?.id,
+    };
+    if (opts?.providerRef) orderUpdates.confirmation_number = opts.providerRef;
+    if (opts?.activationNotes) {
+      const existing = data?.order?.internal_notes || "";
+      orderUpdates.internal_notes = existing + `\n[Activation] ${opts.activationNotes}`;
+    }
+    await updateOrder.mutateAsync(orderUpdates);
+
+    await logActivity("service_activated", "order", orderId, {
+      provisioning_result: provPayload,
+      provider_ref: opts?.providerRef,
+      subscription_id: provPayload?.subscription_id,
+      services_created: provPayload?.services_created,
+    });
+
+    const email = getClientEmail();
+    if (email) {
+      await queueClientEmail({
+        to_email: email,
+        template_key: "order_completed",
+        event_key: `service_activated_${orderId}_${Date.now()}`,
+        idempotency_key: `auto_service_activated_${orderId}`,
+        mode: "automatic",
+        subject: "Votre service est activé — Nivra",
+        entity_id: orderId,
+        template_vars: {
+          client_name: getClientName(),
+          order_id: orderId,
+          order_number: data?.order?.order_number || "",
+          service_type: data?.order?.service_type || "",
+        },
+      });
+    }
+
+    invalidateAll();
+    toast.success("Service activé — abonnement créé");
+  };
+
   /* ── Complete order ── */
   const completeOrder = async () => {
-    // SYSTEMIC GUARD: Verify invoice is paid before allowing completion
     const invoice = data?.invoice;
     if (!invoice) {
       toast.error("Impossible de compléter : aucune facture liée à cette commande.");
@@ -767,7 +858,6 @@ export function useOrderProcessing(orderId: string | undefined) {
     await changeStatus("completed");
     await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
 
-    // Queue completion notification
     const email = getClientEmail();
     if (email) {
       await queueClientEmail({
