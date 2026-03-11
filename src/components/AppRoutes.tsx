@@ -16,6 +16,7 @@ const CoreAccounts = lazy(() => import("@/core-app/pages/AccountsPage"));
 const CoreInvoices = lazy(() => import("@/core-app/pages/InvoicesPage"));
 const CorePayments = lazy(() => import("@/core-app/pages/PaymentsPage"));
 const CoreSubscriptions = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
+const CoreSubscriptionDetail = lazy(() => import("@/core-app/pages/SubscriptionDetailPage"));
 const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"));
 const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
 const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
@@ -575,6 +576,7 @@ const AppRoutes = () => {
           <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
           <Route path="payments" element={<Suspense fallback={null}><CorePayments /></Suspense>} />
           <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
+          <Route path="subscriptions/:id" element={<Suspense fallback={null}><CoreSubscriptionDetail /></Suspense>} />
           <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
         </Route>
       </Route>
