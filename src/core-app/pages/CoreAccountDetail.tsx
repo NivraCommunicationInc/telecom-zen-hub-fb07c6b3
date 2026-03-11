@@ -21,6 +21,7 @@ import { InvoiceActionMenu } from "@/core-app/components/account-actions/Invoice
 import { SubscriptionActionMenu } from "@/core-app/components/account-actions/SubscriptionActions";
 import { EquipmentActionMenu } from "@/core-app/components/account-actions/EquipmentActions";
 import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
+import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -222,9 +223,10 @@ const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
   </Panel>
 );
 
-const OrdersSection = ({ data }: any) => (
+const OrdersSection = ({ data, accountId, clientId, clientEmail, clientName, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={ShoppingCart} title="Commandes" count={data.orders.length} />
+    <PanelHeader icon={ShoppingCart} title="Commandes" count={data.orders.length}
+      actions={<OrderActionMenu orders={data.orders} accountId={accountId} clientId={clientId} clientEmail={clientEmail} clientName={clientName} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Service", "Statut", "Total", "Paiement", "Date", ""]} empty={data.orders.length === 0}>
       {data.orders.slice(0, 50).map((o: any) => (
         <tr key={o.id} className={trClass}>
@@ -489,7 +491,7 @@ const CoreAccountDetail = () => {
     switch (activeSection) {
       case "overview": return <OverviewSection {...baseProps} />;
       case "subscriptions": return <SubscriptionsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
-      case "orders": return <OrdersSection data={data} />;
+      case "orders": return <OrdersSection data={data} accountId={accountId} clientId={data.clientId} clientEmail={prof?.email} clientName={clientName} onRefresh={data.refetch} />;
       case "invoices": return <InvoicesSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "payments": return <PaymentsSection data={data} customerId={data.customerId} onRefresh={data.refetch} />;
       case "equipment": return <EquipmentSection data={data} accountId={accountId} onRefresh={data.refetch} />;

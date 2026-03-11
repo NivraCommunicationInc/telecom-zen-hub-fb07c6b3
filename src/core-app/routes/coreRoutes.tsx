@@ -11,6 +11,7 @@ const WorkQueuePage = lazy(() => import("@/core-app/pages/WorkQueuePage"));
 const OrdersPage = lazy(() => import("@/core-app/pages/OrdersPage"));
 const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const AccountsPage = lazy(() => import("@/core-app/pages/AccountsPage"));
+const ClientsPage = lazy(() => import("@/core-app/pages/ClientsPage"));
 const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
 const InvoicesPage = lazy(() => import("@/core-app/pages/InvoicesPage"));
 const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
@@ -30,6 +31,7 @@ export const coreRoutes: RouteObject = {
     { path: "orders/:orderId", element: <CoreOrderDetail /> },
     { path: "accounts", element: <AccountsPage /> },
     { path: "accounts/:accountId", element: <CoreAccountDetail /> },
+    { path: "clients", element: <ClientsPage /> },
     { path: "invoices", element: <InvoicesPage /> },
     { path: "invoices/:invoiceId", element: <CoreInvoiceDetail /> },
     { path: "payments", element: <PaymentsPage /> },
