@@ -1,6 +1,6 @@
 /**
- * Nivra Core — Customer 360 Dossier (premium ops-grade)
- * Two-column telecom CRM layout with dense operational panels.
+ * Nivra Core — Customer 360 Dossier
+ * Dark ops-grade design matching /core/orders style.
  */
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -14,7 +14,7 @@ import {
   ShoppingCart, Mail, Phone, MapPin, Calendar, Shield, Package,
   MessageSquare, Clock, Zap, PauseCircle, PlayCircle, StickyNote,
   ExternalLink, ChevronDown, ChevronRight, Activity, AlertTriangle,
-  DollarSign, Hash, CircleDot, Wrench,
+  DollarSign, Hash, CircleDot,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -35,26 +35,40 @@ const STATUS_LABELS: Record<string, string> = {
   closed: "Fermé", open: "Ouvert", in_progress: "En cours", resolved: "Résolu",
   waiting_client: "Attente client", completed: "Terminé", confirmed: "Confirmé",
   scheduled: "Planifié", approved: "Approuvé", rejected: "Rejeté",
-  pending_review: "En révision", submitted: "Soumis",
+  pending_review: "En révision", submitted: "Soumis", manual_review: "Révision manuelle",
   paid: "Payé", overdue: "En souffrance", draft: "Brouillon", voided: "Annulée",
   installation_completed: "Installation terminée", activated: "Activé",
 };
 const label = (s: string | null | undefined) => STATUS_LABELS[s || ""] || s || "—";
 
+/* ── Dark theme constants (matching OrdersPage) ── */
+const C = {
+  bg: "bg-[hsl(220,20%,11%)]",
+  bgCard: "bg-[hsl(220,20%,11%)]",
+  border: "border-[hsl(220,15%,16%)]",
+  borderSub: "border-[hsl(220,15%,14%)]",
+  text: "text-white",
+  textMuted: "text-[hsl(220,10%,45%)]",
+  textDim: "text-[hsl(220,10%,35%)]",
+  textLabel: "text-[hsl(220,10%,40%)]",
+  hoverRow: "hover:bg-[hsl(220,20%,13%)]",
+  hoverBtn: "hover:text-white hover:border-emerald-500/30",
+} as const;
+
 /* ── Micro components ── */
 const Panel = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`rounded-lg border border-border/60 bg-card ${className}`}>{children}</div>
+  <div className={`rounded-lg ${C.border} ${C.bgCard} border ${className}`}>{children}</div>
 );
 
 const PanelHeader = ({ icon: Icon, title, count, action }: {
   icon: any; title: string; count?: number; action?: React.ReactNode;
 }) => (
-  <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
+  <div className={`flex items-center justify-between px-3 py-2.5 border-b ${C.borderSub}`}>
     <div className="flex items-center gap-1.5">
-      <Icon className="h-3.5 w-3.5 text-primary" />
-      <span className="text-[11px] font-semibold text-foreground">{title}</span>
+      <Icon className="h-3.5 w-3.5 text-emerald-400" />
+      <span className="text-[11px] font-semibold text-white">{title}</span>
       {count != null && (
-        <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-full tabular-nums font-medium ml-1">{count}</span>
+        <span className="text-[10px] text-[hsl(220,10%,50%)] bg-[hsl(220,15%,14%)] px-1.5 py-0.5 rounded-full tabular-nums font-medium ml-1">{count}</span>
       )}
     </div>
     {action}
@@ -67,15 +81,15 @@ const CollapsibleSection = ({ icon: Icon, title, count, defaultOpen = true, chil
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Panel>
-      <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full px-3 py-2 border-b border-border/40 group">
+      <button onClick={() => setOpen(!open)} className={`flex items-center justify-between w-full px-3 py-2.5 border-b ${C.borderSub} group`}>
         <div className="flex items-center gap-1.5">
-          <Icon className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-semibold text-foreground group-hover:text-primary transition-colors">{title}</span>
+          <Icon className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="text-[11px] font-semibold text-white group-hover:text-emerald-400 transition-colors">{title}</span>
           {count != null && (
-            <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-full tabular-nums font-medium ml-1">{count}</span>
+            <span className="text-[10px] text-[hsl(220,10%,50%)] bg-[hsl(220,15%,14%)] px-1.5 py-0.5 rounded-full tabular-nums font-medium ml-1">{count}</span>
           )}
         </div>
-        {open ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+        {open ? <ChevronDown className="h-3 w-3 text-[hsl(220,10%,40%)]" /> : <ChevronRight className="h-3 w-3 text-[hsl(220,10%,40%)]" />}
       </button>
       {open && children}
     </Panel>
@@ -83,9 +97,9 @@ const CollapsibleSection = ({ icon: Icon, title, count, defaultOpen = true, chil
 };
 
 const InfoLine = ({ label: l, value, mono, accent }: { label: string; value: React.ReactNode; mono?: boolean; accent?: boolean }) => (
-  <div className="flex items-center justify-between py-1 px-3">
-    <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{l}</span>
-    <span className={`text-[11px] text-right ${mono ? "font-mono" : ""} ${accent ? "text-primary font-medium" : "text-foreground"}`}>{value}</span>
+  <div className={`flex items-center justify-between py-1.5 px-3`}>
+    <span className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wide">{l}</span>
+    <span className={`text-[11px] text-right ${mono ? "font-mono" : ""} ${accent ? "text-emerald-400 font-medium" : "text-white"}`}>{value}</span>
   </div>
 );
 
@@ -93,27 +107,27 @@ const MiniTable = ({ headers, children, empty }: { headers: string[]; children: 
   <div className="overflow-x-auto">
     <table className="w-full text-xs">
       <thead>
-        <tr className="border-b border-border/30">
+        <tr className={`border-b ${C.borderSub}`}>
           {headers.map(h => (
-            <th key={h} className="text-left px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/70 whitespace-nowrap">{h}</th>
+            <th key={h} className="text-left px-3 py-2 text-[9px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {empty ? (
-          <tr><td colSpan={headers.length} className="text-center py-4 text-muted-foreground/40 text-[11px]">Aucune donnée</td></tr>
+          <tr><td colSpan={headers.length} className="text-center py-6 text-[hsl(220,10%,30%)] text-[11px]">Aucune donnée</td></tr>
         ) : children}
       </tbody>
     </table>
   </div>
 );
 
-const trClass = "border-b border-border/20 last:border-0 hover:bg-muted/30 transition-colors";
+const trClass = `border-b ${C.borderSub} last:border-0 ${C.hoverRow} transition-colors`;
 
 const KpiChip = ({ label: l, value, accent, alert }: { label: string; value: string | number; accent?: boolean; alert?: boolean }) => (
-  <div className="flex flex-col items-center justify-center px-3 py-1.5 rounded-md bg-muted/30 border border-border/30 min-w-[72px]">
-    <span className={`text-sm font-bold tabular-nums leading-tight ${alert ? "text-destructive" : accent ? "text-primary" : "text-foreground"}`}>{value}</span>
-    <span className="text-[8px] uppercase tracking-widest text-muted-foreground/60 font-medium mt-0.5">{l}</span>
+  <div className={`flex flex-col items-center justify-center px-4 py-2 rounded-lg border ${C.border} ${C.bgCard} min-w-[80px]`}>
+    <span className={`text-lg font-bold tabular-nums leading-tight ${alert ? "text-red-400" : accent ? "text-emerald-400" : "text-white"}`}>{value}</span>
+    <span className="text-[8px] uppercase tracking-widest text-[hsl(220,10%,40%)] font-medium mt-0.5">{l}</span>
   </div>
 );
 
@@ -121,12 +135,12 @@ const QuickAction = ({ icon: Icon, label: l, onClick, variant = "default", loadi
   icon: any; label: string; onClick: () => void; variant?: "default" | "warning" | "success"; loading?: boolean;
 }) => {
   const cls = {
-    default: "text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5",
-    warning: "text-amber-400 hover:text-amber-300 hover:border-amber-500/40 hover:bg-amber-500/5",
-    success: "text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40 hover:bg-emerald-500/5",
+    default: `${C.textMuted} hover:text-white hover:border-emerald-500/30`,
+    warning: "text-amber-400 hover:text-amber-300 hover:border-amber-500/40",
+    success: "text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40",
   };
   return (
-    <button onClick={onClick} disabled={loading} className={`flex items-center gap-1.5 w-full rounded-md border border-border/40 bg-card px-2.5 py-1.5 text-[10px] font-medium transition-all disabled:opacity-40 ${cls[variant]}`}>
+    <button onClick={onClick} disabled={loading} className={`flex items-center gap-1.5 w-full rounded-md border ${C.border} bg-[hsl(220,20%,13%)] px-2.5 py-1.5 text-[10px] font-medium transition-all disabled:opacity-40 ${cls[variant]}`}>
       <Icon className="h-3 w-3 shrink-0" /> {l}
     </button>
   );
@@ -144,7 +158,7 @@ const CoreAccountDetail = () => {
   if (data.isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <Loader2 className="h-5 w-5 animate-spin text-[hsl(220,10%,40%)]" />
       </div>
     );
   }
@@ -152,12 +166,12 @@ const CoreAccountDetail = () => {
   if (data.accountError) {
     return (
       <div className="py-16 text-center space-y-2">
-        <AlertTriangle className="h-6 w-6 mx-auto text-destructive/60" />
-        <p className="text-destructive text-xs font-medium">Erreur de chargement</p>
-        <p className="text-muted-foreground text-[11px] max-w-sm mx-auto">{(data.accountError as any)?.message || "Vérifiez votre session."}</p>
+        <AlertTriangle className="h-6 w-6 mx-auto text-red-400/60" />
+        <p className="text-red-400 text-xs font-medium">Erreur de chargement</p>
+        <p className="text-[hsl(220,10%,40%)] text-[11px] max-w-sm mx-auto">{(data.accountError as any)?.message || "Vérifiez votre session."}</p>
         <div className="flex items-center justify-center gap-3 mt-3">
-          <button onClick={() => data.refetch()} className="rounded-md bg-primary px-4 py-1.5 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors">Réessayer</button>
-          <Link to={corePath("/accounts")} className="text-primary text-[11px] hover:underline">← Comptes</Link>
+          <button onClick={() => data.refetch()} className="rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-500 transition-colors">Réessayer</button>
+          <Link to={corePath("/accounts")} className="text-emerald-400 text-[11px] hover:underline">← Comptes</Link>
         </div>
       </div>
     );
@@ -166,12 +180,12 @@ const CoreAccountDetail = () => {
   if (!data.account) {
     return (
       <div className="py-16 text-center space-y-2">
-        <User className="h-6 w-6 mx-auto text-muted-foreground/40" />
-        <p className="text-muted-foreground text-xs">Compte introuvable</p>
-        <p className="text-muted-foreground/40 text-[10px] font-mono">{accountId}</p>
+        <User className="h-6 w-6 mx-auto text-[hsl(220,10%,30%)]" />
+        <p className="text-[hsl(220,10%,45%)] text-xs">Compte introuvable</p>
+        <p className="text-[hsl(220,10%,30%)] text-[10px] font-mono">{accountId}</p>
         <div className="flex items-center justify-center gap-3 mt-3">
-          <button onClick={() => data.refetch()} className="rounded-md border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors">Réessayer</button>
-          <Link to={corePath("/accounts")} className="text-primary text-[11px] hover:underline">← Comptes</Link>
+          <button onClick={() => data.refetch()} className={`rounded-md border ${C.border} px-3 py-1.5 text-[11px] ${C.textMuted} hover:text-white transition-colors`}>Réessayer</button>
+          <Link to={corePath("/accounts")} className="text-emerald-400 text-[11px] hover:underline">← Comptes</Link>
         </div>
       </div>
     );
@@ -218,29 +232,29 @@ const CoreAccountDetail = () => {
   const monthlyRevenue = activeSubs.reduce((s, sub: any) => s + (sub.plan_price ?? 0), 0);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between">
-        <Link to={corePath("/accounts")} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+        <Link to={corePath("/accounts")} className="flex items-center gap-1 text-[11px] text-[hsl(220,10%,45%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3 w-3" /> Comptes
         </Link>
-        <button onClick={() => data.refetch()} className="flex items-center gap-1 rounded-md border border-border/50 bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors">
-          <RefreshCw className="h-3 w-3" /> Actualiser
+        <button onClick={() => data.refetch()} className={`flex items-center gap-1.5 rounded-lg border ${C.border} ${C.bgCard} px-3 py-1.5 text-[11px] font-medium ${C.textMuted} ${C.hoverBtn} transition-colors`}>
+          <RefreshCw className="h-3.5 w-3.5" /> Actualiser
         </button>
       </div>
 
       {/* ── Header strip ── */}
       <Panel className="p-0">
         <div className="px-4 py-3 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <User className="h-4 w-4 text-primary" />
+          <div className="h-9 w-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <User className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-foreground tracking-tight truncate">{clientName}</h1>
+              <h1 className="text-lg font-bold text-white tracking-tight truncate">{clientName}</h1>
               <StatusBadge label={label(acct.status)} variant={statusToVariant(acct.status || "active")} size="sm" />
             </div>
-            <div className="flex flex-wrap items-center gap-3 mt-0.5 text-[10px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 mt-0.5 text-[10px] text-[hsl(220,10%,45%)]">
               <span className="flex items-center gap-1 font-mono"><Hash className="h-3 w-3" />{acct.account_number}</span>
               {prof?.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{prof.email}</span>}
               {prof?.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{prof.phone}</span>}
@@ -249,7 +263,7 @@ const CoreAccountDetail = () => {
           </div>
         </div>
         {/* KPI strip */}
-        <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto">
+        <div className="grid grid-cols-4 lg:grid-cols-7 gap-3 px-4 pb-3">
           <KpiChip label="Abonnements" value={activeSubs.length} accent />
           <KpiChip label="Commandes" value={data.orders.length} />
           <KpiChip label="Factures" value={data.invoices.length} />
@@ -266,15 +280,15 @@ const CoreAccountDetail = () => {
         <div className="space-y-3 min-w-0">
           {/* Unpaid alert */}
           {unpaidInvoices.length > 0 && (
-            <Panel className="border-destructive/30 bg-destructive/5">
+            <Panel className="border-red-500/30">
               <PanelHeader icon={AlertTriangle} title="Factures impayées" count={unpaidInvoices.length} />
-              <MiniTable headers={["Facture", "Total", "Solde", "Échéance"]} >
+              <MiniTable headers={["Facture", "Total", "Solde", "Échéance"]}>
                 {unpaidInvoices.map((inv: any) => (
                   <tr key={inv.id} className={trClass}>
-                    <td className="px-3 py-1.5"><Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-foreground hover:text-primary text-[11px]">{inv.invoice_number}</Link></td>
-                    <td className="px-3 py-1.5 tabular-nums text-foreground text-[11px]">{fmtCAD(inv.total)}</td>
-                    <td className="px-3 py-1.5 tabular-nums text-destructive font-medium text-[11px]">{fmtCAD(inv.balance_due)}</td>
-                    <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground text-[11px]">{fmtDate(inv.due_date)}</td>
+                    <td className="px-3 py-1.5"><Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-white hover:text-emerald-400 text-[11px]">{inv.invoice_number}</Link></td>
+                    <td className="px-3 py-1.5 tabular-nums text-white text-[11px]">{fmtCAD(inv.total)}</td>
+                    <td className="px-3 py-1.5 tabular-nums text-red-400 font-medium text-[11px]">{fmtCAD(inv.balance_due)}</td>
+                    <td className="px-3 py-1.5 whitespace-nowrap text-[hsl(220,10%,45%)] text-[11px]">{fmtDate(inv.due_date)}</td>
                   </tr>
                 ))}
               </MiniTable>
@@ -287,18 +301,18 @@ const CoreAccountDetail = () => {
               {data.subscriptions.map((s: any) => (
                 <tr key={s.id} className={trClass}>
                   <td className="px-3 py-1.5">
-                    <p className="text-foreground font-medium text-[11px]">{s.plan_name}</p>
-                    <p className="text-muted-foreground text-[10px] font-mono">{s.plan_code}</p>
+                    <p className="text-white font-medium text-[11px]">{s.plan_name}</p>
+                    <p className="text-[hsl(220,10%,40%)] text-[10px] font-mono">{s.plan_code}</p>
                   </td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px]">{s.service_category || "—"}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-primary font-medium text-[11px]">{fmtCAD(s.plan_price)}</td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,55%)] text-[11px]">{s.service_category || "—"}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-emerald-400 font-medium text-[11px]">{fmtCAD(s.plan_price)}</td>
                   <td className="px-3 py-1.5"><StatusBadge label={label(s.status)} variant={statusToVariant(s.status || "")} size="sm" /></td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground text-[10px]">{fmtDate(s.cycle_start_date)} → {fmtDate(s.cycle_end_date)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[hsl(220,10%,45%)] text-[10px]">{fmtDate(s.cycle_start_date)} → {fmtDate(s.cycle_end_date)}</td>
                   <td className="px-3 py-1.5">
-                    {s.auto_billing_enabled ? <Zap className="h-3 w-3 text-primary" /> : <span className="text-muted-foreground/30 text-[10px]">—</span>}
+                    {s.auto_billing_enabled ? <Zap className="h-3 w-3 text-emerald-400" /> : <span className="text-[hsl(220,10%,25%)] text-[10px]">—</span>}
                   </td>
                   <td className="px-3 py-1.5">
-                    <Link to={corePath(`/subscriptions/${s.id}`)} className="text-primary/70 hover:text-primary"><ExternalLink className="h-3 w-3" /></Link>
+                    <Link to={corePath(`/subscriptions/${s.id}`)} className="text-[hsl(220,10%,50%)] hover:text-emerald-400"><ExternalLink className="h-3 w-3" /></Link>
                   </td>
                 </tr>
               ))}
@@ -310,13 +324,13 @@ const CoreAccountDetail = () => {
             <MiniTable headers={["#", "Service", "Statut", "Total", "Paiement", "Date", ""]} empty={data.orders.length === 0}>
               {data.orders.slice(0, 25).map((o: any) => (
                 <tr key={o.id} className={trClass}>
-                  <td className="px-3 py-1.5 font-mono text-foreground text-[11px]">{o.order_number || "—"}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px]">{o.service_category || o.service_type || "—"}</td>
+                  <td className="px-3 py-1.5 font-mono text-white text-[11px]">{o.order_number || "—"}</td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,55%)] text-[11px]">{o.service_category || o.service_type || "—"}</td>
                   <td className="px-3 py-1.5"><StatusBadge label={label(o.status)} variant={statusToVariant(o.status || "")} size="sm" /></td>
-                  <td className="px-3 py-1.5 tabular-nums text-foreground text-[11px]">{fmtCAD(o.total_today ?? o.order_total)}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px]">{label(o.payment_status)}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground text-[11px]">{fmtDate(o.created_at)}</td>
-                  <td className="px-3 py-1.5"><Link to={corePath(`/orders/${o.id}`)} className="text-primary/70 hover:text-primary"><ExternalLink className="h-3 w-3" /></Link></td>
+                  <td className="px-3 py-1.5 tabular-nums text-[hsl(220,10%,70%)] text-[11px]">{fmtCAD(o.total_today ?? o.order_total)}</td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,45%)] text-[11px]">{label(o.payment_status)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[hsl(220,10%,45%)] text-[11px]">{fmtDate(o.created_at)}</td>
+                  <td className="px-3 py-1.5"><Link to={corePath(`/orders/${o.id}`)} className="text-[hsl(220,10%,50%)] hover:text-emerald-400"><ExternalLink className="h-3 w-3" /></Link></td>
                 </tr>
               ))}
             </MiniTable>
@@ -327,13 +341,13 @@ const CoreAccountDetail = () => {
             <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance"]} empty={data.invoices.length === 0}>
               {data.invoices.slice(0, 30).map((inv: any) => (
                 <tr key={inv.id} className={trClass}>
-                  <td className="px-3 py-1.5"><Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-foreground hover:text-primary text-[11px]">{inv.invoice_number}</Link></td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px] capitalize">{inv.type}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-foreground text-[11px]">{fmtCAD(inv.total)}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-primary text-[11px]">{fmtCAD(inv.amount_paid)}</td>
-                  <td className="px-3 py-1.5"><span className={`tabular-nums text-[11px] font-medium ${(inv.balance_due ?? 0) > 0 ? "text-destructive" : "text-muted-foreground"}`}>{fmtCAD(inv.balance_due)}</span></td>
+                  <td className="px-3 py-1.5"><Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-white hover:text-emerald-400 text-[11px]">{inv.invoice_number}</Link></td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,45%)] text-[11px] capitalize">{inv.type}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-white text-[11px]">{fmtCAD(inv.total)}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-emerald-400 text-[11px]">{fmtCAD(inv.amount_paid)}</td>
+                  <td className="px-3 py-1.5"><span className={`tabular-nums text-[11px] font-medium ${(inv.balance_due ?? 0) > 0 ? "text-red-400" : "text-[hsl(220,10%,35%)]"}`}>{fmtCAD(inv.balance_due)}</span></td>
                   <td className="px-3 py-1.5"><StatusBadge label={label(inv.status)} variant={statusToVariant(inv.status || "")} size="sm" /></td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground text-[11px]">{fmtDate(inv.due_date)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[hsl(220,10%,45%)] text-[11px]">{fmtDate(inv.due_date)}</td>
                 </tr>
               ))}
             </MiniTable>
@@ -344,12 +358,12 @@ const CoreAccountDetail = () => {
             <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le"]} empty={data.payments.length === 0}>
               {data.payments.slice(0, 30).map((p: any) => (
                 <tr key={p.id} className={trClass}>
-                  <td className="px-3 py-1.5 font-mono text-foreground text-[11px]">{p.payment_number || "—"}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-primary font-medium text-[11px]">{fmtCAD(p.amount)}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px] capitalize">{p.method}</td>
+                  <td className="px-3 py-1.5 font-mono text-white text-[11px]">{p.payment_number || "—"}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-emerald-400 font-medium text-[11px]">{fmtCAD(p.amount)}</td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,55%)] text-[11px] capitalize">{p.method}</td>
                   <td className="px-3 py-1.5"><StatusBadge label={label(p.status)} variant={statusToVariant(p.status || "")} size="sm" /></td>
-                  <td className="px-3 py-1.5 font-mono text-muted-foreground text-[10px]">{p.reference || "—"}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground text-[11px]">{fmtDate(p.received_at)}</td>
+                  <td className="px-3 py-1.5 font-mono text-[hsl(220,10%,40%)] text-[10px]">{p.reference || "—"}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[hsl(220,10%,45%)] text-[11px]">{fmtDate(p.received_at)}</td>
                 </tr>
               ))}
             </MiniTable>
@@ -360,12 +374,12 @@ const CoreAccountDetail = () => {
             <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
               {data.equipment.map((eq: any) => (
                 <tr key={eq.id} className={trClass}>
-                  <td className="px-3 py-1.5 text-foreground text-[11px]">{eq.item_name}</td>
-                  <td className="px-3 py-1.5 font-mono text-muted-foreground text-[10px]">{eq.item_sku || "—"}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-foreground text-[11px]">{eq.quantity}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-muted-foreground text-[11px]">{fmtCAD(eq.unit_price)}</td>
-                  <td className="px-3 py-1.5 tabular-nums text-foreground text-[11px]">{fmtCAD(eq.line_total)}</td>
-                  <td className="px-3 py-1.5 font-mono text-muted-foreground text-[10px] max-w-[120px] truncate">
+                  <td className="px-3 py-1.5 text-white text-[11px]">{eq.item_name}</td>
+                  <td className="px-3 py-1.5 font-mono text-[hsl(220,10%,40%)] text-[10px]">{eq.item_sku || "—"}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-white text-[11px]">{eq.quantity}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-[hsl(220,10%,55%)] text-[11px]">{fmtCAD(eq.unit_price)}</td>
+                  <td className="px-3 py-1.5 tabular-nums text-white text-[11px]">{fmtCAD(eq.line_total)}</td>
+                  <td className="px-3 py-1.5 font-mono text-[hsl(220,10%,40%)] text-[10px] max-w-[120px] truncate">
                     {eq.serial_numbers ? (Array.isArray(eq.serial_numbers) ? (eq.serial_numbers as string[]).join(", ") : JSON.stringify(eq.serial_numbers)) : "—"}
                   </td>
                 </tr>
@@ -378,11 +392,11 @@ const CoreAccountDetail = () => {
             <MiniTable headers={["#", "Sujet", "Cat.", "Statut", "Créé le"]} empty={data.tickets.length === 0}>
               {data.tickets.slice(0, 20).map((t: any) => (
                 <tr key={t.id} className={trClass}>
-                  <td className="px-3 py-1.5 font-mono text-foreground text-[11px]">{t.ticket_number || "—"}</td>
-                  <td className="px-3 py-1.5 text-foreground max-w-[180px] truncate text-[11px]">{t.subject || t.title || "—"}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px]">{t.category || "—"}</td>
+                  <td className="px-3 py-1.5 font-mono text-white text-[11px]">{t.ticket_number || "—"}</td>
+                  <td className="px-3 py-1.5 text-white max-w-[180px] truncate text-[11px]">{t.subject || t.title || "—"}</td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,55%)] text-[11px]">{t.category || "—"}</td>
                   <td className="px-3 py-1.5"><StatusBadge label={label(t.status)} variant={statusToVariant(t.status || "")} size="sm" /></td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground text-[11px]">{fmtDate(t.created_at)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[hsl(220,10%,45%)] text-[11px]">{fmtDate(t.created_at)}</td>
                 </tr>
               ))}
             </MiniTable>
@@ -393,12 +407,12 @@ const CoreAccountDetail = () => {
             <MiniTable headers={["#", "Titre", "Type", "Statut", "Date", "Adresse"]} empty={data.appointments.length === 0}>
               {data.appointments.map((a: any) => (
                 <tr key={a.id} className={trClass}>
-                  <td className="px-3 py-1.5 font-mono text-foreground text-[10px]">{a.appointment_number || "—"}</td>
-                  <td className="px-3 py-1.5 text-foreground text-[11px]">{a.title}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px]">{a.service_type || a.installation_method || "—"}</td>
+                  <td className="px-3 py-1.5 font-mono text-[hsl(220,10%,55%)] text-[10px]">{a.appointment_number || "—"}</td>
+                  <td className="px-3 py-1.5 text-white text-[11px]">{a.title}</td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,55%)] text-[11px]">{a.service_type || a.installation_method || "—"}</td>
                   <td className="px-3 py-1.5"><StatusBadge label={label(a.status)} variant={statusToVariant(a.status || "")} size="sm" /></td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground text-[11px]">{fmtDateTime(a.scheduled_at)}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground text-[11px] max-w-[140px] truncate">{a.service_address || "—"}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap text-[hsl(220,10%,45%)] text-[11px]">{fmtDateTime(a.scheduled_at)}</td>
+                  <td className="px-3 py-1.5 text-[hsl(220,10%,45%)] text-[11px] max-w-[140px] truncate">{a.service_address || "—"}</td>
                 </tr>
               ))}
             </MiniTable>
@@ -407,20 +421,20 @@ const CoreAccountDetail = () => {
           {/* Activity */}
           <CollapsibleSection icon={Activity} title="Chronologie" count={data.activityLogs.length} defaultOpen={false}>
             {data.activityLogs.length === 0 ? (
-              <div className="px-3 py-4 text-center text-muted-foreground/40 text-[11px]">Aucune activité</div>
+              <div className="px-3 py-6 text-center text-[hsl(220,10%,30%)] text-[11px]">Aucune activité</div>
             ) : (
-              <div className="divide-y divide-border/20 max-h-[320px] overflow-y-auto">
+              <div className={`divide-y divide-[hsl(220,15%,14%)] max-h-[320px] overflow-y-auto`}>
                 {data.activityLogs.slice(0, 40).map((log: any) => (
-                  <div key={log.id} className="px-3 py-2 hover:bg-muted/20 transition-colors">
+                  <div key={log.id} className="px-3 py-2 hover:bg-[hsl(220,20%,13%)] transition-colors">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] text-foreground leading-snug">{log.summary}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-muted-foreground/60">
+                        <p className="text-[11px] text-white leading-snug">{log.summary}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-[hsl(220,10%,35%)]">
                           <span className="capitalize">{log.action_type?.replace(/_/g, " ")}</span>
                           {log.actor_name && <span>· {log.actor_name}</span>}
                         </div>
                       </div>
-                      <span className="text-[9px] text-muted-foreground/40 whitespace-nowrap shrink-0">{fmtDateTime(log.created_at)}</span>
+                      <span className="text-[9px] text-[hsl(220,10%,30%)] whitespace-nowrap shrink-0">{fmtDateTime(log.created_at)}</span>
                     </div>
                   </div>
                 ))}
@@ -434,7 +448,7 @@ const CoreAccountDetail = () => {
           {/* Account info */}
           <Panel>
             <PanelHeader icon={CircleDot} title="Compte" />
-            <div className="py-1 divide-y divide-border/20">
+            <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
               <InfoLine label="Numéro" value={acct.account_number} mono accent />
               <InfoLine label="Statut" value={<StatusBadge label={label(acct.status)} variant={statusToVariant(acct.status || "active")} size="sm" />} />
               <InfoLine label="Classe crédit" value={acct.credit_class || "Standard"} />
@@ -445,7 +459,7 @@ const CoreAccountDetail = () => {
           {/* Billing cycle */}
           <Panel>
             <PanelHeader icon={Clock} title="Facturation" />
-            <div className="py-1 divide-y divide-border/20">
+            <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
               <InfoLine label="Jour de cycle" value={acct.billing_cycle_day ?? "—"} accent />
               <InfoLine label="Prochaine facture" value={fmtDate(acct.next_invoice_date)} accent />
               <InfoLine label="Date d'ancrage" value={fmtDate(acct.billing_anchor_date)} />
@@ -455,7 +469,7 @@ const CoreAccountDetail = () => {
           {/* Financial summary */}
           <Panel>
             <PanelHeader icon={DollarSign} title="Résumé financier" />
-            <div className="py-1 divide-y divide-border/20">
+            <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
               <InfoLine label="Solde impayé" value={fmtCAD(totalDue)} accent={totalDue <= 0} />
               <InfoLine label="Total payé" value={fmtCAD(totalPaid)} />
               <InfoLine label="Rev. mensuel" value={fmtCAD(monthlyRevenue)} accent />
@@ -466,7 +480,7 @@ const CoreAccountDetail = () => {
           {/* Identity */}
           <Panel>
             <PanelHeader icon={User} title="Identité" />
-            <div className="py-1 divide-y divide-border/20">
+            <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
               <InfoLine label="Nom" value={clientName} />
               <InfoLine label="Courriel" value={prof?.email || "—"} />
               <InfoLine label="Téléphone" value={prof?.phone || "—"} />
@@ -478,11 +492,11 @@ const CoreAccountDetail = () => {
           {/* KYC */}
           <Panel>
             <PanelHeader icon={Shield} title="KYC" />
-            <div className="py-1 divide-y divide-border/20">
+            <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
               <InfoLine label="Statut" value={
                 latestKyc
                   ? <StatusBadge label={label(latestKyc.status)} variant={statusToVariant(latestKyc.status)} size="sm" />
-                  : <span className="text-muted-foreground/40 text-[10px]">Non vérifié</span>
+                  : <span className="text-[hsl(220,10%,30%)] text-[10px]">Non vérifié</span>
               } />
               {latestKyc && (
                 <>
@@ -494,7 +508,7 @@ const CoreAccountDetail = () => {
             </div>
             {data.kycSessions.length > 1 && (
               <div className="px-3 pb-2">
-                <span className="text-[9px] text-muted-foreground/50">{data.kycSessions.length} session(s) au total</span>
+                <span className="text-[9px] text-[hsl(220,10%,30%)]">{data.kycSessions.length} session(s) au total</span>
               </div>
             )}
           </Panel>
@@ -523,9 +537,9 @@ const CoreAccountDetail = () => {
                   onChange={e => setNoteText(e.target.value)}
                   placeholder="Note interne…"
                   rows={2}
-                  className="w-full rounded-md border border-border/50 bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/50 resize-none"
+                  className={`w-full rounded-md border ${C.border} bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50 resize-none`}
                 />
-                <button onClick={addNote} disabled={actionLoading || !noteText.trim()} className="w-full rounded-md bg-primary px-3 py-1.5 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors">
+                <button onClick={addNote} disabled={actionLoading || !noteText.trim()} className="w-full rounded-md bg-emerald-600 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors">
                   Enregistrer la note
                 </button>
               </div>
