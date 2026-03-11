@@ -25,6 +25,7 @@ const AppointmentsPage = lazy(() => import("./pages/AppointmentsPage"));
 const CoreOrderDetail = lazy(() => import("./pages/CoreOrderDetail"));
 const CoreAccountDetail = lazy(() => import("./pages/CoreAccountDetail"));
 const CoreInvoiceDetail = lazy(() => import("./pages/CoreInvoiceDetail"));
+const CorePOSPage = lazy(() => import("./pages/CorePOSPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ const CoreApp = () => {
                 <Route path="subscriptions" element={<Suspense fallback={null}><SubscriptionsPage /></Suspense>} />
                 <Route path="subscriptions/:id" element={<Suspense fallback={null}><SubscriptionDetailPage /></Suspense>} />
                 <Route path="appointments" element={<Suspense fallback={null}><AppointmentsPage /></Suspense>} />
+                <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
               </Route>
             </Route>
 
