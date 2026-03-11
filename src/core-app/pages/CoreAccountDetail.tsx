@@ -649,11 +649,12 @@ const CoreAccountDetail = () => {
                 <QuickAction icon={PlayCircle} label="Réactiver le compte" onClick={() => updateAccountStatus("active")} variant="success" loading={actionLoading} />
               )}
               <QuickAction icon={StickyNote} label="Ajouter une note interne" onClick={() => setShowNoteInput(!showNoteInput)} />
+              <QuickAction icon={CreditCard} label="Gérer facturation" onClick={() => setActiveSection("invoices")} />
+              <QuickAction icon={Repeat} label="Gérer abonnements" onClick={() => setActiveSection("subscriptions")} />
+              <QuickAction icon={Package} label="Équipements" onClick={() => setActiveSection("equipment")} />
+              <QuickAction icon={MessageSquare} label="Tickets" onClick={() => setActiveSection("tickets")} />
               {data.orders[0] && (
                 <QuickAction icon={ShoppingCart} label="Dernière commande" onClick={() => navigate(corePath(`/orders/${data.orders[0].id}`))} />
-              )}
-              {data.subscriptions[0] && (
-                <QuickAction icon={Repeat} label="Ouvrir abonnement" onClick={() => navigate(corePath(`/subscriptions/${(data.subscriptions[0] as any).id}`))} />
               )}
             </div>
             {showNoteInput && (
@@ -670,6 +671,20 @@ const CoreAccountDetail = () => {
                 </button>
               </div>
             )}
+          </Panel>
+
+          {/* Operational shortcuts */}
+          <Panel>
+            <PanelHeader icon={Mail} title="Communication" />
+            <div className="p-2">
+              <AccountActionMenu
+                clientId={data.clientId}
+                clientEmail={prof?.email}
+                clientName={clientName}
+                accountId={accountId}
+                onRefresh={data.refetch}
+              />
+            </div>
           </Panel>
         </div>
       </div>
