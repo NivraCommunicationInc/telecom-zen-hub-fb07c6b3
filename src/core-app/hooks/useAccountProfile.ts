@@ -13,15 +13,21 @@ export function useAccountProfile(accountId: string | undefined) {
     queryKey: ["account-profile", accountId],
     queryFn: async () => {
       if (!accountId) return null;
+      console.log("[useAccountProfile] Fetching account:", accountId);
       const { data, error } = await supabase
         .from("accounts")
         .select("*")
         .eq("id", accountId)
         .maybeSingle();
-      if (error) throw error;
+      if (error) {
+        console.error("[useAccountProfile] Account query error:", error);
+        throw error;
+      }
+      console.log("[useAccountProfile] Account result:", data ? "found" : "null");
       return data;
     },
     enabled: !!accountId,
+    retry: 2,
   });
 
   const clientId = account.data?.client_id;
@@ -253,13 +259,15 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!customerId,
   });
 
-  const isLoading = account.isLoading || profile.isLoading;
+  const isLoading = account.isLoading || (!!account.data?.client_id && profile.isLoading);
+  const accountError = account.error;
 
   const refetch = () => {
     account.refetch();
     profile.refetch();
     locations.refetch();
     orders.refetch();
+    billingCustomer.refetch();
     invoices.refetch();
     payments.refetch();
     subscriptions.refetch();
@@ -268,6 +276,8 @@ export function useAccountProfile(accountId: string | undefined) {
     kycSessions.refetch();
     equipment.refetch();
     activityLogs.refetch();
+    authorizedUsers.refetch();
+    serviceAddresses.refetch();
   };
 
   return {
@@ -289,6 +299,7 @@ export function useAccountProfile(accountId: string | undefined) {
     customerId,
     clientId,
     isLoading,
+    accountError,
     refetch,
   };
 }
