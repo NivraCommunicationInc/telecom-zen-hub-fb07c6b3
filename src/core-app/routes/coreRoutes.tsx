@@ -41,5 +41,6 @@ export const coreRoutes: RouteObject = {
     { path: "subscriptions", element: <SubscriptionsPage /> },
     { path: "subscriptions/:id", element: <SubscriptionDetailPage /> },
     { path: "appointments", element: <AppointmentsPage /> },
+    { path: "pos", element: <CorePOSPage /> },
   ],
 };

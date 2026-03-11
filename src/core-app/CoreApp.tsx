@@ -80,6 +80,7 @@ const CoreApp = () => {
                 <Route path="subscriptions" element={<Suspense fallback={null}><SubscriptionsPage /></Suspense>} />
                 <Route path="subscriptions/:id" element={<Suspense fallback={null}><SubscriptionDetailPage /></Suspense>} />
                 <Route path="appointments" element={<Suspense fallback={null}><AppointmentsPage /></Suspense>} />
+                <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
               </Route>
             </Route>
 

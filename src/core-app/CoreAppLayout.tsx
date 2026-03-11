@@ -35,6 +35,7 @@ const NAV_SECTIONS = [
   { label: "Payments", href: "/payments", icon: CreditCard },
   { label: "Subscriptions", href: "/subscriptions", icon: RefreshCcw },
   { label: "Rendez-vous", href: "/appointments", icon: Calendar },
+  { label: "POS", href: "/pos", icon: Receipt },
 ] as const;
 
 const CoreAppLayout = () => {
