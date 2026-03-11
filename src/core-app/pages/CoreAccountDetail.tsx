@@ -300,9 +300,10 @@ const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
   </Panel>
 );
 
-const TicketsSection = ({ data }: any) => (
+const TicketsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={MessageSquare} title="Tickets de support" count={data.tickets.length} />
+    <PanelHeader icon={MessageSquare} title="Tickets de support" count={data.tickets.length}
+      actions={<AccountActionMenu clientId={clientId} clientEmail={clientEmail} clientName={clientName} accountId={accountId} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Sujet", "Cat.", "Statut", "Créé le"]} empty={data.tickets.length === 0}>
       {data.tickets.slice(0, 30).map((t: any) => (
         <tr key={t.id} className={trClass}>
@@ -317,9 +318,10 @@ const TicketsSection = ({ data }: any) => (
   </Panel>
 );
 
-const AppointmentsSection = ({ data }: any) => (
+const AppointmentsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
   <Panel>
-    <PanelHeader icon={Calendar} title="Rendez-vous" count={data.appointments.length} />
+    <PanelHeader icon={Calendar} title="Rendez-vous" count={data.appointments.length}
+      actions={<AccountActionMenu clientId={clientId} clientEmail={clientEmail} clientName={clientName} accountId={accountId} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Titre", "Type", "Statut", "Date", "Adresse"]} empty={data.appointments.length === 0}>
       {data.appointments.map((a: any) => (
         <tr key={a.id} className={trClass}>
