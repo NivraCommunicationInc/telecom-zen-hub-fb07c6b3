@@ -245,10 +245,10 @@ const OrdersSection = ({ data, accountId, clientId, clientEmail, clientName, onR
   </Panel>
 );
 
-const InvoicesSection = ({ data, customerId, onRefresh }: any) => (
+const InvoicesSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
   <Panel>
     <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length}
-      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
     <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance"]} empty={data.invoices.length === 0}>
       {data.invoices.slice(0, 50).map((inv: any) => (
         <tr key={inv.id} className={trClass}>
@@ -265,10 +265,10 @@ const InvoicesSection = ({ data, customerId, onRefresh }: any) => (
   </Panel>
 );
 
-const PaymentsSection = ({ data, customerId, onRefresh }: any) => (
+const PaymentsSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
   <Panel>
     <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length}
-      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} clientId={data.clientId} accountId={undefined} onRefresh={onRefresh} />} />
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
     <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le"]} empty={data.payments.length === 0}>
       {data.payments.slice(0, 50).map((p: any) => (
         <tr key={p.id} className={trClass}>
@@ -287,7 +287,7 @@ const PaymentsSection = ({ data, customerId, onRefresh }: any) => (
 const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
   <Panel>
     <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
-      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} onRefresh={onRefresh} />} />
+      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} subscriptions={data.subscriptions} onRefresh={onRefresh} />} />
     <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
       {data.equipment.map((eq: any) => (
         <tr key={eq.id} className={trClass}>
