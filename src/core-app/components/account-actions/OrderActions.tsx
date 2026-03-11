@@ -1,6 +1,6 @@
 /**
- * Order management actions for Account 360.
- * Create order, duplicate, manage existing orders.
+ * Order management visible action bar for Account 360.
+ * NO DROPDOWNS — all actions are visible buttons.
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,16 +9,18 @@ import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, Plus, Copy, ExternalLink, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, ExternalLink, XCircle, AlertTriangle, Copy } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 
 const inputCls = "w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-white placeholder:text-[hsl(220,10%,30%)] outline-none focus:border-emerald-500/50";
 const btnPrimary = "rounded-md bg-emerald-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors";
 const btnSecondary = "rounded-md border border-[hsl(220,15%,16%)] px-4 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white transition-colors";
 const btnDanger = "rounded-md bg-red-600 px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-red-500 disabled:opacity-40 transition-colors";
+
+const actionBtn = "flex items-center gap-1.5 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,13%)] px-2.5 py-1.5 text-[10px] font-medium transition-all whitespace-nowrap disabled:opacity-30";
+const actionDefault = `${actionBtn} text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30`;
+const actionAccent = `${actionBtn} text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/40`;
+const actionDanger = `${actionBtn} text-red-400 hover:text-red-300 hover:border-red-500/40`;
 
 interface Props {
   orders: any[];
@@ -39,41 +41,19 @@ export function OrderActionMenu({ orders, accountId, clientId, clientEmail, clie
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1 rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,13%)] px-2 py-1 text-[10px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-            Actions <ChevronDown className="h-3 w-3" />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button onClick={() => toast.info("Utilisez le portail de vente pour créer une commande pour ce client")} className={actionAccent}>
+          <Plus className="h-3 w-3" /> Nouvelle commande
+        </button>
+        {orders.length > 0 && (
+          <button onClick={() => navigate(corePath(`/orders/${orders[0].id}`))} className={actionDefault}>
+            <ExternalLink className="h-3 w-3" /> Dernière commande
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-[hsl(220,20%,11%)] border-[hsl(220,15%,16%)] text-white">
-          <DropdownMenuLabel className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider">Commandes</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => {
-              // Navigate to orders page — in future could open a create modal
-              toast.info("Utilisez le portail de vente pour créer une commande pour ce client");
-            }}
-            className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400"
-          >
-            <Plus className="h-3.5 w-3.5" /> Nouvelle commande
-          </DropdownMenuItem>
-          {orders.length > 0 && (
-            <DropdownMenuItem
-              onClick={() => navigate(corePath(`/orders/${orders[0].id}`))}
-              className="text-[11px] gap-2 focus:bg-emerald-500/10 focus:text-emerald-400"
-            >
-              <ExternalLink className="h-3.5 w-3.5" /> Ouvrir la dernière commande
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator className="bg-[hsl(220,15%,16%)]" />
-          <DropdownMenuItem
-            onClick={() => setModal("cancelOrder")}
-            disabled={activeOrders.length === 0}
-            className="text-[11px] gap-2 text-red-400 focus:bg-red-500/10 focus:text-red-300"
-          >
-            <XCircle className="h-3.5 w-3.5" /> Annuler une commande
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        )}
+        <button onClick={() => setModal("cancelOrder")} disabled={activeOrders.length === 0} className={actionDanger}>
+          <XCircle className="h-3 w-3" /> Annuler
+        </button>
+      </div>
 
       {modal === "cancelOrder" && (
         <CancelOrderModal orders={activeOrders} onClose={() => setModal(null)} onRefresh={onRefresh} />
@@ -93,30 +73,21 @@ function CancelOrderModal({ orders, onClose, onRefresh }: { orders: any[]; onClo
     setLoading(true);
     try {
       const { error } = await supabase.from("orders").update({
-        status: "cancelled",
-        updated_at: new Date().toISOString(),
+        status: "cancelled", updated_at: new Date().toISOString(),
       }).eq("id", selectedId);
       if (error) throw error;
 
-      // Log activity
       const user = (await supabase.auth.getUser()).data.user;
       await supabase.from("activity_logs").insert({
-        user_id: user?.id || "system",
-        entity_type: "order",
-        entity_id: selectedId,
-        action: "order_cancelled",
-        reason: reason || null,
+        user_id: user?.id || "system", entity_type: "order", entity_id: selectedId,
+        action: "order_cancelled", reason: reason || null,
         details: { source: "account_360" },
       });
 
       toast.success("Commande annulée");
-      onRefresh();
-      onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
+      onRefresh(); onClose();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setLoading(false); }
   };
 
   return (
