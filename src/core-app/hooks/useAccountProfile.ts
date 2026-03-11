@@ -1,12 +1,14 @@
 /**
- * useAccountProfile — Core-local fork
- * Exact copy of @/components/admin/account-profile/useAccountProfile
- * Fetches all account-related data in parallel
+ * useAccountProfile — Core-local hook
+ * Fetches all account-related data in parallel for the Customer 360 view.
+ * Uses the canonical supabase client for RLS session alignment.
  */
-import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export function useAccountProfile(accountId: string | undefined) {
+  const queryClient = useQueryClient();
+
   const account = useQuery({
     queryKey: ["account-profile", accountId],
     queryFn: async () => {
@@ -180,16 +182,48 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!clientId,
   });
 
-  const legacyBilling = useQuery({
-    queryKey: ["account-profile-legacy-billing", clientId],
+  const kycSessions = useQuery({
+    queryKey: ["account-profile-kyc", clientId],
     queryFn: async () => {
       if (!clientId) return [];
       const { data, error } = await supabase
-        .from("billing")
-        .select("*")
+        .from("identity_verification_sessions")
+        .select("id, status, document_type, reviewed_at, created_at, submitted_at, order_id, case_number")
         .eq("user_id", clientId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
+  // Equipment via order lines from account orders
+  const orderIds = orders.data?.map(o => o.id) || [];
+  const equipment = useQuery({
+    queryKey: ["account-profile-equipment", accountId, orderIds.length],
+    queryFn: async () => {
+      if (orderIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("equipment_order_lines")
+        .select("*")
+        .in("order_id", orderIds.slice(0, 50));
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: orderIds.length > 0,
+  });
+
+  const activityLogs = useQuery({
+    queryKey: ["account-profile-activity", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("client_activity_logs")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(50);
       if (error) throw error;
       return data || [];
     },
@@ -221,6 +255,21 @@ export function useAccountProfile(accountId: string | undefined) {
 
   const isLoading = account.isLoading || profile.isLoading;
 
+  const refetch = () => {
+    account.refetch();
+    profile.refetch();
+    locations.refetch();
+    orders.refetch();
+    invoices.refetch();
+    payments.refetch();
+    subscriptions.refetch();
+    tickets.refetch();
+    appointments.refetch();
+    kycSessions.refetch();
+    equipment.refetch();
+    activityLogs.refetch();
+  };
+
   return {
     account: account.data,
     profile: profile.data,
@@ -233,20 +282,13 @@ export function useAccountProfile(accountId: string | undefined) {
     tickets: tickets.data || [],
     appointments: appointments.data || [],
     authorizedUsers: authorizedUsers.data || [],
-    legacyBilling: legacyBilling.data || [],
+    kycSessions: kycSessions.data || [],
+    equipment: equipment.data || [],
+    activityLogs: activityLogs.data || [],
     serviceAddresses: serviceAddresses.data || [],
     customerId,
     clientId,
     isLoading,
-    refetch: () => {
-      account.refetch();
-      profile.refetch();
-      locations.refetch();
-      orders.refetch();
-      invoices.refetch();
-      payments.refetch();
-      subscriptions.refetch();
-      tickets.refetch();
-    },
+    refetch,
   };
 }
