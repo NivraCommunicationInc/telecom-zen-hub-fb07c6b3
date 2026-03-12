@@ -9,28 +9,72 @@ import { lazy, Suspense } from "react";
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
 const CoreLoginPage = lazy(() => import("@/core-app/pages/CoreLoginPage"));
+// Dashboard
 const CoreDashboard = lazy(() => import("@/core-app/pages/DashboardPage"));
+const CoreActivityPage = lazy(() => import("@/core-app/pages/CoreActivityPage"));
+const CoreLiveActivityPage = lazy(() => import("@/core-app/pages/CoreLiveActivityPage"));
+const CoreSystemStatusPage = lazy(() => import("@/core-app/pages/CoreSystemStatusPage"));
+// Operations
 const CoreWorkQueue = lazy(() => import("@/core-app/pages/WorkQueuePage"));
 const CoreOrders = lazy(() => import("@/core-app/pages/OrdersPage"));
+const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
+const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
+const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
+const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"));
+const CoreRequestsPage = lazy(() => import("@/core-app/pages/CoreRequestsPage"));
+// Clients
+const CoreClients = lazy(() => import("@/core-app/pages/ClientsPage"));
+const CoreClientProfile = lazy(() => import("@/core-app/pages/CoreClientProfile"));
 const CoreAccounts = lazy(() => import("@/core-app/pages/AccountsPage"));
+const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
+const CoreDocumentsPage = lazy(() => import("@/core-app/pages/CoreDocumentsPage"));
+// Billing
+const CoreBillingPage = lazy(() => import("@/core-app/pages/CoreBillingPage"));
 const CoreInvoices = lazy(() => import("@/core-app/pages/InvoicesPage"));
+const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
 const CorePayments = lazy(() => import("@/core-app/pages/PaymentsPage"));
 const CoreSubscriptions = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
 const CoreSubscriptionDetail = lazy(() => import("@/core-app/pages/SubscriptionDetailPage"));
-const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"));
-const CoreAccountDetail = lazy(() => import("@/core-app/pages/CoreAccountDetail"));
-const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
-const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
-const CoreClients = lazy(() => import("@/core-app/pages/ClientsPage"));
-const CoreClientProfile = lazy(() => import("@/core-app/pages/CoreClientProfile"));
-const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
-const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
-const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
-const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
+const CorePDFTemplatesPage = lazy(() => import("@/core-app/pages/CorePDFTemplatesPage"));
+const CoreRecouvrementPage = lazy(() => import("@/core-app/pages/CoreRecouvrementPage"));
+const CoreContestedPaymentsPage = lazy(() => import("@/core-app/pages/CoreContestedPaymentsPage"));
+const CoreContestedInvoicesPage = lazy(() => import("@/core-app/pages/CoreContestedInvoicesPage"));
+// Catalogue
+const CoreServicesPage = lazy(() => import("@/core-app/pages/CoreServicesPage"));
 const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
+const CoreStreamingPage = lazy(() => import("@/core-app/pages/CoreStreamingPage"));
+const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"));
+// Marketing
 const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
+const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"));
+const CoreEmailMarketingPage = lazy(() => import("@/core-app/pages/CoreEmailMarketingPage"));
+const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommunicationEmailPage"));
+const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
+// Partners
+const CoreReferralsPage = lazy(() => import("@/core-app/pages/CoreReferralsPage"));
+const CoreReferralTermsPage = lazy(() => import("@/core-app/pages/CoreReferralTermsPage"));
+// Support
+const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
+const CoreInternalTicketsPage = lazy(() => import("@/core-app/pages/CoreInternalTicketsPage"));
+const CoreWebFormsPage = lazy(() => import("@/core-app/pages/CoreWebFormsPage"));
+const CoreTelephonyPage = lazy(() => import("@/core-app/pages/CoreTelephonyPage"));
+// HR
+const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
+const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
+// System
+const CoreNotificationsPage = lazy(() => import("@/core-app/pages/CoreNotificationsPage"));
+const CoreMaintenancePage = lazy(() => import("@/core-app/pages/CoreMaintenancePage"));
+const CoreEmailActivityPage = lazy(() => import("@/core-app/pages/CoreEmailActivityPage"));
+const CoreSiteSettingsPage = lazy(() => import("@/core-app/pages/CoreSiteSettingsPage"));
+const CoreUsersAccessPage = lazy(() => import("@/core-app/pages/CoreUsersAccessPage"));
+const CoreAuditLogPage = lazy(() => import("@/core-app/pages/CoreAuditLogPage"));
+const CoreSecurityEventsPage = lazy(() => import("@/core-app/pages/CoreSecurityEventsPage"));
+const CoreSecurityGuardianPage = lazy(() => import("@/core-app/pages/CoreSecurityGuardianPage"));
+const CoreSystemAuditPage = lazy(() => import("@/core-app/pages/CoreSystemAuditPage"));
 const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
+const CoreMyAccountPage = lazy(() => import("@/core-app/pages/CoreMyAccountPage"));
 const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
+const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
 
 // Public pages
 import Index from "@/pages/Index";
@@ -576,28 +620,72 @@ const AppRoutes = () => {
       <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense>}>
         <Route element={<CoreAppLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
+          {/* Dashboard */}
           <Route path="dashboard" element={<Suspense fallback={null}><CoreDashboard /></Suspense>} />
+          <Route path="activity" element={<Suspense fallback={null}><CoreActivityPage /></Suspense>} />
+          <Route path="live-activity" element={<Suspense fallback={null}><CoreLiveActivityPage /></Suspense>} />
+          <Route path="system-status" element={<Suspense fallback={null}><CoreSystemStatusPage /></Suspense>} />
+          {/* Operations */}
           <Route path="work-queue" element={<Suspense fallback={null}><CoreWorkQueue /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
+          <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
+          <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
+          <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
+          <Route path="requests" element={<Suspense fallback={null}><CoreRequestsPage /></Suspense>} />
+          {/* Clients */}
+          <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
+          <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
           <Route path="accounts" element={<Suspense fallback={null}><CoreAccounts /></Suspense>} />
           <Route path="accounts/:accountId" element={<Suspense fallback={null}><CoreAccountDetail /></Suspense>} />
+          <Route path="documents" element={<Suspense fallback={null}><CoreDocumentsPage /></Suspense>} />
+          {/* Billing */}
+          <Route path="billing" element={<Suspense fallback={null}><CoreBillingPage /></Suspense>} />
           <Route path="invoices" element={<Suspense fallback={null}><CoreInvoices /></Suspense>} />
           <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
           <Route path="payments" element={<Suspense fallback={null}><CorePayments /></Suspense>} />
           <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
           <Route path="subscriptions/:id" element={<Suspense fallback={null}><CoreSubscriptionDetail /></Suspense>} />
-          <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
-          <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
-          <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
-          <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
-          <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
-          <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
-          <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
+          <Route path="pdf-templates" element={<Suspense fallback={null}><CorePDFTemplatesPage /></Suspense>} />
+          <Route path="recouvrement" element={<Suspense fallback={null}><CoreRecouvrementPage /></Suspense>} />
+          <Route path="contested-payments" element={<Suspense fallback={null}><CoreContestedPaymentsPage /></Suspense>} />
+          <Route path="contested-invoices" element={<Suspense fallback={null}><CoreContestedInvoicesPage /></Suspense>} />
+          {/* Catalogue */}
+          <Route path="services" element={<Suspense fallback={null}><CoreServicesPage /></Suspense>} />
           <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
+          <Route path="streaming" element={<Suspense fallback={null}><CoreStreamingPage /></Suspense>} />
+          <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />
+          {/* Marketing */}
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
+          <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
+          <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />
+          <Route path="communication-email" element={<Suspense fallback={null}><CoreCommunicationEmailPage /></Suspense>} />
+          <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
+          {/* Partners */}
+          <Route path="referrals" element={<Suspense fallback={null}><CoreReferralsPage /></Suspense>} />
+          <Route path="referral-terms" element={<Suspense fallback={null}><CoreReferralTermsPage /></Suspense>} />
+          {/* Support */}
+          <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
+          <Route path="internal-tickets" element={<Suspense fallback={null}><CoreInternalTicketsPage /></Suspense>} />
+          <Route path="web-forms" element={<Suspense fallback={null}><CoreWebFormsPage /></Suspense>} />
+          <Route path="telephony" element={<Suspense fallback={null}><CoreTelephonyPage /></Suspense>} />
+          {/* HR */}
+          <Route path="careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
+          <Route path="applications" element={<Suspense fallback={null}><CoreApplicationsPage /></Suspense>} />
+          {/* System */}
+          <Route path="notifications" element={<Suspense fallback={null}><CoreNotificationsPage /></Suspense>} />
+          <Route path="maintenance" element={<Suspense fallback={null}><CoreMaintenancePage /></Suspense>} />
+          <Route path="email-activity" element={<Suspense fallback={null}><CoreEmailActivityPage /></Suspense>} />
+          <Route path="site-settings" element={<Suspense fallback={null}><CoreSiteSettingsPage /></Suspense>} />
+          <Route path="users-access" element={<Suspense fallback={null}><CoreUsersAccessPage /></Suspense>} />
+          <Route path="audit-log" element={<Suspense fallback={null}><CoreAuditLogPage /></Suspense>} />
+          <Route path="security-events" element={<Suspense fallback={null}><CoreSecurityEventsPage /></Suspense>} />
+          <Route path="security-guardian" element={<Suspense fallback={null}><CoreSecurityGuardianPage /></Suspense>} />
+          <Route path="system-audit" element={<Suspense fallback={null}><CoreSystemAuditPage /></Suspense>} />
           <Route path="staff" element={<Suspense fallback={null}><CoreStaffPage /></Suspense>} />
+          <Route path="my-account" element={<Suspense fallback={null}><CoreMyAccountPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><CoreSettingsPage /></Suspense>} />
+          <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
         </Route>
       </Route>
 
