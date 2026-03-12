@@ -128,7 +128,6 @@ const CoreAppLayout = () => {
             >
               <LogOut className="h-4 w-4" />
             </button>
-            </button>
           </div>
         </header>
 

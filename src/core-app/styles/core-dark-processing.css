@@ -101,19 +101,19 @@
 
 /*
  * Tier 2 — LABELS / METADATA / COLUMN HEADERS (#94A3B8)
- * Original: hsl(220,10%,38-40%) — too dim for labels
+ * Original: hsl(220,10%,38-50%)
  */
 .text-\[hsl\(220\2c 10\%\2c 38\%\)\],
-.text-\[hsl\(220\2c 10\%\2c 40\%\)\] {
+.text-\[hsl\(220\2c 10\%\2c 40\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 45\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 50\%\)\] {
   color: hsl(var(--core-text-label)) !important;
 }
 
 /*
  * Tier 3 — SECONDARY TEXT (#CBD5E1)
- * Original: hsl(220,10%,45-60%) — body text, descriptions, dates
+ * Original: hsl(220,10%,55-60%)
  */
-.text-\[hsl\(220\2c 10\%\2c 45\%\)\],
-.text-\[hsl\(220\2c 10\%\2c 50\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 55\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 60\%\)\] {
   color: hsl(var(--core-text-secondary)) !important;
