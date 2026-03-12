@@ -179,6 +179,12 @@
     --sidebar-border: 222 39% 18%;
     --sidebar-ring: 168 76% 42%;
 
+    /* Core Console Text Tokens */
+    --core-text-primary: 210 40% 98%;
+    --core-text-secondary: 213 27% 84%;
+    --core-text-label: 215 16% 65%;
+    --core-text-disabled: 215 16% 47%;
+
     color: hsl(var(--foreground));
   }
 
