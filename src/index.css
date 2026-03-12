@@ -116,6 +116,12 @@
     
     --success: 158 64% 42%;
     --success-foreground: 0 0% 100%;
+
+    /* Core Console Text Tokens (global fallback) */
+    --core-text-primary: 210 40% 98%;
+    --core-text-secondary: 213 27% 84%;
+    --core-text-label: 215 16% 65%;
+    --core-text-disabled: 215 16% 47%;
     
     /* Premium Shadows */
     --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
