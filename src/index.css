@@ -702,7 +702,17 @@
   .text-balance {
     text-wrap: balance;
   }
-  
+
+  /* Core text utilities (hard fallback for Tailwind token class generation) */
+  .text-core-text-primary { color: hsl(var(--core-text-primary)) !important; }
+  .text-core-text-secondary { color: hsl(var(--core-text-secondary)) !important; }
+  .text-core-text-label { color: hsl(var(--core-text-label)) !important; }
+  .text-core-text-disabled { color: hsl(var(--core-text-disabled)) !important; }
+
+  .hover\:text-core-text-primary:hover { color: hsl(var(--core-text-primary)) !important; }
+  .hover\:text-core-text-secondary:hover { color: hsl(var(--core-text-secondary)) !important; }
+  .hover\:text-core-text-label:hover { color: hsl(var(--core-text-label)) !important; }
+
   /* 8px Spacing System */
   .gap-8px { gap: 0.5rem; }
   .gap-16px { gap: 1rem; }
