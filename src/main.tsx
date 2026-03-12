@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import "./core-app/styles/core-dark-processing.css";
 
 // DEV: Prevent stale UI caused by previously-registered PWA service workers/caches.
 // This keeps the Preview always reflecting the latest code.

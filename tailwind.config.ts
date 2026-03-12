@@ -106,6 +106,12 @@ export default {
           "accent-hover": "hsl(var(--admin-accent-hover))",
           "accent-subtle": "hsl(var(--admin-accent-subtle))",
         },
+        core: {
+          "text-primary": "hsl(var(--core-text-primary))",
+          "text-secondary": "hsl(var(--core-text-secondary))",
+          "text-label": "hsl(var(--core-text-label))",
+          "text-disabled": "hsl(var(--core-text-disabled))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -17,12 +17,12 @@
   & .border-gray-100 { border-color: hsl(220, 15%, 14%) !important; }
 
   /* ─── Text ─── */
-  & .text-gray-900 { color: hsl(220, 10%, 92%) !important; }
-  & .text-gray-800 { color: hsl(220, 10%, 85%) !important; }
-  & .text-gray-700 { color: hsl(220, 10%, 70%) !important; }
-  & .text-gray-600 { color: hsl(220, 10%, 60%) !important; }
-  & .text-gray-500 { color: hsl(220, 10%, 50%) !important; }
-  & .text-gray-400 { color: hsl(220, 10%, 40%) !important; }
+  & .text-gray-900 { color: hsl(210, 40%, 98%) !important; }
+  & .text-gray-800 { color: hsl(210, 40%, 98%) !important; }
+  & .text-gray-700 { color: hsl(213, 27%, 84%) !important; }
+  & .text-gray-600 { color: hsl(213, 27%, 84%) !important; }
+  & .text-gray-500 { color: hsl(215, 16%, 65%) !important; }
+  & .text-gray-400 { color: hsl(215, 16%, 65%) !important; }
 
   /* ─── Hover states ─── */
   & .hover\:bg-gray-50:hover { background-color: hsl(220, 15%, 16%) !important; }
@@ -69,7 +69,7 @@
   & [role="combobox"] {
     background-color: hsl(220, 20%, 10%) !important;
     border-color: hsl(220, 15%, 22%) !important;
-    color: hsl(220, 10%, 90%) !important;
+    color: hsl(210, 40%, 98%) !important;
   }
 
   /* ─── Cards with border-2 (fulfillment options etc.) ─── */
@@ -80,4 +80,91 @@
   & [data-slot="badge"] {
     border-color: hsl(220, 15%, 25%) !important;
   }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   CORE CONSOLE — Global Text Contrast System
+   Remaps all inline hsl(220,10%,XX%) text colors to strict 4-tier tokens.
+   Applied globally to all core-app pages and components.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/*
+ * Tier 1 — DISABLED / LOW PRIORITY (#64748B)
+ * Original: hsl(220,10%,25-35%) — nearly invisible on dark backgrounds
+ */
+.text-\[hsl\(220\2c 10\%\2c 25\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 30\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 35\%\)\] {
+  color: hsl(var(--core-text-disabled)) !important;
+}
+
+/*
+ * Tier 2 — LABELS / METADATA / COLUMN HEADERS (#94A3B8)
+ * Original: hsl(220,10%,38-40%) — too dim for labels
+ */
+.text-\[hsl\(220\2c 10\%\2c 38\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 40\%\)\] {
+  color: hsl(var(--core-text-label)) !important;
+}
+
+/*
+ * Tier 3 — SECONDARY TEXT (#CBD5E1)
+ * Original: hsl(220,10%,45-60%) — body text, descriptions, dates
+ */
+.text-\[hsl\(220\2c 10\%\2c 45\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 50\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 55\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 60\%\)\] {
+  color: hsl(var(--core-text-secondary)) !important;
+}
+
+/*
+ * Tier 4 — PRIMARY TEXT (#F8FAFC)
+ * Original: hsl(220,10%,65-92%) — values, names, key data
+ */
+.text-\[hsl\(220\2c 10\%\2c 65\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 70\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 75\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 80\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 85\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 90\%\)\],
+.text-\[hsl\(220\2c 10\%\2c 92\%\)\] {
+  color: hsl(var(--core-text-primary)) !important;
+}
+
+/* ── Placeholder overrides ── */
+.placeholder\:text-\[hsl\(220\2c 10\%\2c 35\%\)\]::placeholder {
+  color: hsl(var(--core-text-disabled)) !important;
+}
+.placeholder\:text-\[hsl\(220\2c 10\%\2c 40\%\)\]::placeholder {
+  color: hsl(var(--core-text-label)) !important;
+}
+
+/* ── Hover text overrides ── */
+.hover\:text-\[hsl\(220\2c 10\%\2c 55\%\)\]:hover,
+.hover\:text-\[hsl\(220\2c 10\%\2c 60\%\)\]:hover {
+  color: hsl(var(--core-text-secondary)) !important;
+}
+.hover\:text-\[hsl\(220\2c 10\%\2c 70\%\)\]:hover,
+.hover\:text-\[hsl\(220\2c 10\%\2c 75\%\)\]:hover,
+.hover\:text-\[hsl\(220\2c 10\%\2c 80\%\)\]:hover {
+  color: hsl(var(--core-text-primary)) !important;
+}
+
+/* ── Group-hover overrides ── */
+.group-hover\:text-\[hsl\(220\2c 10\%\2c 50\%\)\]:is(:where(.group):hover *) {
+  color: hsl(var(--core-text-secondary)) !important;
+}
+
+/* ── Icon colors (same text- prefix, remap for visibility) ── */
+/* Icons using hsl(220,10%,30%) are too dark; bump to label tier */
+.text-\[hsl\(220\2c 10\%\2c 30\%\)\] svg,
+svg.text-\[hsl\(220\2c 10\%\2c 30\%\)\] {
+  color: hsl(var(--core-text-disabled)) !important;
+}
+
+/* ── Standalone #A1A1AA references (used in EquipmentInventoryPage) ── */
+.text-\[\#A1A1AA\] {
+  color: hsl(var(--core-text-label)) !important;
 }

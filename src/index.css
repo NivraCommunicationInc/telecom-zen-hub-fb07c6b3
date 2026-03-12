@@ -233,6 +233,13 @@
     --admin-accent-hover: 168 76% 36%;
     --admin-accent-subtle: 168 40% 18%;
 
+    /* ── Core Console Text Tokens ── */
+    /* Strict 4-tier hierarchy for dark-bg readability */
+    --core-text-primary: 210 40% 98%;       /* #F8FAFC — headings, values, key data */
+    --core-text-secondary: 213 27% 84%;     /* #CBD5E1 — body text, descriptions, dates */
+    --core-text-label: 215 16% 65%;         /* #94A3B8 — labels, metadata, column headers */
+    --core-text-disabled: 215 16% 47%;      /* #64748B — placeholders, disabled, low-priority */
+
     color: hsl(var(--foreground));
     font-size: 14px;
     line-height: 1.5;
