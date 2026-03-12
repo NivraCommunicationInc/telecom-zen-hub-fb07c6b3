@@ -24,6 +24,13 @@ const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const CoreClients = lazy(() => import("@/core-app/pages/ClientsPage"));
 const CoreClientProfile = lazy(() => import("@/core-app/pages/CoreClientProfile"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
+const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
+const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
+const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
+const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
+const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
+const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
+const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 
 // Public pages
 import Index from "@/pages/Index";
@@ -584,6 +591,13 @@ const AppRoutes = () => {
           <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
           <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
+          <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
+          <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
+          <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
+          <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
+          <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
+          <Route path="staff" element={<Suspense fallback={null}><CoreStaffPage /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={null}><CoreSettingsPage /></Suspense>} />
         </Route>
       </Route>
 
