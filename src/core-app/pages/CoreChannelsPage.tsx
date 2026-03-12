@@ -1,16 +1,11 @@
 /**
  * CoreChannelsPage — TV Channel Management Console
- * Ported from AdminChannels with full features:
- * - 3 tabs: Chaînes TV, Forfaits, Sélections clients
- * - Channel catalog with status management (active/maintenance/shutdown/end_of_life)
- * - Channel packages CRUD
- * - Client channel selection confirm/cancel
- * - Activity logs per channel
+ * Full catalog with real Nivra channels, packages, client selections, activity logs
  */
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tv, Search, Plus, Edit, Trash2, Eye, CheckCircle, XCircle, AlertTriangle, History, Power, Wrench, Ban } from "lucide-react";
+import { Tv, Search, Plus, Edit, Eye, CheckCircle, XCircle, History, Power } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -36,18 +31,26 @@ const SELECTION_STATUS: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Annulée", color: "bg-red-500/15 text-red-400" },
 };
 
+const LANGUAGE_MAP: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", multi: "Multilingue" };
+const CATEGORY_LABELS: Record<string, string> = {
+  general: "Généraliste", news: "Nouvelles", sports: "Sports", movies: "Films",
+  kids: "Enfants", music: "Musique", lifestyle: "Style de vie", documentary: "Documentaire",
+  entertainment: "Divertissement", international: "International", specialty: "Spécialité",
+};
+
 export default function CoreChannelsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"channels" | "packages" | "selections">("channels");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [selected, setSelected] = useState<any>(null);
   const [editDialog, setEditDialog] = useState<"channel" | "package" | null>(null);
+  const [channelForm, setChannelForm] = useState({ status: "active", incident_type: "", incident_reason: "", notify_clients: true });
   const [actionNotes, setActionNotes] = useState("");
-
-  // Channel form state
-  const [channelForm, setChannelForm] = useState({
-    status: "active", incident_type: "", incident_reason: "", notify_clients: true,
+  const [createChannelOpen, setCreateChannelOpen] = useState(false);
+  const [newChannel, setNewChannel] = useState({
+    name: "", channel_number: "", category: "general", language: "fr", is_hd: false, is_4k: false, price: "", is_active: true,
   });
 
   // ═══ QUERIES ═══
@@ -74,7 +77,6 @@ export default function CoreChannelsPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("channel_selections").select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      // Enrich with profiles
       const userIds = [...new Set((data || []).map((s: any) => s.user_id).filter(Boolean))];
       if (userIds.length === 0) return data || [];
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, email, client_number").in("user_id", userIds);
@@ -85,7 +87,7 @@ export default function CoreChannelsPage() {
 
   const { data: activityLogs = [] } = useQuery({
     queryKey: ["core-channel-logs", selected?.id],
-    enabled: !!selected?.id && activeTab === "channels",
+    enabled: !!selected?.id && activeTab === "channels" && editDialog === null,
     queryFn: async () => {
       const { data, error } = await supabase.from("channel_activity_logs").select("*").eq("channel_id", selected.id).order("created_at", { ascending: false });
       if (error) return [];
@@ -101,7 +103,6 @@ export default function CoreChannelsPage() {
       if (incidentType) { updateData.incident_type = incidentType; updateData.incident_reason = incidentReason; updateData.incident_at = new Date().toISOString(); }
       const { error } = await supabase.from("tv_channels").update(updateData).eq("id", channelId);
       if (error) throw error;
-      // Log activity
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", user.id).maybeSingle();
         await supabase.from("channel_activity_logs").insert({
@@ -113,6 +114,30 @@ export default function CoreChannelsPage() {
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-tv-channels"] }); toast.success("Chaîne mise à jour"); setEditDialog(null); },
     onError: () => toast.error("Erreur"),
+  });
+
+  const createChannelMutation = useMutation({
+    mutationFn: async (ch: typeof newChannel) => {
+      const { error } = await supabase.from("tv_channels").insert({
+        name: ch.name,
+        channel_number: ch.channel_number ? parseInt(ch.channel_number) : null,
+        category: ch.category,
+        language: ch.language,
+        is_hd: ch.is_hd,
+        is_4k: ch.is_4k,
+        price: ch.price ? parseFloat(ch.price) : null,
+        is_active: ch.is_active,
+        status: ch.is_active ? "active" : "shutdown",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["core-tv-channels"] });
+      toast.success("Chaîne ajoutée");
+      setCreateChannelOpen(false);
+      setNewChannel({ name: "", channel_number: "", category: "general", language: "fr", is_hd: false, is_4k: false, price: "", is_active: true });
+    },
+    onError: (e: any) => toast.error(e.message || "Erreur"),
   });
 
   const confirmSelectionMutation = useMutation({
@@ -136,15 +161,17 @@ export default function CoreChannelsPage() {
     return channels.filter((c: any) => {
       const s = c.status || (c.is_active ? "active" : "shutdown");
       if (statusFilter !== "all" && s !== statusFilter) return false;
+      if (categoryFilter !== "all" && c.category !== categoryFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         return c.name?.toLowerCase().includes(q) || c.category?.toLowerCase().includes(q) || String(c.channel_number).includes(q);
       }
       return true;
     });
-  }, [channels, search, statusFilter]);
+  }, [channels, search, statusFilter, categoryFilter]);
 
   const activeCount = channels.filter((c: any) => c.is_active).length;
+  const uniqueCategories = [...new Set(channels.map((c: any) => c.category).filter(Boolean))];
 
   return (
     <div className="space-y-4">
@@ -159,15 +186,13 @@ export default function CoreChannelsPage() {
       {/* Tabs */}
       <div className="flex gap-1.5 border-b border-[hsl(220,15%,16%)] pb-0">
         {([
-          { id: "channels" as const, label: "Chaînes TV" },
-          { id: "packages" as const, label: "Forfaits" },
-          { id: "selections" as const, label: "Sélections clients" },
+          { id: "channels" as const, label: `Chaînes TV (${channels.length})` },
+          { id: "packages" as const, label: `Forfaits (${packages.length})` },
+          { id: "selections" as const, label: `Sélections clients (${selections.length})` },
         ]).map((tab) => (
-          <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSearch(""); setStatusFilter("all"); }}
+          <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSearch(""); setStatusFilter("all"); setCategoryFilter("all"); }}
             className={`px-3 py-2 text-[12px] font-medium rounded-t-md transition-colors ${
-              activeTab === tab.id
-                ? "bg-[hsl(220,20%,11%)] text-emerald-400 border border-[hsl(220,15%,16%)] border-b-transparent -mb-px"
-                : "text-[#94A3B8] hover:text-[#CBD5E1]"
+              activeTab === tab.id ? "bg-[hsl(220,20%,11%)] text-emerald-400 border border-[hsl(220,15%,16%)] border-b-transparent -mb-px" : "text-[#94A3B8] hover:text-[#CBD5E1]"
             }`}>
             {tab.label}
           </button>
@@ -183,6 +208,11 @@ export default function CoreChannelsPage() {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, catégorie, numéro…"
                 className="w-full h-8 pl-8 pr-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,9%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
             </div>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+              className="h-8 px-2 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,9%)] text-[12px] text-[#CBD5E1] focus:outline-none">
+              <option value="all">Toutes catégories</option>
+              {uniqueCategories.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c] || c}</option>)}
+            </select>
             <div className="flex gap-1.5">
               {[{ key: "all", label: "Toutes" }, ...Object.entries(CHANNEL_STATUS).map(([k, v]) => ({ key: k, label: v.label }))].map((s) => (
                 <button key={s.key} onClick={() => setStatusFilter(s.key)}
@@ -193,6 +223,9 @@ export default function CoreChannelsPage() {
                 </button>
               ))}
             </div>
+            <button onClick={() => setCreateChannelOpen(true)} className="h-8 px-3 rounded-md bg-emerald-600 text-white text-[12px] font-medium hover:bg-emerald-500 transition-colors flex items-center gap-1.5 ml-auto">
+              <Plus className="h-3.5 w-3.5" /> Ajouter chaîne
+            </button>
           </div>
           <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
             <div className="overflow-x-auto">
@@ -217,11 +250,11 @@ export default function CoreChannelsPage() {
                         <tr key={c.id} className="hover:bg-[hsl(220,15%,13%)] transition-colors">
                           <td className="px-3 py-2.5 font-mono text-[#38BDF8]">{c.channel_number ?? "—"}</td>
                           <td className="px-3 py-2.5 text-[#F8FAFC] font-medium">{c.name}</td>
-                          <td className="px-3 py-2.5 text-[#CBD5E1]">{c.category || "—"}</td>
-                          <td className="px-3 py-2.5 text-[#CBD5E1]">{c.language || "—"}</td>
+                          <td className="px-3 py-2.5 text-[#CBD5E1]">{CATEGORY_LABELS[c.category] || c.category || "—"}</td>
+                          <td className="px-3 py-2.5 text-[#CBD5E1]">{LANGUAGE_MAP[c.language] || c.language || "—"}</td>
                           <td className="px-3 py-2.5">{c.is_hd ? <span className="text-emerald-400 text-[10px]">HD</span> : <span className="text-[#64748B]">—</span>}</td>
                           <td className="px-3 py-2.5">{c.is_4k ? <span className="text-blue-400 text-[10px]">4K</span> : <span className="text-[#64748B]">—</span>}</td>
-                          <td className="px-3 py-2.5 text-[#CBD5E1]">{c.price != null ? `${Number(c.price).toFixed(2)} $` : "—"}</td>
+                          <td className="px-3 py-2.5 text-[#CBD5E1]">{c.price != null ? `${Number(c.price).toFixed(2)} $` : "Inclus"}</td>
                           <td className="px-3 py-2.5"><span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.color}`}>{st.label}</span></td>
                           <td className="px-3 py-2.5">
                             <div className="flex gap-1">
@@ -229,7 +262,7 @@ export default function CoreChannelsPage() {
                                 className="h-6 w-6 flex items-center justify-center rounded border border-[hsl(220,15%,20%)] text-[#94A3B8] hover:text-[#F8FAFC] hover:border-emerald-500/40 transition-colors" title="Gérer">
                                 <Edit className="h-3 w-3" />
                               </button>
-                              <button onClick={() => setSelected(c)}
+                              <button onClick={() => { setSelected(c); setEditDialog(null); }}
                                 className="h-6 w-6 flex items-center justify-center rounded border border-[hsl(220,15%,20%)] text-[#94A3B8] hover:text-[#F8FAFC] hover:border-emerald-500/40 transition-colors" title="Historique">
                                 <History className="h-3 w-3" />
                               </button>
@@ -270,13 +303,13 @@ export default function CoreChannelsPage() {
                       <span className="text-emerald-400 font-semibold">{Number(pkg.discounted_price).toFixed(2)} $</span>
                       {pkg.savings_percent && <span className="text-[10px] text-amber-400">-{pkg.savings_percent}%</span>}
                     </div>
-                    <div className="text-[11px] text-[#94A3B8]">{pkgChannels.length} chaînes • {pkg.category}</div>
+                    <div className="text-[11px] text-[#94A3B8]">{pkgChannels.length} chaînes • {CATEGORY_LABELS[pkg.category] || pkg.category}</div>
                     {pkgChannels.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {pkgChannels.slice(0, 8).map((c: any) => (
+                        {pkgChannels.slice(0, 10).map((c: any) => (
                           <span key={c.id} className="px-1.5 py-0.5 rounded bg-[hsl(220,15%,14%)] text-[10px] text-[#CBD5E1]">{c.name}</span>
                         ))}
-                        {pkgChannels.length > 8 && <span className="text-[10px] text-[#64748B]">+{pkgChannels.length - 8}</span>}
+                        {pkgChannels.length > 10 && <span className="text-[10px] text-[#64748B]">+{pkgChannels.length - 10}</span>}
                       </div>
                     )}
                   </div>
@@ -294,14 +327,14 @@ export default function CoreChannelsPage() {
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-[hsl(220,15%,16%)]">
-                  {["Client", "Chaînes", "Total", "Statut", "Date", ""].map((h) => (
+                  {["Client", "N° client", "Chaînes", "Total", "Statut", "Date", ""].map((h) => (
                     <th key={h} className="px-3 py-2.5 text-left text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                 {selections.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-12 text-[#64748B]">Aucune sélection</td></tr>
+                  <tr><td colSpan={7} className="text-center py-12 text-[#64748B]">Aucune sélection</td></tr>
                 ) : (
                   selections.map((s: any) => {
                     const st = SELECTION_STATUS[s.status] || SELECTION_STATUS.pending;
@@ -309,6 +342,7 @@ export default function CoreChannelsPage() {
                     return (
                       <tr key={s.id} className="hover:bg-[hsl(220,15%,13%)] transition-colors">
                         <td className="px-3 py-2.5 text-[#F8FAFC] font-medium">{s.profile?.full_name || "—"}</td>
+                        <td className="px-3 py-2.5 font-mono text-[11px] text-[#38BDF8]">{s.profile?.client_number || "—"}</td>
                         <td className="px-3 py-2.5 text-[#CBD5E1]">{chCount} chaînes</td>
                         <td className="px-3 py-2.5 text-[#F8FAFC] font-medium">{s.total_price != null ? `${Number(s.total_price).toFixed(2)} $` : "—"}</td>
                         <td className="px-3 py-2.5"><span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.color}`}>{st.label}</span></td>
@@ -383,6 +417,72 @@ export default function CoreChannelsPage() {
         </div>
       )}
 
+      {/* ═══ CREATE CHANNEL DIALOG ═══ */}
+      {createChannelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-lg rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold text-[#F8FAFC]">Ajouter une chaîne TV</h2>
+              <button onClick={() => setCreateChannelOpen(false)} className="text-[#64748B] hover:text-[#F8FAFC]"><XCircle className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-[1fr_100px] gap-3">
+                <div>
+                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Nom de la chaîne *</label>
+                  <input value={newChannel.name} onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })} placeholder="TVA, RDS, CNN…"
+                    className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Numéro</label>
+                  <input type="number" value={newChannel.channel_number} onChange={(e) => setNewChannel({ ...newChannel, channel_number: e.target.value })} placeholder="101"
+                    className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Catégorie</label>
+                  <select value={newChannel.category} onChange={(e) => setNewChannel({ ...newChannel, category: e.target.value })}
+                    className="w-full h-8 px-2 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[12px] text-[#F8FAFC] focus:outline-none">
+                    {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Langue</label>
+                  <select value={newChannel.language} onChange={(e) => setNewChannel({ ...newChannel, language: e.target.value })}
+                    className="w-full h-8 px-2 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[12px] text-[#F8FAFC] focus:outline-none">
+                    {Object.entries(LANGUAGE_MAP).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Prix ($)</label>
+                  <input type="number" step="0.01" value={newChannel.price} onChange={(e) => setNewChannel({ ...newChannel, price: e.target.value })} placeholder="0.00"
+                    className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
+                </div>
+                <label className="flex items-center gap-2 mt-5">
+                  <input type="checkbox" checked={newChannel.is_hd} onChange={(e) => setNewChannel({ ...newChannel, is_hd: e.target.checked })}
+                    className="rounded border-[hsl(220,15%,18%)]" />
+                  <span className="text-[12px] text-[#CBD5E1]">HD</span>
+                </label>
+                <label className="flex items-center gap-2 mt-5">
+                  <input type="checkbox" checked={newChannel.is_4k} onChange={(e) => setNewChannel({ ...newChannel, is_4k: e.target.checked })}
+                    className="rounded border-[hsl(220,15%,18%)]" />
+                  <span className="text-[12px] text-[#CBD5E1]">4K</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setCreateChannelOpen(false)} className="h-8 px-3 rounded-md bg-[hsl(220,15%,16%)] text-[#CBD5E1] text-[12px] font-medium">Annuler</button>
+              <button onClick={() => createChannelMutation.mutate(newChannel)} disabled={!newChannel.name || createChannelMutation.isPending}
+                className="h-8 px-3 rounded-md bg-emerald-600 text-white text-[12px] font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50">
+                Ajouter la chaîne
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══ ACTIVITY LOG DRAWER ═══ */}
       <Sheet open={!!selected && editDialog === null && activeTab === "channels"} onOpenChange={() => setSelected(null)}>
         <SheetContent className="w-full sm:max-w-md bg-[hsl(220,20%,9%)] border-l border-[hsl(220,15%,16%)] text-[#F8FAFC] overflow-y-auto">
@@ -390,7 +490,7 @@ export default function CoreChannelsPage() {
           {selected && (
             <div className="mt-4 space-y-3">
               <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 space-y-2">
-                {[["Nom", selected.name], ["N°", selected.channel_number], ["Catégorie", selected.category], ["Langue", selected.language], ["Prix", selected.price != null ? `${Number(selected.price).toFixed(2)} $` : "—"]].map(([l, v]) => (
+                {[["Nom", selected.name], ["N°", selected.channel_number], ["Catégorie", CATEGORY_LABELS[selected.category] || selected.category], ["Langue", LANGUAGE_MAP[selected.language] || selected.language], ["Prix", selected.price != null ? `${Number(selected.price).toFixed(2)} $` : "Inclus"], ["HD", selected.is_hd ? "Oui" : "Non"], ["4K", selected.is_4k ? "Oui" : "Non"]].map(([l, v]) => (
                   <div key={l as string} className="flex justify-between text-[12px]"><span className="text-[#94A3B8]">{l}</span><span className="text-[#F8FAFC] font-medium">{v || "—"}</span></div>
                 ))}
               </div>
@@ -407,7 +507,7 @@ export default function CoreChannelsPage() {
                           <span className="text-[#64748B]">{log.created_at ? format(new Date(log.created_at), "dd MMM HH:mm", { locale: fr }) : ""}</span>
                         </div>
                         {log.reason && <p className="text-[#94A3B8]">Raison: {log.reason}</p>}
-                        <p className="text-[#64748B]">{log.actor_name || log.actor_email || "Système"} ({log.actor_role || "—"})</p>
+                        <p className="text-[#64748B]">{log.actor_name || log.actor_email || "Système"}</p>
                       </div>
                     ))}
                   </div>
