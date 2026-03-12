@@ -16,8 +16,6 @@ import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreAct
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 
-import "@/core-app/styles/core-dark-processing.css";
-
 const CoreOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
 
@@ -88,7 +86,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
       <CoreQuickActions proc={proc} />
 
       {/* ═══ MAIN LAYOUT: Workflow | Steps | Order File ═══ */}
-      <div className="core-dark-processing grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_300px] gap-3">
         {/* LEFT: Workflow Navigation */}
         <CoreWorkflowNav
           steps={proc.workflow}
@@ -96,8 +94,8 @@ function OrderConsole({ orderId }: { orderId: string }) {
           onStepClick={(id: WorkflowStepId) => proc.setActiveStep(id)}
         />
 
-        {/* CENTER: Active Step Content */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5 min-h-[520px]">
+        {/* CENTER: Active Step Content — native dark */}
+        <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-5 min-h-[520px]">
           <StepContent proc={proc} />
         </div>
 
