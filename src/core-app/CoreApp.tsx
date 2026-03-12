@@ -26,6 +26,13 @@ const CoreOrderDetail = lazy(() => import("./pages/CoreOrderDetail"));
 const CoreAccountDetail = lazy(() => import("./pages/CoreAccountDetail"));
 const CoreInvoiceDetail = lazy(() => import("./pages/CoreInvoiceDetail"));
 const CorePOSPage = lazy(() => import("./pages/CorePOSPage"));
+const CoreKYCPage = lazy(() => import("./pages/CoreKYCPage"));
+const CoreSettingsPage = lazy(() => import("./pages/CoreSettingsPage"));
+const CoreStaffPage = lazy(() => import("./pages/CoreStaffPage"));
+const CoreChannelsPage = lazy(() => import("./pages/CoreChannelsPage"));
+const CoreStockPage = lazy(() => import("./pages/CoreStockPage"));
+const CoreSupportPage = lazy(() => import("./pages/CoreSupportPage"));
+const CorePromotionsPage = lazy(() => import("./pages/CorePromotionsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
