@@ -1,0 +1,327 @@
+/**
+ * Account360Sections — All section content components for the Customer 360 workspace.
+ */
+import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import {
+  Panel, PanelHeader, InfoLine, MiniTable, trClass, fmtCAD, fmtDate, fmtDateTime, label,
+} from "./Account360Helpers";
+import {
+  Repeat, ShoppingCart, FileText, CreditCard, Package, MessageSquare,
+  Calendar, Shield, Activity, AlertTriangle, ExternalLink, Zap, User,
+  MapPin, Globe, Hash, Clock,
+} from "lucide-react";
+import { InvoiceActionMenu } from "@/core-app/components/account-actions/InvoiceActions";
+import { SubscriptionActionMenu } from "@/core-app/components/account-actions/SubscriptionActions";
+import { EquipmentActionMenu } from "@/core-app/components/account-actions/EquipmentActions";
+import { AccountActionMenu } from "@/core-app/components/account-actions/AccountQuickActions";
+import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
+
+/* ── Profile ── */
+export const ProfileSection = ({ data, acct, prof, clientName }: any) => (
+  <div className="space-y-3">
+    <Panel>
+      <PanelHeader icon={User} title="Informations personnelles" />
+      <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
+        <InfoLine label="Nom complet" value={clientName} />
+        <InfoLine label="Prénom" value={prof?.first_name || "—"} />
+        <InfoLine label="Nom" value={prof?.last_name || "—"} />
+        <InfoLine label="Courriel" value={prof?.email || "—"} />
+        <InfoLine label="Téléphone" value={prof?.phone || "—"} mono />
+        <InfoLine label="Date de naissance" value={fmtDate(prof?.date_of_birth)} />
+        <InfoLine label="Langue" value={prof?.preferred_language || "fr"} />
+        <InfoLine label="Identité vérifiée" value={prof?.identity_verified ? "✓ Oui" : "✗ Non"} accent={!!prof?.identity_verified} />
+      </div>
+    </Panel>
+    <Panel>
+      <PanelHeader icon={MapPin} title="Adresses" />
+      <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
+        <InfoLine label="Adresse de service" value={[acct.primary_service_address, acct.primary_service_city, acct.primary_service_postal_code].filter(Boolean).join(", ") || "—"} />
+        <InfoLine label="Province" value={acct.primary_service_province || "QC"} />
+        <InfoLine label="Adresse facturation" value={[acct.billing_address, acct.billing_city, acct.billing_postal_code].filter(Boolean).join(", ") || "—"} />
+      </div>
+    </Panel>
+    {data.authorizedUsers.length > 0 && (
+      <Panel>
+        <PanelHeader icon={User} title="Utilisateurs autorisés" count={data.authorizedUsers.length} />
+        <MiniTable headers={["Nom", "Courriel", "Relation", "Niveau", "Ajouté le"]}>
+          {data.authorizedUsers.map((u: any) => (
+            <tr key={u.id} className={trClass}>
+              <td className="px-3 py-1.5 text-core-text-primary text-[11px] font-medium">{u.full_name}</td>
+              <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{u.email || "—"}</td>
+              <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{u.relationship_label || "—"}</td>
+              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{u.permission_level}</td>
+              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(u.created_at)}</td>
+            </tr>
+          ))}
+        </MiniTable>
+      </Panel>
+    )}
+  </div>
+);
+
+/* ── Billing / Account ── */
+export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInvoices, totalPaid }: any) => (
+  <div className="space-y-3">
+    {unpaidInvoices.length > 0 && (
+      <Panel className="border-red-500/30">
+        <PanelHeader icon={AlertTriangle} title="Factures impayées" count={unpaidInvoices.length} />
+        <MiniTable headers={["Facture", "Total", "Solde", "Échéance"]}>
+          {unpaidInvoices.map((inv: any) => (
+            <tr key={inv.id} className={trClass}>
+              <td className="px-3 py-1.5"><Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-core-text-primary hover:text-emerald-400 text-[11px]">{inv.invoice_number}</Link></td>
+              <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{fmtCAD(inv.total)}</td>
+              <td className="px-3 py-1.5 tabular-nums text-red-400 font-medium text-[11px]">{fmtCAD(inv.balance_due)}</td>
+              <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(inv.due_date)}</td>
+            </tr>
+          ))}
+        </MiniTable>
+      </Panel>
+    )}
+    <Panel>
+      <PanelHeader icon={Hash} title="Informations du compte" />
+      <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
+        <InfoLine label="Numéro de compte" value={acct.account_number} mono accent />
+        <InfoLine label="Nom du compte" value={acct.account_name || "—"} />
+        <InfoLine label="Statut" value={<StatusBadge label={label(acct.status)} variant={statusToVariant(acct.status || "active")} size="sm" />} />
+        <InfoLine label="Classe de crédit" value={acct.credit_class || "C"} />
+        <InfoLine label="Créé le" value={fmtDate(acct.created_at)} />
+      </div>
+    </Panel>
+    <Panel>
+      <PanelHeader icon={Clock} title="Cycle de facturation" />
+      <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
+        <InfoLine label="Jour de cycle" value={acct.billing_cycle_day ? `Le ${acct.billing_cycle_day} de chaque mois` : "—"} accent />
+        <InfoLine label="Prochaine facture" value={fmtDate(acct.next_invoice_date)} accent />
+        <InfoLine label="Date d'ancrage" value={fmtDate(acct.billing_anchor_date)} />
+        <InfoLine label="Fuseau horaire" value={acct.billing_cycle_timezone || "America/Toronto"} />
+      </div>
+    </Panel>
+    <div className="grid grid-cols-2 gap-2">
+      <Panel className="p-3">
+        <p className="text-[9px] uppercase tracking-wider text-core-text-label font-medium">Revenu mensuel</p>
+        <p className="text-lg font-bold tabular-nums text-emerald-400 mt-0.5">{fmtCAD(monthlyRevenue)}</p>
+      </Panel>
+      <Panel className="p-3">
+        <p className="text-[9px] uppercase tracking-wider text-core-text-label font-medium">Total payé</p>
+        <p className="text-lg font-bold tabular-nums text-core-text-primary mt-0.5">{fmtCAD(totalPaid)}</p>
+      </Panel>
+      <Panel className="p-3">
+        <p className="text-[9px] uppercase tracking-wider text-core-text-label font-medium">Solde impayé</p>
+        <p className={`text-lg font-bold tabular-nums mt-0.5 ${totalDue > 0 ? "text-red-400" : "text-emerald-400"}`}>{fmtCAD(totalDue)}</p>
+      </Panel>
+      <Panel className="p-3">
+        <p className="text-[9px] uppercase tracking-wider text-core-text-label font-medium">Factures</p>
+        <p className="text-lg font-bold tabular-nums text-core-text-primary mt-0.5">{data.invoices.length}</p>
+      </Panel>
+    </div>
+  </div>
+);
+
+/* ── Subscriptions ── */
+export const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
+  <Panel>
+    <PanelHeader icon={Repeat} title="Services / Abonnements" count={data.subscriptions.length}
+      actions={<SubscriptionActionMenu subscriptions={data.subscriptions} customerId={customerId} onRefresh={onRefresh} />} />
+    <MiniTable headers={["Plan", "Cat.", "Prix/mois", "Statut", "Cycle", "Auto", ""]} empty={data.subscriptions.length === 0}>
+      {data.subscriptions.map((s: any) => (
+        <tr key={s.id} className={trClass}>
+          <td className="px-3 py-1.5">
+            <p className="text-core-text-primary font-medium text-[11px]">{s.plan_name}</p>
+            <p className="text-core-text-label text-[10px] font-mono">{s.plan_code}</p>
+          </td>
+          <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{s.service_category || "—"}</td>
+          <td className="px-3 py-1.5 tabular-nums text-emerald-400 font-medium text-[11px]">{fmtCAD(s.plan_price)}</td>
+          <td className="px-3 py-1.5"><StatusBadge label={label(s.status)} variant={statusToVariant(s.status || "")} size="sm" /></td>
+          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[10px]">{fmtDate(s.cycle_start_date)} → {fmtDate(s.cycle_end_date)}</td>
+          <td className="px-3 py-1.5">{s.auto_billing_enabled ? <Zap className="h-3 w-3 text-emerald-400" /> : <span className="text-core-text-disabled text-[10px]">—</span>}</td>
+          <td className="px-3 py-1.5"><Link to={corePath(`/subscriptions/${s.id}`)} className="text-core-text-label hover:text-emerald-400"><ExternalLink className="h-3 w-3" /></Link></td>
+        </tr>
+      ))}
+    </MiniTable>
+  </Panel>
+);
+
+/* ── Orders ── */
+export const OrdersSection = ({ data, accountId, clientId, clientEmail, clientName, onRefresh }: any) => (
+  <Panel>
+    <PanelHeader icon={ShoppingCart} title="Commandes" count={data.orders.length}
+      actions={<OrderActionMenu orders={data.orders} accountId={accountId} clientId={clientId} clientEmail={clientEmail} clientName={clientName} onRefresh={onRefresh} />} />
+    <MiniTable headers={["#", "Service", "Statut", "Total", "Paiement", "Date", ""]} empty={data.orders.length === 0}>
+      {data.orders.slice(0, 50).map((o: any) => (
+        <tr key={o.id} className={trClass}>
+          <td className="px-3 py-1.5 font-mono text-core-text-primary text-[11px]">{o.order_number || "—"}</td>
+          <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{o.service_category || o.service_type || "—"}</td>
+          <td className="px-3 py-1.5"><StatusBadge label={label(o.status)} variant={statusToVariant(o.status || "")} size="sm" /></td>
+          <td className="px-3 py-1.5 tabular-nums text-core-text-secondary text-[11px]">{fmtCAD(o.total_today ?? o.order_total)}</td>
+          <td className="px-3 py-1.5 text-core-text-label text-[11px]">{label(o.payment_status)}</td>
+          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(o.created_at)}</td>
+          <td className="px-3 py-1.5"><Link to={corePath(`/orders/${o.id}`)} className="text-core-text-label hover:text-emerald-400"><ExternalLink className="h-3 w-3" /></Link></td>
+        </tr>
+      ))}
+    </MiniTable>
+  </Panel>
+);
+
+/* ── Invoices ── */
+export const InvoicesSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
+  <Panel>
+    <PanelHeader icon={FileText} title="Historique des factures" count={data.invoices.length}
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
+    <MiniTable headers={["Facture", "Type", "Total", "Payé", "Solde", "Statut", "Échéance"]} empty={data.invoices.length === 0}>
+      {data.invoices.slice(0, 50).map((inv: any) => (
+        <tr key={inv.id} className={trClass}>
+          <td className="px-3 py-1.5"><Link to={corePath(`/invoices/${inv.id}`)} className="font-mono text-core-text-primary hover:text-emerald-400 text-[11px]">{inv.invoice_number}</Link></td>
+          <td className="px-3 py-1.5 text-core-text-label text-[11px] capitalize">{inv.type}</td>
+          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{fmtCAD(inv.total)}</td>
+          <td className="px-3 py-1.5 tabular-nums text-emerald-400 text-[11px]">{fmtCAD(inv.amount_paid)}</td>
+          <td className="px-3 py-1.5"><span className={`tabular-nums text-[11px] font-medium ${(inv.balance_due ?? 0) > 0 ? "text-red-400" : "text-core-text-disabled"}`}>{fmtCAD(inv.balance_due)}</span></td>
+          <td className="px-3 py-1.5"><StatusBadge label={label(inv.status)} variant={statusToVariant(inv.status || "")} size="sm" /></td>
+          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(inv.due_date)}</td>
+        </tr>
+      ))}
+    </MiniTable>
+  </Panel>
+);
+
+/* ── Payments ── */
+export const PaymentsSection = ({ data, customerId, customerUserId, profileEmail, billingCustomerEmail, onRefresh }: any) => (
+  <Panel>
+    <PanelHeader icon={CreditCard} title="Paiements" count={data.payments.length}
+      actions={<InvoiceActionMenu invoices={data.invoices} customerId={customerId} customerUserId={customerUserId} fallbackRecipientEmail={profileEmail} fallbackCustomerEmail={billingCustomerEmail} onRefresh={onRefresh} />} />
+    <MiniTable headers={["#", "Montant", "Méthode", "Statut", "Réf.", "Reçu le"]} empty={data.payments.length === 0}>
+      {data.payments.slice(0, 50).map((p: any) => (
+        <tr key={p.id} className={trClass}>
+          <td className="px-3 py-1.5 font-mono text-core-text-primary text-[11px]">{p.payment_number || "—"}</td>
+          <td className="px-3 py-1.5 tabular-nums text-emerald-400 font-medium text-[11px]">{fmtCAD(p.amount)}</td>
+          <td className="px-3 py-1.5 text-core-text-secondary text-[11px] capitalize">{p.method}</td>
+          <td className="px-3 py-1.5"><StatusBadge label={label(p.status)} variant={statusToVariant(p.status || "")} size="sm" /></td>
+          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{p.reference || "—"}</td>
+          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(p.received_at)}</td>
+        </tr>
+      ))}
+    </MiniTable>
+  </Panel>
+);
+
+/* ── Equipment ── */
+export const EquipmentSection = ({ data, accountId, onRefresh }: any) => (
+  <Panel>
+    <PanelHeader icon={Package} title="Équipements" count={data.equipment.length}
+      actions={<EquipmentActionMenu equipment={data.equipment} accountId={accountId} clientId={data.clientId} orders={data.orders} subscriptions={data.subscriptions} onRefresh={onRefresh} />} />
+    <MiniTable headers={["Article", "SKU", "Qté", "Prix", "Total", "S/N"]} empty={data.equipment.length === 0}>
+      {data.equipment.map((eq: any) => (
+        <tr key={eq.id} className={trClass}>
+          <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{eq.item_name}</td>
+          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px]">{eq.item_sku || "—"}</td>
+          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{eq.quantity}</td>
+          <td className="px-3 py-1.5 tabular-nums text-core-text-secondary text-[11px]">{fmtCAD(eq.unit_price)}</td>
+          <td className="px-3 py-1.5 tabular-nums text-core-text-primary text-[11px]">{fmtCAD(eq.line_total)}</td>
+          <td className="px-3 py-1.5 font-mono text-core-text-label text-[10px] max-w-[120px] truncate">
+            {eq.serial_numbers ? (Array.isArray(eq.serial_numbers) ? (eq.serial_numbers as string[]).join(", ") : JSON.stringify(eq.serial_numbers)) : "—"}
+          </td>
+        </tr>
+      ))}
+    </MiniTable>
+  </Panel>
+);
+
+/* ── Tickets ── */
+export const TicketsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
+  <Panel>
+    <PanelHeader icon={MessageSquare} title="Tickets de support" count={data.tickets.length}
+      actions={<AccountActionMenu clientId={clientId} clientEmail={clientEmail} clientName={clientName} accountId={accountId} onRefresh={onRefresh} />} />
+    <MiniTable headers={["#", "Sujet", "Cat.", "Priorité", "Statut", "Créé le"]} empty={data.tickets.length === 0}>
+      {data.tickets.slice(0, 30).map((t: any) => (
+        <tr key={t.id} className={trClass}>
+          <td className="px-3 py-1.5 font-mono text-core-text-primary text-[11px]">{t.ticket_number || "—"}</td>
+          <td className="px-3 py-1.5 text-core-text-primary max-w-[180px] truncate text-[11px]">{t.subject || t.title || "—"}</td>
+          <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{t.category || "—"}</td>
+          <td className="px-3 py-1.5 text-core-text-secondary text-[11px] capitalize">{t.priority || "—"}</td>
+          <td className="px-3 py-1.5"><StatusBadge label={label(t.status)} variant={statusToVariant(t.status || "")} size="sm" /></td>
+          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(t.created_at)}</td>
+        </tr>
+      ))}
+    </MiniTable>
+  </Panel>
+);
+
+/* ── Appointments ── */
+export const AppointmentsSection = ({ data, clientId, clientEmail, clientName, accountId, onRefresh }: any) => (
+  <Panel>
+    <PanelHeader icon={Calendar} title="Rendez-vous / Technicien" count={data.appointments.length}
+      actions={<AccountActionMenu clientId={clientId} clientEmail={clientEmail} clientName={clientName} accountId={accountId} onRefresh={onRefresh} />} />
+    <MiniTable headers={["#", "Titre", "Type", "Statut", "Date", "Adresse"]} empty={data.appointments.length === 0}>
+      {data.appointments.map((a: any) => (
+        <tr key={a.id} className={trClass}>
+          <td className="px-3 py-1.5 font-mono text-core-text-secondary text-[10px]">{a.appointment_number || "—"}</td>
+          <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{a.title}</td>
+          <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{a.service_type || a.installation_method || "—"}</td>
+          <td className="px-3 py-1.5"><StatusBadge label={label(a.status)} variant={statusToVariant(a.status || "")} size="sm" /></td>
+          <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDateTime(a.scheduled_at)}</td>
+          <td className="px-3 py-1.5 text-core-text-label text-[11px] max-w-[140px] truncate">{a.service_address || "—"}</td>
+        </tr>
+      ))}
+    </MiniTable>
+  </Panel>
+);
+
+/* ── KYC ── */
+export const KycSection = ({ data }: any) => (
+  <Panel>
+    <PanelHeader icon={Shield} title="Vérification KYC / Identité" count={data.kycSessions.length} />
+    {data.kycSessions.length === 0 ? (
+      <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">Aucune session KYC enregistrée</div>
+    ) : (
+      <MiniTable headers={["#", "Statut", "Document", "Soumis", "Révisé"]}>
+        {data.kycSessions.map((k: any) => (
+          <tr key={k.id} className={trClass}>
+            <td className="px-3 py-1.5 font-mono text-core-text-secondary text-[10px]">{k.case_number || k.id.slice(0, 8)}</td>
+            <td className="px-3 py-1.5"><StatusBadge label={label(k.status)} variant={statusToVariant(k.status || "")} size="sm" /></td>
+            <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{k.document_type || "—"}</td>
+            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.submitted_at)}</td>
+            <td className="px-3 py-1.5 whitespace-nowrap text-core-text-label text-[11px]">{fmtDate(k.reviewed_at)}</td>
+          </tr>
+        ))}
+      </MiniTable>
+    )}
+  </Panel>
+);
+
+/* ── Contracts & Documents ── */
+export const ContractsSection = ({ data }: any) => (
+  <Panel>
+    <PanelHeader icon={FileText} title="Contrats & Documents" />
+    <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">
+      Module en préparation — Les contrats seront liés aux abonnements et commandes.
+    </div>
+  </Panel>
+);
+
+/* ── Timeline ── */
+export const TimelineSection = ({ data }: any) => (
+  <Panel>
+    <PanelHeader icon={Activity} title="Chronologie d'activité" count={data.activityLogs.length} />
+    {data.activityLogs.length === 0 ? (
+      <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">Aucune activité enregistrée</div>
+    ) : (
+      <div className="divide-y divide-[hsl(220,15%,14%)] max-h-[600px] overflow-y-auto">
+        {data.activityLogs.slice(0, 50).map((log: any) => (
+          <div key={log.id} className="px-3 py-2 hover:bg-[hsl(220,20%,13%)] transition-colors">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-core-text-primary leading-snug">{log.summary}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-core-text-disabled">
+                  <span className="capitalize">{log.action_type?.replace(/_/g, " ")}</span>
+                  {log.actor_name && <span>· {log.actor_name}</span>}
+                </div>
+              </div>
+              <span className="text-[9px] text-core-text-disabled whitespace-nowrap shrink-0">{fmtDateTime(log.created_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </Panel>
+);
