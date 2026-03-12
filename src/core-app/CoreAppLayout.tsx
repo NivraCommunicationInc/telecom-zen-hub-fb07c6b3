@@ -23,6 +23,12 @@ import {
   Terminal,
   Receipt,
   Package,
+  Shield,
+  Settings,
+  Tv,
+  Boxes,
+  Headphones,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
