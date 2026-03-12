@@ -24,6 +24,13 @@ const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const CoreClients = lazy(() => import("@/core-app/pages/ClientsPage"));
 const CoreClientProfile = lazy(() => import("@/core-app/pages/CoreClientProfile"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
+const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
+const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
+const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
+const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
+const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
+const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
+const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 
 // Public pages
 import Index from "@/pages/Index";
