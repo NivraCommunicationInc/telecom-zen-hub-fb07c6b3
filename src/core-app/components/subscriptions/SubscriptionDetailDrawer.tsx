@@ -1,0 +1,216 @@
+/**
+ * Subscription detail drawer — service lifecycle file
+ */
+import { Link } from "react-router-dom";
+import { corePath } from "@/core-app/lib/corePaths";
+import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { SUB_STATUSES, SUB_CATEGORIES, fmtCAD } from "./SubscriptionConstants";
+import type { AdminSubscription } from "@/core-app/hooks/useAdminSubscriptions";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+  X, User, Repeat, Calendar, ShoppingCart, FileText,
+  CheckCircle2, PauseCircle, PlayCircle, XCircle,
+  Package, Wrench, MessageSquare, ExternalLink, Copy, Zap,
+} from "lucide-react";
+import { toast } from "sonner";
+
+interface Props {
+  subscription: AdminSubscription | null;
+  onClose: () => void;
+}
+
+const fmtDate = (d: string | null) => {
+  if (!d) return "—";
+  try { return format(new Date(d), "d MMM yyyy", { locale: fr }); } catch { return "—"; }
+};
+
+function Field({ label, value, mono, link, copyable }: {
+  label: string; value: string; mono?: boolean; link?: string; copyable?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between py-1.5 border-b border-[hsl(220,15%,14%)]">
+      <span className="text-[11px] text-[#94A3B8] shrink-0">{label}</span>
+      <div className="flex items-center gap-1.5 text-right">
+        {link ? (
+          <Link to={link} className={`text-[12px] text-[#38BDF8] hover:underline ${mono ? "font-mono" : ""}`}>
+            {value} <ExternalLink className="inline h-2.5 w-2.5" />
+          </Link>
+        ) : (
+          <span className={`text-[12px] text-[#F8FAFC] ${mono ? "font-mono" : ""}`}>{value}</span>
+        )}
+        {copyable && value && value !== "—" && (
+          <button onClick={() => { navigator.clipboard.writeText(value); toast.success("Copié"); }} className="text-[#64748B] hover:text-[#F8FAFC] transition-colors">
+            <Copy className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function SubscriptionDetailDrawer({ subscription, onClose }: Props) {
+  if (!subscription) return null;
+  const s = subscription;
+  const statusLabel = SUB_STATUSES[s.status ?? ""] || s.status || "—";
+  const catLabel = SUB_CATEGORIES[s.service_category ?? ""] || s.service_category || "—";
+  const isActive = s.status === "active";
+  const isPending = s.status === "pending";
+  const isSuspended = s.status === "suspended";
+  const isCancelled = s.status === "cancelled" || s.status === "expired";
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative w-full max-w-[480px] bg-[hsl(220,20%,9%)] border-l border-[hsl(220,15%,16%)] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)]/95 backdrop-blur">
+          <div>
+            <div className="flex items-center gap-2">
+              <Repeat className="h-4 w-4 text-emerald-400" />
+              <h2 className="text-sm font-bold text-[#F8FAFC]">Dossier Service</h2>
+            </div>
+            <p className="text-[11px] text-[#94A3B8] mt-0.5">{s.plan_name}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-md text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[hsl(220,15%,14%)] transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Status + Price hero */}
+          <div className="flex items-center justify-between p-4 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)]">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[#94A3B8] mb-1">Prix mensuel</p>
+              <p className="text-2xl font-bold tabular-nums text-emerald-400">{fmtCAD(s.plan_price)}</p>
+              <p className="text-[11px] text-[#94A3B8] mt-0.5">{catLabel}</p>
+            </div>
+            <div className="text-right space-y-1.5">
+              <StatusBadge label={statusLabel} variant={statusToVariant(s.status ?? "")} size="md" />
+              {s.auto_billing_enabled && (
+                <p className="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+                  <Zap className="h-3 w-3" /> Auto-billing
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* ═══ Service Plan ═══ */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Repeat className="h-3.5 w-3.5 text-[#94A3B8]" />
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Plan de service</h3>
+            </div>
+            <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
+              <Field label="Nom du plan" value={s.plan_name} />
+              <Field label="Code" value={s.plan_code} mono copyable />
+              <Field label="Catégorie" value={catLabel} />
+              <Field label="Prix mensuel" value={fmtCAD(s.plan_price)} />
+              <Field label="Auto-billing" value={s.auto_billing_enabled ? "Activé" : "Désactivé"} />
+            </div>
+          </div>
+
+          {/* ═══ Client Identity ═══ */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <User className="h-3.5 w-3.5 text-[#94A3B8]" />
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Identité client</h3>
+            </div>
+            <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
+              <Field label="Nom" value={s.client_name || "—"} />
+              <Field label="Email" value={s.client_email || "—"} copyable />
+              <Field label="Compte" value={s.account_number || "—"} mono copyable />
+            </div>
+          </div>
+
+          {/* ═══ Billing Cycle ═══ */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Calendar className="h-3.5 w-3.5 text-[#94A3B8]" />
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Cycle de facturation</h3>
+            </div>
+            <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
+              <Field label="Début de cycle" value={fmtDate(s.cycle_start_date)} />
+              <Field label="Fin de cycle" value={fmtDate(s.cycle_end_date)} />
+              <Field label="Créé le" value={fmtDate(s.created_at)} />
+            </div>
+          </div>
+
+          {/* ═══ Linked Documents ═══ */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <FileText className="h-3.5 w-3.5 text-[#94A3B8]" />
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Documents liés</h3>
+            </div>
+            <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-4 py-2">
+              <Field
+                label="Commande"
+                value={s.order_id ? "Voir commande" : "—"}
+                link={s.order_id ? corePath(`/orders/${s.order_id}`) : undefined}
+              />
+              <Field
+                label="Détails complets"
+                value="Ouvrir fiche"
+                link={corePath(`/subscriptions/${s.id}`)}
+              />
+            </div>
+          </div>
+
+          {/* ═══ Quick Actions ═══ */}
+          <div>
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] mb-2">Actions rapides</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Full detail page */}
+              <Link to={corePath(`/subscriptions/${s.id}`)} className="col-span-2">
+                <ActionBtn icon={Repeat} label="Ouvrir dossier complet" color="emerald" />
+              </Link>
+
+              {isPending && (
+                <ActionBtn icon={CheckCircle2} label="Activer service" color="emerald" />
+              )}
+              {isActive && (
+                <>
+                  <ActionBtn icon={PauseCircle} label="Suspendre service" color="orange" />
+                  <ActionBtn icon={XCircle} label="Annuler service" color="red" />
+                </>
+              )}
+              {isSuspended && (
+                <>
+                  <ActionBtn icon={PlayCircle} label="Réactiver service" color="emerald" />
+                  <ActionBtn icon={XCircle} label="Annuler service" color="red" />
+                </>
+              )}
+
+              <ActionBtn icon={Package} label="Assigner équipement" color="sky" />
+              <ActionBtn icon={Wrench} label="Planifier technicien" color="sky" />
+
+              {s.order_id && (
+                <Link to={corePath(`/orders/${s.order_id}`)}>
+                  <ActionBtn icon={ShoppingCart} label="Voir commande" color="sky" />
+                </Link>
+              )}
+              <ActionBtn icon={MessageSquare} label="Note interne" color="violet" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionBtn({ icon: Icon, label, color }: { icon: any; label: string; color: string }) {
+  const colorMap: Record<string, string> = {
+    emerald: "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10",
+    red: "border-red-500/30 text-red-400 hover:bg-red-500/10",
+    orange: "border-orange-500/30 text-orange-400 hover:bg-orange-500/10",
+    sky: "border-sky-500/30 text-sky-400 hover:bg-sky-500/10",
+    violet: "border-violet-500/30 text-violet-400 hover:bg-violet-500/10",
+  };
+  return (
+    <button className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors w-full ${colorMap[color] || colorMap.sky}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
+}
