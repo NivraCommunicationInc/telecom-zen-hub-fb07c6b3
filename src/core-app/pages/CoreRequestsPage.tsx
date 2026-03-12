@@ -44,7 +44,7 @@ export default function CoreRequestsPage() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await supabase.put(`/rest/v1/contact_requests?id=eq.${id}`, { status });
+      await supabase.from("contact_requests").update({ status } as any).eq("id", id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["core-requests"] });

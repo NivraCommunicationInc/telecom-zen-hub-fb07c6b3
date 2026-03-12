@@ -29,8 +29,8 @@ export default function CoreActivityPage() {
   const { data: logs = [], isLoading, refetch } = useQuery({
     queryKey: ["core-activity-logs"],
     queryFn: async () => {
-      const res = await supabase.get("/rest/v1/activity_logs?select=*&order=created_at.desc&limit=200");
-      return Array.isArray(res) ? res : [];
+      const { data } = await supabase.from("activity_logs").select("*").order("created_at", { ascending: false }).limit(200);
+      return data || [];
     },
   });
 

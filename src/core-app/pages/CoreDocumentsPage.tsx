@@ -37,7 +37,7 @@ export default function CoreDocumentsPage() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await supabase.put(`/rest/v1/document_requests?id=eq.${id}`, { status });
+      await supabase.from("document_requests" as any).update({ status }).eq("id", id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["core-doc-requests"] });
