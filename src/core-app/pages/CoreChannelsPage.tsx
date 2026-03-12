@@ -1,11 +1,11 @@
 /**
  * CoreChannelsPage — TV Channel Management Console
- * Full catalog with real Nivra channels, packages, client selections, activity logs
+ * Real Nivra TV catalog, real plans from website, real client selections
  */
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tv, Search, Plus, Edit, Eye, CheckCircle, XCircle, History, Power } from "lucide-react";
+import { Tv, Search, Plus, Edit, Eye, CheckCircle, XCircle, History, Power, Package, Users } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -31,42 +31,58 @@ const SELECTION_STATUS: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Annulée", color: "bg-red-500/15 text-red-400" },
 };
 
-const LANGUAGE_MAP: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", multi: "Multilingue" };
 const CATEGORY_LABELS: Record<string, string> = {
-  general: "Généraliste", news: "Nouvelles", sports: "Sports", movies: "Films",
-  kids: "Enfants", music: "Musique", lifestyle: "Style de vie", documentary: "Documentaire",
-  entertainment: "Divertissement", international: "International", specialty: "Spécialité",
+  base: "Base (obligatoire)",
+  free_choice: "Choix libre",
+  premium: "Premium",
+  general: "Généraliste",
+  news: "Nouvelles",
+  sports: "Sports",
+  movies: "Films",
+  kids: "Enfants",
+  music: "Musique",
+  lifestyle: "Style de vie",
+  documentary: "Documentaire",
+  entertainment: "Divertissement",
+  international: "International",
+  specialty: "Spécialité",
 };
+
+const LANGUAGE_MAP: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", multi: "Multilingue" };
+
+// ═══ REAL NIVRA TV PLANS (from nivra-telecom.ca/tv) ═══
+const NIVRA_TV_PLANS = [
+  { id: "tv-100-basic", tier: "Internet 100", name: "Internet 100 + TV Basic", badge: "ÉCONOMIQUE", price: 75, internet: "100 Mbps", baseChannels: 26, freeChoices: 0, features: ["Internet 100 Mbps inclus", "26 chaînes de base", "Nivra 4K Smart Terminal"] },
+  { id: "tv-500-5", tier: "Internet 500", name: "Internet 500 + TV 5 choix", badge: "POPULAIRE", price: 80, internet: "500 Mbps", baseChannels: 26, freeChoices: 5, features: ["Internet 500 Mbps inclus", "26 chaînes de base", "5 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
+  { id: "tv-500-10", tier: "Internet 500", name: "Internet 500 + TV 10 choix", badge: "MEILLEUR VENDEUR", price: 90, internet: "500 Mbps", baseChannels: 37, freeChoices: 10, features: ["Internet 500 Mbps inclus", "37 chaînes", "10 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
+  { id: "tv-500-15", tier: "Internet 500", name: "Internet 500 + TV 15 choix", badge: "ÉCONOMIE 26%", price: 95, internet: "500 Mbps", baseChannels: 42, freeChoices: 15, features: ["Internet 500 Mbps inclus", "42 chaînes", "15 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
+  { id: "tv-500-25", tier: "Internet 500", name: "Internet 500 + TV 25 choix", badge: "PREMIUM", price: 80, internet: "500 Mbps", baseChannels: 52, freeChoices: 25, features: ["Internet 500 Mbps inclus", "52 chaînes", "25 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale", "Support prioritaire VIP"] },
+  { id: "giga-basic", tier: "GIGA", name: "GIGA + TV Basic", badge: "GIGA", price: 85, internet: "1 Gbps", baseChannels: 26, freeChoices: 0, features: ["Internet GIGA 1 Gbps inclus", "26 chaînes de base", "Nivra 4K Smart Terminal"] },
+  { id: "giga-5", tier: "GIGA", name: "GIGA + TV 5 choix", badge: "GIGA POPULAIRE", price: 80, internet: "1 Gbps", baseChannels: 32, freeChoices: 5, features: ["Internet GIGA 1 Gbps inclus", "32 chaînes", "5 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
+  { id: "giga-10", tier: "GIGA", name: "GIGA + TV 10 choix", badge: "GIGA VEDETTE", price: 90, internet: "1 Gbps", baseChannels: 25, freeChoices: 10, features: ["Internet GIGA 1 Gbps inclus", "25 chaînes", "10 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
+  { id: "giga-15", tier: "GIGA", name: "GIGA + TV 15 choix", badge: "GIGA FAMILLE", price: 90, internet: "1 Gbps", baseChannels: 42, freeChoices: 15, features: ["Internet GIGA 1 Gbps inclus", "42 chaînes", "15 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
+  { id: "giga-25", tier: "GIGA", name: "GIGA + TV 25 choix", badge: "GIGA ULTIME", price: 100, internet: "1 Gbps", baseChannels: 52, freeChoices: 25, features: ["Internet GIGA 1 Gbps inclus", "52 chaînes", "25 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale", "Support prioritaire VIP"] },
+];
 
 export default function CoreChannelsPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"channels" | "packages" | "selections">("channels");
+  const [activeTab, setActiveTab] = useState<"channels" | "plans" | "selections">("channels");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selected, setSelected] = useState<any>(null);
-  const [editDialog, setEditDialog] = useState<"channel" | "package" | null>(null);
+  const [editDialog, setEditDialog] = useState<"channel" | null>(null);
   const [channelForm, setChannelForm] = useState({ status: "active", incident_type: "", incident_reason: "", notify_clients: true });
-  const [actionNotes, setActionNotes] = useState("");
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const [newChannel, setNewChannel] = useState({
-    name: "", channel_number: "", category: "general", language: "fr", is_hd: false, is_4k: false, price: "", is_active: true,
+    name: "", category: "base", is_hd: true, is_4k: false, price: "0", is_active: true, base_pack: "",
   });
 
   // ═══ QUERIES ═══
   const { data: channels = [], isLoading: channelsLoading } = useQuery({
     queryKey: ["core-tv-channels"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("tv_channels").select("*").order("channel_number", { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const { data: packages = [] } = useQuery({
-    queryKey: ["core-channel-packages"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("channel_packages").select("*").order("name");
+      const { data, error } = await supabase.from("tv_channels").select("*").order("category").order("name");
       if (error) throw error;
       return data || [];
     },
@@ -120,14 +136,13 @@ export default function CoreChannelsPage() {
     mutationFn: async (ch: typeof newChannel) => {
       const { error } = await supabase.from("tv_channels").insert({
         name: ch.name,
-        channel_number: ch.channel_number ? parseInt(ch.channel_number) : null,
         category: ch.category,
-        language: ch.language,
         is_hd: ch.is_hd,
         is_4k: ch.is_4k,
-        price: ch.price ? parseFloat(ch.price) : null,
+        price: ch.price ? parseFloat(ch.price) : 0,
         is_active: ch.is_active,
         status: ch.is_active ? "active" : "shutdown",
+        base_pack: ch.base_pack || null,
       });
       if (error) throw error;
     },
@@ -135,28 +150,33 @@ export default function CoreChannelsPage() {
       queryClient.invalidateQueries({ queryKey: ["core-tv-channels"] });
       toast.success("Chaîne ajoutée");
       setCreateChannelOpen(false);
-      setNewChannel({ name: "", channel_number: "", category: "general", language: "fr", is_hd: false, is_4k: false, price: "", is_active: true });
+      setNewChannel({ name: "", category: "base", is_hd: true, is_4k: false, price: "0", is_active: true, base_pack: "" });
     },
     onError: (e: any) => toast.error(e.message || "Erreur"),
   });
 
   const confirmSelectionMutation = useMutation({
-    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
-      const { error } = await supabase.from("channel_selections").update({ status: "confirmed", confirmed_at: new Date().toISOString(), notes }).eq("id", id);
+    mutationFn: async ({ id }: { id: string }) => {
+      const { error } = await supabase.from("channel_selections").update({ status: "confirmed", confirmed_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-channel-selections"] }); toast.success("Sélection confirmée"); setSelected(null); setActionNotes(""); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-channel-selections"] }); toast.success("Sélection confirmée"); },
   });
 
   const cancelSelectionMutation = useMutation({
-    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
-      const { error } = await supabase.from("channel_selections").update({ status: "cancelled", notes }).eq("id", id);
+    mutationFn: async ({ id }: { id: string }) => {
+      const { error } = await supabase.from("channel_selections").update({ status: "cancelled" }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-channel-selections"] }); toast.success("Sélection annulée"); setSelected(null); setActionNotes(""); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-channel-selections"] }); toast.success("Sélection annulée"); },
   });
 
-  // ═══ FILTERING ═══
+  // ═══ DERIVED DATA ═══
+  const baseChannels = useMemo(() => channels.filter((c: any) => c.category === "base"), [channels]);
+  const freeChoiceChannels = useMemo(() => channels.filter((c: any) => c.category === "free_choice"), [channels]);
+  const premiumChannels = useMemo(() => channels.filter((c: any) => c.category === "premium"), [channels]);
+  const base26 = useMemo(() => channels.filter((c: any) => c.base_pack === "LA_BASE_26"), [channels]);
+
   const filteredChannels = useMemo(() => {
     return channels.filter((c: any) => {
       const s = c.status || (c.is_active ? "active" : "shutdown");
@@ -164,7 +184,7 @@ export default function CoreChannelsPage() {
       if (categoryFilter !== "all" && c.category !== categoryFilter) return false;
       if (search) {
         const q = search.toLowerCase();
-        return c.name?.toLowerCase().includes(q) || c.category?.toLowerCase().includes(q) || String(c.channel_number).includes(q);
+        return c.name?.toLowerCase().includes(q) || c.category?.toLowerCase().includes(q);
       }
       return true;
     });
@@ -177,8 +197,10 @@ export default function CoreChannelsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-[#F8FAFC]">Gestion TV</h1>
-          <p className="text-xs text-[#94A3B8]">{activeCount} chaînes actives • {channels.length} total • {packages.length} forfaits • {selections.filter((s: any) => s.status === "pending").length} sélections en attente</p>
+          <h1 className="text-lg font-semibold text-[#F8FAFC]">Gestion TV — Catalogue Nivra</h1>
+          <p className="text-xs text-[#94A3B8]">
+            {activeCount} chaînes actives • {base26.length} base (LA_BASE_26) • {freeChoiceChannels.length} choix libres • {premiumChannels.length} premium • {selections.filter((s: any) => s.status === "pending").length} sélections en attente
+          </p>
         </div>
         <Tv className="h-5 w-5 text-emerald-400" />
       </div>
@@ -186,14 +208,15 @@ export default function CoreChannelsPage() {
       {/* Tabs */}
       <div className="flex gap-1.5 border-b border-[hsl(220,15%,16%)] pb-0">
         {([
-          { id: "channels" as const, label: `Chaînes TV (${channels.length})` },
-          { id: "packages" as const, label: `Forfaits (${packages.length})` },
-          { id: "selections" as const, label: `Sélections clients (${selections.length})` },
+          { id: "channels" as const, label: `Chaînes TV (${channels.length})`, icon: Tv },
+          { id: "plans" as const, label: `Forfaits TV (${NIVRA_TV_PLANS.length})`, icon: Package },
+          { id: "selections" as const, label: `Sélections clients (${selections.length})`, icon: Users },
         ]).map((tab) => (
           <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSearch(""); setStatusFilter("all"); setCategoryFilter("all"); }}
-            className={`px-3 py-2 text-[12px] font-medium rounded-t-md transition-colors ${
+            className={`px-3 py-2 text-[12px] font-medium rounded-t-md transition-colors flex items-center gap-1.5 ${
               activeTab === tab.id ? "bg-[hsl(220,20%,11%)] text-emerald-400 border border-[hsl(220,15%,16%)] border-b-transparent -mb-px" : "text-[#94A3B8] hover:text-[#CBD5E1]"
             }`}>
+            <tab.icon className="h-3 w-3" />
             {tab.label}
           </button>
         ))}
@@ -205,7 +228,7 @@ export default function CoreChannelsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#64748B]" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, catégorie, numéro…"
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, catégorie…"
                 className="w-full h-8 pl-8 pr-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,9%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
             </div>
             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
@@ -227,34 +250,56 @@ export default function CoreChannelsPage() {
               <Plus className="h-3.5 w-3.5" /> Ajouter chaîne
             </button>
           </div>
+
+          {/* Category summary */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Base (LA_BASE_26)", count: base26.length, color: "text-[#38BDF8]" },
+              { label: "Choix libres", count: freeChoiceChannels.length, color: "text-emerald-400" },
+              { label: "Premium", count: premiumChannels.length, color: "text-amber-400" },
+            ].map(s => (
+              <div key={s.label} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 text-center">
+                <div className={`text-lg font-bold ${s.color}`}>{s.count}</div>
+                <div className="text-[10px] text-[#94A3B8] uppercase tracking-wider">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
           <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
                   <tr className="border-b border-[hsl(220,15%,16%)]">
-                    {["N°", "Nom", "Catégorie", "Langue", "HD", "4K", "Prix", "Statut", ""].map((h) => (
+                    {["Nom", "Catégorie", "Pack base", "HD", "4K", "Prix", "Statut", ""].map((h) => (
                       <th key={h} className="px-3 py-2.5 text-left text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                   {channelsLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => <tr key={i}><td colSpan={9} className="px-3 py-3"><div className="h-4 bg-[hsl(220,15%,14%)] rounded animate-pulse" /></td></tr>)
+                    Array.from({ length: 5 }).map((_, i) => <tr key={i}><td colSpan={8} className="px-3 py-3"><div className="h-4 bg-[hsl(220,15%,14%)] rounded animate-pulse" /></td></tr>)
                   ) : filteredChannels.length === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-12 text-[#64748B]">Aucune chaîne trouvée</td></tr>
+                    <tr><td colSpan={8} className="text-center py-12 text-[#64748B]">Aucune chaîne trouvée</td></tr>
                   ) : (
                     filteredChannels.map((c: any) => {
                       const s = c.status || (c.is_active ? "active" : "shutdown");
                       const st = CHANNEL_STATUS[s] || CHANNEL_STATUS.active;
+                      const catLabel = CATEGORY_LABELS[c.category] || c.category || "—";
                       return (
                         <tr key={c.id} className="hover:bg-[hsl(220,15%,13%)] transition-colors">
-                          <td className="px-3 py-2.5 font-mono text-[#38BDF8]">{c.channel_number ?? "—"}</td>
                           <td className="px-3 py-2.5 text-[#F8FAFC] font-medium">{c.name}</td>
-                          <td className="px-3 py-2.5 text-[#CBD5E1]">{CATEGORY_LABELS[c.category] || c.category || "—"}</td>
-                          <td className="px-3 py-2.5 text-[#CBD5E1]">{LANGUAGE_MAP[c.language] || c.language || "—"}</td>
-                          <td className="px-3 py-2.5">{c.is_hd ? <span className="text-emerald-400 text-[10px]">HD</span> : <span className="text-[#64748B]">—</span>}</td>
-                          <td className="px-3 py-2.5">{c.is_4k ? <span className="text-blue-400 text-[10px]">4K</span> : <span className="text-[#64748B]">—</span>}</td>
-                          <td className="px-3 py-2.5 text-[#CBD5E1]">{c.price != null ? `${Number(c.price).toFixed(2)} $` : "Inclus"}</td>
+                          <td className="px-3 py-2.5">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              c.category === "base" ? "bg-[#38BDF8]/15 text-[#38BDF8]" :
+                              c.category === "free_choice" ? "bg-emerald-500/15 text-emerald-400" :
+                              c.category === "premium" ? "bg-amber-500/15 text-amber-400" :
+                              "bg-[#64748B]/20 text-[#94A3B8]"
+                            }`}>{catLabel}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-[11px] text-[#94A3B8] font-mono">{c.base_pack || "—"}</td>
+                          <td className="px-3 py-2.5">{c.is_hd ? <span className="text-emerald-400 text-[10px] font-medium">HD</span> : <span className="text-[#64748B]">—</span>}</td>
+                          <td className="px-3 py-2.5">{c.is_4k ? <span className="text-[#38BDF8] text-[10px] font-medium">4K</span> : <span className="text-[#64748B]">—</span>}</td>
+                          <td className="px-3 py-2.5 text-[#CBD5E1]">{Number(c.price) > 0 ? `${Number(c.price).toFixed(2)} $` : "Inclus"}</td>
                           <td className="px-3 py-2.5"><span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.color}`}>{st.label}</span></td>
                           <td className="px-3 py-2.5">
                             <div className="flex gap-1">
@@ -279,44 +324,47 @@ export default function CoreChannelsPage() {
         </>
       )}
 
-      {/* ═══ PACKAGES TAB ═══ */}
-      {activeTab === "packages" && (
-        <div className="space-y-3">
-          {packages.length === 0 ? (
-            <div className="text-center py-12 text-[#64748B] rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)]">Aucun forfait TV configuré</div>
-          ) : (
+      {/* ═══ PLANS TAB (Real Nivra TV Plans from website) ═══ */}
+      {activeTab === "plans" && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
+            <p className="text-[12px] text-[#94A3B8]">
+              <span className="text-emerald-400 font-medium">Source:</span> Forfaits TV + Internet tels qu'affichés sur <span className="text-[#38BDF8]">nivra-telecom.ca/tv</span>. 
+              Tous les forfaits incluent Internet + Nivra 4K Smart Terminal. Les chaînes de base (LA_BASE_26) sont obligatoires dans tous les forfaits.
+            </p>
+          </div>
+
+          {/* Internet 500 Plans */}
+          <div>
+            <h3 className="text-[13px] font-semibold text-[#F8FAFC] mb-2 flex items-center gap-2">
+              <Package className="h-4 w-4 text-emerald-400" /> Forfaits Internet 100 / 500
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {packages.map((pkg: any) => {
-                const channelIds = Array.isArray(pkg.channels) ? pkg.channels : [];
-                const pkgChannels = channels.filter((c: any) => channelIds.includes(c.id));
-                return (
-                  <div key={pkg.id} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-[13px] font-semibold text-[#F8FAFC]">{pkg.name}</h3>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${pkg.is_active ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
-                        {pkg.is_active ? "Actif" : "Inactif"}
-                      </span>
-                    </div>
-                    {pkg.description && <p className="text-[11px] text-[#94A3B8] mb-2">{pkg.description}</p>}
-                    <div className="flex items-center gap-3 text-[12px] mb-2">
-                      <span className="text-[#94A3B8]">Original: <span className="line-through text-[#64748B]">{Number(pkg.original_price).toFixed(2)} $</span></span>
-                      <span className="text-emerald-400 font-semibold">{Number(pkg.discounted_price).toFixed(2)} $</span>
-                      {pkg.savings_percent && <span className="text-[10px] text-amber-400">-{pkg.savings_percent}%</span>}
-                    </div>
-                    <div className="text-[11px] text-[#94A3B8]">{pkgChannels.length} chaînes • {CATEGORY_LABELS[pkg.category] || pkg.category}</div>
-                    {pkgChannels.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {pkgChannels.slice(0, 10).map((c: any) => (
-                          <span key={c.id} className="px-1.5 py-0.5 rounded bg-[hsl(220,15%,14%)] text-[10px] text-[#CBD5E1]">{c.name}</span>
-                        ))}
-                        {pkgChannels.length > 10 && <span className="text-[10px] text-[#64748B]">+{pkgChannels.length - 10}</span>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {NIVRA_TV_PLANS.filter(p => p.tier !== "GIGA").map((plan) => (
+                <PlanCard key={plan.id} plan={plan} baseCount={base26.length} freeChoiceCount={freeChoiceChannels.length} />
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* GIGA Plans */}
+          <div>
+            <h3 className="text-[13px] font-semibold text-[#F8FAFC] mb-2 flex items-center gap-2">
+              <Power className="h-4 w-4 text-[#38BDF8]" /> Forfaits GIGA (1 Gbps)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {NIVRA_TV_PLANS.filter(p => p.tier === "GIGA").map((plan) => (
+                <PlanCard key={plan.id} plan={plan} baseCount={base26.length} freeChoiceCount={freeChoiceChannels.length} />
+              ))}
+            </div>
+          </div>
+
+          {/* Pricing notes */}
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] text-[#94A3B8] space-y-1">
+            <p className="text-amber-400 font-medium text-[12px]">À savoir — TV</p>
+            <p>• Tous les plans incluent 25 ou 26 chaînes de base obligatoires.</p>
+            <p>• Chaînes Free-Choice selon le plan; Premium facturées en supplément.</p>
+            <p>• Nivra 4K Smart Terminal: 50$/terminal (max 4). Nivra Born Wifi Router: 60$ (frais uniques).</p>
+          </div>
         </div>
       )}
 
@@ -327,34 +375,42 @@ export default function CoreChannelsPage() {
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-[hsl(220,15%,16%)]">
-                  {["Client", "N° client", "Chaînes", "Total", "Statut", "Date", ""].map((h) => (
+                  {["Client", "N° client", "Commande", "Chaînes", "Total", "Statut", "Date", ""].map((h) => (
                     <th key={h} className="px-3 py-2.5 text-left text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[hsl(220,15%,14%)]">
                 {selections.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-[#64748B]">Aucune sélection</td></tr>
+                  <tr><td colSpan={8} className="text-center py-12 text-[#64748B]">Aucune sélection client</td></tr>
                 ) : (
                   selections.map((s: any) => {
                     const st = SELECTION_STATUS[s.status] || SELECTION_STATUS.pending;
-                    const chCount = Array.isArray(s.channels) ? s.channels.length : 0;
+                    const chList = Array.isArray(s.channels) ? s.channels : [];
+                    const baseCount = chList.filter((c: any) => c.type === "base_included" || c.category === "base").length;
+                    const choiceCount = chList.filter((c: any) => c.type === "free_choice" || c.category === "free_choice").length;
+                    const premCount = chList.filter((c: any) => c.type === "premium" || c.category === "premium").length;
                     return (
-                      <tr key={s.id} className="hover:bg-[hsl(220,15%,13%)] transition-colors">
+                      <tr key={s.id} className="hover:bg-[hsl(220,15%,13%)] transition-colors cursor-pointer" onClick={() => setSelected(s)}>
                         <td className="px-3 py-2.5 text-[#F8FAFC] font-medium">{s.profile?.full_name || "—"}</td>
                         <td className="px-3 py-2.5 font-mono text-[11px] text-[#38BDF8]">{s.profile?.client_number || "—"}</td>
-                        <td className="px-3 py-2.5 text-[#CBD5E1]">{chCount} chaînes</td>
+                        <td className="px-3 py-2.5 font-mono text-[11px] text-[#94A3B8]">{s.order_id ? s.order_id.slice(0, 8) : "—"}</td>
+                        <td className="px-3 py-2.5 text-[#CBD5E1]">
+                          <span className="text-[#38BDF8]">{baseCount}</span> base
+                          {choiceCount > 0 && <span> + <span className="text-emerald-400">{choiceCount}</span> choix</span>}
+                          {premCount > 0 && <span> + <span className="text-amber-400">{premCount}</span> premium</span>}
+                        </td>
                         <td className="px-3 py-2.5 text-[#F8FAFC] font-medium">{s.total_price != null ? `${Number(s.total_price).toFixed(2)} $` : "—"}</td>
                         <td className="px-3 py-2.5"><span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.color}`}>{st.label}</span></td>
                         <td className="px-3 py-2.5 text-[#94A3B8]">{s.created_at ? format(new Date(s.created_at), "dd MMM yyyy", { locale: fr }) : "—"}</td>
                         <td className="px-3 py-2.5">
                           {s.status === "pending" && (
-                            <div className="flex gap-1">
-                              <button onClick={() => confirmSelectionMutation.mutate({ id: s.id, notes: "" })}
+                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => confirmSelectionMutation.mutate({ id: s.id })}
                                 className="h-6 px-2 rounded text-[10px] font-medium bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30 transition-colors">
                                 Confirmer
                               </button>
-                              <button onClick={() => cancelSelectionMutation.mutate({ id: s.id, notes: "" })}
+                              <button onClick={() => cancelSelectionMutation.mutate({ id: s.id })}
                                 className="h-6 px-2 rounded text-[10px] font-medium bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600/30 transition-colors">
                                 Annuler
                               </button>
@@ -379,6 +435,11 @@ export default function CoreChannelsPage() {
               <h2 className="text-[15px] font-semibold text-[#F8FAFC]">Gérer: {selected.name}</h2>
               <button onClick={() => setEditDialog(null)} className="text-[#64748B] hover:text-[#F8FAFC]"><XCircle className="h-5 w-5" /></button>
             </div>
+            <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 text-[11px] space-y-1">
+              <div className="flex justify-between"><span className="text-[#94A3B8]">Catégorie</span><span className="text-[#F8FAFC]">{CATEGORY_LABELS[selected.category] || selected.category}</span></div>
+              <div className="flex justify-between"><span className="text-[#94A3B8]">Pack</span><span className="text-[#F8FAFC]">{selected.base_pack || "Aucun"}</span></div>
+              <div className="flex justify-between"><span className="text-[#94A3B8]">HD/4K</span><span className="text-[#F8FAFC]">{selected.is_hd ? "HD" : ""} {selected.is_4k ? "4K" : ""}</span></div>
+            </div>
             <div className="space-y-3">
               <div>
                 <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Statut</label>
@@ -387,7 +448,7 @@ export default function CoreChannelsPage() {
                   {Object.entries(CHANNEL_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
-              {(channelForm.status === "shutdown" || channelForm.status === "end_of_life" || channelForm.status === "maintenance") && (
+              {(channelForm.status !== "active") && (
                 <>
                   <div>
                     <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Type d'incident</label>
@@ -426,31 +487,27 @@ export default function CoreChannelsPage() {
               <button onClick={() => setCreateChannelOpen(false)} className="text-[#64748B] hover:text-[#F8FAFC]"><XCircle className="h-5 w-5" /></button>
             </div>
             <div className="space-y-3">
-              <div className="grid grid-cols-[1fr_100px] gap-3">
-                <div>
-                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Nom de la chaîne *</label>
-                  <input value={newChannel.name} onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })} placeholder="TVA, RDS, CNN…"
-                    className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
-                </div>
-                <div>
-                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Numéro</label>
-                  <input type="number" value={newChannel.channel_number} onChange={(e) => setNewChannel({ ...newChannel, channel_number: e.target.value })} placeholder="101"
-                    className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
-                </div>
+              <div>
+                <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Nom de la chaîne *</label>
+                <input value={newChannel.name} onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })} placeholder="TVA, RDS, CNN…"
+                  className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none focus:border-emerald-500/50" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Catégorie</label>
                   <select value={newChannel.category} onChange={(e) => setNewChannel({ ...newChannel, category: e.target.value })}
                     className="w-full h-8 px-2 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[12px] text-[#F8FAFC] focus:outline-none">
-                    {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="base">Base (obligatoire)</option>
+                    <option value="free_choice">Choix libre</option>
+                    <option value="premium">Premium</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Langue</label>
-                  <select value={newChannel.language} onChange={(e) => setNewChannel({ ...newChannel, language: e.target.value })}
+                  <label className="text-[11px] text-[#94A3B8] uppercase block mb-1">Pack base</label>
+                  <select value={newChannel.base_pack} onChange={(e) => setNewChannel({ ...newChannel, base_pack: e.target.value })}
                     className="w-full h-8 px-2 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[12px] text-[#F8FAFC] focus:outline-none">
-                    {Object.entries(LANGUAGE_MAP).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">Aucun</option>
+                    <option value="LA_BASE_26">LA_BASE_26</option>
                   </select>
                 </div>
               </div>
@@ -476,21 +533,25 @@ export default function CoreChannelsPage() {
               <button onClick={() => setCreateChannelOpen(false)} className="h-8 px-3 rounded-md bg-[hsl(220,15%,16%)] text-[#CBD5E1] text-[12px] font-medium">Annuler</button>
               <button onClick={() => createChannelMutation.mutate(newChannel)} disabled={!newChannel.name || createChannelMutation.isPending}
                 className="h-8 px-3 rounded-md bg-emerald-600 text-white text-[12px] font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50">
-                Ajouter la chaîne
+                Ajouter
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══ ACTIVITY LOG DRAWER ═══ */}
-      <Sheet open={!!selected && editDialog === null && activeTab === "channels"} onOpenChange={() => setSelected(null)}>
+      {/* ═══ ACTIVITY LOG / SELECTION DETAIL DRAWER ═══ */}
+      <Sheet open={!!selected && editDialog === null} onOpenChange={() => setSelected(null)}>
         <SheetContent className="w-full sm:max-w-md bg-[hsl(220,20%,9%)] border-l border-[hsl(220,15%,16%)] text-[#F8FAFC] overflow-y-auto">
-          <SheetHeader><SheetTitle className="text-[#F8FAFC]">Historique: {selected?.name}</SheetTitle></SheetHeader>
-          {selected && (
+          <SheetHeader>
+            <SheetTitle className="text-[#F8FAFC]">
+              {activeTab === "selections" ? "Détail sélection" : `Historique: ${selected?.name}`}
+            </SheetTitle>
+          </SheetHeader>
+          {selected && activeTab === "channels" && (
             <div className="mt-4 space-y-3">
               <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 space-y-2">
-                {[["Nom", selected.name], ["N°", selected.channel_number], ["Catégorie", CATEGORY_LABELS[selected.category] || selected.category], ["Langue", LANGUAGE_MAP[selected.language] || selected.language], ["Prix", selected.price != null ? `${Number(selected.price).toFixed(2)} $` : "Inclus"], ["HD", selected.is_hd ? "Oui" : "Non"], ["4K", selected.is_4k ? "Oui" : "Non"]].map(([l, v]) => (
+                {[["Nom", selected.name], ["Catégorie", CATEGORY_LABELS[selected.category] || selected.category], ["Pack", selected.base_pack || "—"], ["Prix", Number(selected.price) > 0 ? `${Number(selected.price).toFixed(2)} $` : "Inclus"], ["HD", selected.is_hd ? "Oui" : "Non"], ["4K", selected.is_4k ? "Oui" : "Non"]].map(([l, v]) => (
                   <div key={l as string} className="flex justify-between text-[12px]"><span className="text-[#94A3B8]">{l}</span><span className="text-[#F8FAFC] font-medium">{v || "—"}</span></div>
                 ))}
               </div>
@@ -515,8 +576,70 @@ export default function CoreChannelsPage() {
               </div>
             </div>
           )}
+          {selected && activeTab === "selections" && (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 space-y-2 text-[12px]">
+                <div className="flex justify-between"><span className="text-[#94A3B8]">Client</span><span className="text-[#F8FAFC]">{selected.profile?.full_name || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-[#94A3B8]">Email</span><span className="text-[#38BDF8]">{selected.profile?.email || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-[#94A3B8]">Total</span><span className="text-emerald-400 font-medium">{selected.total_price != null ? `${Number(selected.total_price).toFixed(2)} $` : "—"}</span></div>
+                <div className="flex justify-between"><span className="text-[#94A3B8]">Statut</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${(SELECTION_STATUS[selected.status] || SELECTION_STATUS.pending).color}`}>{(SELECTION_STATUS[selected.status] || SELECTION_STATUS.pending).label}</span></div>
+              </div>
+              {Array.isArray(selected.channels) && selected.channels.length > 0 && (
+                <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
+                  <h3 className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Chaînes sélectionnées ({selected.channels.length})</h3>
+                  <div className="space-y-1 max-h-[400px] overflow-y-auto">
+                    {selected.channels.map((ch: any, i: number) => (
+                      <div key={ch.id || i} className="flex items-center justify-between px-2 py-1.5 rounded bg-[hsl(220,15%,14%)] text-[11px]">
+                        <span className="text-[#F8FAFC]">{ch.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                            ch.category === "base" || ch.type === "base_included" ? "bg-[#38BDF8]/15 text-[#38BDF8]" :
+                            ch.category === "free_choice" || ch.type === "free_choice" ? "bg-emerald-500/15 text-emerald-400" :
+                            "bg-amber-500/15 text-amber-400"
+                          }`}>{ch.category === "base" || ch.type === "base_included" ? "Base" : ch.category === "free_choice" || ch.type === "free_choice" ? "Choix" : "Premium"}</span>
+                          {Number(ch.price) > 0 && <span className="text-[#94A3B8]">{Number(ch.price).toFixed(2)} $</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+// ═══ Plan Card Component ═══
+function PlanCard({ plan, baseCount, freeChoiceCount }: { plan: typeof NIVRA_TV_PLANS[0]; baseCount: number; freeChoiceCount: number }) {
+  const badgeColor = plan.badge.includes("GIGA") ? "bg-[#38BDF8]/15 text-[#38BDF8]" :
+    plan.badge === "MEILLEUR VENDEUR" ? "bg-emerald-500/15 text-emerald-400" :
+    plan.badge === "PREMIUM" ? "bg-amber-500/15 text-amber-400" :
+    "bg-[#64748B]/15 text-[#94A3B8]";
+
+  return (
+    <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4 flex flex-col">
+      <div className="flex items-start justify-between mb-2">
+        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${badgeColor}`}>{plan.badge}</span>
+        <span className="text-lg font-bold text-emerald-400">{plan.price}$<span className="text-[10px] text-[#94A3B8] font-normal">/mois</span></span>
+      </div>
+      <h3 className="text-[13px] font-semibold text-[#F8FAFC] mb-1">{plan.name}</h3>
+      <p className="text-[11px] text-[#94A3B8] mb-3">
+        {plan.baseChannels} chaînes{plan.freeChoices > 0 ? ` + ${plan.freeChoices} au choix` : ""} • {plan.internet}
+      </p>
+      <ul className="space-y-1 flex-1">
+        {plan.features.map((f, i) => (
+          <li key={i} className="text-[11px] text-[#CBD5E1] flex items-start gap-1.5">
+            <CheckCircle className="h-3 w-3 text-emerald-400 mt-0.5 shrink-0" />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 pt-3 border-t border-[hsl(220,15%,14%)] text-[10px] text-[#64748B]">
+        Disponible: {baseCount} chaînes base • {freeChoiceCount} choix libres
+      </div>
     </div>
   );
 }
