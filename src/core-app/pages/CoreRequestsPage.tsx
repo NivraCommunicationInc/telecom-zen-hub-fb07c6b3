@@ -35,9 +35,10 @@ export default function CoreRequestsPage() {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["core-requests", statusFilter],
     queryFn: async () => {
-      let url = "/rest/v1/contact_requests?select=*&order=created_at.desc&limit=200";
-      if (statusFilter !== "all") url += `&status=eq.${statusFilter}`;
-      return await supabase.get(url);
+      let q = supabase.from("contact_requests").select("*").order("created_at", { ascending: false }).limit(200);
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      const { data } = await q;
+      return data || [];
     },
   });
 
