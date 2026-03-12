@@ -53,7 +53,7 @@ const CoreAppLayout = () => {
   const isActive = (href: string) => isCorePathActive(location.pathname, href);
 
   return (
-    <div className="min-h-screen flex bg-[hsl(220,20%,8%)] text-[hsl(220,10%,85%)]">
+    <div className="min-h-screen flex bg-[hsl(220,20%,8%)] text-[hsl(var(--core-text-primary))]">
       {/* ═══ SIDEBAR ═══ */}
       <aside
         className={cn(
@@ -87,7 +87,7 @@ const CoreAppLayout = () => {
                   collapsed ? "justify-center px-0 py-2" : "px-2.5 py-2",
                   active
                     ? "bg-emerald-600/15 text-emerald-400"
-                    : "text-[hsl(220,10%,55%)] hover:bg-[hsl(220,15%,14%)] hover:text-[hsl(220,10%,80%)]"
+                    : "text-[hsl(var(--core-text-secondary))] hover:bg-[hsl(220,15%,14%)] hover:text-[hsl(var(--core-text-primary))]"
                 )}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
@@ -101,7 +101,7 @@ const CoreAppLayout = () => {
         <div className="border-t border-[hsl(220,15%,16%)] p-1.5">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center py-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-[hsl(220,10%,70%)] hover:bg-[hsl(220,15%,14%)] transition-colors"
+            className="w-full flex items-center justify-center py-1.5 rounded-md text-[hsl(var(--core-text-label))] hover:text-[hsl(var(--core-text-primary))] hover:bg-[hsl(220,15%,14%)] transition-colors"
           >
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
@@ -112,7 +112,7 @@ const CoreAppLayout = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="sticky top-0 z-40 h-12 flex items-center justify-between px-4 border-b border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)]/95 backdrop-blur">
-          <span className="text-xs font-medium text-[hsl(220,10%,45%)] uppercase tracking-wider">
+          <span className="text-xs font-medium text-[hsl(var(--core-text-label))] uppercase tracking-wider">
             Internal Operations Console
           </span>
           <div className="flex items-center gap-3">
@@ -124,7 +124,7 @@ const CoreAppLayout = () => {
             <button
               onClick={handleLogout}
               title="Déconnexion"
-              className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="p-1.5 rounded-md text-[hsl(var(--core-text-label))] hover:text-red-400 hover:bg-red-500/10 transition-colors"
             >
               <LogOut className="h-4 w-4" />
             </button>
