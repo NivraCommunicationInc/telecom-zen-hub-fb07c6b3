@@ -3,7 +3,7 @@
  * Activity log viewer for all admin/staff actions
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Activity, User, Clock, FileText, Shield, AlertTriangle, Search, RefreshCw } from "lucide-react";
