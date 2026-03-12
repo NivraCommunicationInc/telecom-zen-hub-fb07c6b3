@@ -1,16 +1,182 @@
 /**
- * Core Dark Processing Wrapper
- * Overrides the white-themed order processing workspace components
- * to match Nivra Core's dark ops-grade aesthetic.
- * Scoped under .core-dark-processing to avoid leaking.
+ * Core Console — Global Dark Theme Text & Surface Overrides
+ * 
+ * Scoped under .core-console (the Nivra Core layout root)
+ * and .core-dark-processing (order processing panels).
+ *
+ * Text hierarchy:
+ *   Primary   #F8FAFC  → hsl(210 40% 98%)   — headings, values, key data
+ *   Secondary #CBD5E1  → hsl(213 27% 84%)   — body text, descriptions
+ *   Label     #94A3B8  → hsl(215 16% 65%)   — labels, metadata, headers
+ *   Disabled  #64748B  → hsl(215 16% 47%)   — placeholders, low-priority
+ *   Links     #38BDF8  → hsl(199 89% 60%)   — interactive links/buttons
+ *
+ * FORBIDDEN on dark backgrounds:
+ *   #1E293B, #334155, #475569 — these are invisible.
  */
 
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 1: .core-console — All Nivra Core pages
+   ═══════════════════════════════════════════════════════════════ */
+
+.core-console {
+  /* ─── Gray text → readable tokens ─── */
+  & .text-gray-900,
+  & .text-gray-800 { color: hsl(210, 40%, 98%) !important; }  /* primary */
+  & .text-gray-700,
+  & .text-gray-600 { color: hsl(213, 27%, 84%) !important; }  /* secondary */
+  & .text-gray-500,
+  & .text-gray-400 { color: hsl(215, 16%, 65%) !important; }  /* label */
+  & .text-gray-300 { color: hsl(215, 16%, 47%) !important; }  /* disabled */
+
+  /* ─── Slate text → readable tokens ─── */
+  & .text-slate-900,
+  & .text-slate-800 { color: hsl(210, 40%, 98%) !important; }
+  & .text-slate-700,
+  & .text-slate-600 { color: hsl(213, 27%, 84%) !important; }
+  & .text-slate-500,
+  & .text-slate-400 { color: hsl(215, 16%, 65%) !important; }
+  & .text-slate-300 { color: hsl(215, 16%, 47%) !important; }
+
+  /* ─── Zinc text → readable tokens ─── */
+  & .text-zinc-900,
+  & .text-zinc-800 { color: hsl(210, 40%, 98%) !important; }
+  & .text-zinc-700,
+  & .text-zinc-600 { color: hsl(213, 27%, 84%) !important; }
+  & .text-zinc-500,
+  & .text-zinc-400 { color: hsl(215, 16%, 65%) !important; }
+
+  /* ─── Neutral text ─── */
+  & .text-neutral-900,
+  & .text-neutral-800 { color: hsl(210, 40%, 98%) !important; }
+  & .text-neutral-700,
+  & .text-neutral-600 { color: hsl(213, 27%, 84%) !important; }
+  & .text-neutral-500,
+  & .text-neutral-400 { color: hsl(215, 16%, 65%) !important; }
+
+  /* ─── Hex-based forbidden colors ─── */
+  & .text-\[\#1E293B\],
+  & .text-\[\#334155\],
+  & .text-\[\#475569\] { color: hsl(215, 16%, 65%) !important; }
+
+  & .text-black { color: hsl(210, 40%, 98%) !important; }
+
+  /* ─── Surfaces ─── */
+  & .bg-white { background-color: hsl(220, 20%, 11%) !important; }
+  & .bg-gray-50 { background-color: hsl(220, 20%, 13%) !important; }
+  & .bg-gray-100 { background-color: hsl(220, 15%, 14%) !important; }
+  & .bg-slate-50 { background-color: hsl(220, 20%, 13%) !important; }
+  & .bg-slate-100 { background-color: hsl(220, 15%, 14%) !important; }
+
+  /* ─── Borders ─── */
+  & .border-gray-200,
+  & .border-gray-300,
+  & .border-slate-200,
+  & .border-slate-300 { border-color: hsl(220, 15%, 18%) !important; }
+  & .border-gray-100,
+  & .border-slate-100 { border-color: hsl(220, 15%, 14%) !important; }
+
+  /* ─── Hover states ─── */
+  & .hover\:bg-gray-50:hover,
+  & .hover\:bg-slate-50:hover { background-color: hsl(220, 15%, 16%) !important; }
+  & .hover\:bg-gray-100:hover,
+  & .hover\:bg-slate-100:hover { background-color: hsl(220, 15%, 18%) !important; }
+
+  /* ─── Colored background badges (light→dark) ─── */
+  & .bg-emerald-50 { background-color: hsl(160, 40%, 12%) !important; }
+  & .border-emerald-100 { border-color: hsl(160, 40%, 18%) !important; }
+  & .text-emerald-700,
+  & .text-emerald-800 { color: hsl(160, 60%, 65%) !important; }
+
+  & .bg-red-50 { background-color: hsl(0, 40%, 12%) !important; }
+  & .border-red-200 { border-color: hsl(0, 40%, 20%) !important; }
+  & .text-red-600 { color: hsl(0, 70%, 65%) !important; }
+  & .text-red-700,
+  & .text-red-800 { color: hsl(0, 70%, 65%) !important; }
+
+  & .bg-amber-50 { background-color: hsl(40, 40%, 12%) !important; }
+  & .border-amber-200 { border-color: hsl(40, 40%, 20%) !important; }
+  & .text-amber-700,
+  & .text-amber-800 { color: hsl(38, 92%, 60%) !important; }
+
+  & .bg-blue-50 { background-color: hsl(210, 40%, 12%) !important; }
+  & .text-blue-700,
+  & .text-blue-800 { color: hsl(210, 90%, 68%) !important; }
+
+  & .bg-purple-50 { background-color: hsl(270, 40%, 12%) !important; }
+  & .text-purple-700,
+  & .text-purple-800 { color: hsl(270, 67%, 65%) !important; }
+
+  & .bg-orange-50 { background-color: hsl(25, 40%, 12%) !important; }
+  & .text-orange-700,
+  & .text-orange-800 { color: hsl(25, 95%, 60%) !important; }
+
+  /* ─── Light badge bg ─── */
+  & .bg-blue-100 { background-color: hsl(210, 90%, 68% / 0.15) !important; }
+  & .bg-green-100,
+  & .bg-emerald-100 { background-color: hsl(158, 64%, 42% / 0.15) !important; }
+  & .bg-yellow-100 { background-color: hsl(45, 93%, 58% / 0.15) !important; }
+  & .bg-red-100 { background-color: hsl(0, 72%, 60% / 0.15) !important; }
+  & .bg-purple-100 { background-color: hsl(270, 67%, 65% / 0.15) !important; }
+  & .bg-amber-100 { background-color: hsl(38, 92%, 50% / 0.15) !important; }
+
+  /* ─── Active step nav ─── */
+  & .bg-gray-900 { background-color: hsl(220, 20%, 18%) !important; }
+  & .hover\:bg-gray-800:hover { background-color: hsl(220, 20%, 22%) !important; }
+
+  /* ─── Buttons with explicit bg-gray-900 / text-white ─── */
+  & button.bg-gray-900,
+  & .bg-gray-900.text-white {
+    background-color: hsl(152, 60%, 35%) !important;
+    color: white !important;
+  }
+  & button.bg-gray-900:hover,
+  & .hover\:bg-gray-800.text-white:hover {
+    background-color: hsl(152, 60%, 40%) !important;
+  }
+
+  /* ─── Dialog / Modal ─── */
+  & [role="dialog"] .bg-white,
+  & [data-radix-dialog-content] {
+    background-color: hsl(220, 20%, 13%) !important;
+    border-color: hsl(220, 15%, 20%) !important;
+  }
+
+  /* ─── Inputs ─── */
+  & input, & textarea, & select,
+  & [role="combobox"] {
+    background-color: hsl(220, 20%, 10%) !important;
+    border-color: hsl(220, 15%, 22%) !important;
+    color: hsl(210, 40%, 98%) !important;
+  }
+
+  & input::placeholder,
+  & textarea::placeholder {
+    color: hsl(215, 16%, 47%) !important;
+  }
+
+  /* ─── Cards with border-2 ─── */
+  & .border-2.border-gray-200 { border-color: hsl(220, 15%, 22%) !important; }
+  & .border-2.border-gray-900 { border-color: hsl(152, 60%, 40%) !important; }
+
+  /* ─── Badge overrides ─── */
+  & [data-slot="badge"] {
+    border-color: hsl(220, 15%, 25%) !important;
+  }
+
+  /* ─── Label elements ─── */
+  & label {
+    color: hsl(213, 27%, 84%) !important;
+  }
+}
+
+/* Alias: .core-dark-processing inherits the same overrides */
 .core-dark-processing {
   /* ─── Base surfaces ─── */
   & .bg-white { background-color: hsl(220, 20%, 11%) !important; }
   & .bg-gray-50 { background-color: hsl(220, 20%, 13%) !important; }
   & .bg-gray-100 { background-color: hsl(220, 15%, 14%) !important; }
-  
+
   /* ─── Borders ─── */
   & .border-gray-200,
   & .border-gray-300 { border-color: hsl(220, 15%, 18%) !important; }
@@ -28,43 +194,43 @@
   & .hover\:bg-gray-50:hover { background-color: hsl(220, 15%, 16%) !important; }
   & .hover\:bg-gray-100:hover { background-color: hsl(220, 15%, 18%) !important; }
 
-  /* ─── Active step (dark nav) — already dark bg, but ensure text contrast ─── */
+  /* ─── Active step ─── */
   & .bg-gray-900 { background-color: hsl(220, 20%, 18%) !important; }
   & .hover\:bg-gray-800:hover { background-color: hsl(220, 20%, 22%) !important; }
 
-  /* ─── Emerald accents (keep as-is, they work on dark) ─── */
+  /* ─── Emerald ─── */
   & .bg-emerald-50 { background-color: hsl(160, 40%, 12%) !important; }
   & .border-emerald-100 { border-color: hsl(160, 40%, 18%) !important; }
   & .text-emerald-800 { color: hsl(160, 60%, 65%) !important; }
 
-  /* ─── Red accents ─── */
+  /* ─── Red ─── */
   & .bg-red-50 { background-color: hsl(0, 40%, 12%) !important; }
   & .border-red-200 { border-color: hsl(0, 40%, 20%) !important; }
   & .text-red-600 { color: hsl(0, 70%, 65%) !important; }
 
-  /* ─── Amber accents ─── */
+  /* ─── Amber ─── */
   & .bg-amber-50 { background-color: hsl(40, 40%, 12%) !important; }
   & .border-amber-200 { border-color: hsl(40, 40%, 20%) !important; }
 
-  /* ─── Buttons with explicit bg-gray-900 / text-white (action buttons) ─── */
+  /* ─── Buttons ─── */
   & button.bg-gray-900,
-  & .bg-gray-900.text-white { 
-    background-color: hsl(152, 60%, 35%) !important; 
+  & .bg-gray-900.text-white {
+    background-color: hsl(152, 60%, 35%) !important;
     color: white !important;
   }
   & button.bg-gray-900:hover,
-  & .hover\:bg-gray-800.text-white:hover { 
-    background-color: hsl(152, 60%, 40%) !important; 
+  & .hover\:bg-gray-800.text-white:hover {
+    background-color: hsl(152, 60%, 40%) !important;
   }
 
-  /* ─── Dialog / Modal overrides ─── */
+  /* ─── Dialog ─── */
   & [role="dialog"] .bg-white,
-  & [data-radix-dialog-content] { 
-    background-color: hsl(220, 20%, 13%) !important; 
+  & [data-radix-dialog-content] {
+    background-color: hsl(220, 20%, 13%) !important;
     border-color: hsl(220, 15%, 20%) !important;
   }
 
-  /* ─── Input / Textarea ─── */
+  /* ─── Inputs ─── */
   & input, & textarea, & select,
   & [role="combobox"] {
     background-color: hsl(220, 20%, 10%) !important;
@@ -72,11 +238,11 @@
     color: hsl(210, 40%, 98%) !important;
   }
 
-  /* ─── Cards with border-2 (fulfillment options etc.) ─── */
+  /* ─── Cards ─── */
   & .border-2.border-gray-200 { border-color: hsl(220, 15%, 22%) !important; }
   & .border-2.border-gray-900 { border-color: hsl(152, 60%, 40%) !important; }
 
-  /* ─── Badge overrides ─── */
+  /* ─── Badges ─── */
   & [data-slot="badge"] {
     border-color: hsl(220, 15%, 25%) !important;
   }
@@ -84,25 +250,18 @@
 
 
 /* ═══════════════════════════════════════════════════════════════════
-   CORE CONSOLE — Global Text Contrast System
-   Remaps all inline hsl(220,10%,XX%) text colors to strict 4-tier tokens.
-   Applied globally to all core-app pages and components.
+   SECTION 2: Arbitrary HSL text color remapping
+   Catches inline hsl(220,10%,XX%) used across Core components.
    ═══════════════════════════════════════════════════════════════════ */
 
-/*
- * Tier 1 — DISABLED / LOW PRIORITY (#64748B)
- * Original: hsl(220,10%,25-35%) — nearly invisible on dark backgrounds
- */
+/* Tier 1 — DISABLED (#64748B) */
 .text-\[hsl\(220\2c 10\%\2c 25\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 30\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 35\%\)\] {
   color: hsl(var(--core-text-disabled)) !important;
 }
 
-/*
- * Tier 2 — LABELS / METADATA / COLUMN HEADERS (#94A3B8)
- * Original: hsl(220,10%,38-50%)
- */
+/* Tier 2 — LABELS (#94A3B8) */
 .text-\[hsl\(220\2c 10\%\2c 38\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 40\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 45\%\)\],
@@ -110,19 +269,13 @@
   color: hsl(var(--core-text-label)) !important;
 }
 
-/*
- * Tier 3 — SECONDARY TEXT (#CBD5E1)
- * Original: hsl(220,10%,55-60%)
- */
+/* Tier 3 — SECONDARY (#CBD5E1) */
 .text-\[hsl\(220\2c 10\%\2c 55\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 60\%\)\] {
   color: hsl(var(--core-text-secondary)) !important;
 }
 
-/*
- * Tier 4 — PRIMARY TEXT (#F8FAFC)
- * Original: hsl(220,10%,65-92%) — values, names, key data
- */
+/* Tier 4 — PRIMARY (#F8FAFC) */
 .text-\[hsl\(220\2c 10\%\2c 65\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 70\%\)\],
 .text-\[hsl\(220\2c 10\%\2c 75\%\)\],
@@ -133,7 +286,7 @@
   color: hsl(var(--core-text-primary)) !important;
 }
 
-/* ── Placeholder overrides ── */
+/* Placeholder overrides */
 .placeholder\:text-\[hsl\(220\2c 10\%\2c 35\%\)\]::placeholder {
   color: hsl(var(--core-text-disabled)) !important;
 }
@@ -141,7 +294,7 @@
   color: hsl(var(--core-text-label)) !important;
 }
 
-/* ── Hover text overrides ── */
+/* Hover text overrides */
 .hover\:text-\[hsl\(220\2c 10\%\2c 55\%\)\]:hover,
 .hover\:text-\[hsl\(220\2c 10\%\2c 60\%\)\]:hover {
   color: hsl(var(--core-text-secondary)) !important;
@@ -152,19 +305,18 @@
   color: hsl(var(--core-text-primary)) !important;
 }
 
-/* ── Group-hover overrides ── */
+/* Group-hover */
 .group-hover\:text-\[hsl\(220\2c 10\%\2c 50\%\)\]:is(:where(.group):hover *) {
   color: hsl(var(--core-text-secondary)) !important;
 }
 
-/* ── Icon colors (same text- prefix, remap for visibility) ── */
-/* Icons using hsl(220,10%,30%) are too dark; bump to label tier */
+/* Icon color fix */
 .text-\[hsl\(220\2c 10\%\2c 30\%\)\] svg,
 svg.text-\[hsl\(220\2c 10\%\2c 30\%\)\] {
   color: hsl(var(--core-text-disabled)) !important;
 }
 
-/* ── Standalone #A1A1AA references (used in EquipmentInventoryPage) ── */
+/* Standalone hex references */
 .text-\[\#A1A1AA\] {
   color: hsl(var(--core-text-label)) !important;
 }

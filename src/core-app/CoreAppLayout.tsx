@@ -53,7 +53,7 @@ const CoreAppLayout = () => {
   const isActive = (href: string) => isCorePathActive(location.pathname, href);
 
   return (
-    <div className="min-h-screen flex bg-[hsl(220,20%,8%)] text-[hsl(var(--core-text-primary))]">
+    <div className="core-console min-h-screen flex bg-[hsl(220,20%,8%)] text-[hsl(var(--core-text-primary))]">
       {/* ═══ SIDEBAR ═══ */}
       <aside
         className={cn(
