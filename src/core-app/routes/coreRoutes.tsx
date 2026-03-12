@@ -22,6 +22,13 @@ const SubscriptionDetailPage = lazy(() => import("@/core-app/pages/SubscriptionD
 const AppointmentsPage = lazy(() => import("@/core-app/pages/AppointmentsPage"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
 const EquipmentInventoryPage = lazy(() => import("@/core-app/pages/EquipmentInventoryPage"));
+const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
+const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
+const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
+const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
+const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
+const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
+const CorePromotionsPage = lazy(() => import("@/core-app/pages/CorePromotionsPage"));
 
 export const coreRoutes: RouteObject = {
   path: "/core",
@@ -44,5 +51,12 @@ export const coreRoutes: RouteObject = {
     { path: "appointments", element: <AppointmentsPage /> },
     { path: "pos", element: <CorePOSPage /> },
     { path: "equipment", element: <EquipmentInventoryPage /> },
+    { path: "kyc", element: <CoreKYCPage /> },
+    { path: "settings", element: <CoreSettingsPage /> },
+    { path: "staff", element: <CoreStaffPage /> },
+    { path: "channels", element: <CoreChannelsPage /> },
+    { path: "stock", element: <CoreStockPage /> },
+    { path: "support", element: <CoreSupportPage /> },
+    { path: "promotions", element: <CorePromotionsPage /> },
   ],
 };

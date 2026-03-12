@@ -26,6 +26,13 @@ const CoreOrderDetail = lazy(() => import("./pages/CoreOrderDetail"));
 const CoreAccountDetail = lazy(() => import("./pages/CoreAccountDetail"));
 const CoreInvoiceDetail = lazy(() => import("./pages/CoreInvoiceDetail"));
 const CorePOSPage = lazy(() => import("./pages/CorePOSPage"));
+const CoreKYCPage = lazy(() => import("./pages/CoreKYCPage"));
+const CoreSettingsPage = lazy(() => import("./pages/CoreSettingsPage"));
+const CoreStaffPage = lazy(() => import("./pages/CoreStaffPage"));
+const CoreChannelsPage = lazy(() => import("./pages/CoreChannelsPage"));
+const CoreStockPage = lazy(() => import("./pages/CoreStockPage"));
+const CoreSupportPage = lazy(() => import("./pages/CoreSupportPage"));
+const CorePromotionsPage = lazy(() => import("./pages/CorePromotionsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +89,13 @@ const CoreApp = () => {
                 <Route path="subscriptions/:id" element={<Suspense fallback={null}><SubscriptionDetailPage /></Suspense>} />
                 <Route path="appointments" element={<Suspense fallback={null}><AppointmentsPage /></Suspense>} />
                 <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
+                <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
+                <Route path="settings" element={<Suspense fallback={null}><CoreSettingsPage /></Suspense>} />
+                <Route path="staff" element={<Suspense fallback={null}><CoreStaffPage /></Suspense>} />
+                <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
+                <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
+                <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
+                <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
               </Route>
             </Route>
 

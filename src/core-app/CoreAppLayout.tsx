@@ -23,6 +23,12 @@ import {
   Terminal,
   Receipt,
   Package,
+  Shield,
+  Settings,
+  Tv,
+  Boxes,
+  Headphones,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +44,13 @@ const NAV_SECTIONS = [
   { label: "Équipements", href: "/equipment", icon: Package },
   { label: "Rendez-vous", href: "/appointments", icon: Calendar },
   { label: "POS", href: "/pos", icon: Receipt },
+  { label: "KYC", href: "/kyc", icon: Shield },
+  { label: "Support", href: "/support", icon: Headphones },
+  { label: "Stocks", href: "/stock", icon: Boxes },
+  { label: "Chaînes TV", href: "/channels", icon: Tv },
+  { label: "Promotions", href: "/promotions", icon: Tag },
+  { label: "Personnel", href: "/staff", icon: Users },
+  { label: "Paramètres", href: "/settings", icon: Settings },
 ] as const;
 
 const CoreAppLayout = () => {
