@@ -89,6 +89,13 @@ const CoreApp = () => {
                 <Route path="subscriptions/:id" element={<Suspense fallback={null}><SubscriptionDetailPage /></Suspense>} />
                 <Route path="appointments" element={<Suspense fallback={null}><AppointmentsPage /></Suspense>} />
                 <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
+                <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
+                <Route path="settings" element={<Suspense fallback={null}><CoreSettingsPage /></Suspense>} />
+                <Route path="staff" element={<Suspense fallback={null}><CoreStaffPage /></Suspense>} />
+                <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
+                <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
+                <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
+                <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
               </Route>
             </Route>
 

@@ -51,5 +51,12 @@ export const coreRoutes: RouteObject = {
     { path: "appointments", element: <AppointmentsPage /> },
     { path: "pos", element: <CorePOSPage /> },
     { path: "equipment", element: <EquipmentInventoryPage /> },
+    { path: "kyc", element: <CoreKYCPage /> },
+    { path: "settings", element: <CoreSettingsPage /> },
+    { path: "staff", element: <CoreStaffPage /> },
+    { path: "channels", element: <CoreChannelsPage /> },
+    { path: "stock", element: <CoreStockPage /> },
+    { path: "support", element: <CoreSupportPage /> },
+    { path: "promotions", element: <CorePromotionsPage /> },
   ],
 };
