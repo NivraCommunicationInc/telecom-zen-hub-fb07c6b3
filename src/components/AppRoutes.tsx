@@ -620,28 +620,72 @@ const AppRoutes = () => {
       <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense>}>
         <Route element={<CoreAppLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
+          {/* Dashboard */}
           <Route path="dashboard" element={<Suspense fallback={null}><CoreDashboard /></Suspense>} />
+          <Route path="activity" element={<Suspense fallback={null}><CoreActivityPage /></Suspense>} />
+          <Route path="live-activity" element={<Suspense fallback={null}><CoreLiveActivityPage /></Suspense>} />
+          <Route path="system-status" element={<Suspense fallback={null}><CoreSystemStatusPage /></Suspense>} />
+          {/* Operations */}
           <Route path="work-queue" element={<Suspense fallback={null}><CoreWorkQueue /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={null}><CoreOrders /></Suspense>} />
           <Route path="orders/:orderId" element={<Suspense fallback={null}><CoreOrderDetail /></Suspense>} />
+          <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
+          <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
+          <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
+          <Route path="requests" element={<Suspense fallback={null}><CoreRequestsPage /></Suspense>} />
+          {/* Clients */}
+          <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
+          <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
           <Route path="accounts" element={<Suspense fallback={null}><CoreAccounts /></Suspense>} />
           <Route path="accounts/:accountId" element={<Suspense fallback={null}><CoreAccountDetail /></Suspense>} />
+          <Route path="documents" element={<Suspense fallback={null}><CoreDocumentsPage /></Suspense>} />
+          {/* Billing */}
+          <Route path="billing" element={<Suspense fallback={null}><CoreBillingPage /></Suspense>} />
           <Route path="invoices" element={<Suspense fallback={null}><CoreInvoices /></Suspense>} />
           <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><CoreInvoiceDetail /></Suspense>} />
           <Route path="payments" element={<Suspense fallback={null}><CorePayments /></Suspense>} />
           <Route path="subscriptions" element={<Suspense fallback={null}><CoreSubscriptions /></Suspense>} />
           <Route path="subscriptions/:id" element={<Suspense fallback={null}><CoreSubscriptionDetail /></Suspense>} />
-          <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
-          <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
-          <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
-          <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
-          <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
-          <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
-          <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
+          <Route path="pdf-templates" element={<Suspense fallback={null}><CorePDFTemplatesPage /></Suspense>} />
+          <Route path="recouvrement" element={<Suspense fallback={null}><CoreRecouvrementPage /></Suspense>} />
+          <Route path="contested-payments" element={<Suspense fallback={null}><CoreContestedPaymentsPage /></Suspense>} />
+          <Route path="contested-invoices" element={<Suspense fallback={null}><CoreContestedInvoicesPage /></Suspense>} />
+          {/* Catalogue */}
+          <Route path="services" element={<Suspense fallback={null}><CoreServicesPage /></Suspense>} />
           <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
+          <Route path="streaming" element={<Suspense fallback={null}><CoreStreamingPage /></Suspense>} />
+          <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />
+          {/* Marketing */}
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
+          <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
+          <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />
+          <Route path="communication-email" element={<Suspense fallback={null}><CoreCommunicationEmailPage /></Suspense>} />
+          <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
+          {/* Partners */}
+          <Route path="referrals" element={<Suspense fallback={null}><CoreReferralsPage /></Suspense>} />
+          <Route path="referral-terms" element={<Suspense fallback={null}><CoreReferralTermsPage /></Suspense>} />
+          {/* Support */}
+          <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
+          <Route path="internal-tickets" element={<Suspense fallback={null}><CoreInternalTicketsPage /></Suspense>} />
+          <Route path="web-forms" element={<Suspense fallback={null}><CoreWebFormsPage /></Suspense>} />
+          <Route path="telephony" element={<Suspense fallback={null}><CoreTelephonyPage /></Suspense>} />
+          {/* HR */}
+          <Route path="careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
+          <Route path="applications" element={<Suspense fallback={null}><CoreApplicationsPage /></Suspense>} />
+          {/* System */}
+          <Route path="notifications" element={<Suspense fallback={null}><CoreNotificationsPage /></Suspense>} />
+          <Route path="maintenance" element={<Suspense fallback={null}><CoreMaintenancePage /></Suspense>} />
+          <Route path="email-activity" element={<Suspense fallback={null}><CoreEmailActivityPage /></Suspense>} />
+          <Route path="site-settings" element={<Suspense fallback={null}><CoreSiteSettingsPage /></Suspense>} />
+          <Route path="users-access" element={<Suspense fallback={null}><CoreUsersAccessPage /></Suspense>} />
+          <Route path="audit-log" element={<Suspense fallback={null}><CoreAuditLogPage /></Suspense>} />
+          <Route path="security-events" element={<Suspense fallback={null}><CoreSecurityEventsPage /></Suspense>} />
+          <Route path="security-guardian" element={<Suspense fallback={null}><CoreSecurityGuardianPage /></Suspense>} />
+          <Route path="system-audit" element={<Suspense fallback={null}><CoreSystemAuditPage /></Suspense>} />
           <Route path="staff" element={<Suspense fallback={null}><CoreStaffPage /></Suspense>} />
+          <Route path="my-account" element={<Suspense fallback={null}><CoreMyAccountPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><CoreSettingsPage /></Suspense>} />
+          <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
         </Route>
       </Route>
 
