@@ -24,10 +24,10 @@ export default function CoreDocumentsPage() {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["core-doc-requests", statusFilter],
     queryFn: async () => {
-      let url = "/rest/v1/document_requests?select=*&order=created_at.desc&limit=200";
-      if (statusFilter !== "all") url += `&status=eq.${statusFilter}`;
-      const res = await supabase.get(url);
-      return Array.isArray(res) ? res : [];
+      let q = supabase.from("document_requests" as any).select("*").order("created_at", { ascending: false }).limit(200);
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      const { data } = await q;
+      return (data as any[]) || [];
     },
   });
 
