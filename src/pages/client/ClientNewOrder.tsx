@@ -2030,10 +2030,10 @@ const ClientNewOrder = () => {
         terminal_fee: terminalFee,
         terminal_count: terminalQuantity,
         router_fee: routerFee,
-        // Server-side authoritative totals
-        total_amount: Math.max(0, serverPricing.grand_total),
-        tps_amount: serverPricing.tps_amount,
-        tvq_amount: serverPricing.tvq_amount,
+        // Server-side authoritative totals — GUARD: never send NaN/null
+        total_amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0,
+        tps_amount: Number.isFinite(serverPricing.tps_amount) ? serverPricing.tps_amount : 0,
+        tvq_amount: Number.isFinite(serverPricing.tvq_amount) ? serverPricing.tvq_amount : 0,
         // Structured pricing snapshot (server-side source of truth)
         pricing_snapshot: serverPricing,
       } as any, {
