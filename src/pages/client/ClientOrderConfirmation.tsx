@@ -46,6 +46,7 @@ import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
 import { safePDFDownload } from "@/lib/pdfUtils";
+import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
 
 const STATIC_TERMS_PDF = "/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
 
@@ -358,39 +359,50 @@ END:VCALENDAR`;
   // ZERO client-side recalculation is permitted.
   const ps = order.pricing_snapshot;
   const hasSnapshot = !!ps;
-  
+  const normalizedSnapshot = hasSnapshot ? normalizeServerPricingResult(ps) : null;
+
   // One-time fees (from order columns — individual line items for display only)
-  const deliveryFee = order.delivery_fee ?? 0;
-  const activationFee = order.activation_fee ?? 0;
-  const installationFee = Math.max(0, (order.installation_fee || 0) - (order.installation_credit || 0));
-  const routerFee = order.router_fee ?? 0;
-  const terminalFee = order.terminal_fee ?? 0;
-  const simFee = equipment.find(e => e.type === "sim")?.fee || 0;
-  const preauthDiscount = order.preauth_discount || 0;
-  
-  // ===== All totals from pricing_snapshot — Nivra Core canonical =====
-  const monthlyRecurringGross = hasSnapshot ? Number(ps.recurring_subtotal) : (order.subtotal ?? 0);
-  
+  const deliveryFee = toNonNegativeMoney(order.delivery_fee);
+  const activationFee = toNonNegativeMoney(order.activation_fee);
+  const installationFee = toNonNegativeMoney(toMoney(order.installation_fee) - toMoney(order.installation_credit));
+  const routerFee = toNonNegativeMoney(order.router_fee);
+  const terminalFee = toNonNegativeMoney(order.terminal_fee);
+  const simFee = toNonNegativeMoney(equipment.find(e => e.type === "sim")?.fee || 0);
+  const preauthDiscount = toNonNegativeMoney(order.preauth_discount);
+
+  // ===== All totals from pricing_snapshot — normalized canonical numbers =====
+  const monthlyRecurringGross = normalizedSnapshot
+    ? normalizedSnapshot.recurring_subtotal
+    : toNonNegativeMoney(order.subtotal);
+
   // ★ Discount applies ONLY to service portion (recurring), never to equipment/fees
-  // promo_discount + welcome_discount = service-only discounts
-  const serviceOnlyDiscount = hasSnapshot
-    ? Number(ps.promo_discount ?? 0) + Number(ps.welcome_discount ?? 0)
-    : (order.promo_discount_amount ?? 0);
-  const monthlyRecurringNet = Math.max(0, monthlyRecurringGross - serviceOnlyDiscount);
-  const oneTimeSubtotal = hasSnapshot ? Number(ps.one_time_subtotal) : (deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
-  // Display discount = service-only discount (not equipment/delivery)
+  const serviceOnlyDiscount = normalizedSnapshot
+    ? toNonNegativeMoney(normalizedSnapshot.promo_discount + normalizedSnapshot.welcome_discount)
+    : toNonNegativeMoney(order.promo_discount_amount);
+  const monthlyRecurringNet = toNonNegativeMoney(monthlyRecurringGross - serviceOnlyDiscount);
+  const oneTimeSubtotal = normalizedSnapshot
+    ? normalizedSnapshot.one_time_subtotal
+    : toNonNegativeMoney(deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
   const promoDiscount = serviceOnlyDiscount;
-  
-  // ★ Taxes and total — ALL from Nivra Core (pricing_snapshot), NO local recalculation
-  const tpsAmount = hasSnapshot ? Number(ps.tps_amount) : (order.tps_amount ?? 0);
-  const tvqAmount = hasSnapshot ? Number(ps.tvq_amount) : (order.tvq_amount ?? 0);
-  const totalAmount = hasSnapshot ? Number(ps.grand_total) : (order.amount_paid ?? order.total_amount ?? 0);
-  
-  // ★ Monthly total with taxes — from Nivra Core snapshot, NOT computed locally
-  // The snapshot stores the authoritative monthly TPS/TVQ calculated in cents server-side
-  const monthlyTps = hasSnapshot ? Number(ps.tps_amount) * (monthlyRecurringNet / (Number(ps.taxable_base) || 1)) : 0;
-  const monthlyTvq = hasSnapshot ? Number(ps.tvq_amount) * (monthlyRecurringNet / (Number(ps.taxable_base) || 1)) : 0;
-  const monthlyWithTaxes = Math.round((monthlyRecurringNet + monthlyTps + monthlyTvq) * 100) / 100;
+
+  // ★ Taxes and total — always finite, never NaN
+  const taxableBase = normalizedSnapshot ? normalizedSnapshot.taxable_base : toNonNegativeMoney(order.subtotal);
+  const taxes = sanitizeTaxes(
+    taxableBase,
+    normalizedSnapshot?.tps_amount ?? order.tps_amount,
+    normalizedSnapshot?.tvq_amount ?? order.tvq_amount,
+  );
+  const tpsAmount = taxes.tps;
+  const tvqAmount = taxes.tvq;
+  const totalAmount = normalizedSnapshot
+    ? normalizedSnapshot.grand_total
+    : toNonNegativeMoney(order.amount_paid ?? order.total_amount ?? 0);
+
+  // Monthly tax ratio from canonical totals with safe denominator
+  const monthlyTaxRatio = taxes.taxableBase > 0 ? (monthlyRecurringNet / taxes.taxableBase) : 0;
+  const monthlyTps = toMoney(tpsAmount * monthlyTaxRatio);
+  const monthlyTvq = toMoney(tvqAmount * monthlyTaxRatio);
+  const monthlyWithTaxes = toMoney(monthlyRecurringNet + monthlyTps + monthlyTvq);
 
   // Determine fulfillment type
   const isDeliveryOnly = order.installation_type === "auto" || order.delivery_method?.toLowerCase().includes("livraison");

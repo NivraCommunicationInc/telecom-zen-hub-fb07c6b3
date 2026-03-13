@@ -11,6 +11,7 @@ import { CheckCircle2, XCircle, FileText, Send, CreditCard, Loader2, Eye } from 
 import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Props { proc: any; }
 
@@ -23,15 +24,15 @@ export function PaymentInvoiceStep({ proc }: Props) {
 
   // Canonical values from billing_invoices (V2), fallback to order
   const invoiceNumber = invoice?.invoice_number || order.order_number;
-  const subtotal = invoice?.subtotal ?? order.subtotal ?? 0;
-  const tps = invoice?.tps_amount ?? order.tps_amount ?? 0;
-  const tvq = invoice?.tvq_amount ?? order.tvq_amount ?? 0;
-  const total = invoice?.total ?? order.total_amount ?? 0;
-  const amountPaid = invoice?.amount_paid ?? order.amount_paid ?? 0;
-  const balanceDue = invoice?.balance_due ?? (Number(total) - Number(amountPaid));
+  const subtotal = toNonNegativeMoney(invoice?.subtotal ?? order.subtotal ?? 0);
+  const tps = toNonNegativeMoney(invoice?.tps_amount ?? order.tps_amount ?? 0);
+  const tvq = toNonNegativeMoney(invoice?.tvq_amount ?? order.tvq_amount ?? 0);
+  const total = toNonNegativeMoney(invoice?.total ?? order.total_amount ?? 0);
+  const amountPaid = toNonNegativeMoney(invoice?.amount_paid ?? order.amount_paid ?? 0);
+  const balanceDue = toNonNegativeMoney(invoice?.balance_due ?? toMoney(total - amountPaid));
   const invoiceStatus = String(invoice?.status || order.payment_status || "pending").toLowerCase();
   const paymentStatus = invoiceStatus;
-  const isPaid = invoiceStatus === "paid" || Number(balanceDue) <= 0;
+  const isPaid = invoiceStatus === "paid" || balanceDue <= 0;
 
   const handleConfirm = async () => {
     setLoading("confirm");
@@ -90,8 +91,8 @@ export function PaymentInvoiceStep({ proc }: Props) {
         `Facture ${invoiceNumber || ""} — Nivra`,
         {
           invoice_number: invoiceNumber || "",
-          total: Number(total).toFixed(2),
-          balance_due: Number(balanceDue).toFixed(2),
+          total: total.toFixed(2),
+          balance_due: balanceDue.toFixed(2),
         }
       );
     } catch (err) {

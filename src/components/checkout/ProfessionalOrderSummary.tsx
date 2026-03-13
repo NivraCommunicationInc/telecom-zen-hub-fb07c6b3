@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ShoppingCart, ChevronDown, ChevronUp, Receipt } from "lucide-react";
+import { ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
+import { formatCurrencyCAD } from "@/lib/pricing/money";
 
 export interface AuthoritativeCheckoutPricing {
   subtotal: number;
@@ -24,8 +25,7 @@ interface ProfessionalOrderSummaryProps {
   continueDisabled?: boolean;
 }
 
-const formatCurrency = (value: number) =>
-  value.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+const formatCurrency = (value: unknown) => formatCurrencyCAD(value);
 
 export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> = ({
   pricing,

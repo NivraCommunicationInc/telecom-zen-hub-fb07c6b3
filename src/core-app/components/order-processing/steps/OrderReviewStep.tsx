@@ -4,6 +4,7 @@
  */
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
+import { toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Props { proc: any; }
 
@@ -12,10 +13,13 @@ export function OrderReviewStep({ proc }: Props) {
   const ps = order.pricing_snapshot as any;
 
   // Derive amounts from pricing snapshot (canonical) or fallback to order columns
-  const recurringSubtotal = ps?.recurring_subtotal ?? order.subtotal ?? 0;
-  const discountTotal = ps?.discount_total_combined ?? order.discount_amount ?? 0;
-  const recurringNet = Math.max(0, Number(recurringSubtotal) - Number(discountTotal));
-  const oneTimeSubtotal = ps?.one_time_subtotal ?? 0;
+  const recurringSubtotal = toNonNegativeMoney(ps?.recurring_subtotal ?? order.subtotal ?? 0);
+  const discountTotal = toNonNegativeMoney(ps?.discount_total_combined ?? order.discount_amount ?? 0);
+  const recurringNet = Math.max(0, recurringSubtotal - discountTotal);
+  const oneTimeSubtotal = toNonNegativeMoney(ps?.one_time_subtotal ?? 0);
+  const tpsAmount = toNonNegativeMoney(ps?.tps_amount ?? order.tps_amount ?? 0);
+  const tvqAmount = toNonNegativeMoney(ps?.tvq_amount ?? order.tvq_amount ?? 0);
+  const totalAmount = toNonNegativeMoney(ps?.grand_total ?? order.total_amount ?? 0);
 
   return (
     <div>
@@ -96,11 +100,11 @@ export function OrderReviewStep({ proc }: Props) {
           {Number(discountTotal) > 0 && (
             <div className="flex justify-between"><span className="text-gray-500">Rabais</span><span className="text-emerald-600 tabular-nums">-{Number(discountTotal).toFixed(2)} $</span></div>
           )}
-          <div className="flex justify-between"><span className="text-gray-500">TPS</span><span className="text-gray-700 tabular-nums">{Number(order.tps_amount || 0).toFixed(2)} $</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">TVQ</span><span className="text-gray-700 tabular-nums">{Number(order.tvq_amount || 0).toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">TPS</span><span className="text-gray-700 tabular-nums">{tpsAmount.toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">TVQ</span><span className="text-gray-700 tabular-nums">{tvqAmount.toFixed(2)} $</span></div>
           <div className="flex justify-between border-t border-gray-200 pt-1 font-semibold">
             <span className="text-gray-900">Total</span>
-            <span className="text-gray-900 tabular-nums">{Number(order.total_amount || 0).toFixed(2)} $</span>
+            <span className="text-gray-900 tabular-nums">{totalAmount.toFixed(2)} $</span>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeServerPricingResult } from "@/lib/pricing/money";
 
 export interface CartLineItem {
   type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation' | 'activation';
@@ -79,5 +80,5 @@ export async function computeCheckoutPricing(
     throw new Error(`Pricing calculation failed: ${error.message}`);
   }
 
-  return data as unknown as ServerPricingResult;
+  return normalizeServerPricingResult(data) as ServerPricingResult;
 }

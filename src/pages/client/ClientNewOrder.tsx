@@ -79,6 +79,7 @@ import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
+import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Service {
   id: string;
@@ -1900,28 +1901,43 @@ const ClientNewOrder = () => {
         });
       }
 
-      // Use compute_checkout_pricing RPC as authoritative for totals (discounts applied correctly).
-      // Nivra API response is used for order/invoice/payment numbers only.
-      // CRITICAL: liveServerPricing (from compute_checkout_pricing RPC) correctly subtracts discounts
-      // from taxable_base. The Nivra API may return gross totals without promo discounts.
-      // ★ NIVRA CORE IS THE SINGLE SOURCE OF TRUTH for pricing
-      // Use Nivra API response as authoritative totals. RPC is fallback only.
-      const rpcPricing = liveServerPricing;
-      const serverPricing = {
+      // Use compute_checkout_pricing RPC as authoritative for ALL amounts.
+      // Nivra API response is used for order/invoice/payment reference numbers only.
+      const rpcPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
+
+      const nivraFallbackPricing = normalizeServerPricingResult({
         grand_total: nivraOrderResponse.total,
         tps_amount: nivraOrderResponse.gst,
         tvq_amount: nivraOrderResponse.qst,
         taxable_base: nivraOrderResponse.subtotal,
-        recurring_subtotal: rpcPricing ? Number(rpcPricing.recurring_subtotal) : monthlyRecurring,
-        one_time_subtotal: rpcPricing ? Number(rpcPricing.one_time_subtotal) : oneTimeFees,
+        recurring_subtotal: monthlyRecurring,
+        one_time_subtotal: oneTimeFees,
+        discount_total_combined: 0,
+        promo_discount: 0,
+        welcome_discount: 0,
+        preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+      });
+
+      const canonicalPricing = normalizeServerPricingResult({
+        ...(rpcPricing || nivraFallbackPricing),
+        grand_total: rpcPricing?.grand_total ?? nivraFallbackPricing.grand_total,
+        tps_amount: rpcPricing?.tps_amount ?? nivraFallbackPricing.tps_amount,
+        tvq_amount: rpcPricing?.tvq_amount ?? nivraFallbackPricing.tvq_amount,
+        taxable_base: rpcPricing?.taxable_base ?? nivraFallbackPricing.taxable_base,
+        recurring_subtotal: rpcPricing?.recurring_subtotal ?? nivraFallbackPricing.recurring_subtotal,
+        one_time_subtotal: rpcPricing?.one_time_subtotal ?? nivraFallbackPricing.one_time_subtotal,
         discount_total_combined: rpcPricing?.discount_total_combined ?? 0,
         promo_discount: rpcPricing?.promo_discount ?? 0,
         welcome_discount: rpcPricing?.welcome_discount ?? 0,
+        preauth_discount: rpcPricing?.preauth_discount ?? (acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0),
+      });
+
+      const serverPricing = {
+        ...canonicalPricing,
         welcome_applied: rpcPricing?.welcome_applied ?? false,
         is_new_customer: rpcPricing?.is_new_customer ?? false,
-        preauth_discount: rpcPricing?.preauth_discount ?? 0,
         promo_applied: rpcPricing?.promo_applied ?? null,
-        computed_at: new Date().toISOString(),
+        computed_at: rpcPricing?.computed_at || new Date().toISOString(),
         // ★ Nivra Core canonical references
         nivra_order_number: nivraOrderResponse.order_number,
         nivra_payment_number: nivraOrderResponse.payment_number,
@@ -1929,27 +1945,23 @@ const ClientNewOrder = () => {
         nivra_order_id: nivraOrderResponse.order_id,
         // Billing cycle anchored to order creation day
         billing_cycle_day: new Date().getDate(),
-        cents: {
-          recurring_subtotal: rpcPricing ? rpcPricing.cents.recurring_subtotal : Math.round(monthlyRecurring * 100),
-          one_time_subtotal: rpcPricing ? rpcPricing.cents.one_time_subtotal : Math.round(oneTimeFees * 100),
-          discount_total_combined: rpcPricing?.cents?.discount_total_combined ?? 0,
-          promo_discount: rpcPricing?.cents?.promo_discount ?? 0,
-          welcome_discount: rpcPricing?.cents?.welcome_discount ?? 0,
-          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
-          tps: Math.round(nivraOrderResponse.gst * 100),
-          tvq: Math.round(nivraOrderResponse.qst * 100),
-          grand_total: Math.round(nivraOrderResponse.total * 100),
-        },
       };
-      console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
+      console.log("[ServerPricing] Canonical totals normalized:", serverPricing);
 
-      // Use server-side totals for the order (authoritative)
-      const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
-      const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
+      // Use normalized totals for persisted order fields
+      const grossSubtotal = toMoney(subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + toMoney(s.monthly_price), 0));
+      const grossTotal = toMoney(grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee);
       
-      // Cap discount using server-side computed discount (enforces min_payable_cents)
-      const cappedDiscount = serverPricing.discount_total_combined;
-      
+      // Cap discount using canonical server pricing (enforces min_payable_cents)
+      const cappedDiscount = toNonNegativeMoney(serverPricing.discount_total_combined);
+      const orderTotalAmount = toNonNegativeMoney(serverPricing.grand_total);
+      const orderTaxableBase = toNonNegativeMoney(serverPricing.taxable_base);
+      const { tps: orderTpsAmount, tvq: orderTvqAmount } = sanitizeTaxes(
+        orderTaxableBase,
+        serverPricing.tps_amount,
+        serverPricing.tvq_amount,
+      );
+
       // Determine payment method value NOW (before insert) to avoid null
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
         : paymentMethod === "etransfer" ? "etransfer"
@@ -1997,7 +2009,7 @@ const ClientNewOrder = () => {
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
-        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? (Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0) : 0,
+        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? orderTotalAmount : 0,
         payment_reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : null,
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
@@ -2009,17 +2021,17 @@ const ClientNewOrder = () => {
         channel_assigned_by: hasTVService && channelData.length > 0 ? user.id : null,
         // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
         equipment_details: wrapLineItemsForOrder(lineItems, {
-          subtotal: serverPricing.taxable_base,
+          subtotal: orderTaxableBase,
           discount_amount: cappedDiscount,
-          base_amount: serverPricing.taxable_base,
-          tps_amount: serverPricing.tps_amount,
-          tvq_amount: serverPricing.tvq_amount,
-          total: Math.max(0, serverPricing.grand_total),
+          base_amount: orderTaxableBase,
+          tps_amount: orderTpsAmount,
+          tvq_amount: orderTvqAmount,
+          total: orderTotalAmount,
           promo_code: appliedPromo?.code || null,
           promo_name: appliedPromo?.name || null,
           payment_method: paymentMethodValue,
-          monthly_recurring: serverPricing.recurring_subtotal,
-          one_time_fees: serverPricing.one_time_subtotal,
+          monthly_recurring: toNonNegativeMoney(serverPricing.recurring_subtotal),
+          one_time_fees: toNonNegativeMoney(serverPricing.one_time_subtotal),
         }),
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
@@ -2030,10 +2042,10 @@ const ClientNewOrder = () => {
         terminal_fee: terminalFee,
         terminal_count: terminalQuantity,
         router_fee: routerFee,
-        // Server-side authoritative totals — GUARD: never send NaN/null
-        total_amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0,
-        tps_amount: Number.isFinite(serverPricing.tps_amount) ? serverPricing.tps_amount : 0,
-        tvq_amount: Number.isFinite(serverPricing.tvq_amount) ? serverPricing.tvq_amount : 0,
+        // Server-side authoritative totals — always finite and normalized
+        total_amount: orderTotalAmount,
+        tps_amount: orderTpsAmount,
+        tvq_amount: orderTvqAmount,
         // Structured pricing snapshot (server-side source of truth)
         pricing_snapshot: serverPricing,
       } as any, {
@@ -2084,14 +2096,14 @@ const ClientNewOrder = () => {
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
           order_id: data.id,
-          amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0, // Server-side authoritative amount — GUARD: never null
+          amount: orderTotalAmount, // Canonical normalized amount
           payment_method: actualPaymentMethod,
           reference_number: paymentRef,
           payment_reference: nivraPaymentRef,
           status: paymentStatus,
           card_type: actualPaymentMethod === "credit_card" ? "Visa/Mastercard" : null,
           card_last_four: actualPaymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
-          etransfer_amount: actualPaymentMethod === "etransfer" ? (Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0) : null,
+          etransfer_amount: actualPaymentMethod === "etransfer" ? orderTotalAmount : null,
           etransfer_sender_name: actualPaymentMethod === "etransfer" ? etransferSenderName : null,
           provider_payment_id: actualPaymentMethod === "paypal" ? paypalCaptureId : null,
           captured_at: actualPaymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
@@ -2124,7 +2136,7 @@ const ClientNewOrder = () => {
         const billingServices = selectedServices.map(s => ({
           plan_code: s.id || s.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
           plan_name: s.name || 'Service Nivra',
-          plan_price: Number(s.price) || 0,
+          plan_price: toMoney(s.price),
           category: s.category || 'Other'
         }));
 
@@ -2139,13 +2151,13 @@ const ClientNewOrder = () => {
           
           // V2.4: ALL pricing from server-side compute_checkout_pricing RPC — no client-computed discounts
           const billingTotalsSnapshot = {
-            subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
-            discount_amount: serverPricing.discount_total_combined,
-            welcome_discount_amount: serverPricing.welcome_discount ?? 0, // SERVER-SIDE — from RPC
-            base_amount: serverPricing.taxable_base,
-            tps_amount: serverPricing.tps_amount,
-            tvq_amount: serverPricing.tvq_amount,
-            total: serverPricing.grand_total,
+            subtotal: toMoney(toNonNegativeMoney(serverPricing.recurring_subtotal) + toNonNegativeMoney(serverPricing.one_time_subtotal)),
+            discount_amount: cappedDiscount,
+            welcome_discount_amount: toNonNegativeMoney(serverPricing.welcome_discount), // SERVER-SIDE — from RPC
+            base_amount: orderTaxableBase,
+            tps_amount: orderTpsAmount,
+            tvq_amount: orderTvqAmount,
+            total: orderTotalAmount,
             promo_code: appliedPromo?.code || null,
             promo_name: appliedPromo?.name || null,
             payment_method: actualPaymentMethod,
@@ -2168,7 +2180,7 @@ const ClientNewOrder = () => {
               payment_method: actualPaymentMethod,
               payment_status: isPayPalPaid ? 'paid' : 'pending',
               payment_reference: isPayPalPaid ? paypalCaptureId : null,
-              total_amount: isPayPalPaid ? serverPricing.grand_total : null,
+              total_amount: isPayPalPaid ? orderTotalAmount : null,
               // BILLING TOTALS (v2.2) - Source of truth from checkout
               billing_totals: billingTotalsSnapshot,
             },
@@ -2404,27 +2416,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             id: s.id,
             name: s.name,
             category: s.category,
-            price: Number(s.price),
+            price: toMoney(s.price),
             quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
           })),
           equipment_snapshot: {
-            terminal: hasTVService ? { name: TERMINAL_CONFIG.name, quantity: terminalQuantity, unit_price: TERMINAL_CONFIG.price } : null,
-            router: (hasInternetService || hasTVService) ? { name: ROUTER_CONFIG_DYNAMIC.name, quantity: 1, unit_price: ROUTER_CONFIG_DYNAMIC.price } : null,
-            sim: hasMobileService ? { name: SIM_CONFIG_DYNAMIC.physical.name, quantity: totalMobileLineQuantity, unit_price: SIM_CONFIG_DYNAMIC.physical.price } : null,
+            terminal: hasTVService ? { name: TERMINAL_CONFIG.name, quantity: terminalQuantity, unit_price: toMoney(TERMINAL_CONFIG.price) } : null,
+            router: (hasInternetService || hasTVService) ? { name: ROUTER_CONFIG_DYNAMIC.name, quantity: 1, unit_price: toMoney(ROUTER_CONFIG_DYNAMIC.price) } : null,
+            sim: hasMobileService ? { name: SIM_CONFIG_DYNAMIC.physical.name, quantity: totalMobileLineQuantity, unit_price: toMoney(SIM_CONFIG_DYNAMIC.physical.price) } : null,
           },
           fees_snapshot: {
-            activation: activationFee,
-            delivery: deliveryFee,
-            installation: installationFee,
-            promo_discount: appliedPromo?.discount_amount || 0,
+            activation: toMoney(activationFee),
+            delivery: toMoney(deliveryFee),
+            installation: toMoney(installationFee),
+            promo_discount: toMoney(appliedPromo?.discount_amount || 0),
             promo_code: appliedPromo?.code || null,
           },
           billing_snapshot: {
-            subtotal: serverPricing.taxable_base,
-            one_time_fees: serverPricing.one_time_subtotal,
-            tps: serverPricing.tps_amount,
-            tvq: serverPricing.tvq_amount,
-            total: Math.max(0, serverPricing.grand_total),
+            subtotal: orderTaxableBase,
+            one_time_fees: toNonNegativeMoney(serverPricing.one_time_subtotal),
+            tps: orderTpsAmount,
+            tvq: orderTvqAmount,
+            total: orderTotalAmount,
             payment_method: paymentMethod || null,
             payment_reference: paymentConfirmationNumber || nivraPaymentRef || null,
           },
@@ -2729,25 +2741,25 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   
   // Calculate total mobile lines across all plans
   const totalMobileLineQuantity = selectedMobileServices.reduce((sum, s) => sum + (mobileLineQuantities[s.id] || 1), 0);
-  
+
   // Calculate mobile monthly total (sum of each plan * its quantity)
-  const mobileMonthlyTotal = selectedMobileServices.reduce((sum, s) => {
+  const mobileMonthlyTotal = toMoney(selectedMobileServices.reduce((sum, s) => {
     const qty = mobileLineQuantities[s.id] || 1;
-    return sum + (Number(s.price) * qty);
-  }, 0);
-  
+    return sum + (toMoney(s.price) * qty);
+  }, 0));
+
   // Calculate totals with fees and taxes based on installation/delivery choice
   // For mobile, multiply each plan by its quantity
-  const subtotal = selectedServices.reduce((sum, s) => {
+  const subtotal = toMoney(selectedServices.reduce((sum, s) => {
     if (s.category === "Mobile") {
       const qty = mobileLineQuantities[s.id] || 1;
-      return sum + (Number(s.price) * qty);
+      return sum + (toMoney(s.price) * qty);
     }
-    return sum + Number(s.price);
-  }, 0);
-  const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
+    return sum + toMoney(s.price);
+  }, 0));
+  const paidChannelTotal = toMoney(selectedPaidChannels.reduce((sum, ch) => sum + toMoney(ch.price), 0));
   // Streaming+ add-ons monthly total
-  const streamingAddonsTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+  const streamingAddonsTotal = toMoney(selectedStreamingServices.reduce((sum, s) => sum + toMoney(s.monthly_price), 0));
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0;
   // SIM: Always physical, quantity matches total mobile lines
@@ -2853,12 +2865,14 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // for pricing display. nivraCoreOrderPricing (from Nivra API) is ONLY used for
   // order/invoice/payment reference numbers — NEVER for amounts, because the Nivra API
   // returns gross totals that don't reflect discounts applied by the RPC.
-  const authoritativePricing = liveServerPricing
+  const normalizedLivePricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
+
+  const authoritativePricing = normalizedLivePricing
     ? {
-        subtotal: Number(liveServerPricing.taxable_base ?? 0),
-        gst: Number(liveServerPricing.tps_amount ?? 0),
-        qst: Number(liveServerPricing.tvq_amount ?? 0),
-        total: Number(liveServerPricing.grand_total ?? 0),
+        subtotal: normalizedLivePricing.taxable_base,
+        gst: normalizedLivePricing.tps_amount,
+        qst: normalizedLivePricing.tvq_amount,
+        total: normalizedLivePricing.grand_total,
         // Reference numbers come from Nivra Core response (if available)
         orderNumber: nivraCoreOrderPricing?.order_number ?? undefined,
         invoiceNumber: nivraCoreOrderPricing?.invoice_number ?? undefined,
@@ -2871,10 +2885,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         total: 0,
       };
 
-  const todayTaxableBase = authoritativePricing?.subtotal ?? 0;
-  const todayTps = authoritativePricing?.gst ?? 0;
-  const todayTvq = authoritativePricing?.qst ?? 0;
-  const todayTotal = authoritativePricing?.total ?? 0;
+  const { taxableBase: todayTaxableBase, tps: todayTps, tvq: todayTvq } = sanitizeTaxes(
+    authoritativePricing?.subtotal ?? 0,
+    authoritativePricing?.gst ?? 0,
+    authoritativePricing?.qst ?? 0,
+  );
+  const todayTotal = toNonNegativeMoney(authoritativePricing?.total ?? 0);
 
   // === MONTHLY RECURRING WITH TAX (display only — distinct from today's payment) ===
   // monthlyRecurring is the pre-tax monthly total (services + channels + streaming)
@@ -2926,17 +2942,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         // Add recurring services
         selectedServices.forEach(s => {
           const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
-          cartItems.push({ type: "service", name: s.name, amount: Number(s.price), quantity: qty });
+          cartItems.push({ type: "service", name: s.name, amount: toMoney(s.price), quantity: qty });
         });
 
         // Add paid TV channels
         selectedPaidChannels.forEach(ch => {
-          cartItems.push({ type: "service", name: ch.name, amount: Number(ch.price), quantity: 1 });
+          cartItems.push({ type: "service", name: ch.name, amount: toMoney(ch.price), quantity: 1 });
         });
 
         // Add streaming add-ons
         selectedStreamingServices.forEach(s => {
-          cartItems.push({ type: "service", name: s.name, amount: Number(s.monthly_price), quantity: 1 });
+          cartItems.push({ type: "service", name: s.name, amount: toMoney(s.monthly_price), quantity: 1 });
         });
 
         // Add one-time fees
