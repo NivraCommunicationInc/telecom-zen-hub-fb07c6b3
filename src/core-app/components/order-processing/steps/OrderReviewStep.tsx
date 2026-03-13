@@ -12,8 +12,6 @@ export function OrderReviewStep({ proc }: Props) {
   const { order, items } = proc;
   const ps = order.pricing_snapshot as any;
 
-  const money = (value: unknown) => toNonNegativeMoney(value).toFixed(2);
-
   // Derive amounts from pricing snapshot (canonical) or fallback to order columns
   const recurringSubtotal = toNonNegativeMoney(ps?.recurring_subtotal ?? order.subtotal ?? 0);
   const discountTotal = toNonNegativeMoney(ps?.discount_total_combined ?? order.discount_amount ?? 0);
