@@ -3,9 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ShoppingCart, ChevronDown, ChevronUp, Receipt } from "lucide-react";
+import { ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
 import { formatCurrencyCAD } from "@/lib/pricing/money";
-...
+
+export interface AuthoritativeCheckoutPricing {
+  subtotal: number;
+  gst: number;
+  qst: number;
+  total: number;
+  orderNumber?: string;
+  invoiceNumber?: string;
+  paymentNumber?: string;
+}
+
+interface ProfessionalOrderSummaryProps {
+  pricing: AuthoritativeCheckoutPricing | null;
+  isLoading?: boolean;
+  isMobile?: boolean;
+  selectedServicesCount?: number;
+  onContinue?: () => void;
+  continueDisabled?: boolean;
+}
+
 const formatCurrency = (value: unknown) => formatCurrencyCAD(value);
 
 export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> = ({
