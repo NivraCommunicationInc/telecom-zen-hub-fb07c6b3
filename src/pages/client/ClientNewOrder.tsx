@@ -2136,7 +2136,7 @@ const ClientNewOrder = () => {
         const billingServices = selectedServices.map(s => ({
           plan_code: s.id || s.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
           plan_name: s.name || 'Service Nivra',
-          plan_price: Number(s.price) || 0,
+          plan_price: toMoney(s.price),
           category: s.category || 'Other'
         }));
 
@@ -2151,13 +2151,13 @@ const ClientNewOrder = () => {
           
           // V2.4: ALL pricing from server-side compute_checkout_pricing RPC — no client-computed discounts
           const billingTotalsSnapshot = {
-            subtotal: serverPricing.recurring_subtotal + serverPricing.one_time_subtotal,
-            discount_amount: serverPricing.discount_total_combined,
-            welcome_discount_amount: serverPricing.welcome_discount ?? 0, // SERVER-SIDE — from RPC
-            base_amount: serverPricing.taxable_base,
-            tps_amount: serverPricing.tps_amount,
-            tvq_amount: serverPricing.tvq_amount,
-            total: serverPricing.grand_total,
+            subtotal: toMoney(toNonNegativeMoney(serverPricing.recurring_subtotal) + toNonNegativeMoney(serverPricing.one_time_subtotal)),
+            discount_amount: cappedDiscount,
+            welcome_discount_amount: toNonNegativeMoney(serverPricing.welcome_discount), // SERVER-SIDE — from RPC
+            base_amount: orderTaxableBase,
+            tps_amount: orderTpsAmount,
+            tvq_amount: orderTvqAmount,
+            total: orderTotalAmount,
             promo_code: appliedPromo?.code || null,
             promo_name: appliedPromo?.name || null,
             payment_method: actualPaymentMethod,
