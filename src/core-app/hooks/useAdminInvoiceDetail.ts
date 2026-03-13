@@ -3,7 +3,7 @@
  * Identical logic to @/hooks/admin/useAdminInvoiceDetail.
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface InvoiceDetailLine {
   id: string;

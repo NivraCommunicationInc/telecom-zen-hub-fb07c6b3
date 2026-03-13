@@ -12,7 +12,7 @@ import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
-import { adminClient } from "@/integrations/backend";
+import { supabase as adminClient } from "@/integrations/supabase/client";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { toast } from "sonner";
 

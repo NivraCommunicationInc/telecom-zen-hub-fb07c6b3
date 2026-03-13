@@ -3,7 +3,7 @@
  * Identical logic to @/hooks/admin/useCoreGlobalSearch.
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 

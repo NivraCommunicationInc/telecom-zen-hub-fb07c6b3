@@ -3,7 +3,7 @@
  * All data from authoritative DB tables, zero mock data.
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface WorkQueueItem {
   id: string;
