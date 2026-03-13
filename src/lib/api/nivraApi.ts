@@ -3,7 +3,7 @@
  * Source of truth for product pricing and order creation.
  */
 
-const API_BASE = "https://telecom-zen-hub-b5f9c7c4.proud-band-c162.workers.dev";
+const API_BASE = "http://localhost:3001/api";
 
 // ── Product types ──
 
