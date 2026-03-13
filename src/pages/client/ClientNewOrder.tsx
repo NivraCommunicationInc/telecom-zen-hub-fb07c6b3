@@ -5135,7 +5135,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span className="text-muted-foreground">Services 1er mois</span>
                       <span className="text-foreground">{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-...
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
