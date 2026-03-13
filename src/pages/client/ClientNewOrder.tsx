@@ -2009,7 +2009,7 @@ const ClientNewOrder = () => {
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
-        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? (Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0) : 0,
+        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? orderTotalAmount : 0,
         payment_reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : null,
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
@@ -2021,17 +2021,17 @@ const ClientNewOrder = () => {
         channel_assigned_by: hasTVService && channelData.length > 0 ? user.id : null,
         // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
         equipment_details: wrapLineItemsForOrder(lineItems, {
-          subtotal: serverPricing.taxable_base,
+          subtotal: orderTaxableBase,
           discount_amount: cappedDiscount,
-          base_amount: serverPricing.taxable_base,
-          tps_amount: serverPricing.tps_amount,
-          tvq_amount: serverPricing.tvq_amount,
-          total: Math.max(0, serverPricing.grand_total),
+          base_amount: orderTaxableBase,
+          tps_amount: orderTpsAmount,
+          tvq_amount: orderTvqAmount,
+          total: orderTotalAmount,
           promo_code: appliedPromo?.code || null,
           promo_name: appliedPromo?.name || null,
           payment_method: paymentMethodValue,
-          monthly_recurring: serverPricing.recurring_subtotal,
-          one_time_fees: serverPricing.one_time_subtotal,
+          monthly_recurring: toNonNegativeMoney(serverPricing.recurring_subtotal),
+          one_time_fees: toNonNegativeMoney(serverPricing.one_time_subtotal),
         }),
         equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
@@ -2042,10 +2042,10 @@ const ClientNewOrder = () => {
         terminal_fee: terminalFee,
         terminal_count: terminalQuantity,
         router_fee: routerFee,
-        // Server-side authoritative totals — GUARD: never send NaN/null
-        total_amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0,
-        tps_amount: Number.isFinite(serverPricing.tps_amount) ? serverPricing.tps_amount : 0,
-        tvq_amount: Number.isFinite(serverPricing.tvq_amount) ? serverPricing.tvq_amount : 0,
+        // Server-side authoritative totals — always finite and normalized
+        total_amount: orderTotalAmount,
+        tps_amount: orderTpsAmount,
+        tvq_amount: orderTvqAmount,
         // Structured pricing snapshot (server-side source of truth)
         pricing_snapshot: serverPricing,
       } as any, {
