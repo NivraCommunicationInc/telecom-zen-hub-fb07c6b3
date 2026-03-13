@@ -17,7 +17,7 @@ import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
-import { fetchNivraProducts, createNivraOrder, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, SKU } from "@/lib/api/nivraApi";
+import { fetchNivraProducts, createNivraOrder, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
