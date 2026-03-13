@@ -2740,7 +2740,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     if (payload.signature === promoCartSignatureRef.current) return;
 
     // Silent revalidation (no success toast)
-    void validateAndApplyPromo(appliedPromo.code, { silent: true });
+    void validateAndApplyPromo(appliedPromo.code, {
+      silent: true,
+      allowExistingCodeRevalidation: true,
+    });
   }, [
     appliedPromo?.code,
     isValidatingPromo,
