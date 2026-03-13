@@ -2096,14 +2096,14 @@ const ClientNewOrder = () => {
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
           order_id: data.id,
-          amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0, // Server-side authoritative amount — GUARD: never null
+          amount: orderTotalAmount, // Canonical normalized amount
           payment_method: actualPaymentMethod,
           reference_number: paymentRef,
           payment_reference: nivraPaymentRef,
           status: paymentStatus,
           card_type: actualPaymentMethod === "credit_card" ? "Visa/Mastercard" : null,
           card_last_four: actualPaymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
-          etransfer_amount: actualPaymentMethod === "etransfer" ? (Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0) : null,
+          etransfer_amount: actualPaymentMethod === "etransfer" ? orderTotalAmount : null,
           etransfer_sender_name: actualPaymentMethod === "etransfer" ? etransferSenderName : null,
           provider_payment_id: actualPaymentMethod === "paypal" ? paypalCaptureId : null,
           captured_at: actualPaymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
