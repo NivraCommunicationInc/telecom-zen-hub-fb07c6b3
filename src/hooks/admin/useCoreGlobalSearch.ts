@@ -23,7 +23,7 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
   const results: SearchResult[] = [];
 
   // Run all searches in parallel
-  const [accounts, customers, orders, invoices, payments, subscriptions] = await Promise.all([
+  const [accounts, customers, orders, invoices, payments, subscriptions, profiles] = await Promise.all([
     // 1. Accounts — search by account_number, account_name
     supabase
       .from("accounts")
