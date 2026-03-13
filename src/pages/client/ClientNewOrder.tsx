@@ -211,6 +211,8 @@ const generateQuebecPhoneNumber = (): string => {
 const ORDER_DRAFT_KEY = "nivra_order_draft";
 const INSTALLATION_APPOINTMENT_ENABLED = true;
 const DEFAULT_INSTALLATION_CHOICE: "auto" | "technician" = "auto";
+const PROMO_ALREADY_APPLIED_MESSAGE = "Ce rabais est déjà appliqué à votre commande";
+const PROMO_SINGLE_DISCOUNT_MESSAGE = "Un seul rabais promotionnel est permis par transaction";
 
 // Streaming service interface for Streaming+ add-ons
 interface StreamingService {
@@ -1419,9 +1421,10 @@ const ClientNewOrder = () => {
 
   const validateAndApplyPromo = async (
     code: string,
-    options?: { silent?: boolean }
+    options?: { silent?: boolean; allowExistingCodeRevalidation?: boolean }
   ): Promise<boolean> => {
     const silent = options?.silent === true;
+    const allowExistingCodeRevalidation = options?.allowExistingCodeRevalidation === true;
 
     if (!code || !code.trim()) {
       if (!silent) toast.error("Veuillez entrer un code promo");
@@ -1429,6 +1432,23 @@ const ClientNewOrder = () => {
     }
 
     const payload = buildPromoValidationPayload(code);
+    const normalizedAppliedCode = appliedPromo?.code?.trim().toUpperCase().replace(/[.,;:!?]+$/, "") || null;
+    const hasWelcomeDiscountAlreadyApplied =
+      toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0) > 0 || !!liveServerPricing?.welcome_applied;
+
+    if (!allowExistingCodeRevalidation) {
+      if (normalizedAppliedCode === payload.normalizedCode) {
+        setPromoValidationError(PROMO_ALREADY_APPLIED_MESSAGE);
+        if (!silent) toast.error(PROMO_ALREADY_APPLIED_MESSAGE);
+        return false;
+      }
+
+      if ((normalizedAppliedCode && normalizedAppliedCode !== payload.normalizedCode) || hasWelcomeDiscountAlreadyApplied) {
+        setPromoValidationError(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        if (!silent) toast.error(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        return false;
+      }
+    }
 
     // Mark signature as the last validated cart to prevent immediate revalidation loops
     promoCartSignatureRef.current = payload.signature;
@@ -1461,13 +1481,22 @@ const ClientNewOrder = () => {
         return false;
       }
 
+      const validatedDiscountAmount = toNonNegativeMoney(data?.discount_amount ?? 0);
+      if (validatedDiscountAmount <= 0) {
+        setAppliedPromo(null);
+        setInstallationCredit(0);
+        setPromoValidationError(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        if (!silent) toast.error(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        return false;
+      }
+
       setAppliedPromo({
         id: data.promo.id,
         code: data.promo.code,
         name: data.promo.name,
         discount_type: data.promo.discount_type,
         discount_value: data.promo.discount_value,
-        discount_amount: data.discount_amount,
+        discount_amount: validatedDiscountAmount,
         applies_to: data.promo.applies_to,
         duration: data.promo.duration,
         // Referral code specific fields
@@ -1483,7 +1512,7 @@ const ClientNewOrder = () => {
 
       if (!silent) {
         toast.success(
-          `Code promo "${data.promo.code}" appliqué! Réduction de ${Number(data.discount_amount).toFixed(2)} $`
+          `Code promo "${data.promo.code}" appliqué! Réduction de ${validatedDiscountAmount.toFixed(2)} $`
         );
       }
 
@@ -1807,10 +1836,11 @@ const ClientNewOrder = () => {
       ];
       
       // Build discounts array (promo + preauth only - no auto SIM credits)
+      const promoDiscountForLineItems = toNonNegativeMoney(liveServerPricing?.promo_discount ?? 0);
       const discountsForLineItems = [
-        ...(appliedPromo && appliedPromo.discount_amount > 0 ? [{
+        ...(appliedPromo && promoDiscountForLineItems > 0 ? [{
           name: `Rabais promotionnel (${appliedPromo.code})`,
-          amount: appliedPromo.discount_amount,
+          amount: promoDiscountForLineItems,
           description: appliedPromo.name,
         }] : []),
         ...((liveServerPricing?.welcome_discount ?? 0) > 0 ? [{
@@ -1943,7 +1973,7 @@ const ClientNewOrder = () => {
         : paymentMethod === "promo_free" ? "promo_free"
         : "etransfer";
 
-      const cappedDiscount = toNonNegativeMoney(serverPricing.discount_total_combined);
+      const canonicalPromoDiscount = toNonNegativeMoney(serverPricing.promo_discount);
       const orderTotalAmount = toNonNegativeMoney(serverPricing.grand_total);
       const orderTaxableBase = toNonNegativeMoney(serverPricing.taxable_base);
       const { tps: orderTpsAmount, tvq: orderTvqAmount } = sanitizeTaxes(
@@ -1951,6 +1981,7 @@ const ClientNewOrder = () => {
         serverPricing.tps_amount,
         serverPricing.tvq_amount,
       );
+      const shouldAttachPromoToCheckout = !!appliedPromo && canonicalPromoDiscount > 0;
 
       // ═══════════════════════════════════════════════════════════════
       // SUBMIT TO NIVRA CORE — Creates order, invoice, payment, subs
@@ -1990,12 +2021,12 @@ const ClientNewOrder = () => {
           ...(orderDeliveryFee > 0 ? [{ sku: SKU.DELIVERY, name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
           ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
         ],
-        promo: appliedPromo ? {
+        promo: shouldAttachPromoToCheckout && appliedPromo ? {
           code: appliedPromo.code,
           name: appliedPromo.name,
           discount_type: appliedPromo.discount_type,
           discount_value: appliedPromo.discount_value,
-          discount_amount: cappedDiscount,
+          discount_amount: canonicalPromoDiscount,
           is_referral_code: appliedPromo.is_referral_code || false,
           referral_code_id: appliedPromo.referral_code_id,
           influencer_id: appliedPromo.influencer_id,
@@ -2186,8 +2217,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
-      // Record promo/referral redemption if promo was applied (moved from onSuccess for reliability)
-      if (appliedPromo && user?.id) {
+      // Record promo/referral redemption only when promo discount was actually applied by authoritative pricing
+      if (appliedPromo && user?.id && canonicalPromoDiscount > 0) {
         try {
           // Check if this is a referral code (influencer code)
           if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
@@ -2198,7 +2229,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               order_id: data.id,
               customer_id: user.id,
               customer_email: (profile?.email || user.email || "").toLowerCase(),
-              customer_discount_amount: appliedPromo.discount_amount,
+              customer_discount_amount: canonicalPromoDiscount,
               status: 'pending',
             });
             
@@ -2226,7 +2257,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               order_number: data.order_number,
               client_id: user.id,
               client_email: (profile?.email || user.email || "").toLowerCase(),
-              discount_amount: appliedPromo.discount_amount,
+              discount_amount: canonicalPromoDiscount,
             });
             if (promoError) {
               console.error("[Promo] Redemption insert failed:", promoError);
@@ -2241,7 +2272,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             user.id,
             data.id,
             appliedPromo.code,
-            appliedPromo.discount_amount
+            canonicalPromoDiscount
           );
         } catch (promoErr) {
           console.error("[Promo/Referral] Failed to record redemption (non-blocking):", promoErr);
@@ -2304,7 +2335,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             activation: toMoney(activationFee),
             delivery: toMoney(deliveryFee),
             installation: toMoney(installationFee),
-            promo_discount: toMoney(appliedPromo?.discount_amount || 0),
+            promo_discount: canonicalPromoDiscount,
             promo_code: appliedPromo?.code || null,
           },
           billing_snapshot: {
@@ -2686,9 +2717,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   //   - discount_total_combined (sum of both, no stacking)
   const serverPromoDiscount = toNonNegativeMoney(liveServerPricing?.promo_discount ?? 0);
   const welcomeDiscountAmount = toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0);
+  const hasWelcomeDiscountAlreadyApplied = welcomeDiscountAmount > 0 || !!liveServerPricing?.welcome_applied;
   const promoDiscount = serverPromoDiscount; // alias for backward compat
-  
-  const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
   // Total discount from server (promo + welcome, mutually exclusive / no stacking)
   const totalDiscount = toNonNegativeMoney(liveServerPricing?.discount_total_combined ?? 0);
@@ -2711,7 +2741,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     if (payload.signature === promoCartSignatureRef.current) return;
 
     // Silent revalidation (no success toast)
-    void validateAndApplyPromo(appliedPromo.code, { silent: true });
+    void validateAndApplyPromo(appliedPromo.code, {
+      silent: true,
+      allowExistingCodeRevalidation: true,
+    });
   }, [
     appliedPromo?.code,
     isValidatingPromo,
@@ -2765,6 +2798,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     authoritativePricing?.qst ?? 0,
   );
   const todayTotal = toNonNegativeMoney(authoritativePricing?.total ?? 0);
+  const authoritativeOneTimeSubtotal = toNonNegativeMoney(normalizedLivePricing?.one_time_subtotal ?? oneTimeFees);
+  const authoritativeRecurringSubtotal = toNonNegativeMoney(normalizedLivePricing?.recurring_subtotal ?? monthlyRecurring);
+  const firstInvoiceRecurringNet = toNonNegativeMoney(authoritativeRecurringSubtotal - totalDiscount);
 
   // === MONTHLY RECURRING WITH TAX (display only — distinct from today's payment) ===
   // monthlyRecurring is the pre-tax monthly total (services + channels + streaming)
@@ -4881,10 +4917,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-emerald-500">-{appliedPromo.discount_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {appliedPromo.discount_type === 'percent' ? `${appliedPromo.discount_value}%` : 'Montant fixe'}
-                          </p>
+                          {serverPromoDiscount > 0 ? (
+                            <>
+                              <p className="font-bold text-emerald-500">-{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {appliedPromo.discount_type === 'percent' ? `${appliedPromo.discount_value}%` : 'Montant fixe'}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-xs text-amber-500">{PROMO_SINGLE_DISCOUNT_MESSAGE}</p>
+                          )}
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={removePromo} className="text-destructive">
@@ -4901,12 +4943,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             setDiscountCode(e.target.value);
                             if (promoValidationError) setPromoValidationError(null);
                           }}
-                          disabled={isValidatingPromo}
+                          disabled={isValidatingPromo || hasWelcomeDiscountAlreadyApplied}
                         />
-                        <Button variant="outline" onClick={applyDiscountCode} disabled={isValidatingPromo}>
+                        <Button
+                          variant="outline"
+                          onClick={applyDiscountCode}
+                          disabled={isValidatingPromo || hasWelcomeDiscountAlreadyApplied}
+                        >
                           {isValidatingPromo ? "..." : "Appliquer"}
                         </Button>
                       </div>
+                      {hasWelcomeDiscountAlreadyApplied && (
+                        <p className="text-xs text-amber-500">{PROMO_SINGLE_DISCOUNT_MESSAGE}</p>
+                      )}
                       {promoValidationError && (
                         <p className="text-xs text-destructive">{promoValidationError}</p>
                       )}
@@ -5063,7 +5112,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-foreground">Frais uniques estimés</span>
                       <span className="font-bold text-foreground">
-                        {oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Équipements, livraison, activation</p>
@@ -5074,61 +5123,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Paiement aujourd'hui</p>
                     
                     {/* One-time fees subtotal */}
-                    {oneTimeFees > 0 && (
+                    {authoritativeOneTimeSubtotal > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Frais uniques</span>
-                        <span className="text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span className="text-foreground">{authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
 
                     {/* First month recurring gross */}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Services 1er mois</span>
-                      <span className="text-foreground">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-
-                    {/* Welcome discount (server-authoritative) */}
-                    {welcomeDiscountAmount > 0 && (
-                      <div className="flex justify-between text-sm text-emerald-500">
-                        <span className="flex items-center gap-1">
-                          <Check className="w-3 h-3" />
-                          Rabais nouveau client (50%)
-                        </span>
-                        <span className="font-medium">
-                          -{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Promo discount (server-authoritative — only if RPC actually applied it) */}
-                    {serverPromoDiscount > 0 && appliedPromo && (
-                      <div className="flex justify-between text-sm text-emerald-500">
-                        <span className="flex items-center gap-1">
-                          <Check className="w-3 h-3" />
-                          Rabais ({appliedPromo.code})
-                        </span>
-                        <span className="font-medium">
-                          -{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Promo blocked notice (welcome takes priority) */}
-                    {isPromoBlocked && appliedPromo && (
-                      <div className="flex justify-between text-sm text-amber-500">
-                        <span className="flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />
-                          {appliedPromo.code} — non cumulable
-                        </span>
-                        <span className="text-xs">Rabais bienvenue déjà appliqué</span>
-                      </div>
-                    )}
-
-                    {/* Net first month after discount (server-authoritative) */}
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
-                        <span>{toNonNegativeMoney(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                   </div>
@@ -5431,13 +5441,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sous-total frais uniques</span>
-                      <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     
                     {/* First month recurring breakdown */}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Mensuel (1er mois)</span>
-                      <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     
                     {/* Show all applicable discounts — SERVER-SIDE values only */}
@@ -5977,44 +5987,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     <div className="flex justify-between font-medium">
                       <span className="text-muted-foreground">Total frais uniques</span>
-                      <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
 
                     <Separator className="my-1" />
 
                     {/* ═══ SECTION C: Today's Payment ═══ */}
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Paiement aujourd'hui</p>
-                    {oneTimeFees > 0 && (
+                    {authoritativeOneTimeSubtotal > 0 && (
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Frais uniques</span>
-                        <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Services 1er mois</span>
-                      <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {welcomeDiscountAmount > 0 && (
-                      <div className="flex justify-between text-xs text-emerald-500">
-                        <span>Rabais nouveau client (50%)</span>
-                        <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
-                    )}
-                    {serverPromoDiscount > 0 && appliedPromo && (
-                      <div className="flex justify-between text-xs text-emerald-500">
-                        <span>Rabais ({appliedPromo.code})</span>
-                        <span>-{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
-                    )}
-                    {isPromoBlocked && appliedPromo && (
-                      <div className="flex justify-between text-xs text-amber-500">
-                        <span>{appliedPromo.code} — non cumulable</span>
-                      </div>
-                    )}
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois</span>
-                        <span>{toNonNegativeMoney(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
