@@ -2335,7 +2335,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             activation: toMoney(activationFee),
             delivery: toMoney(deliveryFee),
             installation: toMoney(installationFee),
-            promo_discount: toMoney(appliedPromo?.discount_amount || 0),
+            promo_discount: canonicalPromoDiscount,
             promo_code: appliedPromo?.code || null,
           },
           billing_snapshot: {
