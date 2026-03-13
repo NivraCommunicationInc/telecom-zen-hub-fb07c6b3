@@ -3,7 +3,7 @@
  * Shows account number, status, active services, unpaid invoices, risk level
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
 import {
