@@ -39,6 +39,173 @@ export interface NivraOrderResponse {
   invoice_number: string;
 }
 
+// ── Full Checkout Submission (Nivra Core = source of truth) ──
+
+export interface NivraCheckoutCustomer {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  date_of_birth?: string | null;
+}
+
+export interface NivraCheckoutAddress {
+  street: string;
+  apartment?: string | null;
+  city: string;
+  province: string;
+  postal_code: string;
+}
+
+export interface NivraCheckoutService {
+  sku: string;
+  name: string;
+  plan_code: string;
+  plan_price: number;
+  category: string;
+  quantity: number;
+}
+
+export interface NivraCheckoutEquipment {
+  sku: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface NivraCheckoutFee {
+  sku: string;
+  name: string;
+  amount: number;
+}
+
+export interface NivraCheckoutPromo {
+  code: string;
+  name: string;
+  discount_type: string;
+  discount_value: number;
+  discount_amount: number;
+  is_referral_code?: boolean;
+  referral_code_id?: string;
+  influencer_id?: string;
+}
+
+export interface NivraCheckoutPayment {
+  method: 'paypal' | 'etransfer' | 'credit_card' | 'promo_free';
+  status: 'captured' | 'pending' | 'pre_authorized';
+  reference?: string | null;
+  paypal_capture_id?: string | null;
+  preauth_opt_in?: boolean;
+  preauth_discount?: number;
+}
+
+export interface NivraCheckoutIdentity {
+  verification_session_id: string;
+  id_type?: string | null;
+  id_number?: string | null;
+  id_expiration?: string | null;
+  id_province?: string | null;
+}
+
+export interface NivraCheckoutChannels {
+  base_channels: Array<{ id: string; name: string; }>;
+  free_channels: Array<{ id: string; name: string; }>;
+  paid_channels: Array<{ id: string; name: string; price: number; }>;
+}
+
+export interface NivraCheckoutInstallation {
+  type: string; // 'auto' | 'technician' | 'delivery_standard' | 'uber_express' | 'ship_to_home'
+  delivery_fee: number;
+  installation_fee: number;
+  scheduled_date?: string | null;
+  scheduled_time?: string | null;
+}
+
+export interface NivraCheckoutPortRequest {
+  port_in: boolean;
+  phone_number: string;
+  carrier?: string | null;
+  account_number?: string | null;
+  service_account?: string | null;
+  imei?: string | null;
+}
+
+export interface NivraCheckoutStreamingAddon {
+  id: string;
+  name: string;
+  monthly_price: number;
+}
+
+/**
+ * Full checkout payload sent to Nivra Core.
+ * Nivra Core creates: order, invoice, payment, subscription(s).
+ */
+export interface NivraFullCheckoutPayload {
+  /** Idempotency key — prevents duplicate orders on retry */
+  client_request_id: string;
+  customer: NivraCheckoutCustomer;
+  service_address: NivraCheckoutAddress;
+  services: NivraCheckoutService[];
+  equipment: NivraCheckoutEquipment[];
+  fees: NivraCheckoutFee[];
+  promo?: NivraCheckoutPromo | null;
+  payment: NivraCheckoutPayment;
+  identity: NivraCheckoutIdentity;
+  installation: NivraCheckoutInstallation;
+  channels?: NivraCheckoutChannels | null;
+  streaming_addons?: NivraCheckoutStreamingAddon[];
+  port_request?: NivraCheckoutPortRequest | null;
+  /** Server-side pricing snapshot from compute_checkout_pricing RPC */
+  pricing_snapshot: Record<string, any>;
+  /** Line items for contract/PDF generation */
+  line_items: any[];
+  notes?: string;
+  account_id?: string | null;
+}
+
+/**
+ * Full checkout response from Nivra Core.
+ * Contains all canonical references for downstream use.
+ */
+export interface NivraFullCheckoutResponse {
+  success: boolean;
+  /** Nivra Core order UUID */
+  order_id: string;
+  /** Human-readable order number (e.g. "23456") */
+  order_number: string;
+  /** Nivra Core invoice UUID */
+  invoice_id: string;
+  /** Invoice number (e.g. "INV-3511600") */
+  invoice_number: string;
+  /** Nivra Core payment UUID */
+  payment_id: string;
+  /** Payment number (e.g. "PAY-001234") */
+  payment_number: string;
+  /** Subscription UUID (if recurring services) */
+  subscription_id?: string | null;
+  /** Account number (6-digit canonical) */
+  account_number: string;
+  /** Canonical pricing totals */
+  pricing: {
+    subtotal: number;
+    recurring_subtotal: number;
+    one_time_subtotal: number;
+    discount_total: number;
+    welcome_discount: number;
+    promo_discount: number;
+    preauth_discount: number;
+    taxable_base: number;
+    tps_amount: number;
+    tvq_amount: number;
+    grand_total: number;
+  };
+  /** Billing cycle day anchored by Nivra Core */
+  billing_cycle_day: number;
+  /** ISO timestamp of order creation */
+  created_at: string;
+}
+
 // ── Category mapping (API product_type → internal category) ──
 
 const PRODUCT_TYPE_TO_CATEGORY: Record<string, string> = {
