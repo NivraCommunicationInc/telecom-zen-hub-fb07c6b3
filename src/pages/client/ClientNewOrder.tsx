@@ -1948,9 +1948,9 @@ const ClientNewOrder = () => {
       };
       console.log("[ServerPricing] Canonical totals normalized:", serverPricing);
 
-      // Use server-side totals for the order (authoritative)
-      const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
-      const grossTotal = grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee;
+      // Use normalized totals for persisted order fields
+      const grossSubtotal = toMoney(subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + toMoney(s.monthly_price), 0));
+      const grossTotal = toMoney(grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee);
       
       // Cap discount using server-side computed discount (enforces min_payable_cents)
       const cappedDiscount = serverPricing.discount_total_combined;
