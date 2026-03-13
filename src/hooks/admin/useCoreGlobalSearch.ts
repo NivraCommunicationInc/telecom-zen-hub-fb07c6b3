@@ -23,7 +23,7 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
   const results: SearchResult[] = [];
 
   // Run all searches in parallel
-  const [accounts, customers, orders, invoices, payments, subscriptions] = await Promise.all([
+  const [accounts, customers, orders, invoices, payments, subscriptions, profiles] = await Promise.all([
     // 1. Accounts — search by account_number, account_name
     supabase
       .from("accounts")
@@ -31,10 +31,10 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
       .or(`account_number.ilike.${pattern},account_name.ilike.${pattern}`)
       .limit(8),
 
-    // 2. Customers (billing_customers) — search by name, email
+    // 2. Customers (billing_customers) — search by name, email, phone
     supabase
       .from("billing_customers")
-      .select("id, first_name, last_name, email, phone")
+      .select("id, first_name, last_name, email, phone, user_id")
       .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`)
       .limit(8),
 
@@ -81,6 +81,13 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
       if (env !== "all") qb = qb.eq("environment", env);
       return qb;
     })(),
+
+    // 7. Profiles — search by client_number, account_number, full_name, email, phone
+    supabase
+      .from("profiles")
+      .select("user_id, full_name, email, phone, client_number, account_number")
+      .or(`full_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},client_number.ilike.${pattern},account_number.ilike.${pattern}`)
+      .limit(8),
   ]);
 
   // Map accounts
@@ -97,7 +104,7 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
     }
   }
 
-  // Map customers
+  // Map customers — link to client profile if user_id available
   if (customers.data) {
     for (const c of customers.data) {
       results.push({
@@ -106,7 +113,7 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
         title: `${c.first_name} ${c.last_name}`,
         subtitle: c.email,
         badge: null,
-        href: `/core/accounts`, // customers don't have their own detail yet
+        href: c.user_id ? `/core/clients/${c.user_id}` : `/core/accounts`,
       });
     }
   }
@@ -168,6 +175,24 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
         href: `/core/subscriptions/${s.id}`,
         environment: (s as any).environment,
       });
+    }
+  }
+
+  // Map profiles (as customers with link to client profile)
+  if (profiles.data) {
+    for (const p of profiles.data) {
+      // Avoid duplicates with billing_customers
+      const alreadyFound = results.some(r => r.type === "customer" && r.subtitle === p.email);
+      if (!alreadyFound) {
+        results.push({
+          id: p.user_id,
+          type: "customer",
+          title: p.full_name || p.email || p.user_id,
+          subtitle: p.email,
+          badge: p.account_number || p.client_number || null,
+          href: `/core/clients/${p.user_id}`,
+        });
+      }
     }
   }
 

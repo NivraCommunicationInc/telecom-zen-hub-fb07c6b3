@@ -89,7 +89,7 @@ const ClientDashboard = () => {
 
   const dismiss = (id: string) => setDismissedBanners((prev) => [...prev, id]);
 
-  const accountNumber = accountIdentity?.accountNumber || profile?.account_number || profile?.client_number || "Non attribué";
+  const accountNumber = accountIdentity?.accountNumber || profile?.account_number || "Non attribué";
 
   // Group subscriptions by type
   const mobileServices = subscriptions?.filter((s: any) => 

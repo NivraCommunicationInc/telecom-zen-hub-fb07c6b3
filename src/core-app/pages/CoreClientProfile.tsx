@@ -85,25 +85,37 @@ const CoreClientProfile = () => {
     enabled: !!clientId,
   });
 
+  // ── Billing Customer (resolved once, used by subscriptions/invoices/payments) ──
+  const { data: billingCustomer } = useQuery({
+    queryKey: ["core-client-billing-customer", clientId],
+    queryFn: async () => {
+      // Try by user_id first, then by email
+      const { data: byUserId } = await supabase.from("billing_customers")
+        .select("id").eq("user_id", clientId!).maybeSingle();
+      if (byUserId) return byUserId;
+      if (profile?.email) {
+        const { data: byEmail } = await supabase.from("billing_customers")
+          .select("id").eq("email", profile.email).maybeSingle();
+        return byEmail;
+      }
+      return null;
+    },
+    enabled: !!clientId,
+  });
+
   // ── Subscriptions ──
   const { data: subscriptions = [] } = useQuery({
-    queryKey: ["core-client-subscriptions", clientId],
+    queryKey: ["core-client-subscriptions", clientId, billingCustomer?.id],
     queryFn: async () => {
-      if (!account) return [];
-      // Get billing customer for this account
-      const { data: customer } = await supabase.from("billing_customers")
-        .select("id")
-        .eq("email", profile?.email || "")
-        .maybeSingle();
-      if (!customer) return [];
+      if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_subscriptions")
         .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category")
-        .eq("customer_id", customer.id)
+        .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
         .limit(10);
       return data || [];
     },
-    enabled: !!clientId && !!account && !!profile,
+    enabled: !!billingCustomer,
   });
 
   // ── Equipment ──
@@ -122,38 +134,32 @@ const CoreClientProfile = () => {
 
   // ── Invoices ──
   const { data: invoices = [] } = useQuery({
-    queryKey: ["core-client-invoices", clientId],
+    queryKey: ["core-client-invoices", clientId, billingCustomer?.id],
     queryFn: async () => {
-      if (!profile?.email) return [];
-      const { data: customer } = await supabase.from("billing_customers")
-        .select("id").eq("email", profile.email).maybeSingle();
-      if (!customer) return [];
+      if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_invoices")
         .select("id, invoice_number, total, balance_due, status, due_date, created_at")
-        .eq("customer_id", customer.id)
+        .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
         .limit(10);
       return data || [];
     },
-    enabled: !!clientId && !!profile,
+    enabled: !!billingCustomer,
   });
 
   // ── Payments ──
   const { data: payments = [] } = useQuery({
-    queryKey: ["core-client-payments", clientId],
+    queryKey: ["core-client-payments", clientId, billingCustomer?.id],
     queryFn: async () => {
-      if (!profile?.email) return [];
-      const { data: customer } = await supabase.from("billing_customers")
-        .select("id").eq("email", profile.email).maybeSingle();
-      if (!customer) return [];
+      if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_payments")
         .select("id, payment_number, amount, method, status, created_at, reference")
-        .eq("customer_id", customer.id)
+        .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
         .limit(10);
       return data || [];
     },
-    enabled: !!clientId && !!profile,
+    enabled: !!billingCustomer,
   });
 
   // ── KYC ──

@@ -335,6 +335,20 @@ serve(async (req) => {
       }
     }
     
+    // ★ Resolve account_number for billing_snapshot_account_number on invoices
+    let resolvedAccountNumber: string | null = null;
+    if (body.user_id) {
+      const { data: acctData } = await supabase
+        .from("accounts")
+        .select("account_number")
+        .eq("client_id", body.user_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      resolvedAccountNumber = acctData?.account_number || null;
+      console.log(`[billing-create-order] Resolved account_number: ${resolvedAccountNumber}`);
+    }
+    
     const results = {
       customer_id: customerId,
       subscriptions: [] as Array<{
@@ -463,6 +477,13 @@ serve(async (req) => {
         cycle_end_date: cycleEndStr,
         due_date: dueDate,
         order_id: body.order_id || null,
+        billing_snapshot_account_number: resolvedAccountNumber || null,
+        billing_snapshot_client: {
+          first_name: body.first_name,
+          last_name: body.last_name,
+          email: body.email,
+          phone: body.phone,
+        },
         notes: body.order_number 
           ? `Commande: ${body.order_number}${discountAmount > 0 ? ` | Rabais: -${discountAmount.toFixed(2)}$` : ''}${body.billing_totals?.promo_code ? ` (${body.billing_totals.promo_code})` : ''}`
           : null,

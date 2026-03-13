@@ -39,11 +39,12 @@ export const useClientAccountIdentity = (userId?: string) => {
         };
       }
 
-      if (profile?.id) {
+      // Always query accounts by userId (accounts.client_id = auth user_id, NOT profiles.id)
+      {
         const { data: accountRow } = await portalClient
           .from("accounts")
           .select("account_number")
-          .eq("client_id", profile.id)
+          .eq("client_id", userId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
