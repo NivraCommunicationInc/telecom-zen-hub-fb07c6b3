@@ -141,6 +141,7 @@ const CoreApp = () => {
                 <Route path="kyc" element={<S><CoreKYCPage /></S>} />
                 <Route path="appointments" element={<S><AppointmentsPage /></S>} />
                 <Route path="requests" element={<S><CoreRequestsPage /></S>} />
+                <Route path="activations" element={<S><CoreActivationsPage /></S>} />
                 {/* Clients */}
                 <Route path="clients" element={<S><ClientsPage /></S>} />
                 <Route path="clients/:clientId" element={<S><CoreClientProfile /></S>} />
