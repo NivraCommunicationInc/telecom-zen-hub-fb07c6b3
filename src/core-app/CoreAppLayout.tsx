@@ -53,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: ListTodo, label: "Work Queue", href: "/work-queue" },
       { icon: Package, label: "Orders", href: "/orders" },
       { icon: Receipt, label: "POS", href: "/pos" },
+      { icon: Zap, label: "Activations", href: "/activations" },
       { icon: Calendar, label: "Appointments", href: "/appointments" },
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Shield, label: "KYC", href: "/kyc" },

@@ -103,6 +103,7 @@ export const coreRoutes: RouteObject = {
     { path: "kyc", element: <CoreKYCPage /> },
     { path: "appointments", element: <AppointmentsPage /> },
     { path: "requests", element: <CoreRequestsPage /> },
+    { path: "activations", element: <CoreActivationsPage /> },
     // Clients
     { path: "clients", element: <ClientsPage /> },
     { path: "clients/:clientId", element: <CoreClientProfile /> },
