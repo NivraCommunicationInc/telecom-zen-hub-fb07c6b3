@@ -104,7 +104,7 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
     }
   }
 
-  // Map customers
+  // Map customers — link to client profile if user_id available
   if (customers.data) {
     for (const c of customers.data) {
       results.push({
@@ -113,7 +113,7 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
         title: `${c.first_name} ${c.last_name}`,
         subtitle: c.email,
         badge: null,
-        href: `/core/accounts`, // customers don't have their own detail yet
+        href: c.user_id ? `/core/clients/${c.user_id}` : `/core/accounts`,
       });
     }
   }
