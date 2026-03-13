@@ -3090,43 +3090,46 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return;
     }
     
-    // CRITICAL VALIDATION: DOB is ALWAYS required for orders (enforced by DB trigger + CHECK constraint)
-    // If DOB is missing from local state, try to pull from profile before blocking
-    let effectiveDob = dateOfBirth?.trim() || "";
-    if (!effectiveDob && profile?.date_of_birth) {
-      effectiveDob = profile.date_of_birth;
+    // CRITICAL: DOB resolution — profile is the source of truth (locked field)
+    // Priority: profile.date_of_birth > local dateOfBirth state
+    const profileDob = profile?.date_of_birth?.trim() || "";
+    let effectiveDob = profileDob || dateOfBirth?.trim() || "";
+    
+    if (effectiveDob && effectiveDob !== dateOfBirth) {
       setDateOfBirth(effectiveDob);
-      console.log("[ClientNewOrder] DOB auto-filled from profile at submission:", effectiveDob);
+      console.log("[ClientNewOrder] DOB resolved from profile at submission:", effectiveDob);
     }
     
-    // Step 1: DOB must be provided (non-empty)
+    // If DOB exists in profile, it was already validated at identity verification time — skip re-validation
+    // Only validate if DOB comes from local state (not profile)
     if (!effectiveDob) {
       submittingRef.current = false;
       toast.error("La date de naissance est requise pour passer une commande");
       return;
     }
     
-    // Step 2: DOB must be parseable (valid date format YYYY-MM-DD)
-    // Safe validation with try/catch to prevent any crash
-    try {
-      const parsed = parseISO(effectiveDob);
-      if (!isValid(parsed)) {
+    // Only run format/age validation if DOB is NOT from the verified profile
+    // Profile DOB is immutable and was validated at registration/identity verification
+    if (!profileDob) {
+      try {
+        const parsed = parseISO(effectiveDob);
+        if (!isValid(parsed)) {
+          submittingRef.current = false;
+          toast.error("Format de date invalide. Utilisez AAAA-MM-JJ.");
+          return;
+        }
+        
+        const dobResult = validateDob(effectiveDob, { minAge: MIN_AGE_TELECOM, required: true });
+        if (!dobResult.isValid) {
+          submittingRef.current = false;
+          toast.error(dobResult.error?.fr || "Date de naissance invalide");
+          return;
+        }
+      } catch {
         submittingRef.current = false;
-        toast.error("Format de date invalide. Utilisez AAAA-MM-JJ.");
+        toast.error("Date de naissance invalide");
         return;
       }
-      
-      // Step 3: DOB must pass all validation rules (not future, >= 13 years, <= 120 years)
-      const dobResult = validateDob(effectiveDob, { minAge: MIN_AGE_TELECOM, required: true });
-      if (!dobResult.isValid) {
-        submittingRef.current = false;
-        toast.error(dobResult.error?.fr || "Date de naissance invalide");
-        return;
-      }
-    } catch {
-      submittingRef.current = false;
-      toast.error("Date de naissance invalide");
-      return;
     }
     
     if (selectedServices.length === 0) {
