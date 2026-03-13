@@ -6008,13 +6008,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Services 1er mois</span>
-                      <span>{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className={totalDiscount > 0 ? "text-muted-foreground line-through" : ""}>{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     {totalDiscount > 0 && (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Net 1er mois</span>
-                        <span>{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
+                      <>
+                        <div className="flex justify-between text-xs text-emerald-500 font-medium">
+                          <span>Rabais{appliedPromo ? ` (${appliedPromo.code})` : ""}</span>
+                          <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-medium">
+                          <span className="text-muted-foreground">Net 1er mois</span>
+                          <span>{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </div>
+                      </>
                     )}
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">TPS + TVQ</span>
