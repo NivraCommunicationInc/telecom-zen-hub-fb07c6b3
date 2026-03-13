@@ -5123,61 +5123,23 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Paiement aujourd'hui</p>
                     
                     {/* One-time fees subtotal */}
-                    {oneTimeFees > 0 && (
+                    {authoritativeOneTimeSubtotal > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Frais uniques</span>
-                        <span className="text-foreground">{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span className="text-foreground">{authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
 
                     {/* First month recurring gross */}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Services 1er mois</span>
-                      <span className="text-foreground">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className="text-foreground">{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-
-                    {/* Welcome discount (server-authoritative) */}
-                    {welcomeDiscountAmount > 0 && (
-                      <div className="flex justify-between text-sm text-emerald-500">
-                        <span className="flex items-center gap-1">
-                          <Check className="w-3 h-3" />
-                          Rabais nouveau client (50%)
-                        </span>
-                        <span className="font-medium">
-                          -{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Promo discount (server-authoritative — only if RPC actually applied it) */}
-                    {serverPromoDiscount > 0 && appliedPromo && (
-                      <div className="flex justify-between text-sm text-emerald-500">
-                        <span className="flex items-center gap-1">
-                          <Check className="w-3 h-3" />
-                          Rabais ({appliedPromo.code})
-                        </span>
-                        <span className="font-medium">
-                          -{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Promo blocked notice (welcome takes priority) */}
-                    {isPromoBlocked && appliedPromo && (
-                      <div className="flex justify-between text-sm text-amber-500">
-                        <span className="flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />
-                          {appliedPromo.code} — non cumulable
-                        </span>
-                        <span className="text-xs">Rabais bienvenue déjà appliqué</span>
-                      </div>
-                    )}
-
-                    {/* Net first month after discount (server-authoritative) */}
+...
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
-                        <span>{toNonNegativeMoney(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                   </div>
