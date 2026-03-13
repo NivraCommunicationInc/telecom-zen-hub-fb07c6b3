@@ -2062,10 +2062,25 @@ const ClientNewOrder = () => {
 
       console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
 
+      // Backfill serverPricing with canonical Nivra Core references
+      serverPricing.nivra_order_number = nivraCheckoutResponse.order_number;
+      serverPricing.nivra_payment_number = nivraCheckoutResponse.payment_number;
+      serverPricing.nivra_invoice_number = nivraCheckoutResponse.invoice_number;
+      serverPricing.nivra_order_id = nivraCheckoutResponse.order_id;
+      serverPricing.billing_cycle_day = nivraCheckoutResponse.billing_cycle_day;
+
+      // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
+      if (paypalCaptureId && nivraCheckoutResponse.payment_number) {
+        notifyNivraCorePaid({
+          paymentNumber: nivraCheckoutResponse.payment_number,
+          paypalOrderId: paypalCaptureId,
+          paypalCaptureId: paypalCaptureId,
+        });
+      }
+
       // ═══════════════════════════════════════════════════════════════
       // USE NIVRA CORE RESPONSE AS CANONICAL DATA
       // ═══════════════════════════════════════════════════════════════
-      // The `data` object used downstream now comes from Nivra Core
       const data = {
         id: nivraCheckoutResponse.order_id,
         order_number: nivraCheckoutResponse.order_number,
