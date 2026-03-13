@@ -1973,7 +1973,7 @@ const ClientNewOrder = () => {
         : paymentMethod === "promo_free" ? "promo_free"
         : "etransfer";
 
-      const cappedDiscount = toNonNegativeMoney(serverPricing.discount_total_combined);
+      const canonicalPromoDiscount = toNonNegativeMoney(serverPricing.promo_discount);
       const orderTotalAmount = toNonNegativeMoney(serverPricing.grand_total);
       const orderTaxableBase = toNonNegativeMoney(serverPricing.taxable_base);
       const { tps: orderTpsAmount, tvq: orderTvqAmount } = sanitizeTaxes(
@@ -1981,6 +1981,7 @@ const ClientNewOrder = () => {
         serverPricing.tps_amount,
         serverPricing.tvq_amount,
       );
+      const shouldAttachPromoToCheckout = !!appliedPromo && canonicalPromoDiscount > 0;
 
       // ═══════════════════════════════════════════════════════════════
       // SUBMIT TO NIVRA CORE — Creates order, invoice, payment, subs
