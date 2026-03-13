@@ -5994,16 +5994,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span className="text-muted-foreground">Services 1er mois</span>
                       <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {totalDiscount > 0 && (
+                    {welcomeDiscountAmount > 0 && (
                       <div className="flex justify-between text-xs text-emerald-500">
-                        <span>Rabais {appliedPromo?.code ? `(${appliedPromo.code})` : ""}</span>
-                        <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>Rabais nouveau client (50%)</span>
+                        <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {serverPromoDiscount > 0 && appliedPromo && (
+                      <div className="flex justify-between text-xs text-emerald-500">
+                        <span>Rabais ({appliedPromo.code})</span>
+                        <span>-{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {isPromoBlocked && appliedPromo && (
+                      <div className="flex justify-between text-xs text-amber-500">
+                        <span>{appliedPromo.code} — non cumulable</span>
                       </div>
                     )}
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois</span>
-                        <span>{(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{toNonNegativeMoney(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
