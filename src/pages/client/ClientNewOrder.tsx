@@ -2678,26 +2678,24 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // instead of guessing the discount client-side.
   const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-  const rawPromoDiscount = Number(appliedPromo?.discount_amount || 0);
-  
-  // Welcome discount is now computed 100% SERVER-SIDE by compute_checkout_pricing RPC.
-  // liveServerPricing.welcome_discount contains the authoritative value.
-  // No client-side calculation — display only from server response.
-  const welcomeDiscountAmount = liveServerPricing?.welcome_discount ?? 0;
+  // ═══ ALL DISCOUNT VALUES ARE SERVER-AUTHORITATIVE ═══
+  // NEVER use appliedPromo.discount_amount for display or calculation.
+  // The RPC compute_checkout_pricing is the single source of truth for:
+  //   - promo_discount (actual applied promo amount, 0 if blocked)
+  //   - welcome_discount (50% new customer, 0 if not eligible)
+  //   - discount_total_combined (sum of both, no stacking)
+  const serverPromoDiscount = toNonNegativeMoney(liveServerPricing?.promo_discount ?? 0);
+  const welcomeDiscountAmount = toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0);
+  const promoDiscount = serverPromoDiscount; // alias for backward compat
   
   const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
-  // Cap discount to never exceed the cart total (prevents negative amounts)
-  const promoDiscount = Math.min(round2(rawPromoDiscount), grossTotal);
-  
-  // Total discount now comes from server (includes promo + welcome, no stacking)
-  const totalDiscount = liveServerPricing?.discount_total_combined ?? Math.min(round2(promoDiscount), grossTotal);
+  // Total discount from server (promo + welcome, mutually exclusive / no stacking)
+  const totalDiscount = toNonNegativeMoney(liveServerPricing?.discount_total_combined ?? 0);
 
-  // Enforce min_payable_cents from promo: discount cannot reduce below minimum
-  const minPayableDollars = 0; // Enforced server-side; client cap is defense-in-depth
-  const effectiveTotalDiscount = minPayableDollars > 0 
-    ? Math.min(totalDiscount, Math.max(0, grossTotal - minPayableDollars))
-    : totalDiscount;
+  // Check if promo was blocked by the RPC (e.g., welcome discount takes priority)
+  const promoBlockedReason = liveServerPricing?.promo_applied?.blocked_reason as string | undefined;
+  const isPromoBlocked = !!promoBlockedReason;
 
   // Client-side fallback values removed — unified pricing object below is the single source of truth
 
@@ -5089,24 +5087,48 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span className="text-foreground">{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
 
-                    {/* Discount on recurring (first month) */}
-                    {appliedPromo && appliedPromo.discount_amount > 0 && (
+                    {/* Welcome discount (server-authoritative) */}
+                    {welcomeDiscountAmount > 0 && (
+                      <div className="flex justify-between text-sm text-emerald-500">
+                        <span className="flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          Rabais nouveau client (50%)
+                        </span>
+                        <span className="font-medium">
+                          -{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Promo discount (server-authoritative — only if RPC actually applied it) */}
+                    {serverPromoDiscount > 0 && appliedPromo && (
                       <div className="flex justify-between text-sm text-emerald-500">
                         <span className="flex items-center gap-1">
                           <Check className="w-3 h-3" />
                           Rabais ({appliedPromo.code})
                         </span>
                         <span className="font-medium">
-                          -{appliedPromo.discount_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          -{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </span>
                       </div>
                     )}
 
-                    {/* Net first month after discount */}
+                    {/* Promo blocked notice (welcome takes priority) */}
+                    {isPromoBlocked && appliedPromo && (
+                      <div className="flex justify-between text-sm text-amber-500">
+                        <span className="flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {appliedPromo.code} — non cumulable
+                        </span>
+                        <span className="text-xs">Rabais bienvenue déjà appliqué</span>
+                      </div>
+                    )}
+
+                    {/* Net first month after discount (server-authoritative) */}
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois après rabais</span>
-                        <span>{(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{toNonNegativeMoney(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                   </div>
@@ -5425,10 +5447,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    {appliedPromo && promoDiscount > 0 && (
+                    {serverPromoDiscount > 0 && appliedPromo && (
                       <div className="flex justify-between text-emerald-500 font-medium">
                         <span>Rabais promo ({appliedPromo.code})</span>
-                        <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>-{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {isPromoBlocked && appliedPromo && (
+                      <div className="flex justify-between text-amber-500 text-xs">
+                        <span>{appliedPromo.code} — non cumulable avec rabais bienvenue</span>
                       </div>
                     )}
                     
@@ -5967,16 +5994,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       <span className="text-muted-foreground">Services 1er mois</span>
                       <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
-                    {totalDiscount > 0 && (
+                    {welcomeDiscountAmount > 0 && (
                       <div className="flex justify-between text-xs text-emerald-500">
-                        <span>Rabais {appliedPromo?.code ? `(${appliedPromo.code})` : ""}</span>
-                        <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>Rabais nouveau client (50%)</span>
+                        <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {serverPromoDiscount > 0 && appliedPromo && (
+                      <div className="flex justify-between text-xs text-emerald-500">
+                        <span>Rabais ({appliedPromo.code})</span>
+                        <span>-{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {isPromoBlocked && appliedPromo && (
+                      <div className="flex justify-between text-xs text-amber-500">
+                        <span>{appliedPromo.code} — non cumulable</span>
                       </div>
                     )}
                     {totalDiscount > 0 && (
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net 1er mois</span>
-                        <span>{(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>{toNonNegativeMoney(monthlyRecurring - totalDiscount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
