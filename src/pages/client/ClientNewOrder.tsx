@@ -2798,6 +2798,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     authoritativePricing?.qst ?? 0,
   );
   const todayTotal = toNonNegativeMoney(authoritativePricing?.total ?? 0);
+  const authoritativeOneTimeSubtotal = toNonNegativeMoney(normalizedLivePricing?.one_time_subtotal ?? oneTimeFees);
+  const authoritativeRecurringSubtotal = toNonNegativeMoney(normalizedLivePricing?.recurring_subtotal ?? monthlyRecurring);
+  const firstInvoiceRecurringNet = toNonNegativeMoney(authoritativeRecurringSubtotal - totalDiscount);
 
   // === MONTHLY RECURRING WITH TAX (display only — distinct from today's payment) ===
   // monthlyRecurring is the pre-tax monthly total (services + channels + streaming)
