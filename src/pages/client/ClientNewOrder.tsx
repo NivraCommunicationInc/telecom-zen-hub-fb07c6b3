@@ -1836,10 +1836,11 @@ const ClientNewOrder = () => {
       ];
       
       // Build discounts array (promo + preauth only - no auto SIM credits)
+      const promoDiscountForLineItems = toNonNegativeMoney(liveServerPricing?.promo_discount ?? 0);
       const discountsForLineItems = [
-        ...(appliedPromo && appliedPromo.discount_amount > 0 ? [{
+        ...(appliedPromo && promoDiscountForLineItems > 0 ? [{
           name: `Rabais promotionnel (${appliedPromo.code})`,
-          amount: appliedPromo.discount_amount,
+          amount: promoDiscountForLineItems,
           description: appliedPromo.name,
         }] : []),
         ...((liveServerPricing?.welcome_discount ?? 0) > 0 ? [{
