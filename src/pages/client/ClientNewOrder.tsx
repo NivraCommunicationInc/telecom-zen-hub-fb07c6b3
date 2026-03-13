@@ -2180,7 +2180,7 @@ const ClientNewOrder = () => {
               payment_method: actualPaymentMethod,
               payment_status: isPayPalPaid ? 'paid' : 'pending',
               payment_reference: isPayPalPaid ? paypalCaptureId : null,
-              total_amount: isPayPalPaid ? serverPricing.grand_total : null,
+              total_amount: isPayPalPaid ? orderTotalAmount : null,
               // BILLING TOTALS (v2.2) - Source of truth from checkout
               billing_totals: billingTotalsSnapshot,
             },
