@@ -1964,7 +1964,7 @@ const ClientNewOrder = () => {
         // Client identity fields for profile sync trigger
         client_first_name: firstName || null,
         client_last_name: lastName || null,
-        client_dob: dateOfBirth, // REQUIRED - never null (validated above)
+        client_dob: profile?.date_of_birth || dateOfBirth, // Profile DOB is source of truth
         client_phone: checkoutPhone || null,
         // Shipping/service address fields
         shipping_address: serviceAddressStreet || null,
