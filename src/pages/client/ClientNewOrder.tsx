@@ -211,6 +211,8 @@ const generateQuebecPhoneNumber = (): string => {
 const ORDER_DRAFT_KEY = "nivra_order_draft";
 const INSTALLATION_APPOINTMENT_ENABLED = true;
 const DEFAULT_INSTALLATION_CHOICE: "auto" | "technician" = "auto";
+const PROMO_ALREADY_APPLIED_MESSAGE = "Ce rabais est déjà appliqué à votre commande";
+const PROMO_SINGLE_DISCOUNT_MESSAGE = "Un seul rabais promotionnel est permis par transaction";
 
 // Streaming service interface for Streaming+ add-ons
 interface StreamingService {
