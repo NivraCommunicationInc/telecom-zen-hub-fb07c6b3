@@ -4917,10 +4917,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-emerald-500">-{appliedPromo.discount_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {appliedPromo.discount_type === 'percent' ? `${appliedPromo.discount_value}%` : 'Montant fixe'}
-                          </p>
+                          {serverPromoDiscount > 0 ? (
+                            <>
+                              <p className="font-bold text-emerald-500">-{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {appliedPromo.discount_type === 'percent' ? `${appliedPromo.discount_value}%` : 'Montant fixe'}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-xs text-amber-500">{PROMO_SINGLE_DISCOUNT_MESSAGE}</p>
+                          )}
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={removePromo} className="text-destructive">
