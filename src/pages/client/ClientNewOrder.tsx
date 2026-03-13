@@ -4716,9 +4716,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       disabled
                       className="bg-muted/50 cursor-not-allowed"
                     />
-                    {dateOfBirth && (() => {
+                    {(profile?.date_of_birth || dateOfBirth) && (() => {
+                      const displayDob = profile?.date_of_birth || dateOfBirth;
+                      // If DOB comes from verified profile, always show as valid (already validated)
+                      if (profile?.date_of_birth) {
+                        return (
+                          <p className="text-xs text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Âge vérifié
+                          </p>
+                        );
+                      }
                       try {
-                        const parsed = parseISO(dateOfBirth);
+                        const parsed = parseISO(displayDob);
                         if (!isValid(parsed)) {
                           return (
                             <p className="text-xs text-destructive flex items-center gap-1">
@@ -4727,7 +4737,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             </p>
                           );
                         }
-                        const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
+                        const result = validateDob(displayDob, { minAge: MIN_AGE_TELECOM });
                         if (!result.isValid) {
                           return (
                             <p className="text-xs text-destructive flex items-center gap-1">
