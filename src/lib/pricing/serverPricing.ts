@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeServerPricingResult } from "@/lib/pricing/money";
 
 export interface CartLineItem {
   type: 'service' | 'one_time_fee' | 'equipment' | 'delivery' | 'installation' | 'activation';
