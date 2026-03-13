@@ -5112,7 +5112,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-foreground">Frais uniques estimés</span>
                       <span className="font-bold text-foreground">
-                        {oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                        {authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Équipements, livraison, activation</p>
