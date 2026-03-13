@@ -2372,7 +2372,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             full_name: `${firstName || ''} ${lastName || ''}`.trim() || profile?.full_name || null,
             email: profile?.email || user?.email || null,
             phone: checkoutPhone || profile?.phone || null,
-            date_of_birth: dateOfBirth || profile?.date_of_birth || null,
+            date_of_birth: profile?.date_of_birth || dateOfBirth || null,
             id_type: idType || null,
             id_number: idNumber || null,
             id_expiration: idExpiration || null,
