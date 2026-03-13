@@ -2084,7 +2084,7 @@ const ClientNewOrder = () => {
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
           order_id: data.id,
-          amount: Math.max(0, serverPricing.grand_total), // Server-side authoritative amount
+          amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0, // Server-side authoritative amount — GUARD: never null
           payment_method: actualPaymentMethod,
           reference_number: paymentRef,
           payment_reference: nivraPaymentRef,
