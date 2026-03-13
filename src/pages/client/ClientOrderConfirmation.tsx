@@ -155,6 +155,8 @@ const ClientOrderConfirmation = () => {
             .from("accounts")
             .select("id, account_number, billing_cycle_day, billing_cycle_timezone")
             .eq("client_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle()
         ]);
 
