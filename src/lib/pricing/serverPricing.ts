@@ -80,5 +80,5 @@ export async function computeCheckoutPricing(
     throw new Error(`Pricing calculation failed: ${error.message}`);
   }
 
-  return data as unknown as ServerPricingResult;
+  return normalizeServerPricingResult(data) as ServerPricingResult;
 }
