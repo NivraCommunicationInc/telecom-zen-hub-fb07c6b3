@@ -4711,7 +4711,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <Input
                       id="date-of-birth"
                       type="date"
-                      value={dateOfBirth}
+                      value={profile?.date_of_birth || dateOfBirth}
                       readOnly
                       disabled
                       className="bg-muted/50 cursor-not-allowed"
