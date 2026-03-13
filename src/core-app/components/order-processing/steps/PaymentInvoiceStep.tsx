@@ -91,8 +91,8 @@ export function PaymentInvoiceStep({ proc }: Props) {
         `Facture ${invoiceNumber || ""} — Nivra`,
         {
           invoice_number: invoiceNumber || "",
-          total: Number(total).toFixed(2),
-          balance_due: Number(balanceDue).toFixed(2),
+          total: total.toFixed(2),
+          balance_due: balanceDue.toFixed(2),
         }
       );
     } catch (err) {

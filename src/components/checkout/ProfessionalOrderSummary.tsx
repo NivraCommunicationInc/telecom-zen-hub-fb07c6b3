@@ -4,28 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ShoppingCart, ChevronDown, ChevronUp, Receipt } from "lucide-react";
-
-export interface AuthoritativeCheckoutPricing {
-  subtotal: number;
-  gst: number;
-  qst: number;
-  total: number;
-  orderNumber?: string;
-  invoiceNumber?: string;
-  paymentNumber?: string;
-}
-
-interface ProfessionalOrderSummaryProps {
-  pricing: AuthoritativeCheckoutPricing | null;
-  isLoading?: boolean;
-  isMobile?: boolean;
-  selectedServicesCount?: number;
-  onContinue?: () => void;
-  continueDisabled?: boolean;
-}
-
-const formatCurrency = (value: number) =>
-  value.toLocaleString("fr-CA", { style: "currency", currency: "CAD" });
+import { formatCurrencyCAD } from "@/lib/pricing/money";
+...
+const formatCurrency = (value: unknown) => formatCurrencyCAD(value);
 
 export const ProfessionalOrderSummary: React.FC<ProfessionalOrderSummaryProps> = ({
   pricing,

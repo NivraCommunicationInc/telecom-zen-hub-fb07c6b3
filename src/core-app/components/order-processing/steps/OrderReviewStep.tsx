@@ -4,6 +4,7 @@
  */
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
+import { toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Props { proc: any; }
 
@@ -11,11 +12,16 @@ export function OrderReviewStep({ proc }: Props) {
   const { order, items } = proc;
   const ps = order.pricing_snapshot as any;
 
+  const money = (value: unknown) => toNonNegativeMoney(value).toFixed(2);
+
   // Derive amounts from pricing snapshot (canonical) or fallback to order columns
-  const recurringSubtotal = ps?.recurring_subtotal ?? order.subtotal ?? 0;
-  const discountTotal = ps?.discount_total_combined ?? order.discount_amount ?? 0;
-  const recurringNet = Math.max(0, Number(recurringSubtotal) - Number(discountTotal));
-  const oneTimeSubtotal = ps?.one_time_subtotal ?? 0;
+  const recurringSubtotal = toNonNegativeMoney(ps?.recurring_subtotal ?? order.subtotal ?? 0);
+  const discountTotal = toNonNegativeMoney(ps?.discount_total_combined ?? order.discount_amount ?? 0);
+  const recurringNet = Math.max(0, recurringSubtotal - discountTotal);
+  const oneTimeSubtotal = toNonNegativeMoney(ps?.one_time_subtotal ?? 0);
+  const tpsAmount = toNonNegativeMoney(ps?.tps_amount ?? order.tps_amount ?? 0);
+  const tvqAmount = toNonNegativeMoney(ps?.tvq_amount ?? order.tvq_amount ?? 0);
+  const totalAmount = toNonNegativeMoney(ps?.grand_total ?? order.total_amount ?? 0);
 
   return (
     <div>
