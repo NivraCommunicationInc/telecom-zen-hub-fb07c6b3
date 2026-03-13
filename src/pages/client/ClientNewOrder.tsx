@@ -4943,12 +4943,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             setDiscountCode(e.target.value);
                             if (promoValidationError) setPromoValidationError(null);
                           }}
-                          disabled={isValidatingPromo}
+                          disabled={isValidatingPromo || hasWelcomeDiscountAlreadyApplied}
                         />
-                        <Button variant="outline" onClick={applyDiscountCode} disabled={isValidatingPromo}>
+                        <Button
+                          variant="outline"
+                          onClick={applyDiscountCode}
+                          disabled={isValidatingPromo || hasWelcomeDiscountAlreadyApplied}
+                        >
                           {isValidatingPromo ? "..." : "Appliquer"}
                         </Button>
                       </div>
+                      {hasWelcomeDiscountAlreadyApplied && (
+                        <p className="text-xs text-amber-500">{PROMO_SINGLE_DISCOUNT_MESSAGE}</p>
+                      )}
                       {promoValidationError && (
                         <p className="text-xs text-destructive">{promoValidationError}</p>
                       )}
