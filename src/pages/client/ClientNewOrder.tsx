@@ -2021,7 +2021,7 @@ const ClientNewOrder = () => {
           ...(orderDeliveryFee > 0 ? [{ sku: SKU.DELIVERY, name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
           ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
         ],
-        promo: shouldAttachPromoToCheckout ? {
+        promo: shouldAttachPromoToCheckout && appliedPromo ? {
           code: appliedPromo.code,
           name: appliedPromo.name,
           discount_type: appliedPromo.discount_type,
