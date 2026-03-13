@@ -2080,16 +2080,11 @@ const ClientNewOrder = () => {
       // ★ Update account billing_cycle_day to match order creation day (Nivra Core source of truth)
       try {
         const orderDay = new Date().getDate();
-        const { data: accountData } = await supabase
-          .from("accounts")
-          .select("id")
-          .eq("client_id", user.id)
-          .maybeSingle();
-        if (accountData) {
+        if (resolvedAccountId) {
           await supabase
             .from("accounts")
             .update({ billing_cycle_day: orderDay })
-            .eq("id", accountData.id);
+            .eq("id", resolvedAccountId);
           console.log("[BillingCycle] Account billing_cycle_day set to:", orderDay);
         }
       } catch (cyclErr) {
