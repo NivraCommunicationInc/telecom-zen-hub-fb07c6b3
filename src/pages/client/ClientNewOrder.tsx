@@ -5447,10 +5447,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         <span>-{welcomeDiscountAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                       </div>
                     )}
-                    {appliedPromo && promoDiscount > 0 && (
+                    {serverPromoDiscount > 0 && appliedPromo && (
                       <div className="flex justify-between text-emerald-500 font-medium">
                         <span>Rabais promo ({appliedPromo.code})</span>
-                        <span>-{promoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        <span>-{serverPromoDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      </div>
+                    )}
+                    {isPromoBlocked && appliedPromo && (
+                      <div className="flex justify-between text-amber-500 text-xs">
+                        <span>{appliedPromo.code} — non cumulable avec rabais bienvenue</span>
                       </div>
                     )}
                     
