@@ -2717,9 +2717,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   //   - discount_total_combined (sum of both, no stacking)
   const serverPromoDiscount = toNonNegativeMoney(liveServerPricing?.promo_discount ?? 0);
   const welcomeDiscountAmount = toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0);
+  const hasWelcomeDiscountAlreadyApplied = welcomeDiscountAmount > 0 || !!liveServerPricing?.welcome_applied;
   const promoDiscount = serverPromoDiscount; // alias for backward compat
-  
-  const grossTotal = round2(monthlyRecurring + oneTimeFees);
 
   // Total discount from server (promo + welcome, mutually exclusive / no stacking)
   const totalDiscount = toNonNegativeMoney(liveServerPricing?.discount_total_combined ?? 0);
