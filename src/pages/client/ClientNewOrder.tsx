@@ -2217,8 +2217,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
-      // Record promo/referral redemption if promo was applied (moved from onSuccess for reliability)
-      if (appliedPromo && user?.id) {
+      // Record promo/referral redemption only when promo discount was actually applied by authoritative pricing
+      if (appliedPromo && user?.id && canonicalPromoDiscount > 0) {
         try {
           // Check if this is a referral code (influencer code)
           if (appliedPromo.is_referral_code && appliedPromo.referral_code_id && appliedPromo.influencer_id) {
@@ -2229,7 +2229,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               order_id: data.id,
               customer_id: user.id,
               customer_email: (profile?.email || user.email || "").toLowerCase(),
-              customer_discount_amount: appliedPromo.discount_amount,
+              customer_discount_amount: canonicalPromoDiscount,
               status: 'pending',
             });
             
@@ -2257,7 +2257,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               order_number: data.order_number,
               client_id: user.id,
               client_email: (profile?.email || user.email || "").toLowerCase(),
-              discount_amount: appliedPromo.discount_amount,
+              discount_amount: canonicalPromoDiscount,
             });
             if (promoError) {
               console.error("[Promo] Redemption insert failed:", promoError);
@@ -2272,7 +2272,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             user.id,
             data.id,
             appliedPromo.code,
-            appliedPromo.discount_amount
+            canonicalPromoDiscount
           );
         } catch (promoErr) {
           console.error("[Promo/Referral] Failed to record redemption (non-blocking):", promoErr);
