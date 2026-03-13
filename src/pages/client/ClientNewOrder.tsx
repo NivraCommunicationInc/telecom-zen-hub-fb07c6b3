@@ -79,6 +79,7 @@ import { CheckoutAddressStep } from "@/components/checkout/CheckoutAddressStep";
 import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
+import { normalizeServerPricingResult, sanitizeTaxes, toFiniteNumber, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Service {
   id: string;
