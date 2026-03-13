@@ -17,7 +17,7 @@ import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
-import { fetchNivraProducts, createNivraOrder, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
+import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
@@ -1892,34 +1892,16 @@ const ClientNewOrder = () => {
       }
       if (orderDeliveryFee > 0) nivraItems.push({ sku: SKU.DELIVERY, quantity: 1 });
 
-      // Pre-checkout pricing call (kept for pricing authority display)
       const customerName = `${firstName} ${lastName}`.trim();
       const customerEmail = profile?.email || user.email || "";
 
-      const nivraOrderResponse = await createNivraOrder({
-        customer_name: customerName,
-        customer_email: customerEmail,
-        items: nivraItems,
-      });
-      setNivraCoreOrderPricing(nivraOrderResponse);
-      console.log("[NivraAPI] Pre-checkout pricing received:", nivraOrderResponse);
-
-      // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
-      if (paypalCaptureId && nivraOrderResponse.payment_number) {
-        notifyNivraCorePaid({
-          paymentNumber: nivraOrderResponse.payment_number,
-          paypalOrderId: paypalCaptureId,
-          paypalCaptureId: paypalCaptureId,
-        });
-      }
-
       // Use compute_checkout_pricing RPC as authoritative for ALL amounts
       const rpcPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
-      const nivraFallbackPricing = normalizeServerPricingResult({
-        grand_total: nivraOrderResponse.total,
-        tps_amount: nivraOrderResponse.gst,
-        tvq_amount: nivraOrderResponse.qst,
-        taxable_base: nivraOrderResponse.subtotal,
+      const fallbackPricing = normalizeServerPricingResult({
+        grand_total: 0,
+        tps_amount: 0,
+        tvq_amount: 0,
+        taxable_base: monthlyRecurring + oneTimeFees,
         recurring_subtotal: monthlyRecurring,
         one_time_subtotal: oneTimeFees,
         discount_total_combined: 0,
@@ -1928,29 +1910,30 @@ const ClientNewOrder = () => {
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
       });
       const canonicalPricing = normalizeServerPricingResult({
-        ...(rpcPricing || nivraFallbackPricing),
-        grand_total: rpcPricing?.grand_total ?? nivraFallbackPricing.grand_total,
-        tps_amount: rpcPricing?.tps_amount ?? nivraFallbackPricing.tps_amount,
-        tvq_amount: rpcPricing?.tvq_amount ?? nivraFallbackPricing.tvq_amount,
-        taxable_base: rpcPricing?.taxable_base ?? nivraFallbackPricing.taxable_base,
-        recurring_subtotal: rpcPricing?.recurring_subtotal ?? nivraFallbackPricing.recurring_subtotal,
-        one_time_subtotal: rpcPricing?.one_time_subtotal ?? nivraFallbackPricing.one_time_subtotal,
+        ...(rpcPricing || fallbackPricing),
+        grand_total: rpcPricing?.grand_total ?? fallbackPricing.grand_total,
+        tps_amount: rpcPricing?.tps_amount ?? fallbackPricing.tps_amount,
+        tvq_amount: rpcPricing?.tvq_amount ?? fallbackPricing.tvq_amount,
+        taxable_base: rpcPricing?.taxable_base ?? fallbackPricing.taxable_base,
+        recurring_subtotal: rpcPricing?.recurring_subtotal ?? fallbackPricing.recurring_subtotal,
+        one_time_subtotal: rpcPricing?.one_time_subtotal ?? fallbackPricing.one_time_subtotal,
         discount_total_combined: rpcPricing?.discount_total_combined ?? 0,
         promo_discount: rpcPricing?.promo_discount ?? 0,
         welcome_discount: rpcPricing?.welcome_discount ?? 0,
         preauth_discount: rpcPricing?.preauth_discount ?? (acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0),
       });
 
+      // serverPricing snapshot — canonical references filled after Nivra Core responds
       const serverPricing = {
         ...canonicalPricing,
         welcome_applied: rpcPricing?.welcome_applied ?? false,
         is_new_customer: rpcPricing?.is_new_customer ?? false,
         promo_applied: rpcPricing?.promo_applied ?? null,
         computed_at: rpcPricing?.computed_at || new Date().toISOString(),
-        nivra_order_number: nivraOrderResponse.order_number,
-        nivra_payment_number: nivraOrderResponse.payment_number,
-        nivra_invoice_number: nivraOrderResponse.invoice_number,
-        nivra_order_id: nivraOrderResponse.order_id,
+        nivra_order_number: '',
+        nivra_payment_number: '',
+        nivra_invoice_number: '',
+        nivra_order_id: '',
         billing_cycle_day: new Date().getDate(),
       };
 
@@ -2079,10 +2062,25 @@ const ClientNewOrder = () => {
 
       console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
 
+      // Backfill serverPricing with canonical Nivra Core references
+      serverPricing.nivra_order_number = nivraCheckoutResponse.order_number;
+      serverPricing.nivra_payment_number = nivraCheckoutResponse.payment_number;
+      serverPricing.nivra_invoice_number = nivraCheckoutResponse.invoice_number;
+      serverPricing.nivra_order_id = nivraCheckoutResponse.order_id;
+      serverPricing.billing_cycle_day = nivraCheckoutResponse.billing_cycle_day;
+
+      // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
+      if (paypalCaptureId && nivraCheckoutResponse.payment_number) {
+        notifyNivraCorePaid({
+          paymentNumber: nivraCheckoutResponse.payment_number,
+          paypalOrderId: paypalCaptureId,
+          paypalCaptureId: paypalCaptureId,
+        });
+      }
+
       // ═══════════════════════════════════════════════════════════════
       // USE NIVRA CORE RESPONSE AS CANONICAL DATA
       // ═══════════════════════════════════════════════════════════════
-      // The `data` object used downstream now comes from Nivra Core
       const data = {
         id: nivraCheckoutResponse.order_id,
         order_number: nivraCheckoutResponse.order_number,
