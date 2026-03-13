@@ -1115,8 +1115,9 @@ const ClientNewOrder = () => {
           }
         }
       }
-      // Date of birth
-      if (!dateOfBirth && profile.date_of_birth) {
+      // Date of birth — ALWAYS hydrate from profile (source of truth, read-only in checkout)
+      // This prevents stale closure issues where dateOfBirth state is empty
+      if (profile.date_of_birth) {
         setDateOfBirth(profile.date_of_birth);
       }
       // Phone
