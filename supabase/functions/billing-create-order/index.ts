@@ -477,6 +477,13 @@ serve(async (req) => {
         cycle_end_date: cycleEndStr,
         due_date: dueDate,
         order_id: body.order_id || null,
+        billing_snapshot_account_number: resolvedAccountNumber || null,
+        billing_snapshot_client: {
+          first_name: body.first_name,
+          last_name: body.last_name,
+          email: body.email,
+          phone: body.phone,
+        },
         notes: body.order_number 
           ? `Commande: ${body.order_number}${discountAmount > 0 ? ` | Rabais: -${discountAmount.toFixed(2)}$` : ''}${body.billing_totals?.promo_code ? ` (${body.billing_totals.promo_code})` : ''}`
           : null,
