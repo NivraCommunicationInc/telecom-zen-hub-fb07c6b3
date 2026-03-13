@@ -100,11 +100,11 @@ export function OrderReviewStep({ proc }: Props) {
           {Number(discountTotal) > 0 && (
             <div className="flex justify-between"><span className="text-gray-500">Rabais</span><span className="text-emerald-600 tabular-nums">-{Number(discountTotal).toFixed(2)} $</span></div>
           )}
-          <div className="flex justify-between"><span className="text-gray-500">TPS</span><span className="text-gray-700 tabular-nums">{Number(order.tps_amount || 0).toFixed(2)} $</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">TVQ</span><span className="text-gray-700 tabular-nums">{Number(order.tvq_amount || 0).toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">TPS</span><span className="text-gray-700 tabular-nums">{tpsAmount.toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">TVQ</span><span className="text-gray-700 tabular-nums">{tvqAmount.toFixed(2)} $</span></div>
           <div className="flex justify-between border-t border-gray-200 pt-1 font-semibold">
             <span className="text-gray-900">Total</span>
-            <span className="text-gray-900 tabular-nums">{Number(order.total_amount || 0).toFixed(2)} $</span>
+            <span className="text-gray-900 tabular-nums">{totalAmount.toFixed(2)} $</span>
           </div>
         </div>
       </div>
