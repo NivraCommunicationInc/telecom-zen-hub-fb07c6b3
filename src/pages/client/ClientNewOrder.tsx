@@ -1901,28 +1901,43 @@ const ClientNewOrder = () => {
         });
       }
 
-      // Use compute_checkout_pricing RPC as authoritative for totals (discounts applied correctly).
-      // Nivra API response is used for order/invoice/payment numbers only.
-      // CRITICAL: liveServerPricing (from compute_checkout_pricing RPC) correctly subtracts discounts
-      // from taxable_base. The Nivra API may return gross totals without promo discounts.
-      // ★ NIVRA CORE IS THE SINGLE SOURCE OF TRUTH for pricing
-      // Use Nivra API response as authoritative totals. RPC is fallback only.
-      const rpcPricing = liveServerPricing;
-      const serverPricing = {
+      // Use compute_checkout_pricing RPC as authoritative for ALL amounts.
+      // Nivra API response is used for order/invoice/payment reference numbers only.
+      const rpcPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
+
+      const nivraFallbackPricing = normalizeServerPricingResult({
         grand_total: nivraOrderResponse.total,
         tps_amount: nivraOrderResponse.gst,
         tvq_amount: nivraOrderResponse.qst,
         taxable_base: nivraOrderResponse.subtotal,
-        recurring_subtotal: rpcPricing ? Number(rpcPricing.recurring_subtotal) : monthlyRecurring,
-        one_time_subtotal: rpcPricing ? Number(rpcPricing.one_time_subtotal) : oneTimeFees,
+        recurring_subtotal: monthlyRecurring,
+        one_time_subtotal: oneTimeFees,
+        discount_total_combined: 0,
+        promo_discount: 0,
+        welcome_discount: 0,
+        preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+      });
+
+      const canonicalPricing = normalizeServerPricingResult({
+        ...(rpcPricing || nivraFallbackPricing),
+        grand_total: rpcPricing?.grand_total ?? nivraFallbackPricing.grand_total,
+        tps_amount: rpcPricing?.tps_amount ?? nivraFallbackPricing.tps_amount,
+        tvq_amount: rpcPricing?.tvq_amount ?? nivraFallbackPricing.tvq_amount,
+        taxable_base: rpcPricing?.taxable_base ?? nivraFallbackPricing.taxable_base,
+        recurring_subtotal: rpcPricing?.recurring_subtotal ?? nivraFallbackPricing.recurring_subtotal,
+        one_time_subtotal: rpcPricing?.one_time_subtotal ?? nivraFallbackPricing.one_time_subtotal,
         discount_total_combined: rpcPricing?.discount_total_combined ?? 0,
         promo_discount: rpcPricing?.promo_discount ?? 0,
         welcome_discount: rpcPricing?.welcome_discount ?? 0,
+        preauth_discount: rpcPricing?.preauth_discount ?? (acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0),
+      });
+
+      const serverPricing = {
+        ...canonicalPricing,
         welcome_applied: rpcPricing?.welcome_applied ?? false,
         is_new_customer: rpcPricing?.is_new_customer ?? false,
-        preauth_discount: rpcPricing?.preauth_discount ?? 0,
         promo_applied: rpcPricing?.promo_applied ?? null,
-        computed_at: new Date().toISOString(),
+        computed_at: rpcPricing?.computed_at || new Date().toISOString(),
         // ★ Nivra Core canonical references
         nivra_order_number: nivraOrderResponse.order_number,
         nivra_payment_number: nivraOrderResponse.payment_number,
@@ -1930,19 +1945,8 @@ const ClientNewOrder = () => {
         nivra_order_id: nivraOrderResponse.order_id,
         // Billing cycle anchored to order creation day
         billing_cycle_day: new Date().getDate(),
-        cents: {
-          recurring_subtotal: rpcPricing ? rpcPricing.cents.recurring_subtotal : Math.round(monthlyRecurring * 100),
-          one_time_subtotal: rpcPricing ? rpcPricing.cents.one_time_subtotal : Math.round(oneTimeFees * 100),
-          discount_total_combined: rpcPricing?.cents?.discount_total_combined ?? 0,
-          promo_discount: rpcPricing?.cents?.promo_discount ?? 0,
-          welcome_discount: rpcPricing?.cents?.welcome_discount ?? 0,
-          taxable_base: Math.round(nivraOrderResponse.subtotal * 100),
-          tps: Math.round(nivraOrderResponse.gst * 100),
-          tvq: Math.round(nivraOrderResponse.qst * 100),
-          grand_total: Math.round(nivraOrderResponse.total * 100),
-        },
       };
-      console.log("[ServerPricing] Authoritative totals from API:", serverPricing);
+      console.log("[ServerPricing] Canonical totals normalized:", serverPricing);
 
       // Use server-side totals for the order (authoritative)
       const grossSubtotal = subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
