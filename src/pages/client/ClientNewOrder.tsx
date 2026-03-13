@@ -5130,16 +5130,22 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     )}
 
-                    {/* First month recurring gross */}
+                    {/* First month recurring — show gross then discount line */}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Services 1er mois</span>
-                      <span className="text-foreground">{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span className={totalDiscount > 0 ? "text-muted-foreground line-through" : "text-foreground"}>{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     {totalDiscount > 0 && (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Net 1er mois après rabais</span>
-                        <span>{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                      </div>
+                      <>
+                        <div className="flex justify-between text-sm text-emerald-500 font-medium">
+                          <span>Rabais{appliedPromo ? ` (${appliedPromo.code})` : welcomeDiscountAmount > 0 ? " nouveau client" : ""}</span>
+                          <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-medium">
+                          <span className="text-muted-foreground">Net 1er mois après rabais</span>
+                          <span className="text-foreground">{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                        </div>
+                      </>
                     )}
                   </div>
 
