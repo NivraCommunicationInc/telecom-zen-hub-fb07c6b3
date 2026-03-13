@@ -31,10 +31,10 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
       .or(`account_number.ilike.${pattern},account_name.ilike.${pattern}`)
       .limit(8),
 
-    // 2. Customers (billing_customers) — search by name, email
+    // 2. Customers (billing_customers) — search by name, email, phone
     supabase
       .from("billing_customers")
-      .select("id, first_name, last_name, email, phone")
+      .select("id, first_name, last_name, email, phone, user_id")
       .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`)
       .limit(8),
 
