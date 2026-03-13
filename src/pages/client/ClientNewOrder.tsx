@@ -5442,13 +5442,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sous-total frais uniques</span>
-                      <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     
                     {/* First month recurring breakdown */}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Mensuel (1er mois)</span>
-                      <span>{monthlyRecurring.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{authoritativeRecurringSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
                     
                     {/* Show all applicable discounts — SERVER-SIDE values only */}
