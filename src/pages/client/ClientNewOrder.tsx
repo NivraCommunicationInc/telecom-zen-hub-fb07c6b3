@@ -1954,7 +1954,14 @@ const ClientNewOrder = () => {
       
       // Cap discount using canonical server pricing (enforces min_payable_cents)
       const cappedDiscount = toNonNegativeMoney(serverPricing.discount_total_combined);
-      
+      const orderTotalAmount = toNonNegativeMoney(serverPricing.grand_total);
+      const orderTaxableBase = toNonNegativeMoney(serverPricing.taxable_base);
+      const { tps: orderTpsAmount, tvq: orderTvqAmount } = sanitizeTaxes(
+        orderTaxableBase,
+        serverPricing.tps_amount,
+        serverPricing.tvq_amount,
+      );
+
       // Determine payment method value NOW (before insert) to avoid null
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
         : paymentMethod === "etransfer" ? "etransfer"
