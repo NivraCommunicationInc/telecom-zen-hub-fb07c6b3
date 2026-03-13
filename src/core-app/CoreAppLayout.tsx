@@ -14,7 +14,7 @@ import {
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: ListTodo, label: "Work Queue", href: "/work-queue" },
       { icon: Package, label: "Orders", href: "/orders" },
       { icon: Receipt, label: "POS", href: "/pos" },
+      { icon: Zap, label: "Activations", href: "/activations" },
       { icon: Calendar, label: "Appointments", href: "/appointments" },
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Shield, label: "KYC", href: "/kyc" },
