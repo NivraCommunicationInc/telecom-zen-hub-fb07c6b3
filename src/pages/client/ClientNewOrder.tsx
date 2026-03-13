@@ -1115,8 +1115,9 @@ const ClientNewOrder = () => {
           }
         }
       }
-      // Date of birth
-      if (!dateOfBirth && profile.date_of_birth) {
+      // Date of birth — ALWAYS hydrate from profile (source of truth, read-only in checkout)
+      // This prevents stale closure issues where dateOfBirth state is empty
+      if (profile.date_of_birth) {
         setDateOfBirth(profile.date_of_birth);
       }
       // Phone
@@ -1963,7 +1964,7 @@ const ClientNewOrder = () => {
         // Client identity fields for profile sync trigger
         client_first_name: firstName || null,
         client_last_name: lastName || null,
-        client_dob: dateOfBirth, // REQUIRED - never null (validated above)
+        client_dob: profile?.date_of_birth || dateOfBirth, // Profile DOB is source of truth
         client_phone: checkoutPhone || null,
         // Shipping/service address fields
         shipping_address: serviceAddressStreet || null,
@@ -2371,7 +2372,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             full_name: `${firstName || ''} ${lastName || ''}`.trim() || profile?.full_name || null,
             email: profile?.email || user?.email || null,
             phone: checkoutPhone || profile?.phone || null,
-            date_of_birth: dateOfBirth || profile?.date_of_birth || null,
+            date_of_birth: profile?.date_of_birth || dateOfBirth || null,
             id_type: idType || null,
             id_number: idNumber || null,
             id_expiration: idExpiration || null,
@@ -3089,43 +3090,46 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return;
     }
     
-    // CRITICAL VALIDATION: DOB is ALWAYS required for orders (enforced by DB trigger + CHECK constraint)
-    // If DOB is missing from local state, try to pull from profile before blocking
-    let effectiveDob = dateOfBirth?.trim() || "";
-    if (!effectiveDob && profile?.date_of_birth) {
-      effectiveDob = profile.date_of_birth;
+    // CRITICAL: DOB resolution — profile is the source of truth (locked field)
+    // Priority: profile.date_of_birth > local dateOfBirth state
+    const profileDob = profile?.date_of_birth?.trim() || "";
+    let effectiveDob = profileDob || dateOfBirth?.trim() || "";
+    
+    if (effectiveDob && effectiveDob !== dateOfBirth) {
       setDateOfBirth(effectiveDob);
-      console.log("[ClientNewOrder] DOB auto-filled from profile at submission:", effectiveDob);
+      console.log("[ClientNewOrder] DOB resolved from profile at submission:", effectiveDob);
     }
     
-    // Step 1: DOB must be provided (non-empty)
+    // If DOB exists in profile, it was already validated at identity verification time — skip re-validation
+    // Only validate if DOB comes from local state (not profile)
     if (!effectiveDob) {
       submittingRef.current = false;
       toast.error("La date de naissance est requise pour passer une commande");
       return;
     }
     
-    // Step 2: DOB must be parseable (valid date format YYYY-MM-DD)
-    // Safe validation with try/catch to prevent any crash
-    try {
-      const parsed = parseISO(effectiveDob);
-      if (!isValid(parsed)) {
+    // Only run format/age validation if DOB is NOT from the verified profile
+    // Profile DOB is immutable and was validated at registration/identity verification
+    if (!profileDob) {
+      try {
+        const parsed = parseISO(effectiveDob);
+        if (!isValid(parsed)) {
+          submittingRef.current = false;
+          toast.error("Format de date invalide. Utilisez AAAA-MM-JJ.");
+          return;
+        }
+        
+        const dobResult = validateDob(effectiveDob, { minAge: MIN_AGE_TELECOM, required: true });
+        if (!dobResult.isValid) {
+          submittingRef.current = false;
+          toast.error(dobResult.error?.fr || "Date de naissance invalide");
+          return;
+        }
+      } catch {
         submittingRef.current = false;
-        toast.error("Format de date invalide. Utilisez AAAA-MM-JJ.");
+        toast.error("Date de naissance invalide");
         return;
       }
-      
-      // Step 3: DOB must pass all validation rules (not future, >= 13 years, <= 120 years)
-      const dobResult = validateDob(effectiveDob, { minAge: MIN_AGE_TELECOM, required: true });
-      if (!dobResult.isValid) {
-        submittingRef.current = false;
-        toast.error(dobResult.error?.fr || "Date de naissance invalide");
-        return;
-      }
-    } catch {
-      submittingRef.current = false;
-      toast.error("Date de naissance invalide");
-      return;
     }
     
     if (selectedServices.length === 0) {
@@ -4707,14 +4711,24 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <Input
                       id="date-of-birth"
                       type="date"
-                      value={dateOfBirth}
+                      value={profile?.date_of_birth || dateOfBirth}
                       readOnly
                       disabled
                       className="bg-muted/50 cursor-not-allowed"
                     />
-                    {dateOfBirth && (() => {
+                    {(profile?.date_of_birth || dateOfBirth) && (() => {
+                      const displayDob = profile?.date_of_birth || dateOfBirth;
+                      // If DOB comes from verified profile, always show as valid (already validated)
+                      if (profile?.date_of_birth) {
+                        return (
+                          <p className="text-xs text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Âge vérifié
+                          </p>
+                        );
+                      }
                       try {
-                        const parsed = parseISO(dateOfBirth);
+                        const parsed = parseISO(displayDob);
                         if (!isValid(parsed)) {
                           return (
                             <p className="text-xs text-destructive flex items-center gap-1">
@@ -4723,7 +4737,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             </p>
                           );
                         }
-                        const result = validateDob(dateOfBirth, { minAge: MIN_AGE_TELECOM });
+                        const result = validateDob(displayDob, { minAge: MIN_AGE_TELECOM });
                         if (!result.isValid) {
                           return (
                             <p className="text-xs text-destructive flex items-center gap-1">
