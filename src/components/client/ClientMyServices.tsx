@@ -255,15 +255,26 @@ const ClientMyServices = () => {
     queryKey: ["client-payments-info", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await portalSupabase
-        .from("payments")
-        .select("*")
+      // Resolve billing_customer first, then fetch canonical billing_payments
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", user.id)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await portalSupabase
+        .from("billing_payments")
+        .select("id, payment_number, amount, method, status, reference, created_at")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;
-      return data || [];
+      return (data || []).map((p: any) => ({
+        ...p,
+        payment_reference: p.payment_number,
+        reference_number: p.reference,
+        payment_method: p.method,
+      }));
     },
     enabled: !!user?.id,
   });
