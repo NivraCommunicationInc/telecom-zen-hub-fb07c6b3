@@ -178,6 +178,24 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
     }
   }
 
+  // Map profiles (as customers with link to client profile)
+  if (profiles.data) {
+    for (const p of profiles.data) {
+      // Avoid duplicates with billing_customers
+      const alreadyFound = results.some(r => r.type === "customer" && r.subtitle === p.email);
+      if (!alreadyFound) {
+        results.push({
+          id: p.user_id,
+          type: "customer",
+          title: p.full_name || p.email || p.user_id,
+          subtitle: p.email,
+          badge: p.account_number || p.client_number || null,
+          href: `/core/clients/${p.user_id}`,
+        });
+      }
+    }
+  }
+
   return results;
 }
 
