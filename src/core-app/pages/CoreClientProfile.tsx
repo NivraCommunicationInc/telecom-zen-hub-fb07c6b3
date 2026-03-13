@@ -134,38 +134,32 @@ const CoreClientProfile = () => {
 
   // ── Invoices ──
   const { data: invoices = [] } = useQuery({
-    queryKey: ["core-client-invoices", clientId],
+    queryKey: ["core-client-invoices", clientId, billingCustomer?.id],
     queryFn: async () => {
-      if (!profile?.email) return [];
-      const { data: customer } = await supabase.from("billing_customers")
-        .select("id").eq("email", profile.email).maybeSingle();
-      if (!customer) return [];
+      if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_invoices")
         .select("id, invoice_number, total, balance_due, status, due_date, created_at")
-        .eq("customer_id", customer.id)
+        .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
         .limit(10);
       return data || [];
     },
-    enabled: !!clientId && !!profile,
+    enabled: !!billingCustomer,
   });
 
   // ── Payments ──
   const { data: payments = [] } = useQuery({
-    queryKey: ["core-client-payments", clientId],
+    queryKey: ["core-client-payments", clientId, billingCustomer?.id],
     queryFn: async () => {
-      if (!profile?.email) return [];
-      const { data: customer } = await supabase.from("billing_customers")
-        .select("id").eq("email", profile.email).maybeSingle();
-      if (!customer) return [];
+      if (!billingCustomer) return [];
       const { data } = await supabase.from("billing_payments")
         .select("id, payment_number, amount, method, status, created_at, reference")
-        .eq("customer_id", customer.id)
+        .eq("customer_id", billingCustomer.id)
         .order("created_at", { ascending: false })
         .limit(10);
       return data || [];
     },
-    enabled: !!clientId && !!profile,
+    enabled: !!billingCustomer,
   });
 
   // ── KYC ──

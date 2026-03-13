@@ -444,10 +444,10 @@ END:VCALENDAR`;
                     <span className="text-muted-foreground">Numéro de compte</span>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="font-mono font-bold text-foreground">
-                        {account?.account_number || profile?.client_number || "En création"}
+                        {account?.account_number || "En création"}
                       </span>
-                      {(account?.account_number || profile?.client_number) && (
-                        <Button variant="ghost" size="sm" onClick={() => copyToClipboard(account?.account_number || profile?.client_number || "", "Compte")} className="h-6 w-6 p-0">
+                      {account?.account_number && (
+                        <Button variant="ghost" size="sm" onClick={() => copyToClipboard(account.account_number, "Compte")} className="h-6 w-6 p-0">
                           <Copy className="w-3 h-3" />
                         </Button>
                       )}
