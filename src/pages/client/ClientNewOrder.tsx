@@ -1997,7 +1997,7 @@ const ClientNewOrder = () => {
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
-        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? Math.max(0, serverPricing.grand_total) : 0,
+        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? (Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0) : 0,
         payment_reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : null,
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
