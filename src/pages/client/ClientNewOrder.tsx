@@ -2931,17 +2931,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         // Add recurring services
         selectedServices.forEach(s => {
           const qty = s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1;
-          cartItems.push({ type: "service", name: s.name, amount: Number(s.price), quantity: qty });
+          cartItems.push({ type: "service", name: s.name, amount: toMoney(s.price), quantity: qty });
         });
 
         // Add paid TV channels
         selectedPaidChannels.forEach(ch => {
-          cartItems.push({ type: "service", name: ch.name, amount: Number(ch.price), quantity: 1 });
+          cartItems.push({ type: "service", name: ch.name, amount: toMoney(ch.price), quantity: 1 });
         });
 
         // Add streaming add-ons
         selectedStreamingServices.forEach(s => {
-          cartItems.push({ type: "service", name: s.name, amount: Number(s.monthly_price), quantity: 1 });
+          cartItems.push({ type: "service", name: s.name, amount: toMoney(s.monthly_price), quantity: 1 });
         });
 
         // Add one-time fees
