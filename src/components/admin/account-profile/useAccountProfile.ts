@@ -58,18 +58,38 @@ export function useAccountProfile(accountId: string | undefined) {
 
   // Orders
   const orders = useQuery({
-    queryKey: ["account-profile-orders", accountId],
+    queryKey: ["account-profile-orders", accountId, clientId],
     queryFn: async () => {
-      if (!accountId) return [];
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("account_id", accountId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      if (!accountId && !clientId) return [];
+
+      const [byAccount, byUser] = await Promise.all([
+        accountId
+          ? supabase
+              .from("orders")
+              .select("*")
+              .eq("account_id", accountId)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+        clientId
+          ? supabase
+              .from("orders")
+              .select("*")
+              .eq("user_id", clientId)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (byAccount.error) throw byAccount.error;
+      if (byUser.error) throw byUser.error;
+
+      const merged = [...(byAccount.data || []), ...(byUser.data || [])];
+      const unique = new Map(merged.map((o: any) => [o.id, o]));
+
+      return Array.from(unique.values()).sort(
+        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
     },
-    enabled: !!accountId,
+    enabled: !!accountId || !!clientId,
   });
 
   // Billing invoices (from billing_invoices via billing_customers)

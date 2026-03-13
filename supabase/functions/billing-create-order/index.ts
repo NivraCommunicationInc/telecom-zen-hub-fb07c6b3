@@ -401,27 +401,54 @@ serve(async (req) => {
       }
       
       if (!subscription) {
+        const insertPayload = {
+          customer_id: customerId,
+          plan_code: service.plan_code,
+          plan_name: service.plan_name,
+          plan_price: service.plan_price,
+          service_category: service.category,
+          cycle_start_date: cycleStartStr,
+          cycle_end_date: cycleEndStr,
+          status: subscriptionStatus,
+          auto_billing_enabled: isPayPalPaid,
+          order_id: body.order_id || null,
+          address_id: serviceNeedsAddress ? addressId : null,
+        };
+
         const { data: newSub, error: subError } = await supabase
           .from("billing_subscriptions")
-          .insert({
-            customer_id: customerId,
-            plan_code: service.plan_code,
-            plan_name: service.plan_name,
-            plan_price: service.plan_price,
-            service_category: service.category,
-            cycle_start_date: cycleStartStr,
-            cycle_end_date: cycleEndStr,
-            status: subscriptionStatus,
-            auto_billing_enabled: isPayPalPaid,
-            order_id: body.order_id || null,
-            address_id: serviceNeedsAddress ? addressId : null,
-          })
+          .insert(insertPayload)
           .select()
           .single();
-        
-        if (subError) throw subError;
-        subscription = newSub;
-        console.log(`[billing-create-order] Created new subscription: ${subscription!.id}`);
+
+        if (subError) {
+          const isDuplicateAddressCategory =
+            subError.code === "23505" &&
+            `${subError.message || ""} ${subError.details || ""}`.includes("idx_unique_sub_per_address_category");
+
+          if (!isDuplicateAddressCategory) throw subError;
+
+          let existingQuery = supabase
+            .from("billing_subscriptions")
+            .select("id")
+            .eq("customer_id", customerId)
+            .eq("service_category", service.category)
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          existingQuery = serviceNeedsAddress
+            ? existingQuery.eq("address_id", addressId)
+            : existingQuery.is("address_id", null);
+
+          const { data: existingSub, error: existingSubError } = await existingQuery.maybeSingle();
+          if (existingSubError || !existingSub) throw subError;
+
+          subscription = existingSub;
+          console.log(`[billing-create-order] Reusing existing subscription due to unique address/category lock: ${subscription.id}`);
+        } else {
+          subscription = newSub;
+          console.log(`[billing-create-order] Created new subscription: ${subscription!.id}`);
+        }
       }
       
       // Generate invoice number

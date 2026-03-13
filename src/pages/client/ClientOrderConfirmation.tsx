@@ -44,77 +44,13 @@ import { format, addDays, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { toast } from "sonner";
 import { safePDFDownload } from "@/lib/pdfUtils";
 import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
-
-const STATIC_TERMS_PDF = "/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
-
-interface OrderData {
-  id: string;
-  order_number: string;
-  confirmation_number: string;
-  service_type: string;
-  category: string;
-  subtotal: number;
-  delivery_fee: number;
-  activation_fee: number;
-  installation_fee: number;
-  installation_credit: number;
-  installation_type: string;
-  tps_amount: number;
-  tvq_amount: number;
-  total_amount: number;
-  status: string;
-  payment_reference: string;
-  payment_status: string;
-  created_at: string;
-  selected_channels?: any[];
-  appointment_date?: string;
-  appointment_notes?: string;
-  notes?: string;
-  equipment_details?: any;
-  router_fee?: number;
-  terminal_fee?: number;
-  terminal_count?: number;
-  delivery_method?: string;
-  promo_code?: string;
-  promo_discount_amount?: number;
-  preauth_discount?: number;
-  amount_paid?: number;
-  account_id?: string;
-  pricing_snapshot?: any;
-  // Address fields from order
-  shipping_address?: string;
-  shipping_city?: string;
-  shipping_province?: string;
-  shipping_postal_code?: string;
-}
-
-interface AccountData {
-  id: string;
-  account_number: string;
-  billing_cycle_day: number;
-  billing_cycle_timezone: string;
-}
-
-interface ProfileData {
-  full_name: string;
-  email: string;
-  phone: string;
-  service_address: string;
-  service_city: string;
-  service_province: string;
-  service_postal_code: string;
-  client_number: string;
-  client_pin_hash: string | null;
-  pin_is_default: boolean | null;
-}
-
-const ClientOrderConfirmation = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+...
   const { user } = useClientAuth();
+  const { data: accountIdentity } = useClientAccountIdentity(user?.id);
   const { data: siteSettings } = useSiteSettings();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [account, setAccount] = useState<AccountData | null>(null);

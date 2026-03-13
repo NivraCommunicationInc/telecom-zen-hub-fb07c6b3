@@ -79,7 +79,7 @@ export function useAccountProfile(accountId: string | undefined) {
           ? supabase
               .from("orders")
               .select("*")
-              .eq("client_id", clientId)
+              .eq("user_id", clientId)
               .order("created_at", { ascending: false })
           : Promise.resolve({ data: [], error: null } as any),
       ]);

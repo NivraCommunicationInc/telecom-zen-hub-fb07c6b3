@@ -65,7 +65,13 @@ const CoreClientProfile = () => {
   const { data: account } = useQuery({
     queryKey: ["core-client-account", clientId],
     queryFn: async () => {
-      const { data } = await supabase.from("accounts").select("*").eq("client_id", clientId!).maybeSingle();
+      const { data } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("client_id", clientId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     enabled: !!clientId,
@@ -77,7 +83,7 @@ const CoreClientProfile = () => {
     queryFn: async () => {
       const { data } = await supabase.from("orders")
         .select("id, order_number, status, created_at, service_type, total_amount, payment_status")
-        .eq("client_id", clientId!)
+        .eq("user_id", clientId!)
         .order("created_at", { ascending: false })
         .limit(20);
       return data || [];
