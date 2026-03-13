@@ -1421,9 +1421,10 @@ const ClientNewOrder = () => {
 
   const validateAndApplyPromo = async (
     code: string,
-    options?: { silent?: boolean }
+    options?: { silent?: boolean; allowExistingCodeRevalidation?: boolean }
   ): Promise<boolean> => {
     const silent = options?.silent === true;
+    const allowExistingCodeRevalidation = options?.allowExistingCodeRevalidation === true;
 
     if (!code || !code.trim()) {
       if (!silent) toast.error("Veuillez entrer un code promo");
@@ -1431,6 +1432,23 @@ const ClientNewOrder = () => {
     }
 
     const payload = buildPromoValidationPayload(code);
+    const normalizedAppliedCode = appliedPromo?.code?.trim().toUpperCase().replace(/[.,;:!?]+$/, "") || null;
+    const hasWelcomeDiscountAlreadyApplied =
+      toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0) > 0 || !!liveServerPricing?.welcome_applied;
+
+    if (!allowExistingCodeRevalidation) {
+      if (normalizedAppliedCode === payload.normalizedCode) {
+        setPromoValidationError(PROMO_ALREADY_APPLIED_MESSAGE);
+        if (!silent) toast.error(PROMO_ALREADY_APPLIED_MESSAGE);
+        return false;
+      }
+
+      if ((normalizedAppliedCode && normalizedAppliedCode !== payload.normalizedCode) || hasWelcomeDiscountAlreadyApplied) {
+        setPromoValidationError(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        if (!silent) toast.error(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        return false;
+      }
+    }
 
     // Mark signature as the last validated cart to prevent immediate revalidation loops
     promoCartSignatureRef.current = payload.signature;
@@ -1463,13 +1481,22 @@ const ClientNewOrder = () => {
         return false;
       }
 
+      const validatedDiscountAmount = toNonNegativeMoney(data?.discount_amount ?? 0);
+      if (validatedDiscountAmount <= 0) {
+        setAppliedPromo(null);
+        setInstallationCredit(0);
+        setPromoValidationError(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        if (!silent) toast.error(PROMO_SINGLE_DISCOUNT_MESSAGE);
+        return false;
+      }
+
       setAppliedPromo({
         id: data.promo.id,
         code: data.promo.code,
         name: data.promo.name,
         discount_type: data.promo.discount_type,
         discount_value: data.promo.discount_value,
-        discount_amount: data.discount_amount,
+        discount_amount: validatedDiscountAmount,
         applies_to: data.promo.applies_to,
         duration: data.promo.duration,
         // Referral code specific fields
@@ -1485,7 +1512,7 @@ const ClientNewOrder = () => {
 
       if (!silent) {
         toast.success(
-          `Code promo "${data.promo.code}" appliqué! Réduction de ${Number(data.discount_amount).toFixed(2)} $`
+          `Code promo "${data.promo.code}" appliqué! Réduction de ${validatedDiscountAmount.toFixed(2)} $`
         );
       }
 
