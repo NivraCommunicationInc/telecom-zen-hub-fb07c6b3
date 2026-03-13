@@ -5987,7 +5987,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     )}
                     <div className="flex justify-between font-medium">
                       <span className="text-muted-foreground">Total frais uniques</span>
-                      <span>{oneTimeFees.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                      <span>{authoritativeOneTimeSubtotal.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                     </div>
 
                     <Separator className="my-1" />
