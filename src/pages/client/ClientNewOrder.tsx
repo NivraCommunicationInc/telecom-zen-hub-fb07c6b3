@@ -1997,7 +1997,7 @@ const ClientNewOrder = () => {
         // FIX: Set payment_method AND payment_status at creation time
         payment_method: paymentMethodValue,
         payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
-        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? Math.max(0, serverPricing.grand_total) : 0,
+        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? (Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0) : 0,
         payment_reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : null,
         created_by: "client",
         notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
@@ -2030,10 +2030,10 @@ const ClientNewOrder = () => {
         terminal_fee: terminalFee,
         terminal_count: terminalQuantity,
         router_fee: routerFee,
-        // Server-side authoritative totals
-        total_amount: Math.max(0, serverPricing.grand_total),
-        tps_amount: serverPricing.tps_amount,
-        tvq_amount: serverPricing.tvq_amount,
+        // Server-side authoritative totals — GUARD: never send NaN/null
+        total_amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0,
+        tps_amount: Number.isFinite(serverPricing.tps_amount) ? serverPricing.tps_amount : 0,
+        tvq_amount: Number.isFinite(serverPricing.tvq_amount) ? serverPricing.tvq_amount : 0,
         // Structured pricing snapshot (server-side source of truth)
         pricing_snapshot: serverPricing,
       } as any, {
@@ -2084,14 +2084,14 @@ const ClientNewOrder = () => {
         const { error: paymentError } = await supabase.from("payments").insert({
           user_id: user.id,
           order_id: data.id,
-          amount: Math.max(0, serverPricing.grand_total), // Server-side authoritative amount
+          amount: Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0, // Server-side authoritative amount — GUARD: never null
           payment_method: actualPaymentMethod,
           reference_number: paymentRef,
           payment_reference: nivraPaymentRef,
           status: paymentStatus,
           card_type: actualPaymentMethod === "credit_card" ? "Visa/Mastercard" : null,
           card_last_four: actualPaymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
-          etransfer_amount: actualPaymentMethod === "etransfer" ? Math.max(0, serverPricing.grand_total) : null,
+          etransfer_amount: actualPaymentMethod === "etransfer" ? (Number.isFinite(serverPricing.grand_total) ? Math.max(0, serverPricing.grand_total) : 0) : null,
           etransfer_sender_name: actualPaymentMethod === "etransfer" ? etransferSenderName : null,
           provider_payment_id: actualPaymentMethod === "paypal" ? paypalCaptureId : null,
           captured_at: actualPaymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
