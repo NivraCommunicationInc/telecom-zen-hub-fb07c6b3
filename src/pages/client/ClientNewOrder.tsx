@@ -2021,12 +2021,12 @@ const ClientNewOrder = () => {
           ...(orderDeliveryFee > 0 ? [{ sku: SKU.DELIVERY, name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
           ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
         ],
-        promo: appliedPromo ? {
+        promo: shouldAttachPromoToCheckout ? {
           code: appliedPromo.code,
           name: appliedPromo.name,
           discount_type: appliedPromo.discount_type,
           discount_value: appliedPromo.discount_value,
-          discount_amount: cappedDiscount,
+          discount_amount: canonicalPromoDiscount,
           is_referral_code: appliedPromo.is_referral_code || false,
           referral_code_id: appliedPromo.referral_code_id,
           influencer_id: appliedPromo.influencer_id,
