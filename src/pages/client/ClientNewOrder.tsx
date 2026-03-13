@@ -2854,12 +2854,14 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   // for pricing display. nivraCoreOrderPricing (from Nivra API) is ONLY used for
   // order/invoice/payment reference numbers — NEVER for amounts, because the Nivra API
   // returns gross totals that don't reflect discounts applied by the RPC.
-  const authoritativePricing = liveServerPricing
+  const normalizedLivePricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
+
+  const authoritativePricing = normalizedLivePricing
     ? {
-        subtotal: Number(liveServerPricing.taxable_base ?? 0),
-        gst: Number(liveServerPricing.tps_amount ?? 0),
-        qst: Number(liveServerPricing.tvq_amount ?? 0),
-        total: Number(liveServerPricing.grand_total ?? 0),
+        subtotal: normalizedLivePricing.taxable_base,
+        gst: normalizedLivePricing.tps_amount,
+        qst: normalizedLivePricing.tvq_amount,
+        total: normalizedLivePricing.grand_total,
         // Reference numbers come from Nivra Core response (if available)
         orderNumber: nivraCoreOrderPricing?.order_number ?? undefined,
         invoiceNumber: nivraCoreOrderPricing?.invoice_number ?? undefined,
@@ -2872,10 +2874,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         total: 0,
       };
 
-  const todayTaxableBase = authoritativePricing?.subtotal ?? 0;
-  const todayTps = authoritativePricing?.gst ?? 0;
-  const todayTvq = authoritativePricing?.qst ?? 0;
-  const todayTotal = authoritativePricing?.total ?? 0;
+  const { taxableBase: todayTaxableBase, tps: todayTps, tvq: todayTvq } = sanitizeTaxes(
+    authoritativePricing?.subtotal ?? 0,
+    authoritativePricing?.gst ?? 0,
+    authoritativePricing?.qst ?? 0,
+  );
+  const todayTotal = toNonNegativeMoney(authoritativePricing?.total ?? 0);
 
   // === MONTHLY RECURRING WITH TAX (display only — distinct from today's payment) ===
   // monthlyRecurring is the pre-tax monthly total (services + channels + streaming)
