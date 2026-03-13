@@ -1968,10 +1968,23 @@ const ClientNewOrder = () => {
         : paymentMethod === "credit_card" ? "credit_card"
         : paymentMethod === "promo_free" ? "promo_free"
         : "etransfer"; // Default fallback
+
+      // Resolve account_id for order linkage — use most recent account
+      let resolvedAccountId: string | null = null;
+      try {
+        const { data: acctRows } = await supabase
+          .from("accounts")
+          .select("id")
+          .eq("client_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        resolvedAccountId = acctRows?.[0]?.id || null;
+      } catch { /* non-blocking */ }
       
       const { data, error } = await supabase.from("orders").upsert({
         client_request_id: clientRequestId,
         user_id: user.id,
+        account_id: resolvedAccountId,
         client_email: profile?.email || user.email,
         // Client identity fields for profile sync trigger
         client_first_name: firstName || null,
@@ -2067,16 +2080,11 @@ const ClientNewOrder = () => {
       // ★ Update account billing_cycle_day to match order creation day (Nivra Core source of truth)
       try {
         const orderDay = new Date().getDate();
-        const { data: accountData } = await supabase
-          .from("accounts")
-          .select("id")
-          .eq("client_id", user.id)
-          .maybeSingle();
-        if (accountData) {
+        if (resolvedAccountId) {
           await supabase
             .from("accounts")
             .update({ billing_cycle_day: orderDay })
-            .eq("id", accountData.id);
+            .eq("id", resolvedAccountId);
           console.log("[BillingCycle] Account billing_cycle_day set to:", orderDay);
         }
       } catch (cyclErr) {

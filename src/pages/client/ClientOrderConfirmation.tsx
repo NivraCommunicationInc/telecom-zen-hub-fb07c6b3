@@ -48,7 +48,14 @@ import { useClientAccountIdentity } from "@/hooks/useClientAccountIdentity";
 import { toast } from "sonner";
 import { safePDFDownload } from "@/lib/pdfUtils";
 import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
-...
+
+type OrderData = Record<string, any>;
+type AccountData = Record<string, any>;
+type ProfileData = Record<string, any>;
+
+const ClientOrderConfirmation = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useClientAuth();
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
   const { data: siteSettings } = useSiteSettings();
@@ -926,7 +933,7 @@ END:VCALENDAR`;
                       onClick={() => {
                         // Download static PDF from public folder
                         const link = document.createElement("a");
-                        link.href = STATIC_TERMS_PDF;
+                        link.href = "/documents/Modalites-Service-Nivra.pdf";
                         link.download = `Modalites-Service-Nivra-${order.order_number}.pdf`;
                         document.body.appendChild(link);
                         link.click();
