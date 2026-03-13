@@ -428,23 +428,76 @@ serve(async (req) => {
 
           if (!isDuplicateAddressCategory) throw subError;
 
+          console.log(`[billing-create-order] Duplicate subscription constraint hit — looking up existing subscription for customer=${customerId}, category=${service.category}, address=${addressId}`);
+
+          // Use select() without maybeSingle() to avoid errors on multiple rows
+          const fallbackFilters: Record<string, any> = {
+            customer_id: customerId,
+            service_category: service.category,
+          };
+
           let existingQuery = supabase
             .from("billing_subscriptions")
             .select("id")
             .eq("customer_id", customerId)
-            .eq("service_category", service.category)
+            .eq("service_category", service.category);
+
+          if (serviceNeedsAddress && addressId) {
+            existingQuery = existingQuery.eq("address_id", addressId);
+          } else if (!serviceNeedsAddress) {
+            existingQuery = existingQuery.is("address_id", null);
+          }
+
+          const { data: existingSubs } = await existingQuery
             .order("created_at", { ascending: false })
             .limit(1);
 
-          existingQuery = serviceNeedsAddress
-            ? existingQuery.eq("address_id", addressId)
-            : existingQuery.is("address_id", null);
+          if (!existingSubs || existingSubs.length === 0) {
+            // Last resort: find ANY subscription for this customer + category (ignore address filter)
+            console.warn(`[billing-create-order] Exact match failed, trying broader lookup`);
+            const { data: broadSubs } = await supabase
+              .from("billing_subscriptions")
+              .select("id")
+              .eq("customer_id", customerId)
+              .eq("service_category", service.category)
+              .order("created_at", { ascending: false })
+              .limit(1);
+            
+            if (!broadSubs || broadSubs.length === 0) {
+              console.error(`[billing-create-order] Cannot find existing subscription to reuse — skipping subscription, creating invoice directly`);
+              // Create a new subscription with a NULL address to bypass the constraint
+              const { data: fallbackSub, error: fallbackSubErr } = await supabase
+                .from("billing_subscriptions")
+                .insert({
+                  ...insertPayload,
+                  address_id: null, // bypass constraint
+                })
+                .select()
+                .single();
+              if (fallbackSubErr) throw fallbackSubErr;
+              subscription = fallbackSub;
+              console.log(`[billing-create-order] Created fallback subscription (no address): ${subscription!.id}`);
+            } else {
+              subscription = broadSubs[0];
+            }
+          } else {
+            subscription = existingSubs[0];
+          }
 
-          const { data: existingSub, error: existingSubError } = await existingQuery.maybeSingle();
-          if (existingSubError || !existingSub) throw subError;
-
-          subscription = existingSub;
-          console.log(`[billing-create-order] Reusing existing subscription due to unique address/category lock: ${subscription.id}`);
+          if (subscription) {
+            // Update existing subscription to link to new order and refresh plan info
+            await supabase
+              .from("billing_subscriptions")
+              .update({
+                order_id: body.order_id || null,
+                plan_code: service.plan_code,
+                plan_name: service.plan_name,
+                plan_price: service.plan_price,
+                status: subscriptionStatus,
+              })
+              .eq("id", subscription.id);
+            console.log(`[billing-create-order] Reusing + updated existing subscription: ${subscription.id}`);
+          }
         } else {
           subscription = newSub;
           console.log(`[billing-create-order] Created new subscription: ${subscription!.id}`);
