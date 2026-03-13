@@ -1832,12 +1832,16 @@ const ClientNewOrder = () => {
         discounts: discountsForLineItems,
       });
 
-      // Use upsert with client_request_id for idempotency — if this request was already processed, return existing order
-      // === EXTERNAL API PRICING (authoritative) ===
-      // Build SKU-based items array for the external Nivra API
-      const nivraItems: NivraOrderItem[] = [];
+      // =====================================================================
+      // NIVRA CORE — SINGLE SOURCE OF TRUTH FOR ORDER + BILLING CREATION
+      // =====================================================================
+      // Build the full checkout payload and submit to Nivra Core.
+      // Nivra Core atomically creates: order, invoice, payment, subscription(s).
+      // The frontend only collects inputs and displays the canonical response.
+      // =====================================================================
 
-      // Service plans (use SKU from the service object)
+      // Build SKU-based items array for Nivra Core
+      const nivraItems: NivraOrderItem[] = [];
       for (const s of selectedServices) {
         const sku = s.sku || findSkuByName(allNivraProducts, s.name);
         if (sku) {
@@ -1849,37 +1853,16 @@ const ClientNewOrder = () => {
           console.warn("[NivraCheckout] No SKU found for service:", s.name);
         }
       }
-
-      // Equipment: Router
-      if (hasInternetService || hasTVService) {
-        nivraItems.push({ sku: SKU.ROUTER, quantity: 1 });
-      }
-
-      // Equipment: TV Terminal
-      if (hasTVService) {
-        nivraItems.push({ sku: SKU.TVBOX, quantity: terminalQuantity });
-      }
-
-      // Equipment: SIM
-      if (hasMobileService) {
-        nivraItems.push({ sku: SKU.SIM, quantity: totalMobileLineQuantity });
-      }
-
-      // Fees: Activation
+      if (hasInternetService || hasTVService) nivraItems.push({ sku: SKU.ROUTER, quantity: 1 });
+      if (hasTVService) nivraItems.push({ sku: SKU.TVBOX, quantity: terminalQuantity });
+      if (hasMobileService) nivraItems.push({ sku: SKU.SIM, quantity: totalMobileLineQuantity });
       if (orderActivationFee > 0) {
         const uniqueCategories = new Set(selectedServices.map(s => s.category));
-        nivraItems.push({
-          sku: uniqueCategories.size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1,
-          quantity: 1,
-        });
+        nivraItems.push({ sku: uniqueCategories.size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1, quantity: 1 });
       }
+      if (orderDeliveryFee > 0) nivraItems.push({ sku: SKU.DELIVERY, quantity: 1 });
 
-      // Fees: Delivery
-      if (orderDeliveryFee > 0) {
-        nivraItems.push({ sku: SKU.DELIVERY, quantity: 1 });
-      }
-
-      // Call external API to create order and get authoritative pricing
+      // Pre-checkout pricing call (kept for pricing authority display)
       const customerName = `${firstName} ${lastName}`.trim();
       const customerEmail = profile?.email || user.email || "";
 
@@ -1889,22 +1872,19 @@ const ClientNewOrder = () => {
         items: nivraItems,
       });
       setNivraCoreOrderPricing(nivraOrderResponse);
-      console.log("[NivraAPI] Order created with authoritative pricing:", nivraOrderResponse);
+      console.log("[NivraAPI] Pre-checkout pricing received:", nivraOrderResponse);
 
       // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
-      // PayPal payment happened before order submission, so paypalCaptureId is already set
       if (paypalCaptureId && nivraOrderResponse.payment_number) {
         notifyNivraCorePaid({
           paymentNumber: nivraOrderResponse.payment_number,
-          paypalOrderId: paypalCaptureId, // The PayPal order ID used as capture ref
+          paypalOrderId: paypalCaptureId,
           paypalCaptureId: paypalCaptureId,
         });
       }
 
-      // Use compute_checkout_pricing RPC as authoritative for ALL amounts.
-      // Nivra API response is used for order/invoice/payment reference numbers only.
+      // Use compute_checkout_pricing RPC as authoritative for ALL amounts
       const rpcPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
-
       const nivraFallbackPricing = normalizeServerPricingResult({
         grand_total: nivraOrderResponse.total,
         tps_amount: nivraOrderResponse.gst,
@@ -1917,7 +1897,6 @@ const ClientNewOrder = () => {
         welcome_discount: 0,
         preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
       });
-
       const canonicalPricing = normalizeServerPricingResult({
         ...(rpcPricing || nivraFallbackPricing),
         grand_total: rpcPricing?.grand_total ?? nivraFallbackPricing.grand_total,
@@ -1938,38 +1917,14 @@ const ClientNewOrder = () => {
         is_new_customer: rpcPricing?.is_new_customer ?? false,
         promo_applied: rpcPricing?.promo_applied ?? null,
         computed_at: rpcPricing?.computed_at || new Date().toISOString(),
-        // ★ Nivra Core canonical references
         nivra_order_number: nivraOrderResponse.order_number,
         nivra_payment_number: nivraOrderResponse.payment_number,
         nivra_invoice_number: nivraOrderResponse.invoice_number,
         nivra_order_id: nivraOrderResponse.order_id,
-        // Billing cycle anchored to order creation day
         billing_cycle_day: new Date().getDate(),
       };
-      console.log("[ServerPricing] Canonical totals normalized:", serverPricing);
 
-      // Use normalized totals for persisted order fields
-      const grossSubtotal = toMoney(subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + toMoney(s.monthly_price), 0));
-      const grossTotal = toMoney(grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee);
-      
-      // Cap discount using canonical server pricing (enforces min_payable_cents)
-      const cappedDiscount = toNonNegativeMoney(serverPricing.discount_total_combined);
-      const orderTotalAmount = toNonNegativeMoney(serverPricing.grand_total);
-      const orderTaxableBase = toNonNegativeMoney(serverPricing.taxable_base);
-      const { tps: orderTpsAmount, tvq: orderTvqAmount } = sanitizeTaxes(
-        orderTaxableBase,
-        serverPricing.tps_amount,
-        serverPricing.tvq_amount,
-      );
-
-      // Determine payment method value NOW (before insert) to avoid null
-      const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
-        : paymentMethod === "etransfer" ? "etransfer"
-        : paymentMethod === "credit_card" ? "credit_card"
-        : paymentMethod === "promo_free" ? "promo_free"
-        : "etransfer"; // Default fallback
-
-      // Resolve account_id for order linkage — use most recent account
+      // Resolve account_id for order linkage
       let resolvedAccountId: string | null = null;
       try {
         const { data: acctRows } = await supabase
@@ -1980,237 +1935,150 @@ const ClientNewOrder = () => {
           .limit(1);
         resolvedAccountId = acctRows?.[0]?.id || null;
       } catch { /* non-blocking */ }
-      
-      const { data, error } = await supabase.from("orders").upsert({
+
+      // Determine payment method value
+      const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
+        : paymentMethod === "etransfer" ? "etransfer"
+        : paymentMethod === "credit_card" ? "credit_card"
+        : paymentMethod === "promo_free" ? "promo_free"
+        : "etransfer";
+
+      const cappedDiscount = toNonNegativeMoney(serverPricing.discount_total_combined);
+      const orderTotalAmount = toNonNegativeMoney(serverPricing.grand_total);
+      const orderTaxableBase = toNonNegativeMoney(serverPricing.taxable_base);
+      const { tps: orderTpsAmount, tvq: orderTvqAmount } = sanitizeTaxes(
+        orderTaxableBase,
+        serverPricing.tps_amount,
+        serverPricing.tvq_amount,
+      );
+
+      // ═══════════════════════════════════════════════════════════════
+      // SUBMIT TO NIVRA CORE — Creates order, invoice, payment, subs
+      // ═══════════════════════════════════════════════════════════════
+      const nivraCheckoutResponse: NivraFullCheckoutResponse = await submitNivraCheckout({
         client_request_id: clientRequestId,
-        user_id: user.id,
-        account_id: resolvedAccountId,
-        client_email: profile?.email || user.email,
-        // Client identity fields for profile sync trigger
-        client_first_name: firstName || null,
-        client_last_name: lastName || null,
-        client_dob: profile?.date_of_birth || dateOfBirth, // Profile DOB is source of truth
-        client_phone: checkoutPhone || null,
-        // Shipping/service address fields
-        shipping_address: serviceAddressStreet || null,
-        shipping_city: serviceAddressCity || null,
-        shipping_province: serviceAddressProvince || null,
-        shipping_postal_code: serviceAddressPostalCode || null,
-        service_type: serviceNames,
-        category: isDeliveryOnlyOrder ? "Delivery" : categories,
-        subtotal: grossSubtotal,
-        delivery_fee: orderDeliveryFee,
-        activation_fee: orderActivationFee,
-        installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
-        installation_credit: installationCredit,
-        installation_type: orderInstallationType,
-        discount_code: appliedPromo?.code || discountCode || null,
-        // Capped discount amount to prevent negative totals
-        discount_amount: cappedDiscount,
-        promo_code: appliedPromo?.code || null,
-        promo_discount_amount: cappedDiscount,
-        promo_details: appliedPromo ? {
-          id: appliedPromo.id,
+        customer: {
+          user_id: user.id,
+          first_name: firstName || profile?.first_name || '',
+          last_name: lastName || profile?.last_name || '',
+          email: customerEmail,
+          phone: checkoutPhone || profile?.phone || '',
+          date_of_birth: profile?.date_of_birth || dateOfBirth || null,
+        },
+        service_address: {
+          street: serviceAddressStreet || '',
+          apartment: serviceAddressApartment || null,
+          city: serviceAddressCity || '',
+          province: serviceAddressProvince || 'QC',
+          postal_code: serviceAddressPostalCode || '',
+        },
+        services: selectedServices.map(s => ({
+          sku: s.sku || findSkuByName(allNivraProducts, s.name) || s.id,
+          name: s.name || 'Service Nivra',
+          plan_code: s.id || s.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
+          plan_price: toMoney(s.price),
+          category: s.category || 'Other',
+          quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
+        })),
+        equipment: [
+          ...((hasInternetService || hasTVService) ? [{ sku: SKU.ROUTER, name: ROUTER_CONFIG_DYNAMIC.name, quantity: 1, unit_price: ROUTER_CONFIG_DYNAMIC.price }] : []),
+          ...(hasTVService ? [{ sku: SKU.TVBOX, name: TERMINAL_CONFIG.name, quantity: terminalQuantity, unit_price: TERMINAL_CONFIG.price }] : []),
+          ...(hasMobileService ? [{ sku: SKU.SIM, name: SIM_CONFIG_DYNAMIC.physical.name, quantity: totalMobileLineQuantity, unit_price: SIM_CONFIG_DYNAMIC.physical.price }] : []),
+        ],
+        fees: [
+          ...(orderActivationFee > 0 ? [{ sku: new Set(selectedServices.map(s => s.category)).size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1, name: "Frais d'activation", amount: orderActivationFee }] : []),
+          ...(orderDeliveryFee > 0 ? [{ sku: SKU.DELIVERY, name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
+          ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
+        ],
+        promo: appliedPromo ? {
           code: appliedPromo.code,
           name: appliedPromo.name,
           discount_type: appliedPromo.discount_type,
           discount_value: appliedPromo.discount_value,
           discount_amount: cappedDiscount,
+          is_referral_code: appliedPromo.is_referral_code || false,
+          referral_code_id: appliedPromo.referral_code_id,
+          influencer_id: appliedPromo.influencer_id,
         } : null,
-        status: "pending_verification",
-        identity_verification_session_id: effectiveSessionId,
-        // FIX: Set payment_method AND payment_status at creation time
-        payment_method: paymentMethodValue,
-        payment_status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
-        amount_paid: paymentMethodValue === "paypal" && paypalCaptureId ? orderTotalAmount : 0,
-        payment_reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : null,
-        created_by: "client",
-        notes: (notes || '') + addressInfo + routerInfo + equipmentInfo + simInfo + deliveryInfo + streamingAddonsInfo + 
-          (acceptPreauthorized ? '\n\n**Paiement pré-autorisé:** Oui (rabais 5$/mois appliqué)' : '') +
-          (appliedPromo ? `\n\n**Code promo:** ${appliedPromo.code} — Rabais de ${cappedDiscount.toFixed(2)}$` : '') +
-          ((liveServerPricing?.welcome_discount ?? 0) > 0 ? `\n\n**Rabais nouveau client:** 50% sur services (1er mois) — ${(liveServerPricing?.welcome_discount ?? 0).toFixed(2)}$` : ''),
-        selected_channels: channelData,
-        channel_selection_locked: false,
-        channel_assigned_by: hasTVService && channelData.length > 0 ? user.id : null,
-        // V2.2: Include billing_totals snapshot in equipment_details for PDF source of truth
-        equipment_details: wrapLineItemsForOrder(lineItems, {
-          subtotal: orderTaxableBase,
-          discount_amount: cappedDiscount,
-          base_amount: orderTaxableBase,
-          tps_amount: orderTpsAmount,
-          tvq_amount: orderTvqAmount,
-          total: orderTotalAmount,
-          promo_code: appliedPromo?.code || null,
-          promo_name: appliedPromo?.name || null,
-          payment_method: paymentMethodValue,
-          monthly_recurring: toNonNegativeMoney(serverPricing.recurring_subtotal),
-          one_time_fees: toNonNegativeMoney(serverPricing.one_time_subtotal),
-        }),
-        equipment_id: hasTVService ? `TERMINAL-${terminalQuantity}x` : (hasInternetService ? 'ROUTER' : null),
-        preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-        preauth_card_id: savedPaymentMethodId,
-        port_request: portRequestData,
-        identity_snapshot: identitySnapshotData,
-        // Store terminal and router fees for admin visibility
-        terminal_fee: terminalFee,
-        terminal_count: terminalQuantity,
-        router_fee: routerFee,
-        // Server-side authoritative totals — always finite and normalized
-        total_amount: orderTotalAmount,
-        tps_amount: orderTpsAmount,
-        tvq_amount: orderTvqAmount,
-        // Structured pricing snapshot (server-side source of truth)
+        payment: {
+          method: paymentMethodValue as any,
+          status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
+          reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : paymentConfirmationNumber || null,
+          paypal_capture_id: paypalCaptureId || null,
+          preauth_opt_in: acceptPreauthorized,
+          preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+        },
+        identity: {
+          verification_session_id: effectiveSessionId,
+          id_type: idType || null,
+          id_number: idNumber || null,
+          id_expiration: idExpiration || null,
+          id_province: idProvince || null,
+        },
+        installation: {
+          type: orderInstallationType,
+          delivery_fee: orderDeliveryFee,
+          installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
+          scheduled_date: selectedDate || null,
+          scheduled_time: selectedTime || null,
+        },
+        channels: hasTVService ? {
+          base_channels: baseChannels.map(ch => ({ id: ch.id, name: ch.name })),
+          free_channels: selectedFreeChannels.map(ch => ({ id: ch.id, name: ch.name })),
+          paid_channels: selectedPaidChannels.map(ch => ({ id: ch.id, name: ch.name, price: ch.price })),
+        } : null,
+        streaming_addons: selectedStreamingServices.map(s => ({
+          id: s.id,
+          name: s.name,
+          monthly_price: Number(s.monthly_price),
+        })),
+        port_request: portRequestData ? {
+          port_in: true,
+          phone_number: portRequestData.phone_number,
+          carrier: portRequestData.carrier,
+          account_number: portRequestData.account_number,
+          service_account: portRequestData.service_account,
+          imei: portRequestData.imei,
+        } : null,
         pricing_snapshot: serverPricing,
-      } as any, {
-        onConflict: 'client_request_id',
-        ignoreDuplicates: false,
-      }).select().single();
+        line_items: lineItems,
+        notes: (notes || ''),
+        account_id: resolvedAccountId,
+      });
 
-      if (error) throw error;
-      
-      // Note: Profile sync is now handled by database trigger (trg_sync_order_to_profile)
-      // This ensures fill-missing-only logic is applied at the database level
+      console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
 
-      // Post-order steps: payment, billing, tickets, appointments
-      // These are wrapped in try-catch so that order success is not blocked by post-step failures
-      // ★ Use Nivra Core payment reference (not locally generated)
-      let nivraPaymentRef = nivraOrderResponse.payment_number || '';
+      // ═══════════════════════════════════════════════════════════════
+      // USE NIVRA CORE RESPONSE AS CANONICAL DATA
+      // ═══════════════════════════════════════════════════════════════
+      // The `data` object used downstream now comes from Nivra Core
+      const data = {
+        id: nivraCheckoutResponse.order_id,
+        order_number: nivraCheckoutResponse.order_number,
+        payment_reference: nivraCheckoutResponse.payment_number,
+      };
+
+      let nivraPaymentRef = nivraCheckoutResponse.payment_number;
       const postStepErrors: string[] = [];
 
-      // ★ Update account billing_cycle_day to match order creation day (Nivra Core source of truth)
+      // ★ Update account billing_cycle_day (Nivra Core is source of truth)
       try {
-        const orderDay = new Date().getDate();
-        if (resolvedAccountId) {
+        if (resolvedAccountId && nivraCheckoutResponse.billing_cycle_day) {
           await supabase
             .from("accounts")
-            .update({ billing_cycle_day: orderDay })
+            .update({ billing_cycle_day: nivraCheckoutResponse.billing_cycle_day })
             .eq("id", resolvedAccountId);
-          console.log("[BillingCycle] Account billing_cycle_day set to:", orderDay);
+          console.log("[BillingCycle] Account billing_cycle_day set to:", nivraCheckoutResponse.billing_cycle_day);
         }
       } catch (cyclErr) {
         console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
       }
 
-      try {
-        const paymentRef = paymentConfirmationNumber || nivraPaymentRef;
-        const actualPaymentMethod = paymentMethod === "paypal" ? "paypal" 
-          : paymentMethod === "etransfer" ? "etransfer" 
-          : paymentMethod === "credit_card" ? "credit_card"
-          : "etransfer";
-        
-        // PayPal completed = confirmed, everything else = pending (awaiting admin confirmation)
-        const paymentStatus = actualPaymentMethod === "paypal" && paypalCaptureId ? "completed" : "pending";
-        
-        const { error: paymentError } = await supabase.from("payments").insert({
-          user_id: user.id,
-          order_id: data.id,
-          amount: orderTotalAmount, // Canonical normalized amount
-          payment_method: actualPaymentMethod,
-          reference_number: paymentRef,
-          payment_reference: nivraPaymentRef,
-          status: paymentStatus,
-          card_type: actualPaymentMethod === "credit_card" ? "Visa/Mastercard" : null,
-          card_last_four: actualPaymentMethod === "credit_card" ? cardNumber.slice(-4) : null,
-          etransfer_amount: actualPaymentMethod === "etransfer" ? orderTotalAmount : null,
-          etransfer_sender_name: actualPaymentMethod === "etransfer" ? etransferSenderName : null,
-          provider_payment_id: actualPaymentMethod === "paypal" ? paypalCaptureId : null,
-          captured_at: actualPaymentMethod === "paypal" && paypalCaptureId ? new Date().toISOString() : null,
-          source: "portal",
-          notes: `Paiement pour commande ${data.order_number}${actualPaymentMethod === "paypal" ? " - Payé via PayPal" : actualPaymentMethod === "etransfer" ? " - Virement Interac en attente" : ""}`,
-        });
-
-        if (paymentError) {
-          console.error("Payment record error:", paymentError);
-          postStepErrors.push("payment");
-        } else {
-          // Update order with payment reference if not already set in initial insert
-          if (!data.payment_reference) {
-            const updatePayload: any = {
-              payment_reference: actualPaymentMethod === "paypal" && paypalCaptureId ? paypalCaptureId : nivraPaymentRef,
-            };
-            await supabase.from("orders").update(updatePayload).eq("id", data.id);
-          }
-        }
-      } catch (paymentErr) {
-        console.error("Payment step failed:", paymentErr);
-        postStepErrors.push("payment");
-      }
-
-      // === BILLING V2 INTEGRATION (v2.1 - Smart Payment Detection) ===
-      // Create billing_customer, billing_subscriptions, and billing_invoices via edge function
-      // NOW PASSES payment_method, payment_status, and payment_reference for proper sync
-      try {
-        // Build services array from selectedServices for Billing V2
-        const billingServices = selectedServices.map(s => ({
-          plan_code: s.id || s.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
-          plan_name: s.name || 'Service Nivra',
-          plan_price: toMoney(s.price),
-          category: s.category || 'Other'
-        }));
-
-        if (billingServices.length > 0) {
-          // SMART PAYMENT DETECTION: Pass actual payment info to billing function
-          const actualPaymentMethod = paymentMethod === "paypal" ? "paypal" 
-            : paymentMethod === "etransfer" ? "etransfer"
-            : paymentMethod === "credit_card" ? "credit_card"
-            : "interac";
-          
-          const isPayPalPaid = actualPaymentMethod === "paypal" && !!paypalCaptureId;
-          
-          // V2.4: ALL pricing from server-side compute_checkout_pricing RPC — no client-computed discounts
-          const billingTotalsSnapshot = {
-            subtotal: toMoney(toNonNegativeMoney(serverPricing.recurring_subtotal) + toNonNegativeMoney(serverPricing.one_time_subtotal)),
-            discount_amount: cappedDiscount,
-            welcome_discount_amount: toNonNegativeMoney(serverPricing.welcome_discount), // SERVER-SIDE — from RPC
-            base_amount: orderTaxableBase,
-            tps_amount: orderTpsAmount,
-            tvq_amount: orderTvqAmount,
-            total: orderTotalAmount,
-            promo_code: appliedPromo?.code || null,
-            promo_name: appliedPromo?.name || null,
-            payment_method: actualPaymentMethod,
-            monthly_recurring: serverPricing.recurring_subtotal,
-            one_time_fees: serverPricing.one_time_subtotal,
-            server_computed: true,
-          };
-          
-          const { data: billingResult, error: billingV2Error } = await supabase.functions.invoke("billing-create-order", {
-            body: {
-              user_id: user.id,
-              first_name: firstName || profile?.first_name || '',
-              last_name: lastName || profile?.last_name || '',
-              email: profile?.email || user.email,
-              phone: checkoutPhone || profile?.phone || '',
-              services: billingServices,
-              order_id: data.id,
-              order_number: data.order_number,
-              // PAYMENT INFO (v2.1) - Critical for correct invoice status
-              payment_method: actualPaymentMethod,
-              payment_status: isPayPalPaid ? 'paid' : 'pending',
-              payment_reference: isPayPalPaid ? paypalCaptureId : null,
-              total_amount: isPayPalPaid ? orderTotalAmount : null,
-              // BILLING TOTALS (v2.2) - Source of truth from checkout
-              billing_totals: billingTotalsSnapshot,
-            },
-          });
-
-          if (billingV2Error) {
-            console.error("[BillingV2] Edge function error:", billingV2Error);
-            postStepErrors.push("billing_v2");
-          } else {
-            console.log("[BillingV2] Created billing records:", billingResult);
-          }
-        }
-      } catch (billingV2Err) {
-        console.error("[BillingV2] Integration failed (non-blocking):", billingV2Err);
-        postStepErrors.push("billing_v2");
-      }
-
       // ============================================================
-      // BILLING V2 - Migration complétée (2026-01-25)
-      // La facturation est gérée par la fonction edge billing-create-order
-      // appelée aux lignes 1550-1568 ci-dessus
-      // Le bloc legacy a été supprimé car plus utilisé
+      // NOTE: Order, Invoice, Payment, Subscription are ALL created
+      // by Nivra Core. The legacy supabase.from("payments").insert()
+      // and supabase.functions.invoke("billing-create-order") blocks
+      // have been REMOVED. Nivra Core is the single source of truth.
       // ============================================================
 
       // Create support ticket for TV channel configuration if TV service is included
