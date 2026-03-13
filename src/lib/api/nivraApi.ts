@@ -270,6 +270,52 @@ export async function createNivraOrder(
   return data;
 }
 
+/**
+ * Submit the full checkout to Nivra Core.
+ * Nivra Core atomically creates: order, invoice, payment, subscription(s).
+ * This replaces both the local orders.upsert() and billing-create-order edge function.
+ */
+export async function submitNivraCheckout(
+  payload: NivraFullCheckoutPayload
+): Promise<NivraFullCheckoutResponse> {
+  console.log("[NivraAPI] POST /checkout payload:", {
+    client_request_id: payload.client_request_id,
+    services: payload.services.length,
+    equipment: payload.equipment.length,
+    payment_method: payload.payment.method,
+  });
+
+  const response = await fetch(`${API_BASE}/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    console.error("[NivraAPI] POST /checkout failed:", response.status, body);
+    
+    // Try to parse error JSON for user-friendly message
+    let errorMessage = `Erreur lors de la création de la commande (${response.status})`;
+    try {
+      const errorData = JSON.parse(body);
+      if (errorData.error) errorMessage = errorData.error;
+      if (errorData.message) errorMessage = errorData.message;
+    } catch { /* use default */ }
+    
+    throw new Error(errorMessage);
+  }
+
+  const data: NivraFullCheckoutResponse = await response.json();
+  console.log("[NivraAPI] Checkout complete:", {
+    order_number: data.order_number,
+    invoice_number: data.invoice_number,
+    payment_number: data.payment_number,
+    grand_total: data.pricing.grand_total,
+  });
+  return data;
+}
+
 // ── SKU helpers ──
 
 /** Build a SKU→Product lookup map */
