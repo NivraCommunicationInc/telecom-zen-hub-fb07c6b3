@@ -46,6 +46,7 @@ import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { toast } from "sonner";
 import { safePDFDownload } from "@/lib/pdfUtils";
+import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
 
 const STATIC_TERMS_PDF = "/documents/Nivra_Telecom_Modalites_de_service_v2026-02-05.pdf";
 
