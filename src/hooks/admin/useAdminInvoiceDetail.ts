@@ -3,7 +3,7 @@
  * confirmed_by resolved to profile name when available
  */
 import { useQuery } from "@tanstack/react-query";
-import { adminClient as supabase } from "@/integrations/backend";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface InvoiceDetailLine {
   id: string;
