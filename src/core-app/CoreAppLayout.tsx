@@ -14,7 +14,7 @@ import {
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
-  History, HardDrive, Ticket, Search, X, ChevronDown,
+  History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
