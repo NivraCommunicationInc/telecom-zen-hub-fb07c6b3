@@ -2730,25 +2730,25 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   
   // Calculate total mobile lines across all plans
   const totalMobileLineQuantity = selectedMobileServices.reduce((sum, s) => sum + (mobileLineQuantities[s.id] || 1), 0);
-  
+
   // Calculate mobile monthly total (sum of each plan * its quantity)
-  const mobileMonthlyTotal = selectedMobileServices.reduce((sum, s) => {
+  const mobileMonthlyTotal = toMoney(selectedMobileServices.reduce((sum, s) => {
     const qty = mobileLineQuantities[s.id] || 1;
-    return sum + (Number(s.price) * qty);
-  }, 0);
-  
+    return sum + (toMoney(s.price) * qty);
+  }, 0));
+
   // Calculate totals with fees and taxes based on installation/delivery choice
   // For mobile, multiply each plan by its quantity
-  const subtotal = selectedServices.reduce((sum, s) => {
+  const subtotal = toMoney(selectedServices.reduce((sum, s) => {
     if (s.category === "Mobile") {
       const qty = mobileLineQuantities[s.id] || 1;
-      return sum + (Number(s.price) * qty);
+      return sum + (toMoney(s.price) * qty);
     }
-    return sum + Number(s.price);
-  }, 0);
-  const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
+    return sum + toMoney(s.price);
+  }, 0));
+  const paidChannelTotal = toMoney(selectedPaidChannels.reduce((sum, ch) => sum + toMoney(ch.price), 0));
   // Streaming+ add-ons monthly total
-  const streamingAddonsTotal = selectedStreamingServices.reduce((sum, s) => sum + Number(s.monthly_price), 0);
+  const streamingAddonsTotal = toMoney(selectedStreamingServices.reduce((sum, s) => sum + toMoney(s.monthly_price), 0));
   const terminalFee = hasTVService ? terminalQuantity * TERMINAL_CONFIG.price : 0;
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_CONFIG_DYNAMIC.price : 0;
   // SIM: Always physical, quantity matches total mobile lines
