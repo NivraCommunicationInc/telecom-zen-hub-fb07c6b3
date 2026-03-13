@@ -1952,8 +1952,8 @@ const ClientNewOrder = () => {
       const grossSubtotal = toMoney(subtotal + paidChannelTotal + equipmentSubtotal + selectedStreamingServices.reduce((sum, s) => sum + toMoney(s.monthly_price), 0));
       const grossTotal = toMoney(grossSubtotal + orderDeliveryFee + orderActivationFee + installationFee + routerFee + terminalFee + simFee);
       
-      // Cap discount using server-side computed discount (enforces min_payable_cents)
-      const cappedDiscount = serverPricing.discount_total_combined;
+      // Cap discount using canonical server pricing (enforces min_payable_cents)
+      const cappedDiscount = toNonNegativeMoney(serverPricing.discount_total_combined);
       
       // Determine payment method value NOW (before insert) to avoid null
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
