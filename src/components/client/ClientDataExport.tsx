@@ -25,8 +25,6 @@ export const ClientDataExport = ({ userId, userEmail }: ClientDataExportProps) =
       customerResult,
       accountsResult,
       ordersResult,
-      invoicesResult,
-      subscriptionsResult,
       ticketsResult,
       locationsResult,
     ] = await Promise.all([
