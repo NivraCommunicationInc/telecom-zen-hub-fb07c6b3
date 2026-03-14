@@ -21,6 +21,7 @@ const CoreOrderDetail = lazy(() => import("@/core-app/pages/CoreOrderDetail"));
 const CorePOSPage = lazy(() => import("@/core-app/pages/CorePOSPage"));
 const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
 const CoreAppointments = lazy(() => import("@/core-app/pages/AppointmentsPage"));
+const CoreAppointmentDetail = lazy(() => import("@/core-app/pages/CoreAppointmentDetail"));
 const CoreRequestsPage = lazy(() => import("@/core-app/pages/CoreRequestsPage"));
 const CoreActivationsPage = lazy(() => import("@/core-app/pages/CoreActivationsPage"));
 // Clients
@@ -634,6 +635,7 @@ const AppRoutes = () => {
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
           <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
+          <Route path="appointments/:id" element={<Suspense fallback={null}><CoreAppointmentDetail /></Suspense>} />
           <Route path="requests" element={<Suspense fallback={null}><CoreRequestsPage /></Suspense>} />
           <Route path="activations" element={<Suspense fallback={null}><CoreActivationsPage /></Suspense>} />
           {/* Clients */}
