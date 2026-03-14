@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
 import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
+import { fallbackCheckout } from "@/lib/checkoutFallback";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
@@ -2004,7 +2005,8 @@ const ClientNewOrder = () => {
         },
       });
 
-      const nivraCheckoutResponse: NivraFullCheckoutResponse = await submitNivraCheckout({
+      // ── Build the full checkout payload once ──
+      const checkoutPayload: import("@/lib/api/nivraApi").NivraFullCheckoutPayload = {
         client_request_id: clientRequestId,
         customer: {
           user_id: user.id,
@@ -2093,9 +2095,21 @@ const ClientNewOrder = () => {
         line_items: lineItems,
         notes: (notes || ''),
         account_id: resolvedAccountId,
-      });
+      };
 
-      console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
+      // ── Try Nivra Core API first, fallback to direct Supabase creation ──
+      let nivraCheckoutResponse: NivraFullCheckoutResponse;
+      let usedFallback = false;
+
+      try {
+        nivraCheckoutResponse = await submitNivraCheckout(checkoutPayload);
+        console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
+      } catch (nivraErr: any) {
+        console.warn("[NivraCore] External API unavailable, using direct Supabase fallback:", nivraErr.message);
+        usedFallback = true;
+        nivraCheckoutResponse = await fallbackCheckout(supabase, checkoutPayload);
+        console.log("[FallbackCheckout] Response:", nivraCheckoutResponse);
+      }
 
       // ★ TRACEABILITY: Log successful order creation from Nivra Core
       logOrderCreated({
@@ -2114,7 +2128,7 @@ const ClientNewOrder = () => {
       serverPricing.billing_cycle_day = nivraCheckoutResponse.billing_cycle_day;
 
       // ★ Notify Nivra Core that PayPal payment was captured (fire-and-forget)
-      if (paypalCaptureId && nivraCheckoutResponse.payment_number) {
+      if (!usedFallback && paypalCaptureId && nivraCheckoutResponse.payment_number) {
         notifyNivraCorePaid({
           paymentNumber: nivraCheckoutResponse.payment_number,
           paypalOrderId: paypalCaptureId,
@@ -2123,56 +2137,14 @@ const ClientNewOrder = () => {
       }
 
       // ★ BACKFILL: Write canonical records to local Supabase for portal/admin visibility
-      try {
-        const { backfillCheckoutToSupabase } = await import("@/lib/checkoutBackfill");
-        const backfillPayload = {
-          client_request_id: clientRequestId,
-          customer: {
-            user_id: user.id,
-            first_name: firstName || profile?.first_name || '',
-            last_name: lastName || profile?.last_name || '',
-            email: customerEmail,
-            phone: checkoutPhone || profile?.phone || '',
-          },
-          service_address: {
-            street: serviceAddressStreet || '',
-            apartment: serviceAddressApartment || null,
-            city: serviceAddressCity || '',
-            province: serviceAddressProvince || 'QC',
-            postal_code: serviceAddressPostalCode || '',
-          },
-          services: selectedServices.map(s => ({
-            sku: s.sku || findSkuByName(allNivraProducts, s.name) || s.id,
-            name: s.name || 'Service Nivra',
-            plan_code: s.id || 'UNKNOWN',
-            plan_price: toMoney(s.price),
-            category: s.category || 'Other',
-            quantity: 1,
-          })),
-          equipment: [],
-          fees: [],
-          payment: {
-            method: paymentMethodValue as any,
-            status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" as const : "pre_authorized" as const,
-            reference: paypalCaptureId || paymentConfirmationNumber || null,
-            paypal_capture_id: paypalCaptureId || null,
-            preauth_opt_in: acceptPreauthorized,
-            preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
-          },
-          identity: { verification_session_id: effectiveSessionId },
-          installation: {
-            type: orderInstallationType,
-            delivery_fee: orderDeliveryFee,
-            installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
-          },
-          pricing_snapshot: serverPricing,
-          line_items: lineItems,
-          notes: notes || '',
-          account_id: resolvedAccountId,
-        };
-        await backfillCheckoutToSupabase(supabase, backfillPayload as any, nivraCheckoutResponse);
-      } catch (backfillErr) {
-        console.error("[Backfill] Non-blocking error:", backfillErr);
+      // Skip if fallback was used — records are already created directly in Supabase
+      if (!usedFallback) {
+        try {
+          const { backfillCheckoutToSupabase } = await import("@/lib/checkoutBackfill");
+          await backfillCheckoutToSupabase(supabase, checkoutPayload as any, nivraCheckoutResponse);
+        } catch (backfillErr) {
+          console.error("[Backfill] Non-blocking error:", backfillErr);
+        }
       }
 
       // ═══════════════════════════════════════════════════════════════
@@ -2197,17 +2169,19 @@ const ClientNewOrder = () => {
       let nivraPaymentRef = nivraCheckoutResponse.payment_number;
       const postStepErrors: string[] = [];
 
-      // ★ Update account billing_cycle_day (Nivra Core is source of truth)
-      try {
-        if (resolvedAccountId && nivraCheckoutResponse.billing_cycle_day) {
-          await supabase
-            .from("accounts")
-            .update({ billing_cycle_day: nivraCheckoutResponse.billing_cycle_day })
-            .eq("id", resolvedAccountId);
-          console.log("[BillingCycle] Account billing_cycle_day set to:", nivraCheckoutResponse.billing_cycle_day);
+      // ★ Update account billing_cycle_day (skip if fallback already handled it)
+      if (!usedFallback) {
+        try {
+          if (resolvedAccountId && nivraCheckoutResponse.billing_cycle_day) {
+            await supabase
+              .from("accounts")
+              .update({ billing_cycle_day: nivraCheckoutResponse.billing_cycle_day })
+              .eq("id", resolvedAccountId);
+            console.log("[BillingCycle] Account billing_cycle_day set to:", nivraCheckoutResponse.billing_cycle_day);
+          }
+        } catch (cyclErr) {
+          console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
         }
-      } catch (cyclErr) {
-        console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
       }
 
       // ============================================================
