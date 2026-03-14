@@ -63,6 +63,26 @@ const ClientsPage = () => {
     staleTime: 2 * 60 * 1000,
   });
 
+  const handleCreateAccount = useCallback(async (clientUserId: string) => {
+    if (creatingAccountFor) return;
+    setCreatingAccountFor(clientUserId);
+    try {
+      const { data: newAcct, error } = await supabase
+        .from("accounts")
+        .insert({ client_id: clientUserId, account_number: "", status: "active" })
+        .select("id")
+        .single();
+      if (error) throw error;
+      toast.success("Compte créé avec succès");
+      refetch();
+      navigate(corePath(`/accounts/${newAcct.id}`));
+    } catch (e: any) {
+      console.error("[ClientsPage] Account creation failed:", e);
+      toast.error(`Erreur: ${e.message}`);
+      setCreatingAccountFor(null);
+    }
+  }, [creatingAccountFor, navigate, refetch]);
+
   const filtered = useMemo(() => {
     if (!clients) return [];
     let list = clients;
