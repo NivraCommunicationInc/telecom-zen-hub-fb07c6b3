@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { generateInvoicePDF, type InvoiceDataV2 } from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
+import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
 interface AccountBillingTabProps {
   account: any;
@@ -31,6 +32,7 @@ interface AccountBillingTabProps {
   payments: any[];
   subscriptions: any[];
   legacyBilling: any[];
+  clientId?: string;
 }
 
 const invoiceStatusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
