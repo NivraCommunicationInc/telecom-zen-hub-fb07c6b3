@@ -5868,6 +5868,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           setPaymentConfirmationNumber(captureId);
                           setPaymentComplete(true);
                           toast.success(`Paiement PayPal réussi! Confirmation: ${captureId}`);
+                          // ★ TRACEABILITY: PayPal payment confirmed
+                          logPaymentConfirmed({
+                            paypal_capture_id: captureId,
+                            amount: uiTodayTotal,
+                            method: "paypal",
+                          });
                           // Invalidate all billing-related caches for instant UI updates
                           queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
                           queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
@@ -5878,7 +5884,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         onError={(error) => {
                           console.error("PayPal error:", error);
                           toast.error("Erreur PayPal. Veuillez réessayer.");
-                        }}
+                          // ★ TRACEABILITY: PayPal payment failed
+                          logPaymentFailed({
+                            error_message: String(error),
+                            method: "paypal",
+                            amount: uiTodayTotal,
+                          });
+                        }
                       />
                       <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
                         <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
