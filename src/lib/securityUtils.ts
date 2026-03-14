@@ -62,20 +62,28 @@ export const flagClientForRiskAtomic = async ({
       return { success: false, error: "Profile not found" };
     }
 
-    // Step 2: Suspend all active subscriptions
-    const { data: suspendedSubs, error: subsError } = await backendClient
-      .from("subscriptions")
-      .update({
-        status: "suspended",
-        updated_at: new Date().toISOString(),
-      })
+    // Step 2: Suspend all active billing subscriptions (canonical)
+    const { data: billingCustomer } = await backendClient
+      .from("billing_customers")
+      .select("id")
       .eq("user_id", clientId)
-      .eq("status", "active")
-      .select();
+      .maybeSingle();
 
-    if (subsError) {
-      console.error("Error suspending subscriptions:", subsError);
-      // Continue - this is not critical
+    let suspendedSubs: any[] | null = null;
+    if (billingCustomer) {
+      const { data: subs, error: subsError } = await backendClient
+        .from("billing_subscriptions")
+        .update({
+          status: "suspended",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("customer_id", billingCustomer.id)
+        .eq("status", "active")
+        .select();
+      suspendedSubs = subs;
+      if (subsError) {
+        console.error("Error suspending billing subscriptions:", subsError);
+      }
     }
 
     // Step 3: Suspend streaming subscriptions
