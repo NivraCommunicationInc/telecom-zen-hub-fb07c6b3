@@ -35,6 +35,7 @@ const CoreBillingPage = lazy(() => import("@/core-app/pages/CoreBillingPage"));
 const InvoicesPage = lazy(() => import("@/core-app/pages/InvoicesPage"));
 const CoreInvoiceDetail = lazy(() => import("@/core-app/pages/CoreInvoiceDetail"));
 const PaymentsPage = lazy(() => import("@/core-app/pages/PaymentsPage"));
+const CoreTransactionsPage = lazy(() => import("@/core-app/pages/CoreTransactionsPage"));
 const SubscriptionsPage = lazy(() => import("@/core-app/pages/SubscriptionsPage"));
 const SubscriptionDetailPage = lazy(() => import("@/core-app/pages/SubscriptionDetailPage"));
 const CorePDFTemplatesPage = lazy(() => import("@/core-app/pages/CorePDFTemplatesPage"));
