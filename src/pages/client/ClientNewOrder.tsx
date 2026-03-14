@@ -2113,6 +2113,59 @@ const ClientNewOrder = () => {
         });
       }
 
+      // ★ BACKFILL: Write canonical records to local Supabase for portal/admin visibility
+      try {
+        const { backfillCheckoutToSupabase } = await import("@/lib/checkoutBackfill");
+        const backfillPayload = {
+          client_request_id: clientRequestId,
+          customer: {
+            user_id: user.id,
+            first_name: firstName || profile?.first_name || '',
+            last_name: lastName || profile?.last_name || '',
+            email: customerEmail,
+            phone: checkoutPhone || profile?.phone || '',
+          },
+          service_address: {
+            street: serviceAddressStreet || '',
+            apartment: serviceAddressApartment || null,
+            city: serviceAddressCity || '',
+            province: serviceAddressProvince || 'QC',
+            postal_code: serviceAddressPostalCode || '',
+          },
+          services: selectedServices.map(s => ({
+            sku: s.sku || findSkuByName(allNivraProducts, s.name) || s.id,
+            name: s.name || 'Service Nivra',
+            plan_code: s.id || 'UNKNOWN',
+            plan_price: toMoney(s.price),
+            category: s.category || 'Other',
+            quantity: 1,
+          })),
+          equipment: [],
+          fees: [],
+          payment: {
+            method: paymentMethodValue as any,
+            status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" as const : "pre_authorized" as const,
+            reference: paypalCaptureId || paymentConfirmationNumber || null,
+            paypal_capture_id: paypalCaptureId || null,
+            preauth_opt_in: acceptPreauthorized,
+            preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
+          },
+          identity: { verification_session_id: effectiveSessionId },
+          installation: {
+            type: orderInstallationType,
+            delivery_fee: orderDeliveryFee,
+            installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
+          },
+          pricing_snapshot: serverPricing,
+          line_items: lineItems,
+          notes: notes || '',
+          account_id: resolvedAccountId,
+        };
+        await backfillCheckoutToSupabase(supabase, backfillPayload as any, nivraCheckoutResponse);
+      } catch (backfillErr) {
+        console.error("[Backfill] Non-blocking error:", backfillErr);
+      }
+
       // ═══════════════════════════════════════════════════════════════
       // USE NIVRA CORE RESPONSE AS CANONICAL DATA
       // ═══════════════════════════════════════════════════════════════
