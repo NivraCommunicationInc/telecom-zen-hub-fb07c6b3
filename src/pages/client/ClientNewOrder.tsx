@@ -2466,8 +2466,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         payment_reference: orderData.nivraPaymentRef,
       });
       
-      // Navigate to dedicated confirmation page with order ID
-      const orderData = result as unknown as CreatedOrder & { nivraPaymentRef?: string };
+      // Navigate to dedicated confirmation page with order number
       
       // Note: Promo/referral redemption is now recorded in the mutation function
       // for better reliability (before returning from mutation)
