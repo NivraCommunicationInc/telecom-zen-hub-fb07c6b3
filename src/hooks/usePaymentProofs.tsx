@@ -259,24 +259,12 @@ export function useVerifyProof() {
           }
         }
 
-        // Mise à jour legacy pour compatibilité arrière (à supprimer plus tard)
-        await backendClient
-          .from('billing')
-          .update({
-            status: 'paid',
-            paid_at: new Date().toISOString(),
-            captured_at: new Date().toISOString(),
-            etransfer_status: 'complete',
-          })
-          .eq('id', paymentId);
-      } else if (status === 'rejected' || status === 'fraud') {
-        // Mise à jour legacy pour les rejets
-        await backendClient
-          .from('billing')
-          .update({
-            etransfer_status: status === 'fraud' ? 'fraud' : 'declined',
-          })
-          .eq('id', paymentId);
+        // ============================================================
+        // LEGACY BILLING DUAL-WRITE REMOVED (P0 cleanup)
+        // All payment state is now managed exclusively via
+        // billing_payments + billing_invoices (canonical Core tables).
+        // The legacy "billing" table is no longer written to.
+        // ============================================================
       }
 
       return { proofId, status };

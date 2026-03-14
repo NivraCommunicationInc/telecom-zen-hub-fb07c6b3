@@ -74,13 +74,9 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
   // The client portal does NOT fabricate invoices or payments.
   // ============================================================
 
-  const handlePayNow = async () => {
-    setIsProcessing(true);
-    try {
-      await processPaymentMutation.mutateAsync();
-    } finally {
-      setIsProcessing(false);
-    }
+  const handlePayNow = () => {
+    // Redirect client to the canonical portal payment page
+    toast.info("Veuillez utiliser la section Facturation de votre portail pour effectuer le paiement.", { duration: 5000 });
   };
 
   const copyToClipboard = (text: string, label: string) => {

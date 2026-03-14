@@ -124,31 +124,13 @@ const ClientMonthlyInvoices = () => {
     refetchOnWindowFocus: true,
   });
 
-  // Mark invoice as paid (simulated - in reality would integrate with payment gateway)
-  const payInvoiceMutation = useMutation({
-    mutationFn: async (invoiceId: string) => {
-      const { error } = await supabase
-        .from("monthly_invoices")
-        .update({
-          status: "paid",
-          paid_at: new Date().toISOString(),
-          payment_reference: `PAY-${Date.now()}`,
-        })
-        .eq("id", invoiceId)
-        .eq("client_id", user?.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
-      toast({ title: "Paiement effectué", description: "Votre facture a été payée avec succès." });
-      setPayingInvoiceId(null);
-    },
-    onError: () => {
-      toast({ title: "Erreur de paiement", variant: "destructive" });
-      setPayingInvoiceId(null);
-    },
-  });
+  // ============================================================
+  // FAKE PAYMENT MUTATION REMOVED (P0 cleanup)
+  // Payments are ONLY created via canonical Core flows:
+  //   - PayPal capture → paypal-capture-order edge function
+  //   - Interac → admin records in Core console
+  // The client portal does NOT fabricate payment records.
+  // ============================================================
 
   // Get billing cycle day from account or derive from subscription cycle_end_date
   const billCycleDay = account?.billing_cycle_day 
