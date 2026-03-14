@@ -113,7 +113,7 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
       const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
         p_invoice_id: payInvoice.id,
         p_amount: amount,
-        p_method: payMethod,
+        p_method: dbMethod,
         p_provider: provider,
         p_provider_payment_id: providerPaymentId,
         p_provider_order_id: providerOrderId,
