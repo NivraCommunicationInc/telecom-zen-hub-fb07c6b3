@@ -1982,6 +1982,19 @@ const ClientNewOrder = () => {
       // ═══════════════════════════════════════════════════════════════
       // SUBMIT TO NIVRA CORE — Creates order, invoice, payment, subs
       // ═══════════════════════════════════════════════════════════════
+      // ★ TRACEABILITY: Log order submission attempt
+      logEvent({
+        event_type: "order_submitted",
+        event_category: "order",
+        status: "pending",
+        amount: orderTotalAmount,
+        metadata: {
+          services: selectedServices.map(s => s.name),
+          payment_method: paymentMethodValue,
+          client_request_id: clientRequestId,
+        },
+      });
+
       const nivraCheckoutResponse: NivraFullCheckoutResponse = await submitNivraCheckout({
         client_request_id: clientRequestId,
         customer: {
