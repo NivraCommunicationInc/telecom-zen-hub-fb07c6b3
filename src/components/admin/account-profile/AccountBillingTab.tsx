@@ -394,6 +394,15 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
         </TabsContent>
       </Tabs>
 
+      {clientId && (
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes internes</p>
+            <ClientNotesPanel clientId={clientId} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Record Payment Dialog */}
       <Dialog open={payOpen} onOpenChange={setPayOpen}>
         <DialogContent>
