@@ -428,7 +428,7 @@ const AppRoutes = () => {
         <Route path="field-sales" element={<Navigate to="/admin/pos" replace />} />
         <Route path="pos" element={<AdminPOS />} />
         <Route path="payments" element={<AdminPaymentsV2 />} />
-        <Route path="payments/legacy" element={<AdminPayments />} />
+        <Route path="payments/legacy" element={<Navigate to="/admin/payments" replace />} />
         <Route path="invoices" element={<AdminInvoices />} />
         <Route path="invoices/:invoiceId" element={<AdminInvoiceDetail />} />
         <Route path="work-queue" element={<AdminWorkQueue />} />
