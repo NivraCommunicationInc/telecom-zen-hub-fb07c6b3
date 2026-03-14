@@ -51,7 +51,7 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
   const [payOpen, setPayOpen] = useState(false);
   const [payInvoice, setPayInvoice] = useState<any>(null);
   const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<"interac" | "manual" | "paypal">("interac");
+  const [payMethod, setPayMethod] = useState("interac");
   const [payRef, setPayRef] = useState("");
   const [saving, setSaving] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -95,22 +95,25 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
     }
 
     const normalizedRef = payRef.trim();
-    const provider = payMethod === "paypal" ? "paypal" : payMethod === "interac" ? "interac" : "manual";
-    const providerPaymentId = payMethod === "paypal"
-      ? (normalizedRef || `paypal_manual_${Date.now()}`)
-      : payMethod === "manual"
-        ? `manual_${Date.now()}`
-        : null;
-    const providerOrderId = payMethod === "interac"
-      ? (normalizedRef || `interac_${Date.now()}`)
-      : normalizedRef || null;
+    const providerMap: Record<string, string> = {
+      etransfer: "interac", interac: "interac", paypal: "paypal",
+      credit_card: "stripe", cash: "manual", cheque: "manual", manual: "manual",
+    };
+    const methodMap: Record<string, string> = {
+      etransfer: "interac", credit_card: "manual", cash: "manual", cheque: "manual",
+      interac: "interac", paypal: "paypal", manual: "manual",
+    };
+    const provider = providerMap[payMethod] || "manual";
+    const dbMethod = methodMap[payMethod] || "manual";
+    const providerPaymentId = normalizedRef || `${provider}_${Date.now()}`;
+    const providerOrderId = normalizedRef || null;
 
     setSaving(true);
     try {
       const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
         p_invoice_id: payInvoice.id,
         p_amount: amount,
-        p_method: payMethod,
+        p_method: dbMethod,
         p_provider: provider,
         p_provider_payment_id: providerPaymentId,
         p_provider_order_id: providerOrderId,
