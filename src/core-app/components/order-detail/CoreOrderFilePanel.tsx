@@ -91,11 +91,14 @@ export function CoreOrderFilePanel({ proc }: Props) {
   const { order, invoice, appointment, items, profile, account, contracts, kycSession } = proc;
   const contract = contracts?.[0] || null;
 
-  // Financial calculations from invoice (source of truth)
+  // Financial calculations from invoice (CANONICAL source of truth)
   const total = invoice?.total ?? order.total_amount;
+  const subtotal = invoice?.subtotal ?? order.subtotal;
   const amountPaid = invoice?.amount_paid ?? 0;
   const balanceDue = invoice?.balance_due ?? (total ? Number(total) - Number(amountPaid) : 0);
   const isPaid = balanceDue <= 0 && Number(amountPaid) > 0;
+  const tpsAmount = invoice?.tps_amount ?? order.tps_amount;
+  const tvqAmount = invoice?.tvq_amount ?? order.tvq_amount;
 
   // Fetch linked subscriptions
   const { data: subscriptions } = useQuery({
