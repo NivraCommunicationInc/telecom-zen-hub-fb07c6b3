@@ -334,6 +334,7 @@ export function useAccountProfile(accountId: string | undefined) {
     activityLogs.refetch();
     authorizedUsers.refetch();
     serviceAddresses.refetch();
+    documents.refetch();
   };
 
   return {
