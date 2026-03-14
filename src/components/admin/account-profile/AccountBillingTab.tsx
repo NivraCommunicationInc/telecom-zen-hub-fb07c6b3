@@ -97,20 +97,25 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
     const normalizedRef = payRef.trim();
     const providerMap: Record<string, string> = {
       etransfer: "interac", interac: "interac", paypal: "paypal",
-      credit_card: "stripe", cash: "manual", cheque: "manual", manual: "manual",
+      credit_card: "manual", cash: "manual", cheque: "manual", manual: "manual",
     };
-    const methodMap: Record<string, string> = {
+    const methodMap: Record<string, "interac" | "manual" | "paypal"> = {
       etransfer: "interac", credit_card: "manual", cash: "manual", cheque: "manual",
       interac: "interac", paypal: "paypal", manual: "manual",
     };
+
     const provider = providerMap[payMethod] || "manual";
     const dbMethod = methodMap[payMethod] || "manual";
-    const providerPaymentId = normalizedRef || `${provider}_${Date.now()}`;
-    const providerOrderId = normalizedRef || null;
+    const providerPaymentId = provider === "interac"
+      ? null
+      : (normalizedRef || `${provider}_${Date.now()}`);
+    const providerOrderId = provider === "interac"
+      ? (normalizedRef || `interac_${Date.now()}`)
+      : null;
 
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
+      const { data: rpcResult, error } = await supabase.rpc("apply_payment_to_invoice" as any, {
         p_invoice_id: payInvoice.id,
         p_amount: amount,
         p_method: dbMethod,
@@ -123,6 +128,14 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
         p_created_by_role: "admin",
       });
       if (error) throw error;
+
+      const payload = (rpcResult || {}) as { success?: boolean; error?: string; already_paid?: boolean };
+      if (!payload.success) {
+        if (payload.already_paid) {
+          throw new Error("Cette facture est déjà réglée");
+        }
+        throw new Error(payload.error || "Échec de l'enregistrement du paiement");
+      }
 
       toast.success(`Paiement de ${amount.toFixed(2)} $ enregistré`);
       setPayOpen(false);
@@ -380,6 +393,15 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
           )}
         </TabsContent>
       </Tabs>
+
+      {clientId && (
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes internes</p>
+            <ClientNotesPanel clientId={clientId} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Record Payment Dialog */}
       <Dialog open={payOpen} onOpenChange={setPayOpen}>

@@ -128,6 +128,7 @@ export default function AdminAccountProfile() {
                 payments={data.payments}
                 subscriptions={data.subscriptions}
                 legacyBilling={data.legacyBilling}
+                clientId={data.clientId}
               />
             </TabsContent>
 
