@@ -68,14 +68,20 @@ const ClientMonthlyInvoices = () => {
     queryKey: ["client-subscriptions-billing", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .select("id, plan_name, amount, bill_cycle_day, next_invoice_date, status")
+      // Resolve billing_customer first
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", user.id)
-        .in("status", ["active", "shipped", "installed", "installation_completed"]);
-
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("billing_subscriptions")
+        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category")
+        .eq("customer_id", customer.id)
+        .in("status", ["active", "pending", "suspended"]);
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user?.id,
     staleTime: 0,

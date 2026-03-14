@@ -99,11 +99,18 @@ const ClientProfile = () => {
   const { data: subscriptions } = useQuery({
     queryKey: ["client-subscriptions-count", user?.id],
     queryFn: async () => {
-      const { data, error } = await portalSupabase
-        .from("subscriptions")
-        .select("*")
+      // Resolve billing_customer first
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", user?.id)
-        .eq("status", "active");
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await portalSupabase
+        .from("billing_subscriptions")
+        .select("id, plan_name, plan_price, status, service_category, cycle_start_date, cycle_end_date")
+        .eq("customer_id", customer.id)
+        .in("status", ["active", "pending", "suspended"]);
       if (error) throw error;
       return data || [];
     },
