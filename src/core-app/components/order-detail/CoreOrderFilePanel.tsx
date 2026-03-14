@@ -159,12 +159,12 @@ export function CoreOrderFilePanel({ proc }: Props) {
       {/* ═══ Financial Summary ═══ */}
       <FileSection icon={DollarSign} title="Sommaire financier" defaultOpen variant={isPaid ? "success" : balanceDue > 0 ? "danger" : "info"}>
         <div className="space-y-0.5">
-          <Row label="Sous-total" value={fmtCAD(invoice?.subtotal ?? order.subtotal)} mono />
+          <Row label="Sous-total" value={fmtCAD(subtotal)} mono />
           {(order.activation_fee ?? 0) > 0 && <Row label="Activation" value={fmtCAD(order.activation_fee)} mono />}
           {(order.delivery_fee ?? 0) > 0 && <Row label="Livraison" value={fmtCAD(order.delivery_fee)} mono />}
           {(order.installation_fee ?? 0) > 0 && <Row label="Installation" value={fmtCAD(order.installation_fee)} mono />}
-          <Row label="TPS (5%)" value={fmtCAD(invoice?.tps_amount ?? order.tps_amount)} mono />
-          <Row label="TVQ (9.975%)" value={fmtCAD(invoice?.tvq_amount ?? order.tvq_amount)} mono />
+          <Row label="TPS (5%)" value={fmtCAD(tpsAmount)} mono />
+          <Row label="TVQ (9.975%)" value={fmtCAD(tvqAmount)} mono />
           <div className="border-t border-[hsl(220,15%,16%)] mt-1.5 pt-1.5">
             <Row label="Total" value={fmtCAD(total)} mono accent="text-white font-semibold" />
             <Row label="Payé" value={fmtCAD(amountPaid)} mono accent="text-emerald-400" />
