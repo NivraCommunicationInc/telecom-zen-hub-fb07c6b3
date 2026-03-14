@@ -2,14 +2,14 @@
  * Account360RightPanel — Persistent right-side summary panel for Account 360.
  * Shows account info, billing cycle, financial summary, KYC, and notes.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Panel, PanelHeader, InfoLine, fmtCAD, fmtDate, label } from "./Account360Helpers";
 import {
-  CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin, Loader2, Plus,
+  CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin, Loader2, Plus, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -37,6 +37,13 @@ export function Account360RightPanel({
   const [noteText, setNoteText] = useState("");
   const [showNote, setShowNote] = useState(false);
   const [saving, setSaving] = useState(false);
+  const notesScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollNotes = (direction: "top" | "bottom") => {
+    const el = notesScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: direction === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
+  };
 
   // Fetch existing notes
   const { data: notes = [], isLoading: loadingNotes } = useQuery({
@@ -47,7 +54,7 @@ export function Account360RightPanel({
         .select("id, body, note_type, created_by_name, created_by_role, created_at")
         .eq("client_id", clientId!)
         .order("created_at", { ascending: false })
-        .limit(30);
+        .limit(200);
       return data || [];
     },
     enabled: !!clientId,
