@@ -252,10 +252,24 @@ const CoreClientProfile = () => {
           <button onClick={() => navigate(corePath("/equipment"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-cyan-500/20 text-[10px] font-medium text-cyan-400 hover:bg-cyan-500/10 min-w-[80px]">
             <Package className="h-4 w-4" /> Équipement
           </button>
-          <button onClick={() => toast.info("Paiement: ouvrir depuis Factures")} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 min-w-[80px]">
+          <button onClick={() => {
+            if (account) {
+              navigate(corePath(`/accounts/${account.id}`));
+              toast.info("Ouvrir la section Facturation du compte pour enregistrer un paiement");
+            } else {
+              toast.error("Aucun compte lié — créez un compte d'abord");
+            }
+          }} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 min-w-[80px]">
             <DollarSign className="h-4 w-4" /> Paiement
           </button>
-          <button onClick={() => toast.info("Envoi facture")} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-purple-500/20 text-[10px] font-medium text-purple-400 hover:bg-purple-500/10 min-w-[80px]">
+          <button onClick={() => {
+            if (account) {
+              navigate(corePath(`/accounts/${account.id}`));
+              toast.info("Ouvrir la section Factures du compte pour envoyer une facture");
+            } else {
+              toast.error("Aucun compte lié — créez un compte d'abord");
+            }
+          }} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-purple-500/20 text-[10px] font-medium text-purple-400 hover:bg-purple-500/10 min-w-[80px]">
             <Send className="h-4 w-4" /> Facture
           </button>
           <button
