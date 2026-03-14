@@ -216,15 +216,26 @@ export const liftClientSuspensionAtomic = async (
 
     // Step 2: Optionally reactivate services
     if (reactivateServices) {
-      const { data: reactivatedSubs } = await backendClient
-        .from("subscriptions")
-        .update({
-          status: "active",
-          updated_at: new Date().toISOString(),
-        })
+      // Reactivate canonical billing subscriptions
+      const { data: billingCust } = await backendClient
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", clientId)
-        .eq("status", "suspended")
-        .select();
+        .maybeSingle();
+      
+      let reactivatedSubs: any[] | null = null;
+      if (billingCust) {
+        const { data: subs } = await backendClient
+          .from("billing_subscriptions")
+          .update({
+            status: "active",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("customer_id", billingCust.id)
+          .eq("status", "suspended")
+          .select();
+        reactivatedSubs = subs;
+      }
 
       const { data: reactivatedStreaming } = await backendClient
         .from("client_streaming_subscriptions")

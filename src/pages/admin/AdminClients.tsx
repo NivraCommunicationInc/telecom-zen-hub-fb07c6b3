@@ -722,10 +722,10 @@ const AdminClients = () => {
   // Approve payment and update client balance
   const approvePaymentMutation = useMutation({
     mutationFn: async ({ paymentId, amount }: { paymentId: string; amount: number }) => {
-      // Update payment status
+      // Update payment status in canonical billing_payments table
       const { error: paymentError } = await supabase
-        .from("payments")
-        .update({ status: "completed" })
+        .from("billing_payments")
+        .update({ status: "confirmed" })
         .eq("id", paymentId);
       if (paymentError) throw paymentError;
 

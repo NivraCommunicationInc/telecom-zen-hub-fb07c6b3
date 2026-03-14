@@ -106,9 +106,9 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
       
       const query = debouncedSearch.toLowerCase();
       const { data, error } = await supabase
-        .from("billing")
-        .select("id, invoice_number, client_email, amount, status, created_at")
-        .or(`invoice_number.ilike.%${query}%,client_email.ilike.%${query}%`)
+        .from("billing_invoices")
+        .select("id, invoice_number, total, status, created_at, customer:billing_customers(email)")
+        .or(`invoice_number.ilike.%${query}%`)
         .order("created_at", { ascending: false })
         .limit(10);
       

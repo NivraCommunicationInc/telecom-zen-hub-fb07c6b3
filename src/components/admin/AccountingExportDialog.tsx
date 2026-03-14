@@ -74,8 +74,8 @@ export function AccountingExportDialog({ open, onOpenChange, billingData }: Acco
     queryKey: ["accounting-export-preview", startDate, endDate, statusFilter],
     queryFn: async () => {
       let query = supabase
-        .from("billing")
-        .select("id, invoice_number, client_email, amount, subtotal, tps_amount, tvq_amount, status, created_at, paid_at, payment_method_type, payment_reference, due_date, notes")
+        .from("billing_invoices")
+        .select("id, invoice_number, subtotal, tps_amount, tvq_amount, total, status, created_at, paid_at, payment_method, due_date, notes, customer:billing_customers(email)")
         .gte("created_at", `${startDate}T00:00:00`)
         .lte("created_at", `${endDate}T23:59:59`)
         .order("created_at", { ascending: false });
@@ -86,7 +86,14 @@ export function AccountingExportDialog({ open, onOpenChange, billingData }: Acco
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as ExportableInvoice[];
+      // Map to ExportableInvoice shape for backward compat
+      return (data || []).map((inv: any) => ({
+        ...inv,
+        client_email: inv.customer?.email || "",
+        amount: inv.total,
+        payment_method_type: inv.payment_method,
+        payment_reference: null,
+      })) as ExportableInvoice[];
     },
     enabled: open,
   });

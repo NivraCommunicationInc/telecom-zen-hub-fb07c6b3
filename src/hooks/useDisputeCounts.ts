@@ -15,11 +15,11 @@ export function useDisputeCounts() {
   return useQuery({
     queryKey: ["admin-dispute-counts"],
     queryFn: async (): Promise<DisputeCounts> => {
-      // Count disputed invoices
+      // Count disputed invoices — canonical billing_invoices table
       const { count: invoiceCount, error: invoiceError } = await supabase
-        .from("billing")
+        .from("billing_invoices")
         .select("id", { count: "exact", head: true })
-        .or("status.eq.disputed,status.eq.contested,status.eq.chargeback,status.ilike.%dispute%");
+        .or("status.eq.disputed,status.eq.contested,status.eq.chargeback");
 
       if (invoiceError) {
         console.error("Error counting disputed invoices:", invoiceError);
