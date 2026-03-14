@@ -529,46 +529,9 @@ serve(async (req) => {
         } else if (v2Check?.status === "paid") {
           console.log(`[PayPal Webhook] Invoice ${customId} already paid — skipping`);
         } else {
-          // Fallback: legacy billing table
-          // Check idempotency first
-          const { data: existingLegacy } = await supabase
-            .from("payments")
-            .select("id")
-            .eq("provider_payment_id", captureId)
-            .maybeSingle();
-
-          if (existingLegacy) {
-            console.log(`[PayPal Webhook] Capture ${captureId} already in legacy — skipping`);
-            break;
-          }
-
-          const { data: legacyInvoice } = await supabase
-            .from("billing")
-            .select("*")
-            .eq("id", customId)
-            .maybeSingle();
-
-          if (legacyInvoice && legacyInvoice.status !== "paid") {
-            const currentPaid = Number(legacyInvoice.amount_paid) || 0;
-            const newPaid = currentPaid + captureAmount;
-            const total = Number(legacyInvoice.amount) || 0;
-            const newBalance = Math.max(0, total - newPaid);
-            const isPaid = newBalance <= 0;
-
-            await supabase
-              .from("billing")
-              .update({
-                amount_paid: newPaid,
-                balance_due: newBalance,
-                status: isPaid ? "paid" : "partial",
-                paid_at: isPaid ? new Date().toISOString() : null,
-                payment_method_type: "paypal",
-                payment_reference: captureId,
-              })
-              .eq("id", customId);
-
-            console.log(`[PayPal Webhook] Legacy invoice ${customId} updated via webhook`);
-          }
+          // Legacy billing table access has been permanently removed.
+          // All invoices must exist in billing_invoices (canonical Core table).
+          console.warn(`[PayPal Webhook] Invoice not found in billing_invoices for custom_id=${customId} — no legacy fallback`);
         }
 
         break;
