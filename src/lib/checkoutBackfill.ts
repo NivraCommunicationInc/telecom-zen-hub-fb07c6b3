@@ -291,7 +291,7 @@ export async function backfillCheckoutToSupabase(
     result.errors.push(`payment: ${e.message}`);
   }
 
-  // 6) subscription
+  // 6) subscription + service lines
   if (payload.services.length > 0) {
     try {
       const mainService = payload.services[0];
@@ -303,11 +303,19 @@ export async function backfillCheckoutToSupabase(
         .eq("order_id", response.order_id)
         .maybeSingle();
 
+      let subscriptionId: string;
+
       if (existingSub?.id) {
+        subscriptionId = existingSub.id;
         result.subscription = true;
       } else {
-        const subscriptionId = response.subscription_id || crypto.randomUUID();
+        subscriptionId = response.subscription_id || crypto.randomUUID();
         const cycleDate = (response.created_at || now).split("T")[0];
+
+        // Calculate combined plan price from all recurring services
+        const combinedPlanPrice = payload.services.reduce(
+          (sum, svc) => sum + (Number(svc.plan_price) || 0), 0
+        );
 
         const { error } = await supabase.from("billing_subscriptions").upsert(
           {
@@ -316,8 +324,8 @@ export async function backfillCheckoutToSupabase(
             order_id: response.order_id,
             address_id: serviceAddressId,
             plan_code: mainService.plan_code,
-            plan_name: mainService.name,
-            plan_price: mainService.plan_price,
+            plan_name: payload.services.map(s => s.name).join(", "),
+            plan_price: combinedPlanPrice || mainService.plan_price,
             status: "pending",
             cycle_start_date: cycleDate,
             cycle_end_date: cycleDate,
@@ -330,6 +338,43 @@ export async function backfillCheckoutToSupabase(
 
         if (error) result.errors.push(`subscription: ${error.message}`);
         else result.subscription = true;
+      }
+
+      // 6b) Create service lines for each recurring service
+      for (const svc of payload.services) {
+        try {
+          await supabase.from("billing_subscription_services").upsert(
+            {
+              subscription_id: subscriptionId,
+              service_name: svc.name,
+              service_code: svc.plan_code || svc.name.toLowerCase().replace(/\s+/g, '_'),
+              service_type: "recurring",
+              unit_price: Number(svc.plan_price) || 0,
+              quantity: 1,
+              is_active: true,
+            },
+            { onConflict: "id" },
+          );
+        } catch { /* best-effort */ }
+      }
+
+      // 6c) Create equipment lines (one_time) from payload
+      const equipmentItems = payload.equipment || [];
+      for (const eq of equipmentItems) {
+        try {
+          await supabase.from("billing_subscription_services").upsert(
+            {
+              subscription_id: subscriptionId,
+              service_name: eq.name || eq.label || "Équipement",
+              service_code: eq.code || eq.type || "equipment",
+              service_type: "one_time",
+              unit_price: Number(eq.price) || 0,
+              quantity: Number(eq.quantity) || 1,
+              is_active: true,
+            },
+            { onConflict: "id" },
+          );
+        } catch { /* best-effort */ }
       }
     } catch (e: any) {
       result.errors.push(`subscription: ${e.message}`);
