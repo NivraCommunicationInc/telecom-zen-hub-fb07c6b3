@@ -434,21 +434,7 @@ async function handleToolCall(
           .single();
         
         if (!customer) {
-          // Fallback to legacy billing table
-          let query = supabase
-            .from("billing")
-            .select("invoice_number, amount, status, due_date, paid_at, created_at")
-            .eq("user_id", effectiveUserId)
-            .order("created_at", { ascending: false });
-          
-          if (args.status_filter && args.status_filter !== "all") {
-            query = query.eq("status", args.status_filter);
-          }
-          
-          const { data: invoices } = await query.limit(10);
-          
-          if (!invoices?.length) return { result: fr ? "Aucune facture trouvée." : "No invoices found." };
-          return { result: JSON.stringify(invoices) };
+          return { result: fr ? "Aucune facture trouvée." : "No invoices found." };
         }
         
         // Use V2 invoices
