@@ -269,10 +269,17 @@ const AdminClients = () => {
     queryKey: ["client-subscriptions", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .select("*")
+      // Resolve billing_customer
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", selectedClient.user_id)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("billing_subscriptions")
+        .select("id, plan_name, plan_price, plan_code, status, service_category, cycle_start_date, cycle_end_date, order_id, created_at")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
