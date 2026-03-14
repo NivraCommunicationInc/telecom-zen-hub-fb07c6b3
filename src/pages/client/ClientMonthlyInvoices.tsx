@@ -240,7 +240,7 @@ const ClientMonthlyInvoices = () => {
                 <div className="flex items-center justify-between p-3 border-t border-border mt-2 pt-4">
                   <span className="font-bold">Total mensuel (avant taxes)</span>
                   <span className="text-xl font-bold text-cyan-500">
-                    {subscriptions.reduce((sum, s) => sum + (s.amount || 0), 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    {subscriptions.reduce((sum: number, s: any) => sum + (s.plan_price || 0), 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                   </span>
                 </div>
               </div>
