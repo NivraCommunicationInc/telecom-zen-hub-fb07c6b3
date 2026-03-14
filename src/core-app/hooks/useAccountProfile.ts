@@ -353,6 +353,7 @@ export function useAccountProfile(accountId: string | undefined) {
     equipment: equipment.data || [],
     activityLogs: activityLogs.data || [],
     serviceAddresses: serviceAddresses.data || [],
+    documents: documents.data || [],
     customerId,
     clientId,
     isLoading,
