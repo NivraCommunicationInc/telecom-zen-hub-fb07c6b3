@@ -484,19 +484,56 @@ const AdminReplacementWorkflow = () => {
     },
   });
 
-  // Mark paid mutation
+  // Mark paid mutation — CANONICAL Core path (billing_payments + billing_invoices)
   const markPaidMutation = useMutation({
     mutationFn: async (paymentRef: string) => {
       if (!internalOrder || !selectedTicket) throw new Error("No order found");
 
-      // Update billing
+      // Update canonical billing_invoices to paid
       if (internalOrder.invoice_id) {
+        // Resolve billing_customer
+        const { data: billingCustomer } = await supabase
+          .from("billing_customers")
+          .select("id")
+          .eq("user_id", selectedTicket.user_id)
+          .maybeSingle();
+
+        const customerId = billingCustomer?.id;
+        if (!customerId) throw new Error("Client de facturation introuvable");
+
+        const now = new Date().toISOString();
+
+        // Create canonical payment record
+        const paymentNumber = `RPAY-${Date.now().toString(36).toUpperCase()}`;
         await supabase
-          .from("billing")
-          .update({ 
-            status: "paid",
-            payment_reference: paymentRef,
-            paid_at: new Date().toISOString(),
+          .from("billing_payments")
+          .insert({
+            invoice_id: internalOrder.invoice_id,
+            customer_id: customerId,
+            payment_number: paymentNumber,
+            amount: internalOrder.total_amount,
+            method: "interac" as const,
+            status: "confirmed" as const,
+            reference: paymentRef,
+            provider: "manual",
+            provider_payment_id: paymentRef,
+            source: "admin",
+            received_at: now,
+            confirmed_by: user?.id || null,
+            created_by_id: user?.id || null,
+            created_by_name: adminProfile?.full_name || "Admin",
+            created_by_role: "admin",
+            environment: "production",
+          });
+
+        // Mark invoice as paid
+        await supabase
+          .from("billing_invoices")
+          .update({
+            status: "paid" as const,
+            paid_at: now,
+            amount_paid: internalOrder.total_amount,
+            balance_due: 0,
           })
           .eq("id", internalOrder.invoice_id);
       }
@@ -537,6 +574,8 @@ const AdminReplacementWorkflow = () => {
       toast.success("Paiement confirmé! Prêt pour expédition.");
       queryClient.invalidateQueries({ queryKey: ["replacement-internal-order"] });
       queryClient.invalidateQueries({ queryKey: ["admin-replacement-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] });
     },
     onError: (error: any) => {
       toast.error("Erreur: " + error.message);
