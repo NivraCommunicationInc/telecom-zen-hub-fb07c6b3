@@ -1950,17 +1950,26 @@ const ClientNewOrder = () => {
         billing_cycle_day: new Date().getDate(),
       };
 
-      // Resolve account_id for order linkage
+      // Resolve account_id for order linkage — BLOCKING: orders MUST have account_id
       let resolvedAccountId: string | null = null;
-      try {
-        const { data: acctRows } = await supabase
+      {
+        const { data: acctRows, error: acctErr } = await supabase
           .from("accounts")
           .select("id")
           .eq("client_id", user.id)
-          .order("created_at", { ascending: false })
+          .eq("status", "active")
+          .order("created_at", { ascending: true })
           .limit(1);
+        if (acctErr) {
+          console.error("[Checkout] Account resolution failed:", acctErr);
+          throw new Error("Impossible de résoudre votre dossier de facturation. Veuillez réessayer.");
+        }
         resolvedAccountId = acctRows?.[0]?.id || null;
-      } catch { /* non-blocking */ }
+        if (!resolvedAccountId) {
+          console.error("[Checkout] No active account found for user:", user.id);
+          throw new Error("Aucun dossier de facturation trouvé. Veuillez contacter le support.");
+        }
+      }
 
       // Determine payment method value
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" 
