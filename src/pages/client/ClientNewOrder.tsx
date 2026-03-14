@@ -2454,6 +2454,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     onSuccess: async (result) => {
       // Clear the order draft from sessionStorage
       clearOrderDraft();
+
+      // ★ TRACEABILITY: Log checkout completed
+      const orderData = result as unknown as CreatedOrder & { nivraPaymentRef?: string };
+      logEvent({
+        event_type: "checkout_completed",
+        event_category: "checkout",
+        status: "success",
+        order_number: orderData.order_number,
+        order_id: orderData.id,
+        payment_reference: orderData.nivraPaymentRef,
+      });
       
       // Navigate to dedicated confirmation page with order ID
       const orderData = result as unknown as CreatedOrder & { nivraPaymentRef?: string };
