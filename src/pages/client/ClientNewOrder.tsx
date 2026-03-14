@@ -2088,6 +2088,15 @@ const ClientNewOrder = () => {
 
       console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
 
+      // ★ TRACEABILITY: Log successful order creation from Nivra Core
+      logOrderCreated({
+        order_number: nivraCheckoutResponse.order_number,
+        order_id: nivraCheckoutResponse.order_id,
+        invoice_number: nivraCheckoutResponse.invoice_number,
+        payment_number: nivraCheckoutResponse.payment_number,
+        amount: orderTotalAmount,
+      });
+
       // Backfill serverPricing with canonical Nivra Core references
       serverPricing.nivra_order_number = nivraCheckoutResponse.order_number;
       serverPricing.nivra_payment_number = nivraCheckoutResponse.payment_number;
