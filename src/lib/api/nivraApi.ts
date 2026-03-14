@@ -3,7 +3,9 @@
  * Source of truth for product pricing and order creation.
  */
 
-const API_BASE = "http://localhost:3001/api";
+const API_BASE = import.meta.env.VITE_NIVRA_CORE_URL
+  ? `${import.meta.env.VITE_NIVRA_CORE_URL}/api`
+  : "http://localhost:3001/api";
 
 // ── Product types ──
 
