@@ -222,7 +222,7 @@ const AdminContracts = () => {
       
       // Get all profiles for these users
       const userIds = [
-        ...(subscriptions || []).map(s => s.user_id),
+        ...(subscriptions || []).map((s: any) => s.customer?.user_id).filter(Boolean),
         ...(orders || []).map(o => o.user_id)
       ];
       const uniqueUserIds = [...new Set(userIds)];
@@ -234,11 +234,12 @@ const AdminContracts = () => {
       
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
       
-      // Process subscriptions
+      // Process subscriptions (canonical billing_subscriptions)
       for (const sub of subscriptions || []) {
-        const profile = profileMap.get(sub.user_id);
+        const userId = (sub as any).customer?.user_id;
+        const profile = userId ? profileMap.get(userId) : null;
         const hasContract = existingContracts?.some(
-          c => c.user_id === sub.user_id && c.contract_name.toLowerCase().includes(sub.plan_name.toLowerCase())
+          c => c.user_id === userId && c.contract_name.toLowerCase().includes(sub.plan_name.toLowerCase())
         ) || false;
         
         // Determine category from plan name
@@ -255,12 +256,12 @@ const AdminContracts = () => {
           type: 'subscription',
           serviceName: sub.plan_name,
           category,
-          userId: sub.user_id,
-          clientName: profile?.full_name || profile?.email || "N/A",
-          clientEmail: profile?.email || "",
+          userId: userId || "",
+          clientName: profile?.full_name || profile?.email || (sub as any).customer?.email || "N/A",
+          clientEmail: profile?.email || (sub as any).customer?.email || "",
           clientNumber: profile?.client_number,
-          amount: sub.amount,
-          status: sub.status,
+          amount: sub.plan_price,
+          status: sub.status || "active",
           createdAt: sub.created_at,
           hasContract,
           profile,

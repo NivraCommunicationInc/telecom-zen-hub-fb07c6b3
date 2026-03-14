@@ -63,38 +63,23 @@ export const ClientBalanceBreakdown = ({
   // Use the new ledger-based balance
   const { data: ledgerBalance, isLoading: ledgerLoading } = useLedgerBalance(clientUserId);
 
-  // Fetch unpaid invoices from billing table
-  const { data: billingInvoices, isLoading: billingLoading } = useQuery({
-    queryKey: ["client-billing-unpaid", clientUserId],
+  // Fetch unpaid invoices from canonical billing_invoices table
+  const { data: coreInvoices, isLoading: coreLoading } = useQuery({
+    queryKey: ["client-core-invoices-unpaid", clientUserId],
     queryFn: async () => {
-      let query = supabase
-        .from("billing")
-        .select("*")
-        .in("status", ["pending", "overdue", "partial"]);
-
-      // Query by user_id OR client_email
-      if (clientEmail) {
-        query = query.or(`user_id.eq.${clientUserId},client_email.eq.${clientEmail}`);
-      } else {
-        query = query.eq("user_id", clientUserId);
-      }
-
-      const { data, error } = await query.order("due_date", { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!clientUserId,
-  });
-
-  // Fetch unpaid monthly invoices
-  const { data: monthlyInvoices, isLoading: monthlyLoading } = useQuery({
-    queryKey: ["client-monthly-unpaid", clientUserId],
-    queryFn: async () => {
+      // Resolve customer_id from user_id
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", clientUserId)
+        .maybeSingle();
+      if (!customer) return [];
+      
       const { data, error } = await supabase
-        .from("monthly_invoices")
-        .select("*")
-        .eq("client_id", clientUserId)
-        .in("status", ["issued", "overdue", "partial"])
+        .from("billing_invoices")
+        .select("id, invoice_number, total, amount_paid, due_date, status, cycle_start_date, cycle_end_date, created_at")
+        .eq("customer_id", customer.id)
+        .in("status", ["pending", "partially_paid"])
         .order("due_date", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -102,46 +87,29 @@ export const ClientBalanceBreakdown = ({
     enabled: !!clientUserId,
   });
 
-  const isLoading = billingLoading || monthlyLoading || ledgerLoading;
+  const isLoading = coreLoading || ledgerLoading;
 
   // Use ledger balance as the source of truth (only counts CAPTURED payments)
   const totalBalance = ledgerBalance?.balance ?? 0;
   const hasCredit = ledgerBalance?.isCredit ?? false;
   const availableCredit = ledgerBalance?.availableCredit ?? 0;
 
-  // Combine and sort all invoices
-  const allUnpaidInvoices: UnpaidInvoice[] = [
-    ...(billingInvoices || []).map(inv => ({
-      source_table: 'billing',
-      id: inv.id,
-      client_id: inv.user_id,
-      invoice_number: inv.invoice_number,
-      period_start: null,
-      period_end: null,
-      issue_date: inv.created_at,
-      due_date: inv.due_date,
-      status: inv.status,
-      total: Number(inv.amount) || 0,
-      amount_paid: Number(inv.amount_paid) || 0,
-      amount_due: (Number(inv.amount) || 0) - (Number(inv.amount_paid) || 0),
-      description: inv.related_order_number || 'Facture de commande',
-    })),
-    ...(monthlyInvoices || []).map(inv => ({
-      source_table: 'monthly_invoices',
-      id: inv.id,
-      client_id: inv.client_id,
-      invoice_number: inv.invoice_number,
-      period_start: inv.period_start,
-      period_end: inv.period_end,
-      issue_date: inv.issue_date,
-      due_date: inv.due_date,
-      status: inv.status,
-      total: Number(inv.total) || 0,
-      amount_paid: Number(inv.amount_paid) || 0,
-      amount_due: (Number(inv.total) || 0) - (Number(inv.amount_paid) || 0),
-      description: `Période: ${inv.period_start} - ${inv.period_end}`,
-    })),
-  ].sort((a, b) => {
+  // Map canonical invoices to display format
+  const allUnpaidInvoices: UnpaidInvoice[] = (coreInvoices || []).map(inv => ({
+    source_table: 'billing_invoices',
+    id: inv.id,
+    client_id: clientUserId,
+    invoice_number: inv.invoice_number,
+    period_start: inv.cycle_start_date,
+    period_end: inv.cycle_end_date,
+    issue_date: inv.created_at,
+    due_date: inv.due_date,
+    status: inv.status,
+    total: Number(inv.total) || 0,
+    amount_paid: Number(inv.amount_paid) || 0,
+    amount_due: (Number(inv.total) || 0) - (Number(inv.amount_paid) || 0),
+    description: inv.cycle_start_date ? `Période: ${inv.cycle_start_date} - ${inv.cycle_end_date}` : 'Facture',
+  })).sort((a, b) => {
     if (!a.due_date) return 1;
     if (!b.due_date) return -1;
     return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
