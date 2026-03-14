@@ -106,6 +106,15 @@ interface CreatedOrder {
   status: string;
   created_at: string;
   selected_channels?: any[];
+  pricing_snapshot?: any;
+  installation_type?: string;
+  delivery_method?: string;
+  appointment_date?: string | null;
+  appointment_time?: string | null;
+  shipping_address?: string;
+  shipping_city?: string;
+  shipping_province?: string;
+  shipping_postal_code?: string;
 }
 
 interface Channel {
