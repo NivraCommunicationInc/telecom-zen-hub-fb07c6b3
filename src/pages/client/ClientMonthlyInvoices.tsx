@@ -135,16 +135,17 @@ const ClientMonthlyInvoices = () => {
     },
   });
 
-  // Get billing cycle day from account or subscriptions
+  // Get billing cycle day from account or derive from subscription cycle_end_date
   const billCycleDay = account?.billing_cycle_day 
-    || (subscriptions?.length ? Math.min(...subscriptions.map(s => s.bill_cycle_day || 1)) : null);
+    || (subscriptions?.length ? new Date(subscriptions[0].cycle_end_date).getDate() : null);
 
   const nextInvoiceDate = account?.next_invoice_date 
     || (subscriptions?.length
-      ? subscriptions.reduce((earliest, s) => {
-          if (!s.next_invoice_date) return earliest;
-          if (!earliest) return s.next_invoice_date;
-          return s.next_invoice_date < earliest ? s.next_invoice_date : earliest;
+      ? subscriptions.reduce((earliest: string | null, s: any) => {
+          const endDate = s.cycle_end_date;
+          if (!endDate) return earliest;
+          if (!earliest) return endDate;
+          return endDate < earliest ? endDate : earliest;
         }, null as string | null)
       : null);
 
