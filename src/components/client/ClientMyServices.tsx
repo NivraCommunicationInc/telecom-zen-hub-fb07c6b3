@@ -697,7 +697,7 @@ const ClientMyServices = () => {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Dernier paiement:</span>
                 <span className="font-mono text-foreground">
-                  {lastPayment.reference_number || lastPayment.payment_reference} 
+                  {lastPayment.reference || lastPayment.payment_number} 
                   <span className="text-muted-foreground ml-2">
                     ({Number(lastPayment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})
                   </span>
