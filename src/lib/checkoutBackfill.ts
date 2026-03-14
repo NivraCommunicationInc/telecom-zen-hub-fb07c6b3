@@ -191,7 +191,6 @@ export async function backfillCheckoutToSupabase(
         environment: "live",
         created_at: response.created_at || now,
         pricing_snapshot: payload.pricing_snapshot,
-        line_items: payload.line_items,
         notes: payload.notes || null,
         shipping_address: payload.service_address.street || null,
         shipping_city: payload.service_address.city || null,

@@ -382,7 +382,6 @@ export async function fallbackCheckout(
     environment: "live",
     created_at: now,
     pricing_snapshot: pricing,
-    line_items: payload.line_items,
     notes: payload.notes || null,
     shipping_address: payload.service_address?.street || null,
     shipping_city: payload.service_address?.city || null,
