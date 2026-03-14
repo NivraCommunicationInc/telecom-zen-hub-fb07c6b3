@@ -83,38 +83,40 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
   const updatePaymentStatus = async (newStatus: string, extra: Record<string, any> = {}) => {
     setActionLoading(newStatus);
     try {
-      const { error } = await supabase
-        .from("billing_payments")
-        .update({ status: newStatus as any, ...extra })
-        .eq("id", p.id);
-      if (error) throw error;
-
-      // If confirming, also mark invoice as paid
+      // For confirm: use canonical RPC to ensure invoice/payment/subscription sync
       if (newStatus === "confirmed" || newStatus === "completed") {
-        const now = new Date().toISOString();
-        await supabase
-          .from("billing_payments")
-          .update({ confirmed_by: "admin" } as any)
+        const { error: rpcError } = await supabase.rpc("apply_payment_to_invoice" as any, {
+          p_invoice_id: p.invoice_id,
+          p_customer_id: p.customer_id,
+          p_amount: p.amount,
+          p_method: p.method || "manual",
+          p_provider: p.provider || "manual",
+          p_provider_payment_id: p.reference || `confirm_${Date.now()}`,
+          p_source: "admin",
+          p_created_by_name: "Payment Drawer",
+          p_created_by_role: "admin",
+        });
+        if (rpcError) throw rpcError;
+
+        // Also mark original pending payment as confirmed
+        await supabase.from("billing_payments")
+          .update({ status: "confirmed" as any, confirmed_by: "admin" })
           .eq("id", p.id);
+      } else {
+        // For reject/fraud/refund: direct status update
+        const { error } = await supabase
+          .from("billing_payments")
+          .update({ status: newStatus as any, ...extra })
+          .eq("id", p.id);
+        if (error) throw error;
 
-        // Update invoice status + amount_paid
-        await supabase
-          .from("billing_invoices")
-          .update({
-            status: "paid" as any,
-            paid_at: now,
-            amount_paid: p.amount,
-            balance_due: 0,
-          })
-          .eq("id", p.invoice_id);
-      }
-
-      // If rejecting, update invoice back to unpaid
-      if (newStatus === "failed" || newStatus === "declined") {
-        await supabase
-          .from("billing_invoices")
-          .update({ status: "unpaid" as any })
-          .eq("id", p.invoice_id);
+        // If rejecting, revert invoice to unpaid
+        if (newStatus === "failed" || newStatus === "declined" || newStatus === "fraud") {
+          await supabase
+            .from("billing_invoices")
+            .update({ status: "unpaid" as any })
+            .eq("id", p.invoice_id);
+        }
       }
 
       refreshAll();
