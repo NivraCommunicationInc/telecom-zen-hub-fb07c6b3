@@ -107,12 +107,22 @@ export function SubscriptionDetailDrawer({ subscription, onClose }: Props) {
   const handleCancel = () => updateSubStatus("cancelled", "cancel");
 
   const handleAssignEquipment = () => {
-    toast.info("Ouvrir la section Équipement dans le dossier Compte");
-    // Navigate to account with equipment section
+    if (s.customer_id) {
+      onClose();
+      // Navigate via window since we don't have navigate in scope
+      window.location.href = `/core/accounts/${s.customer_id}?section=equipment`;
+    } else {
+      toast.error("Aucun compte client lié");
+    }
   };
 
   const handleScheduleTech = () => {
-    toast.info("Ouvrir la section Rendez-vous dans le dossier Compte");
+    if (s.customer_id) {
+      onClose();
+      window.location.href = `/core/accounts/${s.customer_id}?section=appointments`;
+    } else {
+      toast.error("Aucun compte client lié");
+    }
   };
 
   const handleAddNote = async () => {
