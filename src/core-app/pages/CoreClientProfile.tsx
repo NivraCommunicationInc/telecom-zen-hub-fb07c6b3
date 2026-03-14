@@ -173,20 +173,6 @@ const CoreClientProfile = () => {
     enabled: !!clientId,
   });
 
-  // ── Internal notes ──
-  const { data: notes = [] } = useQuery({
-    queryKey: ["core-client-notes", clientId],
-    queryFn: async () => {
-      const { data } = await supabase.from("client_internal_notes")
-        .select("id, body, note_type, created_by_name, created_by_role, created_at")
-        .eq("client_id", clientId!)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      return data || [];
-    },
-    enabled: !!clientId,
-  });
-
   // ── Activity ──
   const { data: activityLogs = [] } = useQuery({
     queryKey: ["core-client-activity", clientId],
@@ -198,32 +184,6 @@ const CoreClientProfile = () => {
       return data || [];
     },
     enabled: !!clientId,
-  });
-
-  // ── Add note mutation ──
-  const addNoteMutation = useMutation({
-    mutationFn: async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error("Non authentifié");
-      const { data: prof } = await supabase.from("profiles")
-        .select("full_name").eq("user_id", currentUser.id).maybeSingle();
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: clientId!,
-        note_type: "admin",
-        body: newNote.trim(),
-        created_by_user_id: currentUser.id,
-        created_by_role: "admin",
-        created_by_name: prof?.full_name || currentUser.email || "Agent",
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-client-notes", clientId] });
-      setNewNote("");
-      setAddingNote(false);
-      toast.success("Note ajoutée");
-    },
-    onError: (e: any) => toast.error(e.message || "Erreur"),
   });
 
   if (loadingProfile) {
