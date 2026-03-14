@@ -378,32 +378,69 @@ const AdminReplacementWorkflow = () => {
     },
   });
 
-  // Generate invoice mutation
+  // Generate invoice mutation — CANONICAL Core path (billing_invoices + billing_invoice_lines)
   const generateInvoiceMutation = useMutation({
     mutationFn: async () => {
       if (!internalOrder || !selectedTicket) throw new Error("No order found");
 
-      // Create billing record
+      // Resolve billing_customer by user_id
+      const { data: billingCustomer, error: custErr } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", selectedTicket.user_id)
+        .maybeSingle();
+      if (custErr) throw custErr;
+      if (!billingCustomer) throw new Error("Aucun client de facturation trouvé pour cet utilisateur. Créez-le d'abord via une commande Core.");
+
+      // Generate invoice number
+      const invoiceNumber = `REPL-${Date.now().toString(36).toUpperCase()}`;
+
+      const now = new Date().toISOString();
+      const cycleEnd = new Date(Date.now() + 30 * 86400000).toISOString();
+
+      // Create canonical billing_invoices record
       const { data: invoiceData, error: invoiceError } = await supabase
-        .from("billing")
+        .from("billing_invoices")
         .insert({
-          user_id: selectedTicket.user_id,
-          client_email: selectedTicket.client_email,
+          customer_id: billingCustomer.id,
+          invoice_number: invoiceNumber,
+          type: "adjustment" as const,
           subtotal: internalOrder.subtotal,
-          amount: internalOrder.total_amount,
           tps_amount: internalOrder.tps_amount,
           tvq_amount: internalOrder.tvq_amount,
-          delivery_fee: internalOrder.delivery_fee,
-          installation_fee: internalOrder.installation_fee,
-          status: "pending",
-          replacement_ticket_id: selectedTicket.id,
-          replacement_order_id: internalOrder.id,
+          total: internalOrder.total_amount,
+          currency: "CAD",
+          payment_method: "interac" as const,
+          status: "pending" as const,
+          cycle_start_date: now.split("T")[0],
+          cycle_end_date: cycleEnd.split("T")[0],
+          due_date: cycleEnd.split("T")[0],
           notes: `Remplacement - ${selectedTicket.ticket_number}`,
+          environment: "production",
+          fees: (internalOrder.delivery_fee || 0) + (internalOrder.installation_fee || 0),
         })
         .select()
         .single();
 
       if (invoiceError) throw invoiceError;
+
+      // Create invoice line items from internal order items
+      const { data: orderItems } = await supabase
+        .from("replacement_order_items")
+        .select("*")
+        .eq("order_id", internalOrder.id);
+
+      if (orderItems && orderItems.length > 0) {
+        const lines = orderItems.map((item: any) => ({
+          invoice_id: invoiceData.id,
+          description: item.item_name,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+          line_total: item.line_total,
+          line_type: "equipment",
+        }));
+        await supabase.from("billing_invoice_lines").insert(lines);
+      }
 
       // Update internal order with invoice info
       await supabase
@@ -447,19 +484,56 @@ const AdminReplacementWorkflow = () => {
     },
   });
 
-  // Mark paid mutation
+  // Mark paid mutation — CANONICAL Core path (billing_payments + billing_invoices)
   const markPaidMutation = useMutation({
     mutationFn: async (paymentRef: string) => {
       if (!internalOrder || !selectedTicket) throw new Error("No order found");
 
-      // Update billing
+      // Update canonical billing_invoices to paid
       if (internalOrder.invoice_id) {
+        // Resolve billing_customer
+        const { data: billingCustomer } = await supabase
+          .from("billing_customers")
+          .select("id")
+          .eq("user_id", selectedTicket.user_id)
+          .maybeSingle();
+
+        const customerId = billingCustomer?.id;
+        if (!customerId) throw new Error("Client de facturation introuvable");
+
+        const now = new Date().toISOString();
+
+        // Create canonical payment record
+        const paymentNumber = `RPAY-${Date.now().toString(36).toUpperCase()}`;
         await supabase
-          .from("billing")
-          .update({ 
-            status: "paid",
-            payment_reference: paymentRef,
-            paid_at: new Date().toISOString(),
+          .from("billing_payments")
+          .insert({
+            invoice_id: internalOrder.invoice_id,
+            customer_id: customerId,
+            payment_number: paymentNumber,
+            amount: internalOrder.total_amount,
+            method: "interac" as const,
+            status: "confirmed" as const,
+            reference: paymentRef,
+            provider: "manual",
+            provider_payment_id: paymentRef,
+            source: "admin",
+            received_at: now,
+            confirmed_by: user?.id || null,
+            created_by_id: user?.id || null,
+            created_by_name: adminProfile?.full_name || "Admin",
+            created_by_role: "admin",
+            environment: "production",
+          });
+
+        // Mark invoice as paid
+        await supabase
+          .from("billing_invoices")
+          .update({
+            status: "paid" as const,
+            paid_at: now,
+            amount_paid: internalOrder.total_amount,
+            balance_due: 0,
           })
           .eq("id", internalOrder.invoice_id);
       }
@@ -500,6 +574,8 @@ const AdminReplacementWorkflow = () => {
       toast.success("Paiement confirmé! Prêt pour expédition.");
       queryClient.invalidateQueries({ queryKey: ["replacement-internal-order"] });
       queryClient.invalidateQueries({ queryKey: ["admin-replacement-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] });
     },
     onError: (error: any) => {
       toast.error("Erreur: " + error.message);
