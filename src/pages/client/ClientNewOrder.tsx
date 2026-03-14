@@ -2486,8 +2486,28 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         console.error("[AdminNotification] Failed (non-blocking):", notifyErr);
       }
       
-      // Navigate to confirmation page with order ID
-      navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
+      // Navigate to confirmation page with order number (canonical Nivra Core reference)
+      navigate(`/portal/order-confirmation?orderNumber=${orderData.order_number}`, {
+        state: {
+          nivraOrder: {
+            id: orderData.id,
+            order_number: orderData.order_number,
+            payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
+            pricing_snapshot: serverPricing,
+            service_type: selectedServices.map(s => s.name).join(", "),
+            status: "pending",
+            created_at: new Date().toISOString(),
+            installation_type: orderInstallationType,
+            delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
+            appointment_date: selectedDate || null,
+            appointment_time: selectedTime || null,
+            shipping_address: serviceAddressStreet,
+            shipping_city: serviceAddressCity,
+            shipping_province: serviceAddressProvince || "QC",
+            shipping_postal_code: serviceAddressPostalCode,
+          },
+        },
+      });
     },
     onError: (error: any) => {
       console.error("[ClientNewOrder] Order creation error:", error);
