@@ -194,7 +194,7 @@ const CoreClientProfile = () => {
         .select("id, body, note_type, created_by_name, created_by_role, created_at")
         .eq("client_id", clientId!)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(200);
       return data || [];
     },
     enabled: !!clientId,
