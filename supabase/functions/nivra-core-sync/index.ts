@@ -163,12 +163,24 @@ Deno.serve(async (req) => {
       }
       results.customer_id = customerId;
 
-      // ── 2. Upsert order ──
+      // ── 2. Resolve account_id from accounts table ──
+      let accountId: string | null = null;
+      try {
+        const { data: acct } = await admin
+          .from("accounts")
+          .select("id")
+          .eq("client_id", payload.customer.user_id)
+          .maybeSingle();
+        if (acct) accountId = acct.id;
+      } catch { /* non-blocking */ }
+
+      // ── 3. Upsert order ──
       const { error: orderErr } = await admin.from("orders").upsert(
         {
           id: payload.order.id,
           order_number: payload.order.order_number,
           user_id: payload.customer.user_id,
+          account_id: accountId,
           status: payload.order.status,
           payment_status: payload.order.payment_status,
           service_type: payload.order.service_type,
@@ -219,6 +231,7 @@ Deno.serve(async (req) => {
           activation_fee: payload.invoice.activation_fee || 0,
           currency: payload.invoice.currency || "CAD",
           payment_method: payload.invoice.payment_method || null,
+          paid_at: payload.invoice.status === "paid" ? (payload.order.created_at || new Date().toISOString()) : null,
           environment: payload.order.environment || "live",
           billing_snapshot_account_number: payload.billing_snapshot?.account_number || payload.account.account_number,
           billing_snapshot_client: payload.billing_snapshot?.client || {
