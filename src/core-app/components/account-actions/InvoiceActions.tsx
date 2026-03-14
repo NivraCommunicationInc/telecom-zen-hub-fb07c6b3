@@ -610,8 +610,11 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
         status: "confirmed" as const,
         payment_number: paymentNumber,
         reference: `Remboursement: ${reason}`,
-        source: "admin_refund",
+        source: "admin" as any,
+        provider: "manual",
         received_at: new Date().toISOString(),
+        created_by_name: "Admin",
+        created_by_role: "admin",
       });
       if (error) throw error;
 
