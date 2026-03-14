@@ -416,7 +416,7 @@ export async function fallbackCheckout(
     cycle_end_date: now,
     type: "initial",
     currency: "CAD",
-    payment_method: payload.payment.method || null,
+    payment_method: billingMethod,
     environment: "live",
     paid_at: (isPaid || isFree) ? now : null,
     billing_snapshot_account_number: accountNumber,
