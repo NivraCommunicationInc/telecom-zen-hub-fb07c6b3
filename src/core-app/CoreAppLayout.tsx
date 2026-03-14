@@ -77,6 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: CreditCard, label: "Billing", href: "/billing" },
       { icon: FileText, label: "Invoices", href: "/invoices" },
       { icon: DollarSign, label: "Payments", href: "/payments" },
+      { icon: Activity, label: "Transactions", href: "/transactions" },
       { icon: RefreshCcw, label: "Subscriptions", href: "/subscriptions" },
       { icon: FileText, label: "PDF Templates", href: "/pdf-templates" },
       { icon: AlertTriangle, label: "Collections", href: "/recouvrement" },
