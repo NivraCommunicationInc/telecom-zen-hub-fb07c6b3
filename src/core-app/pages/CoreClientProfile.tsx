@@ -2,7 +2,7 @@
  * CoreClientProfile — Full CRM client profile for Nivra Core.
  * Quick actions bar + data blocks: subscriptions, equipment, invoices, payments, tickets, notes, timeline.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ import {
   ShoppingCart, FileText, Clock, StickyNote, ArrowLeft, Hash,
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
-  Calendar, DollarSign, Wrench, TicketIcon,
+  Calendar, DollarSign, Wrench, TicketIcon, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
