@@ -41,23 +41,36 @@ export function InteracVerificationPanel({ payments, onSelect }: Props) {
   const handleConfirm = async (p: AdminPayment) => {
     setLoadingId(`confirm-${p.id}`);
     try {
-      const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
-        p_invoice_id: p.invoice_id,
-        p_customer_id: p.customer_id,
-        p_amount: p.amount,
-        p_method: p.method || "interac",
-        p_provider: p.provider || "interac",
-        p_provider_payment_id: p.reference || `interac_confirm_${Date.now()}`,
-        p_source: "admin",
-        p_created_by_name: "Vérification Interac",
-        p_created_by_role: "admin",
-      });
-      if (error) throw error;
+      // ★ FIX: Do NOT call apply_payment_to_invoice RPC for existing pending payments.
+      // The RPC creates a NEW payment row, causing duplicates.
+      // Instead: confirm the existing payment + update the invoice directly.
 
-      // Also update the existing pending payment record to confirmed
-      await supabase.from("billing_payments")
-        .update({ status: "confirmed" as any, confirmed_by: "admin" })
+      // 1. Confirm the existing pending payment
+      const { error: payErr } = await supabase.from("billing_payments")
+        .update({ status: "confirmed" as any, confirmed_by: "admin", received_at: new Date().toISOString() })
         .eq("id", p.id);
+      if (payErr) throw payErr;
+
+      // 2. Update invoice: add to amount_paid, reduce balance_due, set status
+      const { data: inv, error: invFetchErr } = await supabase.from("billing_invoices")
+        .select("amount_paid, balance_due, total, status")
+        .eq("id", p.invoice_id)
+        .single();
+      if (invFetchErr) throw invFetchErr;
+
+      const newAmountPaid = (inv.amount_paid ?? 0) + p.amount;
+      const newBalanceDue = Math.max(0, (inv.total ?? 0) - newAmountPaid);
+      const newStatus = newBalanceDue <= 0 ? "paid" : "partially_paid";
+
+      const { error: invErr } = await supabase.from("billing_invoices")
+        .update({
+          amount_paid: newAmountPaid,
+          balance_due: newBalanceDue,
+          status: newStatus as any,
+          paid_at: newBalanceDue <= 0 ? new Date().toISOString() : (inv as any).paid_at,
+        })
+        .eq("id", p.invoice_id);
+      if (invErr) throw invErr;
 
       toast.success(`Paiement ${p.payment_number} confirmé`);
       refreshAll();
