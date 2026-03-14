@@ -23,7 +23,6 @@ const PaymentReturn = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [captureDetails, setCaptureDetails] = useState<any>(null);
   const { logPaymentConfirmed, logPaymentFailed } = useTransactionTraceability();
-  const [captureDetails, setCaptureDetails] = useState<any>(null);
 
   useEffect(() => {
     const token = params.get("token"); // PayPal order ID
