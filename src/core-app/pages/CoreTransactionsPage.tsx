@@ -243,8 +243,8 @@ const CoreTransactionsPage = () => {
                     </td>
                     {/* Order # */}
                     <td className="px-3 py-2.5">
-                      {row.order_number ? (
-                        <Link to={corePath(`/orders`)} className="font-mono text-[11px] text-emerald-400 hover:underline">
+                    {row.order_number ? (
+                        <Link to={corePath(`/orders/${row.order_id || row.raw_id}`)} className="font-mono text-[11px] text-emerald-400 hover:underline">
                           {row.order_number}
                         </Link>
                       ) : (
@@ -254,9 +254,13 @@ const CoreTransactionsPage = () => {
                     {/* Invoice # */}
                     <td className="px-3 py-2.5">
                       {row.invoice_number ? (
-                        <Link to={corePath(`/invoices`)} className="font-mono text-[11px] text-sky-400 hover:underline">
-                          {row.invoice_number}
-                        </Link>
+                        row.invoice_id ? (
+                          <Link to={corePath(`/invoices/${row.invoice_id}`)} className="font-mono text-[11px] text-sky-400 hover:underline">
+                            {row.invoice_number}
+                          </Link>
+                        ) : (
+                          <span className="font-mono text-[11px] text-sky-400">{row.invoice_number}</span>
+                        )
                       ) : (
                         <span className="text-[#475569]">—</span>
                       )}

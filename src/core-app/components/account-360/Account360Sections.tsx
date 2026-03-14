@@ -292,10 +292,22 @@ export const KycSection = ({ data }: any) => (
 /* ── Contracts & Documents ── */
 export const ContractsSection = ({ data }: any) => (
   <Panel>
-    <PanelHeader icon={FileText} title="Contrats & Documents" />
-    <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">
-      Module en préparation — Les contrats seront liés aux abonnements et commandes.
-    </div>
+    <PanelHeader icon={FileText} title="Contrats & Documents" count={data.documents?.length || 0} />
+    {(!data.documents || data.documents.length === 0) ? (
+      <div className="px-3 py-6 text-center text-core-text-disabled text-[11px]">
+        Aucun document enregistré pour ce client.
+      </div>
+    ) : (
+      <MiniTable headers={["Document", "Type", "Ajouté le"]}>
+        {data.documents.map((d: any) => (
+          <tr key={d.id} className={trClass}>
+            <td className="px-3 py-1.5 text-core-text-primary text-[11px]">{d.document_name}</td>
+            <td className="px-3 py-1.5 text-core-text-secondary text-[11px]">{d.document_type || "—"}</td>
+            <td className="px-3 py-1.5 text-core-text-label text-[11px]">{fmtDate(d.created_at)}</td>
+          </tr>
+        ))}
+      </MiniTable>
+    )}
   </Panel>
 );
 

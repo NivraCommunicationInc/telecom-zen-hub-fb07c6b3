@@ -42,7 +42,7 @@ export function OrderActionMenu({ orders, accountId, clientId, clientEmail, clie
   return (
     <>
       <div className="flex flex-wrap items-center gap-1.5">
-        <button onClick={() => toast.info("Utilisez le portail de vente pour créer une commande pour ce client")} className={actionAccent}>
+        <button onClick={() => navigate(corePath("/pos"))} className={actionAccent}>
           <Plus className="h-3 w-3" /> Nouvelle commande
         </button>
         {orders.length > 0 && (

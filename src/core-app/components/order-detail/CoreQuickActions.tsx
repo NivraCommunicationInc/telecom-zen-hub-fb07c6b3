@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Wrench, Calendar, FileText, Wifi, Headphones, Ban,
   Loader2, CreditCard, Package, Send, CheckCircle2,
@@ -151,7 +152,20 @@ export function CoreQuickActions({ proc }: Props) {
       icon: Headphones,
       variant: "default",
       handler: async () => {
-        toast.info("Fonctionnalité de création de ticket à venir");
+        const user = (await supabase.auth.getUser()).data.user;
+        const { error } = await supabase.from("support_tickets").insert({
+          user_id: order?.user_id || user?.id || "",
+          title: `Support — Commande ${order?.order_number || order?.id?.slice(0, 8)}`,
+          subject: `Problème lié à la commande ${order?.order_number || ""}`,
+          category: "order_issue",
+          priority: "medium",
+          status: "open",
+          source: "admin_core",
+          order_id: order?.id || null,
+          client_email: order?.client_email || null,
+        });
+        if (error) throw error;
+        toast.success("Ticket de support créé");
       },
     },
     // Suspend - destructive, needs confirmation

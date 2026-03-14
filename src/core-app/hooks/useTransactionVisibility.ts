@@ -23,7 +23,9 @@ export interface TransactionRow {
   status: string;
   status_label: string;
   order_number: string | null;
+  order_id: string | null;
   invoice_number: string | null;
+  invoice_id: string | null;
   payment_number: string | null;
   failure_reason: string | null;
   action_needed: string;
@@ -87,7 +89,9 @@ export function useTransactionVisibility() {
             status: "payment_orphaned",
             status_label: "Paiement orphelin",
             order_number: o.order_number,
+            order_id: o.id,
             invoice_number: null,
+            invoice_id: null,
             payment_number: null,
             failure_reason: "PayPal capturé mais aucun enregistrement billing_payment correspondant",
             action_needed: "Reconciliation manuelle requise",
@@ -112,7 +116,9 @@ export function useTransactionVisibility() {
               status: "order_incomplete",
               status_label: "Facture manquante",
               order_number: o.order_number,
+              order_id: o.id,
               invoice_number: null,
+              invoice_id: null,
               payment_number: null,
               failure_reason: o.failure_reason || "Commande sans facture liée",
               action_needed: "Créer facture ou lier manuellement",
@@ -136,7 +142,9 @@ export function useTransactionVisibility() {
             status: "order_failed",
             status_label: "Commande échouée",
             order_number: o.order_number,
+            order_id: o.id,
             invoice_number: null,
+            invoice_id: null,
             payment_number: null,
             failure_reason: o.failure_reason,
             action_needed: "Vérifier et résoudre",
@@ -175,7 +183,9 @@ export function useTransactionVisibility() {
             status: "payment_pending",
             status_label: "Confirmation en attente",
             order_number: null,
+            order_id: inv?.order_id || null,
             invoice_number: inv?.invoice_number || null,
+            invoice_id: p.invoice_id || null,
             payment_number: p.payment_number,
             failure_reason: null,
             action_needed: "Confirmer ou rejeter le paiement",
@@ -249,7 +259,9 @@ export function useTransactionVisibility() {
           status: ev.status || ev.event_type,
           status_label: statusLabel,
           order_number: ev.order_number || null,
+          order_id: null,
           invoice_number: ev.invoice_number || null,
+          invoice_id: null,
           payment_number: ev.payment_number || null,
           failure_reason: ev.error_message || null,
           action_needed: actionNeeded,
