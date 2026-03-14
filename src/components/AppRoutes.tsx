@@ -634,6 +634,7 @@ const AppRoutes = () => {
           <Route path="pos" element={<Suspense fallback={null}><CorePOSPage /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><CoreKYCPage /></Suspense>} />
           <Route path="appointments" element={<Suspense fallback={null}><CoreAppointments /></Suspense>} />
+          <Route path="appointments/:id" element={<Suspense fallback={null}><CoreAppointmentDetail /></Suspense>} />
           <Route path="requests" element={<Suspense fallback={null}><CoreRequestsPage /></Suspense>} />
           <Route path="activations" element={<Suspense fallback={null}><CoreActivationsPage /></Suspense>} />
           {/* Clients */}
