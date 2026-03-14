@@ -14,6 +14,18 @@ export interface CartLineItem {
   quantity?: number;
 }
 
+/**
+ * Structured invoice line derived from cart items at checkout time.
+ * Written directly to billing_invoice_lines — no reconstruction needed.
+ */
+export interface CheckoutInvoiceLine {
+  description: string;
+  unit_price: number;
+  quantity: number;
+  line_total: number;
+  line_type: 'service' | 'equipment' | 'fee' | 'discount';
+}
+
 export interface ServerPricingResult {
   recurring_subtotal: number;
   one_time_subtotal: number;
