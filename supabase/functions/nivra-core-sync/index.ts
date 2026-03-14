@@ -231,6 +231,7 @@ Deno.serve(async (req) => {
           activation_fee: payload.invoice.activation_fee || 0,
           currency: payload.invoice.currency || "CAD",
           payment_method: payload.invoice.payment_method || null,
+          paid_at: payload.invoice.status === "paid" ? (payload.order.created_at || new Date().toISOString()) : null,
           environment: payload.order.environment || "live",
           billing_snapshot_account_number: payload.billing_snapshot?.account_number || payload.account.account_number,
           billing_snapshot_client: payload.billing_snapshot?.client || {
