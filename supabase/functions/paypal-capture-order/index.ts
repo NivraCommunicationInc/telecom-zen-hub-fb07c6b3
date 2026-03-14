@@ -232,71 +232,9 @@ serve(async (req) => {
           }
         }
       } else {
-        // ─── Fallback: Legacy billing table ───
-        const { data: legacyInvoice } = await supabase
-          .from("billing")
-          .select("*, profile:profiles!billing_user_id_fkey(full_name, email)")
-          .eq("id", invoiceId)
-          .maybeSingle();
-
-        if (legacyInvoice) {
-          console.log("[PayPal Capture] Found legacy invoice:", legacyInvoice.id);
-
-          // Idempotency check for legacy
-          const { data: existingLegacy } = await supabase
-            .from("payments")
-            .select("id")
-            .eq("provider_payment_id", captureId)
-            .maybeSingle();
-
-          if (existingLegacy) {
-            console.log("[PayPal Capture] ⚡ Legacy payment already processed (idempotent)");
-            paymentResult = { success: true, already_processed: true };
-          } else {
-            const currentAmountPaid = Number(legacyInvoice.amount_paid) || 0;
-            const newAmountPaid = currentAmountPaid + amount;
-            const invoiceTotal = Number(legacyInvoice.amount) || 0;
-            const newBalanceDue = Math.max(0, invoiceTotal - newAmountPaid);
-            const isPaid = newBalanceDue <= 0;
-
-            await supabase
-              .from("billing")
-              .update({
-                amount_paid: newAmountPaid,
-                balance_due: newBalanceDue,
-                status: isPaid ? "paid" : "partial",
-                paid_at: isPaid ? new Date().toISOString() : null,
-                payment_method_type: "paypal",
-                payment_reference: captureId,
-                notes: `${legacyInvoice.notes || ""}\n[PayPal] Paiement reçu: ${amount.toFixed(2)}$ - Réf: ${captureId}`.trim(),
-              })
-              .eq("id", invoiceId);
-
-            await supabase.from("payments").insert({
-              user_id: legacyInvoice.user_id,
-              amount: amount,
-              payment_method: "paypal",
-              reference_number: captureId,
-              payment_reference: captureId,
-              provider_payment_id: captureId,
-              notes: `Paiement PayPal automatique - Capture ID: ${captureId}`,
-              billing_id: invoiceId,
-              status: "completed",
-              source: "portal",
-            });
-
-            invoiceUpdated = true;
-            updatedInvoice = {
-              id: invoiceId,
-              invoice_number: legacyInvoice.invoice_number || invoiceId.slice(0, 8),
-              total: invoiceTotal,
-              amount_paid: newAmountPaid,
-              balance_due: newBalanceDue,
-              status: isPaid ? "paid" : "partial",
-              paid_at: isPaid ? new Date().toISOString() : null,
-            };
-          }
-        }
+        // Legacy billing table access has been permanently removed.
+        // All invoices must exist in billing_invoices (canonical Core table).
+        console.warn("[PayPal Capture] ⚠ Invoice ID not found in billing_invoices — no legacy fallback. invoice_id:", invoiceId);
       }
     }
 
