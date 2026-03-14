@@ -326,30 +326,70 @@ Deno.serve(async (req) => {
         results.payment = "synced";
       }
 
-      // ── 5. Upsert billing_subscription (if provided) ──
-      if (payload.subscription) {
-        const { error: subErr } = await admin.from("billing_subscriptions").upsert(
-          {
-            id: payload.subscription.id,
+      // ── 5. Upsert billing_subscription — DETERMINISTIC ──
+      // Always ensure a subscription exists for the order.
+      // If payload.subscription is provided, use it. Otherwise, derive from order data.
+      {
+        // Check if subscription already exists for this order (idempotency)
+        const { data: existingSub } = await admin
+          .from("billing_subscriptions")
+          .select("id")
+          .eq("order_id", payload.order.id)
+          .maybeSingle();
+
+        if (existingSub) {
+          results.subscription = "already_exists";
+          console.log("[nivra-core-sync] ✓ Subscription already exists for order:", payload.order.order_number);
+        } else if (payload.subscription) {
+          const { error: subErr } = await admin.from("billing_subscriptions").upsert(
+            {
+              id: payload.subscription.id,
+              customer_id: customerId,
+              order_id: payload.order.id,
+              plan_code: payload.subscription.plan_code,
+              plan_name: payload.subscription.plan_name,
+              plan_price: payload.subscription.plan_price,
+              status: payload.subscription.status || "pending",
+              cycle_start_date: payload.subscription.cycle_start_date,
+              cycle_end_date: payload.subscription.cycle_end_date,
+              service_category: payload.subscription.service_category || null,
+              auto_billing_enabled: payload.subscription.auto_billing_enabled ?? false,
+              environment: payload.order.environment || "live",
+            },
+            { onConflict: "id" }
+          );
+          if (subErr) {
+            console.error("[nivra-core-sync] Subscription upsert error:", subErr);
+            errors.push(`subscription: ${subErr.message}`);
+          } else {
+            results.subscription = "synced";
+          }
+        } else {
+          // No subscription in payload — create a pending one from order data
+          // The DB trigger trg_ensure_subscription_on_invoice_paid is the final safety net,
+          // but we create proactively to avoid relying on trigger chain.
+          const subId = crypto.randomUUID();
+          const { error: subErr } = await admin.from("billing_subscriptions").insert({
+            id: subId,
             customer_id: customerId,
             order_id: payload.order.id,
-            plan_code: payload.subscription.plan_code,
-            plan_name: payload.subscription.plan_name,
-            plan_price: payload.subscription.plan_price,
-            status: payload.subscription.status || "active",
-            cycle_start_date: payload.subscription.cycle_start_date,
-            cycle_end_date: payload.subscription.cycle_end_date,
-            service_category: payload.subscription.service_category || null,
-            auto_billing_enabled: payload.subscription.auto_billing_enabled ?? false,
+            plan_code: payload.order.service_type || "UNKNOWN",
+            plan_name: payload.order.service_type || "Service",
+            plan_price: payload.order.total_amount || 0,
+            status: "pending",
+            cycle_start_date: payload.order.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+            cycle_end_date: payload.order.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+            service_category: null,
+            auto_billing_enabled: false,
             environment: payload.order.environment || "live",
-          },
-          { onConflict: "id" }
-        );
-        if (subErr) {
-          console.error("[nivra-core-sync] Subscription upsert error:", subErr);
-          errors.push(`subscription: ${subErr.message}`);
-        } else {
-          results.subscription = "synced";
+          });
+          if (subErr) {
+            console.error("[nivra-core-sync] Subscription fallback create error:", subErr);
+            errors.push(`subscription_fallback: ${subErr.message}`);
+          } else {
+            results.subscription = "created_from_order";
+            console.log("[nivra-core-sync] ✓ Subscription auto-created for order:", payload.order.order_number);
+          }
         }
       }
 
