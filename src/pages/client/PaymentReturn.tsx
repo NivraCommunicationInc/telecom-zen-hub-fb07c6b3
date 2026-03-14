@@ -50,6 +50,15 @@ const PaymentReturn = () => {
         setStatus("success");
         toast.success("Paiement confirmé!");
 
+        // ★ TRACEABILITY: Log payment capture success
+        logPaymentConfirmed({
+          paypal_capture_id: data.capture_id,
+          paypal_order_id: token,
+          payment_reference: paymentNumber || undefined,
+          amount: data.amount,
+          method: "paypal",
+        });
+
         // Notify Nivra Core backend (fire-and-forget)
         if (paymentNumber && data.capture_id) {
           notifyNivraCorePaid({
