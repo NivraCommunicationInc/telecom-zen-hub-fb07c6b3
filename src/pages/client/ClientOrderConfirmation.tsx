@@ -93,40 +93,20 @@ const ClientOrderConfirmation = () => {
 
       // Always fetch profile and account regardless
       try {
-        const fetchPromises: Promise<any>[] = [
-          supabase
-            .from("profiles")
-            .select("full_name, email, phone, service_address, service_city, service_province, service_postal_code, client_number, client_pin_hash, pin_is_default")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase
-            .from("accounts")
-            .select("id, account_number, billing_cycle_day, billing_cycle_timezone")
-            .eq("client_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ];
+        const profilePromise = supabase
+          .from("profiles")
+          .select("full_name, email, phone, service_address, service_city, service_province, service_postal_code, client_number, client_pin_hash, pin_is_default")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const accountPromise = supabase
+          .from("accounts")
+          .select("id, account_number, billing_cycle_day, billing_cycle_timezone")
+          .eq("client_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        // ★ Priority 2: If no navigation state, try DB lookup by order_number or id
-        const needsDbLookup = !nivraOrderState;
-        if (needsDbLookup && (orderNumber || orderId)) {
-          let orderQuery = supabase
-            .from("orders")
-            .select("*")
-            .eq("user_id", user.id);
-          
-          if (orderNumber) {
-            orderQuery = orderQuery.eq("order_number", orderNumber);
-          } else if (orderId) {
-            orderQuery = orderQuery.eq("id", orderId);
-          }
-          
-          fetchPromises.push(orderQuery.maybeSingle());
-        }
-
-        const results = await Promise.all(fetchPromises);
-        const [profileRes, accountRes] = results;
+        const [profileRes, accountRes] = await Promise.all([profilePromise, accountPromise]);
 
         if (profileRes.data) {
           setProfile(profileRes.data as ProfileData);
