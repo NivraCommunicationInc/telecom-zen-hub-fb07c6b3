@@ -277,6 +277,21 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!clientId,
   });
 
+  const documents = useQuery({
+    queryKey: ["account-profile-documents", clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from("client_documents")
+        .select("*")
+        .eq("user_id", clientId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
   const serviceAddresses = useQuery({
     queryKey: ["account-profile-service-addresses", customerId],
     queryFn: async () => {
