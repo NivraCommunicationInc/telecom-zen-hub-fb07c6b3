@@ -317,7 +317,7 @@ function MarkPaidModal({ invoices, customerId, onClose, onRefresh }: { invoices:
         p_method: method,
         p_provider: method,
         p_provider_payment_id: reference || `mark_paid_${Date.now()}`,
-        p_source: "admin_mark_paid",
+        p_source: "admin",
         p_created_by_name: "Account 360",
         p_created_by_role: "admin",
       });
