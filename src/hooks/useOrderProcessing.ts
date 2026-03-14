@@ -423,6 +423,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         account,
         items: items || [],
         invoice,
+        invoiceLines,
         contracts: contracts || [],
         appointment,
         channelSelection,
