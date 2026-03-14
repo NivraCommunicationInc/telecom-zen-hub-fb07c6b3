@@ -67,18 +67,41 @@ const ClientsPage = () => {
     if (creatingAccountFor) return;
     setCreatingAccountFor(clientUserId);
     try {
+      // Check if account already exists (prevent duplicates)
+      const { data: existing } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("client_id", clientUserId)
+        .maybeSingle();
+
+      if (existing) {
+        toast.info("Ce client a déjà un compte");
+        navigate(corePath(`/accounts/${existing.id}`));
+        return;
+      }
+
+      // Insert with account_number = null so the DB trigger generates the canonical number
       const { data: newAcct, error } = await supabase
         .from("accounts")
-        .insert({ client_id: clientUserId, account_number: "", status: "active" })
+        .insert({ client_id: clientUserId, account_number: null as any, status: "active" })
         .select("id")
         .single();
       if (error) throw error;
+
+      // Link orphaned orders to the new account
+      await supabase
+        .from("orders")
+        .update({ account_id: newAcct.id })
+        .eq("user_id", clientUserId)
+        .is("account_id", null);
+
       toast.success("Compte créé avec succès");
       refetch();
       navigate(corePath(`/accounts/${newAcct.id}`));
     } catch (e: any) {
       console.error("[ClientsPage] Account creation failed:", e);
       toast.error(`Erreur: ${e.message}`);
+    } finally {
       setCreatingAccountFor(null);
     }
   }, [creatingAccountFor, navigate, refetch]);

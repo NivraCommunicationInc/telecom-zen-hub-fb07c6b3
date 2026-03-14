@@ -183,8 +183,11 @@ const CoreClientProfile = () => {
   const { data: notes = [] } = useQuery({
     queryKey: ["core-client-notes", clientId],
     queryFn: async () => {
-      const { data } = await supabase.from("internal_notes").select("*").eq("entity_id", clientId!)
-        .order("created_at", { ascending: false }).limit(20);
+      const { data } = await supabase.from("client_internal_notes")
+        .select("id, body, note_type, created_by_name, created_by_role, created_at")
+        .eq("client_id", clientId!)
+        .order("created_at", { ascending: false })
+        .limit(50);
       return data || [];
     },
     enabled: !!clientId,
@@ -206,14 +209,18 @@ const CoreClientProfile = () => {
   // ── Add note mutation ──
   const addNoteMutation = useMutation({
     mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { error } = await supabase.from("internal_notes").insert({
-        entity_id: clientId!,
-        entity_type: "client",
-        content: newNote,
-        created_by: session?.user?.id || null,
-        created_by_name: session?.user?.email || "Agent",
-      } as any);
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error("Non authentifié");
+      const { data: prof } = await supabase.from("profiles")
+        .select("full_name").eq("user_id", currentUser.id).maybeSingle();
+      const { error } = await supabase.from("client_internal_notes").insert({
+        client_id: clientId!,
+        note_type: "admin",
+        body: newNote.trim(),
+        created_by_user_id: currentUser.id,
+        created_by_role: "admin",
+        created_by_name: prof?.full_name || currentUser.email || "Agent",
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -222,6 +229,7 @@ const CoreClientProfile = () => {
       setAddingNote(false);
       toast.success("Note ajoutée");
     },
+    onError: (e: any) => toast.error(e.message || "Erreur"),
   });
 
   if (loadingProfile) {
@@ -545,9 +553,12 @@ const CoreClientProfile = () => {
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
             {notes.map((n: any) => (
               <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2.5">
-                <p className="text-[11px] text-white whitespace-pre-wrap">{n.content || n.note}</p>
+                <p className="text-[11px] text-white whitespace-pre-wrap">{n.body}</p>
                 <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[hsl(220,10%,35%)]">
-                  <span>{n.created_by_name || "Agent"}</span><span>·</span>
+                  <span>{n.created_by_name || "Agent"}</span>
+                  <span>·</span>
+                  <span className="capitalize">{n.created_by_role || ""}</span>
+                  <span>·</span>
                   <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
                 </div>
               </div>
