@@ -52,8 +52,8 @@ export const ClientDataExport = ({ userId, userEmail }: ClientDataExportProps) =
       profile: profileResult.data,
       accounts: accountsResult.data || [],
       orders: ordersResult.data || [],
-      invoices: invoicesResult.data || [],
-      subscriptions: subscriptionsResult.data || [],
+      invoices: invoicesFetch.data || [],
+      subscriptions: subsFetch.data || [],
       supportTickets: ticketsResult.data || [],
       serviceLocations: locationsResult.data || [],
     };
