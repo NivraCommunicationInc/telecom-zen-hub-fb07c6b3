@@ -354,12 +354,11 @@ export async function fallbackCheckout(
   const isPaid = payload.payment.method === "paypal" && !!payload.payment.paypal_capture_id;
   const isFree = payload.payment.method === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
+  const rawMethod = String(payload.payment.method || "").toLowerCase();
   const billingMethod: "paypal" | "interac" | "manual" =
-    payload.payment.method === "paypal"
+    rawMethod === "paypal"
       ? "paypal"
-      : (payload.payment.method === "etransfer" || payload.payment.method === "e_transfer" || payload.payment.method === "interac")
-        ? "interac"
-        : "manual";
+      : (["etransfer", "e_transfer", "interac"].includes(rawMethod) ? "interac" : "manual");
   const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
   const paymentReference = paymentProvider === "paypal"
     ? null
