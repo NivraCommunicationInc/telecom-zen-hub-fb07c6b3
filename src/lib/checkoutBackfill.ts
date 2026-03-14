@@ -266,7 +266,18 @@ export async function backfillCheckoutToSupabase(
 
     // ── 4. Upsert billing_payment ──
     try {
-      const isPaid = payload.payment.method === "paypal" && payload.payment.paypal_capture_id;
+      const isPaid =
+        (payload.payment.method === "paypal" && !!payload.payment.paypal_capture_id) ||
+        payload.payment.method === "promo_free";
+      const billingMethod =
+        payload.payment.method === "paypal"
+          ? "paypal"
+          : payload.payment.method === "etransfer"
+            ? "interac"
+            : "manual";
+      const provider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+      const reference = provider === "paypal" ? null : (payload.payment.reference || response.payment_number || payload.payment.paypal_capture_id || null);
+      const providerPaymentId = provider === "paypal" ? (payload.payment.paypal_capture_id || null) : null;
 
       const { error } = await supabase.from("billing_payments").upsert(
         {
@@ -274,12 +285,12 @@ export async function backfillCheckoutToSupabase(
           payment_number: response.payment_number,
           customer_id: customerId,
           invoice_id: response.invoice_id,
-          method: payload.payment.method,
-          amount: pricing.grand_total,
-          status: isPaid ? "completed" : "pending",
-          reference: payload.payment.reference || payload.payment.paypal_capture_id || null,
-          provider: payload.payment.method === "paypal" ? "paypal" : null,
-          provider_payment_id: payload.payment.paypal_capture_id || null,
+          method: billingMethod as any,
+          amount: pricing?.grand_total ?? Number(payload.pricing_snapshot?.grand_total ?? 0),
+          status: isPaid ? "confirmed" : "pending",
+          reference,
+          provider,
+          provider_payment_id: providerPaymentId,
           received_at: isPaid ? (response.created_at || now) : null,
           source: "live",
           environment: "live",
