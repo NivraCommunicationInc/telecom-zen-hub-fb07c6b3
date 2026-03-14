@@ -262,7 +262,7 @@ export async function backfillCheckoutToSupabase(
           provider: payload.payment.method === "paypal" ? "paypal" : null,
           provider_payment_id: payload.payment.paypal_capture_id || null,
           received_at: isPaid ? (response.created_at || now) : null,
-          source: "checkout",
+          source: "live",
           environment: "live",
           created_by_name: `${payload.customer.first_name} ${payload.customer.last_name}`.trim(),
         },
