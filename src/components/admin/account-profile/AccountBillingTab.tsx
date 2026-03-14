@@ -45,7 +45,7 @@ const invoiceStatusConfig: Record<string, { label: string; variant: "default" | 
   draft: { label: "Brouillon", variant: "outline" },
 };
 
-export function AccountBillingTab({ account, invoices, payments, subscriptions, legacyBilling }: AccountBillingTabProps) {
+export function AccountBillingTab({ account, invoices, payments, subscriptions, legacyBilling, clientId }: AccountBillingTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
