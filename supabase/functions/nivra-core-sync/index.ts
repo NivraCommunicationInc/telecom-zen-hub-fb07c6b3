@@ -163,13 +163,16 @@ Deno.serve(async (req) => {
       }
       results.customer_id = customerId;
 
-      // ── 2. Resolve or create account ──
+      // ── 2. Resolve or create account — BLOCKING ──
       let accountId: string | null = null;
-      try {
+      {
         const { data: acct } = await admin
           .from("accounts")
           .select("id")
           .eq("client_id", payload.customer.user_id)
+          .eq("status", "active")
+          .order("created_at", { ascending: true })
+          .limit(1)
           .maybeSingle();
         if (acct) {
           accountId = acct.id;
@@ -188,14 +191,36 @@ Deno.serve(async (req) => {
             .select("id")
             .single();
           if (acctErr) {
-            console.error("[nivra-core-sync] Account create error:", acctErr);
+            // Handle race condition: unique index violation → re-fetch
+            if (acctErr.code === '23505') {
+              console.warn("[nivra-core-sync] Account exists (race), re-fetching");
+              const { data: reFetched } = await admin
+                .from("accounts")
+                .select("id")
+                .eq("client_id", payload.customer.user_id)
+                .eq("status", "active")
+                .maybeSingle();
+              accountId = reFetched?.id || null;
+            } else {
+              console.error("[nivra-core-sync] Account create error:", acctErr);
+              errors.push(`account: ${acctErr.message}`);
+            }
           } else {
             accountId = newAcct.id;
             console.log("[nivra-core-sync] ✓ Account created:", payload.account.account_number);
           }
         }
-      } catch (e: any) {
-        console.warn("[nivra-core-sync] Account resolution error (non-blocking):", e);
+        
+        if (!accountId) {
+          const errMsg = `FATAL: No account_id resolved for user ${payload.customer.user_id}. Order sync blocked.`;
+          console.error("[nivra-core-sync]", errMsg);
+          errors.push(errMsg);
+          // Return early — order trigger will reject NULL account_id anyway
+          return new Response(
+            JSON.stringify({ ok: false, results, errors }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
       // ── 3. Upsert order ──
