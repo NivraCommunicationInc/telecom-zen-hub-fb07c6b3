@@ -350,10 +350,23 @@ export async function fallbackCheckout(
   const grandTotal = Number(pricing.grand_total) || Math.round((taxableBase + tpsAmount + tvqAmount) * 100) / 100;
   const billingCycleDay = new Date().getDate();
 
-  // ── 5. Determine payment status ──
+  // ── 5. Determine canonical billing fields ──
   const isPaid = payload.payment.method === "paypal" && !!payload.payment.paypal_capture_id;
   const isFree = payload.payment.method === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
+  const billingMethod: "paypal" | "interac" | "manual" =
+    payload.payment.method === "paypal"
+      ? "paypal"
+      : (payload.payment.method === "etransfer" || payload.payment.method === "e_transfer" || payload.payment.method === "interac")
+        ? "interac"
+        : "manual";
+  const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+  const paymentReference = paymentProvider === "paypal"
+    ? null
+    : (payload.payment.reference || paymentNumber || null);
+  const paymentProviderPaymentId = paymentProvider === "paypal"
+    ? (payload.payment.paypal_capture_id || null)
+    : null;
 
   // ── 6. Create order ──
   const { error: orderErr } = await supabase.from("orders").insert({
