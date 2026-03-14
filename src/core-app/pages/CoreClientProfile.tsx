@@ -260,7 +260,6 @@ const CoreClientProfile = () => {
           </button>
           <button
             onClick={() => {
-              setAddingNote(true);
               requestAnimationFrame(() => {
                 document.getElementById("core-client-notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
               });
