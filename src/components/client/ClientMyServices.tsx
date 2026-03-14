@@ -232,16 +232,21 @@ const ClientMyServices = () => {
   // V2 Ledger Balance - Single source of truth for credit/balance (with portal auth)
   const { data: ledgerBalance } = useLedgerBalance(user?.id, portalSupabase);
 
-  // Fetch billing/invoices for payment info and overdue status
+  // Fetch billing/invoices — CANONICAL: billing_invoices via billing_customers
   const { data: billingRecords } = useQuery({
     queryKey: ["client-billing-info", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await portalSupabase
-        .from("billing")
-        .select("*")
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", user.id)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await portalSupabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total, amount_paid, balance_due, status, due_date, paid_at, created_at, order_id")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
