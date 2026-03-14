@@ -493,60 +493,8 @@ const CoreClientProfile = () => {
 
       {/* ═══ NOTES ═══ */}
       <div id="core-client-notes-section">
-        <Section title="Notes internes" icon={StickyNote} action={
-          <button onClick={() => setAddingNote(!addingNote)} className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1">
-            <Plus className="h-3 w-3" /> Ajouter
-          </button>
-        }>
-          {addingNote && (
-            <div className="mb-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-emerald-500/20">
-              <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Écrire une note..."
-                rows={2} className="bg-transparent border-none text-white text-xs p-0 focus-visible:ring-0 resize-none" />
-              <div className="flex justify-end gap-2 mt-2">
-                <Button variant="ghost" size="sm" onClick={() => setAddingNote(false)} className="h-6 text-[10px] text-[#A1A1AA]">Annuler</Button>
-                <Button size="sm" onClick={() => addNoteMutation.mutate()} disabled={!newNote.trim() || addNoteMutation.isPending}
-                  className="h-6 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white">
-                  {addNoteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sauvegarder"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {notes.length > 0 ? (
-            <>
-              <div className="mb-2 flex items-center justify-end gap-1">
-                <button
-                  onClick={() => scrollNotes("top")}
-                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-[hsl(220,10%,45%)] hover:text-white transition-colors inline-flex items-center gap-1"
-                >
-                  <ChevronUp className="h-3 w-3" /> Haut
-                </button>
-                <button
-                  onClick={() => scrollNotes("bottom")}
-                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-[hsl(220,10%,45%)] hover:text-white transition-colors inline-flex items-center gap-1"
-                >
-                  <ChevronDown className="h-3 w-3" /> Bas
-                </button>
-              </div>
-
-              <div ref={notesScrollRef} className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                {notes.map((n: any) => (
-                  <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2.5">
-                    <p className="text-[11px] text-white whitespace-pre-wrap">{n.body}</p>
-                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[hsl(220,10%,35%)]">
-                      <span>{n.created_by_name || "Agent"}</span>
-                      <span>·</span>
-                      <span className="capitalize">{n.created_by_role || ""}</span>
-                      <span>·</span>
-                      <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune note</p>
-          )}
+        <Section title="Notes internes" icon={StickyNote}>
+          <ClientNotesPanel clientId={clientId} />
         </Section>
       </div>
 
