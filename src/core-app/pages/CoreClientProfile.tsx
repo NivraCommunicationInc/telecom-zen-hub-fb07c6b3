@@ -49,6 +49,13 @@ const CoreClientProfile = () => {
   const queryClient = useQueryClient();
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  const notesScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollNotes = (direction: "top" | "bottom") => {
+    const el = notesScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: direction === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
+  };
 
   // ── Profile ──
   const { data: profile, isLoading: loadingProfile } = useQuery({
