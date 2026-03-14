@@ -232,16 +232,21 @@ const ClientMyServices = () => {
   // V2 Ledger Balance - Single source of truth for credit/balance (with portal auth)
   const { data: ledgerBalance } = useLedgerBalance(user?.id, portalSupabase);
 
-  // Fetch billing/invoices for payment info and overdue status
+  // Fetch billing/invoices — CANONICAL: billing_invoices via billing_customers
   const { data: billingRecords } = useQuery({
     queryKey: ["client-billing-info", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // SECURITY: Always filter by user_id to prevent data leakage
-      const { data, error } = await portalSupabase
-        .from("billing")
-        .select("*")
+      const { data: customer } = await portalSupabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", user.id)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await portalSupabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total, amount_paid, balance_due, status, due_date, paid_at, created_at, order_id")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
@@ -602,12 +607,12 @@ const ClientMyServices = () => {
   const clientCredit = ledgerBalance?.availableCredit || 0;
   const accountBalance = ledgerBalance?.balance || 0;
 
-  // Calculate split billing totals
+  // Calculate split billing totals — using canonical billing_invoices fields
   const billingTotals = billingRecords?.reduce((acc: any, b: any) => {
-    acc.total += Number(b.amount || 0);
-    acc.equipmentFees += Number(b.installation_fee || 0) + Number(b.activation_fee || 0);
-    acc.overdue += b.status === "overdue" ? Number(b.amount || 0) : 0;
-    acc.credits += Number(b.credits || 0);
+    acc.total += Number(b.total || 0);
+    acc.equipmentFees += 0; // activation/installation fees not stored separately on billing_invoices
+    acc.overdue += (b.status === "overdue" || (b.balance_due > 0 && b.status !== "paid")) ? Number(b.balance_due || 0) : 0;
+    acc.credits += 0;
     return acc;
   }, { total: 0, equipmentFees: 0, overdue: 0, credits: 0 }) || { total: 0, equipmentFees: 0, overdue: 0, credits: 0 };
 
@@ -692,7 +697,7 @@ const ClientMyServices = () => {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Dernier paiement:</span>
                 <span className="font-mono text-foreground">
-                  {lastPayment.reference_number || lastPayment.payment_reference} 
+                  {lastPayment.reference || lastPayment.payment_number} 
                   <span className="text-muted-foreground ml-2">
                     ({Number(lastPayment.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})
                   </span>
@@ -1111,7 +1116,7 @@ const ClientMyServices = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          {Number(invoice.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          {Number(invoice.total).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </p>
                         <Badge className={
                           invoice.status === "paid" ? "bg-emerald-500/20 text-emerald-500" :

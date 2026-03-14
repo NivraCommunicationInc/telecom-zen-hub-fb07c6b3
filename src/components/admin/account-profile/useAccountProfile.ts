@@ -208,21 +208,12 @@ export function useAccountProfile(accountId: string | undefined) {
     enabled: !!clientId,
   });
 
-  // Legacy billing records
+  // Legacy billing — DEPRECATED: kept as empty stub for backward compat
+  // All canonical reads now come from billing_invoices/billing_payments above
   const legacyBilling = useQuery({
     queryKey: ["account-profile-legacy-billing", clientId],
-    queryFn: async () => {
-      if (!clientId) return [];
-      const { data, error } = await supabase
-        .from("billing")
-        .select("*")
-        .eq("user_id", clientId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!clientId,
+    queryFn: async () => [] as any[],
+    enabled: false,
   });
 
   // Service addresses (from billing system)

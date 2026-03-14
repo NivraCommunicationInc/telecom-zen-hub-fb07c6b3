@@ -68,14 +68,20 @@ const ClientMonthlyInvoices = () => {
     queryKey: ["client-subscriptions-billing", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .select("id, plan_name, amount, bill_cycle_day, next_invoice_date, status")
+      // Resolve billing_customer first
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", user.id)
-        .in("status", ["active", "shipped", "installed", "installation_completed"]);
-
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("billing_subscriptions")
+        .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, service_category")
+        .eq("customer_id", customer.id)
+        .in("status", ["active", "pending", "suspended"]);
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!user?.id,
     staleTime: 0,
@@ -129,16 +135,17 @@ const ClientMonthlyInvoices = () => {
     },
   });
 
-  // Get billing cycle day from account or subscriptions
+  // Get billing cycle day from account or derive from subscription cycle_end_date
   const billCycleDay = account?.billing_cycle_day 
-    || (subscriptions?.length ? Math.min(...subscriptions.map(s => s.bill_cycle_day || 1)) : null);
+    || (subscriptions?.length ? new Date(subscriptions[0].cycle_end_date).getDate() : null);
 
   const nextInvoiceDate = account?.next_invoice_date 
     || (subscriptions?.length
-      ? subscriptions.reduce((earliest, s) => {
-          if (!s.next_invoice_date) return earliest;
-          if (!earliest) return s.next_invoice_date;
-          return s.next_invoice_date < earliest ? s.next_invoice_date : earliest;
+      ? subscriptions.reduce((earliest: string | null, s: any) => {
+          const endDate = s.cycle_end_date;
+          if (!endDate) return earliest;
+          if (!earliest) return endDate;
+          return endDate < earliest ? endDate : earliest;
         }, null as string | null)
       : null);
 
@@ -226,14 +233,14 @@ const ClientMonthlyInvoices = () => {
                   <div key={sub.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <span className="font-medium">{sub.plan_name}</span>
                     <span className="text-lg font-bold text-cyan-500">
-                      {Number(sub.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      {Number(sub.plan_price || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                     </span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between p-3 border-t border-border mt-2 pt-4">
                   <span className="font-bold">Total mensuel (avant taxes)</span>
                   <span className="text-xl font-bold text-cyan-500">
-                    {subscriptions.reduce((sum, s) => sum + (s.amount || 0), 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                    {subscriptions.reduce((sum: number, s: any) => sum + (s.plan_price || 0), 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                   </span>
                 </div>
               </div>

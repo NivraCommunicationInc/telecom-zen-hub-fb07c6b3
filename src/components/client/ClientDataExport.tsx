@@ -22,28 +22,36 @@ export const ClientDataExport = ({ userId, userEmail }: ClientDataExportProps) =
   const fetchAllClientData = async () => {
     const [
       profileResult,
+      customerResult,
       accountsResult,
       ordersResult,
-      invoicesResult,
-      subscriptionsResult,
       ticketsResult,
       locationsResult,
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+      supabase.from("billing_customers").select("id").eq("user_id", userId).maybeSingle(),
       supabase.from("accounts").select("*").eq("client_id", userId),
       supabase.from("orders").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-      supabase.from("billing").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-      supabase.from("subscriptions").select("*").eq("user_id", userId),
       supabase.from("support_tickets").select("id, ticket_number, subject, status, priority, created_at").eq("client_user_id", userId),
       supabase.from("account_service_locations").select("*"),
+    ]);
+
+    const customerId = customerResult.data?.id;
+    const [invoicesFetch, subsFetch] = await Promise.all([
+      customerId 
+        ? supabase.from("billing_invoices").select("*").eq("customer_id", customerId).order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] } as any),
+      customerId
+        ? supabase.from("billing_subscriptions").select("*").eq("customer_id", customerId)
+        : Promise.resolve({ data: [] } as any),
     ]);
 
     return {
       profile: profileResult.data,
       accounts: accountsResult.data || [],
       orders: ordersResult.data || [],
-      invoices: invoicesResult.data || [],
-      subscriptions: subscriptionsResult.data || [],
+      invoices: invoicesFetch.data || [],
+      subscriptions: subsFetch.data || [],
       supportTickets: ticketsResult.data || [],
       serviceLocations: locationsResult.data || [],
     };
