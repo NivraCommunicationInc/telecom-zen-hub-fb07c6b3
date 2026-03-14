@@ -19,6 +19,7 @@ import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
 import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
+import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { 
@@ -524,6 +525,9 @@ const ClientNewOrder = () => {
 
   // Synchronous guard to prevent double-click race conditions
   const submittingRef = useRef(false);
+
+  // Transaction traceability — logs every checkout/payment/order event
+  const { logEvent, logCheckoutStarted, logPaymentConfirmed, logPaymentFailed, logOrderCreated, logOrderFailed } = useTransactionTraceability();
 
   // Hydration flag to prevent step guards from redirecting before state is loaded
   const [isHydrated, setIsHydrated] = useState(false);
@@ -1978,6 +1982,19 @@ const ClientNewOrder = () => {
       // ═══════════════════════════════════════════════════════════════
       // SUBMIT TO NIVRA CORE — Creates order, invoice, payment, subs
       // ═══════════════════════════════════════════════════════════════
+      // ★ TRACEABILITY: Log order submission attempt
+      logEvent({
+        event_type: "order_submitted",
+        event_category: "order",
+        status: "pending",
+        amount: orderTotalAmount,
+        metadata: {
+          services: selectedServices.map(s => s.name),
+          payment_method: paymentMethodValue,
+          client_request_id: clientRequestId,
+        },
+      });
+
       const nivraCheckoutResponse: NivraFullCheckoutResponse = await submitNivraCheckout({
         client_request_id: clientRequestId,
         customer: {
@@ -2070,6 +2087,15 @@ const ClientNewOrder = () => {
       });
 
       console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
+
+      // ★ TRACEABILITY: Log successful order creation from Nivra Core
+      logOrderCreated({
+        order_number: nivraCheckoutResponse.order_number,
+        order_id: nivraCheckoutResponse.order_id,
+        invoice_number: nivraCheckoutResponse.invoice_number,
+        payment_number: nivraCheckoutResponse.payment_number,
+        amount: orderTotalAmount,
+      });
 
       // Backfill serverPricing with canonical Nivra Core references
       serverPricing.nivra_order_number = nivraCheckoutResponse.order_number;
@@ -2428,9 +2454,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     onSuccess: async (result) => {
       // Clear the order draft from sessionStorage
       clearOrderDraft();
-      
-      // Navigate to dedicated confirmation page with order ID
+
+      // ★ TRACEABILITY: Log checkout completed
       const orderData = result as unknown as CreatedOrder & { nivraPaymentRef?: string };
+      logEvent({
+        event_type: "checkout_completed",
+        event_category: "checkout",
+        status: "success",
+        order_number: orderData.order_number,
+        order_id: orderData.id,
+        payment_reference: orderData.nivraPaymentRef,
+      });
+      
+      // Navigate to dedicated confirmation page with order number
       
       // Note: Promo/referral redemption is now recorded in the mutation function
       // for better reliability (before returning from mutation)
@@ -2530,6 +2566,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     },
     onError: (error: any) => {
       console.error("[ClientNewOrder] Order creation error:", error);
+
+      // ★ TRACEABILITY: Log order failure
+      logOrderFailed({
+        error_message: error?.message || "Unknown error",
+        error_code: error?.code || error?.status?.toString(),
+        metadata: { raw: String(error).slice(0, 500) },
+      });
       
       // Parse error for user-friendly message
       let errorMessage = "Erreur lors de la soumission de la commande";
@@ -5825,6 +5868,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           setPaymentConfirmationNumber(captureId);
                           setPaymentComplete(true);
                           toast.success(`Paiement PayPal réussi! Confirmation: ${captureId}`);
+                          // ★ TRACEABILITY: PayPal payment confirmed
+                          logPaymentConfirmed({
+                            paypal_capture_id: captureId,
+                            amount: uiTodayTotal,
+                            method: "paypal",
+                          });
                           // Invalidate all billing-related caches for instant UI updates
                           queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
                           queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
@@ -5835,6 +5884,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         onError={(error) => {
                           console.error("PayPal error:", error);
                           toast.error("Erreur PayPal. Veuillez réessayer.");
+                          // ★ TRACEABILITY: PayPal payment failed
+                          logPaymentFailed({
+                            error_message: String(error),
+                            method: "paypal",
+                            amount: uiTodayTotal,
+                          });
                         }}
                       />
                       <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">

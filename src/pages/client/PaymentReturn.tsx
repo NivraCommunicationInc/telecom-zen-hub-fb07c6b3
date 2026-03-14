@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
+import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
 import { Button } from "@/components/ui/button";
 import ClientLayout from "@/components/client/ClientLayout";
 
@@ -21,6 +22,7 @@ const PaymentReturn = () => {
   const [status, setStatus] = useState<"capturing" | "success" | "error">("capturing");
   const [errorMsg, setErrorMsg] = useState("");
   const [captureDetails, setCaptureDetails] = useState<any>(null);
+  const { logPaymentConfirmed, logPaymentFailed } = useTransactionTraceability();
 
   useEffect(() => {
     const token = params.get("token"); // PayPal order ID
@@ -47,6 +49,15 @@ const PaymentReturn = () => {
         setStatus("success");
         toast.success("Paiement confirmé!");
 
+        // ★ TRACEABILITY: Log payment capture success
+        logPaymentConfirmed({
+          paypal_capture_id: data.capture_id,
+          paypal_order_id: token,
+          payment_reference: paymentNumber || undefined,
+          amount: data.amount,
+          method: "paypal",
+        });
+
         // Notify Nivra Core backend (fire-and-forget)
         if (paymentNumber && data.capture_id) {
           notifyNivraCorePaid({
@@ -69,6 +80,13 @@ const PaymentReturn = () => {
         console.error("[PaymentReturn] Capture error:", err);
         setStatus("error");
         setErrorMsg(err?.message || "Erreur lors de la confirmation du paiement.");
+
+        // ★ TRACEABILITY: Log payment capture failure
+        logPaymentFailed({
+          error_message: err?.message || "Capture failed",
+          paypal_order_id: token,
+          method: "paypal",
+        });
       }
     };
 
