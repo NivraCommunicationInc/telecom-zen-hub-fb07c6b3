@@ -2,7 +2,7 @@
  * ClientsPage — Nivra Core CRM: All people in the system.
  * Distinct from Accounts: lists ALL profiles even without an active account/service.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
