@@ -2005,7 +2005,8 @@ const ClientNewOrder = () => {
         },
       });
 
-      const nivraCheckoutResponse: NivraFullCheckoutResponse = await submitNivraCheckout({
+      // ── Build the full checkout payload once ──
+      const checkoutPayload: import("@/lib/api/nivraApi").NivraFullCheckoutPayload = {
         client_request_id: clientRequestId,
         customer: {
           user_id: user.id,
@@ -2094,9 +2095,21 @@ const ClientNewOrder = () => {
         line_items: lineItems,
         notes: (notes || ''),
         account_id: resolvedAccountId,
-      });
+      };
 
-      console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
+      // ── Try Nivra Core API first, fallback to direct Supabase creation ──
+      let nivraCheckoutResponse: NivraFullCheckoutResponse;
+      let usedFallback = false;
+
+      try {
+        nivraCheckoutResponse = await submitNivraCheckout(checkoutPayload);
+        console.log("[NivraCore] Checkout response:", nivraCheckoutResponse);
+      } catch (nivraErr: any) {
+        console.warn("[NivraCore] External API unavailable, using direct Supabase fallback:", nivraErr.message);
+        usedFallback = true;
+        nivraCheckoutResponse = await fallbackCheckout(supabase, checkoutPayload);
+        console.log("[FallbackCheckout] Response:", nivraCheckoutResponse);
+      }
 
       // ★ TRACEABILITY: Log successful order creation from Nivra Core
       logOrderCreated({
