@@ -243,8 +243,8 @@ const CoreTransactionsPage = () => {
                     </td>
                     {/* Order # */}
                     <td className="px-3 py-2.5">
-                      {row.order_number ? (
-                        <Link to={corePath(`/orders`)} className="font-mono text-[11px] text-emerald-400 hover:underline">
+                    {row.order_number ? (
+                        <Link to={corePath(`/orders/${row.source_table === "orders" ? row.raw_id : ""}`)} className="font-mono text-[11px] text-emerald-400 hover:underline">
                           {row.order_number}
                         </Link>
                       ) : (
