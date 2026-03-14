@@ -204,14 +204,24 @@ const ClientReplacementRequest = () => {
     queryKey: ["client-replacement-invoices", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("billing")
-        .select("id, invoice_number, amount, status, created_at, replacement_ticket_id")
+      // Resolve customer_id from billing_customers
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", user.id)
-        .not("replacement_ticket_id", "is", null)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total, status, created_at")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Invoice[];
+      return (data || []).map((inv: any) => ({
+        ...inv,
+        amount: inv.total,
+        replacement_ticket_id: null,
+      })) as Invoice[];
     },
     enabled: !!user?.id,
   });

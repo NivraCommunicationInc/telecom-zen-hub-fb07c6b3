@@ -106,9 +106,9 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
       
       const query = debouncedSearch.toLowerCase();
       const { data, error } = await supabase
-        .from("billing")
-        .select("id, invoice_number, client_email, amount, status, created_at")
-        .or(`invoice_number.ilike.%${query}%,client_email.ilike.%${query}%`)
+        .from("billing_invoices")
+        .select("id, invoice_number, total, status, created_at, customer:billing_customers(email)")
+        .or(`invoice_number.ilike.%${query}%`)
         .order("created_at", { ascending: false })
         .limit(10);
       
@@ -173,7 +173,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
         id: i.id,
         type: "invoice",
         title: `Facture ${i.invoice_number || i.id.slice(0, 8)}`,
-        subtitle: `${i.client_email} • ${i.amount?.toFixed(2)} $`,
+        subtitle: `${(i as any).customer?.email || ""} • ${(i.total || 0).toFixed(2)} $`,
         status: i.status,
         href: `/admin/billing?search=${encodeURIComponent(i.invoice_number || i.id)}`,
       });

@@ -686,7 +686,8 @@ const AdminClients = () => {
 
   const updateSubscriptionMutation = useMutation({
     mutationFn: async ({ id, status, reason }: { id: string; status: string; reason: string }) => {
-      const { error } = await supabase.from("subscriptions").update({ status }).eq("id", id);
+      // Use canonical billing_subscriptions table
+      const { error } = await supabase.from("billing_subscriptions").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
       return { id, status, reason };
     },
@@ -721,10 +722,10 @@ const AdminClients = () => {
   // Approve payment and update client balance
   const approvePaymentMutation = useMutation({
     mutationFn: async ({ paymentId, amount }: { paymentId: string; amount: number }) => {
-      // Update payment status
+      // Update payment status in canonical billing_payments table
       const { error: paymentError } = await supabase
-        .from("payments")
-        .update({ status: "completed" })
+        .from("billing_payments")
+        .update({ status: "confirmed" })
         .eq("id", paymentId);
       if (paymentError) throw paymentError;
 

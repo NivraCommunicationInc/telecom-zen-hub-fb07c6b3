@@ -62,20 +62,28 @@ export const flagClientForRiskAtomic = async ({
       return { success: false, error: "Profile not found" };
     }
 
-    // Step 2: Suspend all active subscriptions
-    const { data: suspendedSubs, error: subsError } = await backendClient
-      .from("subscriptions")
-      .update({
-        status: "suspended",
-        updated_at: new Date().toISOString(),
-      })
+    // Step 2: Suspend all active billing subscriptions (canonical)
+    const { data: billingCustomer } = await backendClient
+      .from("billing_customers")
+      .select("id")
       .eq("user_id", clientId)
-      .eq("status", "active")
-      .select();
+      .maybeSingle();
 
-    if (subsError) {
-      console.error("Error suspending subscriptions:", subsError);
-      // Continue - this is not critical
+    let suspendedSubs: any[] | null = null;
+    if (billingCustomer) {
+      const { data: subs, error: subsError } = await backendClient
+        .from("billing_subscriptions")
+        .update({
+          status: "suspended",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("customer_id", billingCustomer.id)
+        .eq("status", "active")
+        .select();
+      suspendedSubs = subs;
+      if (subsError) {
+        console.error("Error suspending billing subscriptions:", subsError);
+      }
     }
 
     // Step 3: Suspend streaming subscriptions
@@ -208,15 +216,26 @@ export const liftClientSuspensionAtomic = async (
 
     // Step 2: Optionally reactivate services
     if (reactivateServices) {
-      const { data: reactivatedSubs } = await backendClient
-        .from("subscriptions")
-        .update({
-          status: "active",
-          updated_at: new Date().toISOString(),
-        })
+      // Reactivate canonical billing subscriptions
+      const { data: billingCust } = await backendClient
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", clientId)
-        .eq("status", "suspended")
-        .select();
+        .maybeSingle();
+      
+      let reactivatedSubs: any[] | null = null;
+      if (billingCust) {
+        const { data: subs } = await backendClient
+          .from("billing_subscriptions")
+          .update({
+            status: "active",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("customer_id", billingCust.id)
+          .eq("status", "suspended")
+          .select();
+        reactivatedSubs = subs;
+      }
 
       const { data: reactivatedStreaming } = await backendClient
         .from("client_streaming_subscriptions")
