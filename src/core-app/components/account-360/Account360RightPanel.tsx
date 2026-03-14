@@ -23,7 +23,7 @@ interface Props {
 
 export function Account360RightPanel({
   account, profile, clientName, latestKyc, totalDue, totalPaid,
-  monthlyRevenue, unpaidCount, accountId, clientId, onRefresh,
+  monthlyRevenue, unpaidCount, clientId, onRefresh,
 }: Props) {
   const acct = account;
 
