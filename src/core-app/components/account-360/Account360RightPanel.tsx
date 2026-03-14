@@ -26,58 +26,6 @@ export function Account360RightPanel({
   monthlyRevenue, unpaidCount, accountId, clientId, onRefresh,
 }: Props) {
   const acct = account;
-  const queryClient = useQueryClient();
-  const [noteText, setNoteText] = useState("");
-  const [showNote, setShowNote] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const notesScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const scrollNotes = (direction: "top" | "bottom") => {
-    const el = notesScrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: direction === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
-  };
-
-  // Fetch existing notes
-  const { data: notes = [], isLoading: loadingNotes } = useQuery({
-    queryKey: ["account-360-notes", clientId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("client_internal_notes")
-        .select("id, body, note_type, created_by_name, created_by_role, created_at")
-        .eq("client_id", clientId!)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      return data || [];
-    },
-    enabled: !!clientId,
-  });
-
-  const addNote = async () => {
-    if (!noteText.trim() || !clientId) return;
-    setSaving(true);
-    try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error("Non authentifié");
-      const { data: prof } = await supabase.from("profiles")
-        .select("full_name").eq("user_id", currentUser.id).maybeSingle();
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        note_type: "admin",
-        body: noteText.trim(),
-        created_by_user_id: currentUser.id,
-        created_by_role: "admin",
-        created_by_name: prof?.full_name || currentUser.email || "Agent",
-      });
-      if (error) throw error;
-      toast.success("Note ajoutée");
-      setNoteText(""); setShowNote(false);
-      queryClient.invalidateQueries({ queryKey: ["account-360-notes", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["core-client-notes", clientId] });
-      onRefresh();
-    } catch (e: any) { toast.error(e.message || "Erreur"); }
-    finally { setSaving(false); }
-  };
 
   return (
     <div className="space-y-3 self-start lg:sticky lg:top-4">
