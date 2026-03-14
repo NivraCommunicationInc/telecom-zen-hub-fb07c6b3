@@ -145,7 +145,7 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
     setLoading(true);
     try {
       const providerPaymentId = reference?.trim() || `manual_${method}_${Date.now()}`;
-      const source = applyMode === "account" ? "admin_account_balance" : "admin_invoice_payment";
+      const source = "admin";
 
       const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
         p_invoice_id: targetInvoice.id,
