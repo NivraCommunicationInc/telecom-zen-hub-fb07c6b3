@@ -1116,7 +1116,7 @@ const ClientMyServices = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          {Number(invoice.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                          {Number(invoice.total).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                         </p>
                         <Badge className={
                           invoice.status === "paid" ? "bg-emerald-500/20 text-emerald-500" :
