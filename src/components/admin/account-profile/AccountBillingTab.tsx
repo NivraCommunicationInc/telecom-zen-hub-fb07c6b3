@@ -49,7 +49,7 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
   const [payOpen, setPayOpen] = useState(false);
   const [payInvoice, setPayInvoice] = useState<any>(null);
   const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState("etransfer");
+  const [payMethod, setPayMethod] = useState<"interac" | "manual" | "paypal">("interac");
   const [payRef, setPayRef] = useState("");
   const [saving, setSaving] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -80,7 +80,7 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
     setPayInvoice(inv);
     setPayAmount(inv.balance_due?.toFixed(2) || "0");
     setPayRef("");
-    setPayMethod("etransfer");
+    setPayMethod("interac");
     setPayOpen(true);
   };
 
