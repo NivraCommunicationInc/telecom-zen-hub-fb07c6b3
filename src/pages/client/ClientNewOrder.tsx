@@ -526,6 +526,9 @@ const ClientNewOrder = () => {
   // Synchronous guard to prevent double-click race conditions
   const submittingRef = useRef(false);
 
+  // Transaction traceability — logs every checkout/payment/order event
+  const { logEvent, logCheckoutStarted, logPaymentConfirmed, logPaymentFailed, logOrderCreated, logOrderFailed } = useTransactionTraceability();
+
   // Hydration flag to prevent step guards from redirecting before state is loaded
   const [isHydrated, setIsHydrated] = useState(false);
   const isInitialMount = useRef(true);
