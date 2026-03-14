@@ -67,80 +67,16 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
     order.payment_status !== "captured" && 
     order.payment_status !== "paid";
 
-  // Process payment mutation
-  const processPaymentMutation = useMutation({
-    mutationFn: async () => {
-      const paymentReference = `NIVRA-CLIENT-${Date.now()}`;
-      
-      // Update order payment status
-      const { error: orderError } = await supabase
-        .from("orders")
-        .update({
-          payment_status: "captured",
-          status: "paid",
-          payment_reference: paymentReference,
-          amount_paid: totalAmount,
-          processed_at: new Date().toISOString(),
-        })
-        .eq("id", order.id)
-        .eq("user_id", order.user_id); // Ensure client can only update their own order
+  // ============================================================
+  // LEGACY BILLING INSERT REMOVED (P0 cleanup)
+  // Equipment order payments must go through the canonical
+  // PayPal checkout flow or be recorded by an admin in Core.
+  // The client portal does NOT fabricate invoices or payments.
+  // ============================================================
 
-      if (orderError) throw orderError;
-
-      // Create invoice in billing table
-      const { data: billingData, error: billingError } = await supabase.from("billing").insert({
-        user_id: order.user_id,
-        client_email: order.client_email,
-        order_id: order.id,
-        related_order_number: order.order_number,
-        amount: totalAmount,
-        subtotal: order.subtotal,
-        delivery_fee: order.delivery_fee || 0,
-        tps_amount: order.tps_amount,
-        tvq_amount: order.tvq_amount,
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        amount_paid: totalAmount,
-        payment_reference: paymentReference,
-        notes: `Commande équipement - Paiement en ligne`,
-      }).select().single();
-
-      if (billingError) throw billingError;
-
-      // Create notification for the client
-      await supabase.from("notifications").insert({
-        user_id: order.user_id,
-        user_role: "client",
-        type: "payment",
-        title: "Paiement reçu",
-        message: `Votre paiement de ${totalAmount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })} a été reçu. Facture disponible.`,
-        link_target: "/portal/invoices",
-        link_id: billingData?.id,
-        is_read: false,
-      });
-
-      return billingData;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-orders-all"] });
-      queryClient.invalidateQueries({ queryKey: ["client-equipment-order-lines"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      toast.success("Paiement traité avec succès! Facture disponible dans votre portail.");
-      onClose();
-    },
-    onError: (error: any) => {
-      console.error("Payment error:", error);
-      toast.error("Erreur lors du paiement. Veuillez réessayer.");
-    },
-  });
-
-  const handlePayNow = async () => {
-    setIsProcessing(true);
-    try {
-      await processPaymentMutation.mutateAsync();
-    } finally {
-      setIsProcessing(false);
-    }
+  const handlePayNow = () => {
+    // Redirect client to the canonical portal payment page
+    toast.info("Veuillez utiliser la section Facturation de votre portail pour effectuer le paiement.", { duration: 5000 });
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -338,11 +274,11 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
             </div>
             <Button
               onClick={handlePayNow}
-              disabled={isProcessing || processPaymentMutation.isPending}
+              disabled={isProcessing}
               className="w-full h-12 text-lg"
               size="lg"
             >
-              {isProcessing || processPaymentMutation.isPending ? (
+              {isProcessing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Traitement en cours...

@@ -43,19 +43,34 @@ const ClientMonthlyInvoices = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<"paypal" | "interac">("paypal");
 
-  // Fetch client's monthly invoices
+  // Fetch client's invoices from canonical billing_invoices
   const { data: invoices, isLoading } = useQuery({
     queryKey: ["client-monthly-invoices", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+      // Resolve billing_customer first
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!customer) return [];
+
       const { data, error } = await supabase
-        .from("monthly_invoices")
+        .from("billing_invoices")
         .select("*")
-        .eq("client_id", user.id)
-        .order("period_start", { ascending: false });
+        .eq("customer_id", customer.id)
+        .not("status", "eq", "void")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data;
+      // Map canonical fields to the shape used by the template
+      return (data || []).map((inv: any) => ({
+        ...inv,
+        period_start: inv.cycle_start_date,
+        period_end: inv.cycle_end_date,
+        issue_date: inv.created_at,
+      }));
     },
     enabled: !!user?.id,
     staleTime: 0,
@@ -109,31 +124,13 @@ const ClientMonthlyInvoices = () => {
     refetchOnWindowFocus: true,
   });
 
-  // Mark invoice as paid (simulated - in reality would integrate with payment gateway)
-  const payInvoiceMutation = useMutation({
-    mutationFn: async (invoiceId: string) => {
-      const { error } = await supabase
-        .from("monthly_invoices")
-        .update({
-          status: "paid",
-          paid_at: new Date().toISOString(),
-          payment_reference: `PAY-${Date.now()}`,
-        })
-        .eq("id", invoiceId)
-        .eq("client_id", user?.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
-      toast({ title: "Paiement effectué", description: "Votre facture a été payée avec succès." });
-      setPayingInvoiceId(null);
-    },
-    onError: () => {
-      toast({ title: "Erreur de paiement", variant: "destructive" });
-      setPayingInvoiceId(null);
-    },
-  });
+  // ============================================================
+  // FAKE PAYMENT MUTATION REMOVED (P0 cleanup)
+  // Payments are ONLY created via canonical Core flows:
+  //   - PayPal capture → paypal-capture-order edge function
+  //   - Interac → admin records in Core console
+  // The client portal does NOT fabricate payment records.
+  // ============================================================
 
   // Get billing cycle day from account or derive from subscription cycle_end_date
   const billCycleDay = account?.billing_cycle_day 
