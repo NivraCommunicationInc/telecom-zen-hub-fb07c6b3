@@ -12656,6 +12656,10 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      reconcile_orphan_paid_orders: {
+        Args: { p_dry_run?: boolean }
+        Returns: Json
+      }
       record_payment_error_captured: {
         Args: {
           p_error_reason: string
