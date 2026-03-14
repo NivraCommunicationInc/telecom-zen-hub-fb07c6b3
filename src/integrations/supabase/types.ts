@@ -10977,6 +10977,81 @@ export type Database = {
           },
         ]
       }
+      transaction_events: {
+        Row: {
+          amount: number | null
+          created_at: string
+          currency: string | null
+          error_code: string | null
+          error_message: string | null
+          event_category: string
+          event_type: string
+          id: string
+          invoice_number: string | null
+          ip_address: string | null
+          metadata: Json | null
+          order_id: string | null
+          order_number: string | null
+          payment_number: string | null
+          payment_reference: string | null
+          paypal_capture_id: string | null
+          paypal_order_id: string | null
+          session_id: string | null
+          source: string
+          status: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          event_category?: string
+          event_type: string
+          id?: string
+          invoice_number?: string | null
+          ip_address?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          order_number?: string | null
+          payment_number?: string | null
+          payment_reference?: string | null
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          session_id?: string | null
+          source?: string
+          status?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          event_category?: string
+          event_type?: string
+          id?: string
+          invoice_number?: string | null
+          ip_address?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          order_number?: string | null
+          payment_number?: string | null
+          payment_reference?: string | null
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          session_id?: string | null
+          source?: string
+          status?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       tv_channels: {
         Row: {
           base_pack: string | null
