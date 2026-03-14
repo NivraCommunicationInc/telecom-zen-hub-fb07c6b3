@@ -6671,7 +6671,7 @@ export type Database = {
       }
       orders: {
         Row: {
-          account_id: string | null
+          account_id: string
           activation_fee: number | null
           agreement_version: number | null
           amount_paid: number | null
@@ -6773,7 +6773,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          account_id?: string | null
+          account_id: string
           activation_fee?: number | null
           agreement_version?: number | null
           amount_paid?: number | null
@@ -6875,7 +6875,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          account_id?: string | null
+          account_id?: string
           activation_fee?: number | null
           agreement_version?: number | null
           amount_paid?: number | null
