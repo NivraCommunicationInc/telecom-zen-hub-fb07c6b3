@@ -23,7 +23,9 @@ export interface TransactionRow {
   status: string;
   status_label: string;
   order_number: string | null;
+  order_id: string | null;
   invoice_number: string | null;
+  invoice_id: string | null;
   payment_number: string | null;
   failure_reason: string | null;
   action_needed: string;
