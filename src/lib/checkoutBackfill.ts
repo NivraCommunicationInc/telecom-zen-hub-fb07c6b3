@@ -132,7 +132,7 @@ export async function backfillCheckoutToSupabase(
         id: response.order_id,
         order_number: response.order_number,
         user_id: userId,
-        account_id: payload.account_id || null,
+        account_id: resolvedAccountId,
         status: "submitted",
         payment_status: paymentStatus,
         service_type: payload.services.map((s) => s.name).join(", "),
