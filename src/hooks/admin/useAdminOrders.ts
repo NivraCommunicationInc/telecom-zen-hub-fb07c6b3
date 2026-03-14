@@ -1,6 +1,6 @@
 /**
  * useAdminOrders — Fetches orders with joined profile + invoice data
- * All financial amounts are read-only from DB, no local math.
+ * CANONICAL: Uses billing_invoices.total as the authoritative transaction amount.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,11 +50,19 @@ export function useAdminOrders(environment: EnvironmentFilter = 'all') {
       const orderIds = orders.map((o) => o.id);
       const { data: invoices } = await supabase
         .from("billing_invoices")
-        .select("order_id, invoice_number, status")
+        .select("order_id, invoice_number, status, total")
         .in("order_id", orderIds);
 
       const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) ?? []);
-      const invoiceMap = new Map(invoices?.map((i) => [i.order_id, i]) ?? []);
+      // Group invoices by order_id, pick first non-void
+      const invoiceMap = new Map<string, { invoice_number: string; status: string; total: number }>();
+      for (const inv of (invoices || [])) {
+        if (!inv.order_id) continue;
+        const existing = invoiceMap.get(inv.order_id);
+        if (!existing || (existing.status === 'void' && inv.status !== 'void')) {
+          invoiceMap.set(inv.order_id, inv as any);
+        }
+      }
 
       return orders.map((o): AdminOrder => {
         const profile = profileMap.get(o.user_id);
@@ -67,7 +75,8 @@ export function useAdminOrders(environment: EnvironmentFilter = 'all') {
           order_type: o.order_type,
           status: o.status,
           payment_status: o.payment_status,
-          total_amount: o.total_amount,
+          // CANONICAL: prefer billing_invoices.total over orders.total_amount
+          total_amount: invoice?.total ?? o.total_amount,
           risk_flags: o.risk_flags as string[] | null,
           created_at: o.created_at,
           environment: (o as any).environment,
