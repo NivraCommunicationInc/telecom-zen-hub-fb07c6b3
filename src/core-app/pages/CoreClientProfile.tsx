@@ -2,9 +2,8 @@
  * CoreClientProfile — Full CRM client profile for Nivra Core.
  * Quick actions bar + data blocks: subscriptions, equipment, invoices, payments, tickets, notes, timeline.
  */
-import { useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import { format } from "date-fns";
@@ -15,14 +14,12 @@ import {
   ShoppingCart, FileText, Clock, StickyNote, ArrowLeft, Hash,
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
-  Calendar, DollarSign, Wrench, TicketIcon, ChevronUp, ChevronDown,
+  Calendar, DollarSign, Wrench, TicketIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
+import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
