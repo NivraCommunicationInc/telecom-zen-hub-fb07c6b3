@@ -205,15 +205,22 @@ const AdminClients = () => {
     enabled: !!selectedClient?.user_id,
   });
 
-  // Fetch client payments
+  // Fetch client payments — CANONICAL: billing_payments via billing_customers
   const { data: clientPayments, refetch: refetchPayments } = useQuery({
     queryKey: ["client-payments", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*")
+      // Resolve billing_customer
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", selectedClient.user_id)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("billing_payments")
+        .select("id, payment_number, amount, method, status, reference, provider, source, created_at, invoice_id, customer_id")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -225,10 +232,17 @@ const AdminClients = () => {
     queryKey: ["client-billing", selectedClient?.user_id],
     queryFn: async () => {
       if (!selectedClient?.user_id) return [];
+      // Resolve billing_customer
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", selectedClient.user_id)
+        .maybeSingle();
+      if (!customer) return [];
       const { data, error } = await supabase
-        .from("billing")
-        .select("*")
-        .or(`user_id.eq.${selectedClient.user_id},client_email.eq.${selectedClient.email}`)
+        .from("billing_invoices")
+        .select("id, invoice_number, total, amount_paid, balance_due, status, due_date, paid_at, created_at, order_id, subscription_id")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
