@@ -2,7 +2,7 @@
  * CoreClientProfile — Full CRM client profile for Nivra Core.
  * Quick actions bar + data blocks: subscriptions, equipment, invoices, payments, tickets, notes, timeline.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ import {
   ShoppingCart, FileText, Clock, StickyNote, ArrowLeft, Hash,
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
-  Calendar, DollarSign, Wrench, TicketIcon,
+  Calendar, DollarSign, Wrench, TicketIcon, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,13 @@ const CoreClientProfile = () => {
   const queryClient = useQueryClient();
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  const notesScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollNotes = (direction: "top" | "bottom") => {
+    const el = notesScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: direction === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
+  };
 
   // ── Profile ──
   const { data: profile, isLoading: loadingProfile } = useQuery({
@@ -187,7 +194,7 @@ const CoreClientProfile = () => {
         .select("id, body, note_type, created_by_name, created_by_role, created_at")
         .eq("client_id", clientId!)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(200);
       return data || [];
     },
     enabled: !!clientId,
@@ -304,7 +311,15 @@ const CoreClientProfile = () => {
           <button onClick={() => toast.info("Envoi facture")} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-purple-500/20 text-[10px] font-medium text-purple-400 hover:bg-purple-500/10 min-w-[80px]">
             <Send className="h-4 w-4" /> Facture
           </button>
-          <button onClick={() => setAddingNote(true)} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-slate-500/20 text-[10px] font-medium text-slate-400 hover:bg-slate-500/10 min-w-[80px]">
+          <button
+            onClick={() => {
+              setAddingNote(true);
+              requestAnimationFrame(() => {
+                document.getElementById("core-client-notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              });
+            }}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-slate-500/20 text-[10px] font-medium text-slate-400 hover:bg-slate-500/10 min-w-[80px]"
+          >
             <StickyNote className="h-4 w-4" /> Note
           </button>
           <button onClick={() => navigate(corePath("/appointments"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-pink-500/20 text-[10px] font-medium text-pink-400 hover:bg-pink-500/10 min-w-[80px]">
@@ -531,43 +546,63 @@ const CoreClientProfile = () => {
       </Section>
 
       {/* ═══ NOTES ═══ */}
-      <Section title="Notes internes" icon={StickyNote} action={
-        <button onClick={() => setAddingNote(!addingNote)} className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1">
-          <Plus className="h-3 w-3" /> Ajouter
-        </button>
-      }>
-        {addingNote && (
-          <div className="mb-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-emerald-500/20">
-            <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Écrire une note..."
-              rows={2} className="bg-transparent border-none text-white text-xs p-0 focus-visible:ring-0 resize-none" />
-            <div className="flex justify-end gap-2 mt-2">
-              <Button variant="ghost" size="sm" onClick={() => setAddingNote(false)} className="h-6 text-[10px] text-[#A1A1AA]">Annuler</Button>
-              <Button size="sm" onClick={() => addNoteMutation.mutate()} disabled={!newNote.trim() || addNoteMutation.isPending}
-                className="h-6 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white">
-                {addNoteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sauvegarder"}
-              </Button>
-            </div>
-          </div>
-        )}
-        {notes.length > 0 ? (
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {notes.map((n: any) => (
-              <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2.5">
-                <p className="text-[11px] text-white whitespace-pre-wrap">{n.body}</p>
-                <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[hsl(220,10%,35%)]">
-                  <span>{n.created_by_name || "Agent"}</span>
-                  <span>·</span>
-                  <span className="capitalize">{n.created_by_role || ""}</span>
-                  <span>·</span>
-                  <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
-                </div>
+      <div id="core-client-notes-section">
+        <Section title="Notes internes" icon={StickyNote} action={
+          <button onClick={() => setAddingNote(!addingNote)} className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1">
+            <Plus className="h-3 w-3" /> Ajouter
+          </button>
+        }>
+          {addingNote && (
+            <div className="mb-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-emerald-500/20">
+              <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Écrire une note..."
+                rows={2} className="bg-transparent border-none text-white text-xs p-0 focus-visible:ring-0 resize-none" />
+              <div className="flex justify-end gap-2 mt-2">
+                <Button variant="ghost" size="sm" onClick={() => setAddingNote(false)} className="h-6 text-[10px] text-[#A1A1AA]">Annuler</Button>
+                <Button size="sm" onClick={() => addNoteMutation.mutate()} disabled={!newNote.trim() || addNoteMutation.isPending}
+                  className="h-6 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white">
+                  {addNoteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sauvegarder"}
+                </Button>
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune note</p>
-        )}
-      </Section>
+            </div>
+          )}
+
+          {notes.length > 0 ? (
+            <>
+              <div className="mb-2 flex items-center justify-end gap-1">
+                <button
+                  onClick={() => scrollNotes("top")}
+                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-[hsl(220,10%,45%)] hover:text-white transition-colors inline-flex items-center gap-1"
+                >
+                  <ChevronUp className="h-3 w-3" /> Haut
+                </button>
+                <button
+                  onClick={() => scrollNotes("bottom")}
+                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-[hsl(220,10%,45%)] hover:text-white transition-colors inline-flex items-center gap-1"
+                >
+                  <ChevronDown className="h-3 w-3" /> Bas
+                </button>
+              </div>
+
+              <div ref={notesScrollRef} className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                {notes.map((n: any) => (
+                  <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2.5">
+                    <p className="text-[11px] text-white whitespace-pre-wrap">{n.body}</p>
+                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[hsl(220,10%,35%)]">
+                      <span>{n.created_by_name || "Agent"}</span>
+                      <span>·</span>
+                      <span className="capitalize">{n.created_by_role || ""}</span>
+                      <span>·</span>
+                      <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune note</p>
+          )}
+        </Section>
+      </div>
 
       {/* ═══ ACTIVITY TIMELINE ═══ */}
       <Section title="Chronologie d'activité" icon={Clock}>
