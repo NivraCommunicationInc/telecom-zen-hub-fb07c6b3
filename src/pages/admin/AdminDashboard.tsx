@@ -31,9 +31,9 @@ const AdminDashboard = () => {
       ] = await Promise.all([
         supabase.from("orders").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("billing").select("amount").eq("status", "paid"),
+        supabase.from("billing_invoices").select("total").eq("status", "paid"),
         supabase.from("contact_requests").select("*", { count: "exact", head: true }).eq("status", "new"),
-        supabase.from("billing").select("*", { count: "exact", head: true }).eq("status", "overdue"),
+        supabase.from("billing_invoices").select("*", { count: "exact", head: true }).eq("status", "overdue"),
         supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "scheduled"),
         supabase.from("activity_logs").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
         supabase.from("telecom_analytics").select("activations_count, contract_savings"),
