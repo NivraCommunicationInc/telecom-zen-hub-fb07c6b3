@@ -264,10 +264,16 @@ const ClientsPage = () => {
                         ) : (
                           <button
                             title="Créer un compte"
-                            className="h-7 px-2 flex items-center gap-1 rounded-md border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 transition-colors"
+                            onClick={() => handleCreateAccount(c.user_id)}
+                            disabled={creatingAccountFor === c.user_id}
+                            className="h-7 px-2 flex items-center gap-1 rounded-md border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
                           >
-                            <UserPlus className="h-3.5 w-3.5" />
-                            Créer compte
+                            {creatingAccountFor === c.user_id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <UserPlus className="h-3.5 w-3.5" />
+                            )}
+                            {creatingAccountFor === c.user_id ? "Création…" : "Créer compte"}
                           </button>
                         )}
 
