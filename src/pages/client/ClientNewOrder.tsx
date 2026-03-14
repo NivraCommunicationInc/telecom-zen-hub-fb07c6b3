@@ -106,6 +106,15 @@ interface CreatedOrder {
   status: string;
   created_at: string;
   selected_channels?: any[];
+  pricing_snapshot?: any;
+  installation_type?: string;
+  delivery_method?: string;
+  appointment_date?: string | null;
+  appointment_time?: string | null;
+  shipping_address?: string;
+  shipping_city?: string;
+  shipping_province?: string;
+  shipping_postal_code?: string;
 }
 
 interface Channel {
@@ -2085,6 +2094,16 @@ const ClientNewOrder = () => {
         id: nivraCheckoutResponse.order_id,
         order_number: nivraCheckoutResponse.order_number,
         payment_reference: nivraCheckoutResponse.payment_number,
+        pricing_snapshot: serverPricing,
+        service_type: selectedServices.map(s => s.name).join(", "),
+        installation_type: orderInstallationType,
+        delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
+        appointment_date: selectedDate || null,
+        appointment_time: selectedTime || null,
+        shipping_address: serviceAddressStreet,
+        shipping_city: serviceAddressCity,
+        shipping_province: serviceAddressProvince || "QC",
+        shipping_postal_code: serviceAddressPostalCode,
       };
 
       let nivraPaymentRef = nivraCheckoutResponse.payment_number;
@@ -2486,8 +2505,28 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         console.error("[AdminNotification] Failed (non-blocking):", notifyErr);
       }
       
-      // Navigate to confirmation page with order ID
-      navigate(`/portal/order-confirmation?orderId=${orderData.id}`);
+      // Navigate to confirmation page with order number (canonical Nivra Core reference)
+      navigate(`/portal/order-confirmation?orderNumber=${orderData.order_number}`, {
+        state: {
+          nivraOrder: {
+            id: orderData.id,
+            order_number: orderData.order_number,
+            payment_reference: orderData.nivraPaymentRef || paymentConfirmationNumber,
+            pricing_snapshot: orderData.pricing_snapshot,
+            service_type: orderData.service_type,
+            status: "pending",
+            created_at: new Date().toISOString(),
+            installation_type: orderData.installation_type,
+            delivery_method: orderData.delivery_method,
+            appointment_date: orderData.appointment_date,
+            appointment_time: orderData.appointment_time,
+            shipping_address: orderData.shipping_address,
+            shipping_city: orderData.shipping_city,
+            shipping_province: orderData.shipping_province,
+            shipping_postal_code: orderData.shipping_postal_code,
+          },
+        },
+      });
     },
     onError: (error: any) => {
       console.error("[ClientNewOrder] Order creation error:", error);

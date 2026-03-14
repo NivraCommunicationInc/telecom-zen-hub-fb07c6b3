@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import ClientLayout from "@/components/client/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ type ProfileData = Record<string, any>;
 
 const ClientOrderConfirmation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useClientAuth();
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
@@ -70,53 +71,73 @@ const ClientOrderConfirmation = () => {
   const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
   const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
 
+  // Support both legacy ?orderId= and new ?orderNumber= params
   const orderId = searchParams.get("orderId");
+  const orderNumber = searchParams.get("orderNumber");
+  // Navigation state from checkout (contains full Nivra Core order data)
+  const nivraOrderState = (location.state as any)?.nivraOrder;
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!orderId || !user?.id) {
+      if (!user?.id) {
         setError("Aucune commande trouvée");
         setLoading(false);
         return;
       }
 
-      try {
-        // Fetch order, account, and profile in parallel
-        const [orderRes, profileRes, accountRes] = await Promise.all([
-          supabase
-            .from("orders")
-            .select("*")
-            .eq("id", orderId)
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase
-            .from("profiles")
-            .select("full_name, email, phone, service_address, service_city, service_province, service_postal_code, client_number, client_pin_hash, pin_is_default")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase
-            .from("accounts")
-            .select("id, account_number, billing_cycle_day, billing_cycle_timezone")
-            .eq("client_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle()
-        ]);
+      // ★ Priority 1: Use navigation state from checkout (instant, no DB query needed)
+      if (nivraOrderState && nivraOrderState.order_number) {
+        console.log("[OrderConfirmation] Using navigation state for order:", nivraOrderState.order_number);
+        setOrder(nivraOrderState as OrderData);
+      }
 
-        if (orderRes.error) throw orderRes.error;
-        
-        if (!orderRes.data) {
-          setError("Commande introuvable");
-        } else {
-          setOrder(orderRes.data as OrderData);
-        }
-        
+      // Always fetch profile and account regardless
+      try {
+        const profilePromise = supabase
+          .from("profiles")
+          .select("full_name, email, phone, service_address, service_city, service_province, service_postal_code, client_number, client_pin_hash, pin_is_default")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const accountPromise = supabase
+          .from("accounts")
+          .select("id, account_number, billing_cycle_day, billing_cycle_timezone")
+          .eq("client_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const [profileRes, accountRes] = await Promise.all([profilePromise, accountPromise]);
+
         if (profileRes.data) {
           setProfile(profileRes.data as ProfileData);
         }
-        
         if (accountRes.data) {
           setAccount(accountRes.data as AccountData);
+        }
+
+        // ★ Priority 2: If no navigation state, try DB lookup by order_number or id
+        const needsDbLookup = !nivraOrderState;
+        if (needsDbLookup && (orderNumber || orderId)) {
+          let orderQuery = supabase
+            .from("orders")
+            .select("*")
+            .eq("user_id", user.id);
+          
+          if (orderNumber) {
+            orderQuery = orderQuery.eq("order_number", orderNumber);
+          } else if (orderId) {
+            orderQuery = orderQuery.eq("id", orderId);
+          }
+          
+          const orderRes = await orderQuery.maybeSingle();
+          if (orderRes.error) throw orderRes.error;
+          if (!orderRes.data) {
+            setError("Commande introuvable");
+          } else {
+            setOrder(orderRes.data as OrderData);
+          }
+        } else if (!nivraOrderState && !orderNumber && !orderId) {
+          setError("Aucune commande trouvée");
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -127,7 +148,7 @@ const ClientOrderConfirmation = () => {
     };
 
     fetchData();
-  }, [orderId, user?.id]);
+  }, [orderId, orderNumber, user?.id, nivraOrderState]);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
