@@ -179,15 +179,22 @@ const AdminAccounts = () => {
     enabled: !!selectedAccount?.id,
   });
 
-  // Fetch invoices for selected account
+  // Fetch invoices for selected account from canonical billing_invoices
   const { data: accountInvoices } = useQuery({
     queryKey: ["account-invoices", selectedAccount?.id],
     queryFn: async () => {
       if (!selectedAccount?.id) return [];
-      const { data, error } = await supabase
-        .from("billing")
-        .select("*")
+      // Resolve billing_customer for this account's client
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", selectedAccount.client_id)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("billing_invoices")
+        .select("*")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;

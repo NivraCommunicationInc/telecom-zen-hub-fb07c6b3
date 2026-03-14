@@ -40,7 +40,7 @@ const AdminDashboard = () => {
         supabase.from("billing_payments").select("*", { count: "exact", head: true }).eq("status", "pending"),
       ]);
 
-      const totalRevenue = billingRes.data?.reduce((sum, b) => sum + Number(b.amount), 0) || 0;
+      const totalRevenue = billingRes.data?.reduce((sum, b) => sum + Number(b.total), 0) || 0;
       const totalActivations = analyticsRes.data?.reduce((sum, a) => sum + Number(a.activations_count || 0), 0) || 0;
       const totalSavings = analyticsRes.data?.reduce((sum, a) => sum + Number(a.contract_savings || 0), 0) || 0;
 

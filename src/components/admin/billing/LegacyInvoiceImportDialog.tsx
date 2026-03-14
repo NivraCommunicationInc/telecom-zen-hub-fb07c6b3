@@ -1,5 +1,10 @@
 /**
  * Import factures legacy (table billing) vers billing_invoices (V2)
+ * 
+ * ⚠️ MIGRATION-ONLY TOOL — This dialog reads from the legacy `billing` table
+ * exclusively for one-time data migration purposes. It has ZERO impact on
+ * live business operations. It writes ONLY to canonical billing_invoices.
+ * Once all legacy data is migrated, this component should be deleted.
  */
 
 import { useState } from "react";

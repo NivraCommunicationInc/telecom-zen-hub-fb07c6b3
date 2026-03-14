@@ -524,12 +524,23 @@ async function handleToolCall(
           };
         }
         
-        const { data: invoice } = await supabase
-          .from("billing")
-          .select("id, invoice_number")
+        // Resolve via canonical billing_invoices
+        const { data: custForDl } = await supabase
+          .from("billing_customers")
+          .select("id")
           .eq("user_id", effectiveUserId)
-          .eq("invoice_number", args.invoice_number as string)
-          .single();
+          .maybeSingle();
+
+        let invoice: any = null;
+        if (custForDl) {
+          const { data } = await supabase
+            .from("billing_invoices")
+            .select("id, invoice_number")
+            .eq("customer_id", custForDl.id)
+            .eq("invoice_number", args.invoice_number as string)
+            .maybeSingle();
+          invoice = data;
+        }
         
         if (!invoice) return { result: fr ? "Facture non trouvée." : "Invoice not found." };
         
