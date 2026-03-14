@@ -36,10 +36,33 @@ type ModalType = null | "recordPayment" | "markPaid" | "sendInvoice" | "addCharg
 type ManualMethod = "paypal" | "interac" | "cash" | "debit_credit" | "bank_transfer" | "other";
 type ApplyMode = "invoice" | "account";
 
-const mapToBillingMethod = (method: ManualMethod): "paypal" | "interac" | "manual" => {
+type CanonicalMethod = "paypal" | "interac" | "manual";
+
+const mapToBillingMethod = (method: ManualMethod): CanonicalMethod => {
   if (method === "paypal") return "paypal";
   if (method === "interac") return "interac";
   return "manual";
+};
+
+const mapToProvider = (method: ManualMethod): string => {
+  if (method === "paypal") return "paypal";
+  if (method === "interac") return "interac";
+  return "manual";
+};
+
+const buildProviderRefs = (provider: string, rawReference: string) => {
+  const normalized = rawReference.trim();
+  if (provider === "interac") {
+    return {
+      providerPaymentId: null,
+      providerOrderId: normalized || `interac_${Date.now()}`,
+    };
+  }
+
+  return {
+    providerPaymentId: normalized || `${provider}_${Date.now()}`,
+    providerOrderId: null,
+  };
 };
 
 const methodLabels: Record<ManualMethod, string> = {
