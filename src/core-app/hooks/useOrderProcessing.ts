@@ -304,6 +304,17 @@ export function useOrderProcessing(orderId: string | undefined) {
         return !["paid", "paid_by_promo", "void", "cancelled"].includes(status) && balanceDue > 0;
       }) || (invoices?.[0] ?? null);
 
+      // Fetch billing_invoice_lines for full itemized breakdown
+      let invoiceLines: any[] = [];
+      if (invoice?.id) {
+        const { data: lines } = await supabase
+          .from("billing_invoice_lines")
+          .select("*")
+          .eq("invoice_id", invoice.id)
+          .order("created_at", { ascending: true });
+        invoiceLines = lines || [];
+      }
+
       // Fetch contracts
       const { data: contracts } = await supabase
         .from("contracts")
@@ -412,6 +423,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         account,
         items: items || [],
         invoice,
+        invoiceLines,
         contracts: contracts || [],
         appointment,
         channelSelection,
@@ -902,6 +914,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     account: data?.account,
     items: data?.items || [],
     invoice: data?.invoice,
+    invoiceLines: data?.invoiceLines || [],
     contracts: data?.contracts || [],
     appointment: data?.appointment,
     channelSelection: data?.channelSelection || null,

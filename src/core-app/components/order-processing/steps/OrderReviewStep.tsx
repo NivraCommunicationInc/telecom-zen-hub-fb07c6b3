@@ -1,6 +1,7 @@
 /**
- * OrderReviewStep — Step 2: Review ordered services, items, promotions
+ * OrderReviewStep — Step 2: Full itemized review from canonical billing_invoice_lines
  * 3-section structure: Recurring / One-time / Today's Total
+ * Source of truth: billing_invoice_lines → pricing_snapshot → order columns (fallback chain)
  */
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
@@ -8,18 +9,88 @@ import { toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Props { proc: any; }
 
-export function OrderReviewStep({ proc }: Props) {
-  const { order, items } = proc;
-  const ps = order.pricing_snapshot as any;
+/** Classify an invoice line by its type/description */
+function classifyLine(line: any): "recurring" | "equipment" | "fee" | "discount" {
+  if (line.line_type === "discount" || line.line_type === "credit") return "discount";
+  const desc = (line.description || "").toLowerCase();
+  if (line.line_type === "equipment" || desc.includes("routeur") || desc.includes("router") || desc.includes("terminal") || desc.includes("modem") || desc.includes("sim") || desc.includes("décodeur")) return "equipment";
+  if (line.line_type === "fee" || desc.includes("activation") || desc.includes("livraison") || desc.includes("installation") || desc.includes("shipping") || desc.includes("delivery")) return "fee";
+  return "recurring";
+}
 
-  // Derive amounts from pricing snapshot (canonical) or fallback to order columns
-  const recurringSubtotal = toNonNegativeMoney(ps?.recurring_subtotal ?? order.subtotal ?? 0);
-  const discountTotal = toNonNegativeMoney(ps?.discount_total_combined ?? order.discount_amount ?? 0);
+export function OrderReviewStep({ proc }: Props) {
+  const { order, items, invoice, invoiceLines } = proc;
+  const ps = order.pricing_snapshot as any;
+  const hasInvoiceLines = invoiceLines && invoiceLines.length > 0;
+
+  // Categorize invoice lines
+  const recurringLines: any[] = [];
+  const equipmentLines: any[] = [];
+  const feeLines: any[] = [];
+  const discountLines: any[] = [];
+
+  if (hasInvoiceLines) {
+    for (const line of invoiceLines) {
+      const cat = classifyLine(line);
+      if (cat === "recurring") recurringLines.push(line);
+      else if (cat === "equipment") equipmentLines.push(line);
+      else if (cat === "fee") feeLines.push(line);
+      else if (cat === "discount") discountLines.push(line);
+    }
+  }
+
+  // Supplement from order columns if invoice lines don't cover one-time fees
+  const supplementFees: Array<{ label: string; amount: number }> = [];
+  const supplementEquipment: Array<{ label: string; amount: number }> = [];
+  if (hasInvoiceLines) {
+    const allDesc = invoiceLines.map((l: any) => (l.description || "").toLowerCase()).join(" ");
+    const checkFees = [
+      { label: "Frais d'activation", amount: Number(order.activation_fee || ps?.activation_fee || 0), keyword: "activation" },
+      { label: "Frais de livraison", amount: Number(order.delivery_fee || ps?.delivery_fee || 0), keyword: "livraison" },
+      { label: "Frais d'installation", amount: Number(order.installation_fee || ps?.installation_fee || 0), keyword: "installation" },
+    ];
+    const checkEquip = [
+      { label: "Routeur", amount: Number(order.router_fee || ps?.router_fee || 0), keyword: "routeur" },
+      { label: "Terminal(s)", amount: Number(order.terminal_fee || ps?.terminal_fee || 0), keyword: "terminal" },
+    ];
+    for (const f of checkFees) {
+      if (f.amount > 0 && !allDesc.includes(f.keyword)) supplementFees.push(f);
+    }
+    for (const e of checkEquip) {
+      if (e.amount > 0 && !allDesc.includes(e.keyword)) supplementEquipment.push(e);
+    }
+  }
+
+  // Financial totals — prefer invoice (canonical), then pricing_snapshot, then order columns
+  const recurringSubtotal = toNonNegativeMoney(
+    hasInvoiceLines
+      ? recurringLines.reduce((s, l) => s + Number(l.line_total || 0), 0)
+      : (ps?.recurring_subtotal ?? order.subtotal ?? 0)
+  );
+  const discountTotal = toNonNegativeMoney(
+    hasInvoiceLines
+      ? discountLines.reduce((s, l) => s + Math.abs(Number(l.line_total || 0)), 0)
+      : (ps?.discount_total_combined ?? order.discount_amount ?? 0)
+  );
   const recurringNet = Math.max(0, recurringSubtotal - discountTotal);
-  const oneTimeSubtotal = toNonNegativeMoney(ps?.one_time_subtotal ?? 0);
-  const tpsAmount = toNonNegativeMoney(ps?.tps_amount ?? order.tps_amount ?? 0);
-  const tvqAmount = toNonNegativeMoney(ps?.tvq_amount ?? order.tvq_amount ?? 0);
-  const totalAmount = toNonNegativeMoney(ps?.grand_total ?? order.total_amount ?? 0);
+
+  const oneTimeSubtotal = toNonNegativeMoney(
+    hasInvoiceLines
+      ? [...equipmentLines, ...feeLines].reduce((s, l) => s + Number(l.line_total || 0), 0)
+        + supplementFees.reduce((s, f) => s + f.amount, 0)
+        + supplementEquipment.reduce((s, e) => s + e.amount, 0)
+      : (ps?.one_time_subtotal ?? 0)
+  );
+
+  // Taxes and total from invoice (canonical source of truth)
+  const tpsAmount = toNonNegativeMoney(invoice?.tps_amount ?? ps?.tps_amount ?? order.tps_amount ?? 0);
+  const tvqAmount = toNonNegativeMoney(invoice?.tvq_amount ?? ps?.tvq_amount ?? order.tvq_amount ?? 0);
+  const totalAmount = toNonNegativeMoney(invoice?.total ?? ps?.grand_total ?? order.total_amount ?? 0);
+  const amountPaid = toNonNegativeMoney(invoice?.amount_paid ?? 0);
+  const balanceDue = toNonNegativeMoney(invoice?.balance_due ?? (totalAmount - amountPaid));
+
+  // Fallback to order_items if no invoice lines exist
+  const displayItems = hasInvoiceLines ? null : items;
 
   return (
     <div>
@@ -37,7 +108,28 @@ export function OrderReviewStep({ proc }: Props) {
 
       {/* ═══ SECTION A: Recurring Services ═══ */}
       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Services mensuels (récurrent)</h4>
-      {items.length > 0 ? (
+      {hasInvoiceLines && recurringLines.length > 0 ? (
+        <table className="w-full text-sm mb-2">
+          <thead>
+            <tr className="border-b border-gray-200 text-left text-xs text-gray-500">
+              <th className="pb-2 font-medium">Service</th>
+              <th className="pb-2 font-medium">Qté</th>
+              <th className="pb-2 font-medium text-right">Prix unitaire</th>
+              <th className="pb-2 font-medium text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {recurringLines.map((line: any, i: number) => (
+              <tr key={i}>
+                <td className="py-2 text-gray-900">{line.description}</td>
+                <td className="py-2 text-gray-700">{line.quantity || 1}</td>
+                <td className="py-2 text-right text-gray-700 tabular-nums">{Number(line.unit_price || 0).toFixed(2)} $</td>
+                <td className="py-2 text-right text-gray-900 font-medium tabular-nums">{Number(line.line_total || 0).toFixed(2)} $</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : displayItems && displayItems.length > 0 ? (
         <table className="w-full text-sm mb-2">
           <thead>
             <tr className="border-b border-gray-200 text-left text-xs text-gray-500">
@@ -48,7 +140,7 @@ export function OrderReviewStep({ proc }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {items.map((item: any, i: number) => (
+            {displayItems.map((item: any, i: number) => (
               <tr key={i}>
                 <td className="py-2 text-gray-900">{item.product_name || item.plan_name || `Item ${i + 1}`}</td>
                 <td className="py-2 text-gray-700">{item.quantity || 1}</td>
@@ -64,47 +156,99 @@ export function OrderReviewStep({ proc }: Props) {
 
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between"><span className="text-gray-500">Sous-total mensuel</span><span className="text-gray-900 font-medium tabular-nums">{Number(recurringSubtotal).toFixed(2)} $/mois</span></div>
-          {Number(discountTotal) > 0 && (
+          <div className="flex justify-between"><span className="text-gray-500">Sous-total mensuel</span><span className="text-gray-900 font-medium tabular-nums">{recurringSubtotal.toFixed(2)} $/mois</span></div>
+          {discountTotal > 0 && (
             <>
-              <div className="flex justify-between"><span className="text-gray-500">Rabais {order.promo_code ? `(${order.promo_code})` : ""}</span><span className="text-emerald-600 tabular-nums">-{Number(discountTotal).toFixed(2)} $</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Rabais {order.promo_code ? `(${order.promo_code})` : ""}</span><span className="text-emerald-600 tabular-nums">-{discountTotal.toFixed(2)} $</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Net mensuel après rabais</span><span className="text-gray-700 tabular-nums">{recurringNet.toFixed(2)} $/mois</span></div>
             </>
           )}
+          {/* Discount invoice lines (canonical) */}
+          {hasInvoiceLines && discountLines.map((dl: any, i: number) => (
+            <div key={`d-${i}`} className="flex justify-between">
+              <span className="text-gray-500">{dl.description}</span>
+              <span className="text-emerald-600 tabular-nums">-{Math.abs(Number(dl.line_total || 0)).toFixed(2)} $</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* ═══ SECTION B: One-time Fees ═══ */}
-      {Number(oneTimeSubtotal) > 0 && (
+      {/* ═══ SECTION B: One-time Fees & Equipment ═══ */}
+      {(oneTimeSubtotal > 0 || (hasInvoiceLines && (equipmentLines.length > 0 || feeLines.length > 0))) && (
         <>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Frais uniques</h4>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Frais uniques & Équipement</h4>
           <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
             <div className="space-y-1 text-sm">
-              {order.activation_fee > 0 && <div className="flex justify-between"><span className="text-gray-500">Activation</span><span className="text-gray-700 tabular-nums">{Number(order.activation_fee).toFixed(2)} $</span></div>}
-              {order.delivery_fee > 0 && <div className="flex justify-between"><span className="text-gray-500">Livraison</span><span className="text-gray-700 tabular-nums">{Number(order.delivery_fee).toFixed(2)} $</span></div>}
-              {order.installation_fee > 0 && <div className="flex justify-between"><span className="text-gray-500">Installation</span><span className="text-gray-700 tabular-nums">{Number(order.installation_fee).toFixed(2)} $</span></div>}
-              {order.router_fee > 0 && <div className="flex justify-between"><span className="text-gray-500">Routeur</span><span className="text-gray-700 tabular-nums">{Number(order.router_fee).toFixed(2)} $</span></div>}
-              {order.terminal_fee > 0 && <div className="flex justify-between"><span className="text-gray-500">Terminal(s)</span><span className="text-gray-700 tabular-nums">{Number(order.terminal_fee).toFixed(2)} $</span></div>}
-              <div className="flex justify-between border-t border-gray-200 pt-1 font-medium"><span className="text-gray-900">Total frais uniques</span><span className="text-gray-900 tabular-nums">{Number(oneTimeSubtotal).toFixed(2)} $</span></div>
+              {/* Equipment from invoice lines */}
+              {equipmentLines.map((line: any, i: number) => (
+                <div key={`eq-${i}`} className="flex justify-between">
+                  <span className="text-gray-500">{line.description}</span>
+                  <span className="text-gray-700 tabular-nums">{Number(line.line_total || 0).toFixed(2)} $</span>
+                </div>
+              ))}
+              {/* Fee lines from invoice */}
+              {feeLines.map((line: any, i: number) => (
+                <div key={`fee-${i}`} className="flex justify-between">
+                  <span className="text-gray-500">{line.description}</span>
+                  <span className="text-gray-700 tabular-nums">{Number(line.line_total || 0).toFixed(2)} $</span>
+                </div>
+              ))}
+              {/* Supplemented from order columns */}
+              {supplementEquipment.map((e, i) => (
+                <div key={`se-${i}`} className="flex justify-between">
+                  <span className="text-gray-500">{e.label}</span>
+                  <span className="text-gray-700 tabular-nums">{e.amount.toFixed(2)} $</span>
+                </div>
+              ))}
+              {supplementFees.map((f, i) => (
+                <div key={`sf-${i}`} className="flex justify-between">
+                  <span className="text-gray-500">{f.label}</span>
+                  <span className="text-gray-700 tabular-nums">{f.amount.toFixed(2)} $</span>
+                </div>
+              ))}
+              {/* Fallback: order-level fees when no invoice lines */}
+              {!hasInvoiceLines && (
+                <>
+                  {Number(order.activation_fee || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Activation</span><span className="text-gray-700 tabular-nums">{Number(order.activation_fee).toFixed(2)} $</span></div>}
+                  {Number(order.delivery_fee || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Livraison</span><span className="text-gray-700 tabular-nums">{Number(order.delivery_fee).toFixed(2)} $</span></div>}
+                  {Number(order.installation_fee || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Installation</span><span className="text-gray-700 tabular-nums">{Number(order.installation_fee).toFixed(2)} $</span></div>}
+                  {Number(order.router_fee || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Routeur</span><span className="text-gray-700 tabular-nums">{Number(order.router_fee).toFixed(2)} $</span></div>}
+                  {Number(order.terminal_fee || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">Terminal(s)</span><span className="text-gray-700 tabular-nums">{Number(order.terminal_fee).toFixed(2)} $</span></div>}
+                </>
+              )}
+              <div className="flex justify-between border-t border-gray-200 pt-1 font-medium">
+                <span className="text-gray-900">Total frais uniques</span>
+                <span className="text-gray-900 tabular-nums">{oneTimeSubtotal.toFixed(2)} $</span>
+              </div>
             </div>
           </div>
         </>
       )}
 
-      {/* ═══ SECTION C: Total de la commande ═══ */}
+      {/* ═══ SECTION C: Sommaire financier (canonical from invoice) ═══ */}
       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Sommaire financier</h4>
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between"><span className="text-gray-500">Frais uniques</span><span className="text-gray-700 tabular-nums">{Number(oneTimeSubtotal).toFixed(2)} $</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Services 1er mois</span><span className="text-gray-700 tabular-nums">{Number(recurringSubtotal).toFixed(2)} $</span></div>
-          {Number(discountTotal) > 0 && (
-            <div className="flex justify-between"><span className="text-gray-500">Rabais</span><span className="text-emerald-600 tabular-nums">-{Number(discountTotal).toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Services 1er mois</span><span className="text-gray-700 tabular-nums">{recurringSubtotal.toFixed(2)} $</span></div>
+          {oneTimeSubtotal > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Frais uniques</span><span className="text-gray-700 tabular-nums">{oneTimeSubtotal.toFixed(2)} $</span></div>
           )}
-          <div className="flex justify-between"><span className="text-gray-500">TPS</span><span className="text-gray-700 tabular-nums">{tpsAmount.toFixed(2)} $</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">TVQ</span><span className="text-gray-700 tabular-nums">{tvqAmount.toFixed(2)} $</span></div>
+          {discountTotal > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Rabais</span><span className="text-emerald-600 tabular-nums">-{discountTotal.toFixed(2)} $</span></div>
+          )}
+          <div className="flex justify-between"><span className="text-gray-500">TPS (5%)</span><span className="text-gray-700 tabular-nums">{tpsAmount.toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">TVQ (9.975%)</span><span className="text-gray-700 tabular-nums">{tvqAmount.toFixed(2)} $</span></div>
           <div className="flex justify-between border-t border-gray-200 pt-1 font-semibold">
             <span className="text-gray-900">Total</span>
             <span className="text-gray-900 tabular-nums">{totalAmount.toFixed(2)} $</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Payé</span>
+            <span className="text-emerald-600 tabular-nums">{amountPaid.toFixed(2)} $</span>
+          </div>
+          <div className="flex justify-between font-semibold">
+            <span className="text-gray-900">Solde dû</span>
+            <span className={`tabular-nums ${balanceDue > 0 ? "text-red-600" : "text-emerald-600"}`}>{balanceDue.toFixed(2)} $</span>
           </div>
         </div>
       </div>
