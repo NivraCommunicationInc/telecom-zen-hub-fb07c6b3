@@ -233,7 +233,7 @@ const ClientMonthlyInvoices = () => {
                   <div key={sub.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <span className="font-medium">{sub.plan_name}</span>
                     <span className="text-lg font-bold text-cyan-500">
-                      {Number(sub.amount || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      {Number(sub.plan_price || 0).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                     </span>
                   </div>
                 ))}
