@@ -77,18 +77,23 @@ export async function backfillCheckoutToSupabase(
 
   const customerId = result.billing_customer_id;
 
-  // ── 1b. Upsert accounts record (canonical account linkage) ──
+  // ── 1b. Resolve accounts record (canonical account linkage) — BLOCKING ──
   let resolvedAccountId: string | null = payload.account_id || null;
   try {
+    // Always re-resolve to ensure we use the canonical active account
     const { data: existingAcct } = await supabase
       .from("accounts")
       .select("id")
       .eq("client_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
 
     if (existingAcct) {
       resolvedAccountId = existingAcct.id;
     } else if (response.account_number) {
+      // Create account only if none exists — unique index prevents duplicates
       const { data: newAcct, error: acctErr } = await supabase
         .from("accounts")
         .insert({
@@ -103,8 +108,20 @@ export async function backfillCheckoutToSupabase(
         .select("id")
         .single();
       if (acctErr) {
-        console.error("[Backfill] accounts insert error:", acctErr);
-        result.errors.push(`account: ${acctErr.message}`);
+        // If unique constraint violation, re-fetch the existing one
+        if (acctErr.code === '23505') {
+          console.warn("[Backfill] Account already exists (race condition), re-fetching");
+          const { data: reFetched } = await supabase
+            .from("accounts")
+            .select("id")
+            .eq("client_id", userId)
+            .eq("status", "active")
+            .maybeSingle();
+          resolvedAccountId = reFetched?.id || null;
+        } else {
+          console.error("[Backfill] accounts insert error:", acctErr);
+          result.errors.push(`account: ${acctErr.message}`);
+        }
       } else {
         resolvedAccountId = newAcct.id;
         console.log("[Backfill] ✓ Account created:", response.account_number);
@@ -113,6 +130,13 @@ export async function backfillCheckoutToSupabase(
   } catch (e: any) {
     console.error("[Backfill] accounts exception:", e);
     result.errors.push(`account: ${e.message}`);
+  }
+
+  // BLOCKING: If no account resolved, abort backfill — order trigger will reject anyway
+  if (!resolvedAccountId) {
+    console.error("[Backfill] FATAL: No account_id resolved for user:", userId);
+    result.errors.push("account: No active account found — order backfill blocked");
+    return result;
   }
 
   // ── 2. Upsert order ──
