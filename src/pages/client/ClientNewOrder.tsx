@@ -5890,7 +5890,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             method: "paypal",
                             amount: uiTodayTotal,
                           });
-                        }
+                        }}
                       />
                       <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
                         <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
