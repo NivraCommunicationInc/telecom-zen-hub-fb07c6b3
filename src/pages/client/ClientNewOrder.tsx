@@ -19,6 +19,7 @@ import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
 import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
+import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { 
