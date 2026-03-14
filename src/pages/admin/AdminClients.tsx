@@ -686,7 +686,8 @@ const AdminClients = () => {
 
   const updateSubscriptionMutation = useMutation({
     mutationFn: async ({ id, status, reason }: { id: string; status: string; reason: string }) => {
-      const { error } = await supabase.from("subscriptions").update({ status }).eq("id", id);
+      // Use canonical billing_subscriptions table
+      const { error } = await supabase.from("billing_subscriptions").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
       return { id, status, reason };
     },
