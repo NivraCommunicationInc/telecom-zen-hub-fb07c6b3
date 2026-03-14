@@ -311,7 +311,15 @@ const CoreClientProfile = () => {
           <button onClick={() => toast.info("Envoi facture")} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-purple-500/20 text-[10px] font-medium text-purple-400 hover:bg-purple-500/10 min-w-[80px]">
             <Send className="h-4 w-4" /> Facture
           </button>
-          <button onClick={() => setAddingNote(true)} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-slate-500/20 text-[10px] font-medium text-slate-400 hover:bg-slate-500/10 min-w-[80px]">
+          <button
+            onClick={() => {
+              setAddingNote(true);
+              requestAnimationFrame(() => {
+                document.getElementById("core-client-notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              });
+            }}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-slate-500/20 text-[10px] font-medium text-slate-400 hover:bg-slate-500/10 min-w-[80px]"
+          >
             <StickyNote className="h-4 w-4" /> Note
           </button>
           <button onClick={() => navigate(corePath("/appointments"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-pink-500/20 text-[10px] font-medium text-pink-400 hover:bg-pink-500/10 min-w-[80px]">
