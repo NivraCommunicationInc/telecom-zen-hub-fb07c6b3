@@ -191,18 +191,35 @@ export function Account360RightPanel({
           {loadingNotes ? (
             <div className="flex justify-center py-2"><Loader2 className="h-3.5 w-3.5 animate-spin text-core-text-disabled" /></div>
           ) : notes.length > 0 ? (
-            <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
-              {notes.map((n: any) => (
-                <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2">
-                  <p className="text-[10px] text-core-text-primary whitespace-pre-wrap leading-relaxed">{n.body}</p>
-                  <div className="flex items-center gap-1 mt-1 text-[9px] text-core-text-disabled">
-                    <span>{n.created_by_name || "Agent"}</span>
-                    <span>·</span>
-                    <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
+            <>
+              <div className="flex items-center justify-end gap-1">
+                <button
+                  onClick={() => scrollNotes("top")}
+                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-core-text-label hover:text-core-text-primary transition-colors inline-flex items-center gap-1"
+                >
+                  <ChevronUp className="h-3 w-3" /> Haut
+                </button>
+                <button
+                  onClick={() => scrollNotes("bottom")}
+                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-core-text-label hover:text-core-text-primary transition-colors inline-flex items-center gap-1"
+                >
+                  <ChevronDown className="h-3 w-3" /> Bas
+                </button>
+              </div>
+
+              <div ref={notesScrollRef} className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
+                {notes.map((n: any) => (
+                  <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2">
+                    <p className="text-[10px] text-core-text-primary whitespace-pre-wrap leading-relaxed">{n.body}</p>
+                    <div className="flex items-center gap-1 mt-1 text-[9px] text-core-text-disabled">
+                      <span>{n.created_by_name || "Agent"}</span>
+                      <span>·</span>
+                      <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           ) : (
             <p className="text-[10px] text-core-text-disabled text-center py-2">Aucune note</p>
           )}
