@@ -115,7 +115,7 @@ export default function StaffAdminDashboard() {
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
         supabase.from("appointments").select("id", { count: "exact", head: true }).gte("scheduled_at", today),
-        supabase.from("billing").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("billing_invoices").select("id", { count: "exact", head: true }).eq("status", "pending"),
       ]);
 
       setStats({
