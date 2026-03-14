@@ -371,6 +371,7 @@ export async function fallbackCheckout(
   const { error: orderErr } = await supabase.from("orders").insert({
     id: orderId,
     order_number: orderNumber,
+    client_request_id: payload.client_request_id,
     user_id: userId,
     account_id: accountId,
     status: "submitted",
