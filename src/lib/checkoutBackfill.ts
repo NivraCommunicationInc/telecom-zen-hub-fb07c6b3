@@ -142,13 +142,20 @@ export async function backfillCheckoutToSupabase(
   // ── 2. Upsert order ──
   try {
     const paymentMethod = payload.payment.method;
+    const billingMethod =
+      paymentMethod === "paypal"
+        ? "paypal"
+        : paymentMethod === "etransfer"
+          ? "interac"
+          : "manual";
+
     const paymentStatus =
       paymentMethod === "paypal" && payload.payment.paypal_capture_id
         ? "paid"
-        : paymentMethod === "etransfer"
-          ? "pending"
-          : paymentMethod === "promo_free"
-            ? "paid"
+        : paymentMethod === "promo_free"
+          ? "paid"
+          : paymentMethod === "etransfer"
+            ? "pending"
             : "pre_authorized";
 
     const { error } = await supabase.from("orders").upsert(
@@ -161,7 +168,7 @@ export async function backfillCheckoutToSupabase(
         payment_status: paymentStatus,
         service_type: payload.services.map((s) => s.name).join(", "),
         order_type: "new",
-        total_amount: pricing.grand_total,
+        total_amount: pricing?.grand_total ?? Number(payload.pricing_snapshot?.grand_total ?? 0),
         environment: "live",
         created_at: response.created_at || now,
         pricing_snapshot: payload.pricing_snapshot,
@@ -176,6 +183,10 @@ export async function backfillCheckoutToSupabase(
         installation_fee: payload.installation.installation_fee || 0,
         provider_payment_id: payload.payment.paypal_capture_id || null,
         payment_method: paymentMethod,
+        payment_reference:
+          billingMethod === "paypal"
+            ? null
+            : payload.payment.reference || payload.payment.paypal_capture_id || response.payment_number || null,
       },
       { onConflict: "id" },
     );
