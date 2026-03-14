@@ -378,32 +378,69 @@ const AdminReplacementWorkflow = () => {
     },
   });
 
-  // Generate invoice mutation
+  // Generate invoice mutation — CANONICAL Core path (billing_invoices + billing_invoice_lines)
   const generateInvoiceMutation = useMutation({
     mutationFn: async () => {
       if (!internalOrder || !selectedTicket) throw new Error("No order found");
 
-      // Create billing record
+      // Resolve billing_customer by user_id
+      const { data: billingCustomer, error: custErr } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", selectedTicket.user_id)
+        .maybeSingle();
+      if (custErr) throw custErr;
+      if (!billingCustomer) throw new Error("Aucun client de facturation trouvé pour cet utilisateur. Créez-le d'abord via une commande Core.");
+
+      // Generate invoice number
+      const invoiceNumber = `REPL-${Date.now().toString(36).toUpperCase()}`;
+
+      const now = new Date().toISOString();
+      const cycleEnd = new Date(Date.now() + 30 * 86400000).toISOString();
+
+      // Create canonical billing_invoices record
       const { data: invoiceData, error: invoiceError } = await supabase
-        .from("billing")
+        .from("billing_invoices")
         .insert({
-          user_id: selectedTicket.user_id,
-          client_email: selectedTicket.client_email,
+          customer_id: billingCustomer.id,
+          invoice_number: invoiceNumber,
+          type: "adjustment" as const,
           subtotal: internalOrder.subtotal,
-          amount: internalOrder.total_amount,
           tps_amount: internalOrder.tps_amount,
           tvq_amount: internalOrder.tvq_amount,
-          delivery_fee: internalOrder.delivery_fee,
-          installation_fee: internalOrder.installation_fee,
-          status: "pending",
-          replacement_ticket_id: selectedTicket.id,
-          replacement_order_id: internalOrder.id,
+          total: internalOrder.total_amount,
+          currency: "CAD",
+          payment_method: "interac" as const,
+          status: "pending" as const,
+          cycle_start_date: now.split("T")[0],
+          cycle_end_date: cycleEnd.split("T")[0],
+          due_date: cycleEnd.split("T")[0],
           notes: `Remplacement - ${selectedTicket.ticket_number}`,
+          environment: "production",
+          fees: (internalOrder.delivery_fee || 0) + (internalOrder.installation_fee || 0),
         })
         .select()
         .single();
 
       if (invoiceError) throw invoiceError;
+
+      // Create invoice line items from internal order items
+      const { data: orderItems } = await supabase
+        .from("replacement_order_items")
+        .select("*")
+        .eq("order_id", internalOrder.id);
+
+      if (orderItems && orderItems.length > 0) {
+        const lines = orderItems.map((item: any) => ({
+          invoice_id: invoiceData.id,
+          description: item.item_name,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+          line_total: item.line_total,
+          line_type: "equipment",
+        }));
+        await supabase.from("billing_invoice_lines").insert(lines);
+      }
 
       // Update internal order with invoice info
       await supabase
