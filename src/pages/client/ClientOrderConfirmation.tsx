@@ -115,9 +115,21 @@ const ClientOrderConfirmation = () => {
           setAccount(accountRes.data as AccountData);
         }
 
-        // Process order result from DB if we needed it
-        if (needsDbLookup && results[2]) {
-          const orderRes = results[2];
+        // ★ Priority 2: If no navigation state, try DB lookup by order_number or id
+        const needsDbLookup = !nivraOrderState;
+        if (needsDbLookup && (orderNumber || orderId)) {
+          let orderQuery = supabase
+            .from("orders")
+            .select("*")
+            .eq("user_id", user.id);
+          
+          if (orderNumber) {
+            orderQuery = orderQuery.eq("order_number", orderNumber);
+          } else if (orderId) {
+            orderQuery = orderQuery.eq("id", orderId);
+          }
+          
+          const orderRes = await orderQuery.maybeSingle();
           if (orderRes.error) throw orderRes.error;
           if (!orderRes.data) {
             setError("Commande introuvable");
