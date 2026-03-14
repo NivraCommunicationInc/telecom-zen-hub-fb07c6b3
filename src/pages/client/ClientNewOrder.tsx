@@ -2567,6 +2567,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     },
     onError: (error: any) => {
       console.error("[ClientNewOrder] Order creation error:", error);
+
+      // ★ TRACEABILITY: Log order failure
+      logOrderFailed({
+        error_message: error?.message || "Unknown error",
+        error_code: error?.code || error?.status?.toString(),
+        metadata: { raw: String(error).slice(0, 500) },
+      });
       
       // Parse error for user-friendly message
       let errorMessage = "Erreur lors de la soumission de la commande";
