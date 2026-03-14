@@ -1,17 +1,20 @@
 /**
  * Payment detail drawer — full payment file with identity, links, timeline, actions
  */
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { PAYMENT_STATUSES, PAYMENT_METHODS, fmtCAD } from "./PaymentConstants";
 import type { AdminPayment } from "@/core-app/hooks/useAdminPayments";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   X, User, FileText, ShoppingCart, CreditCard, Clock, Hash,
   MessageSquare, CheckCircle2, XCircle, AlertTriangle, RotateCcw,
-  ShieldCheck, ExternalLink, Copy,
+  ShieldCheck, ExternalLink, Copy, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,6 +58,12 @@ function Field({ label, value, mono, link, copyable }: {
 }
 
 export function PaymentDetailDrawer({ payment, onClose }: Props) {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
+
   if (!payment) return null;
 
   const p = payment;
@@ -66,12 +75,74 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
   const isFailed = p.status === "failed" || p.status === "declined";
   const isFraud = p.status === "fraud";
 
+  const refreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-invoices"] });
+  };
+
+  const updatePaymentStatus = async (newStatus: string, extra: Record<string, any> = {}) => {
+    setActionLoading(newStatus);
+    try {
+      const { error } = await supabase
+        .from("billing_payments")
+        .update({ status: newStatus as any, ...extra })
+        .eq("id", p.id);
+      if (error) throw error;
+
+      // If confirming, also mark invoice as paid
+      if (newStatus === "confirmed" || newStatus === "completed") {
+        const now = new Date().toISOString();
+        await supabase
+          .from("billing_payments")
+          .update({ confirmed_by: "admin" } as any)
+          .eq("id", p.id);
+
+        // Update invoice status + amount_paid
+        await supabase
+          .from("billing_invoices")
+          .update({
+            status: "paid" as any,
+            paid_at: now,
+            amount_paid: p.amount,
+            balance_due: 0,
+          })
+          .eq("id", p.invoice_id);
+      }
+
+      // If rejecting, update invoice back to unpaid
+      if (newStatus === "failed" || newStatus === "declined") {
+        await supabase
+          .from("billing_invoices")
+          .update({ status: "unpaid" as any })
+          .eq("id", p.invoice_id);
+      }
+
+      refreshAll();
+      toast.success(`Paiement mis à jour : ${PAYMENT_STATUSES[newStatus as keyof typeof PAYMENT_STATUSES] || newStatus}`);
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de la mise à jour");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleVerification = () => updatePaymentStatus("in_verification");
+  const handleConfirm = () => updatePaymentStatus("confirmed");
+  const handleReject = () => {
+    if (!showRejectInput) {
+      setShowRejectInput(true);
+      return;
+    }
+    updatePaymentStatus("failed", rejectReason ? { legacy_note: `${p.legacy_note ? p.legacy_note + "\n" : ""}[REFUSÉ] ${rejectReason}` } : {});
+  };
+  const handleFraud = () => updatePaymentStatus("fraud");
+  const handleRefund = () => updatePaymentStatus("refunded");
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Drawer */}
       <div className="relative w-full max-w-[480px] bg-[hsl(220,20%,9%)] border-l border-[hsl(220,15%,16%)] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)]/95 backdrop-blur">
@@ -166,33 +237,43 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
             </div>
           )}
 
+          {/* ═══ Reject reason input ═══ */}
+          {showRejectInput && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+              <label className="text-[11px] text-red-400 font-medium block mb-1.5">Raison du refus (optionnel)</label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={2}
+                className="w-full bg-[hsl(220,20%,11%)] border border-[hsl(220,15%,20%)] rounded-md text-xs text-[#F8FAFC] p-2 resize-none focus:outline-none focus:ring-1 focus:ring-red-500/50"
+                placeholder="Entrez la raison du refus..."
+              />
+            </div>
+          )}
+
           {/* ═══ Quick Actions ═══ */}
           <div>
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8] mb-2">Actions rapides</h3>
             <div className="grid grid-cols-2 gap-2">
               {isPending && (
                 <>
-                  <ActionBtn icon={ShieldCheck} label="En vérification" color="violet" />
-                  <ActionBtn icon={CheckCircle2} label="Confirmer" color="emerald" />
-                  <ActionBtn icon={XCircle} label="Refuser" color="red" />
+                  <ActionBtn icon={ShieldCheck} label="En vérification" color="violet" onClick={handleVerification} loading={actionLoading === "in_verification"} />
+                  <ActionBtn icon={CheckCircle2} label="Confirmer" color="emerald" onClick={handleConfirm} loading={actionLoading === "confirmed"} />
+                  <ActionBtn icon={XCircle} label="Refuser" color="red" onClick={handleReject} loading={actionLoading === "failed"} />
                 </>
               )}
               {isInVerification && (
                 <>
-                  <ActionBtn icon={CheckCircle2} label="Confirmer" color="emerald" />
-                  <ActionBtn icon={XCircle} label="Refuser" color="red" />
-                  <ActionBtn icon={AlertTriangle} label="Signaler fraude" color="orange" />
+                  <ActionBtn icon={CheckCircle2} label="Confirmer" color="emerald" onClick={handleConfirm} loading={actionLoading === "confirmed"} />
+                  <ActionBtn icon={XCircle} label="Refuser" color="red" onClick={handleReject} loading={actionLoading === "failed"} />
+                  <ActionBtn icon={AlertTriangle} label="Signaler fraude" color="orange" onClick={handleFraud} loading={actionLoading === "fraud"} />
                 </>
               )}
               {isConfirmed && (
-                <>
-                  <ActionBtn icon={RotateCcw} label="Rembourser" color="sky" />
-                </>
+                <ActionBtn icon={RotateCcw} label="Rembourser" color="sky" onClick={handleRefund} loading={actionLoading === "refunded"} />
               )}
               {isFailed && (
-                <>
-                  <ActionBtn icon={RotateCcw} label="Réessayer" color="amber" />
-                </>
+                <ActionBtn icon={RotateCcw} label="Réessayer" color="amber" onClick={() => updatePaymentStatus("pending")} loading={actionLoading === "pending"} />
               )}
 
               {/* Always available */}
@@ -212,7 +293,9 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
   );
 }
 
-function ActionBtn({ icon: Icon, label, color }: { icon: any; label: string; color: string }) {
+function ActionBtn({ icon: Icon, label, color, onClick, loading }: {
+  icon: any; label: string; color: string; onClick?: () => void; loading?: boolean;
+}) {
   const colorMap: Record<string, string> = {
     emerald: "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10",
     red: "border-red-500/30 text-red-400 hover:bg-red-500/10",
@@ -223,8 +306,12 @@ function ActionBtn({ icon: Icon, label, color }: { icon: any; label: string; col
   };
 
   return (
-    <button className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors w-full ${colorMap[color] || colorMap.sky}`}>
-      <Icon className="h-3.5 w-3.5" />
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors w-full disabled:opacity-50 ${colorMap[color] || colorMap.sky}`}
+    >
+      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
       {label}
     </button>
   );
