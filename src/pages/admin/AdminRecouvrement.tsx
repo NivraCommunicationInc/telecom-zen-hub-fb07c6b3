@@ -79,51 +79,23 @@ const AdminRecouvrement = () => {
   const { data: recoveryAccounts, isLoading, refetch } = useQuery({
     queryKey: ["recovery-accounts", statusFilter],
     queryFn: async () => {
-      // 1. First fetch all overdue invoices from monthly_invoices
-      const { data: overdueMonthlyInvoices, error: monthlyError } = await supabase
-        .from("monthly_invoices")
-        .select("id, invoice_number, total, due_date, client_id, status")
-        .eq("status", "overdue")
-        .order("due_date", { ascending: true });
-
-      if (monthlyError) throw monthlyError;
-
-      // 2. Fetch all overdue invoices from billing table
-      const { data: overdueBillingInvoices, error: billingError } = await supabase
-        .from("billing")
-        .select("id, invoice_number, amount, due_date, user_id, status, payment_reference")
-        .eq("status", "overdue")
-        .order("due_date", { ascending: true });
-
-      if (billingError) throw billingError;
-
-      // 3. Also get invoices that are past due date but not marked as overdue yet
+      // Fetch overdue/unpaid invoices from canonical billing_invoices
       const today = new Date().toISOString().split('T')[0];
       
-      const { data: pastDueMonthly } = await supabase
-        .from("monthly_invoices")
-        .select("id, invoice_number, total, due_date, client_id, status")
-        .in("status", ["issued", "pending", "partial"])
+      const { data: overdueInvoices, error: invoiceError } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total, due_date, customer_id, status, customer:billing_customers(id, user_id, email, first_name, last_name)")
+        .or("status.eq.pending,status.eq.partially_paid")
         .lt("due_date", today)
         .order("due_date", { ascending: true });
+      
+      if (invoiceError) throw invoiceError;
 
-      const { data: pastDueBilling } = await supabase
-        .from("billing")
-        .select("id, invoice_number, amount, due_date, user_id, status, payment_reference")
-        .in("status", ["pending", "partial", "issued"])
-        .lt("due_date", today)
-        .order("due_date", { ascending: true });
-
-      // 4. Combine all client IDs that have overdue/past due invoices
-      const clientIdsFromMonthly = [
-        ...(overdueMonthlyInvoices?.map(i => i.client_id) || []),
-        ...(pastDueMonthly?.map(i => i.client_id) || [])
-      ];
-      const clientIdsFromBilling = [
-        ...(overdueBillingInvoices?.map(i => i.user_id) || []),
-        ...(pastDueBilling?.map(i => i.user_id) || [])
-      ];
-      const allClientIds = [...new Set([...clientIdsFromMonthly, ...clientIdsFromBilling])];
+      // Collect client_ids from invoices
+      const clientIdsFromInvoices = (overdueInvoices || [])
+        .map((i: any) => i.customer?.user_id)
+        .filter(Boolean);
+      const allClientIds = [...new Set(clientIdsFromInvoices)];
 
       if (allClientIds.length === 0) {
         return [];
