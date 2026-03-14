@@ -350,15 +350,28 @@ export async function fallbackCheckout(
   const grandTotal = Number(pricing.grand_total) || Math.round((taxableBase + tpsAmount + tvqAmount) * 100) / 100;
   const billingCycleDay = new Date().getDate();
 
-  // ── 5. Determine payment status ──
+  // ── 5. Determine canonical billing fields ──
   const isPaid = payload.payment.method === "paypal" && !!payload.payment.paypal_capture_id;
   const isFree = payload.payment.method === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
+  const rawMethod = String(payload.payment.method || "").toLowerCase();
+  const billingMethod: "paypal" | "interac" | "manual" =
+    rawMethod === "paypal"
+      ? "paypal"
+      : (["etransfer", "e_transfer", "interac"].includes(rawMethod) ? "interac" : "manual");
+  const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+  const paymentReference = paymentProvider === "paypal"
+    ? null
+    : (payload.payment.reference || paymentNumber || null);
+  const paymentProviderPaymentId = paymentProvider === "paypal"
+    ? (payload.payment.paypal_capture_id || null)
+    : null;
 
   // ── 6. Create order ──
   const { error: orderErr } = await supabase.from("orders").insert({
     id: orderId,
     order_number: orderNumber,
+    client_request_id: payload.client_request_id,
     user_id: userId,
     account_id: accountId,
     status: "submitted",
@@ -403,7 +416,7 @@ export async function fallbackCheckout(
     cycle_end_date: now,
     type: "initial",
     currency: "CAD",
-    payment_method: payload.payment.method || null,
+    payment_method: billingMethod,
     environment: "live",
     paid_at: (isPaid || isFree) ? now : null,
     billing_snapshot_account_number: accountNumber,
@@ -428,12 +441,12 @@ export async function fallbackCheckout(
     payment_number: paymentNumber,
     customer_id: customerId,
     invoice_id: invoiceId,
-    method: payload.payment.method,
+    method: billingMethod,
     amount: grandTotal,
-    status: (isPaid || isFree) ? "completed" : "pending",
-    reference: payload.payment.reference || payload.payment.paypal_capture_id || null,
-    provider: payload.payment.method === "paypal" ? "paypal" : null,
-    provider_payment_id: payload.payment.paypal_capture_id || null,
+    status: (isPaid || isFree) ? "confirmed" : "pending",
+    reference: paymentReference,
+    provider: paymentProvider,
+    provider_payment_id: paymentProviderPaymentId,
     received_at: (isPaid || isFree) ? now : null,
     source: "live",
     environment: "live",
