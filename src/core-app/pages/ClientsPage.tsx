@@ -27,8 +27,31 @@ interface ClientRow {
 }
 
 const ClientsPage = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "with_account" | "without_account">("all");
+  const [creatingAccountFor, setCreatingAccountFor] = useState<string | null>(null);
+
+  const handleCreateAccount = useCallback(async (clientUserId: string) => {
+    if (creatingAccountFor) return;
+    setCreatingAccountFor(clientUserId);
+    try {
+      const { data: newAcct, error } = await supabase
+        .from("accounts")
+        .insert({ client_id: clientUserId, account_number: "", status: "active" })
+        .select("id")
+        .single();
+      if (error) throw error;
+      toast.success("Compte créé avec succès");
+      navigate(corePath(`/accounts/${newAcct.id}`));
+    } catch (e: any) {
+      console.error("[ClientsPage] Account creation failed:", e);
+      toast.error(`Erreur: ${e.message}`);
+    } finally {
+      setCreatingAccountFor(null);
+      refetch();
+    }
+  }, [creatingAccountFor, navigate, refetch]);
 
   const { data: clients, isLoading, refetch } = useQuery<ClientRow[]>({
     queryKey: ["core-clients-all"],
