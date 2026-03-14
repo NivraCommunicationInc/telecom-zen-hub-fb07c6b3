@@ -2,13 +2,14 @@
  * ClientsPage — Nivra Core CRM: All people in the system.
  * Distinct from Accounts: lists ALL profiles even without an active account/service.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Search, Users, RefreshCw, UserPlus, ShoppingCart, UserCircle, ExternalLink } from "lucide-react";
+import { Search, Users, RefreshCw, UserPlus, ShoppingCart, UserCircle, ExternalLink, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -26,8 +27,10 @@ interface ClientRow {
 }
 
 const ClientsPage = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "with_account" | "without_account">("all");
+  const [creatingAccountFor, setCreatingAccountFor] = useState<string | null>(null);
 
   const { data: clients, isLoading, refetch } = useQuery<ClientRow[]>({
     queryKey: ["core-clients-all"],
@@ -59,6 +62,26 @@ const ClientsPage = () => {
     },
     staleTime: 2 * 60 * 1000,
   });
+
+  const handleCreateAccount = useCallback(async (clientUserId: string) => {
+    if (creatingAccountFor) return;
+    setCreatingAccountFor(clientUserId);
+    try {
+      const { data: newAcct, error } = await supabase
+        .from("accounts")
+        .insert({ client_id: clientUserId, account_number: "", status: "active" })
+        .select("id")
+        .single();
+      if (error) throw error;
+      toast.success("Compte créé avec succès");
+      refetch();
+      navigate(corePath(`/accounts/${newAcct.id}`));
+    } catch (e: any) {
+      console.error("[ClientsPage] Account creation failed:", e);
+      toast.error(`Erreur: ${e.message}`);
+      setCreatingAccountFor(null);
+    }
+  }, [creatingAccountFor, navigate, refetch]);
 
   const filtered = useMemo(() => {
     if (!clients) return [];
@@ -241,10 +264,16 @@ const ClientsPage = () => {
                         ) : (
                           <button
                             title="Créer un compte"
-                            className="h-7 px-2 flex items-center gap-1 rounded-md border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 transition-colors"
+                            onClick={() => handleCreateAccount(c.user_id)}
+                            disabled={creatingAccountFor === c.user_id}
+                            className="h-7 px-2 flex items-center gap-1 rounded-md border border-amber-500/20 text-[10px] font-medium text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
                           >
-                            <UserPlus className="h-3.5 w-3.5" />
-                            Créer compte
+                            {creatingAccountFor === c.user_id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <UserPlus className="h-3.5 w-3.5" />
+                            )}
+                            {creatingAccountFor === c.user_id ? "Création…" : "Créer compte"}
                           </button>
                         )}
 
