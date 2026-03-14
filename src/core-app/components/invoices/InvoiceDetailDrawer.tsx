@@ -84,33 +84,18 @@ export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
   const handleMarkPaid = async () => {
     setActionLoading("markPaid");
     try {
-      const now = new Date().toISOString();
-      // Create a payment record
-      const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
-      const { error: payErr } = await supabase.from("billing_payments").insert({
-        invoice_id: inv.id,
-        customer_id: inv.customer_id,
-        amount: inv.balance_due ?? inv.total,
-        method: "manual" as const,
-        status: "confirmed" as const,
-        payment_number: paymentNumber,
-        reference: "Marquée payée depuis dossier facture",
-        source: "admin" as any,
-        provider: "manual",
-        received_at: now,
-        created_by_name: "Admin",
-        created_by_role: "admin",
+      const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
+        p_invoice_id: inv.id,
+        p_customer_id: inv.customer_id,
+        p_amount: inv.balance_due ?? inv.total,
+        p_method: "manual",
+        p_provider: "manual",
+        p_provider_payment_id: `mark_paid_drawer_${Date.now()}`,
+        p_source: "admin",
+        p_created_by_name: "Invoice Drawer",
+        p_created_by_role: "admin",
       });
-      if (payErr) throw payErr;
-
-      // Update invoice
-      const { error: invErr } = await supabase.from("billing_invoices").update({
-        status: "paid" as any,
-        paid_at: now,
-        amount_paid: inv.total,
-        balance_due: 0,
-      }).eq("id", inv.id);
-      if (invErr) throw invErr;
+      if (error) throw error;
 
       toast.success(`Facture ${inv.invoice_number} marquée payée`);
       refreshAll();
