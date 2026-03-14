@@ -280,33 +280,50 @@ export async function backfillCheckoutToSupabase(
       result.errors.push(`payment: ${e.message}`);
     }
 
-    // ── 5. Upsert billing_subscription (if recurring services) ──
-    if (response.subscription_id && payload.services.length > 0) {
+    // ── 5. Upsert billing_subscription — DETERMINISTIC ──
+    // Always create a subscription for recurring services, even without response.subscription_id.
+    // The DB trigger trg_ensure_subscription_on_invoice_paid provides a safety net,
+    // but we should create proactively when we have the data.
+    if (payload.services.length > 0) {
       try {
         const mainService = payload.services[0];
-        const { error } = await supabase.from("billing_subscriptions").upsert(
-          {
-            id: response.subscription_id,
-            customer_id: customerId,
-            order_id: response.order_id,
-            plan_code: mainService.plan_code,
-            plan_name: mainService.name,
-            plan_price: mainService.plan_price,
-            status: "active",
-            cycle_start_date: response.created_at || now,
-            cycle_end_date: response.created_at || now, // Will be set properly by billing engine
-            service_category: mainService.category?.toLowerCase() || null,
-            auto_billing_enabled: payload.payment.preauth_opt_in || false,
-            environment: "live",
-          },
-          { onConflict: "id" },
-        );
-        if (error) {
-          console.error("[Backfill] billing_subscriptions upsert error:", error);
-          result.errors.push(`subscription: ${error.message}`);
-        } else {
+        const subscriptionId = response.subscription_id || crypto.randomUUID();
+
+        // Check if subscription already exists for this order (idempotency)
+        const { data: existingSub } = await supabase
+          .from("billing_subscriptions")
+          .select("id")
+          .eq("order_id", response.order_id)
+          .maybeSingle();
+
+        if (existingSub) {
           result.subscription = true;
-          console.log("[Backfill] ✓ Subscription backfilled:", response.subscription_id);
+          console.log("[Backfill] ✓ Subscription already exists for order:", response.order_number);
+        } else {
+          const { error } = await supabase.from("billing_subscriptions").upsert(
+            {
+              id: subscriptionId,
+              customer_id: customerId,
+              order_id: response.order_id,
+              plan_code: mainService.plan_code,
+              plan_name: mainService.name,
+              plan_price: mainService.plan_price,
+              status: "pending",
+              cycle_start_date: response.created_at || now,
+              cycle_end_date: response.created_at || now,
+              service_category: mainService.category?.toLowerCase() || null,
+              auto_billing_enabled: payload.payment.preauth_opt_in || false,
+              environment: "live",
+            },
+            { onConflict: "id" },
+          );
+          if (error) {
+            console.error("[Backfill] billing_subscriptions upsert error:", error);
+            result.errors.push(`subscription: ${error.message}`);
+          } else {
+            result.subscription = true;
+            console.log("[Backfill] ✓ Subscription created for order:", response.order_number);
+          }
         }
       } catch (e: any) {
         console.error("[Backfill] billing_subscriptions exception:", e);
