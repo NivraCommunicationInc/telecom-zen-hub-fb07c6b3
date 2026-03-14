@@ -552,24 +552,30 @@ const ClientMyServices = () => {
         address_city: sub.service_addresses?.city,
       }];
     }
-    return services.map((svc: any) => ({
-      id: svc.id,
-      source: "billing_v2_service",
-      plan_name: svc.service_name,
-      amount: svc.unit_price * svc.quantity,
-      billing_cycle: "monthly",
-      status: sub.status || "active",
-      service_type: svc.service_type,
-      created_at: svc.added_at || svc.created_at,
-      cycle_start_date: sub.cycle_start_date,
-      cycle_end_date: sub.cycle_end_date,
-      parent_subscription_id: sub.id,
-      parent_plan_name: sub.plan_name,
-      address_id: sub.address_id || sub.service_addresses?.id || null,
-      address_label: sub.service_addresses?.label,
-      address_line: sub.service_addresses?.address_line,
-      address_city: sub.service_addresses?.city,
-    }));
+    return services.map((svc: any) => {
+      // CRITICAL: If service line has unit_price=0, fall back to parent plan_price
+      // This prevents portal from showing 0.00$/mois for paid recurring services
+      const linePrice = Number(svc.unit_price || 0) * Number(svc.quantity || 1);
+      const effectivePrice = linePrice > 0 ? linePrice : Number(sub.plan_price || 0);
+      return {
+        id: svc.id,
+        source: "billing_v2_service",
+        plan_name: svc.service_name,
+        amount: effectivePrice,
+        billing_cycle: "monthly",
+        status: sub.status || "active",
+        service_type: svc.service_type,
+        created_at: svc.added_at || svc.created_at,
+        cycle_start_date: sub.cycle_start_date,
+        cycle_end_date: sub.cycle_end_date,
+        parent_subscription_id: sub.id,
+        parent_plan_name: sub.plan_name,
+        address_id: sub.address_id || sub.service_addresses?.id || null,
+        address_label: sub.service_addresses?.label,
+        address_line: sub.service_addresses?.address_line,
+        address_city: sub.service_addresses?.city,
+      };
+    });
   });
 
   // Equipment (one_time items from canonical table)
