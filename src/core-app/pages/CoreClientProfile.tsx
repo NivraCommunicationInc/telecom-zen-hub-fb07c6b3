@@ -2,9 +2,8 @@
  * CoreClientProfile — Full CRM client profile for Nivra Core.
  * Quick actions bar + data blocks: subscriptions, equipment, invoices, payments, tickets, notes, timeline.
  */
-import { useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import { format } from "date-fns";
@@ -15,14 +14,12 @@ import {
   ShoppingCart, FileText, Clock, StickyNote, ArrowLeft, Hash,
   CheckCircle, AlertTriangle, XCircle, CreditCard, Package,
   Tv, Wifi, Plus, PauseCircle, PlayCircle, Loader2, Send,
-  Calendar, DollarSign, Wrench, TicketIcon, ChevronUp, ChevronDown,
+  Calendar, DollarSign, Wrench, TicketIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
+import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -46,16 +43,6 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
 const CoreClientProfile = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [newNote, setNewNote] = useState("");
-  const [addingNote, setAddingNote] = useState(false);
-  const notesScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const scrollNotes = (direction: "top" | "bottom") => {
-    const el = notesScrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: direction === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
-  };
 
   // ── Profile ──
   const { data: profile, isLoading: loadingProfile } = useQuery({
@@ -186,20 +173,6 @@ const CoreClientProfile = () => {
     enabled: !!clientId,
   });
 
-  // ── Internal notes ──
-  const { data: notes = [] } = useQuery({
-    queryKey: ["core-client-notes", clientId],
-    queryFn: async () => {
-      const { data } = await supabase.from("client_internal_notes")
-        .select("id, body, note_type, created_by_name, created_by_role, created_at")
-        .eq("client_id", clientId!)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      return data || [];
-    },
-    enabled: !!clientId,
-  });
-
   // ── Activity ──
   const { data: activityLogs = [] } = useQuery({
     queryKey: ["core-client-activity", clientId],
@@ -211,32 +184,6 @@ const CoreClientProfile = () => {
       return data || [];
     },
     enabled: !!clientId,
-  });
-
-  // ── Add note mutation ──
-  const addNoteMutation = useMutation({
-    mutationFn: async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error("Non authentifié");
-      const { data: prof } = await supabase.from("profiles")
-        .select("full_name").eq("user_id", currentUser.id).maybeSingle();
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: clientId!,
-        note_type: "admin",
-        body: newNote.trim(),
-        created_by_user_id: currentUser.id,
-        created_by_role: "admin",
-        created_by_name: prof?.full_name || currentUser.email || "Agent",
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-client-notes", clientId] });
-      setNewNote("");
-      setAddingNote(false);
-      toast.success("Note ajoutée");
-    },
-    onError: (e: any) => toast.error(e.message || "Erreur"),
   });
 
   if (loadingProfile) {
@@ -313,7 +260,6 @@ const CoreClientProfile = () => {
           </button>
           <button
             onClick={() => {
-              setAddingNote(true);
               requestAnimationFrame(() => {
                 document.getElementById("core-client-notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
               });
@@ -547,60 +493,8 @@ const CoreClientProfile = () => {
 
       {/* ═══ NOTES ═══ */}
       <div id="core-client-notes-section">
-        <Section title="Notes internes" icon={StickyNote} action={
-          <button onClick={() => setAddingNote(!addingNote)} className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1">
-            <Plus className="h-3 w-3" /> Ajouter
-          </button>
-        }>
-          {addingNote && (
-            <div className="mb-3 p-2 rounded bg-[hsl(220,20%,9%)] border border-emerald-500/20">
-              <Textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Écrire une note..."
-                rows={2} className="bg-transparent border-none text-white text-xs p-0 focus-visible:ring-0 resize-none" />
-              <div className="flex justify-end gap-2 mt-2">
-                <Button variant="ghost" size="sm" onClick={() => setAddingNote(false)} className="h-6 text-[10px] text-[#A1A1AA]">Annuler</Button>
-                <Button size="sm" onClick={() => addNoteMutation.mutate()} disabled={!newNote.trim() || addNoteMutation.isPending}
-                  className="h-6 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white">
-                  {addNoteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sauvegarder"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {notes.length > 0 ? (
-            <>
-              <div className="mb-2 flex items-center justify-end gap-1">
-                <button
-                  onClick={() => scrollNotes("top")}
-                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-[hsl(220,10%,45%)] hover:text-white transition-colors inline-flex items-center gap-1"
-                >
-                  <ChevronUp className="h-3 w-3" /> Haut
-                </button>
-                <button
-                  onClick={() => scrollNotes("bottom")}
-                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-[hsl(220,10%,45%)] hover:text-white transition-colors inline-flex items-center gap-1"
-                >
-                  <ChevronDown className="h-3 w-3" /> Bas
-                </button>
-              </div>
-
-              <div ref={notesScrollRef} className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                {notes.map((n: any) => (
-                  <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2.5">
-                    <p className="text-[11px] text-white whitespace-pre-wrap">{n.body}</p>
-                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[hsl(220,10%,35%)]">
-                      <span>{n.created_by_name || "Agent"}</span>
-                      <span>·</span>
-                      <span className="capitalize">{n.created_by_role || ""}</span>
-                      <span>·</span>
-                      <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune note</p>
-          )}
+        <Section title="Notes internes" icon={StickyNote}>
+          <ClientNotesPanel clientId={clientId} />
         </Section>
       </div>
 

@@ -2,17 +2,10 @@
  * Account360RightPanel — Persistent right-side summary panel for Account 360.
  * Shows account info, billing cycle, financial summary, KYC, and notes.
  */
-import { useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Panel, PanelHeader, InfoLine, fmtCAD, fmtDate, label } from "./Account360Helpers";
-import {
-  CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin, Loader2, Plus, ChevronUp, ChevronDown,
-} from "lucide-react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin } from "lucide-react";
+import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
 interface Props {
   account: any;
@@ -30,61 +23,9 @@ interface Props {
 
 export function Account360RightPanel({
   account, profile, clientName, latestKyc, totalDue, totalPaid,
-  monthlyRevenue, unpaidCount, accountId, clientId, onRefresh,
+  monthlyRevenue, unpaidCount, clientId, onRefresh,
 }: Props) {
   const acct = account;
-  const queryClient = useQueryClient();
-  const [noteText, setNoteText] = useState("");
-  const [showNote, setShowNote] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const notesScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const scrollNotes = (direction: "top" | "bottom") => {
-    const el = notesScrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: direction === "top" ? 0 : el.scrollHeight, behavior: "smooth" });
-  };
-
-  // Fetch existing notes
-  const { data: notes = [], isLoading: loadingNotes } = useQuery({
-    queryKey: ["account-360-notes", clientId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("client_internal_notes")
-        .select("id, body, note_type, created_by_name, created_by_role, created_at")
-        .eq("client_id", clientId!)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      return data || [];
-    },
-    enabled: !!clientId,
-  });
-
-  const addNote = async () => {
-    if (!noteText.trim() || !clientId) return;
-    setSaving(true);
-    try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error("Non authentifié");
-      const { data: prof } = await supabase.from("profiles")
-        .select("full_name").eq("user_id", currentUser.id).maybeSingle();
-      const { error } = await supabase.from("client_internal_notes").insert({
-        client_id: clientId,
-        note_type: "admin",
-        body: noteText.trim(),
-        created_by_user_id: currentUser.id,
-        created_by_role: "admin",
-        created_by_name: prof?.full_name || currentUser.email || "Agent",
-      });
-      if (error) throw error;
-      toast.success("Note ajoutée");
-      setNoteText(""); setShowNote(false);
-      queryClient.invalidateQueries({ queryKey: ["account-360-notes", clientId] });
-      queryClient.invalidateQueries({ queryKey: ["core-client-notes", clientId] });
-      onRefresh();
-    } catch (e: any) { toast.error(e.message || "Erreur"); }
-    finally { setSaving(false); }
-  };
 
   return (
     <div className="space-y-3 self-start lg:sticky lg:top-4">
@@ -164,65 +105,8 @@ export function Account360RightPanel({
       {/* Notes */}
       <Panel>
         <PanelHeader icon={StickyNote} title="Notes internes" />
-        <div className="p-2 space-y-2">
-          {!showNote ? (
-            <button onClick={() => setShowNote(true)} className="w-full flex items-center justify-center gap-1 text-[10px] text-core-text-label hover:text-core-text-primary transition-colors py-1">
-              <Plus className="h-3 w-3" /> Ajouter une note
-            </button>
-          ) : (
-            <div className="space-y-1.5">
-              <textarea
-                value={noteText}
-                onChange={e => setNoteText(e.target.value)}
-                placeholder="Note interne…"
-                rows={2}
-                className="w-full rounded-md border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)] px-2.5 py-1.5 text-[11px] text-core-text-primary placeholder:text-core-text-disabled outline-none focus:border-emerald-500/50 resize-none"
-              />
-              <div className="flex gap-1.5">
-                <button onClick={() => setShowNote(false)} className="flex-1 rounded-md border border-[hsl(220,15%,16%)] px-2 py-1 text-[10px] text-core-text-label hover:text-core-text-primary transition-colors">Annuler</button>
-                <button onClick={addNote} disabled={saving || !noteText.trim()} className="flex-1 rounded-md bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors">
-                  {saving ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : "Enregistrer"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Existing notes list */}
-          {loadingNotes ? (
-            <div className="flex justify-center py-2"><Loader2 className="h-3.5 w-3.5 animate-spin text-core-text-disabled" /></div>
-          ) : notes.length > 0 ? (
-            <>
-              <div className="flex items-center justify-end gap-1">
-                <button
-                  onClick={() => scrollNotes("top")}
-                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-core-text-label hover:text-core-text-primary transition-colors inline-flex items-center gap-1"
-                >
-                  <ChevronUp className="h-3 w-3" /> Haut
-                </button>
-                <button
-                  onClick={() => scrollNotes("bottom")}
-                  className="h-6 px-2 rounded-md border border-[hsl(220,15%,16%)] text-[10px] text-core-text-label hover:text-core-text-primary transition-colors inline-flex items-center gap-1"
-                >
-                  <ChevronDown className="h-3 w-3" /> Bas
-                </button>
-              </div>
-
-              <div ref={notesScrollRef} className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
-                {notes.map((n: any) => (
-                  <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2">
-                    <p className="text-[10px] text-core-text-primary whitespace-pre-wrap leading-relaxed">{n.body}</p>
-                    <div className="flex items-center gap-1 mt-1 text-[9px] text-core-text-disabled">
-                      <span>{n.created_by_name || "Agent"}</span>
-                      <span>·</span>
-                      <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-[10px] text-core-text-disabled text-center py-2">Aucune note</p>
-          )}
+        <div className="p-2">
+          <ClientNotesPanel clientId={clientId} compact onMutationSuccess={onRefresh} />
         </div>
       </Panel>
     </div>
