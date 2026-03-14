@@ -116,6 +116,7 @@ export const coreRoutes: RouteObject = {
     { path: "invoices", element: <InvoicesPage /> },
     { path: "invoices/:invoiceId", element: <CoreInvoiceDetail /> },
     { path: "payments", element: <PaymentsPage /> },
+    { path: "transactions", element: <CoreTransactionsPage /> },
     { path: "subscriptions", element: <SubscriptionsPage /> },
     { path: "subscriptions/:id", element: <SubscriptionDetailPage /> },
     { path: "pdf-templates", element: <CorePDFTemplatesPage /> },
