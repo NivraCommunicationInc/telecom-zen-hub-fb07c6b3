@@ -274,11 +274,11 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
             </div>
             <Button
               onClick={handlePayNow}
-              disabled={isProcessing || processPaymentMutation.isPending}
+              disabled={isProcessing}
               className="w-full h-12 text-lg"
               size="lg"
             >
-              {isProcessing || processPaymentMutation.isPending ? (
+              {isProcessing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Traitement en cours...
