@@ -1,17 +1,21 @@
 /**
  * Invoice detail drawer — full invoice file with breakdown, links, actions
+ * ALL action buttons are wired to real DB operations.
  */
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { INVOICE_STATUSES, INVOICE_TYPES, fmtCAD } from "./InvoiceConstants";
 import type { AdminInvoice } from "@/core-app/hooks/useAdminInvoices";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   X, User, FileText, ShoppingCart, CreditCard, Hash, Calendar,
   CheckCircle2, XCircle, AlertTriangle, Send, Download, DollarSign,
-  ExternalLink, Copy, MessageSquare, RefreshCcw,
+  ExternalLink, Copy, MessageSquare, RefreshCcw, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,6 +63,9 @@ function BreakdownRow({ label, value, bold, negative }: { label: string; value: 
 }
 
 export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
+  const queryClient = useQueryClient();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
   if (!invoice) return null;
   const inv = invoice;
   const statusLabel = INVOICE_STATUSES[inv.status ?? ""] || inv.status || "—";
@@ -68,6 +75,121 @@ export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
   const isVoid = inv.status === "void" || inv.status === "cancelled";
   const isDisputed = inv.status === "disputed";
   const taxes = (inv.tps_amount ?? 0) + (inv.tvq_amount ?? 0);
+
+  const refreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-invoices"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-payments-v2"] });
+  };
+
+  const handleMarkPaid = async () => {
+    setActionLoading("markPaid");
+    try {
+      const now = new Date().toISOString();
+      // Create a payment record
+      const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+      const { error: payErr } = await supabase.from("billing_payments").insert({
+        invoice_id: inv.id,
+        customer_id: inv.customer_id,
+        amount: inv.balance_due ?? inv.total,
+        method: "manual" as const,
+        status: "confirmed" as const,
+        payment_number: paymentNumber,
+        reference: "Marquée payée depuis dossier facture",
+        source: "admin_invoice_drawer",
+        received_at: now,
+        created_by_name: "Admin",
+        created_by_role: "admin",
+      });
+      if (payErr) throw payErr;
+
+      // Update invoice
+      const { error: invErr } = await supabase.from("billing_invoices").update({
+        status: "paid" as any,
+        paid_at: now,
+        amount_paid: inv.total,
+        balance_due: 0,
+      }).eq("id", inv.id);
+      if (invErr) throw invErr;
+
+      toast.success(`Facture ${inv.invoice_number} marquée payée`);
+      refreshAll();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    setActionLoading("send");
+    try {
+      const recipientEmail = inv.customer_email;
+      if (!recipientEmail) {
+        toast.error("Aucune adresse courriel trouvée pour ce client");
+        return;
+      }
+      const eventKey = `manual_invoice_sent_${inv.id}_${Date.now()}`;
+      const { error } = await supabase.from("email_queue").insert({
+        event_key: eventKey,
+        template_key: "invoice_sent",
+        to_email: recipientEmail,
+        subject: `Facture ${inv.invoice_number}`,
+        template_vars: {
+          invoice_number: inv.invoice_number,
+          total: inv.total,
+          due_date: inv.due_date,
+          balance_due: inv.balance_due,
+          manual_send: true,
+        },
+        entity_type: "invoice",
+        entity_id: inv.id,
+        message_type: "invoice_sent",
+        status: "queued",
+      });
+      if (error) throw error;
+      toast.success(`Facture envoyée à ${recipientEmail}`);
+      refreshAll();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur d'envoi");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleVoidInvoice = async () => {
+    setActionLoading("void");
+    try {
+      const { error } = await supabase.from("billing_invoices").update({
+        status: "void" as any,
+      }).eq("id", inv.id);
+      if (error) throw error;
+      toast.success(`Facture ${inv.invoice_number} annulée`);
+      refreshAll();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDispute = async () => {
+    setActionLoading("dispute");
+    try {
+      const { error } = await supabase.from("billing_invoices").update({
+        status: "disputed" as any,
+      }).eq("id", inv.id);
+      if (error) throw error;
+      toast.success(`Litige ouvert pour ${inv.invoice_number}`);
+      refreshAll();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -199,16 +321,16 @@ export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
               </Link>
 
               {hasBalance && !isVoid && (
-                <ActionBtn icon={CreditCard} label="Enregistrer paiement" color="emerald" />
+                <ActionBtn icon={CreditCard} label="Enregistrer paiement" color="emerald" onClick={handleMarkPaid} loading={actionLoading === "markPaid"} />
               )}
               {!isPaid && !isVoid && (
                 <>
-                  <ActionBtn icon={Send} label="Renvoyer facture" color="sky" />
-                  <ActionBtn icon={XCircle} label="Annuler facture" color="red" />
+                  <ActionBtn icon={Send} label="Renvoyer facture" color="sky" onClick={handleSendInvoice} loading={actionLoading === "send"} />
+                  <ActionBtn icon={XCircle} label="Annuler facture" color="red" onClick={handleVoidInvoice} loading={actionLoading === "void"} />
                 </>
               )}
               {!isDisputed && !isVoid && (
-                <ActionBtn icon={AlertTriangle} label="Ouvrir litige" color="orange" />
+                <ActionBtn icon={AlertTriangle} label="Ouvrir litige" color="orange" onClick={handleDispute} loading={actionLoading === "dispute"} />
               )}
 
               <Link to={corePath(`/accounts/${inv.customer_id}`)}>
@@ -228,7 +350,7 @@ export function InvoiceDetailDrawer({ invoice, onClose }: Props) {
   );
 }
 
-function ActionBtn({ icon: Icon, label, color }: { icon: any; label: string; color: string }) {
+function ActionBtn({ icon: Icon, label, color, onClick, loading }: { icon: any; label: string; color: string; onClick?: () => void; loading?: boolean }) {
   const colorMap: Record<string, string> = {
     emerald: "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10",
     red: "border-red-500/30 text-red-400 hover:bg-red-500/10",
@@ -238,8 +360,12 @@ function ActionBtn({ icon: Icon, label, color }: { icon: any; label: string; col
     violet: "border-violet-500/30 text-violet-400 hover:bg-violet-500/10",
   };
   return (
-    <button className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors w-full ${colorMap[color] || colorMap.sky}`}>
-      <Icon className="h-3.5 w-3.5" />
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors w-full disabled:opacity-50 ${colorMap[color] || colorMap.sky}`}
+    >
+      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
       {label}
     </button>
   );
