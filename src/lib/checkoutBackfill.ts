@@ -365,10 +365,10 @@ export async function backfillCheckoutToSupabase(
           await supabase.from("billing_subscription_services").upsert(
             {
               subscription_id: subscriptionId,
-              service_name: eq.name || eq.label || "Équipement",
-              service_code: eq.code || eq.type || "equipment",
+              service_name: eq.name || "Équipement",
+              service_code: eq.sku || "equipment",
               service_type: "one_time",
-              unit_price: Number(eq.price) || 0,
+              unit_price: Number(eq.unit_price) || 0,
               quantity: Number(eq.quantity) || 1,
               is_active: true,
             },
