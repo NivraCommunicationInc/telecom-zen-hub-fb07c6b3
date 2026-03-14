@@ -2085,6 +2085,16 @@ const ClientNewOrder = () => {
         id: nivraCheckoutResponse.order_id,
         order_number: nivraCheckoutResponse.order_number,
         payment_reference: nivraCheckoutResponse.payment_number,
+        pricing_snapshot: serverPricing,
+        service_type: selectedServices.map(s => s.name).join(", "),
+        installation_type: orderInstallationType,
+        delivery_method: isDeliveryOnlyOrder ? deliveryChoice : installationChoice,
+        appointment_date: selectedDate || null,
+        appointment_time: selectedTime || null,
+        shipping_address: serviceAddressStreet,
+        shipping_city: serviceAddressCity,
+        shipping_province: serviceAddressProvince || "QC",
+        shipping_postal_code: serviceAddressPostalCode,
       };
 
       let nivraPaymentRef = nivraCheckoutResponse.payment_number;
