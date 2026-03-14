@@ -51,7 +51,7 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
   const [payOpen, setPayOpen] = useState(false);
   const [payInvoice, setPayInvoice] = useState<any>(null);
   const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<"interac" | "manual" | "paypal">("interac");
+  const [payMethod, setPayMethod] = useState("interac");
   const [payRef, setPayRef] = useState("");
   const [saving, setSaving] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
