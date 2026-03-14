@@ -271,6 +271,7 @@ const ClientMyServices = () => {
         .from("billing_payments")
         .select("id, payment_number, amount, method, status, reference, created_at")
         .eq("customer_id", customer.id)
+        .in("status", ["confirmed", "pending", "in_verification"])
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;

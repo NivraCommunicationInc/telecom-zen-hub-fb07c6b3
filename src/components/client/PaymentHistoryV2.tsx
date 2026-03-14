@@ -57,12 +57,12 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
         .order('created_at', { ascending: false })
         .limit(50);
 
-      // Fetch payments (credits)
+      // Fetch payments (credits) — exclude failed/cancelled to avoid confusing duplicates
       const { data: payments } = await portalClient
         .from('billing_payments')
         .select('id, reference, created_at, amount, status, method')
         .eq('customer_id', customer.id)
-        .eq('status', 'confirmed')
+        .in('status', ['confirmed', 'pending', 'in_verification'])
         .order('created_at', { ascending: false })
         .limit(50);
 
