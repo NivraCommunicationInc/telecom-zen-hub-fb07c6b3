@@ -77,6 +77,44 @@ export async function backfillCheckoutToSupabase(
 
   const customerId = result.billing_customer_id;
 
+  // ── 1b. Upsert accounts record (canonical account linkage) ──
+  let resolvedAccountId: string | null = payload.account_id || null;
+  try {
+    const { data: existingAcct } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("client_id", userId)
+      .maybeSingle();
+
+    if (existingAcct) {
+      resolvedAccountId = existingAcct.id;
+    } else if (response.account_number) {
+      const { data: newAcct, error: acctErr } = await supabase
+        .from("accounts")
+        .insert({
+          client_id: userId,
+          account_number: response.account_number,
+          status: "active",
+          primary_service_address: payload.service_address?.street || null,
+          primary_service_city: payload.service_address?.city || null,
+          primary_service_province: payload.service_address?.province || "QC",
+          primary_service_postal_code: payload.service_address?.postal_code || null,
+        })
+        .select("id")
+        .single();
+      if (acctErr) {
+        console.error("[Backfill] accounts insert error:", acctErr);
+        result.errors.push(`account: ${acctErr.message}`);
+      } else {
+        resolvedAccountId = newAcct.id;
+        console.log("[Backfill] ✓ Account created:", response.account_number);
+      }
+    }
+  } catch (e: any) {
+    console.error("[Backfill] accounts exception:", e);
+    result.errors.push(`account: ${e.message}`);
+  }
+
   // ── 2. Upsert order ──
   try {
     const paymentMethod = payload.payment.method;
@@ -94,7 +132,7 @@ export async function backfillCheckoutToSupabase(
         id: response.order_id,
         order_number: response.order_number,
         user_id: userId,
-        account_id: payload.account_id || null,
+        account_id: resolvedAccountId,
         status: "submitted",
         payment_status: paymentStatus,
         service_type: payload.services.map((s) => s.name).join(", "),

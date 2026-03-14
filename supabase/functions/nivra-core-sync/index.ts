@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
       }
       results.customer_id = customerId;
 
-      // ── 2. Resolve account_id from accounts table ──
+      // ── 2. Resolve or create account ──
       let accountId: string | null = null;
       try {
         const { data: acct } = await admin
@@ -171,8 +171,32 @@ Deno.serve(async (req) => {
           .select("id")
           .eq("client_id", payload.customer.user_id)
           .maybeSingle();
-        if (acct) accountId = acct.id;
-      } catch { /* non-blocking */ }
+        if (acct) {
+          accountId = acct.id;
+        } else if (payload.account?.account_number) {
+          const { data: newAcct, error: acctErr } = await admin
+            .from("accounts")
+            .insert({
+              client_id: payload.customer.user_id,
+              account_number: payload.account.account_number,
+              status: "active",
+              primary_service_address: payload.order.service_address || null,
+              primary_service_city: payload.order.service_city || null,
+              primary_service_province: payload.order.service_province || "QC",
+              primary_service_postal_code: payload.order.service_postal_code || null,
+            })
+            .select("id")
+            .single();
+          if (acctErr) {
+            console.error("[nivra-core-sync] Account create error:", acctErr);
+          } else {
+            accountId = newAcct.id;
+            console.log("[nivra-core-sync] ✓ Account created:", payload.account.account_number);
+          }
+        }
+      } catch (e: any) {
+        console.warn("[nivra-core-sync] Account resolution error (non-blocking):", e);
+      }
 
       // ── 3. Upsert order ──
       const { error: orderErr } = await admin.from("orders").upsert(
