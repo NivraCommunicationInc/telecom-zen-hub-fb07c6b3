@@ -81,6 +81,13 @@ const PaymentReturn = () => {
         console.error("[PaymentReturn] Capture error:", err);
         setStatus("error");
         setErrorMsg(err?.message || "Erreur lors de la confirmation du paiement.");
+
+        // ★ TRACEABILITY: Log payment capture failure
+        logPaymentFailed({
+          error_message: err?.message || "Capture failed",
+          paypal_order_id: token,
+          method: "paypal",
+        });
       }
     };
 
