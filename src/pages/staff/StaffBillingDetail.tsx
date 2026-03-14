@@ -1,7 +1,6 @@
 /**
  * StaffBillingDetail - Billing/Invoice detail page for staff portal
- * Completely isolated from admin - stays within /staff namespace
- * NOW INCLUDES: Payment recording (Interac, cash, manual)
+ * Migrated to canonical billing_invoices + billing_payments tables
  */
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -15,7 +14,6 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { StaffSidebar } from "@/components/staff/StaffSidebar";
-import { StaffRecordPaymentDialog } from "@/components/staff/StaffRecordPaymentDialog";
 
 // PREPAID TERMINOLOGY - V2.5 Compliant (no debt language: impayé/dette/overdue)
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -26,48 +24,40 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   void: { label: "Annulé (non-renouvellement)", color: "bg-muted text-muted-foreground border-muted", icon: FileText },
   not_renewed: { label: "Non renouvelé", color: "bg-muted text-muted-foreground border-muted", icon: FileText },
   partial: { label: "Paiement partiel", color: "bg-orange-500/20 text-orange-400 border-orange-500/30", icon: Clock },
+  partially_paid: { label: "Paiement partiel", color: "bg-orange-500/20 text-orange-400 border-orange-500/30", icon: Clock },
   cancelled: { label: "Annulé", color: "bg-slate-500/20 text-slate-400 border-slate-500/30", icon: FileText },
   suspended: { label: "Suspendu (litige)", color: "bg-purple-500/20 text-purple-400 border-purple-500/30", icon: AlertTriangle },
+  disputed: { label: "En litige", color: "bg-purple-500/20 text-purple-400 border-purple-500/30", icon: AlertTriangle },
 };
 
 export default function StaffBillingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data: invoice, isLoading, refetch } = useQuery({
+  const { data: invoice, isLoading } = useQuery({
     queryKey: ["staff-billing-detail", id],
     queryFn: async () => {
+      // Read from canonical billing_invoices
       const { data: invoiceData, error } = await supabase
-        .from("billing")
-        .select("*")
+        .from("billing_invoices")
+        .select("*, customer:billing_customers(id, email, first_name, last_name, phone, user_id)")
         .eq("id", id)
         .single();
 
       if (error) throw error;
 
-      // Fetch profile separately
-      let profileData = null;
-      if (invoiceData?.user_id) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name, email, phone")
-          .eq("user_id", invoiceData.user_id)
-          .maybeSingle();
-        profileData = profile;
-      }
-
-      // Fetch payment history
+      // Fetch payment history from canonical billing_payments
       let payments: any[] = [];
       if (invoiceData?.id) {
         const { data: paymentData } = await supabase
-          .from("payments")
+          .from("billing_payments")
           .select("*")
-          .eq("billing_id", invoiceData.id)
+          .eq("invoice_id", invoiceData.id)
           .order("created_at", { ascending: false });
         payments = paymentData || [];
       }
 
-      return { ...invoiceData, profile: profileData, payments };
+      return { ...invoiceData, payments };
     },
     enabled: !!id,
   });
@@ -100,9 +90,12 @@ export default function StaffBillingDetail() {
     );
   }
 
-  const balanceDue = Math.max(0, (invoice.amount || 0) - (invoice.amount_paid || 0));
+  const balanceDue = Math.max(0, (invoice.total || 0) - (invoice.amount_paid || 0));
   const status = statusConfig[invoice.status] || statusConfig.pending;
   const StatusIcon = status.icon;
+  const customerName = invoice.customer 
+    ? `${invoice.customer.first_name || ""} ${invoice.customer.last_name || ""}`.trim()
+    : "N/A";
 
   return (
     <div className="min-h-screen flex relative">
@@ -131,22 +124,10 @@ export default function StaffBillingDetail() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge className={status.color}>
-              <StatusIcon className="h-3 w-3 mr-1" />
-              {status.label}
-            </Badge>
-            {balanceDue > 0 && (
-              <StaffRecordPaymentDialog
-                billingId={invoice.id}
-                userId={invoice.user_id}
-                balanceDue={balanceDue}
-                invoiceNumber={invoice.invoice_number}
-                clientEmail={invoice.profile?.email || invoice.client_email}
-                onSuccess={() => refetch()}
-              />
-            )}
-          </div>
+          <Badge className={status.color}>
+            <StatusIcon className="h-3 w-3 mr-1" />
+            {status.label}
+          </Badge>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -161,21 +142,21 @@ export default function StaffBillingDetail() {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-slate-500 text-sm">Nom</p>
-                <p className="text-white font-medium">{invoice.profile?.full_name || "N/A"}</p>
+                <p className="text-white font-medium">{customerName}</p>
               </div>
               <div>
                 <p className="text-slate-500 text-sm">Email</p>
-                <p className="text-white">{invoice.profile?.email || invoice.client_email || "N/A"}</p>
+                <p className="text-white">{invoice.customer?.email || "N/A"}</p>
               </div>
               <div>
                 <p className="text-slate-500 text-sm">Téléphone</p>
-                <p className="text-white">{invoice.profile?.phone || "N/A"}</p>
+                <p className="text-white">{invoice.customer?.phone || "N/A"}</p>
               </div>
-              {invoice.user_id && (
+              {invoice.customer?.user_id && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/staff/clients/${invoice.user_id}`)}
+                  onClick={() => navigate(`/staff/clients/${invoice.customer.user_id}`)}
                   className="w-full mt-4 border-slate-700 text-slate-300 hover:bg-slate-800"
                 >
                   Voir le dossier client
@@ -205,20 +186,20 @@ export default function StaffBillingDetail() {
                 <span className="text-slate-400">TVQ (9.975%)</span>
                 <span className="text-white">{invoice.tvq_amount?.toFixed(2) || "0.00"} $</span>
               </div>
-              {invoice.fees && invoice.fees > 0 && (
+              {invoice.fees && Number(invoice.fees) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-slate-400">Frais</span>
-                  <span className="text-white">{invoice.fees?.toFixed(2)} $</span>
+                  <span className="text-white">{Number(invoice.fees).toFixed(2)} $</span>
                 </div>
               )}
               <Separator className="bg-slate-700" />
               <div className="flex justify-between text-lg font-semibold">
                 <span className="text-white">Total</span>
-                <span className="text-white">{invoice.amount?.toFixed(2) || "0.00"} $</span>
+                <span className="text-white">{invoice.total?.toFixed(2) || "0.00"} $</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Montant payé</span>
-                <span className="text-emerald-400">{invoice.amount_paid?.toFixed(2) || "0.00"} $</span>
+                <span className="text-emerald-400">{(invoice.amount_paid || 0).toFixed(2)} $</span>
               </div>
               <Separator className="bg-slate-700" />
               <div className="flex justify-between text-lg font-bold">
@@ -280,14 +261,14 @@ export default function StaffBillingDetail() {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="text-white font-medium">{payment.amount?.toFixed(2)} $</p>
-                          <p className="text-xs text-slate-500 capitalize">{payment.payment_method || "—"}</p>
+                          <p className="text-xs text-slate-500 capitalize">{payment.method || "—"}</p>
                         </div>
                         <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
-                          {payment.status === "completed" ? "Confirmé" : payment.status}
+                          {payment.status === "confirmed" ? "Confirmé" : payment.status}
                         </Badge>
                       </div>
                       <div className="flex justify-between text-xs text-slate-400">
-                        <span>{payment.reference_number || "—"}</span>
+                        <span>{payment.reference || payment.provider_payment_id || "—"}</span>
                         <span>{format(new Date(payment.created_at), "d MMM yyyy HH:mm", { locale: fr })}</span>
                       </div>
                       {payment.created_by_name && (

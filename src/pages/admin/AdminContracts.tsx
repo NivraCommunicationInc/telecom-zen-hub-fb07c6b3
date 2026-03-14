@@ -203,10 +203,10 @@ const AdminContracts = () => {
     queryFn: async () => {
       const services: ActiveService[] = [];
       
-      // Get active subscriptions
+      // Get active subscriptions from canonical billing_subscriptions
       const { data: subscriptions } = await supabase
-        .from("subscriptions")
-        .select("*")
+        .from("billing_subscriptions")
+        .select("*, customer:billing_customers(id, user_id, email, first_name, last_name)")
         .eq("status", "active");
       
       // Get completed/delivered orders

@@ -153,29 +153,16 @@ const AdminRecouvrement = () => {
         .select("user_id, full_name, email")
         .in("user_id", finalClientIds);
 
-      // Combine all invoices for lookup
-      const allMonthlyInvoices = [...(overdueMonthlyInvoices || []), ...(pastDueMonthly || [])];
-      const allBillingInvoices = [...(overdueBillingInvoices || []), ...(pastDueBilling || [])];
+      // Build invoice lookup from canonical data
+      const allInvoices = overdueInvoices || [];
 
       const enrichedAccounts: RecoveryAccount[] = uniqueAccounts.map(account => {
         const profile = profiles?.find(p => p.user_id === account.client_id);
         
         // Find the oldest unpaid invoice for this client
-        const clientMonthlyInvoices = allMonthlyInvoices.filter(i => i.client_id === account.client_id);
-        const clientBillingInvoices = allBillingInvoices.filter(i => i.user_id === account.client_id);
+        const clientInvoices = allInvoices.filter((i: any) => i.customer?.user_id === account.client_id);
         
-        // Get the oldest invoice (earliest due date)
-        const oldestMonthly = clientMonthlyInvoices[0];
-        const oldestBilling = clientBillingInvoices[0];
-        
-        let latestInvoice: any = null;
-        if (oldestMonthly && oldestBilling) {
-          latestInvoice = new Date(oldestMonthly.due_date) < new Date(oldestBilling.due_date) 
-            ? oldestMonthly 
-            : oldestBilling;
-        } else {
-          latestInvoice = oldestMonthly || oldestBilling;
-        }
+        const latestInvoice = clientInvoices[0];
         
         let daysSince = 0;
         if (latestInvoice?.due_date) {
@@ -188,9 +175,9 @@ const AdminRecouvrement = () => {
           client_email: profile?.email,
           latest_invoice_id: latestInvoice?.id,
           latest_invoice_number: latestInvoice?.invoice_number,
-          latest_invoice_amount: latestInvoice?.total || latestInvoice?.amount || 0,
+          latest_invoice_amount: latestInvoice?.total || 0,
           latest_invoice_due_date: latestInvoice?.due_date,
-          payment_method: latestInvoice?.payment_reference?.includes("etransfer") ? "etransfer" : "credit_card",
+          payment_method: "interac",
           days_since_suspension: daysSince,
         };
       });
