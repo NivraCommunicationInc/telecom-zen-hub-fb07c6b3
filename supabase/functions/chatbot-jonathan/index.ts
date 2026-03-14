@@ -434,21 +434,7 @@ async function handleToolCall(
           .single();
         
         if (!customer) {
-          // Fallback to legacy billing table
-          let query = supabase
-            .from("billing")
-            .select("invoice_number, amount, status, due_date, paid_at, created_at")
-            .eq("user_id", effectiveUserId)
-            .order("created_at", { ascending: false });
-          
-          if (args.status_filter && args.status_filter !== "all") {
-            query = query.eq("status", args.status_filter);
-          }
-          
-          const { data: invoices } = await query.limit(10);
-          
-          if (!invoices?.length) return { result: fr ? "Aucune facture trouvée." : "No invoices found." };
-          return { result: JSON.stringify(invoices) };
+          return { result: fr ? "Aucune facture trouvée." : "No invoices found." };
         }
         
         // Use V2 invoices
@@ -538,12 +524,23 @@ async function handleToolCall(
           };
         }
         
-        const { data: invoice } = await supabase
-          .from("billing")
-          .select("id, invoice_number")
+        // Resolve via canonical billing_invoices
+        const { data: custForDl } = await supabase
+          .from("billing_customers")
+          .select("id")
           .eq("user_id", effectiveUserId)
-          .eq("invoice_number", args.invoice_number as string)
-          .single();
+          .maybeSingle();
+
+        let invoice: any = null;
+        if (custForDl) {
+          const { data } = await supabase
+            .from("billing_invoices")
+            .select("id, invoice_number")
+            .eq("customer_id", custForDl.id)
+            .eq("invoice_number", args.invoice_number as string)
+            .maybeSingle();
+          invoice = data;
+        }
         
         if (!invoice) return { result: fr ? "Facture non trouvée." : "Invoice not found." };
         

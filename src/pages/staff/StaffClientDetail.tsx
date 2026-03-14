@@ -138,20 +138,36 @@ export default function StaffClientDetail() {
     enabled: !!clientId && hasVerifiedAccess,
   });
 
-  // Fetch client billing
+  // Fetch client billing from canonical billing_invoices
   const { data: billing } = useQuery({
     queryKey: ["staff-client-billing", clientId],
     queryFn: async () => {
       if (!clientId) return [];
-      const { data, error } = await supabase
-        .from("billing")
-        .select("*")
+      // Resolve billing_customer
+      const { data: customer } = await supabase
+        .from("billing_customers")
+        .select("id")
         .eq("user_id", clientId)
+        .maybeSingle();
+      if (!customer) return [];
+      const { data, error } = await supabase
+        .from("billing_invoices")
+        .select("id, invoice_number, total, balance_due, status, due_date, created_at, paid_at")
+        .eq("customer_id", customer.id)
         .order("created_at", { ascending: false })
         .limit(20);
-      
       if (error) throw error;
-      return data || [];
+      // Map to legacy shape used by template
+      return (data || []).map((inv: any) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        amount: inv.total,
+        balance_due: inv.balance_due,
+        status: inv.status,
+        due_date: inv.due_date,
+        created_at: inv.created_at,
+        paid_at: inv.paid_at,
+      }));
     },
     enabled: !!clientId && hasVerifiedAccess,
   });

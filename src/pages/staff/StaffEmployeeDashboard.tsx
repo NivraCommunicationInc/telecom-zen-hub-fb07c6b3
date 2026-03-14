@@ -123,7 +123,7 @@ export default function StaffEmployeeDashboard() {
         Promise.all([
           supabase.from("orders").select("id", { count: "exact", head: true }).in("status", ["pending", "processing"]),
           supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
-          supabase.from("billing").select("id", { count: "exact", head: true }).eq("status", "pending"),
+          supabase.from("billing_invoices").select("id", { count: "exact", head: true }).eq("status", "pending"),
           supabase.from("profiles").select("id", { count: "exact", head: true }),
         ]),
       ]);

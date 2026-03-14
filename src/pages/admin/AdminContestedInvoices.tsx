@@ -64,12 +64,11 @@ export default function AdminContestedInvoices() {
   const { data: invoices, isLoading, refetch, isError } = useQuery({
     queryKey: ["admin-contested-invoices"],
     queryFn: async () => {
-      // Query billing table for disputed/contested invoices
-      // Include any status that could indicate a dispute
+      // Query canonical billing_invoices for disputed/contested invoices
       const { data, error } = await supabase
-        .from("billing")
-        .select("*")
-        .or("status.eq.disputed,status.eq.contested,status.eq.chargeback,status.ilike.%dispute%")
+        .from("billing_invoices")
+        .select("*, customer:billing_customers(email, first_name, last_name)")
+        .in("status", ["disputed", "contested"])
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -83,22 +82,45 @@ export default function AdminContestedInvoices() {
 
       const disputedPaymentIds = new Set(disputeLinks?.map((d) => d.payment_id) || []);
 
+      // Map canonical fields to the shape used by the template
+      const mapInvoice = (inv: any) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        client_email: inv.customer?.email || "",
+        user_id: inv.customer_id,
+        amount: inv.total,
+        status: inv.status,
+        created_at: inv.created_at,
+      });
+
+      const mapped = (data || []).map(mapInvoice);
+
       // Fetch invoices that have disputes but might not have disputed status
       if (disputedPaymentIds.size > 0) {
-        const { data: additionalInvoices, error: additionalError } = await supabase
-          .from("billing")
-          .select("*")
-          .in("id", Array.from(disputedPaymentIds))
-          .not("status", "eq", "disputed"); // Avoid duplicates
+        const { data: disputePayments } = await supabase
+          .from("billing_payments")
+          .select("invoice_id")
+          .in("id", Array.from(disputedPaymentIds));
 
-        if (!additionalError && additionalInvoices) {
-          return [...(data || []), ...additionalInvoices].sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+        const invoiceIds = new Set(disputePayments?.map((p: any) => p.invoice_id) || []);
+        const existingIds = new Set(mapped.map((i: any) => i.id));
+        const missingIds = [...invoiceIds].filter(id => !existingIds.has(id));
+
+        if (missingIds.length > 0) {
+          const { data: additionalInvoices } = await supabase
+            .from("billing_invoices")
+            .select("*, customer:billing_customers(email, first_name, last_name)")
+            .in("id", missingIds);
+
+          if (additionalInvoices) {
+            mapped.push(...additionalInvoices.map(mapInvoice));
+          }
         }
       }
 
-      return data || [];
+      return mapped.sort(
+        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
     },
   });
 

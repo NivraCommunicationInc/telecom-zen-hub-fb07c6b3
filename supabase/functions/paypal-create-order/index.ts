@@ -112,20 +112,8 @@ serve(async (req) => {
         invoiceNumber = v2Invoice.invoice_number;
         console.log("[PayPal] Amount from billing_invoices:", amount, "Invoice:", invoiceNumber);
       } else {
-        // Try legacy billing table
-        const { data: legacyInvoice } = await supabase
-          .from("billing")
-          .select("amount, amount_paid, balance_due, invoice_number")
-          .eq("id", body.invoice_id)
-          .maybeSingle();
-
-        if (legacyInvoice) {
-          const total = Number(legacyInvoice.amount) || 0;
-          const paid = Number(legacyInvoice.amount_paid) || 0;
-          amount = Number(Math.max(0, legacyInvoice.balance_due ?? (total - paid)).toFixed(2));
-          invoiceNumber = legacyInvoice.invoice_number;
-          console.log("[PayPal] Amount from legacy billing:", amount, "Invoice:", invoiceNumber);
-        }
+        // No legacy fallback — invoice must exist in billing_invoices
+        console.warn("[PayPal] Invoice not found in billing_invoices:", body.invoice_id);
       }
 
       if (!Number.isFinite(amount) || amount <= 0) {

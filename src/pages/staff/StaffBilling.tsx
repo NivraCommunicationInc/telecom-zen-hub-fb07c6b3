@@ -28,8 +28,8 @@ export default function StaffBilling() {
     queryKey: ["staff-billing", statusFilter],
     queryFn: async () => {
       let query = supabase
-        .from("billing")
-        .select("*")
+        .from("billing_invoices")
+        .select("*, customer:billing_customers(email, first_name, last_name)")
         .order("created_at", { ascending: false })
         .limit(100);
       
@@ -39,7 +39,18 @@ export default function StaffBilling() {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      // Map canonical fields to legacy shape used by template
+      return (data || []).map((inv: any) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        client_email: inv.customer?.email || "",
+        related_order_number: inv.order_id || "",
+        amount: inv.total,
+        balance_due: inv.balance_due,
+        status: inv.status,
+        due_date: inv.due_date,
+        created_at: inv.created_at,
+      }));
     },
   });
 

@@ -103,18 +103,28 @@ export default function StaffOrderDetail() {
     enabled: !!id,
   });
 
-  // Fetch related billing for this order
+  // Fetch related billing for this order from canonical billing_invoices
   const { data: orderBilling } = useQuery({
     queryKey: ["staff-order-billing", id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("billing")
-        .select("*")
+        .from("billing_invoices")
+        .select("id, invoice_number, total, balance_due, status, due_date, created_at, paid_at")
         .eq("order_id", id)
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) return [];
-      return data || [];
+      // Map to legacy shape used by template
+      return (data || []).map((inv: any) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        amount: inv.total,
+        balance_due: inv.balance_due,
+        status: inv.status,
+        due_date: inv.due_date,
+        created_at: inv.created_at,
+        paid_at: inv.paid_at,
+      }));
     },
     enabled: !!id,
   });

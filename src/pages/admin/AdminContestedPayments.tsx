@@ -89,7 +89,7 @@ export default function AdminContestedPayments() {
 
         const [profilesRes, paymentsRes] = await Promise.all([
           supabase.from("profiles").select("user_id, email, full_name, phone, client_number").in("user_id", userIds),
-          supabase.from("billing").select("id, invoice_number, amount, status, payment_method_type, created_at").in("id", paymentIds),
+          supabase.from("billing_invoices").select("id, invoice_number, total, status, payment_method, created_at").in("id", paymentIds),
         ]);
 
         return data.map((dispute) => ({
