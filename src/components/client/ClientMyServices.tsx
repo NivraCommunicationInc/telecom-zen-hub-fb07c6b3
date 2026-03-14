@@ -607,12 +607,12 @@ const ClientMyServices = () => {
   const clientCredit = ledgerBalance?.availableCredit || 0;
   const accountBalance = ledgerBalance?.balance || 0;
 
-  // Calculate split billing totals
+  // Calculate split billing totals — using canonical billing_invoices fields
   const billingTotals = billingRecords?.reduce((acc: any, b: any) => {
-    acc.total += Number(b.amount || 0);
-    acc.equipmentFees += Number(b.installation_fee || 0) + Number(b.activation_fee || 0);
-    acc.overdue += b.status === "overdue" ? Number(b.amount || 0) : 0;
-    acc.credits += Number(b.credits || 0);
+    acc.total += Number(b.total || 0);
+    acc.equipmentFees += 0; // activation/installation fees not stored separately on billing_invoices
+    acc.overdue += (b.status === "overdue" || (b.balance_due > 0 && b.status !== "paid")) ? Number(b.balance_due || 0) : 0;
+    acc.credits += 0;
     return acc;
   }, { total: 0, equipmentFees: 0, overdue: 0, credits: 0 }) || { total: 0, equipmentFees: 0, overdue: 0, credits: 0 };
 
