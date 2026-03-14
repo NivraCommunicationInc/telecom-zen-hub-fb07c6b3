@@ -2,17 +2,10 @@
  * Account360RightPanel — Persistent right-side summary panel for Account 360.
  * Shows account info, billing cycle, financial summary, KYC, and notes.
  */
-import { useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Panel, PanelHeader, InfoLine, fmtCAD, fmtDate, label } from "./Account360Helpers";
-import {
-  CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin, Loader2, Plus, ChevronUp, ChevronDown,
-} from "lucide-react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { CircleDot, Clock, DollarSign, User, Shield, StickyNote, MapPin } from "lucide-react";
+import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
 interface Props {
   account: any;
