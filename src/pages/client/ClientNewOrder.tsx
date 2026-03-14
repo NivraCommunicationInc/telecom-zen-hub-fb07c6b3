@@ -2169,17 +2169,19 @@ const ClientNewOrder = () => {
       let nivraPaymentRef = nivraCheckoutResponse.payment_number;
       const postStepErrors: string[] = [];
 
-      // ★ Update account billing_cycle_day (Nivra Core is source of truth)
-      try {
-        if (resolvedAccountId && nivraCheckoutResponse.billing_cycle_day) {
-          await supabase
-            .from("accounts")
-            .update({ billing_cycle_day: nivraCheckoutResponse.billing_cycle_day })
-            .eq("id", resolvedAccountId);
-          console.log("[BillingCycle] Account billing_cycle_day set to:", nivraCheckoutResponse.billing_cycle_day);
+      // ★ Update account billing_cycle_day (skip if fallback already handled it)
+      if (!usedFallback) {
+        try {
+          if (resolvedAccountId && nivraCheckoutResponse.billing_cycle_day) {
+            await supabase
+              .from("accounts")
+              .update({ billing_cycle_day: nivraCheckoutResponse.billing_cycle_day })
+              .eq("id", resolvedAccountId);
+            console.log("[BillingCycle] Account billing_cycle_day set to:", nivraCheckoutResponse.billing_cycle_day);
+          }
+        } catch (cyclErr) {
+          console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
         }
-      } catch (cyclErr) {
-        console.warn("[BillingCycle] Failed to update (non-blocking):", cyclErr);
       }
 
       // ============================================================
