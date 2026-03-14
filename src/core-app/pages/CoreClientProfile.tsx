@@ -545,9 +545,12 @@ const CoreClientProfile = () => {
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
             {notes.map((n: any) => (
               <div key={n.id} className="rounded-md border border-[hsl(220,15%,14%)] bg-[hsl(220,20%,9%)] p-2.5">
-                <p className="text-[11px] text-white whitespace-pre-wrap">{n.content || n.note}</p>
+                <p className="text-[11px] text-white whitespace-pre-wrap">{n.body}</p>
                 <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[hsl(220,10%,35%)]">
-                  <span>{n.created_by_name || "Agent"}</span><span>·</span>
+                  <span>{n.created_by_name || "Agent"}</span>
+                  <span>·</span>
+                  <span className="capitalize">{n.created_by_role || ""}</span>
+                  <span>·</span>
                   <span>{n.created_at ? format(new Date(n.created_at), "d MMM yyyy HH:mm", { locale: fr }) : ""}</span>
                 </div>
               </div>
