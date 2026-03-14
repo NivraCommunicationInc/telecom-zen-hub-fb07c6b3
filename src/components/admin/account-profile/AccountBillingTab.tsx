@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { generateInvoicePDF, type InvoiceDataV2 } from "@/lib/pdf";
 import { safePDFDownload } from "@/lib/pdfUtils";
+import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 
 interface AccountBillingTabProps {
   account: any;
@@ -31,6 +32,7 @@ interface AccountBillingTabProps {
   payments: any[];
   subscriptions: any[];
   legacyBilling: any[];
+  clientId?: string;
 }
 
 const invoiceStatusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -43,7 +45,7 @@ const invoiceStatusConfig: Record<string, { label: string; variant: "default" | 
   draft: { label: "Brouillon", variant: "outline" },
 };
 
-export function AccountBillingTab({ account, invoices, payments, subscriptions, legacyBilling }: AccountBillingTabProps) {
+export function AccountBillingTab({ account, invoices, payments, subscriptions, legacyBilling, clientId }: AccountBillingTabProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
@@ -87,23 +89,45 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
   const handleRecordPayment = async () => {
     if (!payInvoice || !payAmount) return;
     const amount = parseFloat(payAmount);
-    if (isNaN(amount) || amount <= 0) { toast.error("Montant invalide"); return; }
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Montant invalide");
+      return;
+    }
+
+    const normalizedRef = payRef.trim();
+    const provider = payMethod === "paypal" ? "paypal" : payMethod === "interac" ? "interac" : "manual";
+    const providerPaymentId = payMethod === "paypal"
+      ? (normalizedRef || `paypal_manual_${Date.now()}`)
+      : payMethod === "manual"
+        ? `manual_${Date.now()}`
+        : null;
+    const providerOrderId = payMethod === "interac"
+      ? (normalizedRef || `interac_${Date.now()}`)
+      : normalizedRef || null;
+
     setSaving(true);
     try {
       const { error } = await supabase.rpc("apply_payment_to_invoice" as any, {
         p_invoice_id: payInvoice.id,
         p_amount: amount,
         p_method: payMethod,
-        p_reference: payRef || null,
-        p_source: "admin_manual_confirmation",
-        p_admin_id: user?.id || null,
-        p_admin_name: user?.email || "Admin",
+        p_provider: provider,
+        p_provider_payment_id: providerPaymentId,
+        p_provider_order_id: providerOrderId,
+        p_source: "admin",
+        p_customer_id: payInvoice.customer_id,
+        p_created_by_name: user?.email || "Admin",
+        p_created_by_role: "admin",
       });
       if (error) throw error;
+
       toast.success(`Paiement de ${amount.toFixed(2)} $ enregistré`);
       setPayOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["account-profile-invoices"] });
-      queryClient.invalidateQueries({ queryKey: ["account-profile-payments"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["account-profile", account?.id] }),
+        queryClient.invalidateQueries({ queryKey: ["account-profile-invoices"] }),
+        queryClient.invalidateQueries({ queryKey: ["account-profile-payments"] }),
+      ]);
     } catch (e: any) {
       toast.error(e.message || "Erreur");
     } finally {
