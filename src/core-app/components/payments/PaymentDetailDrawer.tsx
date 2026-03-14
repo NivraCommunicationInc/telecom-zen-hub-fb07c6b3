@@ -83,25 +83,36 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
   const updatePaymentStatus = async (newStatus: string, extra: Record<string, any> = {}) => {
     setActionLoading(newStatus);
     try {
-      // For confirm: use canonical RPC to ensure invoice/payment/subscription sync
+      // ★ FIX: For confirming an EXISTING pending payment, do NOT call apply_payment_to_invoice RPC.
+      // The RPC creates a NEW payment row, causing duplicates.
+      // Instead: confirm the existing payment + update the invoice directly.
       if (newStatus === "confirmed" || newStatus === "completed") {
-        const { error: rpcError } = await supabase.rpc("apply_payment_to_invoice" as any, {
-          p_invoice_id: p.invoice_id,
-          p_customer_id: p.customer_id,
-          p_amount: p.amount,
-          p_method: p.method || "manual",
-          p_provider: p.provider || "manual",
-          p_provider_payment_id: p.reference || `confirm_${Date.now()}`,
-          p_source: "admin",
-          p_created_by_name: "Payment Drawer",
-          p_created_by_role: "admin",
-        });
-        if (rpcError) throw rpcError;
-
-        // Also mark original pending payment as confirmed
-        await supabase.from("billing_payments")
-          .update({ status: "confirmed" as any, confirmed_by: "admin" })
+        // 1. Confirm the existing payment
+        const { error: payErr } = await supabase.from("billing_payments")
+          .update({ status: "confirmed" as any, confirmed_by: "admin", received_at: new Date().toISOString(), ...extra })
           .eq("id", p.id);
+        if (payErr) throw payErr;
+
+        // 2. Update invoice totals
+        const { data: inv, error: invFetchErr } = await supabase.from("billing_invoices")
+          .select("amount_paid, balance_due, total, status, paid_at")
+          .eq("id", p.invoice_id)
+          .single();
+        if (invFetchErr) throw invFetchErr;
+
+        const newAmountPaid = (inv.amount_paid ?? 0) + p.amount;
+        const newBalanceDue = Math.max(0, (inv.total ?? 0) - newAmountPaid);
+        const isFullyPaid = newBalanceDue <= 0;
+
+        const { error: invErr } = await supabase.from("billing_invoices")
+          .update({
+            amount_paid: newAmountPaid,
+            balance_due: newBalanceDue,
+            status: (isFullyPaid ? "paid" : "partially_paid") as any,
+            paid_at: isFullyPaid ? new Date().toISOString() : inv.paid_at,
+          })
+          .eq("id", p.invoice_id);
+        if (invErr) throw invErr;
       } else {
         // For reject/fraud/refund: direct status update
         const { error } = await supabase
