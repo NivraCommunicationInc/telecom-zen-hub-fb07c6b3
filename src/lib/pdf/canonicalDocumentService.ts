@@ -233,36 +233,8 @@ function structureFromBreakdown(bd: InvoiceBreakdown, order: any): StructuredFro
     }
   }
 
-  // ═══ SUPPLEMENT: Add order-level fees not captured in billing_invoice_lines ═══
-  const allDescLower = invoiceItems.map(i => i.description.toLowerCase()).join(" ");
-  const ps = order.pricing_snapshot as any;
-
-  const supplementFees: Array<{ label: string; amount: number; keyword: string }> = [
-    { label: "Frais d'activation", amount: Number(order.activation_fee || ps?.activation_fee || 0), keyword: "activation" },
-    { label: "Frais de livraison", amount: Number(order.delivery_fee || ps?.delivery_fee || 0), keyword: "livraison" },
-    { label: "Frais d'installation", amount: Number(order.installation_fee || ps?.installation_fee || 0), keyword: "installation" },
-  ];
-
-  const supplementEquipment: Array<{ label: string; amount: number; keyword: string }> = [
-    { label: "Routeur", amount: Number(order.router_fee || ps?.router_fee || 0), keyword: "routeur" },
-    { label: "Terminal(s)", amount: Number(order.terminal_fee || ps?.terminal_fee || 0), keyword: "terminal" },
-  ];
-
-  for (const sf of supplementFees) {
-    if (sf.amount > 0 && !allDescLower.includes(sf.keyword)) {
-      fees.push({ label: sf.label, amount: sf.amount });
-      invoiceItems.push({ category: "Fees", description: sf.label, qty: 1, unit_price: sf.amount, amount: sf.amount, is_recurring: false });
-      console.log(`[CanonicalDocService] ➕ Supplemented missing fee: ${sf.label} = ${sf.amount}`);
-    }
-  }
-
-  for (const se of supplementEquipment) {
-    if (se.amount > 0 && !allDescLower.includes(se.keyword)) {
-      equipment.push({ name: se.label, quantity: 1, unit_price: se.amount });
-      invoiceItems.push({ category: "Equipment", description: se.label, qty: 1, unit_price: se.amount, amount: se.amount, is_recurring: false });
-      console.log(`[CanonicalDocService] ➕ Supplemented missing equipment: ${se.label} = ${se.amount}`);
-    }
-  }
+  // NOTE: SUPPLEMENT logic removed — billing_invoice_lines are now written
+  // atomically at checkout time. No reconstruction from pricing_snapshot needed.
 
   const subtotalMonthly = services.reduce((s, sv) => s + sv.monthly_price, 0);
   const subtotalOnetime = equipment.reduce((s, e) => s + e.unit_price * e.quantity, 0) + fees.reduce((s, f) => s + f.amount, 0);

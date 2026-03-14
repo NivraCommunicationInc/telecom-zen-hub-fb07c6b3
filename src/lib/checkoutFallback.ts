@@ -434,6 +434,124 @@ export async function fallbackCheckout(
   if (invErr) throw new Error(`Invoice creation failed: ${invErr.message}`);
   console.log("[FallbackCheckout] ✓ Invoice created:", invoiceNumber);
 
+  // ── 7b. Create billing_invoice_lines — canonical itemization ──
+  const invoiceLines: Array<{
+    invoice_id: string;
+    description: string;
+    unit_price: number;
+    quantity: number;
+    line_total: number;
+    line_type: string;
+  }> = [];
+
+  // Recurring services
+  for (const svc of payload.services) {
+    const qty = svc.quantity || 1;
+    const price = Number(svc.plan_price) || 0;
+    invoiceLines.push({
+      invoice_id: invoiceId,
+      description: svc.name,
+      unit_price: price,
+      quantity: qty,
+      line_total: Math.round(price * qty * 100) / 100,
+      line_type: "service",
+    });
+  }
+
+  // Streaming add-ons (each on its own line)
+  if (payload.streaming_addons?.length) {
+    for (const addon of payload.streaming_addons) {
+      const price = Number(addon.monthly_price) || 0;
+      invoiceLines.push({
+        invoice_id: invoiceId,
+        description: addon.name,
+        unit_price: price,
+        quantity: 1,
+        line_total: price,
+        line_type: "service",
+      });
+    }
+  }
+
+  // Paid TV channels (each on its own line)
+  if (payload.channels?.paid_channels?.length) {
+    for (const ch of payload.channels.paid_channels) {
+      const price = Number(ch.price) || 0;
+      invoiceLines.push({
+        invoice_id: invoiceId,
+        description: ch.name,
+        unit_price: price,
+        quantity: 1,
+        line_total: price,
+        line_type: "service",
+      });
+    }
+  }
+
+  // Equipment
+  for (const eq of payload.equipment) {
+    const qty = eq.quantity || 1;
+    const price = Number(eq.unit_price) || 0;
+    invoiceLines.push({
+      invoice_id: invoiceId,
+      description: eq.name,
+      unit_price: price,
+      quantity: qty,
+      line_total: Math.round(price * qty * 100) / 100,
+      line_type: "equipment",
+    });
+  }
+
+  // Fees
+  for (const fee of payload.fees) {
+    const amount = Number(fee.amount) || 0;
+    if (amount > 0) {
+      invoiceLines.push({
+        invoice_id: invoiceId,
+        description: fee.name,
+        unit_price: amount,
+        quantity: 1,
+        line_total: amount,
+        line_type: "fee",
+      });
+    }
+  }
+
+  // Promo / discount
+  if (payload.promo && promoDiscount > 0) {
+    invoiceLines.push({
+      invoice_id: invoiceId,
+      description: `Rabais ${payload.promo.code} (${payload.promo.discount_value}% services)`,
+      unit_price: -promoDiscount,
+      quantity: 1,
+      line_total: -promoDiscount,
+      line_type: "discount",
+    });
+  }
+
+  // Welcome discount (if applicable)
+  if (welcomeDiscount > 0) {
+    invoiceLines.push({
+      invoice_id: invoiceId,
+      description: "Rabais bienvenue (50% premier mois)",
+      unit_price: -welcomeDiscount,
+      quantity: 1,
+      line_total: -welcomeDiscount,
+      line_type: "discount",
+    });
+  }
+
+  if (invoiceLines.length > 0) {
+    const { error: linesErr } = await supabase
+      .from("billing_invoice_lines")
+      .insert(invoiceLines);
+    if (linesErr) {
+      console.error("[FallbackCheckout] Invoice lines creation failed (non-blocking):", linesErr);
+    } else {
+      console.log(`[FallbackCheckout] ✓ ${invoiceLines.length} invoice lines created`);
+    }
+  }
+
   // ── 8. Create payment ──
   const { error: payErr } = await supabase.from("billing_payments").insert({
     id: paymentId,
