@@ -518,8 +518,27 @@ const ClientNewOrder = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAccountBlocked } = useClientBlockStatus();
-  // Welcome discount is now computed server-side by compute_checkout_pricing RPC
+  // Canonical fees from operational_fees table (replaces hardcoded constants)
+  const canonicalFees = useCanonicalFees();
   
+  // Build DELIVERY_CONFIG dynamically from canonical fees (with fallbacks)
+  const DELIVERY_CONFIG = {
+    standard: {
+      ...DELIVERY_CONFIG_DEFAULTS.standard,
+      fee: canonicalFees.deliveryStandard || DELIVERY_CONFIG_DEFAULTS.standard.fee,
+    },
+    uber: {
+      ...DELIVERY_CONFIG_DEFAULTS.uber,
+      fee: canonicalFees.deliveryUber || DELIVERY_CONFIG_DEFAULTS.uber.fee,
+    },
+    shipHome: {
+      ...DELIVERY_CONFIG_DEFAULTS.shipHome,
+      fee: canonicalFees.deliveryShipHome || DELIVERY_CONFIG_DEFAULTS.shipHome.fee,
+    },
+  };
+  
+  // Welcome discount is now computed server-side by compute_checkout_pricing RPC
+
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
   const clientRequestIdRef = useRef(crypto.randomUUID());
