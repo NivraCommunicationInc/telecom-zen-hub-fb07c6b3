@@ -138,9 +138,7 @@ export default function CoreCatalogPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
-      queryClient.invalidateQueries({ queryKey: ["core-services-catalog"] });
-      queryClient.invalidateQueries({ queryKey: ["public-services"] });
+      invalidateAllCatalogQueries();
       toast.success(editItem ? "Service mis à jour" : "Service créé");
       closeDrawer();
     },
