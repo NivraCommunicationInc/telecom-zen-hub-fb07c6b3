@@ -106,11 +106,11 @@ const TVConfigurator = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services_public")
-        .select("id, name, category, price, description, billing_type")
+        .select("id, name, category, price, description, billing_type, visible_simulator")
         .order("category", { ascending: true })
         .order("price", { ascending: true });
       if (error) throw error;
-      return (data || []) as ServicePublic[];
+      return (data || []) as (ServicePublic & { visible_simulator?: boolean })[];
     },
     staleTime: 5 * 60 * 1000,
   });
