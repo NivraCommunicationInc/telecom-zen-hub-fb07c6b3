@@ -108,6 +108,7 @@ export const coreRoutes: RouteObject = {
     { path: "appointments", element: <AppointmentsPage /> },
     { path: "requests", element: <CoreRequestsPage /> },
     { path: "activations", element: <CoreActivationsPage /> },
+    { path: "installations", element: <CoreInstallationsPage /> },
     // Clients
     { path: "clients", element: <ClientsPage /> },
     { path: "clients/:clientId", element: <CoreClientProfile /> },
