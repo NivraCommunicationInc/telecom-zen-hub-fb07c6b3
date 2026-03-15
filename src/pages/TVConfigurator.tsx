@@ -118,6 +118,22 @@ const TVConfigurator = () => {
     refetchOnWindowFocus: true,
   });
 
+  // Equipment is ALWAYS loaded regardless of visibility flags — it's required for TV orders
+  const { data: equipmentProducts = [], isLoading: equipmentLoading } = useQuery({
+    queryKey: ["tv-configurator-equipment"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("services_public")
+        .select("id, name, category, price, description, billing_type, status")
+        .eq("category", "Équipement")
+        .eq("status", "active")
+        .order("price", { ascending: true });
+      if (error) throw error;
+      return (data || []) as ServicePublic[];
+    },
+    staleTime: 0,
+  });
+
   const { data: streamingServices = [], isLoading: streamingLoading } = useQuery({
     queryKey: ["tv-configurator-streaming"],
     queryFn: async () => {
