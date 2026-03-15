@@ -1037,11 +1037,13 @@ const ClientNewOrder = () => {
   // Clear draft when order is completed (called after successful order creation)
   const clearOrderDraft = () => {
     sessionStorage.removeItem(ORDER_DRAFT_KEY);
+    sessionStorage.removeItem("nivra_tv_cart");
+    sessionStorage.removeItem("nivra_tv_cart_pending");
     localStorage.removeItem('nivra_kyc_session_id');
     localStorage.removeItem('nivra_kyc_choice');
     // Clear appointment hold reference (hold is already confirmed at this point)
     import("@/lib/appointmentHold").then(m => m.clearAppointmentHold());
-    console.log("[OrderWizard] Draft + KYC session + KYC choice + appointment hold cleared");
+    console.log("[OrderWizard] Draft + KYC session + KYC choice + appointment hold + TV cart cleared");
   };
 
   // Fetch dynamic equipment prices from database
