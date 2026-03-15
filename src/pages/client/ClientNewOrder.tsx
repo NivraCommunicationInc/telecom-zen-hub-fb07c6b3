@@ -1803,7 +1803,7 @@ const ClientNewOrder = () => {
         ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
            deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
            DELIVERY_CONFIG.standard.fee)
-        : (installationChoice === "auto" ? 30 : 0);
+        : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0);
 
       // Determine installation type for the order
       const orderInstallationType = isDeliveryOnlyOrder 
@@ -1812,8 +1812,8 @@ const ClientNewOrder = () => {
            "delivery_standard")
         : installationChoice;
       
-      // For equipment-only orders, no activation fee
-      const orderActivationFee = isEquipmentOnlyOrder ? 0 : 25;
+      // For equipment-only orders, no activation fee (canonical)
+      const orderActivationFee = isEquipmentOnlyOrder ? 0 : (canonicalFees.activationSingle || 25);
 
       // Save pre-authorized payment method if credit card and checkbox selected
       // Use UPSERT to prevent duplicate cards (unique on user_id + payment_fingerprint)
