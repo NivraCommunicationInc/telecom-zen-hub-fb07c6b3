@@ -786,28 +786,26 @@ const ClientNewOrder = () => {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
     }
     
-    // ─── TV Configurator handoff: read nivra_tv_cart and pre-populate wizard ───
+    // ─── TV Configurator handoff: read nivra_tv_cart (v3) and pre-populate wizard ───
     try {
       const tvCartRaw = sessionStorage.getItem("nivra_tv_cart");
       const hasDraft = !!sessionStorage.getItem(ORDER_DRAFT_KEY);
       if (tvCartRaw && !hasDraft) {
-        // Only apply if no existing draft (fresh checkout from configurator)
         const tvPayload = JSON.parse(tvCartRaw);
         
-        // Validate payload version and freshness (max 30 min)
+        // Validate payload version 3 and freshness (max 30 min)
         if (
           tvPayload?.source === "tv-configurator" &&
-          tvPayload?.version === 2 &&
+          tvPayload?.version === 3 &&
           tvPayload?.createdAt &&
           Date.now() - new Date(tvPayload.createdAt).getTime() < 30 * 60 * 1000
         ) {
-          console.log("[OrderWizard] TV Configurator handoff detected, pre-populating wizard");
+          console.log("[OrderWizard] TV Configurator v3 handoff detected — exact ID mapping");
           
-          // Pre-select services — will be matched against services_public after data loads
-          // Store raw preSelectedServices for deferred matching in a separate effect
+          // Store for deferred matching after services_public + streaming_services load
           sessionStorage.setItem("nivra_tv_cart_pending", JSON.stringify(tvPayload));
           
-          // Set terminal quantity
+          // Set terminal quantity (exact from configurator)
           if (tvPayload.terminalQuantity > 0) {
             setTerminalQuantity(tvPayload.terminalQuantity);
           }
@@ -820,7 +818,6 @@ const ClientNewOrder = () => {
           // Clear the TV cart after consumption
           sessionStorage.removeItem("nivra_tv_cart");
         } else {
-          // Stale or invalid payload — clear it
           sessionStorage.removeItem("nivra_tv_cart");
         }
       }
@@ -1101,7 +1098,7 @@ const ClientNewOrder = () => {
     refetchOnWindowFocus: true,
   });
 
-  // ─── TV Configurator: deferred service matching after services_public loads ───
+  // ─── TV Configurator v3: exact ID matching after services_public + streaming load ───
   useEffect(() => {
     if (!services?.length || !isHydrated) return;
     
@@ -1110,43 +1107,66 @@ const ClientNewOrder = () => {
       if (!pendingRaw) return;
       
       const tvPayload = JSON.parse(pendingRaw);
-      const preSelected = tvPayload?.preSelectedServices as Array<{ sku: string; name: string; price: number; category: string }>;
-      if (!preSelected?.length) return;
+      if (tvPayload?.version !== 3) {
+        // Legacy v2 payload — discard
+        sessionStorage.removeItem("nivra_tv_cart_pending");
+        return;
+      }
       
-      console.log("[OrderWizard] TV Configurator: matching", preSelected.length, "pre-selected services against services_public");
+      console.log("[OrderWizard] TV Configurator v3: exact ID matching");
       
-      // Match by name (fuzzy) or category+price
+      // ── 1. Match TV plan by exact services_public.id ──
       const matched: Service[] = [];
-      for (const pre of preSelected) {
-        // Try exact name match first
-        let svc = services.find(s => s.name.toLowerCase() === pre.name.toLowerCase());
-        
-        // Try fuzzy: service name contains pre-selected name or vice versa
-        if (!svc) {
-          svc = services.find(s => 
-            s.category === pre.category && (
-              s.name.toLowerCase().includes(pre.name.toLowerCase()) ||
-              pre.name.toLowerCase().includes(s.name.toLowerCase())
-            )
-          );
-        }
-        
-        // Try category + price match
-        if (!svc) {
-          svc = services.find(s => s.category === pre.category && Math.abs(s.price - pre.price) < 0.01);
-        }
-        
-        if (svc && !matched.some(m => m.id === svc!.id)) {
-          matched.push(svc);
-          console.log(`[OrderWizard] TV match: "${pre.name}" → "${svc.name}" (${svc.id})`);
+      if (tvPayload.selectedPlanId) {
+        const plan = services.find(s => s.id === tvPayload.selectedPlanId);
+        if (plan) {
+          matched.push(plan);
+          console.log(`[OrderWizard] TV exact match: plan "${plan.name}" (${plan.id})`);
         } else {
-          console.warn(`[OrderWizard] TV Configurator: no match for "${pre.name}" (${pre.category}, $${pre.price})`);
+          console.warn(`[OrderWizard] TV plan ID not found in services_public: ${tvPayload.selectedPlanId}`);
         }
       }
       
       if (matched.length > 0) {
         setSelectedServices(matched);
-        console.log("[OrderWizard] TV Configurator: pre-selected", matched.length, "services");
+        console.log("[OrderWizard] TV Configurator: pre-selected", matched.length, "service(s)");
+      }
+      
+      // ── 2. Match streaming add-ons by exact streaming_services.id ──
+      const streamingIds = tvPayload.selectedStreamingIds as string[] | undefined;
+      if (streamingIds?.length) {
+        // StreamingPlusSection loads from streaming_services table.
+        // We need to fetch the exact records by ID and auto-select them.
+        (async () => {
+          try {
+            const { data: streamingRecords, error } = await supabase
+              .from("streaming_services")
+              .select("id, name, description, monthly_price, category, features, is_active")
+              .in("id", streamingIds)
+              .eq("is_active", true);
+            
+            if (error) {
+              console.error("[OrderWizard] Failed to fetch streaming services by ID:", error);
+              return;
+            }
+            
+            if (streamingRecords?.length) {
+              const mapped: StreamingService[] = streamingRecords.map(r => ({
+                id: r.id,
+                name: r.name,
+                description: r.description,
+                monthly_price: r.monthly_price,
+                category: r.category || "video",
+                features: Array.isArray(r.features) ? r.features : [],
+                is_active: r.is_active ?? true,
+              }));
+              setSelectedStreamingServices(mapped);
+              console.log(`[OrderWizard] TV Configurator: auto-selected ${mapped.length} streaming service(s):`, mapped.map(s => s.name).join(", "));
+            }
+          } catch (streamErr) {
+            console.error("[OrderWizard] Streaming auto-select error:", streamErr);
+          }
+        })();
       }
       
       // Consume pending payload
