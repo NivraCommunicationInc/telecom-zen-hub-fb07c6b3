@@ -142,10 +142,10 @@ const categoryIcons: Record<string, any> = {
   Extras: Package,
 };
 
-// Terminal equipment configuration
+// Terminal equipment configuration — price now loaded from canonical operational_fees
 const TERMINAL_CONFIG = {
   name: "Nivra 4K Smart Terminal",
-  price: 50,
+  price: 50, // fallback; overridden by canonical fee at runtime
   maxQuantity: 4,
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
 };
@@ -165,8 +165,8 @@ const UBER_ELIGIBLE_CITIES = [
   "Repentigny", "Longueuil", "Saint-Hubert", "Brossard"
 ];
 
-// Delivery configuration
-const DELIVERY_CONFIG = {
+// Delivery configuration — fees now overridden at runtime by canonical operational_fees
+const DELIVERY_CONFIG_DEFAULTS = {
   standard: {
     name: "Livraison standard",
     fee: 30,
