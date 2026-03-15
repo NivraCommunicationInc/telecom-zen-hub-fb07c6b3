@@ -167,5 +167,6 @@ export const coreRoutes: RouteObject = {
     { path: "settings", element: <CoreSettingsPage /> },
     { path: "stock", element: <CoreStockPage /> },
     { path: "equipment", element: <EquipmentInventoryPage /> },
+    { path: "automation", element: <CoreAutomationPage /> },
   ],
 };
