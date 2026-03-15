@@ -127,6 +127,8 @@ export const coreRoutes: RouteObject = {
     { path: "contested-invoices", element: <CoreContestedInvoicesPage /> },
     // Catalogue
     { path: "services", element: <CoreServicesPage /> },
+    { path: "catalog", element: <CoreCatalogPage /> },
+    { path: "tv-sur-mesure", element: <CoreTVSurMesurePage /> },
     { path: "channels", element: <CoreChannelsPage /> },
     { path: "streaming", element: <CoreStreamingPage /> },
     { path: "contracts", element: <CoreContractsPage /> },
