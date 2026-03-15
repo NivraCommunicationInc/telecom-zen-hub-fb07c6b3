@@ -357,7 +357,7 @@ serve(async (req) => {
         await supabase.from("billing_system_alerts").insert({
           alert_type: "payment_failed",
           entity_type: "billing_subscriptions",
-          entity_id: paypalSubscriptionId,
+          entity_reference: paypalSubscriptionId,
           details: {
             event_id: event.id,
             amount: event.resource.amount,
