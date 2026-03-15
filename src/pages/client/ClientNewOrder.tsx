@@ -1388,13 +1388,13 @@ const ClientNewOrder = () => {
     return count;
   };
   
-  // Calculate activation fee based on number of service types
+  // Calculate activation fee from canonical operational_fees
   const calculateActivationFee = (): number => {
     if (isEquipmentOnlyOrder) return 0;
     const serviceTypeCount = countServiceTypes();
     if (serviceTypeCount === 0) return 0;
-    if (serviceTypeCount === 1) return 25; // Single service
-    return 45; // 2+ services = bundled cap
+    if (serviceTypeCount === 1) return canonicalFees.activationSingle || 25;
+    return canonicalFees.activationBundle || 45;
   };
   
   // Check if Uber delivery is available based on client's phone area code
