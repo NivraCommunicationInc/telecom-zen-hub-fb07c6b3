@@ -22,6 +22,7 @@ const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
 const AppointmentsPage = lazy(() => import("@/core-app/pages/AppointmentsPage"));
 const CoreRequestsPage = lazy(() => import("@/core-app/pages/CoreRequestsPage"));
 const CoreActivationsPage = lazy(() => import("@/core-app/pages/CoreActivationsPage"));
+const CoreInstallationsPage = lazy(() => import("@/core-app/pages/CoreInstallationsPage"));
 
 // Clients
 const ClientsPage = lazy(() => import("@/core-app/pages/ClientsPage"));
