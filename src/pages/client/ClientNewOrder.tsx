@@ -17,6 +17,7 @@ import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
+import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
 import { fallbackCheckout } from "@/lib/checkoutFallback";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
