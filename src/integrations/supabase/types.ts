@@ -6552,6 +6552,51 @@ export type Database = {
         }
         Relationships: []
       }
+      order_automation_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_automation_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_automation_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_documents: {
         Row: {
           created_at: string
@@ -10664,54 +10709,94 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          account_id: string | null
           activation_date: string | null
           amount: number
           bill_cycle_day: number | null
           billing_cycle: string
+          cancelled_at: string | null
           created_at: string
           id: string
           last_invoiced_through: string | null
+          monthly_price: number | null
           next_billing_date: string | null
           next_invoice_date: string | null
+          order_id: string | null
           plan_name: string
+          service_type: string | null
           start_date: string
           status: string
+          subscription_number: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           activation_date?: string | null
           amount: number
           bill_cycle_day?: number | null
           billing_cycle?: string
+          cancelled_at?: string | null
           created_at?: string
           id?: string
           last_invoiced_through?: string | null
+          monthly_price?: number | null
           next_billing_date?: string | null
           next_invoice_date?: string | null
+          order_id?: string | null
           plan_name: string
+          service_type?: string | null
           start_date?: string
           status?: string
+          subscription_number?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          account_id?: string | null
           activation_date?: string | null
           amount?: number
           bill_cycle_day?: number | null
           billing_cycle?: string
+          cancelled_at?: string | null
           created_at?: string
           id?: string
           last_invoiced_through?: string | null
+          monthly_price?: number | null
           next_billing_date?: string | null
           next_invoice_date?: string | null
+          order_id?: string | null
           plan_name?: string
+          service_type?: string | null
           start_date?: string
           status?: string
+          subscription_number?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "subscriptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_ticket_id_status_debug: {
         Row: {
