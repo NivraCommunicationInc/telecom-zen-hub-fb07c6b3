@@ -803,31 +803,34 @@ const TVConfigurator = () => {
                     </div>
                   )}
 
-                  {/* Taxes */}
+                  {/* Taxes (ESTIMATE — canonical taxes computed at checkout) */}
                   <div className="pt-1">
                     <Separator className="mb-3" />
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>TPS (5%)</span>
-                        <span>{pricing.tps.toFixed(2)} $</span>
+                        <span>TPS (5%) <span className="italic">{isFr ? "est." : "est."}</span></span>
+                        <span>~{pricing.tps.toFixed(2)} $</span>
                       </div>
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>TVQ (9,975%)</span>
-                        <span>{pricing.tvq.toFixed(2)} $</span>
+                        <span>TVQ (9,975%) <span className="italic">{isFr ? "est." : "est."}</span></span>
+                        <span>~{pricing.tvq.toFixed(2)} $</span>
                       </div>
                     </div>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1 italic">
+                      {isFr ? "Montants estimés — taxes finales calculées au paiement" : "Estimated — final taxes calculated at checkout"}
+                    </p>
                   </div>
 
                   {/* Grand Total */}
                   <div className="bg-muted/50 -mx-6 px-6 py-4 rounded-b-lg mt-4">
                     <div className="flex justify-between items-center">
                       <div>
-                        <div className="text-sm font-semibold text-foreground">{isFr ? "Total dû aujourd'hui" : "Total due today"}</div>
+                        <div className="text-sm font-semibold text-foreground">{isFr ? "Total estimé aujourd'hui" : "Estimated total today"}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {isFr ? "Puis" : "Then"} {pricing.recurringSubtotal.toFixed(2)} $/{isFr ? "mois" : "mo"} + {isFr ? "taxes" : "tax"}
+                          {isFr ? "Puis" : "Then"} ~{pricing.recurringSubtotal.toFixed(2)} $/{isFr ? "mois" : "mo"} + {isFr ? "taxes" : "tax"}
                         </div>
                       </div>
-                      <div className="text-2xl font-bold text-foreground">{fmt(pricing.grandTotal)}</div>
+                      <div className="text-2xl font-bold text-foreground">~{fmt(pricing.grandTotal)}</div>
                     </div>
                   </div>
 
