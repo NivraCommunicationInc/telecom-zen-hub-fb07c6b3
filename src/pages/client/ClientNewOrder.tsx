@@ -1224,6 +1224,19 @@ const ClientNewOrder = () => {
     },
   });
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("checkout-live-catalog")
+      .on("postgres_changes", { event: "*", schema: "public", table: "services" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["available-services"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   // Fetch client profile
   const { data: profile } = useQuery({
     queryKey: ["client-profile", user?.id],

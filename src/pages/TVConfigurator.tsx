@@ -106,13 +106,16 @@ const TVConfigurator = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services_public")
-        .select("id, name, category, price, description, billing_type, visible_simulator")
-        .order("category", { ascending: true })
+        .select("id, name, category, price, description, billing_type, visible_simulator, display_order, status")
+        .eq("visible_simulator", true)
+        .eq("status", "active")
+        .order("display_order", { ascending: true, nullsFirst: false })
         .order("price", { ascending: true });
       if (error) throw error;
       return (data || []) as (ServicePublic & { visible_simulator?: boolean })[];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const { data: streamingServices = [], isLoading: streamingLoading } = useQuery({
@@ -127,16 +130,32 @@ const TVConfigurator = () => {
       if (error) throw error;
       return (data || []) as StreamingService[];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
-  // Only show TV plans that are marked visible_simulator
-  const tvPlans = useMemo(() => allServices.filter(s => s.category === "TV" && (s as any).visible_simulator), [allServices]);
-  const equipmentProducts = useMemo(() => allServices.filter(s => s.category === "Équipement"), [allServices]);
-  const terminalProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("terminal")), [equipmentProducts]);
-  const routerProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("router")), [equipmentProducts]);
-  const videoStreaming = useMemo(() => streamingServices.filter(s => s.category === "video"), [streamingServices]);
-  const musicStreaming = useMemo(() => streamingServices.filter(s => s.category === "music"), [streamingServices]);
+  useEffect(() => {
+    const channel = supabase
+      .channel("tv-configurator-live-catalog")
+      .on("postgres_changes", { event: "*", schema: "public", table: "services" }, () => {
+        void supabase.removeChannel(channel);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const tvPlans = useMemo(() => allServices.filter((s) => s.category === "TV"), [allServices]);
+  const equipmentProducts = useMemo(() => allServices.filter((s) => s.category === "Équipement"), [allServices]);
+  const terminalProduct = useMemo(() => equipmentProducts.find((e) => e.name.toLowerCase().includes("terminal")), [equipmentProducts]);
+  const routerProduct = useMemo(
+    () => equipmentProducts.find((e) => e.name.toLowerCase().includes("router") || e.name.toLowerCase().includes("borne")),
+    [equipmentProducts],
+  );
+  const videoStreaming = useMemo(() => streamingServices.filter((s) => s.category === "video"), [streamingServices]);
+  const musicStreaming = useMemo(() => streamingServices.filter((s) => s.category === "music"), [streamingServices]);
 
   // ─── Selection state ───
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
