@@ -335,32 +335,85 @@ const TVConfigurator = () => {
     return { recurringItems, oneTimeItems, recurringSubtotal, oneTimeSubtotal, tps, tvq, grandTotal };
   }, [baseSelected, selectedPacks, selectedStreaming, selectedEquipment, extraTerminals, installMethod, includeShipping, isFr, productMap]);
 
-  /* ─── Build Core-compatible cart ─── */
-  const buildCartItems = (): CartLineItem[] => {
-    const items: CartLineItem[] = [];
-    if (baseSelected) items.push({ type: "service", name: "Nivra TV Essentiel", amount: 25, quantity: 1 });
+  /* ─── Activation fee (canonical: 1 service = $25, 2+ = $45) ─── */
+  const activationFee = useMemo(() => {
+    // TV counts as 1 service type; packs/streaming don't count as separate types
+    return baseSelected ? 25 : 0;
+  }, [baseSelected]);
+
+  /* ─── Build Core-compatible cart with full SKU metadata ─── */
+  const buildCartItems = (): TVConfiguratorCartItem[] => {
+    const items: TVConfiguratorCartItem[] = [];
+
+    // Base TV service
+    if (baseSelected) {
+      items.push({ type: "service", sku: "TV-ESS", name: "Nivra TV Essentiel", amount: 25, quantity: 1, recurrence: "monthly" });
+    }
+
+    // Content packs (recurring)
     selectedPacks.forEach((sku) => {
       const p = productMap.get(sku)!;
-      items.push({ type: "service", name: p.name, amount: p.price, quantity: 1 });
+      items.push({ type: "service", sku: p.sku, name: p.name, amount: p.price, quantity: 1, recurrence: "monthly" });
     });
+
+    // Streaming add-ons (recurring, must be individually itemized per canonical standard)
     selectedStreaming.forEach((sku) => {
       const p = productMap.get(sku)!;
-      items.push({ type: "service", name: p.name, amount: p.price, quantity: 1 });
+      items.push({ type: "service", sku: p.sku, name: p.name, amount: p.price, quantity: 1, recurrence: "monthly" });
     });
+
+    // Equipment (one-time)
     selectedEquipment.forEach((sku) => {
       const p = productMap.get(sku)!;
       const qty = sku === "EQ-TVBOX" ? 1 + extraTerminals : 1;
-      items.push({ type: "equipment", name: p.name, amount: p.price, quantity: qty });
+      items.push({ type: "equipment", sku: p.sku, name: p.name, amount: p.price, quantity: qty, recurrence: "one_time" });
     });
-    if (installMethod === "technician") items.push({ type: "installation", name: "Technician Installation", amount: 75, quantity: 1 });
-    if (includeShipping && selectedEquipment.size > 0) items.push({ type: "delivery", name: "Shipping", amount: 30, quantity: 1 });
+
+    // Activation fee (one-time, canonical)
+    if (activationFee > 0) {
+      items.push({ type: "activation", sku: "FEE-ACT-1", name: "Frais d'activation", amount: activationFee, quantity: 1, recurrence: "one_time" });
+    }
+
+    // Installation fee (one-time)
+    if (installMethod === "technician") {
+      items.push({ type: "installation", sku: "FEE-INSTALL", name: "Installation par technicien", amount: 75, quantity: 1, recurrence: "one_time" });
+    }
+
+    // Shipping (one-time)
+    if (includeShipping && selectedEquipment.size > 0) {
+      items.push({ type: "delivery", sku: "FEE-DELIVERY", name: "Livraison", amount: 30, quantity: 1, recurrence: "one_time" });
+    }
+
     return items;
   };
 
   const handleContinue = () => {
-    const cart = buildCartItems();
-    // Store in sessionStorage for checkout pickup
-    sessionStorage.setItem("nivra_tv_cart", JSON.stringify(cart));
+    const items = buildCartItems();
+
+    // Build enriched payload for checkout handoff
+    const payload: TVCartPayload = {
+      source: "tv-configurator",
+      version: 2,
+      items,
+      preSelectedServices: [
+        // Base TV
+        ...(baseSelected ? [{ sku: "TV-ESS", name: "Nivra TV Essentiel", price: 25, category: "TV" }] : []),
+        // Content packs map to TV category
+        ...Array.from(selectedPacks).map((sku) => {
+          const p = productMap.get(sku)!;
+          return { sku: p.sku, name: p.name, price: p.price, category: "TV" };
+        }),
+      ],
+      terminalQuantity: selectedEquipment.has("EQ-TVBOX") ? 1 + extraTerminals : 0,
+      installationChoice: installMethod === "technician" ? "technician" : installMethod === "self" ? "auto" : null,
+      streamingSkus: Array.from(selectedStreaming),
+      equipmentSkus: Array.from(selectedEquipment),
+      includeShipping,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Write enriched payload — read by ClientNewOrder on mount
+    sessionStorage.setItem("nivra_tv_cart", JSON.stringify(payload));
     navigate("/portal/new-order");
   };
 
