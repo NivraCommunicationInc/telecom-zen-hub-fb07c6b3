@@ -62,7 +62,9 @@ export default function CoreTVSurMesurePage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
+      ["core-catalog-full", "public-services", "tv-configurator-services", "tv-configurator-equipment", "available-services"].forEach(k =>
+        queryClient.invalidateQueries({ queryKey: [k] })
+      );
       toast.success("Visibility updated");
     },
   });
