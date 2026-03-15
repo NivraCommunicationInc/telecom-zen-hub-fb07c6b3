@@ -313,6 +313,11 @@ const TVConfigurator = () => {
       oneTimeItems.push({ name: `${isFr ? p.nameFr : p.name}${qty > 1 ? ` ×${qty}` : ""}`, price: p.price * qty });
     });
 
+    // Activation fee (canonical)
+    if (baseSelected) {
+      oneTimeItems.push({ name: isFr ? "Frais d'activation" : "Activation fee", price: 25 });
+    }
+
     // Installation
     if (installMethod === "technician") {
       const inst = productMap.get("FEE-INSTALL")!;
@@ -328,6 +333,7 @@ const TVConfigurator = () => {
     const recurringSubtotal = recurringItems.reduce((s, i) => s + i.price, 0);
     const oneTimeSubtotal = oneTimeItems.reduce((s, i) => s + i.price, 0);
     const taxableBase = recurringSubtotal + oneTimeSubtotal;
+    // ESTIMATE ONLY — canonical taxes computed server-side by compute_checkout_pricing RPC
     const tps = Math.round(taxableBase * TPS_RATE * 100) / 100;
     const tvq = Math.round(taxableBase * TVQ_RATE * 100) / 100;
     const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
