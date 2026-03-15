@@ -258,6 +258,143 @@ export async function backfillCheckoutToSupabase(
     result.errors.push(`invoice: ${e.message}`);
   }
 
+  // 4b) CANONICAL INVOICE LINES — write atomically at order creation
+  if (result.invoice && response.invoice_id) {
+    try {
+      // Check if lines already exist (idempotency)
+      const { data: existingLines } = await supabase
+        .from("billing_invoice_lines")
+        .select("id")
+        .eq("invoice_id", response.invoice_id)
+        .limit(1);
+
+      if (!existingLines || existingLines.length === 0) {
+        const invoiceLines: Array<{
+          invoice_id: string;
+          description: string;
+          unit_price: number;
+          quantity: number;
+          line_total: number;
+          line_type: string;
+        }> = [];
+
+        // Recurring services (each on its own line)
+        for (const svc of payload.services) {
+          const qty = svc.quantity || 1;
+          const price = Number(svc.plan_price) || 0;
+          invoiceLines.push({
+            invoice_id: response.invoice_id,
+            description: svc.name,
+            unit_price: price,
+            quantity: qty,
+            line_total: Math.round(price * qty * 100) / 100,
+            line_type: "service",
+          });
+        }
+
+        // Streaming add-ons (each individually — NEVER grouped)
+        if ((payload as any).streaming_addons?.length) {
+          for (const addon of (payload as any).streaming_addons) {
+            const price = Number(addon.monthly_price || addon.plan_price) || 0;
+            invoiceLines.push({
+              invoice_id: response.invoice_id,
+              description: addon.name,
+              unit_price: price,
+              quantity: 1,
+              line_total: price,
+              line_type: "service",
+            });
+          }
+        }
+
+        // Paid TV channels (each individually)
+        if ((payload as any).channels?.paid_channels?.length) {
+          for (const ch of (payload as any).channels.paid_channels) {
+            const price = Number(ch.price) || 0;
+            invoiceLines.push({
+              invoice_id: response.invoice_id,
+              description: ch.name,
+              unit_price: price,
+              quantity: 1,
+              line_total: price,
+              line_type: "service",
+            });
+          }
+        }
+
+        // Equipment items (each individually)
+        const equipmentItems = payload.equipment || [];
+        for (const eq of equipmentItems) {
+          const qty = Number(eq.quantity) || 1;
+          const price = Number(eq.unit_price) || 0;
+          invoiceLines.push({
+            invoice_id: response.invoice_id,
+            description: eq.name || "Équipement",
+            unit_price: price,
+            quantity: qty,
+            line_total: Math.round(price * qty * 100) / 100,
+            line_type: "equipment",
+          });
+        }
+
+        // One-time fees
+        if ((payload as any).fees?.length) {
+          for (const fee of (payload as any).fees) {
+            const amount = Number(fee.amount) || 0;
+            if (amount > 0) {
+              invoiceLines.push({
+                invoice_id: response.invoice_id,
+                description: fee.name,
+                unit_price: amount,
+                quantity: 1,
+                line_total: amount,
+                line_type: "fee",
+              });
+            }
+          }
+        }
+
+        // Discount / promo lines (negative amounts)
+        const promoDiscount = Number(payload.pricing_snapshot?.promo_discount) || 0;
+        const welcomeDiscount = Number(payload.pricing_snapshot?.welcome_discount) || 0;
+        if (promoDiscount > 0 && (payload as any).promo) {
+          invoiceLines.push({
+            invoice_id: response.invoice_id,
+            description: `Rabais ${(payload as any).promo.code} (${(payload as any).promo.discount_value}% services)`,
+            unit_price: -promoDiscount,
+            quantity: 1,
+            line_total: -promoDiscount,
+            line_type: "discount",
+          });
+        }
+        if (welcomeDiscount > 0) {
+          invoiceLines.push({
+            invoice_id: response.invoice_id,
+            description: "Rabais bienvenue (50% premier mois)",
+            unit_price: -welcomeDiscount,
+            quantity: 1,
+            line_total: -welcomeDiscount,
+            line_type: "discount",
+          });
+        }
+
+        if (invoiceLines.length > 0) {
+          const { error: linesErr } = await supabase
+            .from("billing_invoice_lines")
+            .insert(invoiceLines);
+          if (linesErr) {
+            console.error("[Backfill] Invoice lines creation failed (non-blocking):", linesErr);
+            result.errors.push(`invoice_lines: ${linesErr.message}`);
+          } else {
+            console.log(`[Backfill] ✓ ${invoiceLines.length} canonical invoice lines created`);
+          }
+        }
+      }
+    } catch (e: any) {
+      result.errors.push(`invoice_lines: ${e.message}`);
+    }
+  }
+
   // 5) payment
   try {
     const total = pricing?.grand_total ?? Number(payload.pricing_snapshot?.grand_total ?? 0);
