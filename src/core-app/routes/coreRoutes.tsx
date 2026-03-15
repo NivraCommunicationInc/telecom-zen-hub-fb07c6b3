@@ -88,6 +88,7 @@ const CoreMyAccountPage = lazy(() => import("@/core-app/pages/CoreMyAccountPage"
 const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
 const EquipmentInventoryPage = lazy(() => import("@/core-app/pages/EquipmentInventoryPage"));
+const CoreAutomationPage = lazy(() => import("@/core-app/pages/CoreAutomationPage"));
 
 export const coreRoutes: RouteObject = {
   path: "/core",
@@ -166,5 +167,6 @@ export const coreRoutes: RouteObject = {
     { path: "settings", element: <CoreSettingsPage /> },
     { path: "stock", element: <CoreStockPage /> },
     { path: "equipment", element: <EquipmentInventoryPage /> },
+    { path: "automation", element: <CoreAutomationPage /> },
   ],
 };
