@@ -27,6 +27,7 @@ export default function CoreTVSurMesurePage() {
   const [activeSection, setActiveSection] = useState("plans");
   const [editPlan, setEditPlan] = useState<any>(null);
   const [editStreaming, setEditStreaming] = useState<any>(null);
+  const canonicalFees = useCanonicalFees();
 
   /* ─── Fetch TV plans (simulator-eligible from services table) ─── */
   const { data: allServices = [] } = useQuery({
