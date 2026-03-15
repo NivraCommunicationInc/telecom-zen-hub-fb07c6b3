@@ -16,6 +16,8 @@ export interface NavTarget {
   type: NavTargetType;
   target: string; // section ID for scroll, route path for route
   fallbackRoute: string; // safe fallback if target doesn't exist
+  /** Sub-items shown in a dropdown on hover/click */
+  children?: NavTarget[];
 }
 
 export const NAV_TARGETS: NavTarget[] = [
@@ -42,14 +44,24 @@ export const NAV_TARGETS: NavTarget[] = [
     type: 'route',
     target: '/tv',
     fallbackRoute: '/tv',
-  },
-  {
-    id: 'tv-custom',
-    label: 'Custom TV',
-    labelFr: 'TV sur mesure',
-    type: 'route',
-    target: '/television-sur-mesure',
-    fallbackRoute: '/television-sur-mesure',
+    children: [
+      {
+        id: 'tv-plans',
+        label: 'TV Plans',
+        labelFr: 'Forfaits TV',
+        type: 'route',
+        target: '/tv',
+        fallbackRoute: '/tv',
+      },
+      {
+        id: 'tv-custom',
+        label: 'Custom TV',
+        labelFr: 'TV sur mesure',
+        type: 'route',
+        target: '/television-sur-mesure',
+        fallbackRoute: '/television-sur-mesure',
+      },
+    ],
   },
   {
     id: 'mobile',
