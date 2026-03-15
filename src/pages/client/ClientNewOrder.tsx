@@ -786,28 +786,26 @@ const ClientNewOrder = () => {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
     }
     
-    // ─── TV Configurator handoff: read nivra_tv_cart and pre-populate wizard ───
+    // ─── TV Configurator handoff: read nivra_tv_cart (v3) and pre-populate wizard ───
     try {
       const tvCartRaw = sessionStorage.getItem("nivra_tv_cart");
       const hasDraft = !!sessionStorage.getItem(ORDER_DRAFT_KEY);
       if (tvCartRaw && !hasDraft) {
-        // Only apply if no existing draft (fresh checkout from configurator)
         const tvPayload = JSON.parse(tvCartRaw);
         
-        // Validate payload version and freshness (max 30 min)
+        // Validate payload version 3 and freshness (max 30 min)
         if (
           tvPayload?.source === "tv-configurator" &&
-          tvPayload?.version === 2 &&
+          tvPayload?.version === 3 &&
           tvPayload?.createdAt &&
           Date.now() - new Date(tvPayload.createdAt).getTime() < 30 * 60 * 1000
         ) {
-          console.log("[OrderWizard] TV Configurator handoff detected, pre-populating wizard");
+          console.log("[OrderWizard] TV Configurator v3 handoff detected — exact ID mapping");
           
-          // Pre-select services — will be matched against services_public after data loads
-          // Store raw preSelectedServices for deferred matching in a separate effect
+          // Store for deferred matching after services_public + streaming_services load
           sessionStorage.setItem("nivra_tv_cart_pending", JSON.stringify(tvPayload));
           
-          // Set terminal quantity
+          // Set terminal quantity (exact from configurator)
           if (tvPayload.terminalQuantity > 0) {
             setTerminalQuantity(tvPayload.terminalQuantity);
           }
@@ -820,7 +818,6 @@ const ClientNewOrder = () => {
           // Clear the TV cart after consumption
           sessionStorage.removeItem("nivra_tv_cart");
         } else {
-          // Stale or invalid payload — clear it
           sessionStorage.removeItem("nivra_tv_cart");
         }
       }
