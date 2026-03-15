@@ -3,6 +3,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
+import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -31,13 +32,6 @@ export interface TVCartPayload {
 /* ─── Tax constants (QC) — ESTIMATE ONLY ─── */
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
-
-/**
- * CANONICAL FEE VALUES — sourced from real Nivra checkout (ClientNewOrder.tsx)
- */
-const TECHNICIAN_INSTALL_FEE = 50;
-const STANDARD_DELIVERY_FEE = 30;
-const ACTIVATION_FEE_SINGLE = 25;
 
 type InstallMethod = "technician" | "self" | null;
 type SimulatorStep = 1 | 2 | 3 | 4;
