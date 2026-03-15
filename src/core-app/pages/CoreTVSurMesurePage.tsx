@@ -3,6 +3,7 @@
  * Manages simulator-eligible TV offers, streaming, equipment, and rules.
  */
 import { useState, useMemo } from "react";
+import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
