@@ -187,6 +187,15 @@ export default function CoreCatalogPage() {
     },
   });
 
+  /** Invalidate every query that reads from the catalog — ensures live propagation everywhere */
+  const invalidateAllCatalogQueries = () => {
+    const keys = [
+      "core-catalog-full", "core-services-catalog", "public-services",
+      "available-services", "tv-configurator-services", "canonical-operational-fees",
+    ];
+    keys.forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
+  };
+
   /* ─── Helpers ─── */
   const closeDrawer = () => {
     setEditItem(null);
