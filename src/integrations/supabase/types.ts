@@ -5221,6 +5221,207 @@ export type Database = {
           },
         ]
       }
+      installation_job_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          job_id: string
+          new_status: string | null
+          old_status: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          job_id: string
+          new_status?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          job_id?: string
+          new_status?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installation_job_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "installation_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      installation_jobs: {
+        Row: {
+          account_id: string | null
+          address_id: string | null
+          appointment_id: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          client_email: string | null
+          client_instructions: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_signature_url: string | null
+          completed_at: string | null
+          completion_photos: Json | null
+          created_at: string
+          created_by: string | null
+          equipment_installed: Json | null
+          id: string
+          installation_level: string | null
+          internal_notes: string | null
+          job_number: string
+          job_type: string
+          order_id: string | null
+          quality_score: number | null
+          scheduled_date: string | null
+          scheduled_time_end: string | null
+          scheduled_time_start: string | null
+          service_address: string | null
+          service_city: string | null
+          service_postal_code: string | null
+          service_type: string | null
+          started_at: string | null
+          status: string
+          technician_assigned_at: string | null
+          technician_id: string | null
+          technician_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          address_id?: string | null
+          appointment_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          client_email?: string | null
+          client_instructions?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          client_signature_url?: string | null
+          completed_at?: string | null
+          completion_photos?: Json | null
+          created_at?: string
+          created_by?: string | null
+          equipment_installed?: Json | null
+          id?: string
+          installation_level?: string | null
+          internal_notes?: string | null
+          job_number?: string
+          job_type?: string
+          order_id?: string | null
+          quality_score?: number | null
+          scheduled_date?: string | null
+          scheduled_time_end?: string | null
+          scheduled_time_start?: string | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_type?: string | null
+          started_at?: string | null
+          status?: string
+          technician_assigned_at?: string | null
+          technician_id?: string | null
+          technician_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          address_id?: string | null
+          appointment_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          client_email?: string | null
+          client_instructions?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          client_signature_url?: string | null
+          completed_at?: string | null
+          completion_photos?: Json | null
+          created_at?: string
+          created_by?: string | null
+          equipment_installed?: Json | null
+          id?: string
+          installation_level?: string | null
+          internal_notes?: string | null
+          job_number?: string
+          job_type?: string
+          order_id?: string | null
+          quality_score?: number | null
+          scheduled_date?: string | null
+          scheduled_time_end?: string | null
+          scheduled_time_start?: string | null
+          service_address?: string | null
+          service_city?: string | null
+          service_postal_code?: string | null
+          service_type?: string | null
+          started_at?: string | null
+          status?: string
+          technician_assigned_at?: string | null
+          technician_id?: string | null
+          technician_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installation_jobs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installation_jobs_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installations: {
         Row: {
           appointment_date: string | null
