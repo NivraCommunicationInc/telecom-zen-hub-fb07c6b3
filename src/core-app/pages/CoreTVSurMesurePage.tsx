@@ -367,7 +367,47 @@ export default function CoreTVSurMesurePage() {
             </div>
           </div>
 
-          <CanonicalFeeRulesPanel />
+          <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] p-5 space-y-4">
+            <h3 className="text-sm font-bold text-[hsl(var(--core-text-primary))]">Canonical Fee Rules</h3>
+            <p className="text-[10px] text-[hsl(var(--core-text-label))]">Source: <code className="text-emerald-400">operational_fees</code> table (live from DB)</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
+                <p className="text-xs font-medium text-emerald-400 mb-1">Activation</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.activationSingle} (1 service) / $${canonicalFees.activationBundle} (2+ services)`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
+              </div>
+              <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
+                <p className="text-xs font-medium text-emerald-400 mb-1">Installation (Technician)</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.installationTechnician}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
+              </div>
+              <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
+                <p className="text-xs font-medium text-emerald-400 mb-1">Shipping (Standard)</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.deliveryStandard}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
+              </div>
+              <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
+                <p className="text-xs font-medium text-emerald-400 mb-1">Router</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.equipmentRouter}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
+              </div>
+              <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
+                <p className="text-xs font-medium text-emerald-400 mb-1">TV Terminal</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.equipmentTerminal}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
+              </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
