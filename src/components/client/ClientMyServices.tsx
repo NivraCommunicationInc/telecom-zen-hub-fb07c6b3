@@ -55,37 +55,8 @@ import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { ServicesByAddress } from "./ServicesByAddress";
 
-// Plans matching website exactly - DO NOT modify
-const AVAILABLE_PLANS = {
-  internet: [
-    { id: "internet-100", name: "Internet 100 Mbps", price: 55, speed: "100 Mbps haute vitesse" },
-    { id: "internet-500", name: "Internet 500 Mbps", price: 60, speed: "500 Mbps ultra-rapide" },
-    { id: "internet-940", name: "Internet 940 Mbps", price: 70, speed: "940 Mbps fibre" },
-  ],
-  tv_bundles: [
-    { id: "tv-basic", name: "Internet 100 + TV Basic", price: 75, description: "26 chaînes générales" },
-    { id: "tv-5choices", name: "Internet 500 + TV 5 choix", price: 80, description: "32 chaînes populaires" },
-    { id: "tv-10choices", name: "Internet 500 + TV 10 choix", price: 90, description: "37 chaînes + sports" },
-    { id: "tv-15choices", name: "Internet 500 + TV 15 choix", price: 95, description: "42 chaînes + sports" },
-    { id: "tv-25choices", name: "Internet 500 + TV 25 choix", price: 110, description: "52 chaînes + sports" },
-    { id: "giga-tv-basic", name: "GIGA + TV Basic", price: 85, description: "Internet 1Gbps + 26 chaînes" },
-    { id: "giga-tv-5choices", name: "GIGA + TV 5 choix", price: 95, description: "Internet 1Gbps + 32 chaînes" },
-    { id: "giga-tv-10choices", name: "GIGA + TV 10 choix", price: 105, description: "Internet 1Gbps + 37 chaînes" },
-    { id: "giga-tv-15choices", name: "GIGA + TV 15 choix", price: 110, description: "Internet 1Gbps + 42 chaînes" },
-    { id: "giga-tv-25choices", name: "GIGA + TV 25 choix", price: 120, description: "Internet 1Gbps + 52 chaînes" },
-  ],
-  // Mobile plans - EXACTLY matching public website MobilePlans.tsx
-  mobile: [
-    { id: "mobile-50", name: "Forfait Mobile 50$/30 jours", price: 50, data: "50-55 GB 4G (avec/sans Auto Top-Up)" },
-    { id: "mobile-60", name: "Forfait Mobile 60$/30 jours", price: 60, data: "75-80 GB 4G (avec/sans Auto Top-Up)" },
-  ],
-  // Streaming+ services
-  streaming: [
-    { id: "streaming-basic", name: "Streaming+ Basic", price: 9.99, description: "Accès de base aux contenus" },
-    { id: "streaming-premium", name: "Streaming+ Premium", price: 14.99, description: "4K + Multi-écrans + Téléchargement" },
-    { id: "streaming-family", name: "Streaming+ Famille", price: 19.99, description: "6 profils + Contrôle parental" },
-  ],
-};
+// CANONICAL: Plans are now loaded from the database via usePublicServices hook.
+// No more hardcoded plan arrays — all managed from Nivra Core admin.
 
 const EQUIPMENT_ISSUE_TYPES = [
   { value: "defect", label: "Défaut de fabrication", warrantyPath: true },
