@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, Search } from "lucide-react";
+import { Menu, X, User, Search, ChevronDown } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -12,6 +12,9 @@ import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatus
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  const dropdownTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useOptionalAuth();
@@ -41,7 +44,6 @@ const Header = () => {
     }
   }, [location]);
 
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
     if (isMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -51,9 +53,16 @@ const Header = () => {
     return () => { document.body.style.overflow = ''; };
   }, [isMenuOpen]);
 
+  // Close dropdown on route change
+  useEffect(() => {
+    setOpenDropdown(null);
+    setMobileExpanded(null);
+  }, [location.pathname]);
+
   const handleNavClick = (target: NavTarget) => {
     try {
       setIsMenuOpen(false);
+      setOpenDropdown(null);
       if (target.type === 'scroll') {
         if (location.pathname !== "/") {
           navigate(`/#${target.target}`);
@@ -72,6 +81,155 @@ const Header = () => {
 
   const getLabel = (target: NavTarget): string => {
     return language === 'fr' ? target.labelFr : target.label;
+  };
+
+  const handleDropdownEnter = (id: string) => {
+    if (dropdownTimeout.current) clearTimeout(dropdownTimeout.current);
+    setOpenDropdown(id);
+  };
+
+  const handleDropdownLeave = () => {
+    dropdownTimeout.current = setTimeout(() => setOpenDropdown(null), 150);
+  };
+
+  const renderDesktopNavItem = (target: NavTarget) => {
+    const hasChildren = target.children && target.children.length > 0;
+    const isActive = target.type === 'route'
+      ? location.pathname === target.target || target.children?.some(c => location.pathname === c.target)
+      : location.hash === `#${target.target}`;
+
+    if (hasChildren) {
+      return (
+        <div
+          key={target.id}
+          className="relative"
+          onMouseEnter={() => handleDropdownEnter(target.id)}
+          onMouseLeave={handleDropdownLeave}
+        >
+          <button
+            className={`flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors rounded-md ${
+              isActive
+                ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
+                : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+            }`}
+            type="button"
+            onClick={() => handleNavClick(target)}
+          >
+            {getLabel(target)}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdown === target.id ? 'rotate-180' : ''}`} />
+          </button>
+
+          {openDropdown === target.id && (
+            <div className="absolute top-full left-0 pt-1 z-50">
+              <div className="bg-white rounded-lg shadow-lg border border-slate-200 py-1.5 min-w-[200px]">
+                {target.children!.map((child) => {
+                  const childActive = location.pathname === child.target;
+                  return (
+                    <Link
+                      key={child.id}
+                      to={child.target}
+                      className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
+                        childActive
+                          ? 'text-[#003366] bg-blue-50'
+                          : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+                      }`}
+                    >
+                      {getLabel(child)}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // No children — simple link or scroll button
+    return target.type === 'route' ? (
+      <Link
+        key={target.id}
+        to={target.target}
+        className={`px-4 py-2 text-sm font-medium transition-colors rounded-md ${
+          isActive
+            ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
+            : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+        }`}
+      >
+        {getLabel(target)}
+      </Link>
+    ) : (
+      <button
+        key={target.id}
+        onClick={() => handleNavClick(target)}
+        className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-[#003366] hover:bg-slate-50 transition-colors rounded-md"
+        type="button"
+      >
+        {getLabel(target)}
+      </button>
+    );
+  };
+
+  const renderMobileNavItem = (target: NavTarget) => {
+    const hasChildren = target.children && target.children.length > 0;
+    const isExpanded = mobileExpanded === target.id;
+
+    if (hasChildren) {
+      return (
+        <div key={target.id}>
+          <button
+            onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
+            className="flex items-center justify-between w-full px-4 py-3.5 text-base font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl mb-1 min-h-[44px]"
+            type="button"
+          >
+            {getLabel(target)}
+            <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          </button>
+          {isExpanded && (
+            <div className="pl-4 space-y-0.5 mb-1">
+              {target.children!.map((child) => (
+                <Link
+                  key={child.id}
+                  to={child.target}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl min-h-[44px] ${
+                    location.pathname === child.target
+                      ? 'bg-blue-50 text-[#003366]'
+                      : 'text-slate-600 hover:bg-slate-50 active:bg-slate-100'
+                  }`}
+                >
+                  {getLabel(child)}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return target.type === 'route' ? (
+      <Link
+        key={target.id}
+        to={target.target}
+        onClick={() => setIsMenuOpen(false)}
+        className={`flex items-center px-4 py-3.5 text-base font-medium rounded-xl mb-1 min-h-[44px] ${
+          location.pathname === target.target
+            ? 'bg-blue-50 text-[#003366]'
+            : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'
+        }`}
+      >
+        {getLabel(target)}
+      </Link>
+    ) : (
+      <button
+        key={target.id}
+        onClick={() => handleNavClick(target)}
+        className="flex items-center w-full text-left px-4 py-3.5 text-base font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl mb-1 min-h-[44px]"
+        type="button"
+      >
+        {getLabel(target)}
+      </button>
+    );
   };
 
   return (
@@ -140,34 +298,7 @@ const Header = () => {
             </Link>
 
             <nav className="flex items-center gap-1 ml-10 flex-1">
-              {NAV_TARGETS.map((target) => {
-                const isActive = target.type === 'route'
-                  ? location.pathname === target.target
-                  : location.hash === `#${target.target}`;
-
-                return target.type === 'route' ? (
-                  <Link
-                    key={target.id}
-                    to={target.target}
-                    className={`px-4 py-2 text-sm font-medium transition-colors rounded-md ${
-                      isActive
-                        ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
-                        : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
-                    }`}
-                  >
-                    {getLabel(target)}
-                  </Link>
-                ) : (
-                  <button
-                    key={target.id}
-                    onClick={() => handleNavClick(target)}
-                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-[#003366] hover:bg-slate-50 transition-colors rounded-md"
-                    type="button"
-                  >
-                    {getLabel(target)}
-                  </button>
-                );
-              })}
+              {NAV_TARGETS.map(renderDesktopNavItem)}
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
@@ -208,31 +339,7 @@ const Header = () => {
 
             {/* Navigation links — large tap targets (min 44px) */}
             <nav className="p-3">
-              {NAV_TARGETS.map((target) => (
-                target.type === 'route' ? (
-                  <Link
-                    key={target.id}
-                    to={target.target}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center px-4 py-3.5 text-base font-medium rounded-xl mb-1 min-h-[44px] ${
-                      location.pathname === target.target
-                        ? 'bg-blue-50 text-[#003366]'
-                        : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'
-                    }`}
-                  >
-                    {getLabel(target)}
-                  </Link>
-                ) : (
-                  <button
-                    key={target.id}
-                    onClick={() => handleNavClick(target)}
-                    className="flex items-center w-full text-left px-4 py-3.5 text-base font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl mb-1 min-h-[44px]"
-                    type="button"
-                  >
-                    {getLabel(target)}
-                  </button>
-                )
-              ))}
+              {NAV_TARGETS.map(renderMobileNavItem)}
             </nav>
 
             {/* Utility links */}
