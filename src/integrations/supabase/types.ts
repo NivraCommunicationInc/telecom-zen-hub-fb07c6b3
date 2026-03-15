@@ -6284,6 +6284,54 @@ export type Database = {
         }
         Relationships: []
       }
+      operational_fees: {
+        Row: {
+          amount: number
+          applies_when: Json | null
+          category: string
+          created_at: string | null
+          display_order: number | null
+          fee_key: string
+          fee_type: string
+          id: string
+          is_active: boolean
+          label_en: string | null
+          label_fr: string
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number
+          applies_when?: Json | null
+          category?: string
+          created_at?: string | null
+          display_order?: number | null
+          fee_key: string
+          fee_type?: string
+          id?: string
+          is_active?: boolean
+          label_en?: string | null
+          label_fr: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          applies_when?: Json | null
+          category?: string
+          created_at?: string | null
+          display_order?: number | null
+          fee_key?: string
+          fee_type?: string
+          id?: string
+          is_active?: boolean
+          label_en?: string | null
+          label_fr?: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       order_documents: {
         Row: {
           created_at: string
