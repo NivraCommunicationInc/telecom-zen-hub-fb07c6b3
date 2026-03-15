@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
+import { usePublicServices } from "@/hooks/usePublicServices";
 import { 
   Wifi, Tv, Smartphone, Shield, Package, AlertTriangle, 
   ArrowUpCircle, Pause, RefreshCw, FileWarning, MessageSquare,
