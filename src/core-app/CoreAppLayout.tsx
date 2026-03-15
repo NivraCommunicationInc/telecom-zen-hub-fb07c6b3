@@ -91,6 +91,8 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Boxes,
     items: [
       { icon: Settings, label: "Services", href: "/services" },
+      { icon: Boxes, label: "Catalog", href: "/catalog" },
+      { icon: MonitorPlay, label: "TV sur mesure", href: "/tv-sur-mesure" },
       { icon: Tv, label: "TV Channels", href: "/channels" },
       { icon: Film, label: "Streaming+", href: "/streaming" },
       { icon: FileText, label: "Contracts", href: "/contracts" },
