@@ -2179,7 +2179,7 @@ const ClientNewOrder = () => {
         fees: [
           ...(orderActivationFee > 0 ? [{ sku: new Set(selectedServices.map(s => s.category)).size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1, name: "Frais d'activation", amount: orderActivationFee }] : []),
           ...(orderDeliveryFee > 0 ? [{ sku: SKU.DELIVERY, name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
-          ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
+          ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 50) - installationCredit) }] : []),
         ],
         promo: shouldAttachPromoToCheckout && appliedPromo ? {
           code: appliedPromo.code,
