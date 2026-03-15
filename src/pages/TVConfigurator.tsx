@@ -248,7 +248,7 @@ const TV_PRODUCTS: TVProduct[] = [
   },
 ];
 
-/* ─── Tax constants (QC) ─── */
+/* ─── Tax constants (QC) — ESTIMATE ONLY, canonical math is server-side ─── */
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
 
