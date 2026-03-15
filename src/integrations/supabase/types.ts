@@ -10713,6 +10713,7 @@ export type Database = {
           activation_date: string | null
           amount: number
           bill_cycle_day: number | null
+          billing_customer_id: string | null
           billing_cycle: string
           cancelled_at: string | null
           created_at: string
@@ -10735,6 +10736,7 @@ export type Database = {
           activation_date?: string | null
           amount: number
           bill_cycle_day?: number | null
+          billing_customer_id?: string | null
           billing_cycle?: string
           cancelled_at?: string | null
           created_at?: string
@@ -10757,6 +10759,7 @@ export type Database = {
           activation_date?: string | null
           amount?: number
           bill_cycle_day?: number | null
+          billing_customer_id?: string | null
           billing_cycle?: string
           cancelled_at?: string | null
           created_at?: string
@@ -10781,6 +10784,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_billing_customer_id_fkey"
+            columns: ["billing_customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_billing_customer_id_fkey"
+            columns: ["billing_customer_id"]
+            isOneToOne: false
+            referencedRelation: "qa_orphaned_payments"
+            referencedColumns: ["billing_customer_id"]
           },
           {
             foreignKeyName: "subscriptions_order_id_fkey"
@@ -13007,6 +13024,14 @@ export type Database = {
           p_reason?: string
         }
         Returns: undefined
+      }
+      fn_generate_subscription_renewal: {
+        Args: { p_subscription_id: string }
+        Returns: Json
+      }
+      fn_run_subscription_renewals: {
+        Args: { p_lookahead_days?: number }
+        Returns: Json
       }
       generate_account_number: { Args: never; Returns: string }
       generate_account_renewal_invoice: {
