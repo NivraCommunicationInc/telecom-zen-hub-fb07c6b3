@@ -821,7 +821,7 @@ const ClientMyServices = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {AVAILABLE_PLANS.streaming.map((plan) => (
+              {catalogPlans.streaming.map((plan) => (
                 <div key={plan.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-cyan-500/50 transition-colors">
                   <div>
                     <p className="font-medium text-foreground">{plan.name}</p>
