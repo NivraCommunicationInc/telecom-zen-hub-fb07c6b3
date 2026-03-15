@@ -44,6 +44,8 @@ const CoreContestedPaymentsPage = lazy(() => import("@/core-app/pages/CoreContes
 const CoreContestedInvoicesPage = lazy(() => import("@/core-app/pages/CoreContestedInvoicesPage"));
 // Catalogue
 const CoreServicesPage = lazy(() => import("@/core-app/pages/CoreServicesPage"));
+const CoreCatalogPage = lazy(() => import("@/core-app/pages/CoreCatalogPage"));
+const CoreTVSurMesurePage = lazy(() => import("@/core-app/pages/CoreTVSurMesurePage"));
 const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
 const CoreStreamingPage = lazy(() => import("@/core-app/pages/CoreStreamingPage"));
 const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"));
@@ -660,6 +662,8 @@ const AppRoutes = () => {
           <Route path="contested-invoices" element={<Suspense fallback={null}><CoreContestedInvoicesPage /></Suspense>} />
           {/* Catalogue */}
           <Route path="services" element={<Suspense fallback={null}><CoreServicesPage /></Suspense>} />
+          <Route path="catalog" element={<Suspense fallback={null}><CoreCatalogPage /></Suspense>} />
+          <Route path="tv-sur-mesure" element={<Suspense fallback={null}><CoreTVSurMesurePage /></Suspense>} />
           <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
           <Route path="streaming" element={<Suspense fallback={null}><CoreStreamingPage /></Suspense>} />
           <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />

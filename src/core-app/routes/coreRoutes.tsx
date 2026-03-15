@@ -45,6 +45,8 @@ const CoreContestedInvoicesPage = lazy(() => import("@/core-app/pages/CoreContes
 
 // Catalogue
 const CoreServicesPage = lazy(() => import("@/core-app/pages/CoreServicesPage"));
+const CoreCatalogPage = lazy(() => import("@/core-app/pages/CoreCatalogPage"));
+const CoreTVSurMesurePage = lazy(() => import("@/core-app/pages/CoreTVSurMesurePage"));
 const CoreChannelsPage = lazy(() => import("@/core-app/pages/CoreChannelsPage"));
 const CoreStreamingPage = lazy(() => import("@/core-app/pages/CoreStreamingPage"));
 const CoreContractsPage = lazy(() => import("@/core-app/pages/CoreContractsPage"));
@@ -125,6 +127,8 @@ export const coreRoutes: RouteObject = {
     { path: "contested-invoices", element: <CoreContestedInvoicesPage /> },
     // Catalogue
     { path: "services", element: <CoreServicesPage /> },
+    { path: "catalog", element: <CoreCatalogPage /> },
+    { path: "tv-sur-mesure", element: <CoreTVSurMesurePage /> },
     { path: "channels", element: <CoreChannelsPage /> },
     { path: "streaming", element: <CoreStreamingPage /> },
     { path: "contracts", element: <CoreContractsPage /> },

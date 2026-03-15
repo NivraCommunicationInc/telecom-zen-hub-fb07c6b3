@@ -106,11 +106,11 @@ const TVConfigurator = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services_public")
-        .select("id, name, category, price, description, billing_type")
+        .select("id, name, category, price, description, billing_type, visible_simulator")
         .order("category", { ascending: true })
         .order("price", { ascending: true });
       if (error) throw error;
-      return (data || []) as ServicePublic[];
+      return (data || []) as (ServicePublic & { visible_simulator?: boolean })[];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -130,7 +130,8 @@ const TVConfigurator = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const tvPlans = useMemo(() => allServices.filter(s => s.category === "TV"), [allServices]);
+  // Only show TV plans that are marked visible_simulator
+  const tvPlans = useMemo(() => allServices.filter(s => s.category === "TV" && (s as any).visible_simulator), [allServices]);
   const equipmentProducts = useMemo(() => allServices.filter(s => s.category === "Équipement"), [allServices]);
   const terminalProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("terminal")), [equipmentProducts]);
   const routerProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("router")), [equipmentProducts]);
@@ -140,8 +141,8 @@ const TVConfigurator = () => {
   // ─── Selection state ───
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedStreamingIds, setSelectedStreamingIds] = useState<Set<string>>(new Set());
-  const [extraTerminals, setExtraTerminals] = useState(0);
-  const [includeRouter, setIncludeRouter] = useState(true);
+  const [extraTerminals, setExtraTerminals] = useState(0); // extra beyond the required 1
+  const includeRouter = true; // ALWAYS required — 1 borne per address, not toggleable
   const [installMethod, setInstallMethod] = useState<InstallMethod>(null);
 
   useEffect(() => {
@@ -494,36 +495,26 @@ const TVConfigurator = () => {
                   </div>
                 )}
 
-                {/* Router Card */}
+                {/* Router / Borne Card — ALWAYS REQUIRED */}
                 {routerProduct && (
-                  <div
-                    onClick={() => setIncludeRouter(!includeRouter)}
-                    className={cn(
-                      "rounded-2xl border-2 bg-white overflow-hidden cursor-pointer transition-all",
-                      includeRouter ? "border-[#003366]/15" : "border-slate-200 opacity-50 hover:opacity-70"
-                    )}
-                  >
-                    <div className={cn("px-5 py-3 flex items-center justify-between", includeRouter ? "bg-[#003366]/5" : "bg-slate-50")}>
+                  <div className="rounded-2xl border-2 border-[#003366]/15 bg-white overflow-hidden">
+                    <div className="bg-[#003366]/5 px-5 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Wifi className={cn("w-4 h-4", includeRouter ? "text-[#003366]" : "text-slate-400")} />
-                        <span className={cn("text-xs font-bold uppercase tracking-wider", includeRouter ? "text-[#003366]" : "text-slate-400")}>
-                          {isFr ? "Routeur WiFi" : "WiFi Router"}
+                        <Wifi className="w-4 h-4 text-[#003366]" />
+                        <span className="text-xs font-bold text-[#003366] uppercase tracking-wider">
+                          {isFr ? "Borne WiFi (Routeur)" : "WiFi Router"}
                         </span>
                       </div>
-                      <div className={cn(
-                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                        includeRouter ? "bg-[#003366] border-[#003366]" : "border-slate-300"
-                      )}>
-                        {includeRouter && <Check className="w-3 h-3 text-white" />}
-                      </div>
+                      <Badge className="bg-[#003366]/10 text-[#003366] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
                     </div>
                     <div className="p-5">
                       <h4 className="font-bold text-slate-900 mb-1">{routerProduct.name}</h4>
-                      <p className="text-xs text-slate-400 mb-4">{routerProduct.description}</p>
+                      <p className="text-xs text-slate-400 mb-4">{routerProduct.description || (isFr ? "1 borne requise par adresse" : "1 router required per address")}</p>
                       <div>
                         <span className="text-2xl font-extrabold text-slate-900">{routerProduct.price.toFixed(0)}</span>
                         <span className="text-sm text-slate-400 ml-0.5">$</span>
                       </div>
+                      <p className="text-[10px] text-slate-400 mt-3">{isFr ? "Exactement 1 borne par adresse · Inclus automatiquement" : "Exactly 1 per address · Automatically included"}</p>
                     </div>
                   </div>
                 )}

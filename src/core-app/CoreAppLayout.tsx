@@ -12,6 +12,7 @@ import {
   FileText, CreditCard, RefreshCcw, Calendar, LogOut, ChevronLeft,
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
+  MonitorPlay,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
@@ -90,6 +91,8 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Boxes,
     items: [
       { icon: Settings, label: "Services", href: "/services" },
+      { icon: Boxes, label: "Catalog", href: "/catalog" },
+      { icon: MonitorPlay, label: "TV sur mesure", href: "/tv-sur-mesure" },
       { icon: Tv, label: "TV Channels", href: "/channels" },
       { icon: Film, label: "Streaming+", href: "/streaming" },
       { icon: FileText, label: "Contracts", href: "/contracts" },
