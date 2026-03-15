@@ -1568,7 +1568,7 @@ const ClientMyServices = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="" disabled>Internet</SelectItem>
-                  {AVAILABLE_PLANS.internet.map(plan => (
+                  {catalogPlans.internet.map(plan => (
                     <SelectItem key={plan.id} value={plan.name}>
                       {plan.name} - {plan.price}$/mois
                     </SelectItem>
