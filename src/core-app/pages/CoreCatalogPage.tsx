@@ -366,16 +366,16 @@ export default function CoreCatalogPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      {s.visible_website && <Globe className="w-3 h-3 text-sky-400" title="Website" />}
-                      {s.visible_simulator && <MonitorPlay className="w-3 h-3 text-violet-400" title="Simulator" />}
-                      {s.visible_checkout && <ShoppingCart className="w-3 h-3 text-amber-400" title="Checkout" />}
-                      {s.visible_portal && <User className="w-3 h-3 text-emerald-400" title="Portal" />}
+                      {s.visible_website && <span title="Website"><Globe className="w-3 h-3 text-sky-400" /></span>}
+                      {s.visible_simulator && <span title="Simulator"><MonitorPlay className="w-3 h-3 text-violet-400" /></span>}
+                      {s.visible_checkout && <span title="Checkout"><ShoppingCart className="w-3 h-3 text-amber-400" /></span>}
+                      {s.visible_portal && <span title="Portal"><User className="w-3 h-3 text-emerald-400" /></span>}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      {s.is_featured && <Star className="w-3 h-3 text-amber-400 fill-amber-400" title="Featured" />}
-                      {s.promo_eligible && <Zap className="w-3 h-3 text-violet-400" title="Promo Eligible" />}
+                      {s.is_featured && <span title="Featured"><Star className="w-3 h-3 text-amber-400 fill-amber-400" /></span>}
+                      {s.promo_eligible && <span title="Promo Eligible"><Zap className="w-3 h-3 text-violet-400" /></span>}
                     </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
