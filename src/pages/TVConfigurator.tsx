@@ -511,21 +511,25 @@ const TVConfigurator = () => {
                         </div>
                       </div>
                       <Separator className="my-4" />
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-600">{isFr ? "Terminaux supplémentaires" : "Extra terminals"}</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm text-slate-600">{isFr ? "Quantité totale" : "Total quantity"}</span>
                         <div className="flex items-center gap-2.5">
                           <button onClick={() => setExtraTerminals(Math.max(0, extraTerminals - 1))} disabled={extraTerminals === 0}
                             className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 disabled:opacity-20 transition-all">
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="w-6 text-center font-bold text-slate-900 tabular-nums">{extraTerminals}</span>
+                          <span className="w-6 text-center font-bold text-slate-900 tabular-nums">{totalTerminals}</span>
                           <button onClick={() => setExtraTerminals(Math.min(3, extraTerminals + 1))}
                             className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all">
                             <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
-                      <p className="text-[10px] text-slate-300 mt-2">{isFr ? "Maximum 4 terminaux au total" : "Maximum 4 terminals total"}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-400">{isFr ? "Sous-total équipement" : "Equipment subtotal"}</span>
+                        <span className="text-sm font-bold text-slate-700">{(terminalProduct.price * totalTerminals).toFixed(0)} $</span>
+                      </div>
+                      <p className="text-[10px] text-slate-300 mt-2">{isFr ? "Minimum 1, maximum 4 terminaux par adresse" : "Minimum 1, maximum 4 terminals per address"}</p>
                     </div>
                   </div>
                 )}
