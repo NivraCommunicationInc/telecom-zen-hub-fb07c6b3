@@ -98,6 +98,17 @@ const ClientMyServices = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = usePortalActivityLog();
+
+  // CANONICAL: Load all plans from the database catalog
+  const { data: catalogServices = [] } = usePublicServices({ surface: "portal" });
+  
+  const catalogPlans = useMemo(() => {
+    const internet = catalogServices.filter(s => s.category === "Internet").map(s => ({ id: s.id, name: s.name, price: s.price, speed: s.description || "" }));
+    const tv_bundles = catalogServices.filter(s => s.category === "TV").map(s => ({ id: s.id, name: s.name, price: s.price, description: s.description || "" }));
+    const mobile = catalogServices.filter(s => s.category === "Mobile").map(s => ({ id: s.id, name: s.name, price: s.price, data: s.description || "" }));
+    const streaming = catalogServices.filter(s => s.name.toLowerCase().includes("streaming")).map(s => ({ id: s.id, name: s.name, price: s.price, description: s.description || "" }));
+    return { internet, tv_bundles, mobile, streaming };
+  }, [catalogServices]);
   
   // Dialog states
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
