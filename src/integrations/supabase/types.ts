@@ -7968,6 +7968,7 @@ export type Database = {
           discount_type: string
           discount_value: number
           duration: string
+          duration_months: number | null
           end_at: string | null
           id: string
           max_discount_amount: number | null
@@ -7994,6 +7995,7 @@ export type Database = {
           discount_type: string
           discount_value: number
           duration?: string
+          duration_months?: number | null
           end_at?: string | null
           id?: string
           max_discount_amount?: number | null
@@ -8020,6 +8022,7 @@ export type Database = {
           discount_type?: string
           discount_value?: number
           duration?: string
+          duration_months?: number | null
           end_at?: string | null
           id?: string
           max_discount_amount?: number | null
