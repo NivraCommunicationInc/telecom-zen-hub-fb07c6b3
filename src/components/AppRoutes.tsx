@@ -107,6 +107,7 @@ import TrackOrder from "@/pages/TrackOrder";
 import StatusPage from "@/pages/StatusPage";
 import Install from "@/pages/Install";
 import ComparePlans from "@/pages/ComparePlans";
+import TVConfigurator from "@/pages/TVConfigurator";
 
 // Legal pages
 import ConditionsDeService from "@/pages/legal/ConditionsDeService";
