@@ -2950,16 +2950,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
       return 0;
     }
-    // For Internet, TV, Security - use installation choice
-    return installationChoice === "auto" ? 30 : 0;
+    // For Internet, TV, Security - use installation choice (canonical fee)
+    return installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0;
   };
   
   const deliveryFee = calculateDeliveryFee();
-  // Activation fee: $25 for 1 service type, $45 for 2+ service types
+  // Activation fee from canonical operational_fees
   const activationFee = calculateActivationFee();
   // IMPORTANT: Promo discounts are applied via promoDiscount (discount_amount) below.
   // Do not also subtract an installationCredit here, otherwise the promo is applied twice.
-  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0;
+  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? (canonicalFees.installationTechnician || 50) : 0;
   
   // Calculate one-time fees vs monthly fees (include Streaming+ add-ons)
   const oneTimeFeesGross = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
