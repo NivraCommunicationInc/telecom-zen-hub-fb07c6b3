@@ -67,6 +67,32 @@ export default function CoreChannelsPage() {
   });
 
   // ═══ QUERIES ═══
+  // Canonical TV plans from DB
+  const { data: dbTvPlans = [] } = useQuery({
+    queryKey: ["core-catalog-full"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("services" as any).select("*").eq("category", "TV").order("display_order").order("price");
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+
+  // Map DB plans to display shape
+  const tvPlansForCards = useMemo(() => dbTvPlans.map((p: any) => {
+    const name = p.name || "";
+    const desc = p.description || "";
+    const isGiga = name.toLowerCase().includes("giga");
+    const choixMatch = name.match(/(\d+)\s*choix/i);
+    const choix = choixMatch ? parseInt(choixMatch[1]) : 0;
+    const channelMatch = desc.match(/(\d+)\s*chaîne/i);
+    const channels = channelMatch ? parseInt(channelMatch[1]) : 26;
+    const speed = isGiga ? "1 Gbps" : name.includes("500") ? "500 Mbps" : "100 Mbps";
+    const tier = isGiga ? "GIGA" : name.includes("500") ? "Internet 500" : "Internet 100";
+    const features = (p.features_json?.length ? p.features_json : desc.split("•").map((s: string) => s.trim()).filter(Boolean)).slice(0, 5);
+    const badge = (p.badges?.[0]) || (isGiga ? "GIGA" : choix > 15 ? "PREMIUM" : choix > 0 ? "POPULAIRE" : "ÉCONOMIQUE");
+    return { id: p.id, tier, name, badge, price: Number(p.price), internet: speed, baseChannels: channels, freeChoices: choix, features };
+  }), [dbTvPlans]);
+
   const { data: channels = [], isLoading: channelsLoading } = useQuery({
     queryKey: ["core-tv-channels"],
     queryFn: async () => {
