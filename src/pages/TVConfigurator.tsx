@@ -130,7 +130,8 @@ const TVConfigurator = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const tvPlans = useMemo(() => allServices.filter(s => s.category === "TV"), [allServices]);
+  // Only show TV plans that are marked visible_simulator
+  const tvPlans = useMemo(() => allServices.filter(s => s.category === "TV" && (s as any).visible_simulator), [allServices]);
   const equipmentProducts = useMemo(() => allServices.filter(s => s.category === "Équipement"), [allServices]);
   const terminalProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("terminal")), [equipmentProducts]);
   const routerProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("router")), [equipmentProducts]);
@@ -140,8 +141,8 @@ const TVConfigurator = () => {
   // ─── Selection state ───
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedStreamingIds, setSelectedStreamingIds] = useState<Set<string>>(new Set());
-  const [extraTerminals, setExtraTerminals] = useState(0);
-  const [includeRouter, setIncludeRouter] = useState(true);
+  const [extraTerminals, setExtraTerminals] = useState(0); // extra beyond the required 1
+  const includeRouter = true; // ALWAYS required — 1 borne per address, not toggleable
   const [installMethod, setInstallMethod] = useState<InstallMethod>(null);
 
   useEffect(() => {
