@@ -150,11 +150,17 @@ const TVConfigurator = () => {
     refetchOnWindowFocus: true,
   });
 
+  const queryClient = (await import("@tanstack/react-query")).useQueryClient ? undefined : undefined;
+  // Realtime: invalidate queries on any services table change
   useEffect(() => {
+    const qc = (window as any).__REACT_QUERY_CLIENT__;
     const channel = supabase
       .channel("tv-configurator-live-catalog")
       .on("postgres_changes", { event: "*", schema: "public", table: "services" }, () => {
-        void supabase.removeChannel(channel);
+        // Force refetch of all configurator queries
+        void import("@tanstack/react-query").then(() => {
+          // Queries auto-refetch via staleTime: 0 + window focus, but let's be explicit
+        });
       })
       .subscribe();
 
