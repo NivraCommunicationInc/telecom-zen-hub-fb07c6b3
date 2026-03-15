@@ -1986,7 +1986,7 @@ const ClientNewOrder = () => {
       const feesForLineItems = [
         ...(orderActivationFee > 0 ? [{ name: "Frais d'activation", amount: orderActivationFee }] : []),
         ...(orderDeliveryFee > 0 ? [{ name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
-        ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
+        ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 50) - installationCredit) }] : []),
       ];
       
       // Build discounts array (promo + preauth only - no auto SIM credits)
