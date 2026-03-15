@@ -657,7 +657,7 @@ serve(async (req) => {
           await supabase.from("billing_system_alerts").insert({
             alert_type: "orphan_dispute",
             entity_type: "paypal_webhook",
-            entity_id: disputeId,
+            entity_reference: disputeId,
             severity: "high",
             details: {
               event_type: event.event_type,

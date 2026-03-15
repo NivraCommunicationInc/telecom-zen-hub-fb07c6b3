@@ -2137,13 +2137,26 @@ const ClientNewOrder = () => {
       }
 
       // ★ BACKFILL: Write canonical records to local Supabase for portal/admin visibility
-      // Skip if fallback was used — records are already created directly in Supabase
+      // BLOCKING — checkout MUST NOT finalize without canonical invoice lines
       if (!usedFallback) {
-        try {
-          const { backfillCheckoutToSupabase } = await import("@/lib/checkoutBackfill");
-          await backfillCheckoutToSupabase(supabase, checkoutPayload as any, nivraCheckoutResponse);
-        } catch (backfillErr) {
-          console.error("[Backfill] Non-blocking error:", backfillErr);
+        const { backfillCheckoutToSupabase } = await import("@/lib/checkoutBackfill");
+        const backfillResult = await backfillCheckoutToSupabase(supabase, checkoutPayload as any, nivraCheckoutResponse);
+        
+        // Verify billing_invoice_lines were created — hard gate
+        const invoiceLinesCreated = backfillResult.invoice && !backfillResult.errors.some(e => e.startsWith("invoice_lines:"));
+        if (!invoiceLinesCreated) {
+          console.error("[Backfill] ⛔ CRITICAL: billing_invoice_lines not created. Errors:", backfillResult.errors);
+          // Attempt one retry
+          try {
+            const retryResult = await backfillCheckoutToSupabase(supabase, checkoutPayload as any, nivraCheckoutResponse);
+            const retryOk = retryResult.invoice && !retryResult.errors.some(e => e.startsWith("invoice_lines:"));
+            if (!retryOk) {
+              throw new Error("billing_invoice_lines creation failed after retry");
+            }
+          } catch (retryErr) {
+            console.error("[Backfill] ⛔ Retry failed:", retryErr);
+            throw new Error("Erreur critique : les lignes de facturation n'ont pas pu être créées. Veuillez contacter le support avec votre numéro de commande.");
+          }
         }
       }
 

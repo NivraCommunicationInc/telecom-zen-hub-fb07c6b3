@@ -578,7 +578,8 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
       await supabase.from("billing_system_alerts").insert({
         alert_type: "pdf_missing_data_warning",
         entity_type: "order",
-        entity_id: orderId,
+        entity_id: orderId, // orderId is always a UUID from orders.id
+        entity_reference: data.order?.order_number?.toString() || null,
         details: { missing_fields: missingFields, order_id: orderId, order_number: data.order?.order_number },
       });
     } catch (alertErr) {
