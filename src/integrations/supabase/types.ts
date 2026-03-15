@@ -11393,6 +11393,8 @@ export type Database = {
           created_at: string
           description: string | null
           display_label: string | null
+          display_order: number | null
+          genre: string | null
           group_key: string | null
           id: string
           incident_at: string | null
@@ -11401,12 +11403,15 @@ export type Database = {
           is_4k: boolean | null
           is_active: boolean | null
           is_hd: boolean | null
+          logo_url: string | null
           name: string
           price: number | null
           replacement_channel_id: string | null
           status: string | null
           updated_at: string | null
           updated_by: string | null
+          visible_simulator: boolean | null
+          visible_website: boolean | null
         }
         Insert: {
           base_pack?: string | null
@@ -11414,6 +11419,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_label?: string | null
+          display_order?: number | null
+          genre?: string | null
           group_key?: string | null
           id?: string
           incident_at?: string | null
@@ -11422,12 +11429,15 @@ export type Database = {
           is_4k?: boolean | null
           is_active?: boolean | null
           is_hd?: boolean | null
+          logo_url?: string | null
           name: string
           price?: number | null
           replacement_channel_id?: string | null
           status?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          visible_simulator?: boolean | null
+          visible_website?: boolean | null
         }
         Update: {
           base_pack?: string | null
@@ -11435,6 +11445,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_label?: string | null
+          display_order?: number | null
+          genre?: string | null
           group_key?: string | null
           id?: string
           incident_at?: string | null
@@ -11443,12 +11455,15 @@ export type Database = {
           is_4k?: boolean | null
           is_active?: boolean | null
           is_hd?: boolean | null
+          logo_url?: string | null
           name?: string
           price?: number | null
           replacement_channel_id?: string | null
           status?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          visible_simulator?: boolean | null
+          visible_website?: boolean | null
         }
         Relationships: [
           {
@@ -11466,6 +11481,115 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tv_pack_channels: {
+        Row: {
+          channel_id: string
+          created_at: string
+          display_order: number | null
+          id: string
+          is_optional: boolean | null
+          pack_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_optional?: boolean | null
+          pack_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_optional?: boolean | null
+          pack_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tv_pack_channels_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_pack_channels_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "tv_channels_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tv_pack_channels_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "tv_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tv_packs: {
+        Row: {
+          badge: string | null
+          category: string
+          created_at: string
+          description: string | null
+          discounted_price: number
+          display_order: number | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          original_price: number
+          savings_percent: number | null
+          slug: string | null
+          updated_at: string
+          visible_checkout: boolean | null
+          visible_simulator: boolean | null
+          visible_website: boolean | null
+        }
+        Insert: {
+          badge?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          discounted_price?: number
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          original_price?: number
+          savings_percent?: number | null
+          slug?: string | null
+          updated_at?: string
+          visible_checkout?: boolean | null
+          visible_simulator?: boolean | null
+          visible_website?: boolean | null
+        }
+        Update: {
+          badge?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          discounted_price?: number
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          original_price?: number
+          savings_percent?: number | null
+          slug?: string | null
+          updated_at?: string
+          visible_checkout?: boolean | null
+          visible_simulator?: boolean | null
+          visible_website?: boolean | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
