@@ -366,7 +366,7 @@ export default function CoreChannelsPage() {
               <Power className="h-4 w-4 text-[#38BDF8]" /> Forfaits GIGA (1 Gbps)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {NIVRA_TV_PLANS.filter(p => p.tier === "GIGA").map((plan) => (
+              {tvPlansForCards.filter(p => p.tier === "GIGA").map((plan) => (
                 <PlanCard key={plan.id} plan={plan} baseCount={base26.length} freeChoiceCount={freeChoiceChannels.length} />
               ))}
             </div>
