@@ -4262,6 +4262,7 @@ export type Database = {
       equipment_inventory: {
         Row: {
           account_id: string | null
+          address_id: string | null
           assigned_at: string | null
           assigned_by: string | null
           catalog_item_id: string | null
@@ -4270,12 +4271,15 @@ export type Database = {
           condition: string | null
           cost_internal: number | null
           created_at: string
+          deployed_at: string | null
+          firmware_version: string | null
           id: string
           imei: string | null
           mac_address: string | null
           notes: string | null
           order_id: string | null
           price_client: number | null
+          retired_at: string | null
           serial_number: string | null
           sku: string | null
           status: string
@@ -4285,6 +4289,7 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          address_id?: string | null
           assigned_at?: string | null
           assigned_by?: string | null
           catalog_item_id?: string | null
@@ -4293,12 +4298,15 @@ export type Database = {
           condition?: string | null
           cost_internal?: number | null
           created_at?: string
+          deployed_at?: string | null
+          firmware_version?: string | null
           id?: string
           imei?: string | null
           mac_address?: string | null
           notes?: string | null
           order_id?: string | null
           price_client?: number | null
+          retired_at?: string | null
           serial_number?: string | null
           sku?: string | null
           status?: string
@@ -4308,6 +4316,7 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          address_id?: string | null
           assigned_at?: string | null
           assigned_by?: string | null
           catalog_item_id?: string | null
@@ -4316,12 +4325,15 @@ export type Database = {
           condition?: string | null
           cost_internal?: number | null
           created_at?: string
+          deployed_at?: string | null
+          firmware_version?: string | null
           id?: string
           imei?: string | null
           mac_address?: string | null
           notes?: string | null
           order_id?: string | null
           price_client?: number | null
+          retired_at?: string | null
           serial_number?: string | null
           sku?: string | null
           status?: string
@@ -4335,6 +4347,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_inventory_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "service_addresses"
             referencedColumns: ["id"]
           },
           {
