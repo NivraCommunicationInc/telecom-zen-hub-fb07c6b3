@@ -1716,8 +1716,10 @@ export type Database = {
           created_at: string | null
           details: Json | null
           entity_id: string | null
+          entity_reference: string | null
           entity_type: string
           id: string
+          is_canonical_exception: boolean | null
           resolved: boolean | null
           resolved_at: string | null
           resolved_by: string | null
@@ -1727,8 +1729,10 @@ export type Database = {
           created_at?: string | null
           details?: Json | null
           entity_id?: string | null
+          entity_reference?: string | null
           entity_type: string
           id?: string
+          is_canonical_exception?: boolean | null
           resolved?: boolean | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -1738,8 +1742,10 @@ export type Database = {
           created_at?: string | null
           details?: Json | null
           entity_id?: string | null
+          entity_reference?: string | null
           entity_type?: string
           id?: string
+          is_canonical_exception?: boolean | null
           resolved?: boolean | null
           resolved_at?: string | null
           resolved_by?: string | null
