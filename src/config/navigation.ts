@@ -44,6 +44,14 @@ export const NAV_TARGETS: NavTarget[] = [
     fallbackRoute: '/tv',
   },
   {
+    id: 'tv-custom',
+    label: 'Custom TV',
+    labelFr: 'TV sur mesure',
+    type: 'route',
+    target: '/television-sur-mesure',
+    fallbackRoute: '/television-sur-mesure',
+  },
+  {
     id: 'mobile',
     label: 'Mobile',
     labelFr: 'Mobile',
