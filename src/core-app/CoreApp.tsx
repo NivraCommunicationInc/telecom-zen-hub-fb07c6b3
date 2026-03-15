@@ -51,6 +51,8 @@ const CoreContestedInvoicesPage = lazy(() => import("./pages/CoreContestedInvoic
 
 // Catalogue
 const CoreServicesPage = lazy(() => import("./pages/CoreServicesPage"));
+const CoreCatalogPage = lazy(() => import("./pages/CoreCatalogPage"));
+const CoreTVSurMesurePage = lazy(() => import("./pages/CoreTVSurMesurePage"));
 const CoreChannelsPage = lazy(() => import("./pages/CoreChannelsPage"));
 const CoreStreamingPage = lazy(() => import("./pages/CoreStreamingPage"));
 const CoreContractsPage = lazy(() => import("./pages/CoreContractsPage"));
