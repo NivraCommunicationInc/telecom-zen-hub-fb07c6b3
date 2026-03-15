@@ -1086,14 +1086,17 @@ const ClientNewOrder = () => {
     notes: "Aucune vérification de crédit • Pièce d'identité gouvernementale requise • Frais unique pour nouveau numéro ou transfert",
   };
 
-  // Fetch available services from database (admin-managed, source of truth)
+  // Fetch available services from canonical catalog (checkout visibility)
   const { data: services, isLoading } = useQuery({
     queryKey: ["available-services"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services_public")
-        .select("id, name, category, price, description")
+        .select("id, name, category, price, short_description, description, visible_checkout, status, display_order")
+        .eq("visible_checkout", true)
+        .eq("status", "active")
         .order("category", { ascending: true })
+        .order("display_order", { ascending: true, nullsFirst: false })
         .order("price", { ascending: true });
 
       if (error) {
@@ -1101,20 +1104,19 @@ const ClientNewOrder = () => {
         throw error;
       }
 
-      // Map DB services to the Service interface, filtering to orderable categories
-      const orderableCategories = ["Internet", "TV", "TV + Internet", "GIGA Bundles", "Mobile"];
+      const orderableCategories = ["Internet", "TV", "TV + Internet", "GIGA Bundles", "Combo", "Mobile", "Sécurité"];
       return (data || [])
         .filter((s) => s.category && orderableCategories.includes(s.category))
         .map((s): Service => ({
           id: s.id || "",
           sku: findSkuByName(allNivraProducts, s.name || "") || "",
           name: s.name || "",
-          description: s.description || "",
+          description: s.short_description || s.description || "",
           price: Number(s.price) || 0,
           category: s.category || "",
         }));
     },
-    staleTime: 0, // Always revalidate — realtime subscription in usePublicServices handles instant sync
+    staleTime: 0,
     refetchOnWindowFocus: true,
   });
 
