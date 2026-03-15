@@ -587,6 +587,19 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     }
   }
 
+  // HARD GATE: billing_invoice_lines MUST exist
+  if (!data.billingInvoiceLines || data.billingInvoiceLines.length === 0) {
+    console.error(`[DocumentBuilder V4] ⛔ No billing_invoice_lines for order ${orderId} — generation BLOCKED (canonical failure)`);
+    const blockedResult: PDFGenerationResult = { success: false, error: "Aucune ligne de facturation canonique (billing_invoice_lines). Commande marquée comme exception pré-canonique." };
+    return {
+      invoice: blockedResult,
+      orderSummary: blockedResult,
+      contract: blockedResult,
+      contractSummary: blockedResult,
+      terms: generateServiceTermsPDF(),
+    };
+  }
+
   if (!data.breakdown) {
     console.error(`[DocumentBuilder V4] ⛔ compute_invoice_breakdown RPC a échoué — génération BLOQUÉE`);
     const blockedResult: PDFGenerationResult = { success: false, error: "Données de facturation indisponibles (RPC breakdown requis)" };
