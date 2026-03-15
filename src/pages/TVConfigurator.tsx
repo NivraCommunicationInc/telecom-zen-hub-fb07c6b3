@@ -1,20 +1,17 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Tv, Wifi, Monitor, Truck, Wrench, Check, Plus, Minus,
+  Tv, Wifi, Monitor, Wrench, Check, Plus, Minus,
   ShieldCheck, ArrowRight, MonitorPlay, Loader2, Package, Music,
-  Sparkles, ChevronRight
+  Zap, Signal, Layers, ChevronDown, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 
 /* ─── Canonical cart payload for checkout handoff ─── */
 
@@ -31,24 +28,19 @@ export interface TVCartPayload {
   createdAt: string;
 }
 
-/* ─── Tax constants (QC) — ESTIMATE ONLY, canonical math is server-side via compute_checkout_pricing ─── */
+/* ─── Tax constants (QC) — ESTIMATE ONLY ─── */
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
 
 /**
  * CANONICAL FEE VALUES — sourced from real Nivra checkout (ClientNewOrder.tsx)
- * 
- * Activation: $25 (1 service) / $45 (2+ services) — via calculate_activation_fee RPC at checkout
- * Technician install: $50 — from ClientNewOrder.tsx line 1545
- * Delivery (auto-install shipping): $30 — from DELIVERY_CONFIG.standard.fee
- * Terminal: from services_public (DB)
- * Router: from services_public (DB)
  */
 const TECHNICIAN_INSTALL_FEE = 50;
 const STANDARD_DELIVERY_FEE = 30;
 const ACTIVATION_FEE_SINGLE = 25;
 
 type InstallMethod = "technician" | "self" | null;
+type SimulatorStep = 1 | 2 | 3 | 4;
 
 interface ServicePublic {
   id: string;
@@ -69,12 +61,46 @@ interface StreamingService {
   is_active: boolean | null;
 }
 
+/* ─── Plan parsing helpers ─── */
+function extractPlanMeta(plan: ServicePublic) {
+  const name = plan.name || "";
+  const desc = plan.description || "";
+
+  // Extract internet speed
+  let speed = "";
+  if (name.match(/GIGA/i) || name.match(/1010\s*Mbps/i) || name.match(/1\s*Gbps/i)) speed = "GIGA";
+  else if (name.match(/500/)) speed = "500 Mbps";
+  else if (name.match(/100/)) speed = "100 Mbps";
+  else if (name.match(/940/)) speed = "940 Mbps";
+
+  // Extract channel count from description
+  const channelMatch = desc.match(/(\d+)\s*chaînes?/);
+  const channels = channelMatch ? parseInt(channelMatch[1]) : 0;
+
+  // Extract "choix" count from name
+  const choixMatch = name.match(/(\d+)\s*choix/i);
+  const choix = choixMatch ? parseInt(choixMatch[1]) : 0;
+
+  // Features from description (split by •)
+  const features = desc.split("•").map(s => s.trim()).filter(Boolean);
+
+  // Determine tier for visual treatment
+  let tier: "basic" | "mid" | "premium" = "basic";
+  if (plan.price >= 95) tier = "premium";
+  else if (plan.price >= 85) tier = "mid";
+
+  return { speed, channels, choix, features, tier };
+}
+
 const TVConfigurator = () => {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const isFr = language === "fr";
+  const sectionRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // ─── Load canonical products from DB ───
+  // ─── Simulator step tracking ───
+  const [activeStep, setActiveStep] = useState<SimulatorStep>(1);
+
   const { data: allServices = [], isLoading: servicesLoading } = useQuery({
     queryKey: ["tv-configurator-services"],
     queryFn: async () => {
@@ -106,16 +132,8 @@ const TVConfigurator = () => {
 
   const tvPlans = useMemo(() => allServices.filter(s => s.category === "TV"), [allServices]);
   const equipmentProducts = useMemo(() => allServices.filter(s => s.category === "Équipement"), [allServices]);
-
-  const terminalProduct = useMemo(
-    () => equipmentProducts.find(e => e.name.toLowerCase().includes("terminal")),
-    [equipmentProducts]
-  );
-  const routerProduct = useMemo(
-    () => equipmentProducts.find(e => e.name.toLowerCase().includes("router")),
-    [equipmentProducts]
-  );
-
+  const terminalProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("terminal")), [equipmentProducts]);
+  const routerProduct = useMemo(() => equipmentProducts.find(e => e.name.toLowerCase().includes("router")), [equipmentProducts]);
   const videoStreaming = useMemo(() => streamingServices.filter(s => s.category === "video"), [streamingServices]);
   const musicStreaming = useMemo(() => streamingServices.filter(s => s.category === "music"), [streamingServices]);
 
@@ -126,70 +144,39 @@ const TVConfigurator = () => {
   const [includeRouter, setIncludeRouter] = useState(true);
   const [installMethod, setInstallMethod] = useState<InstallMethod>(null);
 
-  // Auto-select first TV plan once loaded
   useEffect(() => {
-    if (tvPlans.length > 0 && !selectedPlanId) {
-      setSelectedPlanId(tvPlans[0].id);
-    }
+    if (tvPlans.length > 0 && !selectedPlanId) setSelectedPlanId(tvPlans[0].id);
   }, [tvPlans, selectedPlanId]);
 
-  const selectedPlan = useMemo(
-    () => tvPlans.find(p => p.id === selectedPlanId) || null,
-    [tvPlans, selectedPlanId]
-  );
+  const selectedPlan = useMemo(() => tvPlans.find(p => p.id === selectedPlanId) || null, [tvPlans, selectedPlanId]);
+  const totalTerminals = 1 + extraTerminals;
 
   const toggleStreaming = (id: string) => {
     setSelectedStreamingIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
 
-  // Terminal always included with TV (per plan description: "Terminal inclus"), extras are additional
-  const totalTerminals = 1 + extraTerminals;
-
-  /* ─── Pricing calculation (ESTIMATES — canonical math is server-side) ─── */
+  /* ─── Pricing ─── */
   const pricing = useMemo(() => {
     const recurringItems: { name: string; price: number }[] = [];
     const oneTimeItems: { name: string; price: number }[] = [];
 
-    if (selectedPlan) {
-      recurringItems.push({ name: selectedPlan.name, price: selectedPlan.price });
-    }
-
+    if (selectedPlan) recurringItems.push({ name: selectedPlan.name, price: selectedPlan.price });
     selectedStreamingIds.forEach(id => {
       const svc = streamingServices.find(s => s.id === id);
       if (svc) recurringItems.push({ name: svc.name, price: svc.monthly_price });
     });
 
-    // Terminal equipment (from DB price)
     if (terminalProduct) {
-      oneTimeItems.push({
-        name: `${terminalProduct.name}${totalTerminals > 1 ? ` ×${totalTerminals}` : ""}`,
-        price: terminalProduct.price * totalTerminals,
-      });
+      oneTimeItems.push({ name: `${terminalProduct.name}${totalTerminals > 1 ? ` ×${totalTerminals}` : ""}`, price: terminalProduct.price * totalTerminals });
     }
-
-    // Router (from DB price)
-    if (includeRouter && routerProduct) {
-      oneTimeItems.push({ name: routerProduct.name, price: routerProduct.price });
-    }
-
-    // Activation fee — canonical: $25 for 1 service
-    if (selectedPlan) {
-      oneTimeItems.push({ name: isFr ? "Frais d'activation" : "Activation fee", price: ACTIVATION_FEE_SINGLE });
-    }
-
-    // Installation — canonical: $50 for technician (from ClientNewOrder.tsx)
-    if (installMethod === "technician") {
-      oneTimeItems.push({ name: isFr ? "Installation technicien" : "Technician installation", price: TECHNICIAN_INSTALL_FEE });
-    }
-
-    // Delivery — canonical: $30 standard (from DELIVERY_CONFIG.standard.fee)
-    if (installMethod === "self") {
-      oneTimeItems.push({ name: isFr ? "Livraison standard" : "Standard shipping", price: STANDARD_DELIVERY_FEE });
-    }
+    if (includeRouter && routerProduct) oneTimeItems.push({ name: routerProduct.name, price: routerProduct.price });
+    if (selectedPlan) oneTimeItems.push({ name: isFr ? "Activation" : "Activation", price: ACTIVATION_FEE_SINGLE });
+    if (installMethod === "technician") oneTimeItems.push({ name: isFr ? "Installation technicien" : "Technician install", price: TECHNICIAN_INSTALL_FEE });
+    if (installMethod === "self") oneTimeItems.push({ name: isFr ? "Livraison" : "Shipping", price: STANDARD_DELIVERY_FEE });
 
     const recurringSubtotal = recurringItems.reduce((s, i) => s + i.price, 0);
     const oneTimeSubtotal = oneTimeItems.reduce((s, i) => s + i.price, 0);
@@ -201,163 +188,240 @@ const TVConfigurator = () => {
     return { recurringItems, oneTimeItems, recurringSubtotal, oneTimeSubtotal, tps, tvq, grandTotal };
   }, [selectedPlan, selectedStreamingIds, streamingServices, terminalProduct, totalTerminals, includeRouter, routerProduct, installMethod, isFr]);
 
-  /* ─── Build canonical payload for checkout handoff ─── */
   const handleContinue = () => {
     if (!selectedPlanId) return;
-
     const payload: TVCartPayload = {
-      source: "tv-configurator",
-      version: 3,
-      selectedPlanId,
+      source: "tv-configurator", version: 3, selectedPlanId,
       selectedStreamingIds: Array.from(selectedStreamingIds),
-      terminalProductId: terminalProduct?.id || null,
-      terminalQuantity: totalTerminals,
+      terminalProductId: terminalProduct?.id || null, terminalQuantity: totalTerminals,
       routerProductId: includeRouter && routerProduct ? routerProduct.id : null,
       installationChoice: installMethod === "technician" ? "technician" : installMethod === "self" ? "auto" : null,
-      includeShipping: installMethod === "self",
-      createdAt: new Date().toISOString(),
+      includeShipping: installMethod === "self", createdAt: new Date().toISOString(),
     };
-
     sessionStorage.setItem("nivra_tv_cart", JSON.stringify(payload));
     navigate("/portal/new-order");
   };
 
   const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " $";
   const isLoading = servicesLoading || streamingLoading;
+  const canProceed = !!selectedPlanId && !!installMethod;
+
+  const scrollToStep = (step: SimulatorStep) => {
+    setActiveStep(step);
+    sectionRefs.current[step]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">{isFr ? "Chargement..." : "Loading..."}</p>
+          <Loader2 className="w-10 h-10 animate-spin text-[#003366] mx-auto" />
+          <p className="text-slate-400 text-sm">{isFr ? "Chargement du simulateur..." : "Loading simulator..."}</p>
         </div>
       </div>
     );
   }
 
-  // Parse plan details for feature display
-  const parsePlanFeatures = (plan: ServicePublic) => {
-    const desc = plan.description || "";
-    const features = desc.split("•").map(s => s.trim()).filter(Boolean);
-    // Extract speed from name
-    const speedMatch = plan.name.match(/(\d+)\s*Mbps|GIGA|1\s*Gbps/i);
-    const speed = speedMatch ? speedMatch[0] : "";
-    // Extract channel info
-    const channelMatch = desc.match(/(\d+)\s*chaînes?/);
-    const channels = channelMatch ? channelMatch[0] : "";
-    return { features, speed, channels };
-  };
+  const STEPS = [
+    { num: 1 as SimulatorStep, label: isFr ? "Forfait" : "Plan", done: !!selectedPlanId },
+    { num: 2 as SimulatorStep, label: "Streaming", done: true /* optional */ },
+    { num: 3 as SimulatorStep, label: isFr ? "Équipement" : "Equipment", done: true },
+    { num: 4 as SimulatorStep, label: "Installation", done: !!installMethod },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ─── Hero ─── */}
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* HERO — Full-width immersive header */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <section className="bg-[#003366] relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-400/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-sky-500/8 to-transparent rounded-full translate-y-1/2 -translate-x-1/4" />
-        </div>
-        <div className="container mx-auto px-4 max-w-[1320px] py-14 md:py-20 relative z-10">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-2 mb-5">
-              <div className="h-px w-8 bg-sky-400" />
-              <span className="text-sky-300 text-sm font-semibold tracking-widest uppercase">
-                {isFr ? "Configurateur" : "Configurator"}
-              </span>
-            </div>
-            <h1 className="text-3xl md:text-5xl font-bold text-white leading-[1.1] mb-4">
-              {isFr ? "Télévision sur mesure" : "Custom Television"}
-            </h1>
-            <p className="text-base md:text-lg text-blue-100/70 leading-relaxed max-w-xl">
-              {isFr
-                ? "Composez votre forfait Internet + TV parmi nos offres réelles. Ajoutez vos options et passez commande."
-                : "Build your Internet + TV package from our real offers. Add your options and place your order."}
-            </p>
-          </div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNCkiLz48L2c+PC9zdmc+')] opacity-60" />
+        <div className="container mx-auto px-4 max-w-[1100px] py-12 md:py-16 relative z-10 text-center">
+          <Badge className="bg-sky-400/15 text-sky-200 border-sky-400/20 mb-4 text-xs px-3 py-1 font-semibold">
+            <Tv className="w-3.5 h-3.5 mr-1.5" />
+            {isFr ? "Simulateur Nivra" : "Nivra Simulator"}
+          </Badge>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-[1.08] mb-3">
+            {isFr ? "Composez votre forfait TV" : "Build your TV package"}
+          </h1>
+          <p className="text-sm md:text-base text-blue-200/50 max-w-lg mx-auto">
+            {isFr
+              ? "Sélectionnez votre plan, personnalisez vos options et commandez en quelques clics."
+              : "Select your plan, customize your options and order in a few clicks."}
+          </p>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 max-w-[1320px] py-8 md:py-12">
-        <div className="lg:grid lg:grid-cols-[1fr_400px] lg:gap-10">
-          {/* ─── LEFT: Configurator ─── */}
-          <div className="space-y-10">
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* STEP PROGRESS BAR — telecom simulator nav */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+        <div className="container mx-auto px-4 max-w-[1100px]">
+          <div className="flex items-center justify-between h-14 md:h-16 overflow-x-auto">
+            {STEPS.map((step, i) => (
+              <button
+                key={step.num}
+                onClick={() => scrollToStep(step.num)}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 md:px-5 py-2 rounded-lg transition-colors whitespace-nowrap text-sm font-medium",
+                  activeStep === step.num
+                    ? "text-[#003366]"
+                    : step.done ? "text-slate-500 hover:text-slate-700" : "text-slate-300"
+                )}
+              >
+                <div className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors",
+                  activeStep === step.num
+                    ? "bg-[#003366] text-white"
+                    : step.done ? "bg-slate-100 text-slate-600" : "bg-slate-50 text-slate-300"
+                )}>
+                  {step.done && activeStep !== step.num ? <Check className="w-3.5 h-3.5" /> : step.num}
+                </div>
+                <span className="hidden sm:inline">{step.label}</span>
+                {i < STEPS.length - 1 && (
+                  <div className="hidden md:block w-8 lg:w-16 h-px bg-slate-200 ml-2" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
-            {/* ═══ STEP 1: TV Plan Selection ═══ */}
-            <section>
-              <StepHeader step={1} title={isFr ? "Choisissez votre forfait" : "Choose your plan"} subtitle={isFr ? `${tvPlans.length} forfaits Internet + TV disponibles` : `${tvPlans.length} Internet + TV plans available`} />
-              
-              <div className="grid gap-4">
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* MAIN CONTENT — centered, no sidebar layout */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      <main className="flex-1 pb-40">
+
+        {/* ── STEP 1: Plan Selection ── */}
+        <div ref={el => { sectionRefs.current[1] = el; }} className="scroll-mt-20">
+          <div className="bg-slate-50 py-10 md:py-14">
+            <div className="container mx-auto px-4 max-w-[1100px]">
+              <SimulatorSectionHeader
+                step={1}
+                title={isFr ? "Choisissez votre forfait Internet + TV" : "Choose your Internet + TV plan"}
+                subtitle={isFr ? `${tvPlans.length} forfaits disponibles — tous prépayés, sans contrat` : `${tvPlans.length} plans available — all prepaid, no contract`}
+              />
+
+              {/* Plan grid — 2-column on lg for comparison feel */}
+              <div className="grid md:grid-cols-2 gap-4 md:gap-5">
                 {tvPlans.map((plan) => {
                   const isSelected = selectedPlanId === plan.id;
-                  const { features } = parsePlanFeatures(plan);
-                  
+                  const meta = extractPlanMeta(plan);
+
                   return (
                     <div
                       key={plan.id}
-                      onClick={() => setSelectedPlanId(plan.id)}
+                      onClick={() => { setSelectedPlanId(plan.id); setActiveStep(1); }}
                       className={cn(
-                        "group relative rounded-2xl border-2 p-5 md:p-6 cursor-pointer transition-all duration-200",
+                        "relative rounded-2xl border-2 cursor-pointer transition-all duration-200 overflow-hidden",
                         isSelected
-                          ? "border-[#003366] bg-white shadow-lg shadow-blue-900/5 ring-1 ring-[#003366]/10"
-                          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-md"
+                          ? "border-[#003366] shadow-xl shadow-blue-900/8 scale-[1.01]"
+                          : "border-slate-200 hover:border-slate-300 hover:shadow-lg"
                       )}
                     >
-                      <div className="flex items-start gap-4">
-                        {/* Radio indicator */}
-                        <div className={cn(
-                          "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-1 transition-colors",
-                          isSelected ? "bg-[#003366] border-[#003366]" : "border-slate-300 group-hover:border-slate-400"
-                        )}>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                        </div>
+                      {/* Selected indicator ribbon */}
+                      {isSelected && (
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-[#003366]" />
+                      )}
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <h3 className="text-base md:text-lg font-bold text-slate-900 leading-snug">{plan.name}</h3>
-                              {features.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1.5">
-                                  {features.map((f, i) => (
-                                    <span key={i} className="inline-flex items-center text-xs text-slate-500 bg-slate-100 rounded-full px-2.5 py-1">
-                                      {f}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
+                      {/* Premium badge for top-tier */}
+                      {meta.tier === "premium" && (
+                        <div className="absolute top-3 right-3">
+                          <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-bold gap-1">
+                            <Star className="w-3 h-3" /> VIP
+                          </Badge>
+                        </div>
+                      )}
+
+                      <div className="bg-white p-5 md:p-6">
+                        {/* Price header */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                              isSelected ? "bg-[#003366] border-[#003366] scale-110" : "border-slate-300"
+                            )}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
                             </div>
-                            <div className="text-right shrink-0">
-                              <div className="text-2xl md:text-3xl font-bold text-slate-900">{plan.price.toFixed(0)}<span className="text-base font-semibold text-slate-500"> $</span></div>
-                              <div className="text-xs text-slate-400 font-medium">/{isFr ? "mois" : "mo"}</div>
+                            <div>
+                              <h3 className="text-sm md:text-base font-bold text-slate-900 leading-snug">{plan.name}</h3>
                             </div>
                           </div>
+                          <div className="text-right">
+                            <div className="text-3xl font-extrabold text-[#003366] tabular-nums">{plan.price.toFixed(0)}<span className="text-sm font-bold text-slate-400">$</span></div>
+                            <div className="text-[11px] text-slate-400 font-medium -mt-0.5">/{isFr ? "mois" : "mo"}</div>
+                          </div>
                         </div>
+
+                        {/* Speed + Channels badges */}
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {meta.speed && (
+                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold">
+                              <Signal className="w-3.5 h-3.5" />
+                              {meta.speed}
+                            </div>
+                          )}
+                          {meta.channels > 0 && (
+                            <div className="flex items-center gap-1.5 bg-purple-50 text-purple-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold">
+                              <Layers className="w-3.5 h-3.5" />
+                              {meta.channels} {isFr ? "chaînes" : "channels"}
+                            </div>
+                          )}
+                          {meta.choix > 0 && (
+                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold">
+                              <Plus className="w-3.5 h-3.5" />
+                              {meta.choix} {isFr ? "au choix" : "picks"}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Features */}
+                        {meta.features.length > 0 && (
+                          <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
+                            {meta.features.slice(0, 3).map((f, i) => (
+                              <div key={i} className="flex items-start gap-2 text-xs text-slate-500">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                                <span>{f}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
                 })}
-
-                {tvPlans.length === 0 && (
-                  <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white py-12 text-center">
-                    <p className="text-slate-400">{isFr ? "Aucun forfait TV disponible" : "No TV plans available"}</p>
-                  </div>
-                )}
               </div>
-            </section>
 
-            {/* ═══ STEP 2: Streaming Add-ons ═══ */}
-            {streamingServices.length > 0 && (
-              <section>
-                <StepHeader step={2} title={isFr ? "Ajouts Streaming" : "Streaming add-ons"} subtitle={isFr ? "Optionnel — ajoutez vos plateformes préférées" : "Optional — add your favorite platforms"} />
-                
+              {tvPlans.length === 0 && (
+                <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white py-16 text-center">
+                  <Tv className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-400">{isFr ? "Aucun forfait disponible" : "No plans available"}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── STEP 2: Streaming ── */}
+        {streamingServices.length > 0 && (
+          <div ref={el => { sectionRefs.current[2] = el; }} className="scroll-mt-20">
+            <div className="bg-white py-10 md:py-14 border-t border-slate-100">
+              <div className="container mx-auto px-4 max-w-[1100px]">
+                <SimulatorSectionHeader
+                  step={2}
+                  title={isFr ? "Ajoutez du Streaming" : "Add Streaming"}
+                  subtitle={isFr ? "Optionnel — ajoutez vos plateformes de streaming préférées à votre forfait" : "Optional — add your favorite streaming platforms to your package"}
+                  optional
+                />
+
                 {videoStreaming.length > 0 && (
-                  <div className="mb-6">
-                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-3">
-                      <MonitorPlay className="w-4 h-4" /> {isFr ? "Vidéo" : "Video"}
-                    </p>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="mb-8">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-4">
+                      <MonitorPlay className="w-4 h-4" /> {isFr ? "Vidéo & Films" : "Video & Movies"}
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {videoStreaming.map(svc => (
-                        <StreamingCard key={svc.id} service={svc} selected={selectedStreamingIds.has(svc.id)} onToggle={() => toggleStreaming(svc.id)} isFr={isFr} />
+                        <StreamingTile key={svc.id} service={svc} selected={selectedStreamingIds.has(svc.id)} onToggle={() => toggleStreaming(svc.id)} isFr={isFr} />
                       ))}
                     </div>
                   </div>
@@ -365,133 +429,142 @@ const TVConfigurator = () => {
 
                 {musicStreaming.length > 0 && (
                   <div>
-                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-4">
                       <Music className="w-4 h-4" /> {isFr ? "Musique" : "Music"}
-                    </p>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {musicStreaming.map(svc => (
-                        <StreamingCard key={svc.id} service={svc} selected={selectedStreamingIds.has(svc.id)} onToggle={() => toggleStreaming(svc.id)} isFr={isFr} />
+                        <StreamingTile key={svc.id} service={svc} selected={selectedStreamingIds.has(svc.id)} onToggle={() => toggleStreaming(svc.id)} isFr={isFr} />
                       ))}
                     </div>
                   </div>
                 )}
-              </section>
-            )}
+              </div>
+            </div>
+          </div>
+        )}
 
-            {/* ═══ STEP 3: Equipment ═══ */}
-            <section>
-              <StepHeader step={3} title={isFr ? "Équipement" : "Equipment"} subtitle={isFr ? "Matériel requis pour votre installation" : "Required hardware for your setup"} />
-              
-              <div className="space-y-4">
-                {/* Terminal — always included with TV */}
+        {/* ── STEP 3: Equipment ── */}
+        <div ref={el => { sectionRefs.current[3] = el; }} className="scroll-mt-20">
+          <div className="bg-slate-50 py-10 md:py-14 border-t border-slate-100">
+            <div className="container mx-auto px-4 max-w-[1100px]">
+              <SimulatorSectionHeader
+                step={3}
+                title={isFr ? "Votre équipement" : "Your equipment"}
+                subtitle={isFr ? "Matériel nécessaire pour votre installation TV et Internet" : "Hardware needed for your TV and Internet setup"}
+              />
+
+              <div className="grid md:grid-cols-2 gap-5">
+                {/* Terminal Card */}
                 {terminalProduct && (
-                  <div className="rounded-2xl border-2 border-[#003366]/20 bg-white p-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-[#003366]/10 flex items-center justify-center shrink-0">
-                        <Monitor className="w-6 h-6 text-[#003366]" />
+                  <div className="rounded-2xl border-2 border-[#003366]/15 bg-white overflow-hidden">
+                    <div className="bg-[#003366]/5 px-5 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Monitor className="w-4 h-4 text-[#003366]" />
+                        <span className="text-xs font-bold text-[#003366] uppercase tracking-wider">{isFr ? "Terminal TV" : "TV Terminal"}</span>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-slate-900">{terminalProduct.name}</h4>
-                          <Badge className="bg-[#003366]/10 text-[#003366] border-0 text-[10px]">{isFr ? "Inclus" : "Included"}</Badge>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{terminalProduct.description}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-bold text-slate-900">{terminalProduct.price.toFixed(2)} $</div>
-                        <div className="text-[10px] text-slate-400">{isFr ? "par terminal" : "per terminal"}</div>
-                      </div>
+                      <Badge className="bg-[#003366]/10 text-[#003366] border-0 text-[10px] font-bold">{isFr ? "Requis" : "Required"}</Badge>
                     </div>
-                    
-                    {/* Extra terminals */}
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-sm text-slate-600">{isFr ? "Terminaux supplémentaires" : "Extra terminals"} <span className="text-slate-400">(max 4)</span></span>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setExtraTerminals(Math.max(0, extraTerminals - 1))}
-                          disabled={extraTerminals === 0}
-                          className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="w-6 text-center font-bold text-slate-900">{extraTerminals}</span>
-                        <button
-                          onClick={() => setExtraTerminals(Math.min(3, extraTerminals + 1))}
-                          className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+                    <div className="p-5">
+                      <h4 className="font-bold text-slate-900 mb-1">{terminalProduct.name}</h4>
+                      <p className="text-xs text-slate-400 mb-4">{terminalProduct.description}</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-2xl font-extrabold text-slate-900">{terminalProduct.price.toFixed(0)}</span>
+                          <span className="text-sm text-slate-400 ml-0.5">$ / {isFr ? "unité" : "unit"}</span>
+                        </div>
                       </div>
+                      <Separator className="my-4" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">{isFr ? "Terminaux supplémentaires" : "Extra terminals"}</span>
+                        <div className="flex items-center gap-2.5">
+                          <button onClick={() => setExtraTerminals(Math.max(0, extraTerminals - 1))} disabled={extraTerminals === 0}
+                            className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 disabled:opacity-20 transition-all">
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-6 text-center font-bold text-slate-900 tabular-nums">{extraTerminals}</span>
+                          <button onClick={() => setExtraTerminals(Math.min(3, extraTerminals + 1))}
+                            className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-all">
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-300 mt-2">{isFr ? "Maximum 4 terminaux au total" : "Maximum 4 terminals total"}</p>
                     </div>
                   </div>
                 )}
 
-                {/* Router — optional */}
+                {/* Router Card */}
                 {routerProduct && (
                   <div
                     onClick={() => setIncludeRouter(!includeRouter)}
                     className={cn(
-                      "rounded-2xl border-2 bg-white p-5 cursor-pointer transition-all",
-                      includeRouter ? "border-[#003366]/20 shadow-sm" : "border-slate-200 opacity-60 hover:opacity-80"
+                      "rounded-2xl border-2 bg-white overflow-hidden cursor-pointer transition-all",
+                      includeRouter ? "border-[#003366]/15" : "border-slate-200 opacity-50 hover:opacity-70"
                     )}
                   >
-                    <div className="flex items-center gap-4">
+                    <div className={cn("px-5 py-3 flex items-center justify-between", includeRouter ? "bg-[#003366]/5" : "bg-slate-50")}>
+                      <div className="flex items-center gap-2">
+                        <Wifi className={cn("w-4 h-4", includeRouter ? "text-[#003366]" : "text-slate-400")} />
+                        <span className={cn("text-xs font-bold uppercase tracking-wider", includeRouter ? "text-[#003366]" : "text-slate-400")}>
+                          {isFr ? "Routeur WiFi" : "WiFi Router"}
+                        </span>
+                      </div>
                       <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                        includeRouter ? "bg-[#003366]/10" : "bg-slate-100"
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                        includeRouter ? "bg-[#003366] border-[#003366]" : "border-slate-300"
                       )}>
-                        <Wifi className={cn("w-6 h-6", includeRouter ? "text-[#003366]" : "text-slate-400")} />
+                        {includeRouter && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-slate-900">{routerProduct.name}</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">{routerProduct.description}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-slate-900">{routerProduct.price.toFixed(2)} $</span>
-                        <div className={cn(
-                          "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
-                          includeRouter ? "bg-[#003366] border-[#003366]" : "border-slate-300"
-                        )}>
-                          {includeRouter && <Check className="w-3.5 h-3.5 text-white" />}
-                        </div>
+                    </div>
+                    <div className="p-5">
+                      <h4 className="font-bold text-slate-900 mb-1">{routerProduct.name}</h4>
+                      <p className="text-xs text-slate-400 mb-4">{routerProduct.description}</p>
+                      <div>
+                        <span className="text-2xl font-extrabold text-slate-900">{routerProduct.price.toFixed(0)}</span>
+                        <span className="text-sm text-slate-400 ml-0.5">$</span>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-            </section>
+            </div>
+          </div>
+        </div>
 
-            {/* ═══ STEP 4: Installation ═══ */}
-            <section>
-              <StepHeader step={4} title={isFr ? "Mode d'installation" : "Installation method"} subtitle={isFr ? "Choisissez comment activer vos services" : "Choose how to activate your services"} />
-              
-              <div className="grid sm:grid-cols-2 gap-4">
+        {/* ── STEP 4: Installation ── */}
+        <div ref={el => { sectionRefs.current[4] = el; }} className="scroll-mt-20">
+          <div className="bg-white py-10 md:py-14 border-t border-slate-100">
+            <div className="container mx-auto px-4 max-w-[1100px]">
+              <SimulatorSectionHeader
+                step={4}
+                title={isFr ? "Mode d'installation" : "Installation method"}
+                subtitle={isFr ? "Comment souhaitez-vous activer vos services?" : "How would you like to activate your services?"}
+              />
+
+              <div className="grid md:grid-cols-2 gap-5 max-w-[800px] mx-auto">
                 {/* Technician */}
                 <div
                   onClick={() => setInstallMethod(installMethod === "technician" ? null : "technician")}
                   className={cn(
-                    "rounded-2xl border-2 p-5 cursor-pointer transition-all",
+                    "rounded-2xl border-2 p-6 cursor-pointer transition-all text-center",
                     installMethod === "technician"
-                      ? "border-[#003366] bg-white shadow-lg"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+                      ? "border-[#003366] bg-[#003366]/[0.02] shadow-xl shadow-blue-900/8"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg"
                   )}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={cn(
-                      "w-11 h-11 rounded-xl flex items-center justify-center",
-                      installMethod === "technician" ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-500"
-                    )}>
-                      <Wrench className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-sm">{isFr ? "Technicien à domicile" : "Home technician"}</h4>
-                      <span className="text-sm font-semibold text-[#003366]">{TECHNICIAN_INSTALL_FEE.toFixed(2)} $</span>
-                    </div>
+                  <div className={cn(
+                    "w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors",
+                    installMethod === "technician" ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-400"
+                  )}>
+                    <Wrench className="w-7 h-7" />
                   </div>
-                  <ul className="space-y-1.5 text-xs text-slate-500">
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Installation complète par un technicien certifié" : "Full setup by certified technician"}</li>
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Vérification du câblage et test de services" : "Wiring check and service testing"}</li>
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Activation et configuration sur place" : "On-site activation and configuration"}</li>
+                  <h4 className="font-bold text-slate-900 mb-1">{isFr ? "Technicien à domicile" : "Home technician"}</h4>
+                  <p className="text-lg font-extrabold text-[#003366] mb-3">{TECHNICIAN_INSTALL_FEE} $</p>
+                  <ul className="text-left space-y-2 text-xs text-slate-500">
+                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Installation complète sur place" : "Complete on-site installation"}</li>
+                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Vérification du câblage" : "Wiring verification"}</li>
+                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Activation et test de services" : "Service activation & testing"}</li>
                   </ul>
                 </div>
 
@@ -499,145 +572,84 @@ const TVConfigurator = () => {
                 <div
                   onClick={() => setInstallMethod(installMethod === "self" ? null : "self")}
                   className={cn(
-                    "rounded-2xl border-2 p-5 cursor-pointer transition-all",
+                    "rounded-2xl border-2 p-6 cursor-pointer transition-all text-center",
                     installMethod === "self"
-                      ? "border-[#003366] bg-white shadow-lg"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+                      ? "border-[#003366] bg-[#003366]/[0.02] shadow-xl shadow-blue-900/8"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg"
                   )}
                 >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={cn(
-                      "w-11 h-11 rounded-xl flex items-center justify-center",
-                      installMethod === "self" ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-500"
-                    )}>
-                      <Package className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-sm">{isFr ? "Auto-installation" : "Self-install"}</h4>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">{isFr ? "Installation gratuite" : "Free install"}</Badge>
-                        <span className="text-xs text-slate-400">{isFr ? `+ ${STANDARD_DELIVERY_FEE} $ livraison` : `+ $${STANDARD_DELIVERY_FEE} shipping`}</span>
-                      </div>
-                    </div>
+                  <div className={cn(
+                    "w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors",
+                    installMethod === "self" ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-400"
+                  )}>
+                    <Package className="w-7 h-7" />
                   </div>
-                  <ul className="space-y-1.5 text-xs text-slate-500">
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Équipement livré à domicile" : "Equipment shipped to your door"}</li>
-                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Guide d'installation pas-à-pas" : "Step-by-step installation guide"}</li>
+                  <h4 className="font-bold text-slate-900 mb-1">{isFr ? "Auto-installation" : "Self-install"}</h4>
+                  <div className="mb-3">
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold">{isFr ? "Gratuit" : "Free"}</Badge>
+                    <span className="text-xs text-slate-400 ml-2">+ {STANDARD_DELIVERY_FEE} $ {isFr ? "livraison" : "shipping"}</span>
+                  </div>
+                  <ul className="text-left space-y-2 text-xs text-slate-500">
+                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Équipement livré à domicile" : "Equipment shipped home"}</li>
+                    <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Guide d'installation inclus" : "Installation guide included"}</li>
                     <li className="flex items-start gap-2"><Check className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{isFr ? "Support technique si besoin" : "Tech support if needed"}</li>
                   </ul>
                 </div>
               </div>
-            </section>
-
-            {/* Mobile CTA */}
-            <div className="lg:hidden">
-              <MobileSummary pricing={pricing} isFr={isFr} onContinue={handleContinue} fmt={fmt} disabled={!selectedPlanId || !installMethod} />
             </div>
           </div>
+        </div>
+      </main>
 
-          {/* ─── RIGHT: Sticky Summary (desktop) ─── */}
-          <div className="hidden lg:block">
-            <div className="sticky top-24">
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
-                {/* Header */}
-                <div className="bg-[#003366] px-6 py-5">
-                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-sky-300" />
-                    {isFr ? "Votre forfait" : "Your package"}
-                  </h3>
-                  <p className="text-blue-200/60 text-xs mt-1">{isFr ? "Prépayé • Sans contrat • Sans engagement" : "Prepaid • No contract • No commitment"}</p>
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* BOTTOM STICKY BAR — Premium pricing action bar */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-8px_30px_-10px_rgba(0,0,0,0.1)]">
+        <div className="container mx-auto px-4 max-w-[1100px]">
+          <div className="flex items-center justify-between h-[72px] md:h-20 gap-4">
+            {/* Left: selected plan summary */}
+            <div className="flex-1 min-w-0 hidden sm:block">
+              {selectedPlan ? (
+                <div>
+                  <p className="text-xs text-slate-400 font-medium">{isFr ? "Forfait sélectionné" : "Selected plan"}</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">{selectedPlan.name}</p>
                 </div>
+              ) : (
+                <p className="text-sm text-slate-400">{isFr ? "Aucun forfait sélectionné" : "No plan selected"}</p>
+              )}
+            </div>
 
-                <div className="px-6 py-5 space-y-5">
-                  {/* Recurring */}
-                  {pricing.recurringItems.length > 0 && (
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-                        {isFr ? "Services mensuels" : "Monthly services"}
-                      </h4>
-                      <div className="space-y-2">
-                        {pricing.recurringItems.map((item, i) => (
-                          <div key={i} className="flex justify-between text-sm">
-                            <span className="text-slate-700 truncate pr-3">{item.name}</span>
-                            <span className="text-slate-900 font-semibold whitespace-nowrap">{item.price.toFixed(2)} $</span>
-                          </div>
-                        ))}
-                      </div>
-                      <Separator className="my-3" />
-                      <div className="flex justify-between text-sm font-bold">
-                        <span className="text-slate-800">{isFr ? "Sous-total mensuel" : "Monthly subtotal"}</span>
-                        <span className="text-slate-900">{pricing.recurringSubtotal.toFixed(2)} $/{isFr ? "mois" : "mo"}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* One-time */}
-                  {pricing.oneTimeItems.length > 0 && (
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-                        {isFr ? "Frais uniques" : "One-time fees"}
-                      </h4>
-                      <div className="space-y-2">
-                        {pricing.oneTimeItems.map((item, i) => (
-                          <div key={i} className="flex justify-between text-sm">
-                            <span className="text-slate-700 truncate pr-3">{item.name}</span>
-                            <span className="text-slate-900 font-semibold whitespace-nowrap">{item.price.toFixed(2)} $</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Taxes estimate */}
-                  <div className="pt-2 border-t border-slate-100">
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>TPS (5%) <span className="italic">est.</span></span>
-                        <span>~{pricing.tps.toFixed(2)} $</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>TVQ (9,975%) <span className="italic">est.</span></span>
-                        <span>~{pricing.tvq.toFixed(2)} $</span>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-slate-300 mt-1.5 italic">
-                      {isFr ? "Taxes finales calculées au paiement" : "Final taxes computed at checkout"}
-                    </p>
+            {/* Center: pricing breakdown */}
+            <div className="flex items-center gap-4 md:gap-6">
+              <div className="text-right">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{isFr ? "Mensuel" : "Monthly"}</p>
+                <p className="text-lg md:text-xl font-extrabold text-[#003366] tabular-nums">{pricing.recurringSubtotal.toFixed(2)} $</p>
+              </div>
+              {pricing.oneTimeSubtotal > 0 && (
+                <>
+                  <div className="w-px h-8 bg-slate-200" />
+                  <div className="text-right">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{isFr ? "Unique" : "One-time"}</p>
+                    <p className="text-lg md:text-xl font-extrabold text-slate-700 tabular-nums">{pricing.oneTimeSubtotal.toFixed(2)} $</p>
                   </div>
-
-                  {/* Grand Total */}
-                  <div className="bg-slate-50 -mx-6 px-6 py-5 border-t border-slate-100">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="text-sm font-bold text-slate-900">{isFr ? "Total estimé aujourd'hui" : "Estimated total today"}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">
-                          {isFr ? "Puis" : "Then"} ~{pricing.recurringSubtotal.toFixed(2)} $/{isFr ? "mois" : "mo"}
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-[#003366]">~{fmt(pricing.grandTotal)}</div>
-                    </div>
-                  </div>
-
-                  <div className="px-0">
-                    <Button
-                      onClick={handleContinue}
-                      className="w-full h-12 text-base font-bold bg-[#003366] hover:bg-[#002244] rounded-xl"
-                      disabled={!selectedPlanId || !installMethod}
-                    >
-                      {isFr ? "Passer la commande" : "Place order"}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                    {(!selectedPlanId || !installMethod) && (
-                      <p className="text-[11px] text-amber-600 text-center mt-2">
-                        {!selectedPlanId
-                          ? (isFr ? "Sélectionnez un forfait" : "Select a plan")
-                          : (isFr ? "Choisissez un mode d'installation" : "Choose an installation method")}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                </>
+              )}
+              <div className="w-px h-8 bg-slate-200 hidden md:block" />
+              <div className="text-right hidden md:block">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{isFr ? "Total est." : "Est. total"}</p>
+                <p className="text-lg font-extrabold text-slate-900 tabular-nums">~{fmt(pricing.grandTotal)}</p>
               </div>
             </div>
+
+            {/* Right: CTA */}
+            <Button
+              onClick={handleContinue}
+              disabled={!canProceed}
+              className="h-11 md:h-12 px-6 md:px-8 text-sm md:text-base font-bold bg-[#003366] hover:bg-[#002244] rounded-xl shrink-0"
+            >
+              {isFr ? "Commander" : "Order"}
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
         </div>
       </div>
@@ -645,113 +657,51 @@ const TVConfigurator = () => {
   );
 };
 
-/* ─── Sub-components ─── */
+/* ═══ Sub-components ═══ */
 
-function StepHeader({ step, title, subtitle }: { step: number; title: string; subtitle: string }) {
+function SimulatorSectionHeader({ step, title, subtitle, optional }: { step: number; title: string; subtitle: string; optional?: boolean }) {
   return (
-    <div className="mb-5">
-      <div className="flex items-center gap-3 mb-1">
-        <div className="w-8 h-8 rounded-full bg-[#003366] text-white flex items-center justify-center text-sm font-bold shrink-0">
-          {step}
-        </div>
-        <h2 className="text-lg md:text-xl font-bold text-slate-900">{title}</h2>
+    <div className="text-center mb-8 md:mb-10">
+      <div className="inline-flex items-center gap-2 bg-slate-100 rounded-full px-3 py-1 mb-3">
+        <span className="w-5 h-5 rounded-full bg-[#003366] text-white flex items-center justify-center text-[10px] font-bold">{step}</span>
+        {optional && <Badge variant="outline" className="text-[10px] border-slate-300 text-slate-400">Optionnel</Badge>}
       </div>
-      <p className="text-sm text-slate-400 ml-11">{subtitle}</p>
+      <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 mb-1">{title}</h2>
+      <p className="text-sm text-slate-400 max-w-lg mx-auto">{subtitle}</p>
     </div>
   );
 }
 
-function StreamingCard({
-  service,
-  selected,
-  onToggle,
-  isFr,
+function StreamingTile({
+  service, selected, onToggle, isFr,
 }: {
   service: { id: string; name: string; description: string | null; monthly_price: number };
-  selected: boolean;
-  onToggle: () => void;
-  isFr: boolean;
+  selected: boolean; onToggle: () => void; isFr: boolean;
 }) {
   return (
     <div
       onClick={onToggle}
       className={cn(
-        "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+        "rounded-xl border-2 p-4 cursor-pointer transition-all text-center",
         selected
-          ? "border-[#003366] bg-white shadow-md"
+          ? "border-[#003366] bg-[#003366]/[0.02] shadow-md"
           : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
       )}
     >
       <div className={cn(
-        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+        "w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-2.5 transition-colors",
         selected ? "bg-[#003366] text-white" : "bg-slate-100 text-slate-400"
       )}>
         <MonitorPlay className="w-5 h-5" />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm text-slate-900 truncate">{service.name}</div>
-        <div className="text-xs text-slate-400 font-medium">{service.monthly_price.toFixed(2)} $/{isFr ? "mois" : "mo"}</div>
-      </div>
-      <div className={cn(
-        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-        selected ? "bg-[#003366] border-[#003366]" : "border-slate-300"
-      )}>
-        {selected && <Check className="w-3 h-3 text-white" />}
-      </div>
-    </div>
-  );
-}
-
-function MobileSummary({
-  pricing,
-  isFr,
-  onContinue,
-  fmt,
-  disabled,
-}: {
-  pricing: any;
-  isFr: boolean;
-  onContinue: () => void;
-  fmt: (n: number) => string;
-  disabled: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border-2 border-[#003366]/20 bg-white shadow-xl p-5 space-y-4">
-      <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
-        <ShieldCheck className="w-5 h-5 text-[#003366]" />
-        {isFr ? "Résumé" : "Summary"}
-      </h3>
-
-      <div className="space-y-2.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-slate-500">{isFr ? "Mensuel" : "Monthly"}</span>
-          <span className="font-bold text-slate-900">{pricing.recurringSubtotal.toFixed(2)} $/{isFr ? "mois" : "mo"}</span>
+      <p className="font-semibold text-sm text-slate-900 mb-0.5 truncate">{service.name}</p>
+      <p className="text-xs text-slate-400 font-medium">{service.monthly_price.toFixed(2)} $/{isFr ? "mois" : "mo"}</p>
+      {selected && (
+        <div className="mt-2">
+          <Badge className="bg-[#003366]/10 text-[#003366] border-0 text-[10px]">
+            <Check className="w-3 h-3 mr-0.5" /> {isFr ? "Ajouté" : "Added"}
+          </Badge>
         </div>
-        {pricing.oneTimeSubtotal > 0 && (
-          <div className="flex justify-between">
-            <span className="text-slate-500">{isFr ? "Frais uniques" : "One-time"}</span>
-            <span className="font-bold text-slate-900">{pricing.oneTimeSubtotal.toFixed(2)} $</span>
-          </div>
-        )}
-        <div className="flex justify-between text-xs text-slate-400">
-          <span>TPS + TVQ <span className="italic">est.</span></span>
-          <span>~{(pricing.tps + pricing.tvq).toFixed(2)} $</span>
-        </div>
-        <Separator />
-        <div className="flex justify-between items-center pt-1">
-          <span className="font-bold text-slate-900">{isFr ? "Total estimé" : "Est. total"}</span>
-          <span className="text-xl font-bold text-[#003366]">~{fmt(pricing.grandTotal)}</span>
-        </div>
-      </div>
-
-      <Button onClick={onContinue} className="w-full h-12 text-base font-bold bg-[#003366] hover:bg-[#002244] rounded-xl" disabled={disabled}>
-        {isFr ? "Passer la commande" : "Place order"}
-        <ArrowRight className="w-4 h-4 ml-2" />
-      </Button>
-      {disabled && (
-        <p className="text-[11px] text-amber-600 text-center">
-          {isFr ? "Sélectionnez un forfait et un mode d'installation" : "Select a plan and installation method"}
-        </p>
       )}
     </div>
   );
