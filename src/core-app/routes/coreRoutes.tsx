@@ -22,6 +22,7 @@ const CoreKYCPage = lazy(() => import("@/core-app/pages/CoreKYCPage"));
 const AppointmentsPage = lazy(() => import("@/core-app/pages/AppointmentsPage"));
 const CoreRequestsPage = lazy(() => import("@/core-app/pages/CoreRequestsPage"));
 const CoreActivationsPage = lazy(() => import("@/core-app/pages/CoreActivationsPage"));
+const CoreInstallationsPage = lazy(() => import("@/core-app/pages/CoreInstallationsPage"));
 
 // Clients
 const ClientsPage = lazy(() => import("@/core-app/pages/ClientsPage"));
@@ -107,6 +108,7 @@ export const coreRoutes: RouteObject = {
     { path: "appointments", element: <AppointmentsPage /> },
     { path: "requests", element: <CoreRequestsPage /> },
     { path: "activations", element: <CoreActivationsPage /> },
+    { path: "installations", element: <CoreInstallationsPage /> },
     // Clients
     { path: "clients", element: <ClientsPage /> },
     { path: "clients/:clientId", element: <CoreClientProfile /> },
