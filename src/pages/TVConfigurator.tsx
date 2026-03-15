@@ -13,6 +13,41 @@ import {
 import { cn } from "@/lib/utils";
 import type { CartLineItem } from "@/lib/pricing/serverPricing";
 
+/* ─── Canonical cart item with full metadata for checkout handoff ─── */
+export interface TVConfiguratorCartItem extends CartLineItem {
+  sku: string;
+  recurrence: "monthly" | "one_time";
+}
+
+/**
+ * Enriched payload persisted to sessionStorage for checkout pickup.
+ * Contains both CartLineItem[] for pricing RPC and Service[] for wizard hydration.
+ */
+export interface TVCartPayload {
+  source: "tv-configurator";
+  version: 2;
+  items: TVConfiguratorCartItem[];
+  /** Pre-mapped services for direct wizard hydration (step 1 skip) */
+  preSelectedServices: Array<{
+    sku: string;
+    name: string;
+    price: number;
+    category: string;
+  }>;
+  /** Terminal quantity for TV orders */
+  terminalQuantity: number;
+  /** Installation choice */
+  installationChoice: "auto" | "technician" | null;
+  /** Streaming add-on SKUs for cross-reference */
+  streamingSkus: string[];
+  /** Equipment SKUs selected */
+  equipmentSkus: string[];
+  /** Include shipping */
+  includeShipping: boolean;
+  /** Created timestamp for freshness check */
+  createdAt: string;
+}
+
 /* ─── Canonical product catalog ─── */
 
 interface TVProduct {
