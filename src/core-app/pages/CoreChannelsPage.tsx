@@ -223,7 +223,7 @@ export default function CoreChannelsPage() {
       <div className="flex gap-1.5 border-b border-[hsl(220,15%,16%)] pb-0">
         {([
           { id: "channels" as const, label: `Chaînes TV (${channels.length})`, icon: Tv },
-          { id: "plans" as const, label: `Forfaits TV (${NIVRA_TV_PLANS.length})`, icon: Package },
+          { id: "plans" as const, label: `Forfaits TV (${tvPlansForCards.length})`, icon: Package },
           { id: "selections" as const, label: `Sélections clients (${selections.length})`, icon: Users },
         ]).map((tab) => (
           <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSearch(""); setStatusFilter("all"); setCategoryFilter("all"); }}
