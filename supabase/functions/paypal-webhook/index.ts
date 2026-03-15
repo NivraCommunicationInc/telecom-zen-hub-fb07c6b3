@@ -679,11 +679,12 @@ serve(async (req) => {
         
         console.log(`[PayPal Webhook] Dispute resolved: ${disputeId}, outcome: ${outcome}`);
         
-        // Mark alert as resolved
+        // Mark alert as resolved (match by paypal_dispute_id in details)
         await supabase
           .from("billing_system_alerts")
           .update({ resolved: true, resolved_at: new Date().toISOString() })
-          .eq("entity_id", disputeId);
+          .eq("alert_type", "dispute_created")
+          .contains("details", { paypal_dispute_id: disputeId });
         
         // If we won the dispute, we could reactivate - but typically requires manual review
         await supabase.from("activity_logs").insert({
