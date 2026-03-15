@@ -182,8 +182,7 @@ export default function CoreCatalogPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
-      queryClient.invalidateQueries({ queryKey: ["public-services"] });
+      invalidateAllCatalogQueries();
       toast.success("Statut mis à jour");
     },
   });
