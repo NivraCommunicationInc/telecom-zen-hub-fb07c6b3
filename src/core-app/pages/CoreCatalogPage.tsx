@@ -191,7 +191,8 @@ export default function CoreCatalogPage() {
   const invalidateAllCatalogQueries = () => {
     const keys = [
       "core-catalog-full", "core-services-catalog", "public-services",
-      "available-services", "tv-configurator-services", "canonical-operational-fees",
+      "available-services", "tv-configurator-services", "tv-configurator-equipment",
+      "tv-configurator-streaming", "canonical-operational-fees",
     ];
     keys.forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
   };

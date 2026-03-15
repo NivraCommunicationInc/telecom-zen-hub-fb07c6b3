@@ -150,11 +150,12 @@ const TVConfigurator = () => {
     refetchOnWindowFocus: true,
   });
 
+  // Realtime: invalidate queries on any services table change
   useEffect(() => {
     const channel = supabase
       .channel("tv-configurator-live-catalog")
       .on("postgres_changes", { event: "*", schema: "public", table: "services" }, () => {
-        void supabase.removeChannel(channel);
+        // staleTime: 0 ensures next render refetches; no manual invalidation needed here
       })
       .subscribe();
 

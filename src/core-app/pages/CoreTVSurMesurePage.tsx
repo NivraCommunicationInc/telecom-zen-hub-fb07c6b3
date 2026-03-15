@@ -3,6 +3,7 @@
  * Manages simulator-eligible TV offers, streaming, equipment, and rules.
  */
 import { useState, useMemo } from "react";
+import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ export default function CoreTVSurMesurePage() {
   const [activeSection, setActiveSection] = useState("plans");
   const [editPlan, setEditPlan] = useState<any>(null);
   const [editStreaming, setEditStreaming] = useState<any>(null);
+  const canonicalFees = useCanonicalFees();
 
   /* ─── Fetch TV plans (simulator-eligible from services table) ─── */
   const { data: allServices = [] } = useQuery({
@@ -62,7 +64,9 @@ export default function CoreTVSurMesurePage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
+      ["core-catalog-full", "public-services", "tv-configurator-services", "tv-configurator-equipment", "available-services"].forEach(k =>
+        queryClient.invalidateQueries({ queryKey: [k] })
+      );
       toast.success("Visibility updated");
     },
   });
@@ -76,7 +80,9 @@ export default function CoreTVSurMesurePage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
+      ["core-catalog-full", "public-services", "tv-configurator-services", "available-services"].forEach(k =>
+        queryClient.invalidateQueries({ queryKey: [k] })
+      );
       toast.success("Featured status updated");
     },
   });
@@ -363,33 +369,44 @@ export default function CoreTVSurMesurePage() {
 
           <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)] p-5 space-y-4">
             <h3 className="text-sm font-bold text-[hsl(var(--core-text-primary))]">Canonical Fee Rules</h3>
+            <p className="text-[10px] text-[hsl(var(--core-text-label))]">Source: <code className="text-emerald-400">operational_fees</code> table (live from DB)</p>
             <div className="grid grid-cols-3 gap-4">
               <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
                 <p className="text-xs font-medium text-emerald-400 mb-1">Activation</p>
-                <p className="text-xs text-[hsl(var(--core-text-secondary))]">$25 (1 service) / $45 (2+ services)</p>
-                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: hardcoded checkout logic</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.activationSingle} (1 service) / $${canonicalFees.activationBundle} (2+ services)`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
               </div>
               <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
                 <p className="text-xs font-medium text-emerald-400 mb-1">Installation (Technician)</p>
-                <p className="text-xs text-[hsl(var(--core-text-secondary))]">$50</p>
-                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: checkout DELIVERY_CONFIG</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.installationTechnician}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
               </div>
               <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
                 <p className="text-xs font-medium text-emerald-400 mb-1">Shipping (Standard)</p>
-                <p className="text-xs text-[hsl(var(--core-text-secondary))]">$30</p>
-                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: checkout DELIVERY_CONFIG</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.deliveryStandard}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
+              </div>
+              <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
+                <p className="text-xs font-medium text-emerald-400 mb-1">Router</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.equipmentRouter}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
+              </div>
+              <div className="p-3 rounded bg-[hsl(220,15%,14%)] border border-[hsl(220,15%,18%)]">
+                <p className="text-xs font-medium text-emerald-400 mb-1">TV Terminal</p>
+                <p className="text-xs text-[hsl(var(--core-text-secondary))]">
+                  {canonicalFees.isLoading ? "…" : `$${canonicalFees.equipmentTerminal}`}
+                </p>
+                <p className="text-[10px] text-[hsl(var(--core-text-label))] mt-1">Source: canonical operational_fees</p>
               </div>
             </div>
-          </div>
-
-          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
-            <p className="text-xs text-amber-400 font-medium mb-1">⚠ Promo Rule — Not Yet Canonical</p>
-            <p className="text-xs text-[hsl(var(--core-text-secondary))]">
-              Rule: $5/month discount for 6 months on eligible TV plans. 
-              This requires a new row in the <code className="text-amber-400">promotions</code> table 
-              and integration with <code className="text-amber-400">compute_checkout_pricing</code> RPC. 
-              Not yet implemented — displayed here for tracking only.
-            </p>
           </div>
         </TabsContent>
       </Tabs>

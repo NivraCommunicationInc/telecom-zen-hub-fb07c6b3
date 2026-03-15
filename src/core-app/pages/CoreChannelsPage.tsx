@@ -50,19 +50,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const LANGUAGE_MAP: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", multi: "Multilingue" };
 
-// ═══ REAL NIVRA TV PLANS (from nivra-telecom.ca/tv) ═══
-const NIVRA_TV_PLANS = [
-  { id: "tv-100-basic", tier: "Internet 100", name: "Internet 100 + TV Basic", badge: "ÉCONOMIQUE", price: 75, internet: "100 Mbps", baseChannels: 26, freeChoices: 0, features: ["Internet 100 Mbps inclus", "26 chaînes de base", "Nivra 4K Smart Terminal"] },
-  { id: "tv-500-5", tier: "Internet 500", name: "Internet 500 + TV 5 choix", badge: "POPULAIRE", price: 80, internet: "500 Mbps", baseChannels: 26, freeChoices: 5, features: ["Internet 500 Mbps inclus", "26 chaînes de base", "5 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "tv-500-10", tier: "Internet 500", name: "Internet 500 + TV 10 choix", badge: "MEILLEUR VENDEUR", price: 90, internet: "500 Mbps", baseChannels: 37, freeChoices: 10, features: ["Internet 500 Mbps inclus", "37 chaînes", "10 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "tv-500-15", tier: "Internet 500", name: "Internet 500 + TV 15 choix", badge: "ÉCONOMIE 26%", price: 95, internet: "500 Mbps", baseChannels: 42, freeChoices: 15, features: ["Internet 500 Mbps inclus", "42 chaînes", "15 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "tv-500-25", tier: "Internet 500", name: "Internet 500 + TV 25 choix", badge: "PREMIUM", price: 80, internet: "500 Mbps", baseChannels: 52, freeChoices: 25, features: ["Internet 500 Mbps inclus", "52 chaînes", "25 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale", "Support prioritaire VIP"] },
-  { id: "giga-basic", tier: "GIGA", name: "GIGA + TV Basic", badge: "GIGA", price: 85, internet: "1 Gbps", baseChannels: 26, freeChoices: 0, features: ["Internet GIGA 1 Gbps inclus", "26 chaînes de base", "Nivra 4K Smart Terminal"] },
-  { id: "giga-5", tier: "GIGA", name: "GIGA + TV 5 choix", badge: "GIGA POPULAIRE", price: 80, internet: "1 Gbps", baseChannels: 32, freeChoices: 5, features: ["Internet GIGA 1 Gbps inclus", "32 chaînes", "5 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "giga-10", tier: "GIGA", name: "GIGA + TV 10 choix", badge: "GIGA VEDETTE", price: 90, internet: "1 Gbps", baseChannels: 25, freeChoices: 10, features: ["Internet GIGA 1 Gbps inclus", "25 chaînes", "10 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "giga-15", tier: "GIGA", name: "GIGA + TV 15 choix", badge: "GIGA FAMILLE", price: 90, internet: "1 Gbps", baseChannels: 42, freeChoices: 15, features: ["Internet GIGA 1 Gbps inclus", "42 chaînes", "15 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "giga-25", tier: "GIGA", name: "GIGA + TV 25 choix", badge: "GIGA ULTIME", price: 100, internet: "1 Gbps", baseChannels: 52, freeChoices: 25, features: ["Internet GIGA 1 Gbps inclus", "52 chaînes", "25 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale", "Support prioritaire VIP"] },
-];
+// TV Plans now loaded from canonical DB (services table) — no more hardcoded array
 
 export default function CoreChannelsPage() {
   const queryClient = useQueryClient();
@@ -79,6 +67,32 @@ export default function CoreChannelsPage() {
   });
 
   // ═══ QUERIES ═══
+  // Canonical TV plans from DB
+  const { data: dbTvPlans = [] } = useQuery({
+    queryKey: ["core-catalog-full"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("services" as any).select("*").eq("category", "TV").order("display_order").order("price");
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+
+  // Map DB plans to display shape
+  const tvPlansForCards = useMemo(() => dbTvPlans.map((p: any) => {
+    const name = p.name || "";
+    const desc = p.description || "";
+    const isGiga = name.toLowerCase().includes("giga");
+    const choixMatch = name.match(/(\d+)\s*choix/i);
+    const choix = choixMatch ? parseInt(choixMatch[1]) : 0;
+    const channelMatch = desc.match(/(\d+)\s*chaîne/i);
+    const channels = channelMatch ? parseInt(channelMatch[1]) : 26;
+    const speed = isGiga ? "1 Gbps" : name.includes("500") ? "500 Mbps" : "100 Mbps";
+    const tier = isGiga ? "GIGA" : name.includes("500") ? "Internet 500" : "Internet 100";
+    const features = (p.features_json?.length ? p.features_json : desc.split("•").map((s: string) => s.trim()).filter(Boolean)).slice(0, 5);
+    const badge = (p.badges?.[0]) || (isGiga ? "GIGA" : choix > 15 ? "PREMIUM" : choix > 0 ? "POPULAIRE" : "ÉCONOMIQUE");
+    return { id: p.id, tier, name, badge, price: Number(p.price), internet: speed, baseChannels: channels, freeChoices: choix, features };
+  }), [dbTvPlans]);
+
   const { data: channels = [], isLoading: channelsLoading } = useQuery({
     queryKey: ["core-tv-channels"],
     queryFn: async () => {
@@ -209,7 +223,7 @@ export default function CoreChannelsPage() {
       <div className="flex gap-1.5 border-b border-[hsl(220,15%,16%)] pb-0">
         {([
           { id: "channels" as const, label: `Chaînes TV (${channels.length})`, icon: Tv },
-          { id: "plans" as const, label: `Forfaits TV (${NIVRA_TV_PLANS.length})`, icon: Package },
+          { id: "plans" as const, label: `Forfaits TV (${tvPlansForCards.length})`, icon: Package },
           { id: "selections" as const, label: `Sélections clients (${selections.length})`, icon: Users },
         ]).map((tab) => (
           <button key={tab.id} onClick={() => { setActiveTab(tab.id); setSearch(""); setStatusFilter("all"); setCategoryFilter("all"); }}
@@ -340,7 +354,7 @@ export default function CoreChannelsPage() {
               <Package className="h-4 w-4 text-emerald-400" /> Forfaits Internet 100 / 500
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {NIVRA_TV_PLANS.filter(p => p.tier !== "GIGA").map((plan) => (
+              {tvPlansForCards.filter(p => p.tier !== "GIGA").map((plan) => (
                 <PlanCard key={plan.id} plan={plan} baseCount={base26.length} freeChoiceCount={freeChoiceChannels.length} />
               ))}
             </div>
@@ -352,7 +366,7 @@ export default function CoreChannelsPage() {
               <Power className="h-4 w-4 text-[#38BDF8]" /> Forfaits GIGA (1 Gbps)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {NIVRA_TV_PLANS.filter(p => p.tier === "GIGA").map((plan) => (
+              {tvPlansForCards.filter(p => p.tier === "GIGA").map((plan) => (
                 <PlanCard key={plan.id} plan={plan} baseCount={base26.length} freeChoiceCount={freeChoiceChannels.length} />
               ))}
             </div>
@@ -613,7 +627,7 @@ export default function CoreChannelsPage() {
 }
 
 // ═══ Plan Card Component ═══
-function PlanCard({ plan, baseCount, freeChoiceCount }: { plan: typeof NIVRA_TV_PLANS[0]; baseCount: number; freeChoiceCount: number }) {
+function PlanCard({ plan, baseCount, freeChoiceCount }: { plan: { id: string; tier: string; name: string; badge: string; price: number; internet: string; baseChannels: number; freeChoices: number; features: string[] }; baseCount: number; freeChoiceCount: number }) {
   const badgeColor = plan.badge.includes("GIGA") ? "bg-[#38BDF8]/15 text-[#38BDF8]" :
     plan.badge === "MEILLEUR VENDEUR" ? "bg-emerald-500/15 text-emerald-400" :
     plan.badge === "PREMIUM" ? "bg-amber-500/15 text-amber-400" :

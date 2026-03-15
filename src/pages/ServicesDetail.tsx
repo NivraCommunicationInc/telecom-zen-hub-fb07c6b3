@@ -452,8 +452,8 @@ const ServicesDetail = () => {
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-5">
                   {isFrench 
-                    ? "Vous pouvez annuler en tout temps. Si l'annulation survient après l'installation, 1 mois de facturation s'applique. Si avant 1 mois d'utilisation, les frais d'installation (50$) s'appliquent."
-                    : "You can cancel at any time. If cancellation occurs after installation, 1 month of billing applies. If before 1 month of use, installation fees ($50) apply."}
+                    ? "Vous pouvez annuler en tout temps. Si l'annulation survient après l'installation, 1 mois de facturation s'applique. Si avant 1 mois d'utilisation, les frais d'installation s'appliquent."
+                    : "You can cancel at any time. If cancellation occurs after installation, 1 month of billing applies. If before 1 month of use, installation fees apply."}
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-3" className="bg-card/80 backdrop-blur-sm border border-border rounded-xl px-5 overflow-hidden">
