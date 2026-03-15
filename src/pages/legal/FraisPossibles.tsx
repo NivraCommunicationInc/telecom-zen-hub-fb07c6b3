@@ -4,17 +4,32 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Info, AlertTriangle } from "lucide-react";
 import { CONTRACT_TERMS } from "@/lib/contractPolicies";
+import { useCanonicalFees } from "@/hooks/useCanonicalFees";
+import { useEquipmentPrices } from "@/hooks/usePublicServices";
 
 const FraisPossibles = () => {
+  const fees = useCanonicalFees();
+  const equipment = useEquipmentPrices();
+
+  // Use canonical DB values with CONTRACT_TERMS as fallback for legal/policy items
+  const activationSingle = fees.activationSingle || CONTRACT_TERMS.fees.activationSingle;
+  const activationMultiple = fees.activationBundle || CONTRACT_TERMS.fees.activationMultiple;
+  const delivery = fees.deliveryStandard || CONTRACT_TERMS.fees.delivery;
+  const uberExpress = fees.deliveryUber || CONTRACT_TERMS.fees.uberExpress;
+  const router = equipment.routerPrice;
+  const tvTerminal = equipment.terminalPrice;
+  const sim = equipment.simPrice;
+  const esim = equipment.esimPrice;
+
   const oneTimeFees = [
-    { name: "Activation (1 service)", amount: `${CONTRACT_TERMS.fees.activationSingle}$`, note: "Internet, TV ou Mobile seul" },
-    { name: "Activation (2+ services)", amount: `${CONTRACT_TERMS.fees.activationMultiple}$`, note: "Forfait groupé (Internet + TV + Mobile)" },
-    { name: "Livraison standard", amount: `${CONTRACT_TERMS.fees.delivery}$`, note: "Délai 24-78h ouvrables" },
-    { name: "Livraison express (Uber)", amount: `${CONTRACT_TERMS.fees.uberExpress}$`, note: "Zones éligibles seulement" },
-    { name: "Routeur Nivra Born WiFi", amount: `${CONTRACT_TERMS.fees.router}$`, note: "Achat, inclus garantie 1 an" },
-    { name: "Terminal Nivra 4K Smart", amount: `${CONTRACT_TERMS.fees.tvTerminal}$`, note: "Par terminal (max 4)" },
-    { name: "Carte SIM physique", amount: `${CONTRACT_TERMS.fees.simPhysical}$`, note: "Activation ou remplacement" },
-    { name: "eSIM", amount: `${CONTRACT_TERMS.fees.esim}$`, note: "Activation ou remplacement" },
+    { name: "Activation (1 service)", amount: `${activationSingle}$`, note: "Internet, TV ou Mobile seul" },
+    { name: "Activation (2+ services)", amount: `${activationMultiple}$`, note: "Forfait groupé (Internet + TV + Mobile)" },
+    { name: "Livraison standard", amount: `${delivery}$`, note: "Délai 24-78h ouvrables" },
+    { name: "Livraison express (Uber)", amount: `${uberExpress}$`, note: "Zones éligibles seulement" },
+    { name: "Routeur Nivra Born WiFi", amount: `${router}$`, note: "Achat, inclus garantie 1 an" },
+    { name: "Terminal Nivra 4K Smart", amount: `${tvTerminal}$`, note: "Par terminal (max 4)" },
+    { name: "Carte SIM physique", amount: `${sim}$`, note: "Activation ou remplacement" },
+    { name: "eSIM", amount: `${esim}$`, note: "Activation ou remplacement" },
   ];
 
   const conditionalFees = [
