@@ -1580,7 +1580,7 @@ const ClientMyServices = () => {
                     </SelectItem>
                   ))}
                   <SelectItem value="" disabled>Mobile</SelectItem>
-                  {AVAILABLE_PLANS.mobile.map(plan => (
+                  {catalogPlans.mobile.map(plan => (
                     <SelectItem key={plan.id} value={plan.name}>
                       {plan.name}
                     </SelectItem>
