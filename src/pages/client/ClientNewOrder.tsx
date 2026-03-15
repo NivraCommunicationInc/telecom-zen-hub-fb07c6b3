@@ -1099,7 +1099,62 @@ const ClientNewOrder = () => {
     refetchOnWindowFocus: true,
   });
 
-  // Keep full product list for SKU lookup during checkout
+  // ─── TV Configurator: deferred service matching after services_public loads ───
+  useEffect(() => {
+    if (!services?.length || !isHydrated) return;
+    
+    try {
+      const pendingRaw = sessionStorage.getItem("nivra_tv_cart_pending");
+      if (!pendingRaw) return;
+      
+      const tvPayload = JSON.parse(pendingRaw);
+      const preSelected = tvPayload?.preSelectedServices as Array<{ sku: string; name: string; price: number; category: string }>;
+      if (!preSelected?.length) return;
+      
+      console.log("[OrderWizard] TV Configurator: matching", preSelected.length, "pre-selected services against services_public");
+      
+      // Match by name (fuzzy) or category+price
+      const matched: Service[] = [];
+      for (const pre of preSelected) {
+        // Try exact name match first
+        let svc = services.find(s => s.name.toLowerCase() === pre.name.toLowerCase());
+        
+        // Try fuzzy: service name contains pre-selected name or vice versa
+        if (!svc) {
+          svc = services.find(s => 
+            s.category === pre.category && (
+              s.name.toLowerCase().includes(pre.name.toLowerCase()) ||
+              pre.name.toLowerCase().includes(s.name.toLowerCase())
+            )
+          );
+        }
+        
+        // Try category + price match
+        if (!svc) {
+          svc = services.find(s => s.category === pre.category && Math.abs(s.price - pre.price) < 0.01);
+        }
+        
+        if (svc && !matched.some(m => m.id === svc!.id)) {
+          matched.push(svc);
+          console.log(`[OrderWizard] TV match: "${pre.name}" → "${svc.name}" (${svc.id})`);
+        } else {
+          console.warn(`[OrderWizard] TV Configurator: no match for "${pre.name}" (${pre.category}, $${pre.price})`);
+        }
+      }
+      
+      if (matched.length > 0) {
+        setSelectedServices(matched);
+        console.log("[OrderWizard] TV Configurator: pre-selected", matched.length, "services");
+      }
+      
+      // Consume pending payload
+      sessionStorage.removeItem("nivra_tv_cart_pending");
+    } catch (err) {
+      console.error("[OrderWizard] TV deferred matching error:", err);
+      sessionStorage.removeItem("nivra_tv_cart_pending");
+    }
+  }, [services, isHydrated]);
+
   const { data: allNivraProducts = [] } = useQuery({
     queryKey: ["nivra-products-all"],
     queryFn: fetchNivraProducts,
