@@ -902,13 +902,13 @@ function MobileSummary({
             </div>
           )}
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>TPS + TVQ</span>
-            <span>{(pricing.tps + pricing.tvq).toFixed(2)} $</span>
+            <span>TPS + TVQ <span className="italic">{isFr ? "est." : "est."}</span></span>
+            <span>~{(pricing.tps + pricing.tvq).toFixed(2)} $</span>
           </div>
           <Separator />
           <div className="flex justify-between items-center pt-1">
-            <span className="font-bold text-foreground">{isFr ? "Total aujourd'hui" : "Total today"}</span>
-            <span className="text-xl font-bold text-foreground">{fmt(pricing.grandTotal)}</span>
+            <span className="font-bold text-foreground">{isFr ? "Total estimé" : "Estimated total"}</span>
+            <span className="text-xl font-bold text-foreground">~{fmt(pricing.grandTotal)}</span>
           </div>
         </div>
 
