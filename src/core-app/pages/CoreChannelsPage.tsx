@@ -627,7 +627,7 @@ export default function CoreChannelsPage() {
 }
 
 // ═══ Plan Card Component ═══
-function PlanCard({ plan, baseCount, freeChoiceCount }: { plan: typeof NIVRA_TV_PLANS[0]; baseCount: number; freeChoiceCount: number }) {
+function PlanCard({ plan, baseCount, freeChoiceCount }: { plan: { id: string; tier: string; name: string; badge: string; price: number; internet: string; baseChannels: number; freeChoices: number; features: string[] }; baseCount: number; freeChoiceCount: number }) {
   const badgeColor = plan.badge.includes("GIGA") ? "bg-[#38BDF8]/15 text-[#38BDF8]" :
     plan.badge === "MEILLEUR VENDEUR" ? "bg-emerald-500/15 text-emerald-400" :
     plan.badge === "PREMIUM" ? "bg-amber-500/15 text-amber-400" :
