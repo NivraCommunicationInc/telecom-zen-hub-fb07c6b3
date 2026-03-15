@@ -50,19 +50,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const LANGUAGE_MAP: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", multi: "Multilingue" };
 
-// ═══ REAL NIVRA TV PLANS (from nivra-telecom.ca/tv) ═══
-const NIVRA_TV_PLANS = [
-  { id: "tv-100-basic", tier: "Internet 100", name: "Internet 100 + TV Basic", badge: "ÉCONOMIQUE", price: 75, internet: "100 Mbps", baseChannels: 26, freeChoices: 0, features: ["Internet 100 Mbps inclus", "26 chaînes de base", "Nivra 4K Smart Terminal"] },
-  { id: "tv-500-5", tier: "Internet 500", name: "Internet 500 + TV 5 choix", badge: "POPULAIRE", price: 80, internet: "500 Mbps", baseChannels: 26, freeChoices: 5, features: ["Internet 500 Mbps inclus", "26 chaînes de base", "5 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "tv-500-10", tier: "Internet 500", name: "Internet 500 + TV 10 choix", badge: "MEILLEUR VENDEUR", price: 90, internet: "500 Mbps", baseChannels: 37, freeChoices: 10, features: ["Internet 500 Mbps inclus", "37 chaînes", "10 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "tv-500-15", tier: "Internet 500", name: "Internet 500 + TV 15 choix", badge: "ÉCONOMIE 26%", price: 95, internet: "500 Mbps", baseChannels: 42, freeChoices: 15, features: ["Internet 500 Mbps inclus", "42 chaînes", "15 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "tv-500-25", tier: "Internet 500", name: "Internet 500 + TV 25 choix", badge: "PREMIUM", price: 80, internet: "500 Mbps", baseChannels: 52, freeChoices: 25, features: ["Internet 500 Mbps inclus", "52 chaînes", "25 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale", "Support prioritaire VIP"] },
-  { id: "giga-basic", tier: "GIGA", name: "GIGA + TV Basic", badge: "GIGA", price: 85, internet: "1 Gbps", baseChannels: 26, freeChoices: 0, features: ["Internet GIGA 1 Gbps inclus", "26 chaînes de base", "Nivra 4K Smart Terminal"] },
-  { id: "giga-5", tier: "GIGA", name: "GIGA + TV 5 choix", badge: "GIGA POPULAIRE", price: 80, internet: "1 Gbps", baseChannels: 32, freeChoices: 5, features: ["Internet GIGA 1 Gbps inclus", "32 chaînes", "5 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "giga-10", tier: "GIGA", name: "GIGA + TV 10 choix", badge: "GIGA VEDETTE", price: 90, internet: "1 Gbps", baseChannels: 25, freeChoices: 10, features: ["Internet GIGA 1 Gbps inclus", "25 chaînes", "10 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "giga-15", tier: "GIGA", name: "GIGA + TV 15 choix", badge: "GIGA FAMILLE", price: 90, internet: "1 Gbps", baseChannels: 42, freeChoices: 15, features: ["Internet GIGA 1 Gbps inclus", "42 chaînes", "15 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale"] },
-  { id: "giga-25", tier: "GIGA", name: "GIGA + TV 25 choix", badge: "GIGA ULTIME", price: 100, internet: "1 Gbps", baseChannels: 52, freeChoices: 25, features: ["Internet GIGA 1 Gbps inclus", "52 chaînes", "25 chaînes au choix", "Nivra 4K Smart Terminal", "Télécommande vocale", "Support prioritaire VIP"] },
-];
+// TV Plans now loaded from canonical DB (services table) — no more hardcoded array
 
 export default function CoreChannelsPage() {
   const queryClient = useQueryClient();
