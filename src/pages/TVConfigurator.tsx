@@ -91,6 +91,12 @@ const TVConfigurator = () => {
   const navigate = useNavigate();
   const isFr = language === "fr";
   const sectionRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const canonicalFees = useCanonicalFees();
+
+  // Canonical fee values (from DB, with fallbacks)
+  const TECHNICIAN_INSTALL_FEE = canonicalFees.installationTechnician || 50;
+  const STANDARD_DELIVERY_FEE = canonicalFees.deliverySelfInstall || 30;
+  const ACTIVATION_FEE_SINGLE = canonicalFees.activationSingle || 25;
 
   // ─── Simulator step tracking ───
   const [activeStep, setActiveStep] = useState<SimulatorStep>(1);
