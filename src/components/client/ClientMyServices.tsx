@@ -1574,7 +1574,7 @@ const ClientMyServices = () => {
                     </SelectItem>
                   ))}
                   <SelectItem value="" disabled>TV + Internet</SelectItem>
-                  {AVAILABLE_PLANS.tv_bundles.map(plan => (
+                  {catalogPlans.tv_bundles.map(plan => (
                     <SelectItem key={plan.id} value={plan.name}>
                       {plan.name} - {plan.price}$/mois
                     </SelectItem>
