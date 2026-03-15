@@ -789,7 +789,8 @@ const ClientNewOrder = () => {
     // ─── TV Configurator handoff: read nivra_tv_cart and pre-populate wizard ───
     try {
       const tvCartRaw = sessionStorage.getItem("nivra_tv_cart");
-      if (tvCartRaw && !savedDraft) {
+      const hasDraft = !!sessionStorage.getItem(ORDER_DRAFT_KEY);
+      if (tvCartRaw && !hasDraft) {
         // Only apply if no existing draft (fresh checkout from configurator)
         const tvPayload = JSON.parse(tvCartRaw);
         
