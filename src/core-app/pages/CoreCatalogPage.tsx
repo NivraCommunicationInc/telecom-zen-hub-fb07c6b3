@@ -168,7 +168,7 @@ export default function CoreCatalogPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
+      invalidateAllCatalogQueries();
       toast.success("Service dupliqué");
     },
   });
