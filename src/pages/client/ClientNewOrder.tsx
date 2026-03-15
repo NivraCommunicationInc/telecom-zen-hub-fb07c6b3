@@ -786,6 +786,48 @@ const ClientNewOrder = () => {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
     }
     
+    // ─── TV Configurator handoff: read nivra_tv_cart and pre-populate wizard ───
+    try {
+      const tvCartRaw = sessionStorage.getItem("nivra_tv_cart");
+      if (tvCartRaw && !savedDraft) {
+        // Only apply if no existing draft (fresh checkout from configurator)
+        const tvPayload = JSON.parse(tvCartRaw);
+        
+        // Validate payload version and freshness (max 30 min)
+        if (
+          tvPayload?.source === "tv-configurator" &&
+          tvPayload?.version === 2 &&
+          tvPayload?.createdAt &&
+          Date.now() - new Date(tvPayload.createdAt).getTime() < 30 * 60 * 1000
+        ) {
+          console.log("[OrderWizard] TV Configurator handoff detected, pre-populating wizard");
+          
+          // Pre-select services — will be matched against services_public after data loads
+          // Store raw preSelectedServices for deferred matching in a separate effect
+          sessionStorage.setItem("nivra_tv_cart_pending", JSON.stringify(tvPayload));
+          
+          // Set terminal quantity
+          if (tvPayload.terminalQuantity > 0) {
+            setTerminalQuantity(tvPayload.terminalQuantity);
+          }
+          
+          // Set installation choice
+          if (tvPayload.installationChoice) {
+            setInstallationChoice(tvPayload.installationChoice);
+          }
+          
+          // Clear the TV cart after consumption
+          sessionStorage.removeItem("nivra_tv_cart");
+        } else {
+          // Stale or invalid payload — clear it
+          sessionStorage.removeItem("nivra_tv_cart");
+        }
+      }
+    } catch (tvErr) {
+      console.error("[OrderWizard] TV configurator handoff error:", tvErr);
+      sessionStorage.removeItem("nivra_tv_cart");
+    }
+
     // Mark as hydrated after initial load
     setIsHydrated(true);
     isInitialMount.current = false;
