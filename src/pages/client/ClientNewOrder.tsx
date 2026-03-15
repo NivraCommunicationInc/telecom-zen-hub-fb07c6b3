@@ -786,6 +786,49 @@ const ClientNewOrder = () => {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
     }
     
+    // ─── TV Configurator handoff: read nivra_tv_cart and pre-populate wizard ───
+    try {
+      const tvCartRaw = sessionStorage.getItem("nivra_tv_cart");
+      const hasDraft = !!sessionStorage.getItem(ORDER_DRAFT_KEY);
+      if (tvCartRaw && !hasDraft) {
+        // Only apply if no existing draft (fresh checkout from configurator)
+        const tvPayload = JSON.parse(tvCartRaw);
+        
+        // Validate payload version and freshness (max 30 min)
+        if (
+          tvPayload?.source === "tv-configurator" &&
+          tvPayload?.version === 2 &&
+          tvPayload?.createdAt &&
+          Date.now() - new Date(tvPayload.createdAt).getTime() < 30 * 60 * 1000
+        ) {
+          console.log("[OrderWizard] TV Configurator handoff detected, pre-populating wizard");
+          
+          // Pre-select services — will be matched against services_public after data loads
+          // Store raw preSelectedServices for deferred matching in a separate effect
+          sessionStorage.setItem("nivra_tv_cart_pending", JSON.stringify(tvPayload));
+          
+          // Set terminal quantity
+          if (tvPayload.terminalQuantity > 0) {
+            setTerminalQuantity(tvPayload.terminalQuantity);
+          }
+          
+          // Set installation choice
+          if (tvPayload.installationChoice) {
+            setInstallationChoice(tvPayload.installationChoice);
+          }
+          
+          // Clear the TV cart after consumption
+          sessionStorage.removeItem("nivra_tv_cart");
+        } else {
+          // Stale or invalid payload — clear it
+          sessionStorage.removeItem("nivra_tv_cart");
+        }
+      }
+    } catch (tvErr) {
+      console.error("[OrderWizard] TV configurator handoff error:", tvErr);
+      sessionStorage.removeItem("nivra_tv_cart");
+    }
+
     // Mark as hydrated after initial load
     setIsHydrated(true);
     isInitialMount.current = false;
@@ -994,11 +1037,13 @@ const ClientNewOrder = () => {
   // Clear draft when order is completed (called after successful order creation)
   const clearOrderDraft = () => {
     sessionStorage.removeItem(ORDER_DRAFT_KEY);
+    sessionStorage.removeItem("nivra_tv_cart");
+    sessionStorage.removeItem("nivra_tv_cart_pending");
     localStorage.removeItem('nivra_kyc_session_id');
     localStorage.removeItem('nivra_kyc_choice');
     // Clear appointment hold reference (hold is already confirmed at this point)
     import("@/lib/appointmentHold").then(m => m.clearAppointmentHold());
-    console.log("[OrderWizard] Draft + KYC session + KYC choice + appointment hold cleared");
+    console.log("[OrderWizard] Draft + KYC session + KYC choice + appointment hold + TV cart cleared");
   };
 
   // Fetch dynamic equipment prices from database
@@ -1056,7 +1101,62 @@ const ClientNewOrder = () => {
     refetchOnWindowFocus: true,
   });
 
-  // Keep full product list for SKU lookup during checkout
+  // ─── TV Configurator: deferred service matching after services_public loads ───
+  useEffect(() => {
+    if (!services?.length || !isHydrated) return;
+    
+    try {
+      const pendingRaw = sessionStorage.getItem("nivra_tv_cart_pending");
+      if (!pendingRaw) return;
+      
+      const tvPayload = JSON.parse(pendingRaw);
+      const preSelected = tvPayload?.preSelectedServices as Array<{ sku: string; name: string; price: number; category: string }>;
+      if (!preSelected?.length) return;
+      
+      console.log("[OrderWizard] TV Configurator: matching", preSelected.length, "pre-selected services against services_public");
+      
+      // Match by name (fuzzy) or category+price
+      const matched: Service[] = [];
+      for (const pre of preSelected) {
+        // Try exact name match first
+        let svc = services.find(s => s.name.toLowerCase() === pre.name.toLowerCase());
+        
+        // Try fuzzy: service name contains pre-selected name or vice versa
+        if (!svc) {
+          svc = services.find(s => 
+            s.category === pre.category && (
+              s.name.toLowerCase().includes(pre.name.toLowerCase()) ||
+              pre.name.toLowerCase().includes(s.name.toLowerCase())
+            )
+          );
+        }
+        
+        // Try category + price match
+        if (!svc) {
+          svc = services.find(s => s.category === pre.category && Math.abs(s.price - pre.price) < 0.01);
+        }
+        
+        if (svc && !matched.some(m => m.id === svc!.id)) {
+          matched.push(svc);
+          console.log(`[OrderWizard] TV match: "${pre.name}" → "${svc.name}" (${svc.id})`);
+        } else {
+          console.warn(`[OrderWizard] TV Configurator: no match for "${pre.name}" (${pre.category}, $${pre.price})`);
+        }
+      }
+      
+      if (matched.length > 0) {
+        setSelectedServices(matched);
+        console.log("[OrderWizard] TV Configurator: pre-selected", matched.length, "services");
+      }
+      
+      // Consume pending payload
+      sessionStorage.removeItem("nivra_tv_cart_pending");
+    } catch (err) {
+      console.error("[OrderWizard] TV deferred matching error:", err);
+      sessionStorage.removeItem("nivra_tv_cart_pending");
+    }
+  }, [services, isHydrated]);
+
   const { data: allNivraProducts = [] } = useQuery({
     queryKey: ["nivra-products-all"],
     queryFn: fetchNivraProducts,

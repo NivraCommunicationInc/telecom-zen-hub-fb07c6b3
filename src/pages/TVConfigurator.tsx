@@ -13,6 +13,41 @@ import {
 import { cn } from "@/lib/utils";
 import type { CartLineItem } from "@/lib/pricing/serverPricing";
 
+/* ─── Canonical cart item with full metadata for checkout handoff ─── */
+export interface TVConfiguratorCartItem extends CartLineItem {
+  sku: string;
+  recurrence: "monthly" | "one_time";
+}
+
+/**
+ * Enriched payload persisted to sessionStorage for checkout pickup.
+ * Contains both CartLineItem[] for pricing RPC and Service[] for wizard hydration.
+ */
+export interface TVCartPayload {
+  source: "tv-configurator";
+  version: 2;
+  items: TVConfiguratorCartItem[];
+  /** Pre-mapped services for direct wizard hydration (step 1 skip) */
+  preSelectedServices: Array<{
+    sku: string;
+    name: string;
+    price: number;
+    category: string;
+  }>;
+  /** Terminal quantity for TV orders */
+  terminalQuantity: number;
+  /** Installation choice */
+  installationChoice: "auto" | "technician" | null;
+  /** Streaming add-on SKUs for cross-reference */
+  streamingSkus: string[];
+  /** Equipment SKUs selected */
+  equipmentSkus: string[];
+  /** Include shipping */
+  includeShipping: boolean;
+  /** Created timestamp for freshness check */
+  createdAt: string;
+}
+
 /* ─── Canonical product catalog ─── */
 
 interface TVProduct {
@@ -213,7 +248,7 @@ const TV_PRODUCTS: TVProduct[] = [
   },
 ];
 
-/* ─── Tax constants (QC) ─── */
+/* ─── Tax constants (QC) — ESTIMATE ONLY, canonical math is server-side ─── */
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
 
@@ -278,6 +313,11 @@ const TVConfigurator = () => {
       oneTimeItems.push({ name: `${isFr ? p.nameFr : p.name}${qty > 1 ? ` ×${qty}` : ""}`, price: p.price * qty });
     });
 
+    // Activation fee (canonical)
+    if (baseSelected) {
+      oneTimeItems.push({ name: isFr ? "Frais d'activation" : "Activation fee", price: 25 });
+    }
+
     // Installation
     if (installMethod === "technician") {
       const inst = productMap.get("FEE-INSTALL")!;
@@ -293,6 +333,7 @@ const TVConfigurator = () => {
     const recurringSubtotal = recurringItems.reduce((s, i) => s + i.price, 0);
     const oneTimeSubtotal = oneTimeItems.reduce((s, i) => s + i.price, 0);
     const taxableBase = recurringSubtotal + oneTimeSubtotal;
+    // ESTIMATE ONLY — canonical taxes computed server-side by compute_checkout_pricing RPC
     const tps = Math.round(taxableBase * TPS_RATE * 100) / 100;
     const tvq = Math.round(taxableBase * TVQ_RATE * 100) / 100;
     const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
@@ -300,32 +341,85 @@ const TVConfigurator = () => {
     return { recurringItems, oneTimeItems, recurringSubtotal, oneTimeSubtotal, tps, tvq, grandTotal };
   }, [baseSelected, selectedPacks, selectedStreaming, selectedEquipment, extraTerminals, installMethod, includeShipping, isFr, productMap]);
 
-  /* ─── Build Core-compatible cart ─── */
-  const buildCartItems = (): CartLineItem[] => {
-    const items: CartLineItem[] = [];
-    if (baseSelected) items.push({ type: "service", name: "Nivra TV Essentiel", amount: 25, quantity: 1 });
+  /* ─── Activation fee (canonical: 1 service = $25, 2+ = $45) ─── */
+  const activationFee = useMemo(() => {
+    // TV counts as 1 service type; packs/streaming don't count as separate types
+    return baseSelected ? 25 : 0;
+  }, [baseSelected]);
+
+  /* ─── Build Core-compatible cart with full SKU metadata ─── */
+  const buildCartItems = (): TVConfiguratorCartItem[] => {
+    const items: TVConfiguratorCartItem[] = [];
+
+    // Base TV service
+    if (baseSelected) {
+      items.push({ type: "service", sku: "TV-ESS", name: "Nivra TV Essentiel", amount: 25, quantity: 1, recurrence: "monthly" });
+    }
+
+    // Content packs (recurring)
     selectedPacks.forEach((sku) => {
       const p = productMap.get(sku)!;
-      items.push({ type: "service", name: p.name, amount: p.price, quantity: 1 });
+      items.push({ type: "service", sku: p.sku, name: p.name, amount: p.price, quantity: 1, recurrence: "monthly" });
     });
+
+    // Streaming add-ons (recurring, must be individually itemized per canonical standard)
     selectedStreaming.forEach((sku) => {
       const p = productMap.get(sku)!;
-      items.push({ type: "service", name: p.name, amount: p.price, quantity: 1 });
+      items.push({ type: "service", sku: p.sku, name: p.name, amount: p.price, quantity: 1, recurrence: "monthly" });
     });
+
+    // Equipment (one-time)
     selectedEquipment.forEach((sku) => {
       const p = productMap.get(sku)!;
       const qty = sku === "EQ-TVBOX" ? 1 + extraTerminals : 1;
-      items.push({ type: "equipment", name: p.name, amount: p.price, quantity: qty });
+      items.push({ type: "equipment", sku: p.sku, name: p.name, amount: p.price, quantity: qty, recurrence: "one_time" });
     });
-    if (installMethod === "technician") items.push({ type: "installation", name: "Technician Installation", amount: 75, quantity: 1 });
-    if (includeShipping && selectedEquipment.size > 0) items.push({ type: "delivery", name: "Shipping", amount: 30, quantity: 1 });
+
+    // Activation fee (one-time, canonical)
+    if (activationFee > 0) {
+      items.push({ type: "activation", sku: "FEE-ACT-1", name: "Frais d'activation", amount: activationFee, quantity: 1, recurrence: "one_time" });
+    }
+
+    // Installation fee (one-time)
+    if (installMethod === "technician") {
+      items.push({ type: "installation", sku: "FEE-INSTALL", name: "Installation par technicien", amount: 75, quantity: 1, recurrence: "one_time" });
+    }
+
+    // Shipping (one-time)
+    if (includeShipping && selectedEquipment.size > 0) {
+      items.push({ type: "delivery", sku: "FEE-DELIVERY", name: "Livraison", amount: 30, quantity: 1, recurrence: "one_time" });
+    }
+
     return items;
   };
 
   const handleContinue = () => {
-    const cart = buildCartItems();
-    // Store in sessionStorage for checkout pickup
-    sessionStorage.setItem("nivra_tv_cart", JSON.stringify(cart));
+    const items = buildCartItems();
+
+    // Build enriched payload for checkout handoff
+    const payload: TVCartPayload = {
+      source: "tv-configurator",
+      version: 2,
+      items,
+      preSelectedServices: [
+        // Base TV
+        ...(baseSelected ? [{ sku: "TV-ESS", name: "Nivra TV Essentiel", price: 25, category: "TV" }] : []),
+        // Content packs map to TV category
+        ...Array.from(selectedPacks).map((sku) => {
+          const p = productMap.get(sku)!;
+          return { sku: p.sku, name: p.name, price: p.price, category: "TV" };
+        }),
+      ],
+      terminalQuantity: selectedEquipment.has("EQ-TVBOX") ? 1 + extraTerminals : 0,
+      installationChoice: installMethod === "technician" ? "technician" : installMethod === "self" ? "auto" : null,
+      streamingSkus: Array.from(selectedStreaming),
+      equipmentSkus: Array.from(selectedEquipment),
+      includeShipping,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Write enriched payload — read by ClientNewOrder on mount
+    sessionStorage.setItem("nivra_tv_cart", JSON.stringify(payload));
     navigate("/portal/new-order");
   };
 
@@ -709,31 +803,34 @@ const TVConfigurator = () => {
                     </div>
                   )}
 
-                  {/* Taxes */}
+                  {/* Taxes (ESTIMATE — canonical taxes computed at checkout) */}
                   <div className="pt-1">
                     <Separator className="mb-3" />
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>TPS (5%)</span>
-                        <span>{pricing.tps.toFixed(2)} $</span>
+                        <span>TPS (5%) <span className="italic">{isFr ? "est." : "est."}</span></span>
+                        <span>~{pricing.tps.toFixed(2)} $</span>
                       </div>
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>TVQ (9,975%)</span>
-                        <span>{pricing.tvq.toFixed(2)} $</span>
+                        <span>TVQ (9,975%) <span className="italic">{isFr ? "est." : "est."}</span></span>
+                        <span>~{pricing.tvq.toFixed(2)} $</span>
                       </div>
                     </div>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1 italic">
+                      {isFr ? "Montants estimés — taxes finales calculées au paiement" : "Estimated — final taxes calculated at checkout"}
+                    </p>
                   </div>
 
                   {/* Grand Total */}
                   <div className="bg-muted/50 -mx-6 px-6 py-4 rounded-b-lg mt-4">
                     <div className="flex justify-between items-center">
                       <div>
-                        <div className="text-sm font-semibold text-foreground">{isFr ? "Total dû aujourd'hui" : "Total due today"}</div>
+                        <div className="text-sm font-semibold text-foreground">{isFr ? "Total estimé aujourd'hui" : "Estimated total today"}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {isFr ? "Puis" : "Then"} {pricing.recurringSubtotal.toFixed(2)} $/{isFr ? "mois" : "mo"} + {isFr ? "taxes" : "tax"}
+                          {isFr ? "Puis" : "Then"} ~{pricing.recurringSubtotal.toFixed(2)} $/{isFr ? "mois" : "mo"} + {isFr ? "taxes" : "tax"}
                         </div>
                       </div>
-                      <div className="text-2xl font-bold text-foreground">{fmt(pricing.grandTotal)}</div>
+                      <div className="text-2xl font-bold text-foreground">~{fmt(pricing.grandTotal)}</div>
                     </div>
                   </div>
 
@@ -805,13 +902,13 @@ function MobileSummary({
             </div>
           )}
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>TPS + TVQ</span>
-            <span>{(pricing.tps + pricing.tvq).toFixed(2)} $</span>
+            <span>TPS + TVQ <span className="italic">{isFr ? "est." : "est."}</span></span>
+            <span>~{(pricing.tps + pricing.tvq).toFixed(2)} $</span>
           </div>
           <Separator />
           <div className="flex justify-between items-center pt-1">
-            <span className="font-bold text-foreground">{isFr ? "Total aujourd'hui" : "Total today"}</span>
-            <span className="text-xl font-bold text-foreground">{fmt(pricing.grandTotal)}</span>
+            <span className="font-bold text-foreground">{isFr ? "Total estimé" : "Estimated total"}</span>
+            <span className="text-xl font-bold text-foreground">~{fmt(pricing.grandTotal)}</span>
           </div>
         </div>
 
