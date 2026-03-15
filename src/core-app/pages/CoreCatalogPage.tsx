@@ -138,9 +138,7 @@ export default function CoreCatalogPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
-      queryClient.invalidateQueries({ queryKey: ["core-services-catalog"] });
-      queryClient.invalidateQueries({ queryKey: ["public-services"] });
+      invalidateAllCatalogQueries();
       toast.success(editItem ? "Service mis à jour" : "Service créé");
       closeDrawer();
     },
@@ -156,8 +154,7 @@ export default function CoreCatalogPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
-      queryClient.invalidateQueries({ queryKey: ["public-services"] });
+      invalidateAllCatalogQueries();
       toast.success("Service archivé");
     },
   });
@@ -171,7 +168,7 @@ export default function CoreCatalogPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
+      invalidateAllCatalogQueries();
       toast.success("Service dupliqué");
     },
   });
@@ -185,11 +182,19 @@ export default function CoreCatalogPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-catalog-full"] });
-      queryClient.invalidateQueries({ queryKey: ["public-services"] });
+      invalidateAllCatalogQueries();
       toast.success("Statut mis à jour");
     },
   });
+
+  /** Invalidate every query that reads from the catalog — ensures live propagation everywhere */
+  const invalidateAllCatalogQueries = () => {
+    const keys = [
+      "core-catalog-full", "core-services-catalog", "public-services",
+      "available-services", "tv-configurator-services", "canonical-operational-fees",
+    ];
+    keys.forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
+  };
 
   /* ─── Helpers ─── */
   const closeDrawer = () => {

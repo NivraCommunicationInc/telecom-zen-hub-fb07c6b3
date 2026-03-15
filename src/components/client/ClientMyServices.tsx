@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import {
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
+import { usePublicServices } from "@/hooks/usePublicServices";
 import { 
   Wifi, Tv, Smartphone, Shield, Package, AlertTriangle, 
   ArrowUpCircle, Pause, RefreshCw, FileWarning, MessageSquare,
@@ -54,37 +55,8 @@ import { usePortalActivityLog } from "@/hooks/usePortalActivityLog";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
 import { ServicesByAddress } from "./ServicesByAddress";
 
-// Plans matching website exactly - DO NOT modify
-const AVAILABLE_PLANS = {
-  internet: [
-    { id: "internet-100", name: "Internet 100 Mbps", price: 55, speed: "100 Mbps haute vitesse" },
-    { id: "internet-500", name: "Internet 500 Mbps", price: 60, speed: "500 Mbps ultra-rapide" },
-    { id: "internet-940", name: "Internet 940 Mbps", price: 70, speed: "940 Mbps fibre" },
-  ],
-  tv_bundles: [
-    { id: "tv-basic", name: "Internet 100 + TV Basic", price: 75, description: "26 chaînes générales" },
-    { id: "tv-5choices", name: "Internet 500 + TV 5 choix", price: 80, description: "32 chaînes populaires" },
-    { id: "tv-10choices", name: "Internet 500 + TV 10 choix", price: 90, description: "37 chaînes + sports" },
-    { id: "tv-15choices", name: "Internet 500 + TV 15 choix", price: 95, description: "42 chaînes + sports" },
-    { id: "tv-25choices", name: "Internet 500 + TV 25 choix", price: 110, description: "52 chaînes + sports" },
-    { id: "giga-tv-basic", name: "GIGA + TV Basic", price: 85, description: "Internet 1Gbps + 26 chaînes" },
-    { id: "giga-tv-5choices", name: "GIGA + TV 5 choix", price: 95, description: "Internet 1Gbps + 32 chaînes" },
-    { id: "giga-tv-10choices", name: "GIGA + TV 10 choix", price: 105, description: "Internet 1Gbps + 37 chaînes" },
-    { id: "giga-tv-15choices", name: "GIGA + TV 15 choix", price: 110, description: "Internet 1Gbps + 42 chaînes" },
-    { id: "giga-tv-25choices", name: "GIGA + TV 25 choix", price: 120, description: "Internet 1Gbps + 52 chaînes" },
-  ],
-  // Mobile plans - EXACTLY matching public website MobilePlans.tsx
-  mobile: [
-    { id: "mobile-50", name: "Forfait Mobile 50$/30 jours", price: 50, data: "50-55 GB 4G (avec/sans Auto Top-Up)" },
-    { id: "mobile-60", name: "Forfait Mobile 60$/30 jours", price: 60, data: "75-80 GB 4G (avec/sans Auto Top-Up)" },
-  ],
-  // Streaming+ services
-  streaming: [
-    { id: "streaming-basic", name: "Streaming+ Basic", price: 9.99, description: "Accès de base aux contenus" },
-    { id: "streaming-premium", name: "Streaming+ Premium", price: 14.99, description: "4K + Multi-écrans + Téléchargement" },
-    { id: "streaming-family", name: "Streaming+ Famille", price: 19.99, description: "6 profils + Contrôle parental" },
-  ],
-};
+// CANONICAL: Plans are now loaded from the database via usePublicServices hook.
+// No more hardcoded plan arrays — all managed from Nivra Core admin.
 
 const EQUIPMENT_ISSUE_TYPES = [
   { value: "defect", label: "Défaut de fabrication", warrantyPath: true },
@@ -126,6 +98,17 @@ const ClientMyServices = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { logActivity } = usePortalActivityLog();
+
+  // CANONICAL: Load all plans from the database catalog
+  const { data: catalogServices = [] } = usePublicServices({ surface: "portal" });
+  
+  const catalogPlans = useMemo(() => {
+    const internet = catalogServices.filter(s => s.category === "Internet").map(s => ({ id: s.id, name: s.name, price: s.price, speed: s.description || "" }));
+    const tv_bundles = catalogServices.filter(s => s.category === "TV").map(s => ({ id: s.id, name: s.name, price: s.price, description: s.description || "" }));
+    const mobile = catalogServices.filter(s => s.category === "Mobile").map(s => ({ id: s.id, name: s.name, price: s.price, data: s.description || "" }));
+    const streaming = catalogServices.filter(s => s.name.toLowerCase().includes("streaming")).map(s => ({ id: s.id, name: s.name, price: s.price, description: s.description || "" }));
+    return { internet, tv_bundles, mobile, streaming };
+  }, [catalogServices]);
   
   // Dialog states
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
@@ -838,7 +821,7 @@ const ClientMyServices = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {AVAILABLE_PLANS.streaming.map((plan) => (
+              {catalogPlans.streaming.map((plan) => (
                 <div key={plan.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:border-cyan-500/50 transition-colors">
                   <div>
                     <p className="font-medium text-foreground">{plan.name}</p>
@@ -1585,19 +1568,19 @@ const ClientMyServices = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="" disabled>Internet</SelectItem>
-                  {AVAILABLE_PLANS.internet.map(plan => (
+                  {catalogPlans.internet.map(plan => (
                     <SelectItem key={plan.id} value={plan.name}>
                       {plan.name} - {plan.price}$/mois
                     </SelectItem>
                   ))}
                   <SelectItem value="" disabled>TV + Internet</SelectItem>
-                  {AVAILABLE_PLANS.tv_bundles.map(plan => (
+                  {catalogPlans.tv_bundles.map(plan => (
                     <SelectItem key={plan.id} value={plan.name}>
                       {plan.name} - {plan.price}$/mois
                     </SelectItem>
                   ))}
                   <SelectItem value="" disabled>Mobile</SelectItem>
-                  {AVAILABLE_PLANS.mobile.map(plan => (
+                  {catalogPlans.mobile.map(plan => (
                     <SelectItem key={plan.id} value={plan.name}>
                       {plan.name}
                     </SelectItem>
