@@ -164,7 +164,7 @@ const TVConfigurator = () => {
   }, []);
 
   const tvPlans = useMemo(() => allServices.filter((s) => s.category === "TV"), [allServices]);
-  const equipmentProducts = useMemo(() => allServices.filter((s) => s.category === "Équipement"), [allServices]);
+  // equipmentProducts loaded via separate query above (not filtered by visible_simulator)
   const terminalProduct = useMemo(() => equipmentProducts.find((e) => e.name.toLowerCase().includes("terminal")), [equipmentProducts]);
   const routerProduct = useMemo(
     () => equipmentProducts.find((e) => e.name.toLowerCase().includes("router") || e.name.toLowerCase().includes("borne")),
