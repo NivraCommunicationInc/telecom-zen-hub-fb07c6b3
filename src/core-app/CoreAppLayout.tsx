@@ -12,6 +12,7 @@ import {
   FileText, CreditCard, RefreshCcw, Calendar, LogOut, ChevronLeft,
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
+  MonitorPlay,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
