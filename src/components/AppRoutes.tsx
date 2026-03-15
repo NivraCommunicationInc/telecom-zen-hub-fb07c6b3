@@ -662,6 +662,8 @@ const AppRoutes = () => {
           <Route path="contested-invoices" element={<Suspense fallback={null}><CoreContestedInvoicesPage /></Suspense>} />
           {/* Catalogue */}
           <Route path="services" element={<Suspense fallback={null}><CoreServicesPage /></Suspense>} />
+          <Route path="catalog" element={<Suspense fallback={null}><CoreCatalogPage /></Suspense>} />
+          <Route path="tv-sur-mesure" element={<Suspense fallback={null}><CoreTVSurMesurePage /></Suspense>} />
           <Route path="channels" element={<Suspense fallback={null}><CoreChannelsPage /></Suspense>} />
           <Route path="streaming" element={<Suspense fallback={null}><CoreStreamingPage /></Suspense>} />
           <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />

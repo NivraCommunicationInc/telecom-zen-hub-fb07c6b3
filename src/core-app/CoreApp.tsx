@@ -165,6 +165,8 @@ const CoreApp = () => {
                 <Route path="contested-invoices" element={<S><CoreContestedInvoicesPage /></S>} />
                 {/* Catalogue */}
                 <Route path="services" element={<S><CoreServicesPage /></S>} />
+                <Route path="catalog" element={<S><CoreCatalogPage /></S>} />
+                <Route path="tv-sur-mesure" element={<S><CoreTVSurMesurePage /></S>} />
                 <Route path="channels" element={<S><CoreChannelsPage /></S>} />
                 <Route path="streaming" element={<S><CoreStreamingPage /></S>} />
                 <Route path="contracts" element={<S><CoreContractsPage /></S>} />
