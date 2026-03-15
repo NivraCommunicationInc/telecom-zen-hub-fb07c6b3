@@ -11938,28 +11938,79 @@ export type Database = {
       }
       services_public: {
         Row: {
+          activation_fee_rule: string | null
+          badges: Json | null
           billing_type: string | null
           category: string | null
           description: string | null
+          display_order: number | null
+          equipment_rules: Json | null
+          features_json: Json | null
           id: string | null
+          installation_fee_rule: string | null
+          is_featured: boolean | null
+          is_recommended: boolean | null
           name: string | null
           price: number | null
+          promo_eligible: boolean | null
+          shipping_fee_rule: string | null
+          short_description: string | null
+          status: string | null
+          tags: Json | null
+          visible_checkout: boolean | null
+          visible_portal: boolean | null
+          visible_simulator: boolean | null
+          visible_website: boolean | null
         }
         Insert: {
+          activation_fee_rule?: string | null
+          badges?: Json | null
           billing_type?: string | null
           category?: string | null
           description?: string | null
+          display_order?: number | null
+          equipment_rules?: Json | null
+          features_json?: Json | null
           id?: string | null
+          installation_fee_rule?: string | null
+          is_featured?: boolean | null
+          is_recommended?: boolean | null
           name?: string | null
           price?: number | null
+          promo_eligible?: boolean | null
+          shipping_fee_rule?: string | null
+          short_description?: string | null
+          status?: string | null
+          tags?: Json | null
+          visible_checkout?: boolean | null
+          visible_portal?: boolean | null
+          visible_simulator?: boolean | null
+          visible_website?: boolean | null
         }
         Update: {
+          activation_fee_rule?: string | null
+          badges?: Json | null
           billing_type?: string | null
           category?: string | null
           description?: string | null
+          display_order?: number | null
+          equipment_rules?: Json | null
+          features_json?: Json | null
           id?: string | null
+          installation_fee_rule?: string | null
+          is_featured?: boolean | null
+          is_recommended?: boolean | null
           name?: string | null
           price?: number | null
+          promo_eligible?: boolean | null
+          shipping_fee_rule?: string | null
+          short_description?: string | null
+          status?: string | null
+          tags?: Json | null
+          visible_checkout?: boolean | null
+          visible_portal?: boolean | null
+          visible_simulator?: boolean | null
+          visible_website?: boolean | null
         }
         Relationships: []
       }
