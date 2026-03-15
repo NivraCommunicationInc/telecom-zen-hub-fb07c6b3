@@ -17,6 +17,7 @@ import { usePortalRoleAccess } from "@/hooks/usePortalRoleAccess";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { useEquipmentPrices } from "@/hooks/usePublicServices";
+import { useCanonicalFees } from "@/hooks/useCanonicalFees";
 import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, findSkuByName, type NivraProduct, type NivraOrderItem, type NivraOrderResponse, type NivraFullCheckoutResponse, SKU } from "@/lib/api/nivraApi";
 import { fallbackCheckout } from "@/lib/checkoutFallback";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
@@ -141,10 +142,10 @@ const categoryIcons: Record<string, any> = {
   Extras: Package,
 };
 
-// Terminal equipment configuration
+// Terminal equipment configuration — price now loaded from canonical operational_fees
 const TERMINAL_CONFIG = {
   name: "Nivra 4K Smart Terminal",
-  price: 50,
+  price: 50, // fallback; overridden by canonical fee at runtime
   maxQuantity: 4,
   warranty: "Garantie fabricant 1 an (défauts de fabrication uniquement)",
 };
@@ -164,8 +165,8 @@ const UBER_ELIGIBLE_CITIES = [
   "Repentigny", "Longueuil", "Saint-Hubert", "Brossard"
 ];
 
-// Delivery configuration
-const DELIVERY_CONFIG = {
+// Delivery configuration — fees now overridden at runtime by canonical operational_fees
+const DELIVERY_CONFIG_DEFAULTS = {
   standard: {
     name: "Livraison standard",
     fee: 30,
@@ -517,8 +518,27 @@ const ClientNewOrder = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAccountBlocked } = useClientBlockStatus();
-  // Welcome discount is now computed server-side by compute_checkout_pricing RPC
+  // Canonical fees from operational_fees table (replaces hardcoded constants)
+  const canonicalFees = useCanonicalFees();
   
+  // Build DELIVERY_CONFIG dynamically from canonical fees (with fallbacks)
+  const DELIVERY_CONFIG = {
+    standard: {
+      ...DELIVERY_CONFIG_DEFAULTS.standard,
+      fee: canonicalFees.deliveryStandard || DELIVERY_CONFIG_DEFAULTS.standard.fee,
+    },
+    uber: {
+      ...DELIVERY_CONFIG_DEFAULTS.uber,
+      fee: canonicalFees.deliveryUber || DELIVERY_CONFIG_DEFAULTS.uber.fee,
+    },
+    shipHome: {
+      ...DELIVERY_CONFIG_DEFAULTS.shipHome,
+      fee: canonicalFees.deliveryShipHome || DELIVERY_CONFIG_DEFAULTS.shipHome.fee,
+    },
+  };
+  
+  // Welcome discount is now computed server-side by compute_checkout_pricing RPC
+
   // Idempotency key: generated once per checkout session to prevent duplicate orders
   // Using useRef ensures it's stable across re-renders and never regenerates
   const clientRequestIdRef = useRef(crypto.randomUUID());
@@ -1368,13 +1388,13 @@ const ClientNewOrder = () => {
     return count;
   };
   
-  // Calculate activation fee based on number of service types
+  // Calculate activation fee from canonical operational_fees
   const calculateActivationFee = (): number => {
     if (isEquipmentOnlyOrder) return 0;
     const serviceTypeCount = countServiceTypes();
     if (serviceTypeCount === 0) return 0;
-    if (serviceTypeCount === 1) return 25; // Single service
-    return 45; // 2+ services = bundled cap
+    if (serviceTypeCount === 1) return canonicalFees.activationSingle || 25;
+    return canonicalFees.activationBundle || 45;
   };
   
   // Check if Uber delivery is available based on client's phone area code
@@ -1783,7 +1803,7 @@ const ClientNewOrder = () => {
         ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
            deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
            DELIVERY_CONFIG.standard.fee)
-        : (installationChoice === "auto" ? 30 : 0);
+        : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0);
 
       // Determine installation type for the order
       const orderInstallationType = isDeliveryOnlyOrder 
@@ -1792,8 +1812,8 @@ const ClientNewOrder = () => {
            "delivery_standard")
         : installationChoice;
       
-      // For equipment-only orders, no activation fee
-      const orderActivationFee = isEquipmentOnlyOrder ? 0 : 25;
+      // For equipment-only orders, no activation fee (canonical)
+      const orderActivationFee = isEquipmentOnlyOrder ? 0 : (canonicalFees.activationSingle || 25);
 
       // Save pre-authorized payment method if credit card and checkbox selected
       // Use UPSERT to prevent duplicate cards (unique on user_id + payment_fingerprint)
@@ -1966,7 +1986,7 @@ const ClientNewOrder = () => {
       const feesForLineItems = [
         ...(orderActivationFee > 0 ? [{ name: "Frais d'activation", amount: orderActivationFee }] : []),
         ...(orderDeliveryFee > 0 ? [{ name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
-        ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
+        ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 50) - installationCredit) }] : []),
       ];
       
       // Build discounts array (promo + preauth only - no auto SIM credits)
@@ -2159,7 +2179,7 @@ const ClientNewOrder = () => {
         fees: [
           ...(orderActivationFee > 0 ? [{ sku: new Set(selectedServices.map(s => s.category)).size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1, name: "Frais d'activation", amount: orderActivationFee }] : []),
           ...(orderDeliveryFee > 0 ? [{ sku: SKU.DELIVERY, name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
-          ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, 50 - installationCredit) }] : []),
+          ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 50) - installationCredit) }] : []),
         ],
         promo: shouldAttachPromoToCheckout && appliedPromo ? {
           code: appliedPromo.code,
@@ -2930,16 +2950,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
       return 0;
     }
-    // For Internet, TV, Security - use installation choice
-    return installationChoice === "auto" ? 30 : 0;
+    // For Internet, TV, Security - use installation choice (canonical fee)
+    return installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0;
   };
   
   const deliveryFee = calculateDeliveryFee();
-  // Activation fee: $25 for 1 service type, $45 for 2+ service types
+  // Activation fee from canonical operational_fees
   const activationFee = calculateActivationFee();
   // IMPORTANT: Promo discounts are applied via promoDiscount (discount_amount) below.
   // Do not also subtract an installationCredit here, otherwise the promo is applied twice.
-  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0;
+  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? (canonicalFees.installationTechnician || 50) : 0;
   
   // Calculate one-time fees vs monthly fees (include Streaming+ add-ons)
   const oneTimeFeesGross = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;

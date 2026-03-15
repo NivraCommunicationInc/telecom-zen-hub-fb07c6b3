@@ -79,8 +79,50 @@ serve(async (req) => {
         
         const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
         
+        // ═══ PROMO DURATION CHECK ═══
+        // If this subscription was created with a duration-limited promo,
+        // check if we're still within the promo window and apply the discount.
+        let promoDiscount = 0;
+        let promoNote = "";
+        
+        if (sub.order_id) {
+          // Look up the order's pricing_snapshot for promo info
+          const { data: orderData } = await supabase
+            .from("orders")
+            .select("pricing_snapshot, promo_code")
+            .eq("id", sub.order_id)
+            .single();
+          
+          if (orderData?.promo_code && orderData?.pricing_snapshot) {
+            const snapshot = orderData.pricing_snapshot;
+            const promoApplied = snapshot?.promo_applied;
+            
+            if (promoApplied?.duration_months && promoApplied.duration === "limited") {
+              // Count how many renewal invoices exist for this subscription
+              const { count: renewalCount } = await supabase
+                .from("billing_invoices")
+                .select("id", { count: "exact", head: true })
+                .eq("subscription_id", sub.id)
+                .eq("type", "renewal")
+                .not("status", "in", '("void","cancelled")');
+              
+              // +1 because the initial order invoice counts as cycle 1
+              const currentCycle = (renewalCount || 0) + 1;
+              
+              if (currentCycle < promoApplied.duration_months) {
+                // Still within promo window — apply discount
+                promoDiscount = promoApplied.discount_amount || 0;
+                promoNote = ` (Promo ${promoApplied.code}: -${promoDiscount}$ cycle ${currentCycle + 1}/${promoApplied.duration_months})`;
+                console.log(`[billing-generate-renewals] Applying promo ${promoApplied.code}: -${promoDiscount}$ (cycle ${currentCycle + 1}/${promoApplied.duration_months})`);
+              } else {
+                console.log(`[billing-generate-renewals] Promo ${promoApplied.code} expired (cycle ${currentCycle + 1} > ${promoApplied.duration_months})`);
+              }
+            }
+          }
+        }
+        
         // Calculate amounts
-        const subtotal = sub.plan_price;
+        const subtotal = Math.max(0, sub.plan_price - promoDiscount);
         const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
         const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
         const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
@@ -109,23 +151,41 @@ serve(async (req) => {
             status: 'pending',
             cycle_start_date: newCycleStart.toISOString().split('T')[0],
             cycle_end_date: newCycleEnd.toISOString().split('T')[0],
-            due_date: dueDate
+            due_date: dueDate,
+            notes: promoNote || null
           })
           .select()
           .single();
         
         if (invoiceError) throw invoiceError;
         
-        // Create invoice line
-        await supabase
-          .from("billing_invoice_lines")
-          .insert({
+        // Create invoice lines
+        const invoiceLines: any[] = [
+          {
             invoice_id: invoice.id,
             description: `${sub.plan_name} – Renouvellement 30 jours`,
             unit_price: sub.plan_price,
             quantity: 1,
-            line_total: sub.plan_price
+            line_total: sub.plan_price,
+            line_type: 'service'
+          }
+        ];
+        
+        // Add promo discount line if applicable
+        if (promoDiscount > 0) {
+          invoiceLines.push({
+            invoice_id: invoice.id,
+            description: `Rabais promotionnel${promoNote}`,
+            unit_price: -promoDiscount,
+            quantity: 1,
+            line_total: -promoDiscount,
+            line_type: 'discount'
           });
+        }
+        
+        await supabase
+          .from("billing_invoice_lines")
+          .insert(invoiceLines);
         
         // Create pending payment with appropriate method
         await supabase
