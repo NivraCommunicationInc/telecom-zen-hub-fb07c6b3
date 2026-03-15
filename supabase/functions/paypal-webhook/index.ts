@@ -338,7 +338,7 @@ serve(async (req) => {
         await supabase.from("billing_system_alerts").insert({
           alert_type: "subscription_suspended",
           entity_type: "billing_subscriptions",
-          entity_id: paypalSubscriptionId,
+          entity_reference: paypalSubscriptionId,
           details: {
             reason: "PayPal payment failed",
             event_id: event.id,
@@ -357,7 +357,7 @@ serve(async (req) => {
         await supabase.from("billing_system_alerts").insert({
           alert_type: "payment_failed",
           entity_type: "billing_subscriptions",
-          entity_id: paypalSubscriptionId,
+          entity_reference: paypalSubscriptionId,
           details: {
             event_id: event.id,
             amount: event.resource.amount,
@@ -657,7 +657,7 @@ serve(async (req) => {
           await supabase.from("billing_system_alerts").insert({
             alert_type: "orphan_dispute",
             entity_type: "paypal_webhook",
-            entity_id: disputeId,
+            entity_reference: disputeId,
             severity: "high",
             details: {
               event_type: event.event_type,
@@ -679,11 +679,12 @@ serve(async (req) => {
         
         console.log(`[PayPal Webhook] Dispute resolved: ${disputeId}, outcome: ${outcome}`);
         
-        // Mark alert as resolved
+        // Mark alert as resolved (match by paypal_dispute_id in details)
         await supabase
           .from("billing_system_alerts")
           .update({ resolved: true, resolved_at: new Date().toISOString() })
-          .eq("entity_id", disputeId);
+          .eq("alert_type", "dispute_created")
+          .contains("details", { paypal_dispute_id: disputeId });
         
         // If we won the dispute, we could reactivate - but typically requires manual review
         await supabase.from("activity_logs").insert({

@@ -578,12 +578,26 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
       await supabase.from("billing_system_alerts").insert({
         alert_type: "pdf_missing_data_warning",
         entity_type: "order",
-        entity_id: orderId,
+        entity_id: orderId, // orderId is always a UUID from orders.id
+        entity_reference: data.order?.order_number?.toString() || null,
         details: { missing_fields: missingFields, order_id: orderId, order_number: data.order?.order_number },
       });
     } catch (alertErr) {
       console.error("[DocumentBuilder] Could not create alert:", alertErr);
     }
+  }
+
+  // HARD GATE: billing_invoice_lines MUST exist
+  if (!data.billingInvoiceLines || data.billingInvoiceLines.length === 0) {
+    console.error(`[DocumentBuilder V4] ⛔ No billing_invoice_lines for order ${orderId} — generation BLOCKED (canonical failure)`);
+    const blockedResult: PDFGenerationResult = { success: false, error: "Aucune ligne de facturation canonique (billing_invoice_lines). Commande marquée comme exception pré-canonique." };
+    return {
+      invoice: blockedResult,
+      orderSummary: blockedResult,
+      contract: blockedResult,
+      contractSummary: blockedResult,
+      terms: generateServiceTermsPDF(),
+    };
   }
 
   if (!data.breakdown) {
