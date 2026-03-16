@@ -2473,6 +2473,175 @@ export type Database = {
         }
         Relationships: []
       }
+      client_referral_events: {
+        Row: {
+          actor_id: string | null
+          actor_type: string | null
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          new_status: string | null
+          old_status: string | null
+          referral_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          referral_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string | null
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          referral_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_referral_events_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "client_referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_referrals: {
+        Row: {
+          created_at: string
+          disqualification_reason: string | null
+          disqualified_at: string | null
+          fraud_checked_at: string | null
+          fraud_checked_by: string | null
+          fraud_flag: boolean
+          fraud_review_notes: string | null
+          id: string
+          notes: string | null
+          qualified_at: string | null
+          qualifying_cycles_paid: number
+          referral_code_used: string
+          referred_account_id: string | null
+          referred_billing_customer_id: string | null
+          referred_order_id: string | null
+          referred_subscription_id: string | null
+          referred_user_id: string
+          referrer_account_id: string | null
+          referrer_billing_customer_id: string | null
+          referrer_user_id: string
+          required_cycles: number
+          reward_amount: number | null
+          reward_issued_at: string | null
+          reward_issued_by: string | null
+          reward_reference: string | null
+          reward_status: Database["public"]["Enums"]["referral_reward_status"]
+          reward_type: string | null
+          status: Database["public"]["Enums"]["referral_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          disqualification_reason?: string | null
+          disqualified_at?: string | null
+          fraud_checked_at?: string | null
+          fraud_checked_by?: string | null
+          fraud_flag?: boolean
+          fraud_review_notes?: string | null
+          id?: string
+          notes?: string | null
+          qualified_at?: string | null
+          qualifying_cycles_paid?: number
+          referral_code_used: string
+          referred_account_id?: string | null
+          referred_billing_customer_id?: string | null
+          referred_order_id?: string | null
+          referred_subscription_id?: string | null
+          referred_user_id: string
+          referrer_account_id?: string | null
+          referrer_billing_customer_id?: string | null
+          referrer_user_id: string
+          required_cycles?: number
+          reward_amount?: number | null
+          reward_issued_at?: string | null
+          reward_issued_by?: string | null
+          reward_reference?: string | null
+          reward_status?: Database["public"]["Enums"]["referral_reward_status"]
+          reward_type?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          disqualification_reason?: string | null
+          disqualified_at?: string | null
+          fraud_checked_at?: string | null
+          fraud_checked_by?: string | null
+          fraud_flag?: boolean
+          fraud_review_notes?: string | null
+          id?: string
+          notes?: string | null
+          qualified_at?: string | null
+          qualifying_cycles_paid?: number
+          referral_code_used?: string
+          referred_account_id?: string | null
+          referred_billing_customer_id?: string | null
+          referred_order_id?: string | null
+          referred_subscription_id?: string | null
+          referred_user_id?: string
+          referrer_account_id?: string | null
+          referrer_billing_customer_id?: string | null
+          referrer_user_id?: string
+          required_cycles?: number
+          reward_amount?: number | null
+          reward_issued_at?: string | null
+          reward_issued_by?: string | null
+          reward_reference?: string | null
+          reward_status?: Database["public"]["Enums"]["referral_reward_status"]
+          reward_type?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_referrals_referred_account_id_fkey"
+            columns: ["referred_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_referrals_referred_order_id_fkey"
+            columns: ["referred_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "client_referrals_referred_order_id_fkey"
+            columns: ["referred_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_referrals_referrer_account_id_fkey"
+            columns: ["referrer_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_streaming_subscriptions: {
         Row: {
           account_id: string | null
@@ -8044,6 +8213,7 @@ export type Database = {
           pin_is_default: boolean | null
           pin_lockout_until: string | null
           preferred_language: string | null
+          referral_code: string | null
           sector_tags: string[] | null
           security_alert_level: string | null
           security_flagged_at: string | null
@@ -8103,6 +8273,7 @@ export type Database = {
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           preferred_language?: string | null
+          referral_code?: string | null
           sector_tags?: string[] | null
           security_alert_level?: string | null
           security_flagged_at?: string | null
@@ -8162,6 +8333,7 @@ export type Database = {
           pin_is_default?: boolean | null
           pin_lockout_until?: string | null
           preferred_language?: string | null
+          referral_code?: string | null
           sector_tags?: string[] | null
           security_alert_level?: string | null
           security_flagged_at?: string | null
@@ -13025,12 +13197,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_check_referral_qualification: {
+        Args: { p_referral_id: string }
+        Returns: undefined
+      }
       fn_generate_subscription_renewal: {
         Args: { p_subscription_id: string }
         Returns: Json
       }
       fn_run_subscription_renewals: {
         Args: { p_lookahead_days?: number }
+        Returns: Json
+      }
+      fn_validate_client_referral: {
+        Args: {
+          p_referral_code: string
+          p_referred_email: string
+          p_referred_user_id: string
+        }
         Returns: Json
       }
       generate_account_number: { Args: never; Returns: string }
@@ -13587,6 +13771,26 @@ export type Database = {
         | "CHANNEL_PUSH"
         | "EQUIPMENT_ASSIGN"
         | "CUSTOM"
+      referral_reward_status:
+        | "not_eligible"
+        | "in_progress"
+        | "qualified"
+        | "reward_pending"
+        | "reward_issued"
+        | "cancelled"
+      referral_status:
+        | "code_used"
+        | "order_created"
+        | "service_activated"
+        | "cycle_1_paid"
+        | "cycle_2_paid"
+        | "cycle_3_paid"
+        | "qualified"
+        | "reward_pending"
+        | "reward_issued"
+        | "cancelled"
+        | "disqualified"
+        | "fraud_review"
       replacement_order_status:
         | "open"
         | "awaiting_decision"
@@ -14023,6 +14227,28 @@ export const Constants = {
         "CHANNEL_PUSH",
         "EQUIPMENT_ASSIGN",
         "CUSTOM",
+      ],
+      referral_reward_status: [
+        "not_eligible",
+        "in_progress",
+        "qualified",
+        "reward_pending",
+        "reward_issued",
+        "cancelled",
+      ],
+      referral_status: [
+        "code_used",
+        "order_created",
+        "service_activated",
+        "cycle_1_paid",
+        "cycle_2_paid",
+        "cycle_3_paid",
+        "qualified",
+        "reward_pending",
+        "reward_issued",
+        "cancelled",
+        "disqualified",
+        "fraud_review",
       ],
       replacement_order_status: [
         "open",
