@@ -166,8 +166,11 @@ export default function DevLogin() {
     try {
       // DEV-ONLY helper: audited access to real account via one-time magic link (no password reset)
       if (targetEmail === OLDO_EMAIL || targetEmail === SERGE_EMAIL) {
-        setStatus("Génération d'une session audit one-shot OLDO...");
-
+        const auditLabel = targetEmail === SERGE_EMAIL ? "Audit referral portal" : "Audit RLS /portal/service-addresses";
+        const auditRedirect = targetEmail === SERGE_EMAIL
+          ? `${window.location.origin}/portal/referrals?audit_session=1`
+          : `${window.location.origin}/portal/service-addresses?audit_session=1`;
+        setStatus(`Génération d'une session audit one-shot (${targetEmail})...`);
         let { data: adminData, error: adminSignInErr } = await adminClient.auth.signInWithPassword({
           email: ADMIN_EMAIL,
           password: TEST_PASSWORD,
