@@ -2369,9 +2369,22 @@ const ClientNewOrder = () => {
       // Always run (including fallback mode) so missing canonical records are healed.
       const canonicalSyncErrors: string[] = [];
       try {
+        const referralSyncContext = appliedReferral?.type === "client"
+          ? {
+              referral_code_used: appliedReferral.code,
+              referrer_user_id: appliedReferral.referrer_user_id,
+              referred_user_id: user?.id,
+              referred_order_id: nivraCheckoutResponse.order_id,
+            }
+          : null;
+
         const syncPayload = {
-          payload: checkoutPayload,
+          payload: {
+            ...checkoutPayload,
+            ...(referralSyncContext || {}),
+          },
           response: nivraCheckoutResponse,
+          referral_context: referralSyncContext,
         };
 
         let syncOk = false;
@@ -2561,48 +2574,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
-      // ========== CLIENT REFERRAL TRACKING (HARD GUARANTEE) ==========
-      // Primary path: checkout-canonical-sync (service role)
-      // Fallback path: direct client insert (RLS-safe) to avoid any silent miss.
-      if (appliedReferral?.type === "client" && appliedReferral.referrer_user_id && user?.id) {
-        try {
-          const referralPayload = {
-            referral_code_used: appliedReferral.code,
-            referrer_user_id: appliedReferral.referrer_user_id,
-            referred_user_id: user.id,
-            referred_order_id: data.id,
-            referred_account_id: resolvedAccountId || null,
-            status: "order_created",
-            reward_status: "not_eligible",
-          };
-
-          const { error: referralInsertError } = await supabase
-            .from("client_referrals" as any)
-            .insert(referralPayload as any);
-
-          if (referralInsertError) {
-            // Duplicate means row already exists (typically from canonical sync).
-            if (referralInsertError.code === "23505") {
-              console.log("[Referral] Row already exists, re-running canonical sync for status/order linkage");
-              const { data: syncRetry, error: syncRetryError } = await supabase.functions.invoke("checkout-canonical-sync", {
-                body: { payload: checkoutPayload, response: nivraCheckoutResponse },
-              });
-
-              if (syncRetryError || syncRetry?.ok !== true) {
-                console.warn("[Referral] Canonical retry after duplicate failed:", syncRetryError || syncRetry?.errors);
-                postStepErrors.push("client_referral_retry");
-              }
-            } else {
-              console.error("[Referral] Client fallback insert failed:", referralInsertError);
-              postStepErrors.push("client_referral");
-            }
-          } else {
-            console.log("[Referral] Fallback referral row inserted successfully for order:", data.order_number);
-          }
-        } catch (referralErr) {
-          console.error("[Referral] Unexpected fallback error:", referralErr);
-          postStepErrors.push("client_referral");
-        }
+      // ========== CLIENT REFERRAL TRACKING ==========
+      // Canonical server-side path only (checkout-canonical-sync).
+      if (appliedReferral?.type === "client") {
+        console.log("[Referral] Delegated to checkout-canonical-sync server insert", {
+          code: appliedReferral.code,
+          referrer_user_id: appliedReferral.referrer_user_id,
+          referred_user_id: user?.id,
+          referred_order_id: data.id,
+        });
       }
 
       // Record promo/referral redemption only when promo discount was actually applied by authoritative pricing
