@@ -5227,10 +5227,34 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </Card>
               )}
 
+              {/* ═══ REFERRAL CODE (Code de parrainage) ═══ */}
               <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle>Code promotionnel</CardTitle>
-                  <CardDescription>Avez-vous un code de réduction pour l'installation?</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Gift className="w-4 h-4" />
+                    Code de parrainage
+                  </CardTitle>
+                  <CardDescription>Un proche vous a recommandé Nivra?</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ReferralCodeInput
+                    clientEmail={profile?.email || user?.email || ""}
+                    clientId={user?.id}
+                    cartItems={buildPromoValidationPayload(discountCode || "PLACEHOLDER").cartItems}
+                    subtotalBeforeDiscount={buildPromoValidationPayload(discountCode || "PLACEHOLDER").subtotalBeforeDiscount}
+                    appliedReferral={appliedReferral}
+                    onReferralApplied={setAppliedReferral}
+                    hasActivePromoDiscount={serverPromoDiscount > 0 || hasWelcomeDiscountAlreadyApplied}
+                    disabled={createOrderMutation.isPending}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* ═══ PROMO CODE (Code promotionnel) ═══ */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Code promotionnel</CardTitle>
+                  <CardDescription>Avez-vous un code de réduction?</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {appliedPromo ? (
@@ -5256,6 +5280,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           )}
                         </div>
                       </div>
+                      {/* Overlap message: referral also has discount */}
+                      {appliedReferral && (appliedReferral.discount_amount ?? 0) > 0 && serverPromoDiscount > 0 && (
+                        <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-50 border border-amber-200">
+                          <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-amber-700">
+                            Le rabais de votre code de parrainage n'est pas cumulable avec cette promotion. Le code de parrainage reste enregistré pour le suivi.
+                          </p>
+                        </div>
+                      )}
                       <Button variant="ghost" size="sm" onClick={removePromo} className="text-destructive">
                         Retirer le code promo
                       </Button>
