@@ -33,6 +33,7 @@ const TEST_PASSWORD = "AuditTest2026!Secure";
 const ADMIN_EMAIL = "admin-audit@nivradev.com";
 const CLIENT_EMAIL = "client-audit@nivradev.com";
 const OLDO_EMAIL = "oldo.lavaud3112@icloud.com";
+const SERGE_EMAIL = "kozyspott@gmail.com";
 export default function DevLogin() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("");
