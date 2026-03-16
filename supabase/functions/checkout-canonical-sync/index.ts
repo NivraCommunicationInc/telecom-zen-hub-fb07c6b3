@@ -69,6 +69,11 @@ type CheckoutPayload = {
     code?: string;
     referrer_user_id?: string;
   } | null;
+  // Canonical sync fields (explicitly passed at final checkout stage)
+  referral_code_used?: string;
+  referrer_user_id?: string;
+  referred_user_id?: string;
+  referred_order_id?: string;
   installation?: {
     type?: string | null;
     delivery_fee?: number;
