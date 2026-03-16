@@ -248,21 +248,33 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ ok: false, errors: ["Unauthorized"] }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // --- Auth: support both Bearer JWT and x-webhook-secret for service-role calls ---
+    const webhookSecret = req.headers.get("x-webhook-secret");
+    const expectedWebhookSecret = Deno.env.get("NIVRA_WEBHOOK_SECRET");
+    const isWebhookAuth = Boolean(webhookSecret && expectedWebhookSecret && webhookSecret === expectedWebhookSecret);
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const { data: authData, error: authError } = await admin.auth.getUser(token);
-    if (authError || !authData.user) {
-      return new Response(JSON.stringify({ ok: false, errors: ["Unauthorized"] }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let authenticatedUserId: string | null = null;
+
+    if (isWebhookAuth) {
+      console.log("[checkout-canonical-sync] Authenticated via x-webhook-secret (service-role call)");
+    } else {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ ok: false, errors: ["Unauthorized"] }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const token = authHeader.replace("Bearer ", "").trim();
+      const { data: authData, error: authError } = await admin.auth.getUser(token);
+      if (authError || !authData.user) {
+        return new Response(JSON.stringify({ ok: false, errors: ["Unauthorized"] }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      authenticatedUserId = authData.user.id;
     }
 
     const body = await req.json();
@@ -304,7 +316,8 @@ serve(async (req) => {
       });
     }
 
-    if (payload.customer.user_id !== authData.user.id) {
+    // For JWT auth, enforce user_id match. For webhook auth, skip this check.
+    if (!isWebhookAuth && payload.customer.user_id !== authenticatedUserId) {
       return new Response(JSON.stringify({ ok: false, errors: ["Forbidden"] }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
