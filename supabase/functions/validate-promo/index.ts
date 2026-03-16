@@ -41,7 +41,7 @@ serve(async (req) => {
     const { data: referrerProfile, error: refProfileError } = await supabase
       .from('profiles')
       .select('user_id, email, phone, first_name, last_name, referral_code')
-      .eq('referral_code', normalizedCode)
+      .ilike('referral_code', normalizedCode)
       .maybeSingle();
 
     if (referrerProfile && !refProfileError) {
