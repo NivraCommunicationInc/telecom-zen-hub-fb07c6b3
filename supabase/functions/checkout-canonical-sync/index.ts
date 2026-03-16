@@ -697,24 +697,56 @@ serve(async (req) => {
       }
     }
 
-    // 8) Client referral tracking (idempotent) — runs AFTER order upsert so FK is satisfied
+    // 8) Client referral tracking (idempotent server-side insert)
     try {
-      if (payload.referral?.type === "client") {
-        const referralCodeUsed = String(payload.referral.code || "").trim().toUpperCase();
-        let referrerUserId = payload.referral.referrer_user_id || null;
+      const referralCodeUsed = referralContext.referral_code_used;
+      const referrerUserId = referralContext.referrer_user_id;
+      const referredUserId = referralContext.referred_user_id;
+      const referredOrderId = referralContext.referred_order_id || response.order_id || null;
 
-        // Fallback 1: recover missing referrer_user_id from referral code
-        if (!referrerUserId && referralCodeUsed) {
-          const { data: referrerFromCode } = await admin
-            .from("profiles")
-            .select("user_id")
-            .ilike("referral_code", referralCodeUsed)
-            .maybeSingle();
-          referrerUserId = referrerFromCode?.user_id || null;
-        }
+      const hasReferralContext = Boolean(
+        referralCodeUsed &&
+        referrerUserId &&
+        referredUserId &&
+        referredOrderId,
+      );
 
-        if (referrerUserId && referrerUserId !== payload.customer.user_id) {
-          // Resolve referrer account (best-effort, nullable FK)
+      if (!hasReferralContext) {
+        console.log("[checkout-canonical-sync] referral insert skipped: missing required context", {
+          referral_code_used: referralCodeUsed || null,
+          referrer_user_id: referrerUserId || null,
+          referred_user_id: referredUserId || null,
+          referred_order_id: referredOrderId || null,
+        });
+      } else if (referrerUserId === referredUserId) {
+        console.log("[checkout-canonical-sync] referral insert skipped: self-referral blocked", {
+          referrer_user_id: referrerUserId,
+          referred_user_id: referredUserId,
+        });
+      } else {
+        const { data: existingReferral, error: existingReferralError } = await admin
+          .from("client_referrals")
+          .select("id, referred_user_id")
+          .eq("referred_user_id", referredUserId)
+          .maybeSingle();
+
+        if (existingReferralError) {
+          console.error("[checkout-canonical-sync] referral insert failed during duplicate check:", existingReferralError);
+          errors.push(`client_referral_duplicate_check: ${existingReferralError.message}`);
+        } else if (existingReferral?.id) {
+          console.log("[checkout-canonical-sync] referral insert skipped because duplicate:", {
+            referred_user_id: referredUserId,
+            existing_referral_id: existingReferral.id,
+          });
+          results.client_referral = "skipped_duplicate";
+        } else {
+          console.log("[checkout-canonical-sync] referral insert attempted", {
+            referral_code_used: referralCodeUsed,
+            referrer_user_id: referrerUserId,
+            referred_user_id: referredUserId,
+            referred_order_id: referredOrderId,
+          });
+
           const { data: referrerAccount } = await admin
             .from("accounts")
             .select("id")
@@ -724,7 +756,6 @@ serve(async (req) => {
             .limit(1)
             .maybeSingle();
 
-          // Resolve referrer billing_customer_id (best-effort)
           let referrerBillingCustomerId: string | null = null;
           try {
             const { data: referrerBc } = await admin
@@ -734,51 +765,43 @@ serve(async (req) => {
               .limit(1)
               .maybeSingle();
             referrerBillingCustomerId = referrerBc?.id || null;
-          } catch (_) {
-            /* non-blocking */
+          } catch (referrerBcErr) {
+            console.warn("[checkout-canonical-sync] referral insert: unable to resolve referrer billing customer", referrerBcErr);
           }
 
-          // Fallback 2: ensure referral_code_used is always populated with a real code when possible
-          let persistedReferralCode = referralCodeUsed;
-          if (!persistedReferralCode) {
-            const { data: referrerProfile } = await admin
-              .from("profiles")
-              .select("referral_code")
-              .eq("user_id", referrerUserId)
-              .maybeSingle();
-            persistedReferralCode = String(referrerProfile?.referral_code || "UNKNOWN").toUpperCase();
-          }
-
-          const { error: refUpsertError } = await admin
+          const { error: refInsertError } = await admin
             .from("client_referrals")
-            .upsert(
-              {
-                referral_code_used: persistedReferralCode,
-                referrer_user_id: referrerUserId,
-                referred_user_id: payload.customer.user_id,
-                referred_order_id: response.order_id || null,
-                referred_account_id: accountId || null,
-                referrer_account_id: referrerAccount?.id || null,
-                referred_billing_customer_id: customerId || null,
-                referrer_billing_customer_id: referrerBillingCustomerId,
-                status: "order_created",
-                reward_status: "not_eligible",
-              },
-              { onConflict: "referred_user_id" },
-            );
+            .insert({
+              referral_code_used: referralCodeUsed,
+              referrer_user_id: referrerUserId,
+              referred_user_id: referredUserId,
+              referred_order_id: referredOrderId,
+              referred_account_id: accountId || null,
+              referrer_account_id: referrerAccount?.id || null,
+              referred_billing_customer_id: customerId || null,
+              referrer_billing_customer_id: referrerBillingCustomerId,
+              status: "order_created",
+              qualifying_cycles_paid: 0,
+              required_cycles: 3,
+              reward_status: "not_eligible",
+              reward_amount: 25,
+              reward_type: "Visa/Mastercard gift card",
+            });
 
-          if (refUpsertError) {
-            console.error("[checkout-canonical-sync] client_referral upsert error:", refUpsertError);
-            errors.push(`client_referral: ${refUpsertError.message}`);
+          if (refInsertError) {
+            console.error("[checkout-canonical-sync] referral insert failed and why:", refInsertError);
+            errors.push(`client_referral_insert: ${refInsertError.message}`);
           } else {
-            console.log("[checkout-canonical-sync] client_referral tracked for referred_user:", payload.customer.user_id);
+            console.log("[checkout-canonical-sync] referral insert succeeded", {
+              referred_user_id: referredUserId,
+              referred_order_id: referredOrderId,
+            });
             results.client_referral = true;
           }
-        } else if (referralCodeUsed) {
-          errors.push("client_referral: referrer_not_resolved");
         }
       }
     } catch (err: any) {
+      console.error("[checkout-canonical-sync] referral insert failed and why:", err);
       errors.push(`client_referral: ${err?.message || String(err)}`);
     }
 
