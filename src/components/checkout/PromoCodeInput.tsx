@@ -150,10 +150,14 @@ export const PromoCodeInput = ({
                   )}
                 </div>
                 <p className="text-xs text-emerald-600 dark:text-emerald-500">
-                  {appliedPromo.discount_type === "percent" 
-                    ? `${appliedPromo.discount_value}% de rabais`
-                    : `-${appliedPromo.discount_amount.toFixed(2)} $`}
-                  {appliedPromo.applies_to?.services && !appliedPromo.applies_to?.one_time_fees && " (forfaits)"}
+                  {appliedPromo.is_client_referral
+                    ? "🎁 Parrainage — carte-cadeau 25$ pour votre parrain après 3 mois"
+                    : appliedPromo.discount_type === "percent" 
+                      ? `${appliedPromo.discount_value}% de rabais`
+                      : appliedPromo.discount_amount > 0
+                        ? `-${appliedPromo.discount_amount.toFixed(2)} $`
+                        : "Code appliqué"}
+                  {!appliedPromo.is_client_referral && appliedPromo.applies_to?.services && !appliedPromo.applies_to?.one_time_fees && " (forfaits)"}
                 </p>
               </div>
             </div>
