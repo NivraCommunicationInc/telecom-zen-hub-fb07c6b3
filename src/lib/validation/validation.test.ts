@@ -322,5 +322,5 @@ console.log(`Results: ${passed} passed, ${failed} failed`);
 console.log('========================================\n');
 
 if (failed > 0) {
-  process.exit(1);
+  throw new Error(`${failed} test(s) failed`);
 }
