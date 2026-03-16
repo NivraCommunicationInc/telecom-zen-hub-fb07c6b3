@@ -2470,6 +2470,37 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
+      // ========== CLIENT REFERRAL TRACKING ==========
+      // Record client-to-client referral (canonical client_referrals table)
+      if (appliedPromo?.is_client_referral && appliedPromo.referrer_user_id && user?.id) {
+        try {
+          const { error: refError } = await supabase.from("client_referrals" as any).insert({
+            referral_code_used: appliedPromo.code,
+            referrer_user_id: appliedPromo.referrer_user_id,
+            referred_user_id: user.id,
+            referred_order_id: data.id,
+            status: 'order_created',
+            reward_status: 'not_eligible',
+          } as any);
+          if (refError) {
+            console.error("[ClientReferral] Insert failed:", refError);
+            postStepErrors.push("client_referral");
+          } else {
+            console.log("[ClientReferral] Tracked for order:", data.order_number);
+            // Log event
+            await supabase.from("client_referral_events" as any).insert({
+              referral_id: null, // will be linked by trigger if needed
+              event_type: "order_created",
+              new_status: "order_created",
+              details: { order_id: data.id, order_number: data.order_number },
+            } as any).then(() => {}).catch(() => {});
+          }
+        } catch (e) {
+          console.error("[ClientReferral] Error:", e);
+          postStepErrors.push("client_referral");
+        }
+      }
+
       // Record promo/referral redemption only when promo discount was actually applied by authoritative pricing
       if (appliedPromo && user?.id && canonicalPromoDiscount > 0) {
         try {
@@ -2502,7 +2533,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             } else {
               console.log("[Referral] Usage count incremented for code:", appliedPromo.referral_code_id);
             }
-          } else {
+          } else if (!appliedPromo.is_client_referral) {
             // Regular promo code - record in promotion_redemptions
             const { error: promoError } = await supabase.from("promotion_redemptions").insert({
               promotion_id: appliedPromo.id,
