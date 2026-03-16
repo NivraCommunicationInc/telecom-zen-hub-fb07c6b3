@@ -2487,13 +2487,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             postStepErrors.push("client_referral");
           } else {
             console.log("[ClientReferral] Tracked for order:", data.order_number);
-            // Log event
-            await supabase.from("client_referral_events" as any).insert({
-              referral_id: null, // will be linked by trigger if needed
-              event_type: "order_created",
-              new_status: "order_created",
-              details: { order_id: data.id, order_number: data.order_number },
-            } as any).then(() => {}).catch(() => {});
           }
         } catch (e) {
           console.error("[ClientReferral] Error:", e);
