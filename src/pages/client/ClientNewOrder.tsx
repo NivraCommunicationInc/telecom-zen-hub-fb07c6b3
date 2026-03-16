@@ -575,10 +575,13 @@ const ClientNewOrder = () => {
     discount_amount: number;
     applies_to?: Record<string, boolean>;
     duration?: string;
-    // Referral code specific fields
+    // Referral code specific fields (influencer)
     is_referral_code?: boolean;
     referral_code_id?: string;
     influencer_id?: string;
+    // Client referral fields
+    is_client_referral?: boolean;
+    referrer_user_id?: string;
   } | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [promoValidationError, setPromoValidationError] = useState<string | null>(null);
