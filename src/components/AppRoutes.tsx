@@ -250,6 +250,7 @@ import PaymentReturn from "@/pages/client/PaymentReturn";
 import PaymentCancelled from "@/pages/client/PaymentCancelled";
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
+import ClientReferrals from "@/pages/client/ClientReferrals";
 
 // Staff portal pages
 import StaffLogin from "@/pages/staff/StaffLogin";
