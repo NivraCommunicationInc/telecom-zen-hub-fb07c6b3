@@ -1,3 +1,4 @@
+// @ts-ignore - jest-dom side-effect import
 import "@testing-library/jest-dom";
 
 Object.defineProperty(window, "matchMedia", {
