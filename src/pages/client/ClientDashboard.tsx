@@ -105,6 +105,7 @@ const ClientDashboard = () => {
 
   return (
     <ClientLayout>
+      <ReferralPopup />
       <div className="space-y-6" data-testid="portal-dashboard">
         {/* Page title - Rogers style */}
         <h1 className="text-3xl lg:text-4xl font-bold text-slate-900" data-testid="dashboard-greeting">
