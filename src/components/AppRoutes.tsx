@@ -625,6 +625,10 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* NIVRA CORE — Internal Operations App        */}
       {/* ============================================ */}
+      {/* Partner aliases (prevents 404 when base-path env differs) */}
+      <Route path="/referrals" element={<Navigate to="/core/referrals" replace />} />
+      <Route path="/referral-rewards" element={<Navigate to="/core/referral-rewards" replace />} />
+      <Route path="/referral-terms" element={<Navigate to="/core/referral-terms" replace />} />
       {/* Public: Core login (no auth required) */}
       <Route path="/core/login" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreLoginPage /></Suspense>} />
 

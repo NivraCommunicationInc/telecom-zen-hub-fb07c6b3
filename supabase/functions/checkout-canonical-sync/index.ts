@@ -666,9 +666,21 @@ serve(async (req) => {
 
     // 8) Client referral tracking (idempotent) — runs AFTER order upsert so FK is satisfied
     try {
-      if (payload.referral?.type === "client" && payload.referral?.referrer_user_id) {
-        const referrerUserId = payload.referral.referrer_user_id;
-        if (referrerUserId !== payload.customer.user_id) {
+      if (payload.referral?.type === "client") {
+        const referralCodeUsed = String(payload.referral.code || "").trim().toUpperCase();
+        let referrerUserId = payload.referral.referrer_user_id || null;
+
+        // Fallback 1: recover missing referrer_user_id from referral code
+        if (!referrerUserId && referralCodeUsed) {
+          const { data: referrerFromCode } = await admin
+            .from("profiles")
+            .select("user_id")
+            .ilike("referral_code", referralCodeUsed)
+            .maybeSingle();
+          referrerUserId = referrerFromCode?.user_id || null;
+        }
+
+        if (referrerUserId && referrerUserId !== payload.customer.user_id) {
           // Resolve referrer account (best-effort, nullable FK)
           const { data: referrerAccount } = await admin
             .from("accounts")
@@ -678,9 +690,6 @@ serve(async (req) => {
             .order("created_at", { ascending: true })
             .limit(1)
             .maybeSingle();
-
-          // Resolve referred billing_customer_id (best-effort)
-          const referredBillingCustomerId = customerId || null;
 
           // Resolve referrer billing_customer_id (best-effort)
           let referrerBillingCustomerId: string | null = null;
@@ -692,19 +701,32 @@ serve(async (req) => {
               .limit(1)
               .maybeSingle();
             referrerBillingCustomerId = referrerBc?.id || null;
-          } catch (_) { /* non-blocking */ }
+          } catch (_) {
+            /* non-blocking */
+          }
+
+          // Fallback 2: ensure referral_code_used is always populated with a real code when possible
+          let persistedReferralCode = referralCodeUsed;
+          if (!persistedReferralCode) {
+            const { data: referrerProfile } = await admin
+              .from("profiles")
+              .select("referral_code")
+              .eq("user_id", referrerUserId)
+              .maybeSingle();
+            persistedReferralCode = String(referrerProfile?.referral_code || "UNKNOWN").toUpperCase();
+          }
 
           const { error: refUpsertError } = await admin
             .from("client_referrals")
             .upsert(
               {
-                referral_code_used: payload.referral.code || "UNKNOWN",
+                referral_code_used: persistedReferralCode,
                 referrer_user_id: referrerUserId,
                 referred_user_id: payload.customer.user_id,
                 referred_order_id: response.order_id || null,
                 referred_account_id: accountId || null,
                 referrer_account_id: referrerAccount?.id || null,
-                referred_billing_customer_id: referredBillingCustomerId,
+                referred_billing_customer_id: customerId || null,
                 referrer_billing_customer_id: referrerBillingCustomerId,
                 status: "order_created",
                 reward_status: "not_eligible",
@@ -719,6 +741,8 @@ serve(async (req) => {
             console.log("[checkout-canonical-sync] client_referral tracked for referred_user:", payload.customer.user_id);
             results.client_referral = true;
           }
+        } else if (referralCodeUsed) {
+          errors.push("client_referral: referrer_not_resolved");
         }
       }
     } catch (err: any) {
