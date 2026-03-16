@@ -2358,28 +2358,51 @@ const ClientNewOrder = () => {
         });
       }
 
-      // ★ BACKFILL: Write canonical records to local Supabase for portal/admin visibility
-      // BLOCKING — checkout MUST NOT finalize without canonical invoice lines
-      if (!usedFallback) {
-        const { backfillCheckoutToSupabase } = await import("@/lib/checkoutBackfill");
-        const backfillResult = await backfillCheckoutToSupabase(supabase, checkoutPayload as any, nivraCheckoutResponse);
-        
-        // Verify billing_invoice_lines were created — hard gate
-        const invoiceLinesCreated = backfillResult.invoice && !backfillResult.errors.some(e => e.startsWith("invoice_lines:"));
-        if (!invoiceLinesCreated) {
-          console.error("[Backfill] ⛔ CRITICAL: billing_invoice_lines not created. Errors:", backfillResult.errors);
-          // Attempt one retry
-          try {
-            const retryResult = await backfillCheckoutToSupabase(supabase, checkoutPayload as any, nivraCheckoutResponse);
-            const retryOk = retryResult.invoice && !retryResult.errors.some(e => e.startsWith("invoice_lines:"));
-            if (!retryOk) {
-              throw new Error("billing_invoice_lines creation failed after retry");
-            }
-          } catch (retryErr) {
-            console.error("[Backfill] ⛔ Retry failed:", retryErr);
-            throw new Error("Erreur critique : les lignes de facturation n'ont pas pu être créées. Veuillez contacter le support avec votre numéro de commande.");
+      // ★ CANONICAL SYNC: backend reconciliation (idempotent + auto-recovery)
+      // Always run (including fallback mode) so missing canonical records are healed.
+      const canonicalSyncErrors: string[] = [];
+      try {
+        const syncPayload = {
+          payload: checkoutPayload,
+          response: nivraCheckoutResponse,
+        };
+
+        let syncOk = false;
+        let lastSyncError: string | null = null;
+
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          const { data: syncData, error: syncError } = await supabase.functions.invoke("checkout-canonical-sync", {
+            body: syncPayload,
+          });
+
+          if (syncError) {
+            lastSyncError = syncError.message || "invoke_failed";
+            console.error(`[CanonicalSync] Attempt ${attempt} invoke failed:`, syncError);
+            continue;
           }
+
+          if (syncData?.ok === true) {
+            syncOk = true;
+            break;
+          }
+
+          const returnedErrors = Array.isArray(syncData?.errors) ? syncData.errors : [];
+          if (returnedErrors.length === 0) {
+            syncOk = true;
+            break;
+          }
+
+          lastSyncError = returnedErrors.join(" | ");
+          console.error(`[CanonicalSync] Attempt ${attempt} returned errors:`, returnedErrors);
         }
+
+        if (!syncOk) {
+          canonicalSyncErrors.push("canonical_sync");
+          console.error("[CanonicalSync] Non-blocking reconcile failure:", lastSyncError);
+        }
+      } catch (syncCatchErr) {
+        canonicalSyncErrors.push("canonical_sync");
+        console.error("[CanonicalSync] Unexpected error:", syncCatchErr);
       }
 
       // ═══════════════════════════════════════════════════════════════
@@ -2402,7 +2425,7 @@ const ClientNewOrder = () => {
       };
 
       let nivraPaymentRef = nivraCheckoutResponse.payment_number;
-      const postStepErrors: string[] = [];
+      const postStepErrors: string[] = [...canonicalSyncErrors];
 
       // ★ Update account billing_cycle_day (skip if fallback already handled it)
       if (!usedFallback) {
