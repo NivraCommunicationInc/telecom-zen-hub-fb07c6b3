@@ -2541,9 +2541,12 @@ export type Database = {
           referrer_user_id: string
           required_cycles: number
           reward_amount: number | null
+          reward_card_provider: string | null
+          reward_delivered_at: string | null
           reward_issued_at: string | null
           reward_issued_by: string | null
           reward_reference: string | null
+          reward_sent_at: string | null
           reward_status: Database["public"]["Enums"]["referral_reward_status"]
           reward_type: string | null
           status: Database["public"]["Enums"]["referral_status"]
@@ -2572,9 +2575,12 @@ export type Database = {
           referrer_user_id: string
           required_cycles?: number
           reward_amount?: number | null
+          reward_card_provider?: string | null
+          reward_delivered_at?: string | null
           reward_issued_at?: string | null
           reward_issued_by?: string | null
           reward_reference?: string | null
+          reward_sent_at?: string | null
           reward_status?: Database["public"]["Enums"]["referral_reward_status"]
           reward_type?: string | null
           status?: Database["public"]["Enums"]["referral_status"]
@@ -2603,9 +2609,12 @@ export type Database = {
           referrer_user_id?: string
           required_cycles?: number
           reward_amount?: number | null
+          reward_card_provider?: string | null
+          reward_delivered_at?: string | null
           reward_issued_at?: string | null
           reward_issued_by?: string | null
           reward_reference?: string | null
+          reward_sent_at?: string | null
           reward_status?: Database["public"]["Enums"]["referral_reward_status"]
           reward_type?: string | null
           status?: Database["public"]["Enums"]["referral_status"]
