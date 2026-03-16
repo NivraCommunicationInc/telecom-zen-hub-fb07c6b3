@@ -83,6 +83,7 @@ import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
+import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 
 interface Service {
   id: string;
