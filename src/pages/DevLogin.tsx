@@ -165,7 +165,7 @@ export default function DevLogin() {
 
     try {
       // DEV-ONLY helper: audited access to real account via one-time magic link (no password reset)
-      if (targetEmail === OLDO_EMAIL) {
+      if (targetEmail === OLDO_EMAIL || targetEmail === SERGE_EMAIL) {
         setStatus("Génération d'une session audit one-shot OLDO...");
 
         let { data: adminData, error: adminSignInErr } = await adminClient.auth.signInWithPassword({
