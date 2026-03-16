@@ -2369,9 +2369,22 @@ const ClientNewOrder = () => {
       // Always run (including fallback mode) so missing canonical records are healed.
       const canonicalSyncErrors: string[] = [];
       try {
+        const referralSyncContext = appliedReferral?.type === "client"
+          ? {
+              referral_code_used: appliedReferral.code,
+              referrer_user_id: appliedReferral.referrer_user_id,
+              referred_user_id: user?.id,
+              referred_order_id: nivraCheckoutResponse.order_id,
+            }
+          : null;
+
         const syncPayload = {
-          payload: checkoutPayload,
+          payload: {
+            ...checkoutPayload,
+            ...(referralSyncContext || {}),
+          },
           response: nivraCheckoutResponse,
+          referral_context: referralSyncContext,
         };
 
         let syncOk = false;
