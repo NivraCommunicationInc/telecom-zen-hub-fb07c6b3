@@ -65,7 +65,8 @@ export function mapBillingError(error: any): BillingError {
     return BILLING_ERROR_MAP[error.error];
   }
 
-  const rawMessage = String(error?.message || error?.details || '').toLowerCase();
+  // Also read `error.error` raw text (many backends return message there instead of `message`)
+  const rawMessage = String(error?.message || error?.error || error?.details || '').toLowerCase();
 
   // Never expose internal canonical chain failures to clients
   if (
