@@ -167,7 +167,8 @@ test('DOB: Impossible date Apr 31 fails', () => {
 });
 
 test('DOB: Valid Feb 29 leap year passes', () => {
-  return validateDob('2024-02-29').isValid === true;
+  // Use 2000 (leap year) so person is 26+ and passes minAge=16
+  return validateDob('2000-02-29').isValid === true;
 });
 
 test('DOB: Invalid Feb 29 non-leap year fails', () => {
