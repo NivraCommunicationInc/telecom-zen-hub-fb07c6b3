@@ -135,12 +135,22 @@ export const PromoCodeInput = ({
     <div className="space-y-3">
       {appliedPromo ? (
         <div className="space-y-2">
-          <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+          <div className={`flex items-center justify-between p-3 rounded-lg border ${
+            appliedPromo.is_client_referral
+              ? "bg-[#003366]/5 border-[#003366]/20"
+              : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+          }`}>
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              {appliedPromo.is_client_referral ? (
+                <Gift className="w-4 h-4 text-[#003366]" />
+              ) : (
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+              )}
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  <p className={`text-sm font-medium ${
+                    appliedPromo.is_client_referral ? "text-[#003366]" : "text-emerald-700 dark:text-emerald-400"
+                  }`}>
                     {appliedPromo.code}
                   </p>
                   {appliedPromo.duration === "first_cycle_only" && (
@@ -148,10 +158,17 @@ export const PromoCodeInput = ({
                       1er mois seulement
                     </Badge>
                   )}
+                  {appliedPromo.is_client_referral && (
+                    <Badge variant="secondary" className="text-xs bg-[#003366]/10 text-[#003366]">
+                      Parrainage
+                    </Badge>
+                  )}
                 </div>
-                <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                <p className={`text-xs ${
+                  appliedPromo.is_client_referral ? "text-[#003366]/70" : "text-emerald-600 dark:text-emerald-500"
+                }`}>
                   {appliedPromo.is_client_referral
-                    ? "🎁 Parrainage — carte-cadeau 25$ pour votre parrain après 3 mois"
+                    ? "✅ Code de parrainage validé — votre parrain recevra une carte-cadeau de 25$ après 3 mois de service payé"
                     : appliedPromo.discount_type === "percent" 
                       ? `${appliedPromo.discount_value}% de rabais`
                       : appliedPromo.discount_amount > 0
@@ -166,12 +183,11 @@ export const PromoCodeInput = ({
               size="sm"
               onClick={handleRemovePromo}
               disabled={disabled}
-              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
+              className="text-slate-400 hover:text-slate-600 hover:bg-slate-100"
             >
               <X className="w-4 h-4" />
             </Button>
           </div>
-          {/* Contest entry notification — driven by promo metadata, not hardcoded code */}
         </div>
       ) : (
         <div className="space-y-2">

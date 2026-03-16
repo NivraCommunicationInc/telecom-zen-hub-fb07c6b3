@@ -106,6 +106,7 @@ import Aide from "@/pages/Aide";
 import DynamicPage from "@/pages/DynamicPage";
 import Contest from "@/pages/Contest";
 import TrackOrder from "@/pages/TrackOrder";
+import Parrainage from "@/pages/Parrainage";
 import StatusPage from "@/pages/StatusPage";
 import Install from "@/pages/Install";
 import ComparePlans from "@/pages/ComparePlans";
@@ -338,6 +339,7 @@ const AppRoutes = () => {
       <Route path="/aide" element={<MaintenanceGuard><PublicLayout><Aide /></PublicLayout></MaintenanceGuard>} />
       <Route path="/concours" element={<MaintenanceGuard><PublicLayout><Contest /></PublicLayout></MaintenanceGuard>} />
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/parrainage" element={<MaintenanceGuard><PublicLayout><Parrainage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
       <Route path="/install" element={<Install />} />
       {/* DEV-ONLY: Routes stripped from production builds */}

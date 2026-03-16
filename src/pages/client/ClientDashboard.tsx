@@ -13,6 +13,7 @@ import ServiceCountdown from "@/components/client/ServiceCountdown";
 import { AlertTriangle, Info, X, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import ReferralPopup from "@/components/client/ReferralPopup";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
@@ -104,6 +105,7 @@ const ClientDashboard = () => {
 
   return (
     <ClientLayout>
+      <ReferralPopup />
       <div className="space-y-6" data-testid="portal-dashboard">
         {/* Page title - Rogers style */}
         <h1 className="text-3xl lg:text-4xl font-bold text-slate-900" data-testid="dashboard-greeting">
