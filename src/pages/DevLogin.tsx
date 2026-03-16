@@ -33,6 +33,7 @@ const TEST_PASSWORD = "AuditTest2026!Secure";
 const ADMIN_EMAIL = "admin-audit@nivradev.com";
 const CLIENT_EMAIL = "client-audit@nivradev.com";
 const OLDO_EMAIL = "oldo.lavaud3112@icloud.com";
+const SERGE_EMAIL = "kozyspott@gmail.com";
 export default function DevLogin() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>("");
@@ -164,9 +165,12 @@ export default function DevLogin() {
 
     try {
       // DEV-ONLY helper: audited access to real account via one-time magic link (no password reset)
-      if (targetEmail === OLDO_EMAIL) {
-        setStatus("Génération d'une session audit one-shot OLDO...");
-
+      if (targetEmail === OLDO_EMAIL || targetEmail === SERGE_EMAIL) {
+        const auditLabel = targetEmail === SERGE_EMAIL ? "Audit referral portal" : "Audit RLS /portal/service-addresses";
+        const auditRedirect = targetEmail === SERGE_EMAIL
+          ? `${window.location.origin}/portal/referrals?audit_session=1`
+          : `${window.location.origin}/portal/service-addresses?audit_session=1`;
+        setStatus(`Génération d'une session audit one-shot (${targetEmail})...`);
         let { data: adminData, error: adminSignInErr } = await adminClient.auth.signInWithPassword({
           email: ADMIN_EMAIL,
           password: TEST_PASSWORD,
@@ -201,15 +205,21 @@ export default function DevLogin() {
 
         const { data: auditSessionData, error: auditSessionErr } = await adminClient.functions.invoke("admin-audit-session-link", {
           body: {
-            target_email: OLDO_EMAIL,
-            reason: "Audit RLS /portal/service-addresses",
-            redirect_to: `${window.location.origin}/portal/service-addresses?audit_session=1`,
+            target_email: targetEmail,
+            reason: auditLabel,
+            redirect_to: auditRedirect,
           },
         });
 
         if (auditSessionErr || !auditSessionData?.success || !auditSessionData?.action_link) {
-          throw new Error(auditSessionData?.error || auditSessionErr?.message || "Impossible de créer la session audit OLDO");
+          throw new Error(auditSessionData?.error || auditSessionErr?.message || `Impossible de créer la session audit (${targetEmail})`);
         }
+
+        // Set trusted device flags BEFORE redirect so PIN guard is bypassed
+        const trustedUntil = Date.now() + 24 * 60 * 60 * 1000;
+        localStorage.setItem("portal_trusted_until", trustedUntil.toString());
+        sessionStorage.setItem("client_pin_verified", "true");
+        sessionStorage.setItem("client_last_auth_check", Date.now().toString());
 
         setStatus("Lien audit one-shot créé. Redirection...");
         window.location.assign(auditSessionData.action_link);
@@ -335,6 +345,15 @@ export default function DevLogin() {
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
             Connexion Client OLDO (audit)
+          </button>
+
+          <button
+            onClick={() => loginClient(SERGE_EMAIL)}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg font-medium transition"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <User className="w-5 h-5" />}
+            Connexion Serge Beaulne (referrer audit)
           </button>
         </div>
 
