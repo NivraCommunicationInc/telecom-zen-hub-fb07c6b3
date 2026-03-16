@@ -801,10 +801,14 @@ const ClientNewOrder = () => {
         if (draft.kycChoice) setKycChoice(draft.kycChoice);
         if (draft.existingKycStatus) setExistingKycStatus(draft.existingKycStatus);
         if (draft.existingKycCaseNumber) setExistingKycCaseNumber(draft.existingKycCaseNumber);
-        // Promo code details
+        // Promo/referral code details
         if (draft.appliedPromo) {
           setAppliedPromo(draft.appliedPromo);
           console.log("[OrderWizard] Restored appliedPromo:", draft.appliedPromo.code, "discount:", draft.appliedPromo.discount_amount);
+        }
+        if (draft.appliedReferral) {
+          setAppliedReferral(draft.appliedReferral);
+          console.log("[OrderWizard] Restored appliedReferral:", draft.appliedReferral.code, "type:", draft.appliedReferral.type);
         }
         // Payment state (critical — must restore ALL payment fields)
         if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
