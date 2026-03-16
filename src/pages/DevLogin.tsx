@@ -215,6 +215,12 @@ export default function DevLogin() {
           throw new Error(auditSessionData?.error || auditSessionErr?.message || `Impossible de créer la session audit (${targetEmail})`);
         }
 
+        // Set trusted device flags BEFORE redirect so PIN guard is bypassed
+        const trustedUntil = Date.now() + 24 * 60 * 60 * 1000;
+        localStorage.setItem("portal_trusted_until", trustedUntil.toString());
+        sessionStorage.setItem("client_pin_verified", "true");
+        sessionStorage.setItem("client_last_auth_check", Date.now().toString());
+
         setStatus("Lien audit one-shot créé. Redirection...");
         window.location.assign(auditSessionData.action_link);
         return;
