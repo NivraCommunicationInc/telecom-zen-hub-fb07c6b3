@@ -103,10 +103,13 @@ export const PromoCodeInput = ({
         stackable: data.promo.stackable,
         new_customers_only: data.promo.new_customers_only,
         duration: data.promo.duration,
-        // Referral code specific fields
+        // Influencer referral code specific fields
         is_referral_code: data.is_referral_code || false,
         referral_code_id: data.referral_code_id,
         influencer_id: data.influencer_id,
+        // Client referral fields
+        is_client_referral: data.is_client_referral || false,
+        referrer_user_id: data.referrer_user_id,
       };
 
       onPromoApplied(newPromo);
