@@ -13,7 +13,7 @@ import {
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
   MonitorPlay,
-  DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send,
+  DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
   type LucideIcon,
@@ -129,6 +129,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Handshake,
     items: [
       { icon: Handshake, label: "Referrals", href: "/referrals" },
+      { icon: Gift, label: "Referral Rewards", href: "/referral-rewards" },
       { icon: FileText, label: "Terms", href: "/referral-terms" },
     ],
   },
