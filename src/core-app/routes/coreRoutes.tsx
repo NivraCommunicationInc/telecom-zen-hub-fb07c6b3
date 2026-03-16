@@ -144,6 +144,7 @@ export const coreRoutes: RouteObject = {
     { path: "communication-sms", element: <CoreCommunicationSMSPage /> },
     // Partners
     { path: "referrals", element: <CoreReferralsPage /> },
+    { path: "referral-rewards", element: <CoreReferralRewardsPage /> },
     { path: "referral-terms", element: <CoreReferralTermsPage /> },
     // Support
     { path: "support", element: <CoreSupportPage /> },
