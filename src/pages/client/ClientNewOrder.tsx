@@ -2267,6 +2267,14 @@ const ClientNewOrder = () => {
         line_items: lineItems,
         notes: (notes || ''),
         account_id: resolvedAccountId,
+        // Track referral code separately from promo
+        referral: appliedReferral ? {
+          code: appliedReferral.code,
+          type: appliedReferral.type,
+          referrer_user_id: appliedReferral.referrer_user_id,
+          referral_code_id: appliedReferral.referral_code_id,
+          influencer_id: appliedReferral.influencer_id,
+        } : null,
       };
 
       // ── Try Nivra Core API first, fallback to direct Supabase creation ──
