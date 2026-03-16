@@ -106,6 +106,7 @@ import Aide from "@/pages/Aide";
 import DynamicPage from "@/pages/DynamicPage";
 import Contest from "@/pages/Contest";
 import TrackOrder from "@/pages/TrackOrder";
+import Parrainage from "@/pages/Parrainage";
 import StatusPage from "@/pages/StatusPage";
 import Install from "@/pages/Install";
 import ComparePlans from "@/pages/ComparePlans";
