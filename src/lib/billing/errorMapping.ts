@@ -47,6 +47,12 @@ const BILLING_ERROR_MAP: Record<string, BillingError> = {
     description: 'Cette adresse existe déjà dans votre compte, même si elle est écrite différemment. Sélectionnez-la dans la liste.',
     severity: 'warning',
   },
+  CHECKOUT_FINALIZING: {
+    code: 'CHECKOUT_FINALIZING',
+    title: 'Commande en cours de finalisation',
+    description: 'Votre commande est en cours de finalisation. Veuillez patienter quelques instants puis vérifier Mes commandes.',
+    severity: 'warning',
+  },
 };
 
 /**
@@ -57,6 +63,18 @@ export function mapBillingError(error: any): BillingError {
   // Check if it's a structured RPC response with error code
   if (error?.error && BILLING_ERROR_MAP[error.error]) {
     return BILLING_ERROR_MAP[error.error];
+  }
+
+  const rawMessage = String(error?.message || error?.details || '').toLowerCase();
+
+  // Never expose internal canonical chain failures to clients
+  if (
+    rawMessage.includes('billing_invoice_lines') ||
+    rawMessage.includes('lignes de facturation') ||
+    rawMessage.includes('dossier de facturation') ||
+    rawMessage.includes('no account resolved')
+  ) {
+    return BILLING_ERROR_MAP.CHECKOUT_FINALIZING;
   }
 
   // Check raw PostgreSQL error code 23505 (unique_violation)
