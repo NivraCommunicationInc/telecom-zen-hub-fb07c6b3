@@ -13,6 +13,7 @@ import ServiceCountdown from "@/components/client/ServiceCountdown";
 import { AlertTriangle, Info, X, ChevronRight, Wifi, Smartphone, Tv, ArrowRight, Copy, FileText, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import ReferralPopup from "@/components/client/ReferralPopup";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
