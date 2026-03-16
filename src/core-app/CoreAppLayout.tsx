@@ -13,7 +13,7 @@ import {
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
   MonitorPlay,
-  DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send,
+  DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
   type LucideIcon,
