@@ -24,10 +24,13 @@ interface AppliedPromo {
   stackable: boolean;
   new_customers_only?: boolean;
   duration?: string;
-  // Referral code specific fields
+  // Influencer referral code specific fields
   is_referral_code?: boolean;
   referral_code_id?: string;
   influencer_id?: string;
+  // Client referral fields
+  is_client_referral?: boolean;
+  referrer_user_id?: string;
 }
 
 interface PromoCodeInputProps {
