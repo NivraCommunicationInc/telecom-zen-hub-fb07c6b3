@@ -57,6 +57,7 @@ const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommu
 const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
 // Partners
 const CoreReferralsPage = lazy(() => import("@/core-app/pages/CoreReferralsPage"));
+const CoreReferralRewardsPage = lazy(() => import("@/core-app/pages/CoreReferralRewardsPage"));
 const CoreReferralTermsPage = lazy(() => import("@/core-app/pages/CoreReferralTermsPage"));
 // Support
 const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
@@ -679,6 +680,7 @@ const AppRoutes = () => {
           <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
           {/* Partners */}
           <Route path="referrals" element={<Suspense fallback={null}><CoreReferralsPage /></Suspense>} />
+          <Route path="referral-rewards" element={<Suspense fallback={null}><CoreReferralRewardsPage /></Suspense>} />
           <Route path="referral-terms" element={<Suspense fallback={null}><CoreReferralTermsPage /></Suspense>} />
           {/* Support */}
           <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
