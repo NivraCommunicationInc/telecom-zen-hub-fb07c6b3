@@ -2490,26 +2490,35 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       }
 
       // ========== CLIENT REFERRAL TRACKING ==========
-      // Record client-to-client referral (canonical client_referrals table)
-      if (appliedPromo?.is_client_referral && appliedPromo.referrer_user_id && user?.id) {
-        try {
-          const { error: refError } = await supabase.from("client_referrals" as any).insert({
-            referral_code_used: appliedPromo.code,
-            referrer_user_id: appliedPromo.referrer_user_id,
-            referred_user_id: user.id,
-            referred_order_id: data.id,
-            status: 'order_created',
-            reward_status: 'not_eligible',
-          } as any);
-          if (refError) {
-            console.error("[ClientReferral] Insert failed:", refError);
+      // Record client-to-client referral using appliedReferral (independent of promo)
+      const clientReferral = appliedReferral?.type === "client" ? appliedReferral : 
+        (appliedPromo?.is_client_referral ? appliedPromo : null);
+      
+      if (clientReferral && user?.id) {
+        const referrerUserId = appliedReferral?.type === "client" 
+          ? appliedReferral.referrer_user_id 
+          : (appliedPromo as any)?.referrer_user_id;
+        
+        if (referrerUserId) {
+          try {
+            const { error: refError } = await supabase.from("client_referrals" as any).insert({
+              referral_code_used: clientReferral.code,
+              referrer_user_id: referrerUserId,
+              referred_user_id: user.id,
+              referred_order_id: data.id,
+              status: 'order_created',
+              reward_status: 'not_eligible',
+            } as any);
+            if (refError) {
+              console.error("[ClientReferral] Insert failed:", refError);
+              postStepErrors.push("client_referral");
+            } else {
+              console.log("[ClientReferral] Tracked for order:", data.order_number);
+            }
+          } catch (e) {
+            console.error("[ClientReferral] Error:", e);
             postStepErrors.push("client_referral");
-          } else {
-            console.log("[ClientReferral] Tracked for order:", data.order_number);
           }
-        } catch (e) {
-          console.error("[ClientReferral] Error:", e);
-          postStepErrors.push("client_referral");
         }
       }
 
