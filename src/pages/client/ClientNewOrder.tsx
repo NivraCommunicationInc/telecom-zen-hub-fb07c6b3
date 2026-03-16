@@ -3191,9 +3191,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         if (terminalFee > 0) cartItems.push({ type: "equipment", name: "Terminal TV", amount: terminalFee });
         if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
 
+        // Effective promo code: promo takes priority; if no promo but referral has discount, use referral
+        const effectivePromoCode = appliedPromo?.code || ((appliedReferral?.discount_amount ?? 0) > 0 ? appliedReferral?.code : null) || null;
+        
         const result = await computeCheckoutPricing(
           cartItems,
-          appliedPromo?.code || null,
+          effectivePromoCode,
           profile?.email || user?.email || null,
           user?.id || null,
           acceptPreauthorized ? 5 : 0,
