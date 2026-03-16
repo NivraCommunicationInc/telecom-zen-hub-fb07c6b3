@@ -269,6 +269,34 @@ serve(async (req) => {
     const payload = body?.payload as CheckoutPayload;
     let response = (body?.response || {}) as Partial<CheckoutResponse>;
 
+    const referralContext = {
+      referral_code_used: String(
+        body?.referral_context?.referral_code_used ||
+        payload?.referral_code_used ||
+        payload?.referral?.code ||
+        "",
+      )
+        .trim()
+        .toUpperCase(),
+      referrer_user_id:
+        body?.referral_context?.referrer_user_id ||
+        payload?.referrer_user_id ||
+        payload?.referral?.referrer_user_id ||
+        null,
+      referred_user_id:
+        body?.referral_context?.referred_user_id ||
+        payload?.referred_user_id ||
+        payload?.customer?.user_id ||
+        null,
+      referred_order_id:
+        body?.referral_context?.referred_order_id ||
+        payload?.referred_order_id ||
+        response?.order_id ||
+        null,
+    };
+
+    console.log("[checkout-canonical-sync] referral context received:", referralContext);
+
     if (!payload?.customer?.user_id) {
       return new Response(JSON.stringify({ ok: false, errors: ["Invalid payload"] }), {
         status: 400,
