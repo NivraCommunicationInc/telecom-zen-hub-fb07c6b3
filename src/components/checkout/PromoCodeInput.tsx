@@ -24,10 +24,13 @@ interface AppliedPromo {
   stackable: boolean;
   new_customers_only?: boolean;
   duration?: string;
-  // Referral code specific fields
+  // Influencer referral code specific fields
   is_referral_code?: boolean;
   referral_code_id?: string;
   influencer_id?: string;
+  // Client referral fields
+  is_client_referral?: boolean;
+  referrer_user_id?: string;
 }
 
 interface PromoCodeInputProps {
@@ -100,10 +103,13 @@ export const PromoCodeInput = ({
         stackable: data.promo.stackable,
         new_customers_only: data.promo.new_customers_only,
         duration: data.promo.duration,
-        // Referral code specific fields
+        // Influencer referral code specific fields
         is_referral_code: data.is_referral_code || false,
         referral_code_id: data.referral_code_id,
         influencer_id: data.influencer_id,
+        // Client referral fields
+        is_client_referral: data.is_client_referral || false,
+        referrer_user_id: data.referrer_user_id,
       };
 
       onPromoApplied(newPromo);
@@ -144,10 +150,14 @@ export const PromoCodeInput = ({
                   )}
                 </div>
                 <p className="text-xs text-emerald-600 dark:text-emerald-500">
-                  {appliedPromo.discount_type === "percent" 
-                    ? `${appliedPromo.discount_value}% de rabais`
-                    : `-${appliedPromo.discount_amount.toFixed(2)} $`}
-                  {appliedPromo.applies_to?.services && !appliedPromo.applies_to?.one_time_fees && " (forfaits)"}
+                  {appliedPromo.is_client_referral
+                    ? "🎁 Parrainage — carte-cadeau 25$ pour votre parrain après 3 mois"
+                    : appliedPromo.discount_type === "percent" 
+                      ? `${appliedPromo.discount_value}% de rabais`
+                      : appliedPromo.discount_amount > 0
+                        ? `-${appliedPromo.discount_amount.toFixed(2)} $`
+                        : "Code appliqué"}
+                  {!appliedPromo.is_client_referral && appliedPromo.applies_to?.services && !appliedPromo.applies_to?.one_time_fees && " (forfaits)"}
                 </p>
               </div>
             </div>

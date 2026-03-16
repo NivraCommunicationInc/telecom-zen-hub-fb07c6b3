@@ -575,10 +575,13 @@ const ClientNewOrder = () => {
     discount_amount: number;
     applies_to?: Record<string, boolean>;
     duration?: string;
-    // Referral code specific fields
+    // Referral code specific fields (influencer)
     is_referral_code?: boolean;
     referral_code_id?: string;
     influencer_id?: string;
+    // Client referral fields
+    is_client_referral?: boolean;
+    referrer_user_id?: string;
   } | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [promoValidationError, setPromoValidationError] = useState<string | null>(null);
@@ -1668,10 +1671,13 @@ const ClientNewOrder = () => {
         discount_amount: validatedDiscountAmount,
         applies_to: data.promo.applies_to,
         duration: data.promo.duration,
-        // Referral code specific fields
+        // Influencer referral code specific fields
         is_referral_code: data.is_referral_code || false,
         referral_code_id: data.referral_code_id,
         influencer_id: data.influencer_id,
+        // Client referral fields
+        is_client_referral: data.is_client_referral || false,
+        referrer_user_id: data.referrer_user_id,
       });
       setPromoValidationError(null);
 
@@ -2464,6 +2470,30 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         }
       }
 
+      // ========== CLIENT REFERRAL TRACKING ==========
+      // Record client-to-client referral (canonical client_referrals table)
+      if (appliedPromo?.is_client_referral && appliedPromo.referrer_user_id && user?.id) {
+        try {
+          const { error: refError } = await supabase.from("client_referrals" as any).insert({
+            referral_code_used: appliedPromo.code,
+            referrer_user_id: appliedPromo.referrer_user_id,
+            referred_user_id: user.id,
+            referred_order_id: data.id,
+            status: 'order_created',
+            reward_status: 'not_eligible',
+          } as any);
+          if (refError) {
+            console.error("[ClientReferral] Insert failed:", refError);
+            postStepErrors.push("client_referral");
+          } else {
+            console.log("[ClientReferral] Tracked for order:", data.order_number);
+          }
+        } catch (e) {
+          console.error("[ClientReferral] Error:", e);
+          postStepErrors.push("client_referral");
+        }
+      }
+
       // Record promo/referral redemption only when promo discount was actually applied by authoritative pricing
       if (appliedPromo && user?.id && canonicalPromoDiscount > 0) {
         try {
@@ -2496,7 +2526,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
             } else {
               console.log("[Referral] Usage count incremented for code:", appliedPromo.referral_code_id);
             }
-          } else {
+          } else if (!appliedPromo.is_client_referral) {
             // Regular promo code - record in promotion_redemptions
             const { error: promoError } = await supabase.from("promotion_redemptions").insert({
               promotion_id: appliedPromo.id,

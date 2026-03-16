@@ -37,6 +37,92 @@ serve(async (req) => {
     // Normalize: trim, uppercase, remove trailing punctuation (accepts "Bienvenue." etc.)
     const normalizedCode = code.trim().toUpperCase().replace(/[.,;:!?]+$/, '');
 
+    // ========== CHECK CLIENT REFERRAL CODES (profiles.referral_code) ==========
+    const { data: referrerProfile, error: refProfileError } = await supabase
+      .from('profiles')
+      .select('user_id, email, phone, first_name, last_name, referral_code')
+      .eq('referral_code', normalizedCode)
+      .maybeSingle();
+
+    if (referrerProfile && !refProfileError) {
+      console.log(`[validate-promo] Found client referral code: ${normalizedCode} from user: ${referrerProfile.user_id}`);
+
+      // Anti-fraud: self-referral
+      if (client_id && referrerProfile.user_id === client_id) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Auto-parrainage interdit" }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Anti-fraud: same email
+      if (client_email && referrerProfile.email && client_email.toLowerCase() === referrerProfile.email.toLowerCase()) {
+        return new Response(
+          JSON.stringify({ valid: false, error: "Même adresse courriel détectée" }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Anti-fraud: same phone
+      if (client_id && referrerProfile.phone) {
+        const { data: referredProfile } = await supabase
+          .from('profiles')
+          .select('phone')
+          .eq('user_id', client_id)
+          .maybeSingle();
+        if (referredProfile?.phone && referredProfile.phone === referrerProfile.phone) {
+          return new Response(
+            JSON.stringify({ valid: false, error: "Même numéro de téléphone détecté" }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // Already used a referral
+      if (client_id) {
+        const { count } = await supabase
+          .from('client_referrals')
+          .select('id', { count: 'exact', head: true })
+          .eq('referred_user_id', client_id);
+        if (count && count > 0) {
+          return new Response(
+            JSON.stringify({ valid: false, error: "Vous avez déjà utilisé un code de parrainage" }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // Client referral code is valid — no discount, just tracking
+      const result = {
+        valid: true,
+        is_client_referral: true,
+        referrer_user_id: referrerProfile.user_id,
+        referrer_name: `${referrerProfile.first_name || ''} ${referrerProfile.last_name || ''}`.trim(),
+        referral_code: normalizedCode,
+        promo: {
+          id: `client_referral_${referrerProfile.user_id}`,
+          code: normalizedCode,
+          name: 'Code de parrainage Nivra',
+          discount_type: 'fixed_amount',
+          discount_value: 0,
+          applies_to: { services: false, one_time_fees: false, equipment: false, delivery: false, installation: false },
+          stackable: false,
+          new_customers_only: true,
+          duration: 'none',
+          discount_label: 'Parrainage Nivra — carte-cadeau 25$ pour votre parrain après 3 mois',
+        },
+        discount_amount: 0,
+        eligible_subtotal: 0,
+        breakdown: { services: 0, one_time_fees: 0, equipment: 0, delivery: 0, installation: 0 },
+      };
+
+      return new Response(
+        JSON.stringify(result),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========== CHECK INFLUENCER REFERRAL CODES (referral_codes table) ==========
     // First check referral_codes table (influencer codes)
     const { data: referralCode, error: referralError } = await supabase
       .from('referral_codes')
@@ -46,7 +132,7 @@ serve(async (req) => {
       .single();
 
     if (referralCode && !referralError) {
-      console.log(`[validate-promo] Found referral code: ${normalizedCode} for influencer: ${referralCode.influencer_id}`);
+      console.log(`[validate-promo] Found influencer referral code: ${normalizedCode} for influencer: ${referralCode.influencer_id}`);
       
       // Check if customer has already used ANY referral code (lifetime limit)
       if (client_email) {

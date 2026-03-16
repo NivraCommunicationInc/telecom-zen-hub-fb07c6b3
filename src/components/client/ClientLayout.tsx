@@ -64,6 +64,11 @@ const navGroups = [
     children: [],
   },
   {
+    label: "Parrainage",
+    path: "/portal/referrals",
+    children: [],
+  },
+  {
     label: "Paramètres",
     path: null,
     children: [
