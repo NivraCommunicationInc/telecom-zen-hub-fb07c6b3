@@ -939,8 +939,9 @@ const ClientNewOrder = () => {
       kycChoice,
       existingKycStatus,
       existingKycCaseNumber,
-      // Promo code details (persisted to survive PayPal redirect)
+      // Promo/referral code details (persisted to survive PayPal redirect)
       appliedPromo,
+      appliedReferral,
       // Payment state (all methods)
       paypalCaptureId,
       paymentComplete,
@@ -948,7 +949,7 @@ const ClientNewOrder = () => {
       paymentMethod,
     };
     
-    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "promo:", appliedPromo?.code || "none", "paymentComplete:", paymentComplete);
+    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "promo:", appliedPromo?.code || "none", "referral:", appliedReferral?.code || "none", "paymentComplete:", paymentComplete);
     sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
   }, [
     isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
@@ -959,7 +960,7 @@ const ClientNewOrder = () => {
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
     verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
-    appliedPromo, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
+    appliedPromo, appliedReferral, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
   ]);
 
   // Persist KYC session ID to localStorage whenever it changes (independent of order)

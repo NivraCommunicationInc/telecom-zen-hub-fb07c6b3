@@ -680,6 +680,7 @@ const AppRoutes = () => {
           <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
           {/* Partners */}
           <Route path="referrals" element={<Suspense fallback={null}><CoreReferralsPage /></Suspense>} />
+          <Route path="referral-rewards" element={<Suspense fallback={null}><CoreReferralRewardsPage /></Suspense>} />
           <Route path="referral-terms" element={<Suspense fallback={null}><CoreReferralTermsPage /></Suspense>} />
           {/* Support */}
           <Route path="support" element={<Suspense fallback={null}><CoreSupportPage /></Suspense>} />
