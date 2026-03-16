@@ -57,6 +57,7 @@ const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommu
 const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
 // Partners
 const CoreReferralsPage = lazy(() => import("@/core-app/pages/CoreReferralsPage"));
+const CoreReferralRewardsPage = lazy(() => import("@/core-app/pages/CoreReferralRewardsPage"));
 const CoreReferralTermsPage = lazy(() => import("@/core-app/pages/CoreReferralTermsPage"));
 // Support
 const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));

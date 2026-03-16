@@ -296,6 +296,8 @@ interface OrderDraft {
     referral_code_id?: string;
     influencer_id?: string;
   } | null;
+  // Referral code details (persisted to survive PayPal redirect)
+  appliedReferral: AppliedReferral | null;
   // Payment state (persisted to avoid double-charging after redirect)
   paypalCaptureId: string;
   paymentComplete: boolean;
