@@ -262,9 +262,9 @@ serve(async (req) => {
 
     const body = await req.json();
     const payload = body?.payload as CheckoutPayload;
-    const response = body?.response as CheckoutResponse;
+    let response = (body?.response || {}) as Partial<CheckoutResponse>;
 
-    if (!payload?.customer?.user_id || !response?.order_id || !response?.invoice_id || !response?.payment_id) {
+    if (!payload?.customer?.user_id) {
       return new Response(JSON.stringify({ ok: false, errors: ["Invalid payload"] }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -279,6 +279,39 @@ serve(async (req) => {
     }
 
     const nowIso = response.created_at || new Date().toISOString();
+
+    const [orderNumRes, invoiceNumRes, paymentNumRes] = await Promise.all([
+      response.order_number
+        ? Promise.resolve({ data: response.order_number })
+        : admin.rpc("generate_order_number"),
+      response.invoice_number
+        ? Promise.resolve({ data: response.invoice_number })
+        : admin.rpc("generate_billing_invoice_number"),
+      response.payment_number
+        ? Promise.resolve({ data: response.payment_number })
+        : admin.rpc("generate_payment_number"),
+    ]);
+
+    response = {
+      order_id: response.order_id || crypto.randomUUID(),
+      order_number: response.order_number || String(orderNumRes.data || `ORD-${Date.now()}`),
+      invoice_id: response.invoice_id || crypto.randomUUID(),
+      invoice_number: response.invoice_number || String(invoiceNumRes.data || `INV-${Date.now()}`),
+      payment_id: response.payment_id || crypto.randomUUID(),
+      payment_number: response.payment_number || String(paymentNumRes.data || `PAY-${Date.now()}`),
+      subscription_id: response.subscription_id || null,
+      account_number: response.account_number || null,
+      billing_cycle_day: response.billing_cycle_day || null,
+      pricing: response.pricing || {
+        subtotal: toMoney(payload.pricing_snapshot?.subtotal ?? payload.pricing_snapshot?.taxable_base),
+        taxable_base: toMoney(payload.pricing_snapshot?.taxable_base ?? payload.pricing_snapshot?.subtotal),
+        tps_amount: toMoney(payload.pricing_snapshot?.tps_amount),
+        tvq_amount: toMoney(payload.pricing_snapshot?.tvq_amount),
+        grand_total: toMoney(payload.pricing_snapshot?.grand_total),
+      },
+      created_at: nowIso,
+    } as CheckoutResponse;
+
     const paid = isPaidCheckout(payload);
     const billingMethod = toBillingMethod(payload.payment?.method);
     const results: Record<string, unknown> = {};

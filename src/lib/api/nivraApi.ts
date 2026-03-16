@@ -316,14 +316,22 @@ export async function submitNivraCheckout(
     throw new Error(errorMessage);
   }
 
-  const data: NivraFullCheckoutResponse = await response.json();
+  const data = await response.json() as Partial<NivraFullCheckoutResponse> & { error?: string; message?: string };
+
+  // Defensive guard: some upstream errors can return HTTP 200 with success=false or incomplete chain.
+  // Force fallback path by throwing in those cases.
+  if (!data?.success || !data?.order_id || !data?.invoice_id || !data?.payment_id) {
+    throw new Error(data?.error || data?.message || "CHECKOUT_FINALIZING");
+  }
+
+  const typedData = data as NivraFullCheckoutResponse;
   console.log("[NivraAPI] Checkout complete:", {
-    order_number: data.order_number,
-    invoice_number: data.invoice_number,
-    payment_number: data.payment_number,
-    grand_total: data.pricing.grand_total,
+    order_number: typedData.order_number,
+    invoice_number: typedData.invoice_number,
+    payment_number: typedData.payment_number,
+    grand_total: typedData.pricing.grand_total,
   });
-  return data;
+  return typedData;
 }
 
 // ── SKU helpers ──
