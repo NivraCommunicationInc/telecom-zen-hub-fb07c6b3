@@ -92,6 +92,12 @@ export const PromoCodeInput = ({
         return;
       }
 
+      // Check if this is actually a referral code (should go in the referral field)
+      if (data.is_client_referral || data.is_referral_code) {
+        setError("Ce code est un code de parrainage. Veuillez l'entrer dans le champ « Code de parrainage » ci-dessus.");
+        return;
+      }
+
       const newPromo: AppliedPromo = {
         id: data.promo.id,
         code: data.promo.code,
