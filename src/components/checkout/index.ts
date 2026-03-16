@@ -10,6 +10,7 @@ export { ConfirmationSuccess } from './ConfirmationSuccess';
 export { ProfessionalConfirmation } from './ProfessionalConfirmation';
 export { PinSetupSection, validatePinSetup } from './PinSetupSection';
 export { PromoCodeInput } from './PromoCodeInput';
+export { ReferralCodeInput } from './ReferralCodeInput';
 export { TVChannelSelection } from './TVChannelSelection';
 export { StreamingServiceSelection } from './StreamingServiceSelection';
 export { CheckoutPaymentSection } from './CheckoutPaymentSection';

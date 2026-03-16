@@ -164,6 +164,14 @@ export interface NivraFullCheckoutPayload {
   line_items: any[];
   notes?: string;
   account_id?: string | null;
+  /** Referral code tracking (independent of promo) */
+  referral?: {
+    code: string;
+    type: "client" | "influencer";
+    referrer_user_id?: string;
+    referral_code_id?: string;
+    influencer_id?: string;
+  } | null;
 }
 
 /**

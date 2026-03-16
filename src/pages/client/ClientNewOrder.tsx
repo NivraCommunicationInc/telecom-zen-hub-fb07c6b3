@@ -60,7 +60,8 @@ import {
   CalendarPlus,
   ChevronDown,
   ChevronUp,
-  MapPin
+  MapPin,
+  Gift
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -83,6 +84,7 @@ import { FEATURES } from "@/config/features";
 import { mapBillingError } from "@/lib/billing/errorMapping";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
+import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 
 interface Service {
   id: string;
@@ -585,6 +587,9 @@ const ClientNewOrder = () => {
   } | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [promoValidationError, setPromoValidationError] = useState<string | null>(null);
+  
+  // Separate referral code state (independent of promo codes)
+  const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   
@@ -1713,7 +1718,13 @@ const ClientNewOrder = () => {
     setInstallationCredit(0);
     setPromoValidationError(null);
     setDiscountCode("");
+    // Note: removing promo does NOT remove referral code — they are independent
     toast.info("Code promo retiré");
+  };
+
+  // Remove referral
+  const removeReferral = () => {
+    setAppliedReferral(null);
   };
 
   // Create order mutation
@@ -2256,6 +2267,14 @@ const ClientNewOrder = () => {
         line_items: lineItems,
         notes: (notes || ''),
         account_id: resolvedAccountId,
+        // Track referral code separately from promo
+        referral: appliedReferral ? {
+          code: appliedReferral.code,
+          type: appliedReferral.type,
+          referrer_user_id: appliedReferral.referrer_user_id,
+          referral_code_id: appliedReferral.referral_code_id,
+          influencer_id: appliedReferral.influencer_id,
+        } : null,
       };
 
       // ── Try Nivra Core API first, fallback to direct Supabase creation ──
@@ -2471,26 +2490,35 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       }
 
       // ========== CLIENT REFERRAL TRACKING ==========
-      // Record client-to-client referral (canonical client_referrals table)
-      if (appliedPromo?.is_client_referral && appliedPromo.referrer_user_id && user?.id) {
-        try {
-          const { error: refError } = await supabase.from("client_referrals" as any).insert({
-            referral_code_used: appliedPromo.code,
-            referrer_user_id: appliedPromo.referrer_user_id,
-            referred_user_id: user.id,
-            referred_order_id: data.id,
-            status: 'order_created',
-            reward_status: 'not_eligible',
-          } as any);
-          if (refError) {
-            console.error("[ClientReferral] Insert failed:", refError);
+      // Record client-to-client referral using appliedReferral (independent of promo)
+      const clientReferral = appliedReferral?.type === "client" ? appliedReferral : 
+        (appliedPromo?.is_client_referral ? appliedPromo : null);
+      
+      if (clientReferral && user?.id) {
+        const referrerUserId = appliedReferral?.type === "client" 
+          ? appliedReferral.referrer_user_id 
+          : (appliedPromo as any)?.referrer_user_id;
+        
+        if (referrerUserId) {
+          try {
+            const { error: refError } = await supabase.from("client_referrals" as any).insert({
+              referral_code_used: clientReferral.code,
+              referrer_user_id: referrerUserId,
+              referred_user_id: user.id,
+              referred_order_id: data.id,
+              status: 'order_created',
+              reward_status: 'not_eligible',
+            } as any);
+            if (refError) {
+              console.error("[ClientReferral] Insert failed:", refError);
+              postStepErrors.push("client_referral");
+            } else {
+              console.log("[ClientReferral] Tracked for order:", data.order_number);
+            }
+          } catch (e) {
+            console.error("[ClientReferral] Error:", e);
             postStepErrors.push("client_referral");
-          } else {
-            console.log("[ClientReferral] Tracked for order:", data.order_number);
           }
-        } catch (e) {
-          console.error("[ClientReferral] Error:", e);
-          postStepErrors.push("client_referral");
         }
       }
 
@@ -3187,9 +3215,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         if (terminalFee > 0) cartItems.push({ type: "equipment", name: "Terminal TV", amount: terminalFee });
         if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
 
+        // Effective promo code: promo takes priority; if no promo but referral has discount, use referral
+        const effectivePromoCode = appliedPromo?.code || ((appliedReferral?.discount_amount ?? 0) > 0 ? appliedReferral?.code : null) || null;
+        
         const result = await computeCheckoutPricing(
           cartItems,
-          appliedPromo?.code || null,
+          effectivePromoCode,
           profile?.email || user?.email || null,
           user?.id || null,
           acceptPreauthorized ? 5 : 0,
@@ -3210,7 +3241,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     selectedServices, selectedStreamingServices, selectedPaidChannels,
     mobileLineQuantities, activationFee, deliveryFee, installationFee,
     terminalFee, routerFee, simFee,
-    acceptPreauthorized, appliedPromo?.code,
+    acceptPreauthorized, appliedPromo?.code, appliedReferral?.code, appliedReferral?.discount_amount,
     profile?.email, user?.email, user?.id,
     createOrderMutation.isPending,
   ]);
@@ -5214,10 +5245,34 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </Card>
               )}
 
+              {/* ═══ REFERRAL CODE (Code de parrainage) ═══ */}
               <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle>Code promotionnel</CardTitle>
-                  <CardDescription>Avez-vous un code de réduction pour l'installation?</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Gift className="w-4 h-4" />
+                    Code de parrainage
+                  </CardTitle>
+                  <CardDescription>Un proche vous a recommandé Nivra?</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ReferralCodeInput
+                    clientEmail={profile?.email || user?.email || ""}
+                    clientId={user?.id}
+                    cartItems={buildPromoValidationPayload(discountCode || "PLACEHOLDER").cartItems}
+                    subtotalBeforeDiscount={buildPromoValidationPayload(discountCode || "PLACEHOLDER").subtotalBeforeDiscount}
+                    appliedReferral={appliedReferral}
+                    onReferralApplied={setAppliedReferral}
+                    hasActivePromoDiscount={serverPromoDiscount > 0 || hasWelcomeDiscountAlreadyApplied}
+                    disabled={createOrderMutation.isPending}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* ═══ PROMO CODE (Code promotionnel) ═══ */}
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Code promotionnel</CardTitle>
+                  <CardDescription>Avez-vous un code de réduction?</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {appliedPromo ? (
@@ -5243,6 +5298,15 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           )}
                         </div>
                       </div>
+                      {/* Overlap message: referral also has discount */}
+                      {appliedReferral && (appliedReferral.discount_amount ?? 0) > 0 && serverPromoDiscount > 0 && (
+                        <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-50 border border-amber-200">
+                          <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-amber-700">
+                            Le rabais de votre code de parrainage n'est pas cumulable avec cette promotion. Le code de parrainage reste enregistré pour le suivi.
+                          </p>
+                        </div>
+                      )}
                       <Button variant="ghost" size="sm" onClick={removePromo} className="text-destructive">
                         Retirer le code promo
                       </Button>
