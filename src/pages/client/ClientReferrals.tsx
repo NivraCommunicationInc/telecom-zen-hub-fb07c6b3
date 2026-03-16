@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import ClientLayout from "@/components/client/ClientLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { useClientAuth } from "@/contexts/ClientAuthContext";
+import { useClientAuth } from "@/hooks/useClientAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
