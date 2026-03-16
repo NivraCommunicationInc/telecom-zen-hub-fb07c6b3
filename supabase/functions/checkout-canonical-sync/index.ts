@@ -664,11 +664,12 @@ serve(async (req) => {
       }
     }
 
-    // 8) Client referral tracking (idempotent)
+    // 8) Client referral tracking (idempotent) — runs AFTER order upsert so FK is satisfied
     try {
-      if (payload.referral?.type === "client" && payload.referral?.referrer_user_id && accountId) {
+      if (payload.referral?.type === "client" && payload.referral?.referrer_user_id) {
         const referrerUserId = payload.referral.referrer_user_id;
         if (referrerUserId !== payload.customer.user_id) {
+          // Resolve referrer account (best-effort, nullable FK)
           const { data: referrerAccount } = await admin
             .from("accounts")
             .select("id")
@@ -678,23 +679,46 @@ serve(async (req) => {
             .limit(1)
             .maybeSingle();
 
-          await admin
+          // Resolve referred billing_customer_id (best-effort)
+          const referredBillingCustomerId = customerId || null;
+
+          // Resolve referrer billing_customer_id (best-effort)
+          let referrerBillingCustomerId: string | null = null;
+          try {
+            const { data: referrerBc } = await admin
+              .from("billing_customers")
+              .select("id")
+              .eq("user_id", referrerUserId)
+              .limit(1)
+              .maybeSingle();
+            referrerBillingCustomerId = referrerBc?.id || null;
+          } catch (_) { /* non-blocking */ }
+
+          const { error: refUpsertError } = await admin
             .from("client_referrals")
             .upsert(
               {
-                referral_code_used: payload.referral.code || null,
+                referral_code_used: payload.referral.code || "UNKNOWN",
                 referrer_user_id: referrerUserId,
                 referred_user_id: payload.customer.user_id,
-                referred_order_id: response.order_id,
-                referred_account_id: accountId,
+                referred_order_id: response.order_id || null,
+                referred_account_id: accountId || null,
                 referrer_account_id: referrerAccount?.id || null,
+                referred_billing_customer_id: referredBillingCustomerId,
+                referrer_billing_customer_id: referrerBillingCustomerId,
                 status: "order_created",
                 reward_status: "not_eligible",
               },
               { onConflict: "referred_user_id" },
             );
 
-          results.client_referral = true;
+          if (refUpsertError) {
+            console.error("[checkout-canonical-sync] client_referral upsert error:", refUpsertError);
+            errors.push(`client_referral: ${refUpsertError.message}`);
+          } else {
+            console.log("[checkout-canonical-sync] client_referral tracked for referred_user:", payload.customer.user_id);
+            results.client_referral = true;
+          }
         }
       }
     } catch (err: any) {

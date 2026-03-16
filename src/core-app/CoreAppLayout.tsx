@@ -129,6 +129,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Handshake,
     items: [
       { icon: Handshake, label: "Referrals", href: "/referrals" },
+      { icon: Gift, label: "Referral Rewards", href: "/referral-rewards" },
       { icon: FileText, label: "Terms", href: "/referral-terms" },
     ],
   },
