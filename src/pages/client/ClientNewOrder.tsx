@@ -2124,8 +2124,10 @@ const ClientNewOrder = () => {
       };
 
       // Resolve account_id for order linkage — BLOCKING: orders MUST have account_id
+      // Auto-creates the canonical account if missing (imported/new/partial clients)
       let resolvedAccountId: string | null = null;
       {
+        // Step 1: Try to find existing active account
         const { data: acctRows, error: acctErr } = await supabase
           .from("accounts")
           .select("id")
@@ -2134,13 +2136,53 @@ const ClientNewOrder = () => {
           .order("created_at", { ascending: true })
           .limit(1);
         if (acctErr) {
-          console.error("[Checkout] Account resolution failed:", acctErr);
-          throw new Error("Impossible de résoudre votre dossier de facturation. Veuillez réessayer.");
+          console.error("[Checkout] Account resolution query failed:", acctErr);
         }
         resolvedAccountId = acctRows?.[0]?.id || null;
+
+        // Step 2: Auto-create account if none exists
         if (!resolvedAccountId) {
-          console.error("[Checkout] No active account found for user:", user.id);
-          throw new Error("Aucun dossier de facturation trouvé. Veuillez contacter le support.");
+          console.warn("[Checkout] No active account found for user:", user.id, "— auto-creating");
+          const { data: newAcct, error: createErr } = await supabase
+            .from("accounts")
+            .insert({
+              client_id: user.id,
+              account_number: "000000", // trigger auto-generates valid number
+              account_name: "Primary",
+              status: "active",
+              primary_service_address: serviceAddressStreet || null,
+              primary_service_city: serviceAddressCity || null,
+              primary_service_province: serviceAddressProvince || "QC",
+              primary_service_postal_code: serviceAddressPostalCode || null,
+            })
+            .select("id")
+            .single();
+
+          if (createErr) {
+            // Handle unique constraint — account may have been created concurrently
+            if (createErr.code === "23505") {
+              console.warn("[Checkout] Account already exists (race condition), re-fetching");
+              const { data: retryRows } = await supabase
+                .from("accounts")
+                .select("id")
+                .eq("client_id", user.id)
+                .eq("status", "active")
+                .limit(1);
+              resolvedAccountId = retryRows?.[0]?.id || null;
+            }
+            if (!resolvedAccountId) {
+              console.error("[Checkout] Failed to auto-create account:", createErr);
+              throw new Error("Une erreur temporaire est survenue. Veuillez réessayer dans quelques instants.");
+            }
+          } else {
+            resolvedAccountId = newAcct?.id || null;
+            console.info("[Checkout] Auto-created account:", resolvedAccountId);
+          }
+        }
+
+        if (!resolvedAccountId) {
+          console.error("[Checkout] Account resolution exhausted for user:", user.id);
+          throw new Error("Une erreur temporaire est survenue. Veuillez réessayer dans quelques instants.");
         }
       }
 
