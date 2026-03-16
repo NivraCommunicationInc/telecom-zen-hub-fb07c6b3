@@ -205,14 +205,14 @@ export default function DevLogin() {
 
         const { data: auditSessionData, error: auditSessionErr } = await adminClient.functions.invoke("admin-audit-session-link", {
           body: {
-            target_email: OLDO_EMAIL,
-            reason: "Audit RLS /portal/service-addresses",
-            redirect_to: `${window.location.origin}/portal/service-addresses?audit_session=1`,
+            target_email: targetEmail,
+            reason: auditLabel,
+            redirect_to: auditRedirect,
           },
         });
 
         if (auditSessionErr || !auditSessionData?.success || !auditSessionData?.action_link) {
-          throw new Error(auditSessionData?.error || auditSessionErr?.message || "Impossible de créer la session audit OLDO");
+          throw new Error(auditSessionData?.error || auditSessionErr?.message || `Impossible de créer la session audit (${targetEmail})`);
         }
 
         setStatus("Lien audit one-shot créé. Redirection...");
