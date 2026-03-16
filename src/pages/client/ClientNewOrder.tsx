@@ -3217,7 +3217,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     selectedServices, selectedStreamingServices, selectedPaidChannels,
     mobileLineQuantities, activationFee, deliveryFee, installationFee,
     terminalFee, routerFee, simFee,
-    acceptPreauthorized, appliedPromo?.code,
+    acceptPreauthorized, appliedPromo?.code, appliedReferral?.code, appliedReferral?.discount_amount,
     profile?.email, user?.email, user?.id,
     createOrderMutation.isPending,
   ]);
