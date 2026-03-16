@@ -1717,7 +1717,13 @@ const ClientNewOrder = () => {
     setInstallationCredit(0);
     setPromoValidationError(null);
     setDiscountCode("");
+    // Note: removing promo does NOT remove referral code — they are independent
     toast.info("Code promo retiré");
+  };
+
+  // Remove referral
+  const removeReferral = () => {
+    setAppliedReferral(null);
   };
 
   // Create order mutation
