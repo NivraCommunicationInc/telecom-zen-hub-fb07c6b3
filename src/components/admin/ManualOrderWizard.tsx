@@ -279,9 +279,7 @@ export default function ManualOrderWizard({
     const subtotalOneTime = terminalFee + routerFee + simFee + deliveryFee + activationFee + installationFee;
     const discountAmount = orderState.discountAmount;
     const taxableAmount = subtotalOneTime - discountAmount;
-    const tps = taxableAmount * TPS_RATE;
-    const tvq = taxableAmount * TVQ_RATE;
-    const totalOneTime = taxableAmount + tps + tvq;
+    const { tps, tvq, total: totalOneTime } = estimateTaxes(taxableAmount);
 
     return {
       planMonthly,

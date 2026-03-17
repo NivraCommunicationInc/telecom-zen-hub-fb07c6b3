@@ -217,9 +217,7 @@ const TVConfigurator = () => {
     const recurringSubtotal = recurringItems.reduce((s, i) => s + i.price, 0);
     const oneTimeSubtotal = oneTimeItems.reduce((s, i) => s + i.price, 0);
     const taxableBase = recurringSubtotal + oneTimeSubtotal;
-    const tps = Math.round(taxableBase * TPS_RATE * 100) / 100;
-    const tvq = Math.round(taxableBase * TVQ_RATE * 100) / 100;
-    const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
+    const { tps, tvq, total: grandTotal } = estimateTaxes(taxableBase);
 
     return { recurringItems, oneTimeItems, recurringSubtotal, oneTimeSubtotal, tps, tvq, grandTotal };
   }, [selectedPlan, selectedStreamingIds, streamingServices, terminalProduct, totalTerminals, includeRouter, routerProduct, installMethod, isFr]);
