@@ -676,18 +676,54 @@ export default function UnifiedPOSPage({
                     ))}
                   </div>
                 )}
-                <Button
-                  onClick={handleConfirmOrder}
-                  disabled={isSubmitting}
-                  className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  ) : (
-                    <Check className="h-5 w-5 mr-2" />
-                  )}
-                  Confirmer et enregistrer
-                </Button>
+
+                {/* Stripe card payment form — shown after draft invoice created */}
+                {paymentData.payment_method === "card" && stripePending && (
+                  <div className="p-4 rounded-xl bg-slate-800/50 border border-cyan-500/30">
+                    <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-cyan-400" />
+                      Paiement par carte — Stripe
+                    </h4>
+                    <StripeInlinePayment
+                      invoiceId={stripePending.invoiceId}
+                      amount={stripePending.totalAmount}
+                      customerEmail={customerData.email}
+                      customerId={stripePending.customerId}
+                      onSuccess={handleStripeSuccess}
+                      onError={(msg) => toast.error("Échec du paiement", { description: msg })}
+                    />
+                  </div>
+                )}
+
+                {/* Confirm button: for card, triggers draft invoice creation; for others, direct confirmation */}
+                {paymentData.payment_method === "card" && !stripePending && (
+                  <Button
+                    onClick={handleConfirmOrder}
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-lg shadow-lg"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    ) : (
+                      <CreditCard className="h-5 w-5 mr-2" />
+                    )}
+                    Procéder au paiement par carte
+                  </Button>
+                )}
+                {paymentData.payment_method !== "card" && (
+                  <Button
+                    onClick={handleConfirmOrder}
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    ) : (
+                      <Check className="h-5 w-5 mr-2" />
+                    )}
+                    Confirmer et enregistrer
+                  </Button>
+                )}
               </div>
             </div>
           )}
