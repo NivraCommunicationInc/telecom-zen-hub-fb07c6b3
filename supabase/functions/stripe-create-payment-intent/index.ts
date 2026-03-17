@@ -23,8 +23,11 @@ serve(async (req) => {
   }
 
   try {
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    const stripeKey = (Deno.env.get("STRIPE_SECRET_KEY") || "").trim();
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not configured");
+    if (!stripeKey.startsWith("sk_test_")) {
+      throw new Error("Stripe checkout public est forcé en mode test: STRIPE_SECRET_KEY doit commencer par sk_test_.");
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -67,6 +70,8 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripeAccount = await stripe.accounts.retrieve();
+    console.log(`[stripe-create-payment-intent] Stripe account: ${stripeAccount.id} (test-only)`);
 
     const email = customer_email || invoice?.customer?.email;
     const amountCents = Math.round(amount * 100);
