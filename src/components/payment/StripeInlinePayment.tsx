@@ -330,11 +330,6 @@ function PaymentForm({
             setPaymentElementReady(false);
             onError?.(msg);
           }}
-          onChange={(event) => {
-            if (event.empty) {
-              setPaymentElementReady(false);
-            }
-          }}
           options={{
             layout: "tabs",
           }}
