@@ -381,12 +381,6 @@ export interface StripeInlinePaymentProps {
   disabled?: boolean;
 }
 
-const getPublishableKeyMode = (): "test" | "live" | "invalid" => {
-  if (STRIPE_PUBLISHABLE_KEY.startsWith("pk_test_")) return "test";
-  if (STRIPE_PUBLISHABLE_KEY.startsWith("pk_live_")) return "live";
-  return "invalid";
-};
-
 export function StripeInlinePayment({
   invoiceId,
   amount,
@@ -402,8 +396,14 @@ export function StripeInlinePayment({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stripeMode, setStripeMode] = useState<StripeMode | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
   const onErrorRef = useRef(onError);
   const intentAmountRef = useRef(amount);
+  const stripePromise = useMemo(
+    () => (publishableKey ? loadStripe(publishableKey) : null),
+    [publishableKey]
+  );
 
   useEffect(() => {
     onErrorRef.current = onError;
@@ -416,16 +416,10 @@ export function StripeInlinePayment({
   useEffect(() => {
     if (disabled || intentAmountRef.current <= 0) {
       setClientSecret(null);
+      setStripeMode(null);
+      setPublishableKey(null);
       setLoading(false);
       setError(null);
-      return;
-    }
-
-    const publishableMode = getPublishableKeyMode();
-    if (publishableMode === "invalid") {
-      const msg = "Clé publique Stripe invalide (pk_test_* ou pk_live_* requise).";
-      setError(msg);
-      onErrorRef.current?.(msg);
       return;
     }
 
@@ -433,6 +427,8 @@ export function StripeInlinePayment({
     setLoading(true);
     setError(null);
     setClientSecret(null);
+    setStripeMode(null);
+    setPublishableKey(null);
 
     (async () => {
       try {
@@ -453,16 +449,24 @@ export function StripeInlinePayment({
         if (data?.error) throw new Error(data.error);
         if (!data?.client_secret) throw new Error("Aucun client_secret Stripe retourné");
 
-        if (typeof data?.livemode === "boolean") {
-          const expectsMode = data.livemode ? "live" : "test";
-          if (expectsMode !== publishableMode) {
-            throw new Error(
-              `Incohérence Stripe détectée: PaymentIntent ${expectsMode} mais clé publique ${publishableMode}.`
-            );
-          }
+        const expectedMode: StripeMode = data?.livemode ? "live" : "test";
+        const resolvedPublishableKey = getStripePublishableKey(expectedMode);
+        const resolvedKeyMode = getStripePublishableKeyMode(resolvedPublishableKey);
+
+        if (resolvedKeyMode !== expectedMode) {
+          throw new Error(
+            `Incohérence Stripe détectée: PaymentIntent ${expectedMode} mais clé publique ${resolvedKeyMode}.`
+          );
         }
 
+        console.info("[StripeInlinePayment] Stripe mode alignment", {
+          paymentIntentMode: expectedMode,
+          publishablePrefix: resolvedPublishableKey.slice(0, 8),
+        });
+
         if (!cancelled) {
+          setStripeMode(expectedMode);
+          setPublishableKey(resolvedPublishableKey);
           setClientSecret(data.client_secret);
         }
       } catch (err) {
@@ -500,11 +504,11 @@ export function StripeInlinePayment({
     );
   }
 
-  if (!clientSecret) return null;
+  if (!clientSecret || !stripePromise || !stripeMode) return null;
 
   return (
     <Elements
-      key={clientSecret}
+      key={`${clientSecret}:${stripeMode}`}
       stripe={stripePromise}
       options={{
         clientSecret,
