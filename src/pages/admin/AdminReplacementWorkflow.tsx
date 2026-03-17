@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useAuth } from "@/hooks/useAuth";
@@ -285,9 +286,7 @@ const AdminReplacementWorkflow = () => {
       
       const itemsSubtotal = orderItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
       const subtotal = itemsSubtotal + deliveryFee + (installationSelected ? installationFee : 0);
-      const tpsAmount = Math.round(subtotal * 0.05 * 100) / 100;
-      const tvqAmount = Math.round(subtotal * 0.09975 * 100) / 100;
-      const totalAmount = subtotal + tpsAmount + tvqAmount;
+      const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = estimateTaxes(subtotal);
 
       const fulfillmentType = installationSelected ? "technician" : "ship";
 
@@ -761,9 +760,7 @@ const AdminReplacementWorkflow = () => {
   const calculateTotals = () => {
     const itemsSubtotal = orderItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const subtotal = itemsSubtotal + deliveryFee + (installationSelected ? installationFee : 0);
-    const tps = Math.round(subtotal * 0.05 * 100) / 100;
-    const tvq = Math.round(subtotal * 0.09975 * 100) / 100;
-    const total = subtotal + tps + tvq;
+    const { tps, tvq, total } = estimateTaxes(subtotal);
     return { itemsSubtotal, subtotal, tps, tvq, total };
   };
 

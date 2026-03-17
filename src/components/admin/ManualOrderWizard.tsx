@@ -29,9 +29,8 @@ import { CreateClientDialog } from "./CreateClientDialog";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/validation/dob";
 import { AddressAutocomplete, AddressValue } from "@/components/shared/AddressAutocomplete";
 
-// Constants
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+// Constants — taxes from centralized engine
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 const DELIVERY_FEES = { standard: 30, uber: 45, shipHome: 15 };
 const ACTIVATION_FEE = 25;
 const INSTALLATION_FEE = 75;
@@ -280,9 +279,7 @@ export default function ManualOrderWizard({
     const subtotalOneTime = terminalFee + routerFee + simFee + deliveryFee + activationFee + installationFee;
     const discountAmount = orderState.discountAmount;
     const taxableAmount = subtotalOneTime - discountAmount;
-    const tps = taxableAmount * TPS_RATE;
-    const tvq = taxableAmount * TVQ_RATE;
-    const totalOneTime = taxableAmount + tps + tvq;
+    const { tps, tvq, total: totalOneTime } = estimateTaxes(taxableAmount);
 
     return {
       planMonthly,

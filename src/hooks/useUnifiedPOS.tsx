@@ -1,11 +1,12 @@
 /**
  * useUnifiedPOS - Unified hook for POS calculations across all portals
- * Handles services, equipment, adjustments with Quebec taxes
+ * Uses centralized server tax engine — no local tax constants.
  */
 import { useMemo, useCallback, useState } from "react";
 import { EquipmentItem } from "@/components/pos/POSEquipmentSelector";
 import { AdjustmentItem } from "@/components/pos/POSAdjustments";
-import { SelectedService, TAX_RATES } from "@/hooks/useFieldSalesOffers";
+import { SelectedService } from "@/hooks/useFieldSalesOffers";
+import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
 
 export interface POSCartTotals {
   // Services
@@ -75,13 +76,12 @@ export function useUnifiedPOS(initialState?: Partial<UnifiedPOSState>) {
     // First month taxable: monthly + one-time
     const taxableAmount = recurringSubtotal + oneTimeSubtotal;
     
-    // Quebec taxes
-    const tps = Math.round(taxableAmount * TAX_RATES.TPS * 100) / 100;
-    const tvq = Math.round(taxableAmount * TAX_RATES.TVQ * 100) / 100;
+    // Quebec taxes — centralized server tax engine
+    const { tps, tvq } = estimateTaxes(taxableAmount);
     
     // Final totals
     const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-    const recurringMonthly = Math.round((monthlySubtotal * (1 + TAX_RATES.TPS + TAX_RATES.TVQ)) * 100) / 100;
+    const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
     
     return {
       monthlySubtotal,
@@ -272,11 +272,10 @@ export function calculateUnifiedPOSTotals(
   const recurringSubtotal = monthlySubtotal;
   const taxableAmount = recurringSubtotal + oneTimeSubtotal;
   
-  const tps = Math.round(taxableAmount * TAX_RATES.TPS * 100) / 100;
-  const tvq = Math.round(taxableAmount * TAX_RATES.TVQ * 100) / 100;
+  const { tps, tvq } = estimateTaxes(taxableAmount);
   
   const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-  const recurringMonthly = Math.round((monthlySubtotal * (1 + TAX_RATES.TPS + TAX_RATES.TVQ)) * 100) / 100;
+  const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
   
   return {
     monthlySubtotal,

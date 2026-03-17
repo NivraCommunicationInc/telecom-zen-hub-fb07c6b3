@@ -29,9 +29,8 @@ export interface TVCartPayload {
   createdAt: string;
 }
 
-/* ─── Tax constants (QC) — ESTIMATE ONLY ─── */
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+/* ─── Tax estimation — centralized server tax engine ─── */
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 
 type InstallMethod = "technician" | "self" | null;
 type SimulatorStep = 1 | 2 | 3 | 4;
@@ -218,9 +217,7 @@ const TVConfigurator = () => {
     const recurringSubtotal = recurringItems.reduce((s, i) => s + i.price, 0);
     const oneTimeSubtotal = oneTimeItems.reduce((s, i) => s + i.price, 0);
     const taxableBase = recurringSubtotal + oneTimeSubtotal;
-    const tps = Math.round(taxableBase * TPS_RATE * 100) / 100;
-    const tvq = Math.round(taxableBase * TVQ_RATE * 100) / 100;
-    const grandTotal = Math.round((taxableBase + tps + tvq) * 100) / 100;
+    const { tps, tvq, total: grandTotal } = estimateTaxes(taxableBase);
 
     return { recurringItems, oneTimeItems, recurringSubtotal, oneTimeSubtotal, tps, tvq, grandTotal };
   }, [selectedPlan, selectedStreamingIds, streamingServices, terminalProduct, totalTerminals, includeRouter, routerProduct, installMethod, isFr]);

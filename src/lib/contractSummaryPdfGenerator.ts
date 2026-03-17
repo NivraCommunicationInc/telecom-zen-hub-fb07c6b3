@@ -1,3 +1,4 @@
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 /**
  * Nivra Contract Summary PDF Generator
  * Design exactement comme le PDF fourni "Resume_Contrat_CTR-QC-ORD-2026-1108.pdf"
@@ -306,8 +307,7 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   }
   
   // Totals
-  const oneTimeTps = Math.round(oneTimeFeeTotal * 0.05 * 100) / 100;
-  const oneTimeTvq = Math.round(oneTimeFeeTotal * 0.09975 * 100) / 100;
+  const { tps: oneTimeTps, tvq: oneTimeTvq } = estimateTaxes(oneTimeFeeTotal);
   const oneTimeTotalWithTax = oneTimeFeeTotal + oneTimeTps + oneTimeTvq;
   
   doc.setDrawColor(...COLORS.border);

@@ -32,8 +32,7 @@ interface CartItem {
   type: string;
 }
 
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 const DEFAULT_DELIVERY_FEE = 30;
 
 export default function EquipmentOrderDialog({
@@ -153,9 +152,7 @@ export default function EquipmentOrderDialog({
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const deliveryFee = deliveryMethod === "ship" ? DEFAULT_DELIVERY_FEE : 0;
     const taxableAmount = subtotal + deliveryFee;
-    const tps = taxableAmount * TPS_RATE;
-    const tvq = taxableAmount * TVQ_RATE;
-    const total = taxableAmount + tps + tvq;
+    const { tps, tvq, total } = estimateTaxes(taxableAmount);
 
     return { subtotal, deliveryFee, tps, tvq, total };
   }, [cart, deliveryMethod]);

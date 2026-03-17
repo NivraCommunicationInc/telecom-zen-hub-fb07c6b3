@@ -5,9 +5,8 @@
 import { jsPDF } from "jspdf";
 import { ACTIVE_CONTRACT_TEMPLATE, getContractEngineFooterLine } from "./contractTemplate";
 
-// Tax rates for Quebec
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+// Tax calculation — centralized server tax engine
+import { estimateTaxes, COMBINED_TAX_MULTIPLIER } from "@/lib/pricing/serverTaxEngine";
 
 interface FieldSalesContractData {
   orderNumber: string;
@@ -151,9 +150,10 @@ export async function generateFieldSalesContractPDF(data: FieldSalesContractData
   currentY += 15;
 
   // ========== BILLING SECTION ==========
-  const subtotal = data.payment.totalAmount / (1 + TPS_RATE + TVQ_RATE);
-  const tps = subtotal * TPS_RATE;
-  const tvq = subtotal * TVQ_RATE;
+  const subtotal = data.payment.totalAmount / COMBINED_TAX_MULTIPLIER;
+  const taxResult = estimateTaxes(subtotal);
+  const tps = taxResult.tps;
+  const tvq = taxResult.tvq;
 
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(marginLeft + 90, currentY, 80, 40, 3, 3, 'F');
