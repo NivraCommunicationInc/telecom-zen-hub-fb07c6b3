@@ -6830,7 +6830,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     setStep(nextStep);
                   }} disabled={
                     isStreamingOnlyOrder
-                      ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                      ? false
                       : isEquipmentOnlyOrder 
                         ? !deliveryChoice
                         : isDeliveryOnlyOrder 
