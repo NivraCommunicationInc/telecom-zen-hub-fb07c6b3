@@ -5454,7 +5454,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </Button>
                       </div>
                       {hasWelcomeDiscountAlreadyApplied && (
-                        <p className="text-xs text-amber-500">{PROMO_SINGLE_DISCOUNT_MESSAGE}</p>
+                        <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+                          <p className="text-xs text-muted-foreground">
+                            Rabais nouveau client actif ({`-${serverWelcomeDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`})
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                            onClick={dismissWelcomeDiscount}
+                          >
+                            Retirer
+                          </Button>
+                        </div>
                       )}
                       {promoValidationError && (
                         <p className="text-xs text-destructive">{promoValidationError}</p>
