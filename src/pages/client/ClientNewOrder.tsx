@@ -6192,10 +6192,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
                   {/* Stripe Inline Payment Form for Credit Card */}
                   {paymentMethod === "credit_card" && !paymentComplete && (
-                    <div className="space-y-4 p-4 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                    <div className="space-y-4 p-4 bg-primary/10 rounded-lg border border-primary/30">
                       {stripeDraftLoading && (
                         <div className="flex items-center justify-center gap-2 py-6">
-                          <svg className="w-5 h-5 animate-spin text-purple-500" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                          <svg className="w-5 h-5 animate-spin text-primary" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
                           <span className="text-sm text-muted-foreground">Préparation du formulaire de paiement…</span>
                         </div>
                       )}
