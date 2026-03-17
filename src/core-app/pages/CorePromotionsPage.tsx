@@ -9,6 +9,7 @@
  * - TPS/TVQ preview calculator
  */
 import { useState, useEffect, useMemo } from "react";
+import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tag, Search, Plus, Edit, Copy, Eye, ToggleLeft, ToggleRight, Percent, DollarSign, RefreshCcw, XCircle, Calculator } from "lucide-react";
@@ -406,9 +407,11 @@ export default function CorePromotionsPage() {
                   <div className="flex justify-between"><span className="text-[#94A3B8]">Sous-total</span><span className="text-[#F8FAFC]">{previewSubtotal.toFixed(2)} $</span></div>
                   <div className="flex justify-between text-emerald-400"><span>Réduction ({formData.code || "CODE"})</span><span>-{calcPreview().toFixed(2)} $</span></div>
                   <div className="flex justify-between border-t border-[hsl(220,15%,18%)] pt-2 font-bold"><span className="text-[#F8FAFC]">Après réduction</span><span className="text-[#F8FAFC]">{(previewSubtotal - calcPreview()).toFixed(2)} $</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="text-[#94A3B8]">TPS (5%)</span><span className="text-[#CBD5E1]">{((previewSubtotal - calcPreview()) * 0.05).toFixed(2)} $</span></div>
-                  <div className="flex justify-between text-[11px]"><span className="text-[#94A3B8]">TVQ (9.975%)</span><span className="text-[#CBD5E1]">{((previewSubtotal - calcPreview()) * 0.09975).toFixed(2)} $</span></div>
-                  <div className="flex justify-between border-t border-[hsl(220,15%,18%)] pt-2 font-bold text-[15px]"><span className="text-[#F8FAFC]">Total</span><span className="text-[#F8FAFC]">{((previewSubtotal - calcPreview()) * 1.14975).toFixed(2)} $</span></div>
+                  {(() => { const taxResult = estimateTaxes(previewSubtotal - calcPreview()); return (<>
+                  <div className="flex justify-between text-[11px]"><span className="text-[#94A3B8]">{TAX_DISPLAY.TPS_LABEL}</span><span className="text-[#CBD5E1]">{taxResult.tps.toFixed(2)} $</span></div>
+                  <div className="flex justify-between text-[11px]"><span className="text-[#94A3B8]">{TAX_DISPLAY.TVQ_LABEL}</span><span className="text-[#CBD5E1]">{taxResult.tvq.toFixed(2)} $</span></div>
+                  <div className="flex justify-between border-t border-[hsl(220,15%,18%)] pt-2 font-bold text-[15px]"><span className="text-[#F8FAFC]">Total</span><span className="text-[#F8FAFC]">{taxResult.total.toFixed(2)} $</span></div>
+                  </>); })()}
                 </div>
               </div>
             )}

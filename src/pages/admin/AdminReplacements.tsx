@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -361,9 +362,7 @@ const AdminReplacements = () => {
 
   const equipmentTotal = equipmentItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const subtotal = orderType === "warranty_replacement" ? 0 : equipmentTotal + deliveryFee + adminFee;
-  const tps = subtotal * 0.05;
-  const tvq = subtotal * 0.09975;
-  const total = subtotal + tps + tvq;
+  const { tps, tvq, total } = estimateTaxes(subtotal);
 
   // Detail view
   if (selectedTicket) {
