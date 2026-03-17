@@ -684,9 +684,7 @@ const ClientNewOrder = () => {
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
 
   // Stripe inline state for checkout
-  const [stripeDraft, setStripeDraft] = useState<CheckoutDraftInvoiceResult | null>(null);
-  const [stripeDraftLoading, setStripeDraftLoading] = useState(false);
-  const [stripeDraftError, setStripeDraftError] = useState<string | null>(null);
+  const [stripePaymentError, setStripePaymentError] = useState<string | null>(null);
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
