@@ -367,7 +367,7 @@ function PaymentForm({
 // ─────────────────────────────────────────────────
 
 export interface StripeInlinePaymentProps {
-  invoiceId: string;
+  invoiceId?: string;
   amount: number;
   description?: string;
   customerEmail?: string;
@@ -378,6 +378,12 @@ export interface StripeInlinePaymentProps {
   onError?: (msg: string) => void;
   disabled?: boolean;
 }
+
+const getPublishableKeyMode = (): "test" | "live" | "invalid" => {
+  if (STRIPE_PUBLISHABLE_KEY.startsWith("pk_test_")) return "test";
+  if (STRIPE_PUBLISHABLE_KEY.startsWith("pk_live_")) return "live";
+  return "invalid";
+};
 
 export function StripeInlinePayment({
   invoiceId,
@@ -406,10 +412,18 @@ export function StripeInlinePayment({
   }, [invoiceId, amount]);
 
   useEffect(() => {
-    if (disabled || !invoiceId || intentAmountRef.current <= 0) {
+    if (disabled || intentAmountRef.current <= 0) {
       setClientSecret(null);
       setLoading(false);
       setError(null);
+      return;
+    }
+
+    const publishableMode = getPublishableKeyMode();
+    if (publishableMode === "invalid") {
+      const msg = "Clé publique Stripe invalide (pk_test_* ou pk_live_* requise).";
+      setError(msg);
+      onErrorRef.current?.(msg);
       return;
     }
 
@@ -424,7 +438,7 @@ export function StripeInlinePayment({
           "stripe-create-payment-intent",
           {
             body: {
-              invoice_id: invoiceId,
+              invoice_id: invoiceId || undefined,
               amount: intentAmountRef.current,
               description: description || undefined,
               customer_email: customerEmail || undefined,
@@ -435,7 +449,16 @@ export function StripeInlinePayment({
 
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
-        if (!data?.client_secret) throw new Error("Aucun secret de paiement retourné");
+        if (!data?.client_secret) throw new Error("Aucun client_secret Stripe retourné");
+
+        if (typeof data?.livemode === "boolean") {
+          const expectsMode = data.livemode ? "live" : "test";
+          if (expectsMode !== publishableMode) {
+            throw new Error(
+              `Incohérence Stripe détectée: PaymentIntent ${expectsMode} mais clé publique ${publishableMode}.`
+            );
+          }
+        }
 
         if (!cancelled) {
           setClientSecret(data.client_secret);
