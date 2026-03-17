@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
-import { StripeCheckoutButton } from "@/components/payment/StripeCheckoutButton";
+import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
 import { PayPalCheckoutButton } from "@/components/payment/PayPalCheckoutButton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -145,13 +145,10 @@ const PayInvoiceDialog = ({
 
         {/* ============ Payment Form Based on Selection ============ */}
 
-        {/* Credit/Debit Card via Stripe Checkout */}
+        {/* Credit/Debit Card via Stripe Elements (inline) */}
         {paymentMethod === "card" && (
-          <div className="mt-2 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Vous serez redirigé vers Stripe pour compléter le paiement de façon sécurisée par carte de crédit ou débit.
-            </p>
-            <StripeCheckoutButton
+          <div className="mt-2">
+            <StripeInlinePayment
               invoiceId={invoice.id}
               amount={amount}
               description={`Facture ${invoiceNumber} - Nivra Telecom`}

@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CreditCard, DollarSign, FileText, Mail, CheckCircle, RotateCcw, Plus, Minus, Banknote, Wallet,
 } from "lucide-react";
+import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
 
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
@@ -36,17 +37,19 @@ type ModalType = null | "recordPayment" | "markPaid" | "sendInvoice" | "addCharg
 type ManualMethod = "paypal" | "interac" | "cash" | "debit_credit" | "bank_transfer" | "other";
 type ApplyMode = "invoice" | "account";
 
-type CanonicalMethod = "paypal" | "interac" | "manual";
+type CanonicalMethod = "paypal" | "interac" | "manual" | "card";
 
 const mapToBillingMethod = (method: ManualMethod): CanonicalMethod => {
   if (method === "paypal") return "paypal";
   if (method === "interac") return "interac";
+  if (method === "debit_credit") return "card";
   return "manual";
 };
 
 const mapToProvider = (method: ManualMethod): string => {
   if (method === "paypal") return "paypal";
   if (method === "interac") return "interac";
+  if (method === "debit_credit") return "stripe";
   return "manual";
 };
 
@@ -304,12 +307,32 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Note interne</label>
               <Textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={2} placeholder="Notes opérationnelles" className="text-[11px]" />
             </div>
+
+            {/* Stripe Elements inline form for debit_credit */}
+            {method === "debit_credit" && targetInvoice && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Paiement par carte via Stripe</p>
+                <StripeInlinePayment
+                  invoiceId={targetInvoice.id}
+                  amount={amountToApply}
+                  customerId={customerId}
+                  description={`Admin — Facture ${targetInvoice.invoice_number}`}
+                  onSuccess={() => {
+                    toast.success(`Paiement carte ${amountToApply.toFixed(2)} $ confirmé via Stripe`);
+                    onRefresh();
+                    onClose();
+                  }}
+                  onError={(msg) => toast.error(msg)}
+                  disabled={amountToApply <= 0}
+                />
+              </div>
+            )}
           </div>
         )}
 
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          {unpaid.length > 0 && (
+          {unpaid.length > 0 && method !== "debit_credit" && (
             <button onClick={handleSubmit} disabled={loading} className={btnPrimary}>
               {loading ? "…" : "Appliquer le paiement"}
             </button>
