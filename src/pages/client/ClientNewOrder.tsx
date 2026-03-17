@@ -6132,41 +6132,114 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     </div>
 
-                    {/* Credit Card - MAINTENANCE MODE */}
+                    {/* Credit Card - ACTIVE via Stripe */}
                     <div
-                      className="p-4 rounded-lg border-2 border-border bg-muted/50 cursor-not-allowed opacity-60 relative"
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
+                        paymentMethod === "credit_card"
+                          ? "border-purple-500 bg-purple-500/10"
+                          : "border-border hover:border-purple-500/50"
+                      }`}
+                      onClick={() => {
+                        setPaymentMethod("credit_card");
+                        setPaymentComplete(false);
+                        setPaymentConfirmationNumber("");
+                        setPaypalCaptureId("");
+                        // Create draft invoice for Stripe if not already created
+                        if (!stripeDraft && !stripeDraftLoading && user && authoritativePricing && uiTodayTotal > 0) {
+                          setStripeDraftLoading(true);
+                          setStripeDraftError(null);
+                          createCheckoutDraftInvoice({
+                            userId: user.id,
+                            email: profile?.email || user.email || "",
+                            firstName: firstName || profile?.first_name || "",
+                            lastName: lastName || profile?.last_name || "",
+                            phone: checkoutPhone || profile?.phone || "",
+                            totalAmount: uiTodayTotal,
+                            subtotal: authoritativePricing.subtotal ?? 0,
+                            tpsAmount: authoritativePricing.tps ?? 0,
+                            tvqAmount: authoritativePricing.tvq ?? 0,
+                            description: `Checkout public — Commande Nivra`,
+                          })
+                            .then((result) => {
+                              setStripeDraft(result);
+                              setStripeDraftLoading(false);
+                            })
+                            .catch((err) => {
+                              console.error("[Checkout] Stripe draft invoice error:", err);
+                              setStripeDraftError(err instanceof Error ? err.message : "Erreur de préparation du paiement");
+                              setStripeDraftLoading(false);
+                            });
+                        }
+                      }}
                     >
                       <div className="absolute top-2 right-2">
-                        <Badge variant="outline" className="bg-amber-500/20 text-amber-600 border-amber-500/50 text-xs">
-                          Maintenance
+                        <Badge className="bg-purple-500/20 text-purple-600 border-0 text-xs">
+                          Sécurisé
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
-                          <CreditCard className="w-5 h-5 text-muted-foreground" />
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          paymentMethod === "credit_card" ? "bg-purple-500" : "bg-muted"
+                        }`}>
+                          <CreditCard className={`w-5 h-5 ${paymentMethod === "credit_card" ? "text-white" : "text-muted-foreground"}`} />
                         </div>
                         <div>
-                          <p className="font-medium text-muted-foreground">Carte de crédit</p>
-                          <p className="text-xs text-muted-foreground">Temporairement indisponible</p>
+                          <p className="font-medium text-foreground">Carte de crédit</p>
+                          <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Credit Card Maintenance Notice */}
-                  {paymentMethod === "credit_card" && (
-                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-amber-700 dark:text-amber-400">
-                            Paiement par carte temporairement indisponible
-                          </p>
-                          <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
-                            Nous travaillons à rétablir ce service. Veuillez utiliser le virement Interac en attendant.
-                          </p>
+                  {/* Stripe Inline Payment Form for Credit Card */}
+                  {paymentMethod === "credit_card" && !paymentComplete && (
+                    <div className="space-y-4 p-4 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                      {stripeDraftLoading && (
+                        <div className="flex items-center justify-center gap-2 py-6">
+                          <svg className="w-5 h-5 animate-spin text-purple-500" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                          <span className="text-sm text-muted-foreground">Préparation du formulaire de paiement…</span>
                         </div>
-                      </div>
+                      )}
+                      {stripeDraftError && (
+                        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+                          {stripeDraftError}
+                        </div>
+                      )}
+                      {stripeDraft && !stripeDraftLoading && (
+                        <StripeInlinePayment
+                          invoiceId={stripeDraft.invoiceId}
+                          amount={uiTodayTotal}
+                          customerEmail={profile?.email || user?.email || ""}
+                          customerId={stripeDraft.customerId}
+                          onSuccess={() => {
+                            setPaymentComplete(true);
+                            setPaymentConfirmationNumber(`STRIPE-${stripeDraft.invoiceNumber}`);
+                            toast.success("Paiement par carte confirmé !");
+                            // Traceability
+                            logPaymentConfirmed({
+                              stripe_invoice_id: stripeDraft.invoiceId,
+                              amount: uiTodayTotal,
+                              method: "card",
+                              provider: "stripe",
+                            });
+                            // Invalidate billing caches
+                            queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
+                            queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
+                            queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
+                            queryClient.invalidateQueries({ queryKey: ["client-balance"] });
+                            queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
+                          }}
+                          onError={(msg) => {
+                            toast.error(msg);
+                            logPaymentFailed({
+                              error_message: msg,
+                              method: "card",
+                              provider: "stripe",
+                              amount: uiTodayTotal,
+                            });
+                          }}
+                        />
+                      )}
                     </div>
                   )}
 
