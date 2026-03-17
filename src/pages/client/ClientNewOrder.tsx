@@ -6233,7 +6233,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             logPaymentFailed({
                               error_message: msg,
                               method: "card",
-                              provider: "stripe",
                               amount: uiTodayTotal,
                             });
                           }}
