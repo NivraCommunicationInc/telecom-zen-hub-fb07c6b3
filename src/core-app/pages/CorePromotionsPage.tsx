@@ -9,6 +9,7 @@
  * - TPS/TVQ preview calculator
  */
 import { useState, useEffect, useMemo } from "react";
+import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tag, Search, Plus, Edit, Copy, Eye, ToggleLeft, ToggleRight, Percent, DollarSign, RefreshCcw, XCircle, Calculator } from "lucide-react";
