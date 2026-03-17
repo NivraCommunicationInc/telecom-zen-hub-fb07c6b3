@@ -10,13 +10,17 @@ import { useOptionalAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { toast } from "sonner";
 
-/** Map order payment_method values to valid billing_payment_method enum values */
+/** Map order payment_method values to valid billing_payment_method enum values.
+ *  PHASE 1: No fallback — null/unknown throws an explicit error. */
 function mapToBillingMethod(method?: string | null): "interac" | "manual" | "paypal" {
-  if (!method) return "interac";
+  if (!method) {
+    throw new Error("Méthode de paiement manquante sur la commande — aucun fallback autorisé");
+  }
   const m = method.toLowerCase();
   if (m === "paypal") return "paypal";
   if (m === "manual") return "manual";
-  return "interac";
+  if (m === "interac" || m === "etransfer" || m === "e_transfer" || m === "virement") return "interac";
+  throw new Error(`Méthode de paiement non reconnue: "${method}" — aucun fallback autorisé`);
 }
 
 /* ─── Types ─── */
