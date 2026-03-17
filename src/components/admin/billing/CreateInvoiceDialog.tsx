@@ -543,11 +543,11 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
                 <span>{formatCurrency(totals.subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>TPS ({(BILLING_TAX_RATES.TPS * 100).toFixed(0)}%)</span>
+                <span>TPS (5%)</span>
                 <span>{formatCurrency(totals.tps)}</span>
               </div>
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>TVQ ({(BILLING_TAX_RATES.TVQ * 100).toFixed(3)}%)</span>
+                <span>TVQ (9,975%)</span>
                 <span>{formatCurrency(totals.tvq)}</span>
               </div>
               <Separator />
