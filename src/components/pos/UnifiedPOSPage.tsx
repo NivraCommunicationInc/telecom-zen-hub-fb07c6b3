@@ -32,6 +32,8 @@ import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
+import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
 
 type POSStep = "catalog" | "customer" | "payment" | "confirmation";
 type CatalogTab = "services" | "equipment" | "adjustments";
