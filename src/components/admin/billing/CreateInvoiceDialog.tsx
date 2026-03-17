@@ -106,9 +106,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
   const linesSubtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   const activationFee = includeActivationFee ? activationFeeAmount : 0;
   const subtotal = linesSubtotal + activationFee;
-  const tps = Math.round(subtotal * BILLING_TAX_RATES.TPS * 100) / 100;
-  const tvq = Math.round(subtotal * BILLING_TAX_RATES.TVQ * 100) / 100;
-  const totals = { subtotal, tps, tvq, total: Math.round((subtotal + tps + tvq) * 100) / 100 };
+  const { tps, tvq, total } = estimateTaxes(subtotal);
+  const totals = { subtotal, tps, tvq, total };
 
   // Add line
   const addLine = () => {

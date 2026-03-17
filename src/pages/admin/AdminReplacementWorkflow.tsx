@@ -759,9 +759,7 @@ const AdminReplacementWorkflow = () => {
   const calculateTotals = () => {
     const itemsSubtotal = orderItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const subtotal = itemsSubtotal + deliveryFee + (installationSelected ? installationFee : 0);
-    const tps = Math.round(subtotal * 0.05 * 100) / 100;
-    const tvq = Math.round(subtotal * 0.09975 * 100) / 100;
-    const total = subtotal + tps + tvq;
+    const { tps, tvq, total } = estimateTaxes(subtotal);
     return { itemsSubtotal, subtotal, tps, tvq, total };
   };
 

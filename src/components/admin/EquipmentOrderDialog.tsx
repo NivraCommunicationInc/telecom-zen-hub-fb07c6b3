@@ -152,9 +152,7 @@ export default function EquipmentOrderDialog({
     const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const deliveryFee = deliveryMethod === "ship" ? DEFAULT_DELIVERY_FEE : 0;
     const taxableAmount = subtotal + deliveryFee;
-    const tps = taxableAmount * TPS_RATE;
-    const tvq = taxableAmount * TVQ_RATE;
-    const total = taxableAmount + tps + tvq;
+    const { tps, tvq, total } = estimateTaxes(taxableAmount);
 
     return { subtotal, deliveryFee, tps, tvq, total };
   }, [cart, deliveryMethod]);

@@ -3207,12 +3207,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const authoritativeRecurringSubtotal = toNonNegativeMoney(normalizedLivePricing?.recurring_subtotal ?? monthlyRecurring);
   const firstInvoiceRecurringNet = toNonNegativeMoney(authoritativeRecurringSubtotal - totalDiscount);
 
-  // === MONTHLY RECURRING WITH TAX (display only — distinct from today's payment) ===
-  // monthlyRecurring is the pre-tax monthly total (services + channels + streaming)
-  // These are QC standard tax rates applied to the recurring portion ONLY.
-  const monthlyTps = round2(monthlyRecurring * 0.05);
-  const monthlyTvq = round2(monthlyRecurring * 0.09975);
-  const monthlyTotalWithTax = round2(monthlyRecurring + monthlyTps + monthlyTvq);
+  // === MONTHLY RECURRING WITH TAX (display only — from centralized server tax engine) ===
+  const { tps: monthlyTps, tvq: monthlyTvq, total: monthlyTotalWithTax } = (() => {
+    const { estimateTaxes: est } = require("@/lib/pricing/serverTaxEngine");
+    return est(monthlyRecurring);
+  })();
 
   // ── SINGLE UI SOURCES OF TRUTH (locked during submission) ───────────────────
   // Monthly totals are pure local computations (from selectedServices) and NEVER change
