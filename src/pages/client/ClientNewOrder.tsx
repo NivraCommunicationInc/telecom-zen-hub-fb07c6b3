@@ -1736,6 +1736,12 @@ const ClientNewOrder = () => {
     await validateAndApplyPromo(discountCode, { silent: false });
   };
 
+  const dismissWelcomeDiscount = () => {
+    setWelcomeDiscountDismissed(true);
+    setPromoValidationError(null);
+    toast.info("Rabais nouveau client retiré");
+  };
+
   // Remove promo
   const removePromo = () => {
     setAppliedPromo(null);
