@@ -6625,10 +6625,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         {isHydrated && (
           <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-4 py-3 safe-area-bottom" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
             {/* Step 1: Service Selection */}
-            {step === 1 && selectedServices.length > 0 && (
+            {step === 1 && (selectedServices.length > 0 || selectedStreamingServices.length > 0) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{selectedServices.length} service(s)</span>
+                  <span className="text-muted-foreground">{selectedServices.length + selectedStreamingServices.length} service(s)</span>
                   <span className="font-bold text-foreground">
                     {monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                   </span>
