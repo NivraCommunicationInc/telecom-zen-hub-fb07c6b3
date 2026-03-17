@@ -3307,12 +3307,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
         // Effective promo code: promo takes priority; if no promo but referral has discount, use referral
         const effectivePromoCode = appliedPromo?.code || ((appliedReferral?.discount_amount ?? 0) > 0 ? appliedReferral?.code : null) || null;
-        
+        const pricingClientId = welcomeDiscountDismissed ? null : (user?.id || null);
+
         const result = await computeCheckoutPricing(
           cartItems,
           effectivePromoCode,
           profile?.email || user?.email || null,
-          user?.id || null,
+          pricingClientId,
           acceptPreauthorized ? 5 : 0,
         );
         console.log("[LivePricing] Server RPC response:", result);
@@ -3333,6 +3334,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     terminalFee, routerFee, simFee,
     acceptPreauthorized, appliedPromo?.code, appliedReferral?.code, appliedReferral?.discount_amount,
     profile?.email, user?.email, user?.id,
+    welcomeDiscountDismissed,
     createOrderMutation.isPending,
   ]);
 
