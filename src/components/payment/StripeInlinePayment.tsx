@@ -2,16 +2,6 @@
  * StripeInlinePayment — Embedded Stripe Payment Element.
  * Replaces StripeCheckoutButton with a fully inline card form.
  * No redirect, no external tab. Card data never touches Nivra servers.
- *
- * Usage:
- *   <StripeInlinePayment
- *     invoiceId="xxx"
- *     amount={45.99}
- *     customerEmail="client@example.com"
- *     customerId="billing-customer-uuid"
- *     onSuccess={() => ...}
- *     onError={(msg) => ...}
- *   />
  */
 import { useState, useEffect, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
@@ -43,12 +33,16 @@ export interface StripeBillingDetails {
   email: string;
 }
 
+export interface StripeInlinePaymentSuccessPayload {
+  paymentIntentId: string;
+}
+
 interface InnerFormProps {
   amount: number;
   customerEmail?: string;
   collectBillingDetails: boolean;
   defaultBillingDetails?: Partial<StripeBillingDetails>;
-  onSuccess?: () => void;
+  onSuccess?: (payload: StripeInlinePaymentSuccessPayload) => void;
   onError?: (msg: string) => void;
 }
 
@@ -130,7 +124,7 @@ function PaymentForm({
         return;
       }
 
-      const mountedPaymentElement = elements.getElement("payment");
+      const mountedPaymentElement = elements.getElement(PaymentElement);
       if (!mountedPaymentElement) {
         const msg = "Le formulaire Stripe n'est pas monté. Veuillez réessayer.";
         toast.error(msg);
@@ -141,6 +135,14 @@ function PaymentForm({
       setIsProcessing(true);
 
       try {
+        const submitResult = await elements.submit();
+        if (submitResult.error) {
+          const submitMsg = submitResult.error.message || "Le formulaire Stripe n'est pas valide.";
+          toast.error(submitMsg);
+          onError?.(submitMsg);
+          return;
+        }
+
         const fullName = `${billingDetails.firstName} ${billingDetails.lastName}`.trim();
         const billingPayload = collectBillingDetails
           ? {
@@ -188,7 +190,7 @@ function PaymentForm({
           queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
           queryClient.invalidateQueries({ queryKey: ["client-balance"] });
           queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
-          onSuccess?.();
+          onSuccess?.({ paymentIntentId: paymentIntent.id });
         } else {
           toast.info("Le paiement est en cours de traitement.");
         }
@@ -309,7 +311,7 @@ function PaymentForm({
         </div>
       )}
 
-      <div className="space-y-2 rounded-md border border-border bg-background p-4">
+      <div data-testid="stripe-payment-element" className="space-y-2 rounded-md border border-border bg-background p-4">
         <p className="text-sm font-semibold text-foreground">Informations de carte (Stripe sécurisé)</p>
         <PaymentElement
           onReady={() => {
@@ -319,6 +321,7 @@ function PaymentForm({
           onLoadError={() => {
             const msg = "Impossible de charger le formulaire de carte sécurisé.";
             setPaymentElementError(msg);
+            setPaymentElementReady(false);
             onError?.(msg);
           }}
           options={{
@@ -365,7 +368,7 @@ export interface StripeInlinePaymentProps {
   customerId?: string;
   collectBillingDetails?: boolean;
   defaultBillingDetails?: Partial<StripeBillingDetails>;
-  onSuccess?: () => void;
+  onSuccess?: (payload: StripeInlinePaymentSuccessPayload) => void;
   onError?: (msg: string) => void;
   disabled?: boolean;
 }
@@ -460,7 +463,7 @@ export function StripeInlinePayment({
         appearance: {
           theme: "stripe",
           variables: {
-            colorPrimary: "hsl(220, 90%, 56%)",
+            colorPrimary: "hsl(var(--primary))",
             borderRadius: "8px",
           },
         },

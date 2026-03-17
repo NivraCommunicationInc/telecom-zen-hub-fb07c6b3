@@ -679,16 +679,16 @@ const ClientNewOrder = () => {
   // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
   const [simType, setSimType] = useState<"esim" | "physical">("physical");
 
-  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | "promo_free" | null>("credit_card");
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | "promo_free" | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
-  
+
   // Stripe inline state for checkout
   const [stripeDraft, setStripeDraft] = useState<CheckoutDraftInvoiceResult | null>(null);
   const [stripeDraftLoading, setStripeDraftLoading] = useState(false);
   const [stripeDraftError, setStripeDraftError] = useState<string | null>(null);
-  
+
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvv, setCardCvv] = useState("");
@@ -1391,8 +1391,8 @@ const ClientNewOrder = () => {
   // Check if Mobile service is selected
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
   
-  // Check if Streaming service is selected
-  const hasStreamingService = selectedServices.some(s => s.category === "Streaming");
+  // Check if Streaming service is selected (catalog service OR Streaming+ add-on)
+  const hasStreamingService = selectedServices.some(s => s.category === "Streaming") || selectedStreamingServices.length > 0;
   
   // Check if Extras/Accessories service is selected
   const hasExtrasService = selectedServices.some(s => s.category === "Extras");
@@ -3470,9 +3470,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       }
     }
     
-    if (selectedServices.length === 0) {
+    if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       submittingRef.current = false;
-      toast.error("Veuillez sélectionner au moins un service");
+      toast.error("Veuillez sélectionner au moins un service ou un forfait Streaming+");
       return;
     }
     if (!isIdComplete) {
@@ -3782,18 +3782,18 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               )}
 
               {/* Spacer for fixed bottom bar on mobile */}
-              {selectedServices.length > 0 && <div className="lg:hidden h-28" />}
+              {(selectedServices.length > 0 || selectedStreamingServices.length > 0) && <div className="lg:hidden h-28" />}
 
               {/* Mobile Order Summary — visible only on mobile when services selected */}
-              {selectedServices.length > 0 && (
+              {(selectedServices.length > 0 || selectedStreamingServices.length > 0) && (
                 <div className="lg:hidden mt-4">
                   <ProfessionalOrderSummary
                     pricing={authoritativePricing}
                     isLoading={isServerPricingLoading}
                     isMobile
-                    selectedServicesCount={selectedServices.length}
+                    selectedServicesCount={selectedServices.length + selectedStreamingServices.length}
                     onContinue={() => setStep(2)}
-                    continueDisabled={selectedServices.length === 0}
+                    continueDisabled={selectedServices.length === 0 && selectedStreamingServices.length === 0}
                   />
                 </div>
               )}
@@ -3805,9 +3805,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 <ProfessionalOrderSummary
                   pricing={authoritativePricing}
                   isLoading={isServerPricingLoading}
-                  selectedServicesCount={selectedServices.length}
+                  selectedServicesCount={selectedServices.length + selectedStreamingServices.length}
                   onContinue={() => setStep(2)}
-                  continueDisabled={selectedServices.length === 0}
+                  continueDisabled={selectedServices.length === 0 && selectedStreamingServices.length === 0}
                 />
                 <SecurityTrustBox isFrench={true} />
               </div>
@@ -6093,7 +6093,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             serviceAddress: serviceAddressStreet || "",
                             serviceCity: serviceAddressCity || "",
                             servicePostalCode: serviceAddressPostalCode || "",
-                            serviceType: selectedServices[0]?.category || "bundle",
+                            serviceType: selectedServices[0]?.category || (selectedStreamingServices.length > 0 ? "streaming" : "bundle"),
                             description: `Checkout public — Commande Nivra`,
                           })
                             .then((result) => {
@@ -6221,13 +6221,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             country: "CA",
                             email: profile?.email || user?.email || "",
                           }}
-                          onSuccess={() => {
+                          onSuccess={({ paymentIntentId }) => {
                             setPaymentComplete(true);
-                            setPaymentConfirmationNumber(`STRIPE-${stripeDraft.invoiceNumber}`);
+                            setPaymentConfirmationNumber(paymentIntentId);
                             toast.success("Paiement par carte confirmé !");
                             // Traceability
                             logPaymentConfirmed({
-                              payment_reference: `STRIPE-${stripeDraft.invoiceNumber}`,
+                              payment_reference: paymentIntentId,
                               amount: uiTodayTotal,
                               method: "card",
                             });
@@ -6625,10 +6625,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         {isHydrated && (
           <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] px-4 py-3 safe-area-bottom" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
             {/* Step 1: Service Selection */}
-            {step === 1 && selectedServices.length > 0 && (
+            {step === 1 && (selectedServices.length > 0 || selectedStreamingServices.length > 0) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{selectedServices.length} service(s)</span>
+                  <span className="text-muted-foreground">{selectedServices.length + selectedStreamingServices.length} service(s)</span>
                   <span className="font-bold text-foreground">
                     {monthlyTotalWithTax.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
                   </span>
