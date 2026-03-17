@@ -1391,8 +1391,8 @@ const ClientNewOrder = () => {
   // Check if Mobile service is selected
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
   
-  // Check if Streaming service is selected
-  const hasStreamingService = selectedServices.some(s => s.category === "Streaming");
+  // Check if Streaming service is selected (catalog service OR Streaming+ add-on)
+  const hasStreamingService = selectedServices.some(s => s.category === "Streaming") || selectedStreamingServices.length > 0;
   
   // Check if Extras/Accessories service is selected
   const hasExtrasService = selectedServices.some(s => s.category === "Extras");
