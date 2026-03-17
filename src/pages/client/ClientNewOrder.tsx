@@ -6093,7 +6093,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             serviceAddress: serviceAddressStreet || "",
                             serviceCity: serviceAddressCity || "",
                             servicePostalCode: serviceAddressPostalCode || "",
-                            serviceType: selectedServices[0]?.category || "bundle",
+                            serviceType: selectedServices[0]?.category || (selectedStreamingServices.length > 0 ? "streaming" : "bundle"),
                             description: `Checkout public — Commande Nivra`,
                           })
                             .then((result) => {
