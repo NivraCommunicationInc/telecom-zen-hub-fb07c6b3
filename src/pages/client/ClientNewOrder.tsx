@@ -5166,8 +5166,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* ID Verification - Only for telecom services, not equipment-only orders */}
-              {!isEquipmentOnlyOrder ? (
+              {/* ID Verification - Only for telecom services, not equipment-only or streaming-only orders */}
+              {!isEquipmentOnlyOrder && !isStreamingOnlyOrder ? (
                 <Card className="bg-card border-border">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
