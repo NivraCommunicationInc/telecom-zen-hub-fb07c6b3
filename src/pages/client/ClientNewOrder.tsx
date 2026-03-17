@@ -5677,23 +5677,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     {totalDiscount > 0 && (
                       <>
-                        <div className="flex justify-between items-center text-sm text-emerald-500 font-medium group">
+                        <div className="flex justify-between items-center text-sm text-emerald-500 font-medium">
                           <span>Rabais{appliedPromo ? ` (${appliedPromo.code})` : welcomeDiscountAmount > 0 ? " nouveau client" : ""}</span>
                           <div className="flex items-center gap-1.5">
                             <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                            {/* Remove discount button */}
                             {welcomeDiscountAmount > 0 && !appliedPromo && (
-                              <button
+                              <Button
                                 type="button"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
-                                onClick={() => {
-                                  setWelcomeDiscountDismissed(true);
-                                  toast.info("Rabais nouveau client retiré");
-                                }}
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive hover:text-destructive"
+                                onClick={dismissWelcomeDiscount}
                                 title="Retirer le rabais"
                               >
                                 <Minus className="w-3.5 h-3.5" />
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </div>
