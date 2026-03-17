@@ -59,7 +59,7 @@ export function validateInvoicePayload(payload: InvoicePayload): InvoiceValidati
   
   // Tax validation — centralized server tax engine
   if (payload.subtotal !== undefined && payload.amount !== undefined) {
-    const { estimateTaxes } = await import("@/lib/pricing/serverTaxEngine") as any;
+    const { estimateTaxes } = require("@/lib/pricing/serverTaxEngine");
     const { tps: expectedTps, tvq: expectedTvq } = estimateTaxes(payload.subtotal);
     
     if (payload.tps_amount !== undefined && Math.abs(payload.tps_amount - expectedTps) > 0.02) {
