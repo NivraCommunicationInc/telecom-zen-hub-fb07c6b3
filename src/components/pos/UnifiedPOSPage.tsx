@@ -35,6 +35,46 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
 import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
 
+/** Resolve or create account for a client (used by non-card POS flow) */
+async function resolveAccountForOrder(clientId: string, serviceAddress: string, serviceCity: string, servicePostalCode: string): Promise<string> {
+  const { data: existing } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from("accounts")
+    .insert({
+      client_id: clientId,
+      status: "active",
+      primary_service_address: serviceAddress || null,
+      primary_service_city: serviceCity || null,
+      primary_service_province: "QC",
+      primary_service_postal_code: servicePostalCode || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      const { data: reFetched } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("client_id", clientId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (reFetched) return reFetched.id;
+    }
+    throw new Error(`Échec résolution compte: ${error.message}`);
+  }
+  return created.id;
+}
+
 type POSStep = "catalog" | "customer" | "payment" | "confirmation";
 type CatalogTab = "services" | "equipment" | "adjustments";
 
@@ -252,6 +292,39 @@ export default function UnifiedPOSPage({
       const custInfo = buildCustomerInfo();
       if (!custInfo) return;
 
+      // Ensure client has auth account + billing account before creating order
+      let resolvedClientId = custInfo.client_id;
+      if (!resolvedClientId) {
+        try {
+          const { data: autoResult } = await supabase.functions.invoke("auto-create-client-account", {
+            body: {
+              email: custInfo.email,
+              first_name: custInfo.first_name,
+              last_name: custInfo.last_name,
+              phone: custInfo.phone,
+              service_address: custInfo.service_address,
+              service_city: custInfo.service_city,
+              service_postal_code: custInfo.service_postal_code,
+              date_of_birth: custInfo.date_of_birth,
+            },
+          });
+          resolvedClientId = autoResult?.user_id || null;
+        } catch (linkErr) {
+          console.warn("[POS] auto-create-client-account failed:", linkErr);
+        }
+      }
+
+      if (!resolvedClientId) {
+        throw new Error("Impossible de résoudre le compte client. Veuillez réessayer.");
+      }
+
+      const accountId = await resolveAccountForOrder(
+        resolvedClientId,
+        custInfo.service_address,
+        custInfo.service_city,
+        custInfo.service_postal_code
+      );
+
       const payload = pos.getOrderPayload();
       const paymentMethod = paymentData.payment_method;
       const paymentReference = 'payment_reference' in paymentData ? paymentData.payment_reference : undefined;
@@ -260,7 +333,8 @@ export default function UnifiedPOSPage({
       const { data: newOrder, error } = await supabase
         .from("orders")
         .insert([{
-          user_id: custInfo.client_id,
+          user_id: resolvedClientId,
+          account_id: accountId,
           service_type: pos.services[0]?.category || "bundle",
           client_email: custInfo.email,
           client_dob: custInfo.date_of_birth,
@@ -301,28 +375,6 @@ export default function UnifiedPOSPage({
 
       if (error) throw error;
 
-      // Auto-create client if no client_id
-      if (!custInfo.client_id) {
-        try {
-          await supabase.functions.invoke("auto-create-client-account", {
-            body: {
-              email: custInfo.email,
-              first_name: custInfo.first_name,
-              last_name: custInfo.last_name,
-              phone: custInfo.phone,
-              order_id: newOrder.id,
-              order_number: (newOrder as any).order_number || undefined,
-              service_address: custInfo.service_address,
-              service_city: custInfo.service_city,
-              service_postal_code: custInfo.service_postal_code,
-              date_of_birth: custInfo.date_of_birth,
-            },
-          });
-        } catch (linkErr) {
-          console.warn("[POS] auto-create-client-account failed (order already created)");
-        }
-      }
-
       // Orchestration
       try {
         const { orchestrateOrder } = await import("@/lib/orderOrchestration");
@@ -359,28 +411,7 @@ export default function UnifiedPOSPage({
     try {
       await finalizePOSCardPayment(stripePending.orderId, portalType);
 
-      // Auto-create client account if no client_id
-      const custInfo = buildCustomerInfo();
-      if (custInfo && !custInfo.client_id) {
-        try {
-          await supabase.functions.invoke("auto-create-client-account", {
-            body: {
-              email: custInfo.email,
-              first_name: custInfo.first_name,
-              last_name: custInfo.last_name,
-              phone: custInfo.phone,
-              order_id: stripePending.orderId,
-              order_number: stripePending.orderNumber,
-              service_address: custInfo.service_address,
-              service_city: custInfo.service_city,
-              service_postal_code: custInfo.service_postal_code,
-              date_of_birth: custInfo.date_of_birth,
-            },
-          });
-        } catch (linkErr) {
-          console.warn("[POS] auto-create-client-account failed (non-blocking)");
-        }
-      }
+      // Client account already created by createPOSDraftInvoice
 
       onOrderComplete?.(stripePending.orderId);
 
