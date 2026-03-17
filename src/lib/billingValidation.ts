@@ -45,5 +45,6 @@ export function isPaymentCaptured(
   return status === "paid" && !!paidAt;
 }
 
-// Re-export TAX_RATES from billingCalculator for backward compatibility
-export { TAX_RATES, verifyBillingInvariant } from "@/lib/pdf/billingCalculator";
+// ═══ PHASE 3: TAX_RATES re-export REMOVED ═══
+// verifyBillingInvariant retained for audit usage only
+export { verifyBillingInvariant } from "@/lib/pdf/billingCalculator";

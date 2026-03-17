@@ -38,10 +38,9 @@ export type { OrderDocuments } from "./documentBuilder";
 
 // ============================================================================
 // LEGACY EXPORTS (backward compat — V2.5)
-// ============================================================================
+// ═══ PHASE 3: billingCalculator barrel export REMOVED (TAX_RATES, calculateBillingTotals no longer re-exported) ═══
 export { formatCurrencyCAD, formatDateFR, formatDateShort, sanitizeLegalText } from "./helpers";
 export * from "./pdfHelpers";
-export * from "./billingCalculator";
 export * from "./annexes";
 export {
   isPrintableText, sanitizeForPDF, assertPrintableText,
