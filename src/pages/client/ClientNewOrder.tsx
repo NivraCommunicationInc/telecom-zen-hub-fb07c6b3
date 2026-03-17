@@ -4858,7 +4858,36 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               )}
 
               {/* Delivery/Installation Choice Selector */}
-              {isDeliveryOnlyOrder ? (
+              {isStreamingOnlyOrder ? (
+                /* Streaming-only: Digital delivery — no physical shipping */
+                <Card className="bg-emerald-500/10 border-emerald-500/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-emerald-500" />
+                      Livraison numérique par courriel
+                    </CardTitle>
+                    <CardDescription>
+                      Aucune livraison physique requise pour les services Streaming+
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-3 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-emerald-600">Livraison numérique</p>
+                        <p className="text-sm text-muted-foreground">
+                          Vos codes d'activation et instructions d'abonnement seront envoyés automatiquement 
+                          par courriel à <strong className="text-foreground">{profile?.email || user?.email || "votre adresse courriel"}</strong> après la commande.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>Aucun frais de livraison • Aucun équipement physique • Activation immédiate</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : isDeliveryOnlyOrder ? (
                 /* Delivery Options for Mobile, Streaming, Accessories */
                 <Card className="bg-card border-blue-500/30">
                   <CardHeader>
