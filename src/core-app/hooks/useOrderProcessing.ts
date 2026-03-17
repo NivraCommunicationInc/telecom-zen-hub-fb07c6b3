@@ -522,6 +522,8 @@ export function useOrderProcessing(orderId: string | undefined) {
   };
 
   /* ── Confirm payment ── */
+  /* PHASE 1 FIX: Updates EXISTING billing_payment instead of creating a duplicate.
+   * Preserves original provider/method. No RPC apply_payment_to_invoice here. */
   const confirmPayment = async (reference?: string) => {
     try {
       const targetInvoice = data?.invoice;
@@ -537,47 +539,69 @@ export function useOrderProcessing(orderId: string | undefined) {
         return;
       }
 
-      const amountToApply = Number(targetInvoice.balance_due ?? targetInvoice.total ?? 0);
-      if (amountToApply <= 0) {
-        toast.info("Aucun solde à confirmer");
-        return;
+      // Step 1: Find the EXISTING pending/in_verification payment for this invoice
+      const { data: existingPayments, error: fetchError } = await supabase
+        .from("billing_payments")
+        .select("*")
+        .eq("invoice_id", targetInvoice.id)
+        .in("status", ["pending", "in_verification"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+
+      const existingPayment = existingPayments?.[0];
+      if (!existingPayment) {
+        throw new Error("Aucun paiement en attente trouvé pour cette facture. Utilisez 'Enregistrer paiement' pour créer un nouveau paiement.");
       }
 
-      const { data: rpcResult, error } = await supabase.rpc("apply_payment_to_invoice" as any, {
-        p_invoice_id: targetInvoice.id,
-        p_amount: amountToApply,
-        p_method: mapToBillingMethod(data?.order?.payment_method),
-        p_provider: "admin_manual_confirmation",
-        p_provider_payment_id: reference || `admin-${Date.now()}`,
-        p_source: "admin",
-        p_created_by_name: user?.email || "Admin",
-        p_created_by_role: "admin",
-        p_customer_id: targetInvoice.customer_id || null,
-      });
+      // Step 2: UPDATE the existing payment — preserve original provider and method
+      const now = new Date().toISOString();
+      const { error: updatePaymentError } = await supabase
+        .from("billing_payments")
+        .update({
+          status: "confirmed" as any,
+          confirmed_by: user?.email || "admin",
+          received_at: now,
+          reference: reference || existingPayment.reference,
+        })
+        .eq("id", existingPayment.id);
 
-      if (error) throw error;
+      if (updatePaymentError) throw updatePaymentError;
 
-      const rpcPayload = (rpcResult || {}) as any;
-      if (!rpcPayload.success) {
-        const message = rpcPayload.error || "Échec de synchronisation du paiement";
-        if (rpcPayload.already_paid) {
-          toast.info("Cette facture est déjà réglée");
-          return;
-        }
-        throw new Error(message);
-      }
+      // Step 3: Update the invoice — mark as paid
+      const newAmountPaid = Number(targetInvoice.amount_paid ?? 0) + Number(existingPayment.amount);
+      const newBalanceDue = Math.max(0, Number(targetInvoice.total) - newAmountPaid);
+      const isFullyPaid = newBalanceDue <= 0.01;
 
+      const { error: updateInvoiceError } = await supabase
+        .from("billing_invoices")
+        .update({
+          amount_paid: Math.round(newAmountPaid * 100) / 100,
+          balance_due: Math.round(newBalanceDue * 100) / 100,
+          status: (isFullyPaid ? "paid" : "partially_paid") as any,
+          paid_at: isFullyPaid ? now : targetInvoice.paid_at,
+          payment_method: existingPayment.method,
+        })
+        .eq("id", targetInvoice.id);
+
+      if (updateInvoiceError) throw updateInvoiceError;
+
+      // Step 4: Update order record
       await updateOrder.mutateAsync({
-        payment_confirmed_at: new Date().toISOString(),
-        payment_reference: reference || data?.order?.payment_reference || "admin-confirmed",
+        payment_confirmed_at: now,
+        payment_reference: reference || existingPayment.reference || data?.order?.payment_reference || "admin-confirmed",
       });
 
       await logActivity("payment_confirmed", "order", orderId, {
         reference,
+        payment_id: existingPayment.id,
+        payment_number: existingPayment.payment_number,
         invoice_id: targetInvoice.id,
         invoice_number: targetInvoice.invoice_number,
-        amount_applied: amountToApply,
-        rpc_result: rpcPayload,
+        amount_confirmed: existingPayment.amount,
+        original_method: existingPayment.method,
+        original_provider: existingPayment.provider,
       });
 
       // Queue email notification
@@ -597,8 +621,8 @@ export function useOrderProcessing(orderId: string | undefined) {
             invoice_id: targetInvoice.id,
             invoice_number: targetInvoice.invoice_number || "",
             order_number: data?.order?.order_number || "",
-            amount: amountToApply,
-            reference: reference || "",
+            amount: existingPayment.amount,
+            reference: reference || existingPayment.reference || "",
           },
         });
       }
