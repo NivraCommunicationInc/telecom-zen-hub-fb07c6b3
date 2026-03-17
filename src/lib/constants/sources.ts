@@ -43,4 +43,5 @@ export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
   [PAYMENT_SOURCES.CHECK]: 'Chèque',
   [PAYMENT_SOURCES.BANK_TRANSFER]: 'Virement bancaire',
   [PAYMENT_SOURCES.PAYPAL]: 'PayPal',
+  [PAYMENT_SOURCES.STRIPE]: 'Stripe',
 };
