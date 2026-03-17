@@ -5485,13 +5485,40 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Monthly Recurring Services */}
+                  {/* Monthly Recurring Services — with remove buttons */}
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Services mensuels</p>
                     {selectedServices.map((service) => (
-                      <div key={service.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{service.name}</span>
-                        <span className="text-foreground">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <div key={service.id} className="flex justify-between items-center text-sm group">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80 flex-shrink-0"
+                            onClick={() => setSelectedServices(prev => prev.filter(s => s.id !== service.id))}
+                            title="Retirer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-muted-foreground truncate">{service.name}</span>
+                        </div>
+                        <span className="text-foreground whitespace-nowrap">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      </div>
+                    ))}
+                    {/* Streaming+ add-ons in sidebar */}
+                    {selectedStreamingServices.map((s) => (
+                      <div key={s.id} className="flex justify-between items-center text-sm group">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80 flex-shrink-0"
+                            onClick={() => setSelectedStreamingServices(prev => prev.filter(x => x.id !== s.id))}
+                            title="Retirer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-orange-500 truncate">{s.name}</span>
+                        </div>
+                        <span className="text-orange-500 whitespace-nowrap">{Number(s.monthly_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     ))}
                     {paidChannelTotal > 0 && (
