@@ -3500,16 +3500,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       toast.error("Veuillez sélectionner au moins un service ou un forfait Streaming+");
       return;
     }
-    if (!isIdComplete) {
-      submittingRef.current = false;
-      toast.error("Veuillez remplir tous les champs d'identification");
-      return;
-    }
-    // BLOCK if QR identity verification not submitted (docs must be submitted for review)
-    if (!idVerificationApproved || !verificationSessionId) {
-      submittingRef.current = false;
-      toast.error("Vérification d'identité QR requise avant de soumettre la commande.");
-      return;
+    // Streaming+ only orders: NO identity/KYC validation required
+    if (!isStreamingOnlyOrder) {
+      if (!isIdComplete) {
+        submittingRef.current = false;
+        toast.error("Veuillez remplir tous les champs d'identification");
+        return;
+      }
+      // BLOCK if QR identity verification not submitted (docs must be submitted for review)
+      if (!idVerificationApproved || !verificationSessionId) {
+        submittingRef.current = false;
+        toast.error("Vérification d'identité QR requise avant de soumettre la commande.");
+        return;
+      }
     }
     // Validate delivery/installation choice based on order type
     // Streaming-only orders use digital delivery — no validation needed
