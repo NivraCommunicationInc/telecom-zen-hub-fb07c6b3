@@ -597,6 +597,8 @@ const ClientNewOrder = () => {
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  // Welcome discount dismissal — client can remove the auto-applied welcome discount
+  const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
   
   
   // ID verification state (legacy fields)
@@ -1406,8 +1408,15 @@ const ClientNewOrder = () => {
         ? "tv"
         : "mobile";
   
-  // Check if this is a delivery-only order (Mobile, Streaming, or Accessories only - no technician installation)
-  const isDeliveryOnlyOrder = (hasMobileService || hasStreamingService || hasExtrasService) && 
+  // Check if this is a Streaming-only order (only Streaming+ add-ons, no physical services)
+  // Streaming-only orders get DIGITAL delivery only — no physical shipping, no delivery fees
+  const isStreamingOnlyOrder = selectedStreamingServices.length > 0 && 
+    selectedServices.length === 0 && !hasExtrasService;
+
+  // Check if this is a delivery-only order (Mobile, or Accessories only - no technician installation)
+  // IMPORTANT: Streaming-only orders are NOT delivery-only — they use digital delivery
+  const isDeliveryOnlyOrder = !isStreamingOnlyOrder && 
+    (hasMobileService || hasStreamingService || hasExtrasService) && 
     !hasTVService && !hasInternetService && !selectedServices.some(s => s.category === "Sécurité");
   
   // Check if this is an equipment/accessories-only order (no service plans requiring ID)
@@ -3087,8 +3096,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   
   // Fee logic based on installation choice OR delivery choice for delivery-only orders
   const calculateDeliveryFee = (): number => {
+    // Streaming-only = digital delivery, zero fee
+    if (isStreamingOnlyOrder) return 0;
     if (isDeliveryOnlyOrder) {
-      // For Mobile, Streaming, Accessories - use delivery choice
+      // For Mobile, Accessories - use delivery choice
       if (deliveryChoice === "uber") return DELIVERY_CONFIG.uber.fee;
       if (deliveryChoice === "shipHome") return DELIVERY_CONFIG.shipHome.fee;
       if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
@@ -3129,12 +3140,18 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   //   - welcome_discount (50% new customer, 0 if not eligible)
   //   - discount_total_combined (sum of both, no stacking)
   const serverPromoDiscount = toNonNegativeMoney(liveServerPricing?.promo_discount ?? 0);
-  const welcomeDiscountAmount = toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0);
-  const hasWelcomeDiscountAlreadyApplied = welcomeDiscountAmount > 0 || !!liveServerPricing?.welcome_applied;
+  // Welcome discount: respect client dismissal
+  const serverWelcomeDiscount = toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0);
+  const welcomeDiscountAmount = welcomeDiscountDismissed ? 0 : serverWelcomeDiscount;
+  const hasWelcomeDiscountAlreadyApplied = !welcomeDiscountDismissed && (serverWelcomeDiscount > 0 || !!liveServerPricing?.welcome_applied);
   const promoDiscount = serverPromoDiscount; // alias for backward compat
 
   // Total discount from server (promo + welcome, mutually exclusive / no stacking)
-  const totalDiscount = toNonNegativeMoney(liveServerPricing?.discount_total_combined ?? 0);
+  // If welcome discount dismissed, subtract it from the combined total
+  const serverTotalDiscount = toNonNegativeMoney(liveServerPricing?.discount_total_combined ?? 0);
+  const totalDiscount = welcomeDiscountDismissed 
+    ? toNonNegativeMoney(serverTotalDiscount - serverWelcomeDiscount)
+    : serverTotalDiscount;
 
   // Check if promo was blocked by the RPC (e.g., welcome discount takes priority)
   const promoBlockedReason = liveServerPricing?.promo_applied?.blocked_reason as string | undefined;
@@ -3487,7 +3504,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return;
     }
     // Validate delivery/installation choice based on order type
-    if (isDeliveryOnlyOrder) {
+    // Streaming-only orders use digital delivery — no validation needed
+    if (isDeliveryOnlyOrder && !isStreamingOnlyOrder) {
       if (!deliveryChoice) {
         submittingRef.current = false;
         toast.error("Veuillez choisir un mode de livraison");
@@ -4849,7 +4867,36 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               )}
 
               {/* Delivery/Installation Choice Selector */}
-              {isDeliveryOnlyOrder ? (
+              {isStreamingOnlyOrder ? (
+                /* Streaming-only: Digital delivery — no physical shipping */
+                <Card className="bg-emerald-500/10 border-emerald-500/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-emerald-500" />
+                      Livraison numérique par courriel
+                    </CardTitle>
+                    <CardDescription>
+                      Aucune livraison physique requise pour les services Streaming+
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-3 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-emerald-600">Livraison numérique</p>
+                        <p className="text-sm text-muted-foreground">
+                          Vos codes d'activation et instructions d'abonnement seront envoyés automatiquement 
+                          par courriel à <strong className="text-foreground">{profile?.email || user?.email || "votre adresse courriel"}</strong> après la commande.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>Aucun frais de livraison • Aucun équipement physique • Activation immédiate</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : isDeliveryOnlyOrder ? (
                 /* Delivery Options for Mobile, Streaming, Accessories */
                 <Card className="bg-card border-blue-500/30">
                   <CardHeader>
@@ -5438,13 +5485,40 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Monthly Recurring Services */}
+                  {/* Monthly Recurring Services — with remove buttons */}
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Services mensuels</p>
                     {selectedServices.map((service) => (
-                      <div key={service.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{service.name}</span>
-                        <span className="text-foreground">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      <div key={service.id} className="flex justify-between items-center text-sm group">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80 flex-shrink-0"
+                            onClick={() => setSelectedServices(prev => prev.filter(s => s.id !== service.id))}
+                            title="Retirer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-muted-foreground truncate">{service.name}</span>
+                        </div>
+                        <span className="text-foreground whitespace-nowrap">{Number(service.price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
+                      </div>
+                    ))}
+                    {/* Streaming+ add-ons in sidebar */}
+                    {selectedStreamingServices.map((s) => (
+                      <div key={s.id} className="flex justify-between items-center text-sm group">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80 flex-shrink-0"
+                            onClick={() => setSelectedStreamingServices(prev => prev.filter(x => x.id !== s.id))}
+                            title="Retirer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-orange-500 truncate">{s.name}</span>
+                        </div>
+                        <span className="text-orange-500 whitespace-nowrap">{Number(s.monthly_price).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois</span>
                       </div>
                     ))}
                     {paidChannelTotal > 0 && (
@@ -5582,15 +5656,44 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     {totalDiscount > 0 && (
                       <>
-                        <div className="flex justify-between text-sm text-emerald-500 font-medium">
+                        <div className="flex justify-between items-center text-sm text-emerald-500 font-medium group">
                           <span>Rabais{appliedPromo ? ` (${appliedPromo.code})` : welcomeDiscountAmount > 0 ? " nouveau client" : ""}</span>
-                          <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                            {/* Remove discount button */}
+                            {welcomeDiscountAmount > 0 && !appliedPromo && (
+                              <button
+                                type="button"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                                onClick={() => {
+                                  setWelcomeDiscountDismissed(true);
+                                  toast.info("Rabais nouveau client retiré");
+                                }}
+                                title="Retirer le rabais"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="flex justify-between text-sm font-medium">
                           <span className="text-muted-foreground">Net 1er mois après rabais</span>
                           <span className="text-foreground">{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                         </div>
                       </>
+                    )}
+                    {/* Dismissed welcome discount — offer to re-add */}
+                    {welcomeDiscountDismissed && serverWelcomeDiscount > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-emerald-500 underline hover:text-emerald-600"
+                        onClick={() => {
+                          setWelcomeDiscountDismissed(false);
+                          toast.success("Rabais nouveau client réappliqué");
+                        }}
+                      >
+                        + Réappliquer le rabais nouveau client (-{serverWelcomeDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})
+                      </button>
                     )}
                   </div>
 
@@ -5631,14 +5734,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setStep(nextStep);
                       }}
                       disabled={
-                        // For equipment-only orders, only need delivery choice (no ID required)
-                        isEquipmentOnlyOrder 
-                          ? !deliveryChoice
-                          // For other delivery-only orders (mobile), need ID + delivery choice
-                          : isDeliveryOnlyOrder 
-                            ? (!isIdComplete || !deliveryChoice)
-                            // For installation orders, need ID + installation choice + confirmed technician appointment
-                            : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
+                        // Streaming-only: no delivery/installation required, just need identity (if not equipment-only)
+                        isStreamingOnlyOrder
+                          ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                          // For equipment-only orders, only need delivery choice (no ID required)
+                          : isEquipmentOnlyOrder 
+                            ? !deliveryChoice
+                            // For other delivery-only orders (mobile), need ID + delivery choice
+                            : isDeliveryOnlyOrder 
+                              ? (!isIdComplete || !deliveryChoice)
+                              // For installation orders, need ID + installation choice + confirmed technician appointment
+                              : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
                       }
                     >
                       Réviser et confirmer
@@ -6701,11 +6807,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     else nextStep = 3;
                     setStep(nextStep);
                   }} disabled={
-                    isEquipmentOnlyOrder 
-                      ? !deliveryChoice
-                      : isDeliveryOnlyOrder 
-                        ? (!isIdComplete || !deliveryChoice)
-                        : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
+                    isStreamingOnlyOrder
+                      ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                      : isEquipmentOnlyOrder 
+                        ? !deliveryChoice
+                        : isDeliveryOnlyOrder 
+                          ? (!isIdComplete || !deliveryChoice)
+                          : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
                   }>
                     Réviser <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
