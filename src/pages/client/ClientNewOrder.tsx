@@ -5756,9 +5756,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setStep(nextStep);
                       }}
                       disabled={
-                        // Streaming-only: no delivery/installation required, just need identity (if not equipment-only)
+                        // Streaming-only: no delivery/installation/identity required
                         isStreamingOnlyOrder
-                          ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                          ? false
                           // For equipment-only orders, only need delivery choice (no ID required)
                           : isEquipmentOnlyOrder 
                             ? !deliveryChoice
