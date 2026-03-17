@@ -39,8 +39,8 @@ const ClientPayments = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Credit card is in maintenance mode
-  const isCreditCardMaintenance = true;
+  // Credit card is active via Stripe
+  const isCreditCardMaintenance = false;
 
   return (
     <ClientLayout>
