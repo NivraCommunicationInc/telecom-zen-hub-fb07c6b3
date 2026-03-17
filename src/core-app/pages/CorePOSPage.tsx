@@ -6,7 +6,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { backendClient } from "@/integrations/backend/client";
-import { useFieldSalesOffers, FieldSalesOffer, SelectedService, TAX_RATES } from "@/hooks/useFieldSalesOffers";
+import { useFieldSalesOffers, FieldSalesOffer, SelectedService } from "@/hooks/useFieldSalesOffers";
+import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
