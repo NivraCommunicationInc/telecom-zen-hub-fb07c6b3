@@ -57,40 +57,26 @@ serve(async (req) => {
 
     console.log(`[stripe-webhook] Event received: ${event.type} (${event.id})`);
 
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const metadata = session.metadata || {};
-      const invoiceId = metadata.invoice_id;
-      const customerId = metadata.customer_id;
-
-      if (!invoiceId) {
-        console.warn("[stripe-webhook] checkout.session.completed without invoice_id metadata — skipping");
-        return new Response(JSON.stringify({ received: true, skipped: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Get payment amount (Stripe sends in cents)
-      const amountPaid = (session.amount_total || 0) / 100;
-      const paymentIntentId = typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : session.payment_intent?.id || session.id;
-
-      console.log(`[stripe-webhook] Processing payment: invoice=${invoiceId}, amount=${amountPaid}, pi=${paymentIntentId}`);
-
+    // ─────────────────────────────────────────────────────────────
+    // SHARED HELPER: apply payment idempotently
+    // ─────────────────────────────────────────────────────────────
+    async function applyPayment(
+      invoiceId: string,
+      amountPaid: number,
+      paymentIntentId: string,
+      customerId: string | null,
+      eventSource: string,
+    ) {
       // Idempotency: check if this payment_intent was already processed
       const { data: existingPayment } = await supabase
         .from("billing_payments")
         .select("id")
         .eq("provider_payment_id", paymentIntentId)
-        .eq("status", "confirmed")
         .maybeSingle();
 
       if (existingPayment) {
-        console.log(`[stripe-webhook] Payment ${paymentIntentId} already processed — idempotent skip`);
-        return new Response(JSON.stringify({ received: true, already_processed: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        console.log(`[stripe-webhook] Payment ${paymentIntentId} already processed (via ${eventSource}) — idempotent skip`);
+        return { already_processed: true };
       }
 
       // ★ USE THE CANONICAL RPC — SINGLE SOURCE OF TRUTH ★
@@ -110,11 +96,11 @@ serve(async (req) => {
       );
 
       if (rpcError) {
-        console.error("[stripe-webhook] RPC error:", rpcError);
+        console.error(`[stripe-webhook] RPC error (${eventSource}):`, rpcError);
         throw new Error(`apply_payment_to_invoice failed: ${rpcError.message}`);
       }
 
-      console.log(`[stripe-webhook] ✓ Payment applied via RPC:`, rpcResult);
+      console.log(`[stripe-webhook] ✓ Payment applied via RPC (${eventSource}):`, rpcResult);
 
       // Queue confirmation email
       if (customerId) {
@@ -151,8 +137,69 @@ serve(async (req) => {
         }
       }
 
+      return { rpc_result: rpcResult };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // EVENT: checkout.session.completed
+    // Primary path — fires when user completes Stripe Checkout
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata || {};
+      const invoiceId = metadata.invoice_id;
+      const customerId = metadata.customer_id;
+
+      if (!invoiceId) {
+        console.warn("[stripe-webhook] checkout.session.completed without invoice_id metadata — skipping");
+        return new Response(JSON.stringify({ received: true, skipped: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const amountPaid = (session.amount_total || 0) / 100;
+      const paymentIntentId = typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id || session.id;
+
+      console.log(`[stripe-webhook] checkout.session.completed: invoice=${invoiceId}, amount=${amountPaid}, pi=${paymentIntentId}`);
+
+      const result = await applyPayment(invoiceId, amountPaid, paymentIntentId, customerId, "checkout.session.completed");
+
       return new Response(
-        JSON.stringify({ received: true, invoice_id: invoiceId, rpc_result: rpcResult }),
+        JSON.stringify({ received: true, invoice_id: invoiceId, ...result }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // EVENT: payment_intent.succeeded
+    // Safety net — fires independently of Checkout Sessions.
+    // If checkout.session.completed already processed this PI,
+    // the idempotency check in applyPayment() will skip gracefully.
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "payment_intent.succeeded") {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const metadata = paymentIntent.metadata || {};
+      const invoiceId = metadata.invoice_id;
+      const customerId = metadata.customer_id;
+
+      if (!invoiceId) {
+        console.log("[stripe-webhook] payment_intent.succeeded without invoice_id metadata — skipping");
+        return new Response(JSON.stringify({ received: true, skipped: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const amountPaid = (paymentIntent.amount_received || paymentIntent.amount || 0) / 100;
+      const paymentIntentId = paymentIntent.id;
+
+      console.log(`[stripe-webhook] payment_intent.succeeded: invoice=${invoiceId}, amount=${amountPaid}, pi=${paymentIntentId}`);
+
+      const result = await applyPayment(invoiceId, amountPaid, paymentIntentId, customerId, "payment_intent.succeeded");
+
+      return new Response(
+        JSON.stringify({ received: true, invoice_id: invoiceId, ...result }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
