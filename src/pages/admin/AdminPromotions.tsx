@@ -778,7 +778,7 @@ const AdminPromotions = () => {
                       <span>{((previewSubtotal - calculatePreviewDiscount()) * 0.05).toFixed(2)} $</span>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>TVQ (9.975%)</span>
+                      <span>TVQ (9,975%)</span>
                       <span>{((previewSubtotal - calculatePreviewDiscount()) * 0.09975).toFixed(2)} $</span>
                     </div>
                     <div className="flex justify-between border-t pt-2 font-bold text-lg">
