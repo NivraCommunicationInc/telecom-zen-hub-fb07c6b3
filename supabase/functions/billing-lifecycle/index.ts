@@ -358,9 +358,7 @@ async function processLegacyRenewals(
       } else {
         subtotal = sub.plan_price;
       }
-      const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-      const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-      const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+      const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
 
       const hasPayPal = !!sub.paypal_subscription_id;
       const paymentMethod = hasPayPal ? "paypal" : "interac";

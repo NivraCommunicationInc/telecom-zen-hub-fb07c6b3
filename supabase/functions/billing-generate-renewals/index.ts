@@ -118,11 +118,9 @@ serve(async (req) => {
           }
         }
         
-        // Calculate amounts
+        // Calculate amounts via canonical tax module
         const subtotal = Math.max(0, sub.plan_price - promoDiscount);
-        const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-        const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-        const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+        const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
         
         // Due date = current cycle end date (J0) - prepaid model requires payment BEFORE service expires
         const dueDate = sub.cycle_end_date;

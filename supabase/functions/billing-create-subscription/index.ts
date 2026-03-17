@@ -97,11 +97,9 @@ serve(async (req) => {
     
     const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
     
-    // Step 4: Calculate amounts
+    // Step 4: Calculate amounts via canonical tax module
     const subtotal = body.plan_price;
-    const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-    const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-    const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+    const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
     
     // Due date = cycle end date
     const dueDate = cycleEndDate.toISOString().split('T')[0];

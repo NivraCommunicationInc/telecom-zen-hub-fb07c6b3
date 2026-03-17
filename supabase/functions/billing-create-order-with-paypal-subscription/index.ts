@@ -358,9 +358,7 @@ serve(async (req) => {
       // Calculate amounts with discount
       const invoiceActivationFee = i === 0 ? activationFee : 0;
       const subtotal = discountedPrice + invoiceActivationFee;
-      const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-      const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-      const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+      const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
       
       // Create invoice - PayPal method, pending
       const { data: invoice, error: invoiceError } = await supabase
