@@ -6221,13 +6221,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             country: "CA",
                             email: profile?.email || user?.email || "",
                           }}
-                          onSuccess={() => {
+                          onSuccess={({ paymentIntentId }) => {
                             setPaymentComplete(true);
-                            setPaymentConfirmationNumber(`STRIPE-${stripeDraft.invoiceNumber}`);
+                            setPaymentConfirmationNumber(paymentIntentId);
                             toast.success("Paiement par carte confirmé !");
                             // Traceability
                             logPaymentConfirmed({
-                              payment_reference: `STRIPE-${stripeDraft.invoiceNumber}`,
+                              payment_reference: paymentIntentId,
                               amount: uiTodayTotal,
                               method: "card",
                             });
