@@ -5,9 +5,8 @@
 import { jsPDF } from "jspdf";
 import { ACTIVE_CONTRACT_TEMPLATE, getContractEngineFooterLine } from "./contractTemplate";
 
-// Tax rates for Quebec
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+// Tax calculation — centralized server tax engine
+import { estimateTaxes, COMBINED_TAX_MULTIPLIER } from "@/lib/pricing/serverTaxEngine";
 
 interface FieldSalesContractData {
   orderNumber: string;

@@ -145,8 +145,8 @@ export function getNext12BillingDates(billingDay: number, startDate?: Date): Dat
 export const BILLING_CONSTANTS = {
   INVOICE_GENERATION_DAYS_BEFORE: 5, // J-5: Invoice generated 5 days before Bill Cycle
   ETRANSFER_GRACE_HOURS: 24, // Grace period for e-Transfer in verification at J0
-  TPS_RATE: 0.05,
-  TVQ_RATE: 0.09975,
+  /** @deprecated Use estimateTaxes() from serverTaxEngine */ TPS_RATE: 0.05,
+  /** @deprecated Use estimateTaxes() from serverTaxEngine */ TVQ_RATE: 0.09975,
   DISPUTE_INTEREST_RATE: 0.05, // 5% per month for disputes/chargebacks only
   NUMBER_LOSS_DAYS: 90, // After 90 days, number may be unrecoverable
 } as const;
