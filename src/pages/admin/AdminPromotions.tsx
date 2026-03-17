@@ -774,18 +774,20 @@ const AdminPromotions = () => {
                       <span>Après réduction</span>
                       <span>{(previewSubtotal - calculatePreviewDiscount()).toFixed(2)} $</span>
                     </div>
+                    {(() => { const taxResult = estimateTaxes(previewSubtotal - calculatePreviewDiscount()); return (<>
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>TPS (5%)</span>
-                      <span>{((previewSubtotal - calculatePreviewDiscount()) * 0.05).toFixed(2)} $</span>
+                      <span>{TAX_DISPLAY.TPS_LABEL}</span>
+                      <span>{taxResult.tps.toFixed(2)} $</span>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>TVQ (9,975%)</span>
-                      <span>{((previewSubtotal - calculatePreviewDiscount()) * 0.09975).toFixed(2)} $</span>
+                      <span>{TAX_DISPLAY.TVQ_LABEL}</span>
+                      <span>{taxResult.tvq.toFixed(2)} $</span>
                     </div>
                     <div className="flex justify-between border-t pt-2 font-bold text-lg">
                       <span>Total</span>
-                      <span>{((previewSubtotal - calculatePreviewDiscount()) * 1.14975).toFixed(2)} $</span>
+                      <span>{taxResult.total.toFixed(2)} $</span>
                     </div>
+                    </>); })()}
                   </div>
                 </CardContent>
               </Card>

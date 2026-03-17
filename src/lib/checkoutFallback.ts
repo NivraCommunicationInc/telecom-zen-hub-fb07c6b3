@@ -346,10 +346,13 @@ export async function fallbackCheckout(
   const promoDiscount = Number(pricing.promo_discount) || 0;
   const preauthDiscount = Number(pricing.preauth_discount) || 0;
   const taxableBase = Number(pricing.taxable_base) || subtotal;
-  const fallbackTax = estimateTaxesFallback(taxableBase);
-  const tpsAmount = Number(pricing.tps_amount) || fallbackTax.tps;
-  const tvqAmount = Number(pricing.tvq_amount) || fallbackTax.tvq;
-  const grandTotal = Number(pricing.grand_total) || fallbackTax.total;
+  const tpsAmount = Number(pricing.tps_amount);
+  const tvqAmount = Number(pricing.tvq_amount);
+  const grandTotal = Number(pricing.grand_total);
+  if (!tpsAmount || !tvqAmount || !grandTotal) {
+    console.error("[FallbackCheckout] ❌ CRITICAL: pricing_snapshot missing tax/total values — refusing silent local fallback", { tps_amount: pricing.tps_amount, tvq_amount: pricing.tvq_amount, grand_total: pricing.grand_total });
+    throw new Error("Checkout blocked: pricing_snapshot is incomplete (missing tps_amount, tvq_amount, or grand_total). Server pricing RPC must provide these values.");
+  }
   const billingCycleDay = new Date().getDate();
 
   // ── 5. Determine canonical billing fields ──
