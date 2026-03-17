@@ -218,3 +218,9 @@ verify_jwt = false
 
 [functions.process-id-ocr]
 verify_jwt = false
+
+[functions.stripe-create-payment-intent]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
