@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { computeTaxes } from "../_shared/tax-constants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,8 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+// Tax rates imported from _shared/tax-constants.ts
 
 interface RunStats {
   subscriptions_expired: number;
@@ -358,9 +358,7 @@ async function processLegacyRenewals(
       } else {
         subtotal = sub.plan_price;
       }
-      const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-      const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-      const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+      const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
 
       const hasPayPal = !!sub.paypal_subscription_id;
       const paymentMethod = hasPayPal ? "paypal" : "interac";

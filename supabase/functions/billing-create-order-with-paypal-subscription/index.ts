@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { computeTaxes, COMBINED_TAX_PERCENTAGE } from "../_shared/tax-constants.ts";
 
 /**
  * ============================================================================
@@ -118,10 +119,6 @@ serve(async (req) => {
       throw new Error("This endpoint requires enable_auto_billing=true. Use billing-create-order for non-auto-billing.");
     }
     
-    // Tax rates Quebec
-    const TPS_RATE = 0.05;
-    const TVQ_RATE = 0.09975;
-    
     // Calculate activation fee
     const serviceCount = body.services.length;
     const activationFee = serviceCount === 1 ? 25.00 : 45.00;
@@ -233,7 +230,7 @@ serve(async (req) => {
         payment_failure_threshold: 3,
       },
       taxes: {
-        percentage: "14.975", // TPS + TVQ
+        percentage: COMBINED_TAX_PERCENTAGE,
         inclusive: false,
       },
     };
@@ -361,9 +358,7 @@ serve(async (req) => {
       // Calculate amounts with discount
       const invoiceActivationFee = i === 0 ? activationFee : 0;
       const subtotal = discountedPrice + invoiceActivationFee;
-      const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-      const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-      const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+      const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
       
       // Create invoice - PayPal method, pending
       const { data: invoice, error: invoiceError } = await supabase

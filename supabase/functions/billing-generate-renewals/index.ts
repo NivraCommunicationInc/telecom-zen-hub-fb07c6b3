@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { computeTaxes } from "../_shared/tax-constants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,10 +22,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Tax rates Quebec
-    const TPS_RATE = 0.05;
-    const TVQ_RATE = 0.09975;
-    
     // Calculate J-3 date
     const today = new Date();
     const targetDate = new Date();
@@ -121,11 +118,9 @@ serve(async (req) => {
           }
         }
         
-        // Calculate amounts
+        // Calculate amounts via canonical tax module
         const subtotal = Math.max(0, sub.plan_price - promoDiscount);
-        const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-        const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-        const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+        const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
         
         // Due date = current cycle end date (J0) - prepaid model requires payment BEFORE service expires
         const dueDate = sub.cycle_end_date;

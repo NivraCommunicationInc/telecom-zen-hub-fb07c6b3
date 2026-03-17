@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { computeTaxes } from "../_shared/tax-constants.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,10 +33,6 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: CreateSubscriptionRequest = await req.json();
-    
-    // Tax rates Quebec
-    const TPS_RATE = 0.05;
-    const TVQ_RATE = 0.09975;
     
     let customerId = body.customer_id;
     
@@ -100,11 +97,9 @@ serve(async (req) => {
     
     const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
     
-    // Step 4: Calculate amounts
+    // Step 4: Calculate amounts via canonical tax module
     const subtotal = body.plan_price;
-    const tpsAmount = Math.round(subtotal * TPS_RATE * 100) / 100;
-    const tvqAmount = Math.round(subtotal * TVQ_RATE * 100) / 100;
-    const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+    const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
     
     // Due date = cycle end date
     const dueDate = cycleEndDate.toISOString().split('T')[0];

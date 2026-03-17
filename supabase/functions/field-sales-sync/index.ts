@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
+import { computeTaxes } from "../_shared/tax-constants.ts";
 
 /**
  * Field Sales Sync Edge Function
@@ -241,11 +242,9 @@ Deno.serve(async (req) => {
         const deliveryFee = 0;
         const installationFee = 0;
 
-        // Taxes (Quebec)
+        // Taxes (Quebec) — canonical tax module
         const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
-        const tpsAmount = baseAmount * 0.05;
-        const tvqAmount = baseAmount * 0.09975;
-        const totalAmount = baseAmount + tpsAmount + tvqAmount;
+        const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
         // Generate order number
         const orderNumber = generateOrderNumber();
