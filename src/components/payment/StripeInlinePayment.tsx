@@ -395,13 +395,18 @@ export function StripeInlinePayment({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const onErrorRef = useRef(onError);
+  const intentAmountRef = useRef(amount);
 
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
 
   useEffect(() => {
-    if (disabled || !invoiceId || amount <= 0) {
+    intentAmountRef.current = amount;
+  }, [invoiceId, amount]);
+
+  useEffect(() => {
+    if (disabled || !invoiceId || intentAmountRef.current <= 0) {
       setClientSecret(null);
       setLoading(false);
       setError(null);
@@ -420,7 +425,7 @@ export function StripeInlinePayment({
           {
             body: {
               invoice_id: invoiceId,
-              amount,
+              amount: intentAmountRef.current,
               description: description || undefined,
               customer_email: customerEmail || undefined,
               customer_id: customerId || undefined,
@@ -449,7 +454,7 @@ export function StripeInlinePayment({
     return () => {
       cancelled = true;
     };
-  }, [invoiceId, amount, description, customerEmail, customerId, disabled]);
+  }, [invoiceId, description, customerEmail, customerId, disabled]);
 
   if (disabled) return null;
 
