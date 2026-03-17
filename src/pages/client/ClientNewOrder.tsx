@@ -6210,6 +6210,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           amount={uiTodayTotal}
                           customerEmail={profile?.email || user?.email || ""}
                           customerId={stripeDraft.customerId}
+                          collectBillingDetails
+                          defaultBillingDetails={{
+                            firstName: firstName || profile?.first_name || "",
+                            lastName: lastName || profile?.last_name || "",
+                            addressLine1: [serviceAddressStreet, serviceAddressApartment].filter(Boolean).join(" "),
+                            city: serviceAddressCity || "",
+                            state: serviceAddressProvince || "QC",
+                            postalCode: serviceAddressPostalCode || "",
+                            country: "CA",
+                            email: profile?.email || user?.email || "",
+                          }}
                           onSuccess={() => {
                             setPaymentComplete(true);
                             setPaymentConfirmationNumber(`STRIPE-${stripeDraft.invoiceNumber}`);
