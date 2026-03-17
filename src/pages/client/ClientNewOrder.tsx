@@ -5656,15 +5656,44 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     {totalDiscount > 0 && (
                       <>
-                        <div className="flex justify-between text-sm text-emerald-500 font-medium">
+                        <div className="flex justify-between items-center text-sm text-emerald-500 font-medium group">
                           <span>Rabais{appliedPromo ? ` (${appliedPromo.code})` : welcomeDiscountAmount > 0 ? " nouveau client" : ""}</span>
-                          <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
+                            {/* Remove discount button */}
+                            {welcomeDiscountAmount > 0 && !appliedPromo && (
+                              <button
+                                type="button"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                                onClick={() => {
+                                  setWelcomeDiscountDismissed(true);
+                                  toast.info("Rabais nouveau client retiré");
+                                }}
+                                title="Retirer le rabais"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="flex justify-between text-sm font-medium">
                           <span className="text-muted-foreground">Net 1er mois après rabais</span>
                           <span className="text-foreground">{firstInvoiceRecurringNet.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
                         </div>
                       </>
+                    )}
+                    {/* Dismissed welcome discount — offer to re-add */}
+                    {welcomeDiscountDismissed && serverWelcomeDiscount > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-emerald-500 underline hover:text-emerald-600"
+                        onClick={() => {
+                          setWelcomeDiscountDismissed(false);
+                          toast.success("Rabais nouveau client réappliqué");
+                        }}
+                      >
+                        + Réappliquer le rabais nouveau client (-{serverWelcomeDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })})
+                      </button>
                     )}
                   </div>
 
