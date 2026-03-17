@@ -11,7 +11,7 @@ import { useUnifiedPOS, calculateUnifiedPOSTotals } from "@/hooks/useUnifiedPOS"
 import { EquipmentItem } from "@/components/pos/POSEquipmentSelector";
 import { AdjustmentItem } from "@/components/pos/POSAdjustments";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, Check, ShoppingCart, Package, Wrench, DollarSign } from "lucide-react";
+import { Loader2, ChevronLeft, Check, ShoppingCart, Package, Wrench, DollarSign, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
