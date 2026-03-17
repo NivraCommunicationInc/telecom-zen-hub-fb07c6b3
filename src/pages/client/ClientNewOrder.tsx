@@ -1406,8 +1406,15 @@ const ClientNewOrder = () => {
         ? "tv"
         : "mobile";
   
-  // Check if this is a delivery-only order (Mobile, Streaming, or Accessories only - no technician installation)
-  const isDeliveryOnlyOrder = (hasMobileService || hasStreamingService || hasExtrasService) && 
+  // Check if this is a Streaming-only order (only Streaming+ add-ons, no physical services)
+  // Streaming-only orders get DIGITAL delivery only — no physical shipping, no delivery fees
+  const isStreamingOnlyOrder = selectedStreamingServices.length > 0 && 
+    selectedServices.length === 0 && !hasExtrasService;
+
+  // Check if this is a delivery-only order (Mobile, or Accessories only - no technician installation)
+  // IMPORTANT: Streaming-only orders are NOT delivery-only — they use digital delivery
+  const isDeliveryOnlyOrder = !isStreamingOnlyOrder && 
+    (hasMobileService || hasStreamingService || hasExtrasService) && 
     !hasTVService && !hasInternetService && !selectedServices.some(s => s.category === "Sécurité");
   
   // Check if this is an equipment/accessories-only order (no service plans requiring ID)
