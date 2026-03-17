@@ -236,8 +236,16 @@ export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, rende
             </div>
           )}
 
-          {/* Reference for non-deferred payments */}
-          {method !== "deferred" && method !== "paypal" && (
+          {/* Stripe Elements inline for card */}
+          {method === "card" && renderStripePayment && (
+            <div className="rounded-xl border border-cyan-500/30 bg-slate-900/50 p-4">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-3">Paiement par carte via Stripe</p>
+              {renderStripePayment()}
+            </div>
+          )}
+
+          {/* Reference for non-deferred, non-card, non-paypal payments */}
+          {method !== "deferred" && method !== "paypal" && method !== "card" && (
             <div>
               <Label className="text-slate-300">Référence de paiement</Label>
               <Input
@@ -271,19 +279,22 @@ export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, rende
             />
           </div>
 
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className={cn(
-              "w-full font-bold text-white",
-              method === "deferred" 
-                ? "bg-amber-500 hover:bg-amber-400"
-                : "bg-orange-500 hover:bg-orange-400"
-            )}
-          >
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {method === "deferred" ? "Créer commande en attente" : "Confirmer le paiement"}
-          </Button>
+          {/* Only show submit for non-card methods (card handled by Stripe Elements) */}
+          {method !== "card" && (
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className={cn(
+                "w-full font-bold text-white",
+                method === "deferred" 
+                  ? "bg-amber-500 hover:bg-amber-400"
+                  : "bg-orange-500 hover:bg-orange-400"
+              )}
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {method === "deferred" ? "Créer commande en attente" : "Confirmer le paiement"}
+            </Button>
+          )}
         </form>
       </CardContent>
     </Card>
