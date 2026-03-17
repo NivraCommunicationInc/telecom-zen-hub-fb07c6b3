@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CreditCard, DollarSign, FileText, Mail, CheckCircle, RotateCcw, Plus, Minus, Banknote, Wallet,
 } from "lucide-react";
+import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
 
 const inputCls = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50";
 const btnPrimary = "rounded-md bg-primary px-4 py-1.5 text-[11px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity";
