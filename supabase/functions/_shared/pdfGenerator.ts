@@ -252,9 +252,10 @@ export function generateInvoicePDF(data: InvoiceData): string {
     { label: "Sous-total", value: formatCurrency(data.subtotal) },
   ];
   
-  // Discount line (if present)
+  // Discount line (if present) — always show with negative sign
   if (data.discount_label && data.discount_amount) {
-    totals.push({ label: data.discount_label, value: formatCurrency(data.discount_amount), highlight: true });
+    const absDiscount = Math.abs(data.discount_amount);
+    totals.push({ label: data.discount_label, value: `-${formatCurrency(absDiscount)}`, highlight: true });
   }
   
   totals.push(
