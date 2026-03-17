@@ -16,6 +16,7 @@ export const PAYMENT_SOURCES = {
   CHECK: 'check',
   BANK_TRANSFER: 'bank_transfer',
   PAYPAL: 'paypal',
+  STRIPE: 'stripe',
 } as const;
 
 export type PaymentSource = typeof PAYMENT_SOURCES[keyof typeof PAYMENT_SOURCES];
