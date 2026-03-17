@@ -1760,8 +1760,14 @@ const ClientNewOrder = () => {
   // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
-      const linkedSessionId = verificationSessionId;
-      console.log("[ClientNewOrder] Starting order creation...", { userId: user?.id, clientRequestId, linkedSessionId });
+      const shouldBypassIdentityKyc = isStreamingOnlyOrder;
+      const linkedSessionId = shouldBypassIdentityKyc ? null : verificationSessionId;
+      console.log("[ClientNewOrder] Starting order creation...", {
+        userId: user?.id,
+        clientRequestId,
+        linkedSessionId,
+        bypass_kyc: shouldBypassIdentityKyc,
+      });
       if (!user?.id) throw new Error("Utilisateur non authentifié. Veuillez vous reconnecter.");
 
       // Security check before sensitive action
@@ -1770,31 +1776,35 @@ const ClientNewOrder = () => {
         throw new Error(reason || "Action non autorisée - compte suspendu");
       }
 
-      if (!linkedSessionId) {
-        throw new Error("Nous n'avons pas pu lier votre vérification d'identité. Veuillez rafraîchir le code QR et soumettre vos documents à nouveau.");
-      }
+      let effectiveSessionId: string | null = null;
 
-      const activeStatuses = ["created", "submitted", "manual_review", "approved"];
-      const reviewReadyStatuses = ["submitted", "manual_review", "approved"];
+      if (!shouldBypassIdentityKyc) {
+        if (!linkedSessionId) {
+          throw new Error("Nous n'avons pas pu lier votre vérification d'identité. Veuillez rafraîchir le code QR et soumettre vos documents à nouveau.");
+        }
 
-      const { data: latestActiveSession, error: latestSessionError } = await supabase
-        .from("identity_verification_sessions")
-        .select("id, status, created_at")
-        .eq("user_id", user.id)
-        .in("status", activeStatuses)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        const activeStatuses = ["created", "submitted", "manual_review", "approved"];
+        const reviewReadyStatuses = ["submitted", "manual_review", "approved"];
 
-      if (latestSessionError) {
-        throw new Error("Impossible de vérifier votre session d'identité. Veuillez réessayer.");
-      }
+        const { data: latestActiveSession, error: latestSessionError } = await supabase
+          .from("identity_verification_sessions")
+          .select("id, status, created_at")
+          .eq("user_id", user.id)
+          .in("status", activeStatuses)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      const effectiveSessionId = latestActiveSession?.id || linkedSessionId;
-      const effectiveSessionStatus = latestActiveSession?.status || null;
+        if (latestSessionError) {
+          throw new Error("Impossible de vérifier votre session d'identité. Veuillez réessayer.");
+        }
 
-      if (!effectiveSessionId || !effectiveSessionStatus || !reviewReadyStatuses.includes(effectiveSessionStatus)) {
-        throw new Error("Votre vérification d'identité doit être soumise avant de finaliser la commande.");
+        const effectiveSessionStatus = latestActiveSession?.status || null;
+        effectiveSessionId = latestActiveSession?.id || linkedSessionId;
+
+        if (!effectiveSessionId || !effectiveSessionStatus || !reviewReadyStatuses.includes(effectiveSessionStatus)) {
+          throw new Error("Votre vérification d'identité doit être soumise avant de finaliser la commande.");
+        }
       }
       const paidChannelTotal = selectedPaidChannels.reduce((sum, ch) => sum + Number(ch.price), 0);
       const serviceNames = selectedServices.map(s => s.name).join(", ");
