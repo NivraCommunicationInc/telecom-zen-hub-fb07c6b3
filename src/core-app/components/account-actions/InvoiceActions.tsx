@@ -307,12 +307,32 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Note interne</label>
               <Textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={2} placeholder="Notes opérationnelles" className="text-[11px]" />
             </div>
+
+            {/* Stripe Elements inline form for debit_credit */}
+            {method === "debit_credit" && targetInvoice && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Paiement par carte via Stripe</p>
+                <StripeInlinePayment
+                  invoiceId={targetInvoice.id}
+                  amount={amountToApply}
+                  customerId={customerId}
+                  description={`Admin — Facture ${targetInvoice.invoice_number}`}
+                  onSuccess={() => {
+                    toast.success(`Paiement carte ${amountToApply.toFixed(2)} $ confirmé via Stripe`);
+                    onRefresh();
+                    onClose();
+                  }}
+                  onError={(msg) => toast.error(msg)}
+                  disabled={amountToApply <= 0}
+                />
+              </div>
+            )}
           </div>
         )}
 
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          {unpaid.length > 0 && (
+          {unpaid.length > 0 && method !== "debit_credit" && (
             <button onClick={handleSubmit} disabled={loading} className={btnPrimary}>
               {loading ? "…" : "Appliquer le paiement"}
             </button>
