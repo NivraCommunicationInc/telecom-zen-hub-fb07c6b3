@@ -119,10 +119,6 @@ serve(async (req) => {
       throw new Error("This endpoint requires enable_auto_billing=true. Use billing-create-order for non-auto-billing.");
     }
     
-    // Tax rates Quebec
-    const TPS_RATE = 0.05;
-    const TVQ_RATE = 0.09975;
-    
     // Calculate activation fee
     const serviceCount = body.services.length;
     const activationFee = serviceCount === 1 ? 25.00 : 45.00;
