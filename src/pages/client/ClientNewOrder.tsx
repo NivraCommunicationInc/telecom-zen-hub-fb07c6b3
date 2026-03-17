@@ -3470,9 +3470,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       }
     }
     
-    if (selectedServices.length === 0) {
+    if (selectedServices.length === 0 && selectedStreamingServices.length === 0) {
       submittingRef.current = false;
-      toast.error("Veuillez sélectionner au moins un service");
+      toast.error("Veuillez sélectionner au moins un service ou un forfait Streaming+");
       return;
     }
     if (!isIdComplete) {
