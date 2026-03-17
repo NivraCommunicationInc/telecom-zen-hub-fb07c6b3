@@ -1,11 +1,12 @@
 /**
  * useUnifiedPOS - Unified hook for POS calculations across all portals
- * Handles services, equipment, adjustments with Quebec taxes
+ * Uses centralized server tax engine — no local tax constants.
  */
 import { useMemo, useCallback, useState } from "react";
 import { EquipmentItem } from "@/components/pos/POSEquipmentSelector";
 import { AdjustmentItem } from "@/components/pos/POSAdjustments";
-import { SelectedService, TAX_RATES } from "@/hooks/useFieldSalesOffers";
+import { SelectedService } from "@/hooks/useFieldSalesOffers";
+import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
 
 export interface POSCartTotals {
   // Services
