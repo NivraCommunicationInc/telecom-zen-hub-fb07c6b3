@@ -57,10 +57,10 @@ export function validateInvoicePayload(payload: InvoicePayload): InvoiceValidati
     errors.push('amount_paid ne peut pas être négatif');
   }
   
-  // Tax validation (Quebec rates)
+  // Tax validation — centralized server tax engine
   if (payload.subtotal !== undefined && payload.amount !== undefined) {
-    const expectedTps = Math.round(payload.subtotal * 0.05 * 100) / 100;
-    const expectedTvq = Math.round(payload.subtotal * 0.09975 * 100) / 100;
+    const { estimateTaxes } = await import("@/lib/pricing/serverTaxEngine") as any;
+    const { tps: expectedTps, tvq: expectedTvq } = estimateTaxes(payload.subtotal);
     
     if (payload.tps_amount !== undefined && Math.abs(payload.tps_amount - expectedTps) > 0.02) {
       warnings.push(`TPS potentiellement incorrecte: ${payload.tps_amount} vs attendu ${expectedTps}`);
