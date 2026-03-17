@@ -33,28 +33,42 @@ serve(async (req) => {
     const body = await req.json();
     const { invoice_id, amount, description, customer_email, customer_id } = body;
 
-    if (!invoice_id) throw new Error("invoice_id is required");
     if (!amount || amount <= 0) throw new Error("Invalid amount");
 
-    // Fetch invoice
-    const { data: invoice, error: invError } = await db
-      .from("billing_invoices")
-      .select("*, customer:billing_customers(id, email, first_name, last_name)")
-      .eq("id", invoice_id)
-      .single();
+    let invoice: {
+      id: string;
+      invoice_number: string;
+      status: string | null;
+      customer_id: string | null;
+      customer?: {
+        id: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+      } | null;
+    } | null = null;
 
-    if (invError || !invoice) throw new Error("Invoice not found");
+    if (invoice_id) {
+      const { data: fetchedInvoice, error: invError } = await db
+        .from("billing_invoices")
+        .select("*, customer:billing_customers(id, email, first_name, last_name)")
+        .eq("id", invoice_id)
+        .single();
 
-    if (invoice.status === "paid") {
-      return new Response(
-        JSON.stringify({ error: "Invoice already paid" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (invError || !fetchedInvoice) throw new Error("Invoice not found");
+      if (fetchedInvoice.status === "paid") {
+        return new Response(
+          JSON.stringify({ error: "Invoice already paid" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      invoice = fetchedInvoice;
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    const email = customer_email || invoice.customer?.email;
+    const email = customer_email || invoice?.customer?.email;
     const amountCents = Math.round(amount * 100);
 
     // Find or create Stripe customer
@@ -66,38 +80,45 @@ serve(async (req) => {
       } else {
         const newCustomer = await stripe.customers.create({
           email,
-          name: invoice.customer
-            ? `${invoice.customer.first_name} ${invoice.customer.last_name}`
+          name: invoice?.customer
+            ? `${invoice.customer.first_name} ${invoice.customer.last_name}`.trim()
             : undefined,
         });
         stripeCustomerId = newCustomer.id;
       }
     }
 
-    const metadata = {
-      invoice_id,
-      invoice_number: invoice.invoice_number,
-      customer_id: customer_id || invoice.customer_id,
-      source: "portal",
+    const metadata: Record<string, string> = {
+      source: "portal_checkout_public",
     };
+
+    if (invoice_id) metadata.invoice_id = invoice_id;
+    if (invoice?.invoice_number) metadata.invoice_number = invoice.invoice_number;
+
+    const resolvedCustomerId = customer_id || invoice?.customer_id;
+    if (resolvedCustomerId) metadata.customer_id = resolvedCustomerId;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "cad",
       customer: stripeCustomerId,
       metadata,
-      description: description || `Facture ${invoice.invoice_number} — Nivra Telecom`,
+      description: description || (invoice
+        ? `Facture ${invoice.invoice_number} — Nivra Telecom`
+        : "Checkout public — Nivra Telecom"),
       automatic_payment_methods: { enabled: true },
     });
 
     console.log(
-      `[stripe-create-payment-intent] PI created: ${paymentIntent.id} for invoice ${invoice.invoice_number}`
+      `[stripe-create-payment-intent] PI created: ${paymentIntent.id}${invoice?.invoice_number ? ` for invoice ${invoice.invoice_number}` : " (checkout public)"}`
     );
 
     return new Response(
       JSON.stringify({
         client_secret: paymentIntent.client_secret,
         payment_intent_id: paymentIntent.id,
+        livemode: paymentIntent.livemode,
+        payment_intent_status: paymentIntent.status,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
