@@ -161,10 +161,13 @@ export const BILLING_SUBSCRIPTION_STATUS_COLORS: Record<BillingSubscriptionStatu
   cancelled: 'bg-red-100 text-red-800'
 };
 
-// Tax constants
+/**
+ * @deprecated — PHASE 2: Use estimateTaxes() from '@/lib/pricing/serverTaxEngine' instead.
+ * These constants are FROZEN and will be removed in Phase 3.
+ */
 export const BILLING_TAX_RATES = {
-  TPS: 0.05,
-  TVQ: 0.09975
+  /** @deprecated */ TPS: 0.05,
+  /** @deprecated */ TVQ: 0.09975
 } as const;
 
 /**
@@ -177,8 +180,7 @@ export function calculateBillingTotals(subtotal: number): {
   total: number;
 } {
   console.warn("[DEPRECATED] calculateBillingTotals called — use compute_invoice_breakdown RPC instead");
-  const tps = Math.round(subtotal * BILLING_TAX_RATES.TPS * 100) / 100;
-  const tvq = Math.round(subtotal * BILLING_TAX_RATES.TVQ * 100) / 100;
-  const total = Math.round((subtotal + tps + tvq) * 100) / 100;
-  return { subtotal, tps, tvq, total };
+  const { estimateTaxes } = require("@/lib/pricing/serverTaxEngine");
+  const result = estimateTaxes(subtotal);
+  return { subtotal, tps: result.tps, tvq: result.tvq, total: result.total };
 }
