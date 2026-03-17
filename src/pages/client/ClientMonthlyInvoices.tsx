@@ -42,7 +42,7 @@ const ClientMonthlyInvoices = () => {
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "interac">("paypal");
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "interac" | "card">("card");
 
   // Fetch client's invoices from canonical billing_invoices
   const { data: invoices, isLoading } = useQuery({
