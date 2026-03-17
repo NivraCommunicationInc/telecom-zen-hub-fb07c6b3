@@ -6807,11 +6807,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     else nextStep = 3;
                     setStep(nextStep);
                   }} disabled={
-                    isEquipmentOnlyOrder 
-                      ? !deliveryChoice
-                      : isDeliveryOnlyOrder 
-                        ? (!isIdComplete || !deliveryChoice)
-                        : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
+                    isStreamingOnlyOrder
+                      ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                      : isEquipmentOnlyOrder 
+                        ? !deliveryChoice
+                        : isDeliveryOnlyOrder 
+                          ? (!isIdComplete || !deliveryChoice)
+                          : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
                   }>
                     Réviser <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
