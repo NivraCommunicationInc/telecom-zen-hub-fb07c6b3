@@ -6,7 +6,7 @@
  * - Creates billing_invoice (pending) for Stripe PaymentIntent
  * - Does NOT create orders anymore (prevents ghost orders before final confirmation)
  */
-import { supabase } from "@/integrations/supabase/client";
+import { portalClient as supabase } from "@/integrations/backend/portalClient";
 
 export interface CheckoutDraftInput {
   userId: string;
