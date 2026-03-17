@@ -290,10 +290,9 @@ export default function CorePOSPage() {
     const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 25 : 45;
     const oneTimeSubtotal = setupSubtotal + equipmentTotal + activationFee + adjustmentsTotal;
     const taxableAmount = monthlySubtotal + oneTimeSubtotal;
-    const tps = Math.round(taxableAmount * TAX_RATES.TPS * 100) / 100;
-    const tvq = Math.round(taxableAmount * TAX_RATES.TVQ * 100) / 100;
+    const { tps, tvq } = estimateTaxes(taxableAmount);
     const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-    const recurringMonthly = Math.round((monthlySubtotal * (1 + TAX_RATES.TPS + TAX_RATES.TVQ)) * 100) / 100;
+    const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
 
     return {
       monthlySubtotal, setupSubtotal, equipmentTotal, adjustmentsTotal,

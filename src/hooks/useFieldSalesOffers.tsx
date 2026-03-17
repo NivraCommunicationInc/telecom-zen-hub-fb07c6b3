@@ -152,9 +152,16 @@ export function useFieldSalesOffers(category?: string) {
   });
 }
 
-// Calculate totals using the same logic as billingCalculator
+/**
+ * @deprecated TAX_RATES — use estimateTaxes() from '@/lib/pricing/serverTaxEngine' instead.
+ * Re-exported here ONLY for backward compatibility during Phase 2 migration.
+ */
+import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
+
 export const TAX_RATES = {
+  /** @deprecated Use estimateTaxes() */
   TPS: 0.05,
+  /** @deprecated Use estimateTaxes() */
   TVQ: 0.09975,
 };
 
@@ -171,16 +178,13 @@ export function calculateFieldSalesTotals(services: SelectedService[]) {
   const monthlySubtotal = services.reduce((sum, s) => sum + (s.priceMonthly * s.quantity), 0);
   const setupSubtotal = services.reduce((sum, s) => sum + (s.priceSetup * s.quantity), 0);
   
-  // Calculate activation fee based on number of services
   const serviceCount = services.length;
   const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 25 : 45;
   
   const oneTimeTotal = setupSubtotal + activationFee;
   const taxableSubtotal = monthlySubtotal + oneTimeTotal;
   
-  const tps = Math.round(taxableSubtotal * TAX_RATES.TPS * 100) / 100;
-  const tvq = Math.round(taxableSubtotal * TAX_RATES.TVQ * 100) / 100;
-  const total = Math.round((taxableSubtotal + tps + tvq) * 100) / 100;
+  const { tps, tvq, total } = estimateTaxes(taxableSubtotal);
 
   return {
     monthlySubtotal,
@@ -192,6 +196,6 @@ export function calculateFieldSalesTotals(services: SelectedService[]) {
     tvq,
     total,
     firstMonthTotal: total,
-    recurringMonthly: Math.round((monthlySubtotal * (1 + TAX_RATES.TPS + TAX_RATES.TVQ)) * 100) / 100,
+    recurringMonthly: estimateMonthlyWithTax(monthlySubtotal),
   };
 }
