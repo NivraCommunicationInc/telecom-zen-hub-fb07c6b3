@@ -186,9 +186,8 @@ export function LegacyInvoiceImportDialog({ open, onOpenChange }: Props) {
 
         // 2. Calculate amounts (preview only — canonical totals come from RPC)
         const subtotal = inv.subtotal || inv.amount / 1.14975;
-        const tps = Math.round(subtotal * BILLING_TAX_RATES.TPS * 100) / 100;
-        const tvq = Math.round(subtotal * BILLING_TAX_RATES.TVQ * 100) / 100;
-        const totals = { subtotal, tps, tvq, total: Math.round((subtotal + tps + tvq) * 100) / 100 };
+        const taxResult = estimateTaxes(subtotal);
+        const totals = { subtotal, tps: taxResult.tps, tvq: taxResult.tvq, total: taxResult.total };
 
         // 3. Map status
         let v2Status: "draft" | "pending" | "paid" | "failed" | "cancelled" | "refunded" = "pending";
