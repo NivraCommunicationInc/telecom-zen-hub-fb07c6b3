@@ -162,69 +162,40 @@ const ClientPayments = () => {
           </CardContent>
         </Card>
 
-        {/* Credit Card Section - Maintenance Mode */}
-        <Card className="bg-card border-border opacity-75">
+        {/* Credit Card Section - Active via Stripe */}
+        <Card className="bg-card border-primary/30 border-2">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-muted-foreground">
-                <CreditCard className="w-5 h-5" />
-                Cartes de crédit
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                Cartes de crédit / débit
               </CardTitle>
-              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10">
-                <Wrench className="w-3 h-3" />
-                Maintenance
+              <Badge className="bg-primary/20 text-primary border-0">
+                Actif
               </Badge>
             </div>
             <CardDescription>
-              Le paiement par carte est temporairement indisponible.
+              Payez vos factures directement par carte de crédit ou débit via Stripe.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-              <div className="flex items-start gap-3">
-                <Wrench className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Nous travaillons à améliorer notre système de paiement par carte.
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    En attendant, veuillez utiliser le virement Interac pour effectuer vos paiements. Nous vous remercions de votre compréhension.
-                  </p>
-                </div>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+              <p className="text-sm font-medium text-foreground mb-3">
+                Paiement sécurisé par carte
+              </p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>• Visa, Mastercard, Amex acceptés</p>
+                <p>• Paiement instantané et sécurisé via Stripe</p>
+                <p>• Vos données de carte ne transitent jamais par nos serveurs</p>
               </div>
             </div>
 
-            {/* Show saved cards but disabled */}
-            {!isLoading && paymentMethods && paymentMethods.length > 0 && (
-              <div className="mt-4 space-y-3">
-                <p className="text-sm text-muted-foreground">Cartes enregistrées (inactives):</p>
-                {paymentMethods.map((card: any) => (
-                  <div
-                    key={card.id}
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border opacity-60"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-6 bg-gradient-to-br from-gray-400 to-gray-500 rounded flex items-center justify-center">
-                        <CreditCard className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-muted-foreground">
-                          {card.card_type} •••• {card.last_four}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Expire {card.expiry_month.toString().padStart(2, "0")}/{card.expiry_year}
-                        </p>
-                      </div>
-                    </div>
-                    {card.is_default && (
-                      <Badge variant="outline" className="text-xs opacity-50">
-                        Par défaut
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+              <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                L'option carte apparaît automatiquement lors du paiement de vos factures.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
