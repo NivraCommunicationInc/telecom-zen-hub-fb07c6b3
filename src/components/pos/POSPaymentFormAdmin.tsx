@@ -40,6 +40,8 @@ interface POSPaymentFormAdminProps {
   onSubmit: (data: AdminPaymentData) => void;
   isSubmitting?: boolean;
   totalAmount: number;
+  /** Render prop: Stripe Elements form when card is selected */
+  renderStripePayment?: () => React.ReactNode;
 }
 
 export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount }: POSPaymentFormAdminProps) {
