@@ -34,10 +34,6 @@ serve(async (req) => {
 
     const body: CreateSubscriptionRequest = await req.json();
     
-    // Tax rates Quebec
-    const TPS_RATE = 0.05;
-    const TVQ_RATE = 0.09975;
-    
     let customerId = body.customer_id;
     
     // Step 1: Create or get customer
