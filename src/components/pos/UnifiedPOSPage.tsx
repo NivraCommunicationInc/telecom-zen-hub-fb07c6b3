@@ -292,6 +292,39 @@ export default function UnifiedPOSPage({
       const custInfo = buildCustomerInfo();
       if (!custInfo) return;
 
+      // Ensure client has auth account + billing account before creating order
+      let resolvedClientId = custInfo.client_id;
+      if (!resolvedClientId) {
+        try {
+          const { data: autoResult } = await supabase.functions.invoke("auto-create-client-account", {
+            body: {
+              email: custInfo.email,
+              first_name: custInfo.first_name,
+              last_name: custInfo.last_name,
+              phone: custInfo.phone,
+              service_address: custInfo.service_address,
+              service_city: custInfo.service_city,
+              service_postal_code: custInfo.service_postal_code,
+              date_of_birth: custInfo.date_of_birth,
+            },
+          });
+          resolvedClientId = autoResult?.user_id || null;
+        } catch (linkErr) {
+          console.warn("[POS] auto-create-client-account failed:", linkErr);
+        }
+      }
+
+      if (!resolvedClientId) {
+        throw new Error("Impossible de résoudre le compte client. Veuillez réessayer.");
+      }
+
+      const accountId = await resolveAccountForOrder(
+        resolvedClientId,
+        custInfo.service_address,
+        custInfo.service_city,
+        custInfo.service_postal_code
+      );
+
       const payload = pos.getOrderPayload();
       const paymentMethod = paymentData.payment_method;
       const paymentReference = 'payment_reference' in paymentData ? paymentData.payment_reference : undefined;
@@ -300,7 +333,8 @@ export default function UnifiedPOSPage({
       const { data: newOrder, error } = await supabase
         .from("orders")
         .insert([{
-          user_id: custInfo.client_id,
+          user_id: resolvedClientId,
+          account_id: accountId,
           service_type: pos.services[0]?.category || "bundle",
           client_email: custInfo.email,
           client_dob: custInfo.date_of_birth,
