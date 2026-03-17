@@ -307,8 +307,7 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   }
   
   // Totals
-  const oneTimeTps = Math.round(oneTimeFeeTotal * 0.05 * 100) / 100;
-  const oneTimeTvq = Math.round(oneTimeFeeTotal * 0.09975 * 100) / 100;
+  const { tps: oneTimeTps, tvq: oneTimeTvq } = estimateTaxes(oneTimeFeeTotal);
   const oneTimeTotalWithTax = oneTimeFeeTotal + oneTimeTps + oneTimeTvq;
   
   doc.setDrawColor(...COLORS.border);
