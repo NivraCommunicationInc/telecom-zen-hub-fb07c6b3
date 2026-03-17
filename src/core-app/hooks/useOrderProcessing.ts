@@ -647,7 +647,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         .from("billing_payments")
         .select("id")
         .eq("invoice_id", targetInvoice.id)
-        .in("status", ["pending", "in_verification"])
+        .eq("status", "pending")
         .order("created_at", { ascending: false })
         .limit(1);
 
