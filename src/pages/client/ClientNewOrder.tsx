@@ -5734,14 +5734,17 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setStep(nextStep);
                       }}
                       disabled={
-                        // For equipment-only orders, only need delivery choice (no ID required)
-                        isEquipmentOnlyOrder 
-                          ? !deliveryChoice
-                          // For other delivery-only orders (mobile), need ID + delivery choice
-                          : isDeliveryOnlyOrder 
-                            ? (!isIdComplete || !deliveryChoice)
-                            // For installation orders, need ID + installation choice + confirmed technician appointment
-                            : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
+                        // Streaming-only: no delivery/installation required, just need identity (if not equipment-only)
+                        isStreamingOnlyOrder
+                          ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                          // For equipment-only orders, only need delivery choice (no ID required)
+                          : isEquipmentOnlyOrder 
+                            ? !deliveryChoice
+                            // For other delivery-only orders (mobile), need ID + delivery choice
+                            : isDeliveryOnlyOrder 
+                              ? (!isIdComplete || !deliveryChoice)
+                              // For installation orders, need ID + installation choice + confirmed technician appointment
+                              : (!isIdComplete || !installationChoice || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)))
                       }
                     >
                       Réviser et confirmer
