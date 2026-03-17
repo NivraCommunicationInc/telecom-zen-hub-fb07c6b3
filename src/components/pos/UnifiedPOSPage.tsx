@@ -73,6 +73,7 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [stripePending, setStripePending] = useState<POSDraftInvoiceResult | null>(null);
   
   // Is this the admin portal with full features?
   const isAdminPortal = portalType === "admin";
