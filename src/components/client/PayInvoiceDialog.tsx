@@ -145,13 +145,10 @@ const PayInvoiceDialog = ({
 
         {/* ============ Payment Form Based on Selection ============ */}
 
-        {/* Credit/Debit Card via Stripe Checkout */}
+        {/* Credit/Debit Card via Stripe Elements (inline) */}
         {paymentMethod === "card" && (
-          <div className="mt-2 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Vous serez redirigé vers Stripe pour compléter le paiement de façon sécurisée par carte de crédit ou débit.
-            </p>
-            <StripeCheckoutButton
+          <div className="mt-2">
+            <StripeInlinePayment
               invoiceId={invoice.id}
               amount={amount}
               description={`Facture ${invoiceNumber} - Nivra Telecom`}
