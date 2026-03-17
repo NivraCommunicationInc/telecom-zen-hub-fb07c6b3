@@ -6217,10 +6217,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             toast.success("Paiement par carte confirmé !");
                             // Traceability
                             logPaymentConfirmed({
-                              stripe_invoice_id: stripeDraft.invoiceId,
+                              payment_reference: `STRIPE-${stripeDraft.invoiceNumber}`,
                               amount: uiTodayTotal,
                               method: "card",
-                              provider: "stripe",
                             });
                             // Invalidate billing caches
                             queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
