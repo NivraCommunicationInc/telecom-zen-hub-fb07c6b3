@@ -3094,8 +3094,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   
   // Fee logic based on installation choice OR delivery choice for delivery-only orders
   const calculateDeliveryFee = (): number => {
+    // Streaming-only = digital delivery, zero fee
+    if (isStreamingOnlyOrder) return 0;
     if (isDeliveryOnlyOrder) {
-      // For Mobile, Streaming, Accessories - use delivery choice
+      // For Mobile, Accessories - use delivery choice
       if (deliveryChoice === "uber") return DELIVERY_CONFIG.uber.fee;
       if (deliveryChoice === "shipHome") return DELIVERY_CONFIG.shipHome.fee;
       if (deliveryChoice === "standard") return DELIVERY_CONFIG.standard.fee;
