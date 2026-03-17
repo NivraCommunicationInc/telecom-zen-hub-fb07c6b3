@@ -6156,8 +6156,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             phone: checkoutPhone || profile?.phone || "",
                             totalAmount: uiTodayTotal,
                             subtotal: authoritativePricing.subtotal ?? 0,
-                            tpsAmount: authoritativePricing.tps ?? 0,
-                            tvqAmount: authoritativePricing.tvq ?? 0,
+                            tpsAmount: (authoritativePricing as any).tps ?? (authoritativePricing as any).gst ?? 0,
+                            tvqAmount: (authoritativePricing as any).tvq ?? (authoritativePricing as any).qst ?? 0,
                             description: `Checkout public — Commande Nivra`,
                           })
                             .then((result) => {
