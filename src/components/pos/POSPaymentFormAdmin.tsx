@@ -44,7 +44,7 @@ interface POSPaymentFormAdminProps {
   renderStripePayment?: () => React.ReactNode;
 }
 
-export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount }: POSPaymentFormAdminProps) {
+export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, renderStripePayment }: POSPaymentFormAdminProps) {
   const [method, setMethod] = useState<AdminPaymentMethod>("interac");
   const [reference, setReference] = useState("");
   const [paypalTransactionId, setPaypalTransactionId] = useState("");
