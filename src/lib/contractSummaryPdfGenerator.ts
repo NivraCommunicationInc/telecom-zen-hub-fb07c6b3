@@ -1,3 +1,4 @@
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 /**
  * Nivra Contract Summary PDF Generator
  * Design exactement comme le PDF fourni "Resume_Contrat_CTR-QC-ORD-2026-1108.pdf"
