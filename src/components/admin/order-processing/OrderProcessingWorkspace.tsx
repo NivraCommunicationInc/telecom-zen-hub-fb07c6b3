@@ -3,7 +3,7 @@
  * White background, professional telecom UI.
  * Layout: Header → [ Left Steps | Center Panel | Right Summary ] → Bottom Timeline
  */
-import { useOrderProcessing, WorkflowStepId } from "@/hooks/useOrderProcessing";
+import { useOrderProcessing, WorkflowStepId } from "@/core-app/hooks/useOrderProcessing";
 import { OrderProcessingHeader } from "./OrderProcessingHeader";
 import { WorkflowStepNav } from "./WorkflowStepNav";
 import { StepContent } from "./StepContent";

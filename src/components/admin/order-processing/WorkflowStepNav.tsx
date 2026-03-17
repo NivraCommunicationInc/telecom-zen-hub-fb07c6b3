@@ -3,7 +3,7 @@
  * White background, clear status indicators
  */
 import { cn } from "@/lib/utils";
-import { WorkflowStep, WorkflowStepId } from "@/hooks/useOrderProcessing";
+import { WorkflowStep, WorkflowStepId } from "@/core-app/hooks/useOrderProcessing";
 import { CheckCircle2, Circle, AlertTriangle } from "lucide-react";
 
 interface Props {
