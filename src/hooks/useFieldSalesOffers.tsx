@@ -152,18 +152,9 @@ export function useFieldSalesOffers(category?: string) {
   });
 }
 
-/**
- * @deprecated TAX_RATES — use estimateTaxes() from '@/lib/pricing/serverTaxEngine' instead.
- * Re-exported here ONLY for backward compatibility during Phase 2 migration.
- */
+// ═══ PHASE 3: TAX_RATES export REMOVED ═══
+// Use estimateTaxes() from '@/lib/pricing/serverTaxEngine' for UI previews.
 import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
-
-export const TAX_RATES = {
-  /** @deprecated Use estimateTaxes() */
-  TPS: 0.05,
-  /** @deprecated Use estimateTaxes() */
-  TVQ: 0.09975,
-};
 
 export interface SelectedService {
   offerId: string;

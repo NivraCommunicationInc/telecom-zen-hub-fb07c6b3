@@ -161,26 +161,7 @@ export const BILLING_SUBSCRIPTION_STATUS_COLORS: Record<BillingSubscriptionStatu
   cancelled: 'bg-red-100 text-red-800'
 };
 
-/**
- * @deprecated — PHASE 2: Use estimateTaxes() from '@/lib/pricing/serverTaxEngine' instead.
- * These constants are FROZEN and will be removed in Phase 3.
- */
-export const BILLING_TAX_RATES = {
-  /** @deprecated */ TPS: 0.05,
-  /** @deprecated */ TVQ: 0.09975
-} as const;
-
-/**
- * @deprecated Use compute_invoice_breakdown RPC instead. Client-side math is forbidden.
- */
-export function calculateBillingTotals(subtotal: number): {
-  subtotal: number;
-  tps: number;
-  tvq: number;
-  total: number;
-} {
-  console.warn("[DEPRECATED] calculateBillingTotals called — use compute_invoice_breakdown RPC instead");
-  const { estimateTaxes } = require("@/lib/pricing/serverTaxEngine");
-  const result = estimateTaxes(subtotal);
-  return { subtotal, tps: result.tps, tvq: result.tvq, total: result.total };
-}
+// ═══ PHASE 3: Legacy tax constants and calculateBillingTotals REMOVED ═══
+// BILLING_TAX_RATES and calculateBillingTotals() were deleted in Phase 3.
+// Use estimateTaxes() from '@/lib/pricing/serverTaxEngine' for UI previews.
+// Use compute_checkout_pricing / compute_invoice_breakdown RPCs for transactions.
