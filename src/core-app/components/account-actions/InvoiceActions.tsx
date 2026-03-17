@@ -37,17 +37,19 @@ type ModalType = null | "recordPayment" | "markPaid" | "sendInvoice" | "addCharg
 type ManualMethod = "paypal" | "interac" | "cash" | "debit_credit" | "bank_transfer" | "other";
 type ApplyMode = "invoice" | "account";
 
-type CanonicalMethod = "paypal" | "interac" | "manual";
+type CanonicalMethod = "paypal" | "interac" | "manual" | "card";
 
 const mapToBillingMethod = (method: ManualMethod): CanonicalMethod => {
   if (method === "paypal") return "paypal";
   if (method === "interac") return "interac";
+  if (method === "debit_credit") return "card";
   return "manual";
 };
 
 const mapToProvider = (method: ManualMethod): string => {
   if (method === "paypal") return "paypal";
   if (method === "interac") return "interac";
+  if (method === "debit_credit") return "stripe";
   return "manual";
 };
 
