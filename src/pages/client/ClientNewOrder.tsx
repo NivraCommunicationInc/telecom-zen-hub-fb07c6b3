@@ -3496,7 +3496,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return;
     }
     // Validate delivery/installation choice based on order type
-    if (isDeliveryOnlyOrder) {
+    // Streaming-only orders use digital delivery — no validation needed
+    if (isDeliveryOnlyOrder && !isStreamingOnlyOrder) {
       if (!deliveryChoice) {
         submittingRef.current = false;
         toast.error("Veuillez choisir un mode de livraison");
