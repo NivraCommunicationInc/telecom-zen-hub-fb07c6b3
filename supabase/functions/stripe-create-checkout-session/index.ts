@@ -86,6 +86,13 @@ serve(async (req) => {
     // Amount in cents (CAD)
     const amountCents = Math.round(body.amount * 100);
 
+    const paymentMetadata = {
+      invoice_id: body.invoice_id,
+      invoice_number: invoice.invoice_number,
+      customer_id: invoice.customer_id,
+      source: "portal",
+    };
+
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       customer_email: stripeCustomerId ? undefined : customerEmail,
@@ -103,11 +110,9 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      metadata: {
-        invoice_id: body.invoice_id,
-        invoice_number: invoice.invoice_number,
-        customer_id: invoice.customer_id,
-        source: "portal",
+      metadata: paymentMetadata,
+      payment_intent_data: {
+        metadata: paymentMetadata,
       },
       success_url: body.success_url || `${origin}/portal/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: body.cancel_url || `${origin}/portal/billing`,
