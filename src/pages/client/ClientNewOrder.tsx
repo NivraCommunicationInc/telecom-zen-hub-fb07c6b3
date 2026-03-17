@@ -2317,13 +2317,15 @@ const ClientNewOrder = () => {
           preauth_opt_in: acceptPreauthorized,
           preauth_discount: acceptPreauthorized ? PREAUTH_MONTHLY_DISCOUNT : 0,
         },
-        identity: {
-          verification_session_id: effectiveSessionId,
-          id_type: idType || null,
-          id_number: idNumber || null,
-          id_expiration: idExpiration || null,
-          id_province: idProvince || null,
-        },
+        identity: shouldBypassIdentityKyc
+          ? null
+          : {
+              verification_session_id: effectiveSessionId as string,
+              id_type: idType || null,
+              id_number: idNumber || null,
+              id_expiration: idExpiration || null,
+              id_province: idProvince || null,
+            },
         installation: {
           type: orderInstallationType,
           delivery_fee: orderDeliveryFee,
