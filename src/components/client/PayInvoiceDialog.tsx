@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
-import { StripeCheckoutButton } from "@/components/payment/StripeCheckoutButton";
+import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
 import { PayPalCheckoutButton } from "@/components/payment/PayPalCheckoutButton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
