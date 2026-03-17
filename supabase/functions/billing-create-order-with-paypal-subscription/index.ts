@@ -230,7 +230,7 @@ serve(async (req) => {
         payment_failure_threshold: 3,
       },
       taxes: {
-        percentage: "14.975", // TPS + TVQ
+        percentage: COMBINED_TAX_PERCENTAGE,
         inclusive: false,
       },
     };
