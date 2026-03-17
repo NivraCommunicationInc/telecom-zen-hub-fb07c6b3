@@ -5,7 +5,6 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { ProfessionalOrderSummary } from "@/components/checkout/ProfessionalOrderSummary";
 import PayPalButton from "@/components/payment/PayPalButton";
 import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
-import { createCheckoutDraftInvoice, type CheckoutDraftInvoiceResult } from "@/lib/checkout/createCheckoutDraftInvoice";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
