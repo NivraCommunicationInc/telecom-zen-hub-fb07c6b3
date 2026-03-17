@@ -153,7 +153,7 @@ export interface NivraFullCheckoutPayload {
   fees: NivraCheckoutFee[];
   promo?: NivraCheckoutPromo | null;
   payment: NivraCheckoutPayment;
-  identity: NivraCheckoutIdentity;
+  identity?: NivraCheckoutIdentity | null;
   installation: NivraCheckoutInstallation;
   channels?: NivraCheckoutChannels | null;
   streaming_addons?: NivraCheckoutStreamingAddon[];
