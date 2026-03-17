@@ -150,9 +150,10 @@ export async function generateFieldSalesContractPDF(data: FieldSalesContractData
   currentY += 15;
 
   // ========== BILLING SECTION ==========
-  const subtotal = data.payment.totalAmount / (1 + TPS_RATE + TVQ_RATE);
-  const tps = subtotal * TPS_RATE;
-  const tvq = subtotal * TVQ_RATE;
+  const subtotal = data.payment.totalAmount / COMBINED_TAX_MULTIPLIER;
+  const taxResult = estimateTaxes(subtotal);
+  const tps = taxResult.tps;
+  const tvq = taxResult.tvq;
 
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(marginLeft + 90, currentY, 80, 40, 3, 3, 'F');

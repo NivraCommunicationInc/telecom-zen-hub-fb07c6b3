@@ -142,9 +142,10 @@ export async function generateFieldSalesInvoicePDF(data: FieldSalesInvoiceData):
   currentY += 20;
 
   // ========== TOTALS ==========
-  const subtotal = data.payment.totalAmount / (1 + TPS_RATE + TVQ_RATE);
-  const tps = subtotal * TPS_RATE;
-  const tvq = subtotal * TVQ_RATE;
+  const subtotal = data.payment.totalAmount / COMBINED_TAX_MULTIPLIER;
+  const taxResult = estimateTaxes(subtotal);
+  const tps = taxResult.tps;
+  const tvq = taxResult.tvq;
 
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(marginLeft + 80, currentY, 90, 55, 3, 3, 'F');
