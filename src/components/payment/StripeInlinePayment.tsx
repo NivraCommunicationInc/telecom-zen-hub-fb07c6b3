@@ -3,7 +3,7 @@
  * Replaces StripeCheckoutButton with a fully inline card form.
  * No redirect, no external tab. Card data never touches Nivra servers.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -18,9 +18,11 @@ import { Loader2, CreditCard, CheckCircle2, ShieldCheck } from "lucide-react";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { STRIPE_PUBLISHABLE_KEY } from "@/config/stripe";
-
-const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+import {
+  getStripePublishableKey,
+  getStripePublishableKeyMode,
+  type StripeMode,
+} from "@/config/stripe";
 
 export interface StripeBillingDetails {
   firstName: string;
