@@ -1,6 +1,6 @@
 /**
  * POSPaymentFormAdmin - Enhanced payment form for Admin POS
- * Features: PayPal, Interac, Carte, Paiement différé
+ * Features: PayPal, Interac, Carte (Stripe Elements), Comptant, Paiement différé
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
