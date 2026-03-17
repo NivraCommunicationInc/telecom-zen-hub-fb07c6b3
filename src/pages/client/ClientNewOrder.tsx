@@ -1736,6 +1736,12 @@ const ClientNewOrder = () => {
     await validateAndApplyPromo(discountCode, { silent: false });
   };
 
+  const dismissWelcomeDiscount = () => {
+    setWelcomeDiscountDismissed(true);
+    setPromoValidationError(null);
+    toast.info("Rabais nouveau client retiré");
+  };
+
   // Remove promo
   const removePromo = () => {
     setAppliedPromo(null);
@@ -3301,12 +3307,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
         // Effective promo code: promo takes priority; if no promo but referral has discount, use referral
         const effectivePromoCode = appliedPromo?.code || ((appliedReferral?.discount_amount ?? 0) > 0 ? appliedReferral?.code : null) || null;
-        
+        const pricingClientId = welcomeDiscountDismissed ? null : (user?.id || null);
+
         const result = await computeCheckoutPricing(
           cartItems,
           effectivePromoCode,
           profile?.email || user?.email || null,
-          user?.id || null,
+          pricingClientId,
           acceptPreauthorized ? 5 : 0,
         );
         console.log("[LivePricing] Server RPC response:", result);
@@ -3327,6 +3334,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     terminalFee, routerFee, simFee,
     acceptPreauthorized, appliedPromo?.code, appliedReferral?.code, appliedReferral?.discount_amount,
     profile?.email, user?.email, user?.id,
+    welcomeDiscountDismissed,
     createOrderMutation.isPending,
   ]);
 
@@ -5446,7 +5454,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </Button>
                       </div>
                       {hasWelcomeDiscountAlreadyApplied && (
-                        <p className="text-xs text-amber-500">{PROMO_SINGLE_DISCOUNT_MESSAGE}</p>
+                        <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+                          <p className="text-xs text-muted-foreground">
+                            Rabais nouveau client actif ({`-${serverWelcomeDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`})
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                            onClick={dismissWelcomeDiscount}
+                          >
+                            Retirer
+                          </Button>
+                        </div>
                       )}
                       {promoValidationError && (
                         <p className="text-xs text-destructive">{promoValidationError}</p>
@@ -5656,23 +5677,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                     {totalDiscount > 0 && (
                       <>
-                        <div className="flex justify-between items-center text-sm text-emerald-500 font-medium group">
+                        <div className="flex justify-between items-center text-sm text-emerald-500 font-medium">
                           <span>Rabais{appliedPromo ? ` (${appliedPromo.code})` : welcomeDiscountAmount > 0 ? " nouveau client" : ""}</span>
                           <div className="flex items-center gap-1.5">
                             <span>-{totalDiscount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}</span>
-                            {/* Remove discount button */}
                             {welcomeDiscountAmount > 0 && !appliedPromo && (
-                              <button
+                              <Button
                                 type="button"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
-                                onClick={() => {
-                                  setWelcomeDiscountDismissed(true);
-                                  toast.info("Rabais nouveau client retiré");
-                                }}
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive hover:text-destructive"
+                                onClick={dismissWelcomeDiscount}
                                 title="Retirer le rabais"
                               >
                                 <Minus className="w-3.5 h-3.5" />
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </div>
