@@ -3782,18 +3782,18 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               )}
 
               {/* Spacer for fixed bottom bar on mobile */}
-              {selectedServices.length > 0 && <div className="lg:hidden h-28" />}
+              {(selectedServices.length > 0 || selectedStreamingServices.length > 0) && <div className="lg:hidden h-28" />}
 
               {/* Mobile Order Summary — visible only on mobile when services selected */}
-              {selectedServices.length > 0 && (
+              {(selectedServices.length > 0 || selectedStreamingServices.length > 0) && (
                 <div className="lg:hidden mt-4">
                   <ProfessionalOrderSummary
                     pricing={authoritativePricing}
                     isLoading={isServerPricingLoading}
                     isMobile
-                    selectedServicesCount={selectedServices.length}
+                    selectedServicesCount={selectedServices.length + selectedStreamingServices.length}
                     onContinue={() => setStep(2)}
-                    continueDisabled={selectedServices.length === 0}
+                    continueDisabled={selectedServices.length === 0 && selectedStreamingServices.length === 0}
                   />
                 </div>
               )}
@@ -3805,9 +3805,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 <ProfessionalOrderSummary
                   pricing={authoritativePricing}
                   isLoading={isServerPricingLoading}
-                  selectedServicesCount={selectedServices.length}
+                  selectedServicesCount={selectedServices.length + selectedStreamingServices.length}
                   onContinue={() => setStep(2)}
-                  continueDisabled={selectedServices.length === 0}
+                  continueDisabled={selectedServices.length === 0 && selectedStreamingServices.length === 0}
                 />
                 <SecurityTrustBox isFrench={true} />
               </div>
