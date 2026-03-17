@@ -29,9 +29,8 @@ export interface TVCartPayload {
   createdAt: string;
 }
 
-/* ─── Tax constants (QC) — ESTIMATE ONLY ─── */
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+/* ─── Tax estimation — centralized server tax engine ─── */
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 
 type InstallMethod = "technician" | "self" | null;
 type SimulatorStep = 1 | 2 | 3 | 4;

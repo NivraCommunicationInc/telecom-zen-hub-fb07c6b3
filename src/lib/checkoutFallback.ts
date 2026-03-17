@@ -345,9 +345,10 @@ export async function fallbackCheckout(
   const promoDiscount = Number(pricing.promo_discount) || 0;
   const preauthDiscount = Number(pricing.preauth_discount) || 0;
   const taxableBase = Number(pricing.taxable_base) || subtotal;
-  const tpsAmount = Number(pricing.tps_amount) || Math.round(taxableBase * 0.05 * 100) / 100;
-  const tvqAmount = Number(pricing.tvq_amount) || Math.round(taxableBase * 0.09975 * 100) / 100;
-  const grandTotal = Number(pricing.grand_total) || Math.round((taxableBase + tpsAmount + tvqAmount) * 100) / 100;
+  const fallbackTax = estimateTaxesFallback(taxableBase);
+  const tpsAmount = Number(pricing.tps_amount) || fallbackTax.tps;
+  const tvqAmount = Number(pricing.tvq_amount) || fallbackTax.tvq;
+  const grandTotal = Number(pricing.grand_total) || fallbackTax.total;
   const billingCycleDay = new Date().getDate();
 
   // ── 5. Determine canonical billing fields ──

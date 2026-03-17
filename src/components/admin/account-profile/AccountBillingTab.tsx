@@ -272,11 +272,10 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
         line_type: adjustType === "credit" ? "credit" : "charge",
       });
 
-      // Recalculate invoice totals
+      // Recalculate invoice totals — centralized tax engine
+      const { estimateTaxes: estTax } = await import("@/lib/pricing/serverTaxEngine");
       const newSubtotal = (adjustInvoice.subtotal || 0) + lineTotal;
-      const tps = Math.round(newSubtotal * 0.05 * 100) / 100;
-      const tvq = Math.round(newSubtotal * 0.09975 * 100) / 100;
-      const newTotal = Math.round((newSubtotal + tps + tvq) * 100) / 100;
+      const { tps, tvq, total: newTotal } = estTax(newSubtotal);
       const newBalance = Math.round((newTotal - (adjustInvoice.amount_paid || 0)) * 100) / 100;
 
       await supabase.from("billing_invoices").update({
