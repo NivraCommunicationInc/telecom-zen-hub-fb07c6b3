@@ -11,7 +11,7 @@ import { useUnifiedPOS, calculateUnifiedPOSTotals } from "@/hooks/useUnifiedPOS"
 import { EquipmentItem } from "@/components/pos/POSEquipmentSelector";
 import { AdjustmentItem } from "@/components/pos/POSAdjustments";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, Check, ShoppingCart, Package, Wrench, DollarSign } from "lucide-react";
+import { Loader2, ChevronLeft, Check, ShoppingCart, Package, Wrench, DollarSign, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,6 +32,8 @@ import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
+import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
 
 type POSStep = "catalog" | "customer" | "payment" | "confirmation";
 type CatalogTab = "services" | "equipment" | "adjustments";
@@ -71,6 +73,7 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [stripePending, setStripePending] = useState<POSDraftInvoiceResult | null>(null);
   
   // Is this the admin portal with full features?
   const isAdminPortal = portalType === "admin";
@@ -153,9 +156,90 @@ export default function UnifiedPOSPage({
     setStep("confirmation");
   };
 
+  // ── Build customer info shared by both card and non-card flows ──
+  const buildCustomerInfo = () => {
+    if (!customerData) return null;
+    const normalizedDob = (customerData.date_of_birth || "").trim() || null;
+    if (!normalizedDob) throw new Error("Date de naissance manquante");
+
+    const adminData = (customerData as unknown as Partial<AdminCustomerData>) || {};
+    const derivedFirstName =
+      (typeof adminData.first_name === "string" && adminData.first_name.trim())
+        ? adminData.first_name.trim()
+        : (customerData.full_name.split(" ")[0] || null);
+    const derivedLastName =
+      (typeof adminData.last_name === "string" && adminData.last_name.trim())
+        ? adminData.last_name.trim()
+        : (customerData.full_name.split(" ").slice(1).join(" ") || null);
+
+    const isExistingClient = isAdminPortal && adminData.is_new_client === false && !!adminData.client_id;
+
+    return {
+      full_name: customerData.full_name,
+      first_name: derivedFirstName || "",
+      last_name: derivedLastName || "",
+      email: customerData.email,
+      phone: customerData.phone,
+      service_address: customerData.service_address,
+      service_city: customerData.service_city,
+      service_postal_code: customerData.service_postal_code,
+      date_of_birth: normalizedDob,
+      client_id: isExistingClient ? (adminData.client_id as string) : null,
+    };
+  };
+
   const handleConfirmOrder = async () => {
     if (!customerData || !paymentData || pos.isEmpty) return;
 
+    const isCardPayment = paymentData.payment_method === "card";
+
+    // ── CARD PAYMENT: Create draft order+invoice, then mount Stripe ──
+    if (isCardPayment && !stripePending) {
+      setIsSubmitting(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          toast.error("Session expirée");
+          navigate(backPath);
+          return;
+        }
+
+        const custInfo = buildCustomerInfo();
+        if (!custInfo) return;
+
+        const payload = pos.getOrderPayload();
+        const result = await createPOSDraftInvoice({
+          customer: custInfo,
+          services: pos.services,
+          equipment: pos.equipment,
+          adjustments: pos.adjustments,
+          totals: pos.totals,
+          portalType,
+          notes: paymentData.notes,
+          orderPayload: {
+            customer: custInfo,
+            services: payload.services,
+            equipment: payload.equipment,
+            adjustments: payload.adjustments,
+            ...((customerData as AdminCustomerData).is_new_client !== undefined && {
+              is_new_client: (customerData as AdminCustomerData).is_new_client,
+              client_id: (customerData as AdminCustomerData).client_id,
+            }),
+          },
+        });
+
+        setStripePending(result);
+        toast.info("Formulaire de paiement prêt — entrez les informations de carte.");
+      } catch (error: any) {
+        console.error("Draft invoice error:", error);
+        toast.error("Erreur", { description: error?.message || "Erreur inconnue" });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // ── NON-CARD PAYMENT: Original flow ──
     setIsSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -165,68 +249,32 @@ export default function UnifiedPOSPage({
         return;
       }
 
+      const custInfo = buildCustomerInfo();
+      if (!custInfo) return;
+
       const payload = pos.getOrderPayload();
-      
-      // Extract customer info for order
-      const normalizedDob = (customerData.date_of_birth || "").trim() || null;
-      const customerInfo = {
-        full_name: customerData.full_name,
-        email: customerData.email,
-        phone: customerData.phone,
-        service_address: customerData.service_address,
-        service_city: customerData.service_city,
-        service_postal_code: customerData.service_postal_code,
-        date_of_birth: normalizedDob,
-      };
-
-      // DB requires client_dob (enforced by trigger/constraint)
-      if (!customerInfo.date_of_birth) {
-        throw new Error("Date de naissance manquante");
-      }
-
-      // IMPORTANT:
-      // In staff/admin POS, the order must be linked to the CLIENT (not the staff user).
-      // If we write user_id=auth.uid() (staff), DB triggers will try to sync from the staff profile
-      // and can overwrite/validate client_dob against the wrong profile → NULL.
-      const adminData = (customerData as unknown as Partial<AdminCustomerData>) || {};
-      const isExistingClient = isAdminPortal && adminData.is_new_client === false && !!adminData.client_id;
-      const orderUserId = isExistingClient ? (adminData.client_id as string) : null;
-
-      const derivedFirstName =
-        (typeof adminData.first_name === "string" && adminData.first_name.trim())
-          ? adminData.first_name.trim()
-          : (customerInfo.full_name.split(" ")[0] || null);
-      const derivedLastName =
-        (typeof adminData.last_name === "string" && adminData.last_name.trim())
-          ? adminData.last_name.trim()
-          : (customerInfo.full_name.split(" ").slice(1).join(" ") || null);
-      
-      // Get payment info
       const paymentMethod = paymentData.payment_method;
       const paymentReference = 'payment_reference' in paymentData ? paymentData.payment_reference : undefined;
       const paypalTransactionId = 'paypal_transaction_id' in paymentData ? paymentData.paypal_transaction_id : undefined;
-      
-      // Create order directly
+
       const { data: newOrder, error } = await supabase
         .from("orders")
         .insert([{
-          // Link to client when selected; otherwise leave null and let backend account creation link it.
-          user_id: orderUserId,
+          user_id: custInfo.client_id,
           service_type: pos.services[0]?.category || "bundle",
-          client_email: customerInfo.email,
-          client_dob: customerInfo.date_of_birth, // REQUIRED - must not be null
-          client_first_name: derivedFirstName,
-          client_last_name: derivedLastName,
-          client_phone: customerInfo.phone,
-          service_address: customerInfo.service_address,
-          service_city: customerInfo.service_city,
-          service_postal_code: customerInfo.service_postal_code,
+          client_email: custInfo.email,
+          client_dob: custInfo.date_of_birth,
+          client_first_name: custInfo.first_name,
+          client_last_name: custInfo.last_name,
+          client_phone: custInfo.phone,
+          service_address: custInfo.service_address,
+          service_city: custInfo.service_city,
+          service_postal_code: custInfo.service_postal_code,
           equipment_details: JSON.parse(JSON.stringify({
-            customer: customerInfo,
+            customer: custInfo,
             services: payload.services,
             equipment: payload.equipment,
             adjustments: payload.adjustments,
-            // Admin-specific data
             ...((customerData as AdminCustomerData).is_new_client !== undefined && {
               is_new_client: (customerData as AdminCustomerData).is_new_client,
               client_id: (customerData as AdminCustomerData).client_id,
@@ -234,7 +282,6 @@ export default function UnifiedPOSPage({
               accept_sms_notifications: (customerData as AdminCustomerData).accept_sms_notifications,
               pin: (customerData as AdminCustomerData).pin || null,
             }),
-            // PayPal specific
             ...(paypalTransactionId && {
               paypal_transaction_id: paypalTransactionId,
               paypal_payer_email: (paymentData as AdminPaymentData).paypal_payer_email,
@@ -254,23 +301,21 @@ export default function UnifiedPOSPage({
 
       if (error) throw error;
 
-      // If no client_id was selected, create/link a client account now (non-blocking for order creation).
-      if (!orderUserId) {
+      // Auto-create client if no client_id
+      if (!custInfo.client_id) {
         try {
-          const fallbackFirst = derivedFirstName || "";
-          const fallbackLast = derivedLastName || "";
           await supabase.functions.invoke("auto-create-client-account", {
             body: {
-              email: customerInfo.email,
-              first_name: fallbackFirst,
-              last_name: fallbackLast,
-              phone: customerInfo.phone,
+              email: custInfo.email,
+              first_name: custInfo.first_name,
+              last_name: custInfo.last_name,
+              phone: custInfo.phone,
               order_id: newOrder.id,
               order_number: (newOrder as any).order_number || undefined,
-              service_address: customerInfo.service_address,
-              service_city: customerInfo.service_city,
-              service_postal_code: customerInfo.service_postal_code,
-              date_of_birth: customerInfo.date_of_birth,
+              service_address: custInfo.service_address,
+              service_city: custInfo.service_city,
+              service_postal_code: custInfo.service_postal_code,
+              date_of_birth: custInfo.date_of_birth,
             },
           });
         } catch (linkErr) {
@@ -278,7 +323,7 @@ export default function UnifiedPOSPage({
         }
       }
 
-      // === CARRIER-GRADE ORCHESTRATION (Phase 2A) ===
+      // Orchestration
       try {
         const { orchestrateOrder } = await import("@/lib/orderOrchestration");
         const orchResult = await orchestrateOrder(newOrder.id);
@@ -296,6 +341,7 @@ export default function UnifiedPOSPage({
       pos.clearCart();
       setCustomerData(null);
       setPaymentData(null);
+      setStripePending(null);
       setStep("catalog");
 
     } catch (error: any) {
@@ -304,6 +350,51 @@ export default function UnifiedPOSPage({
       toast.error("Erreur", { description: description || "Erreur inconnue" });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ── Stripe success handler (card payments) ──
+  const handleStripeSuccess = async () => {
+    if (!stripePending) return;
+    try {
+      await finalizePOSCardPayment(stripePending.orderId, portalType);
+
+      // Auto-create client account if no client_id
+      const custInfo = buildCustomerInfo();
+      if (custInfo && !custInfo.client_id) {
+        try {
+          await supabase.functions.invoke("auto-create-client-account", {
+            body: {
+              email: custInfo.email,
+              first_name: custInfo.first_name,
+              last_name: custInfo.last_name,
+              phone: custInfo.phone,
+              order_id: stripePending.orderId,
+              order_number: stripePending.orderNumber,
+              service_address: custInfo.service_address,
+              service_city: custInfo.service_city,
+              service_postal_code: custInfo.service_postal_code,
+              date_of_birth: custInfo.date_of_birth,
+            },
+          });
+        } catch (linkErr) {
+          console.warn("[POS] auto-create-client-account failed (non-blocking)");
+        }
+      }
+
+      onOrderComplete?.(stripePending.orderId);
+
+      toast.success("🎉 Paiement par carte confirmé — commande créée!", {
+        description: `Commande ${stripePending.orderNumber} — ${stripePending.totalAmount.toFixed(2)} $`,
+      });
+
+      pos.clearCart();
+      setCustomerData(null);
+      setPaymentData(null);
+      setStripePending(null);
+      setStep("catalog");
+    } catch (err: any) {
+      toast.error("Erreur de finalisation", { description: err?.message });
     }
   };
 
@@ -585,18 +676,54 @@ export default function UnifiedPOSPage({
                     ))}
                   </div>
                 )}
-                <Button
-                  onClick={handleConfirmOrder}
-                  disabled={isSubmitting}
-                  className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  ) : (
-                    <Check className="h-5 w-5 mr-2" />
-                  )}
-                  Confirmer et enregistrer
-                </Button>
+
+                {/* Stripe card payment form — shown after draft invoice created */}
+                {paymentData.payment_method === "card" && stripePending && (
+                  <div className="p-4 rounded-xl bg-slate-800/50 border border-cyan-500/30">
+                    <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-cyan-400" />
+                      Paiement par carte — Stripe
+                    </h4>
+                    <StripeInlinePayment
+                      invoiceId={stripePending.invoiceId}
+                      amount={stripePending.totalAmount}
+                      customerEmail={customerData.email}
+                      customerId={stripePending.customerId}
+                      onSuccess={handleStripeSuccess}
+                      onError={(msg) => toast.error("Échec du paiement", { description: msg })}
+                    />
+                  </div>
+                )}
+
+                {/* Confirm button: for card, triggers draft invoice creation; for others, direct confirmation */}
+                {paymentData.payment_method === "card" && !stripePending && (
+                  <Button
+                    onClick={handleConfirmOrder}
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-lg shadow-lg"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    ) : (
+                      <CreditCard className="h-5 w-5 mr-2" />
+                    )}
+                    Procéder au paiement par carte
+                  </Button>
+                )}
+                {paymentData.payment_method !== "card" && (
+                  <Button
+                    onClick={handleConfirmOrder}
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-lg shadow-lg"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    ) : (
+                      <Check className="h-5 w-5 mr-2" />
+                    )}
+                    Confirmer et enregistrer
+                  </Button>
+                )}
               </div>
             </div>
           )}
