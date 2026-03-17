@@ -411,28 +411,7 @@ export default function UnifiedPOSPage({
     try {
       await finalizePOSCardPayment(stripePending.orderId, portalType);
 
-      // Auto-create client account if no client_id
-      const custInfo = buildCustomerInfo();
-      if (custInfo && !custInfo.client_id) {
-        try {
-          await supabase.functions.invoke("auto-create-client-account", {
-            body: {
-              email: custInfo.email,
-              first_name: custInfo.first_name,
-              last_name: custInfo.last_name,
-              phone: custInfo.phone,
-              order_id: stripePending.orderId,
-              order_number: stripePending.orderNumber,
-              service_address: custInfo.service_address,
-              service_city: custInfo.service_city,
-              service_postal_code: custInfo.service_postal_code,
-              date_of_birth: custInfo.date_of_birth,
-            },
-          });
-        } catch (linkErr) {
-          console.warn("[POS] auto-create-client-account failed (non-blocking)");
-        }
-      }
+      // Client account already created by createPOSDraftInvoice
 
       onOrderComplete?.(stripePending.orderId);
 
