@@ -87,7 +87,7 @@ const PayInvoiceDialog = ({
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Choisir un mode de paiement</p>
 
-          {/* Credit Card (TELUS-style) */}
+          {/* Credit/Debit Card via Stripe */}
           <button
             onClick={() => setPaymentMethod("card")}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
@@ -101,9 +101,27 @@ const PayInvoiceDialog = ({
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
-              <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé</p>
+              <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé via Stripe</p>
             </div>
             <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
+          </button>
+
+          {/* PayPal */}
+          <button
+            onClick={() => setPaymentMethod("paypal")}
+            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+              paymentMethod === "paypal"
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                : "border-border hover:border-muted-foreground/30 bg-background"
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+              <Wallet className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">PayPal</p>
+              <p className="text-xs text-muted-foreground">Payez avec votre compte PayPal</p>
+            </div>
           </button>
 
           {/* Interac */}
@@ -127,11 +145,28 @@ const PayInvoiceDialog = ({
 
         {/* ============ Payment Form Based on Selection ============ */}
 
-        {/* Credit/Debit Card via PayPal Checkout redirect */}
+        {/* Credit/Debit Card via Stripe Checkout */}
         {paymentMethod === "card" && (
           <div className="mt-2 space-y-3">
             <p className="text-xs text-muted-foreground">
-              Vous serez redirigé vers PayPal pour compléter le paiement de façon sécurisée par carte de crédit, débit ou compte PayPal.
+              Vous serez redirigé vers Stripe pour compléter le paiement de façon sécurisée par carte de crédit ou débit.
+            </p>
+            <StripeCheckoutButton
+              invoiceId={invoice.id}
+              amount={amount}
+              description={`Facture ${invoiceNumber} - Nivra Telecom`}
+              customerEmail={profile?.email}
+              onSuccess={handlePaymentSuccess}
+              onError={handlePaymentError}
+            />
+          </div>
+        )}
+
+        {/* PayPal */}
+        {paymentMethod === "paypal" && (
+          <div className="mt-2 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Vous serez redirigé vers PayPal pour compléter le paiement avec votre compte PayPal.
             </p>
             <PayPalCheckoutButton
               invoiceId={invoice.id}
