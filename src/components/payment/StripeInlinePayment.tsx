@@ -334,6 +334,11 @@ function PaymentForm({
           }}
           options={{
             layout: "tabs",
+            wallets: {
+              applePay: "never",
+              googlePay: "never",
+            },
+            paymentMethodOrder: ["card"],
           }}
         />
         {!paymentElementReady && !paymentElementError && (

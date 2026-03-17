@@ -3500,16 +3500,19 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       toast.error("Veuillez sélectionner au moins un service ou un forfait Streaming+");
       return;
     }
-    if (!isIdComplete) {
-      submittingRef.current = false;
-      toast.error("Veuillez remplir tous les champs d'identification");
-      return;
-    }
-    // BLOCK if QR identity verification not submitted (docs must be submitted for review)
-    if (!idVerificationApproved || !verificationSessionId) {
-      submittingRef.current = false;
-      toast.error("Vérification d'identité QR requise avant de soumettre la commande.");
-      return;
+    // Streaming+ only orders: NO identity/KYC validation required
+    if (!isStreamingOnlyOrder) {
+      if (!isIdComplete) {
+        submittingRef.current = false;
+        toast.error("Veuillez remplir tous les champs d'identification");
+        return;
+      }
+      // BLOCK if QR identity verification not submitted (docs must be submitted for review)
+      if (!idVerificationApproved || !verificationSessionId) {
+        submittingRef.current = false;
+        toast.error("Vérification d'identité QR requise avant de soumettre la commande.");
+        return;
+      }
     }
     // Validate delivery/installation choice based on order type
     // Streaming-only orders use digital delivery — no validation needed
@@ -5163,8 +5166,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
-              {/* ID Verification - Only for telecom services, not equipment-only orders */}
-              {!isEquipmentOnlyOrder ? (
+              {/* ID Verification - Only for telecom services, not equipment-only or streaming-only orders */}
+              {!isEquipmentOnlyOrder && !isStreamingOnlyOrder ? (
                 <Card className="bg-card border-border">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -5753,9 +5756,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setStep(nextStep);
                       }}
                       disabled={
-                        // Streaming-only: no delivery/installation required, just need identity (if not equipment-only)
+                        // Streaming-only: no delivery/installation/identity required
                         isStreamingOnlyOrder
-                          ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                          ? false
                           // For equipment-only orders, only need delivery choice (no ID required)
                           : isEquipmentOnlyOrder 
                             ? !deliveryChoice
@@ -6827,7 +6830,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     setStep(nextStep);
                   }} disabled={
                     isStreamingOnlyOrder
-                      ? (isEquipmentOnlyOrder ? false : !isIdComplete)
+                      ? false
                       : isEquipmentOnlyOrder 
                         ? !deliveryChoice
                         : isDeliveryOnlyOrder 
