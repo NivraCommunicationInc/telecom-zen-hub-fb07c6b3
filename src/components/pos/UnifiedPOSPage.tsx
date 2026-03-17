@@ -35,6 +35,46 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
 import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
 
+/** Resolve or create account for a client (used by non-card POS flow) */
+async function resolveAccountForOrder(clientId: string, serviceAddress: string, serviceCity: string, servicePostalCode: string): Promise<string> {
+  const { data: existing } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("status", "active")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from("accounts")
+    .insert({
+      client_id: clientId,
+      status: "active",
+      primary_service_address: serviceAddress || null,
+      primary_service_city: serviceCity || null,
+      primary_service_province: "QC",
+      primary_service_postal_code: servicePostalCode || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      const { data: reFetched } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("client_id", clientId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (reFetched) return reFetched.id;
+    }
+    throw new Error(`Échec résolution compte: ${error.message}`);
+  }
+  return created.id;
+}
+
 type POSStep = "catalog" | "customer" | "payment" | "confirmation";
 type CatalogTab = "services" | "equipment" | "adjustments";
 
