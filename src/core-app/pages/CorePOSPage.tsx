@@ -106,6 +106,7 @@ function genId() {
 function mapPaymentMethodForDB(method: PaymentMethod): string {
   if (method === "interac") return "interac";
   if (method === "paypal") return "paypal";
+  if (method === "card") return "card";
   return "manual";
 }
 
