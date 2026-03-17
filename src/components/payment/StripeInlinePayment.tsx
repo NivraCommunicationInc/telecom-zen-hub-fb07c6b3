@@ -3,7 +3,7 @@
  * Replaces StripeCheckoutButton with a fully inline card form.
  * No redirect, no external tab. Card data never touches Nivra servers.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -68,6 +68,7 @@ function PaymentForm({
   const [isComplete, setIsComplete] = useState(false);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
   const [paymentElementError, setPaymentElementError] = useState<string | null>(null);
+  const [hasMountedPaymentElement, setHasMountedPaymentElement] = useState(false);
   const [billingDetails, setBillingDetails] = useState<StripeBillingDetails>({
     firstName: defaultBillingDetails?.firstName || "",
     lastName: defaultBillingDetails?.lastName || "",
@@ -98,6 +99,7 @@ function PaymentForm({
     !!elements &&
     !isProcessing &&
     paymentElementReady &&
+    hasMountedPaymentElement &&
     !paymentElementError &&
     isBillingComplete;
 
@@ -110,7 +112,7 @@ function PaymentForm({
       e.preventDefault();
 
       if (!stripe || !elements || isProcessing) return;
-      if (!paymentElementReady) {
+      if (!paymentElementReady || !hasMountedPaymentElement) {
         const msg = "Le formulaire de carte sécurisé n'est pas encore prêt.";
         toast.error(msg);
         onError?.(msg);
@@ -125,7 +127,8 @@ function PaymentForm({
       }
 
       const mountedPaymentElement = elements.getElement(PaymentElement);
-      if (!mountedPaymentElement) {
+      const mountedPaymentElementByType = elements.getElement("payment");
+      if (!mountedPaymentElement || !mountedPaymentElementByType) {
         const msg = "Le formulaire Stripe n'est pas monté. Veuillez réessayer.";
         toast.error(msg);
         onError?.(msg);
@@ -207,6 +210,7 @@ function PaymentForm({
       elements,
       isProcessing,
       paymentElementReady,
+      hasMountedPaymentElement,
       collectBillingDetails,
       isBillingComplete,
       billingDetails,
@@ -315,11 +319,13 @@ function PaymentForm({
         <p className="text-sm font-semibold text-foreground">Informations de carte (Stripe sécurisé)</p>
         <PaymentElement
           onReady={() => {
+            setHasMountedPaymentElement(true);
             setPaymentElementReady(true);
             setPaymentElementError(null);
           }}
           onLoadError={() => {
             const msg = "Impossible de charger le formulaire de carte sécurisé.";
+            setHasMountedPaymentElement(false);
             setPaymentElementError(msg);
             setPaymentElementReady(false);
             onError?.(msg);
@@ -388,13 +394,24 @@ export function StripeInlinePayment({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const onErrorRef = useRef(onError);
 
   useEffect(() => {
-    if (disabled || !invoiceId || amount <= 0) return;
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    if (disabled || !invoiceId || amount <= 0) {
+      setClientSecret(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setClientSecret(null);
 
     (async () => {
       try {
@@ -422,7 +439,7 @@ export function StripeInlinePayment({
         if (!cancelled) {
           const msg = err instanceof Error ? err.message : "Erreur d'initialisation Stripe";
           setError(msg);
-          onError?.(msg);
+          onErrorRef.current?.(msg);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -432,7 +449,7 @@ export function StripeInlinePayment({
     return () => {
       cancelled = true;
     };
-  }, [invoiceId, amount, description, customerEmail, customerId, disabled, onError]);
+  }, [invoiceId, amount, description, customerEmail, customerId, disabled]);
 
   if (disabled) return null;
 
@@ -457,6 +474,7 @@ export function StripeInlinePayment({
 
   return (
     <Elements
+      key={clientSecret}
       stripe={stripePromise}
       options={{
         clientSecret,
