@@ -8,8 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const TPS_RATE = 0.05;
-const TVQ_RATE = 0.09975;
+// Tax rates imported from _shared/tax-constants.ts
 
 interface RunStats {
   subscriptions_expired: number;
