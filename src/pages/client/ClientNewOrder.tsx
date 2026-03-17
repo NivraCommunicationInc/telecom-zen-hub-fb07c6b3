@@ -1997,13 +1997,17 @@ const ClientNewOrder = () => {
         consent_at: new Date().toISOString(),
       } : null;
 
-      // Build identity snapshot object
-      const identitySnapshotData = (idType || idNumber || idExpiration || idProvince) ? {
-        id_type: idType || null,
-        id_number: idNumber || null,
-        id_expiration: idExpiration || null,
-        id_province: idProvince || null,
-      } : null;
+      // Build identity snapshot object (fully bypassed for Streaming+ only)
+      const identitySnapshotData = shouldBypassIdentityKyc
+        ? null
+        : (idType || idNumber || idExpiration || idProvince)
+        ? {
+            id_type: idType || null,
+            id_number: idNumber || null,
+            id_expiration: idExpiration || null,
+            id_province: idProvince || null,
+          }
+        : null;
 
       // Build structured line_items for contract PDF
       
