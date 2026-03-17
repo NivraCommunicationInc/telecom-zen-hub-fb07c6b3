@@ -3140,8 +3140,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   //   - welcome_discount (50% new customer, 0 if not eligible)
   //   - discount_total_combined (sum of both, no stacking)
   const serverPromoDiscount = toNonNegativeMoney(liveServerPricing?.promo_discount ?? 0);
-  const welcomeDiscountAmount = toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0);
-  const hasWelcomeDiscountAlreadyApplied = welcomeDiscountAmount > 0 || !!liveServerPricing?.welcome_applied;
+  // Welcome discount: respect client dismissal
+  const serverWelcomeDiscount = toNonNegativeMoney(liveServerPricing?.welcome_discount ?? 0);
+  const welcomeDiscountAmount = welcomeDiscountDismissed ? 0 : serverWelcomeDiscount;
+  const hasWelcomeDiscountAlreadyApplied = !welcomeDiscountDismissed && (serverWelcomeDiscount > 0 || !!liveServerPricing?.welcome_applied);
   const promoDiscount = serverPromoDiscount; // alias for backward compat
 
   // Total discount from server (promo + welcome, mutually exclusive / no stacking)
