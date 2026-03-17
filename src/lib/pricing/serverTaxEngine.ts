@@ -1,28 +1,32 @@
 /**
  * ════════════════════════════════════════════════════════════════
- * Nivra Server Tax Engine — SINGLE SOURCE OF TRUTH
+ * Nivra Server Tax Engine — CLIENT-SIDE ESTIMATION ONLY
  * ════════════════════════════════════════════════════════════════
  *
- * ALL tax calculations across the entire frontend MUST go through
- * this module. No component is allowed to define its own TAX_RATES
- * or compute TPS/TVQ inline.
+ * ⚠️  THIS IS NOT A SERVER SOURCE OF TRUTH.
+ * This module provides LOCAL estimations using hardcoded Quebec
+ * tax rates. It exists SOLELY for real-time UI previews where
+ * calling a server RPC would be too slow or unnecessary.
  *
- * Two modes:
- *  1. estimateTaxes()     — synchronous, for real-time UI previews only
- *  2. computeServerTaxes() — async RPC call, authoritative for transactions
- *
- * RULE: Any flow that writes to the database (checkout, invoice creation,
- * order processing) MUST use computeServerTaxes() or the dedicated
- * compute_checkout_pricing / compute_invoice_breakdown RPCs.
- *
- * estimateTaxes() is acceptable ONLY for:
+ * ALLOWED usage (non-transactional previews):
  *  - Cart previews while user is still editing
  *  - POS real-time display
  *  - Promotion preview calculators
  *  - Admin estimation displays
  *
+ * FORBIDDEN usage (transactional / write paths):
+ *  - Checkout (must use compute_checkout_pricing RPC)
+ *  - Invoice creation (must use compute_invoice_breakdown RPC)
+ *  - Payment processing
+ *  - PDF generation with final amounts
+ *  - Any flow that writes amounts to the database
+ *
+ * The AUTHORITATIVE server RPCs are:
+ *  - compute_checkout_pricing  → checkout totals
+ *  - compute_invoice_breakdown → invoice/PDF totals
+ *
  * The rates here mirror the server RPC. If tax rates change,
- * update THIS file and the server RPC together.
+ * update THIS file and the server RPCs together.
  */
 
 // ═══ CANONICAL RATES (Quebec) ═══
