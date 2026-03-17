@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, UserPlus, User } from "lucide-react";
-import { BILLING_TAX_RATES } from "@/lib/billing/types";
+import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
 import type { BillingCustomer, BillingInvoiceType, BillingInvoiceStatus, BillingPaymentMethod } from "@/lib/billing/types";
 
 interface InvoiceLine {
