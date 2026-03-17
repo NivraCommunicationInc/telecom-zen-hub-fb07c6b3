@@ -3209,10 +3209,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const firstInvoiceRecurringNet = toNonNegativeMoney(authoritativeRecurringSubtotal - totalDiscount);
 
   // === MONTHLY RECURRING WITH TAX (display only — from centralized server tax engine) ===
-  const { tps: monthlyTps, tvq: monthlyTvq, total: monthlyTotalWithTax } = (() => {
-    const { estimateTaxes: est } = require("@/lib/pricing/serverTaxEngine");
-    return est(monthlyRecurring);
-  })();
+  const { tps: monthlyTps, tvq: monthlyTvq, total: monthlyTotalWithTax } = estimateMonthlyTaxes(monthlyRecurring);
 
   // ── SINGLE UI SOURCES OF TRUTH (locked during submission) ───────────────────
   // Monthly totals are pure local computations (from selectedServices) and NEVER change
