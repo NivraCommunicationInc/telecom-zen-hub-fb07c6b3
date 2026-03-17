@@ -3147,7 +3147,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const promoDiscount = serverPromoDiscount; // alias for backward compat
 
   // Total discount from server (promo + welcome, mutually exclusive / no stacking)
-  const totalDiscount = toNonNegativeMoney(liveServerPricing?.discount_total_combined ?? 0);
+  // If welcome discount dismissed, subtract it from the combined total
+  const serverTotalDiscount = toNonNegativeMoney(liveServerPricing?.discount_total_combined ?? 0);
+  const totalDiscount = welcomeDiscountDismissed 
+    ? toNonNegativeMoney(serverTotalDiscount - serverWelcomeDiscount)
+    : serverTotalDiscount;
 
   // Check if promo was blocked by the RPC (e.g., welcome discount takes priority)
   const promoBlockedReason = liveServerPricing?.promo_applied?.blocked_reason as string | undefined;
