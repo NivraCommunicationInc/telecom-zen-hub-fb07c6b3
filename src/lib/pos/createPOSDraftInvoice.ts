@@ -5,7 +5,8 @@
  * BEFORE the card payment is captured. On Stripe success, the order/invoice
  * are finalized. On failure/abandon, they remain in "pending" state.
  *
- * Flow: Create Order (pending) → Find/Create billing_customer → Create Invoice (pending) → Create Invoice Lines
+ * Flow: Resolve Account → Create Order (pending) → Find/Create billing_customer
+ *       → Create Invoice (pending) → Create Invoice Lines
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -42,7 +43,146 @@ export interface POSDraftInvoiceResult {
   invoiceId: string;
   invoiceNumber: string;
   customerId: string;
+  accountId: string;
   totalAmount: number;
+}
+
+/**
+ * Resolve or create an account for the client.
+ * Follows the same idempotent pattern as checkoutFallback.
+ */
+async function resolveAccount(clientId: string | null, serviceAddress: {
+  address: string;
+  city: string;
+  postal_code: string;
+}): Promise<{ accountId: string; accountNumber: string }> {
+  // If we have a client_id, try to find their existing account
+  if (clientId) {
+    const { data: existing } = await supabase
+      .from("accounts")
+      .select("id, account_number")
+      .eq("client_id", clientId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return { accountId: existing.id, accountNumber: existing.account_number || "" };
+    }
+  }
+
+  // Create new account — requires a client_id
+  if (!clientId) {
+    throw new Error("Impossible de créer un compte sans client_id. Créez d'abord le client.");
+  }
+
+  const { data: newAcct, error: acctErr } = await supabase
+    .from("accounts")
+    .insert({
+      client_id: clientId,
+      status: "active",
+      primary_service_address: serviceAddress.address || null,
+      primary_service_city: serviceAddress.city || null,
+      primary_service_province: "QC",
+      primary_service_postal_code: serviceAddress.postal_code || null,
+    })
+    .select("id, account_number")
+    .single();
+
+  if (acctErr) {
+    // Handle race condition
+    if (acctErr.code === "23505") {
+      const { data: reFetched } = await supabase
+        .from("accounts")
+        .select("id, account_number")
+        .eq("client_id", clientId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (reFetched) {
+        return { accountId: reFetched.id, accountNumber: reFetched.account_number || "" };
+      }
+    }
+    throw new Error(`Échec de création du compte: ${acctErr.message}`);
+  }
+
+  return { accountId: newAcct.id, accountNumber: newAcct.account_number || "" };
+}
+
+/**
+ * Resolve or create billing_customer.
+ */
+async function resolveBillingCustomer(input: {
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  client_id: string | null;
+}): Promise<string> {
+  // Try by email first
+  const { data: existing } = await supabase
+    .from("billing_customers")
+    .select("id")
+    .eq("email", input.email)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) return existing.id;
+
+  const { data: created, error } = await supabase
+    .from("billing_customers")
+    .insert({
+      email: input.email,
+      first_name: input.first_name,
+      last_name: input.last_name,
+      phone: input.phone,
+      user_id: input.client_id,
+      status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      const { data: reFetched } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("email", input.email)
+        .maybeSingle();
+      if (reFetched) return reFetched.id;
+    }
+    throw new Error(`Échec de création client facturation: ${error.message}`);
+  }
+
+  return created.id;
+}
+
+/**
+ * For POS card payments, we first need to ensure the client has an auth user
+ * and account. This calls auto-create-client-account to handle that.
+ */
+async function ensureClientAccount(input: POSDraftInvoiceInput): Promise<string> {
+  // If we already have a client_id, use it
+  if (input.customer.client_id) return input.customer.client_id;
+
+  // Create via edge function
+  const { data, error } = await supabase.functions.invoke("auto-create-client-account", {
+    body: {
+      email: input.customer.email,
+      first_name: input.customer.first_name,
+      last_name: input.customer.last_name,
+      phone: input.customer.phone,
+      service_address: input.customer.service_address,
+      service_city: input.customer.service_city,
+      service_postal_code: input.customer.service_postal_code,
+      date_of_birth: input.customer.date_of_birth,
+    },
+  });
+
+  if (error) throw new Error(`Échec de création du compte client: ${error.message}`);
+  if (!data?.user_id) throw new Error("Le compte client n'a pas retourné de user_id");
+
+  return data.user_id;
 }
 
 export async function createPOSDraftInvoice(
@@ -50,11 +190,31 @@ export async function createPOSDraftInvoice(
 ): Promise<POSDraftInvoiceResult> {
   const now = new Date().toISOString();
 
-  // ── 1. Create Order (pending payment) ──
+  // ── 1. Ensure client has an auth user ──
+  const clientId = await ensureClientAccount(input);
+
+  // ── 2. Resolve or create account ──
+  const { accountId, accountNumber } = await resolveAccount(clientId, {
+    address: input.customer.service_address,
+    city: input.customer.service_city,
+    postal_code: input.customer.service_postal_code,
+  });
+
+  // ── 3. Resolve or create billing_customer ──
+  const customerId = await resolveBillingCustomer({
+    email: input.customer.email,
+    first_name: input.customer.first_name,
+    last_name: input.customer.last_name,
+    phone: input.customer.phone,
+    client_id: clientId,
+  });
+
+  // ── 4. Create Order (pending payment) ──
   const { data: newOrder, error: orderErr } = await supabase
     .from("orders")
     .insert([{
-      user_id: input.customer.client_id || null,
+      user_id: clientId,
+      account_id: accountId,
       service_type: input.services[0]?.category || "bundle",
       client_email: input.customer.email,
       client_dob: input.customer.date_of_birth,
@@ -70,6 +230,7 @@ export async function createPOSDraftInvoice(
       tvq_amount: input.totals.tvq,
       total_amount: input.totals.firstMonthTotal,
       payment_status: "pending",
+      payment_method: "card",
       payment_reference: null,
       internal_notes: `[POS ${input.portalType.toUpperCase()} — Stripe card] ${input.notes || ""}`,
       status: "pending",
@@ -81,46 +242,13 @@ export async function createPOSDraftInvoice(
     throw new Error(`Échec de création de commande: ${orderErr?.message || "unknown"}`);
   }
 
-  // ── 2. Find or create billing_customer ──
-  let customerId: string;
-
-  // Try to find existing customer by email
-  const { data: existingCustomer } = await supabase
-    .from("billing_customers")
-    .select("id")
-    .eq("email", input.customer.email)
-    .limit(1)
-    .maybeSingle();
-
-  if (existingCustomer) {
-    customerId = existingCustomer.id;
-  } else {
-    const { data: newCustomer, error: custErr } = await supabase
-      .from("billing_customers")
-      .insert({
-        email: input.customer.email,
-        first_name: input.customer.first_name,
-        last_name: input.customer.last_name,
-        phone: input.customer.phone,
-        user_id: input.customer.client_id || null,
-        status: "active",
-      })
-      .select("id")
-      .single();
-
-    if (custErr || !newCustomer) {
-      throw new Error(`Échec de création client: ${custErr?.message || "unknown"}`);
-    }
-    customerId = newCustomer.id;
-  }
-
-  // ── 3. Generate invoice number ──
+  // ── 5. Generate invoice number ──
   const d = new Date();
   const dateStr = `${d.getFullYear().toString().slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
   const invoiceNumber = `INV-${dateStr}-${rand}`;
 
-  // ── 4. Create billing_invoice (pending) ──
+  // ── 6. Create billing_invoice (pending) ──
   const invoiceId = crypto.randomUUID();
 
   const { error: invErr } = await supabase.from("billing_invoices").insert({
@@ -142,6 +270,7 @@ export async function createPOSDraftInvoice(
     currency: "CAD",
     payment_method: "card",
     environment: "live",
+    billing_snapshot_account_number: accountNumber,
     billing_snapshot_client: {
       first_name: input.customer.first_name,
       last_name: input.customer.last_name,
@@ -154,7 +283,7 @@ export async function createPOSDraftInvoice(
     throw new Error(`Échec de création de facture: ${invErr.message}`);
   }
 
-  // ── 5. Create invoice lines ──
+  // ── 7. Create invoice lines ──
   const lines: Array<{
     invoice_id: string;
     description: string;
@@ -164,7 +293,6 @@ export async function createPOSDraftInvoice(
     line_type: string;
   }> = [];
 
-  // Service lines
   for (const s of input.services) {
     if (s.priceMonthly > 0) {
       lines.push({
@@ -188,7 +316,6 @@ export async function createPOSDraftInvoice(
     }
   }
 
-  // Equipment lines
   for (const e of input.equipment) {
     lines.push({
       invoice_id: invoiceId,
@@ -200,7 +327,6 @@ export async function createPOSDraftInvoice(
     });
   }
 
-  // Adjustment lines
   for (const a of input.adjustments) {
     lines.push({
       invoice_id: invoiceId,
@@ -212,7 +338,6 @@ export async function createPOSDraftInvoice(
     });
   }
 
-  // Activation fee
   if (input.totals.activationFee > 0) {
     lines.push({
       invoice_id: invoiceId,
@@ -233,7 +358,7 @@ export async function createPOSDraftInvoice(
     }
   }
 
-  console.log(`[POS Draft Invoice] Created order ${newOrder.order_number}, invoice ${invoiceNumber} for Stripe payment`);
+  console.log(`[POS Draft Invoice] Created order ${newOrder.order_number}, invoice ${invoiceNumber}, account ${accountNumber} for Stripe payment`);
 
   return {
     orderId: newOrder.id,
@@ -241,6 +366,7 @@ export async function createPOSDraftInvoice(
     invoiceId,
     invoiceNumber,
     customerId,
+    accountId,
     totalAmount: input.totals.firstMonthTotal,
   };
 }
@@ -251,9 +377,8 @@ export async function createPOSDraftInvoice(
  */
 export async function finalizePOSCardPayment(
   orderId: string,
-  portalType: string
+  _portalType: string
 ): Promise<void> {
-  // Update order payment_status
   const { error } = await supabase
     .from("orders")
     .update({ payment_status: "confirmed" })
@@ -272,7 +397,4 @@ export async function finalizePOSCardPayment(
   } catch (orchErr) {
     console.warn("[POS Finalize] Orchestration failed (non-blocking):", orchErr);
   }
-
-  // Auto-create client account (non-blocking)
-  // This is handled separately if needed
 }
