@@ -6158,6 +6158,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             subtotal: authoritativePricing.subtotal ?? 0,
                             tpsAmount: (authoritativePricing as any).tps ?? (authoritativePricing as any).gst ?? 0,
                             tvqAmount: (authoritativePricing as any).tvq ?? (authoritativePricing as any).qst ?? 0,
+                            serviceAddress: serviceAddressStreet || "",
+                            serviceCity: serviceAddressCity || "",
+                            servicePostalCode: serviceAddressPostalCode || "",
+                            serviceType: selectedServices[0]?.category || "bundle",
                             description: `Checkout public — Commande Nivra`,
                           })
                             .then((result) => {
