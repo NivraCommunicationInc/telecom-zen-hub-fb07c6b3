@@ -27,7 +27,7 @@ const PayInvoiceDialog = ({
   profile,
   onPaymentSuccess,
 }: PayInvoiceDialogProps) => {
-  const [paymentMethod, setPaymentMethod] = useState<"interac" | "card" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal" | "interac" | null>(null);
   const [copied, setCopied] = useState(false);
 
   if (!invoice) return null;
