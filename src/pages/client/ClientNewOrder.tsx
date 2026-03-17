@@ -679,10 +679,15 @@ const ClientNewOrder = () => {
   // SIM type is plan-driven in this wizard (always physical; quantity = mobile lines)
   const [simType, setSimType] = useState<"esim" | "physical">("physical");
 
-  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | "promo_free" | null>("etransfer"); // Default to Interac (credit card in maintenance)
+  const [paymentMethod, setPaymentMethod] = useState<"credit_card" | "etransfer" | "paypal" | "promo_free" | null>("etransfer");
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
+  
+  // Stripe inline state for checkout
+  const [stripeDraft, setStripeDraft] = useState<CheckoutDraftInvoiceResult | null>(null);
+  const [stripeDraftLoading, setStripeDraftLoading] = useState(false);
+  const [stripeDraftError, setStripeDraftError] = useState<string | null>(null);
   
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
