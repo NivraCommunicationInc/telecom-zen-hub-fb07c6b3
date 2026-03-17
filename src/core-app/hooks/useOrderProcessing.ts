@@ -637,9 +637,33 @@ export function useOrderProcessing(orderId: string | undefined) {
   };
 
   /* ── Mark payment invalid ── */
-  const markPaymentInvalid = async () => {
+  /* PHASE 1 FIX: Updates billing_payments + billing_invoices, not just the order. */
+  const markPaymentInvalid = async (reason?: string) => {
+    const targetInvoice = data?.invoice;
+
+    // Update billing_payments if a pending payment exists
+    if (targetInvoice?.id) {
+      const { data: pendingPayments } = await supabase
+        .from("billing_payments")
+        .select("id")
+        .eq("invoice_id", targetInvoice.id)
+        .in("status", ["pending", "in_verification"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (pendingPayments?.[0]) {
+        await supabase
+          .from("billing_payments")
+          .update({
+            status: "failed" as any,
+            legacy_note: reason || "Marqué invalide par admin",
+          })
+          .eq("id", pendingPayments[0].id);
+      }
+    }
+
     await updateOrder.mutateAsync({ payment_status: "failed" });
-    await logActivity("payment_invalidated", "order", orderId, {});
+    await logActivity("payment_invalidated", "order", orderId, { reason });
 
     const email = getClientEmail();
     if (email) {
@@ -652,18 +676,33 @@ export function useOrderProcessing(orderId: string | undefined) {
         template_vars: {
           client_name: getClientName(),
           order_number: data?.order?.order_number || "",
+          reason: reason || "",
         },
       });
     }
 
-    toast.warning("Paiement marqué comme invalide");
+    invalidateAll();
+    toast.warning("Paiement marqué comme invalide (billing + commande)");
   };
 
   /* ── Mark payment partial ── */
+  /* PHASE 1 FIX: Updates billing_invoices status, not just the order. */
   const markPaymentPartial = async () => {
+    const targetInvoice = data?.invoice;
+
+    if (targetInvoice?.id) {
+      await supabase
+        .from("billing_invoices")
+        .update({ status: "partially_paid" as any })
+        .eq("id", targetInvoice.id);
+    }
+
     await updateOrder.mutateAsync({ payment_status: "partial" });
-    await logActivity("payment_partial", "order", orderId, {});
-    toast.info("Paiement marqué comme partiel");
+    await logActivity("payment_partial", "order", orderId, {
+      invoice_id: targetInvoice?.id,
+    });
+    invalidateAll();
+    toast.info("Paiement marqué comme partiel (billing + commande)");
   };
 
   /* ── Update fulfillment type ── */
