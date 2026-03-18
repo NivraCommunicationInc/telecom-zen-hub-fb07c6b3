@@ -89,8 +89,14 @@ const fmt = (amount: number): string =>
 
 const fmtDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return "—";
-  try { return new Date(dateStr).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }); }
-  catch { return dateStr || "—"; }
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "—";
+    const year = date.getFullYear();
+    const month = date.toLocaleString("fr-CA", { month: "long" });
+    const day = date.getDate();
+    return `${day} ${month} ${year}`;
+  } catch { return dateStr || "—"; }
 };
 
 const fmtStatus = (status: string): { label: string; color: [number, number, number] } => {
@@ -113,6 +119,26 @@ const fmtPayMethod = (m: string | undefined): string => {
     card: "Carte de crédit", "Credit Card": "Carte de crédit", stripe: "Carte de crédit",
   };
   return map[m] || m;
+};
+
+/** Format address with proper casing and postal code spacing */
+const fmtAddress = (addr: string): string => {
+  if (!addr) return "—";
+  // Title-case city names with hyphens (e.g., "saint jerome" → "Saint-Jérôme")
+  const cityFixes: Record<string, string> = {
+    "saint jerome": "Saint-Jerome",
+    "saint-jerome": "Saint-Jerome",
+    "st jerome": "Saint-Jerome",
+    "st-jerome": "Saint-Jerome",
+  };
+  let result = addr;
+  for (const [key, val] of Object.entries(cityFixes)) {
+    const re = new RegExp(key, "gi");
+    result = result.replace(re, val);
+  }
+  // Fix postal code spacing: "J7Z6Z3" → "J7Z 6Z3"
+  result = result.replace(/([A-Z]\d[A-Z])(\d[A-Z]\d)/gi, "$1 $2");
+  return result;
 };
 
 // ============================================================================
@@ -250,7 +276,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.text("Adresse de service", rx + 6, ry);
     doc.setFontSize(7.5);
     doc.setTextColor(...C.text);
-    const addrLines = doc.splitTextToSize(d.service_address || "—", colW - 14);
+    const addrLines = doc.splitTextToSize(fmtAddress(d.service_address) || "—", colW - 14);
     doc.text(addrLines.slice(0, 2), rx + 6, ry + 4);
     ry += 4 + Math.min(addrLines.length, 2) * 4;
 
@@ -428,7 +454,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.setTextColor(120, 83, 9);
     doc.text("1. Confirmation de paiement", m + 6, y + 14);
     doc.text("2. Activation du service", m + 6, y + 19);
-    doc.text("3. Reception de la facture officielle et du contrat", m + 6, y + 24);
+    doc.text("3. Vous recevrez votre facture officielle et votre contrat", m + 6, y + 24);
     doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 30);
 
     // ========================================================================
