@@ -101,16 +101,27 @@ type CheckoutResponse = {
   created_at?: string;
 };
 
-const toBillingMethod = (method?: string): "paypal" | "interac" | "manual" => {
+const toBillingMethod = (method?: string): "paypal" | "interac" | "card" | "manual" => {
   const m = String(method || "").toLowerCase();
   if (m === "paypal") return "paypal";
   if (m === "etransfer" || m === "e_transfer" || m === "interac") return "interac";
+  if (m === "credit_card" || m === "card") return "card";
   return "manual";
 };
 
-const isPaidCheckout = (payload: CheckoutPayload) =>
-  (payload.payment?.method === "paypal" && !!payload.payment?.paypal_capture_id) ||
-  payload.payment?.method === "promo_free";
+const isPaidCheckout = (payload: CheckoutPayload) => {
+  const method = String(payload.payment?.method || "").toLowerCase();
+  const reference = String(payload.payment?.reference || "");
+  const cardCaptured =
+    (method === "credit_card" || method === "card") &&
+    (payload.payment?.status === "captured" || reference.startsWith("pi_"));
+
+  return (
+    (method === "paypal" && !!payload.payment?.paypal_capture_id) ||
+    method === "promo_free" ||
+    cardCaptured
+  );
+};
 
 const toDateOnly = (value?: string) => (value || new Date().toISOString()).split("T")[0];
 const toMoney = (value: unknown) => {

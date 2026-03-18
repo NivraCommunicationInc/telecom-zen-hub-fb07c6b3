@@ -14,17 +14,28 @@ export interface BackfillResult {
   errors: string[];
 }
 
-type BillingMethod = "paypal" | "interac" | "manual";
+type BillingMethod = "paypal" | "interac" | "card" | "manual";
 
 const toBillingMethod = (method?: string): BillingMethod => {
   if (method === "paypal") return "paypal";
   if (method === "etransfer" || method === "e_transfer" || method === "interac") return "interac";
+  if (method === "credit_card" || method === "card") return "card";
   return "manual";
 };
 
-const isPaidCheckout = (payload: NivraFullCheckoutPayload) =>
-  (payload.payment.method === "paypal" && !!payload.payment.paypal_capture_id) ||
-  payload.payment.method === "promo_free";
+const isPaidCheckout = (payload: NivraFullCheckoutPayload) => {
+  const method = String(payload.payment.method || "").toLowerCase();
+  const reference = String(payload.payment.reference || "");
+  const cardCaptured =
+    (method === "credit_card" || method === "card") &&
+    (payload.payment.status === "captured" || reference.startsWith("pi_"));
+
+  return (
+    (method === "paypal" && !!payload.payment.paypal_capture_id) ||
+    method === "promo_free" ||
+    cardCaptured
+  );
+};
 
 async function resolveServiceAddressId(
   supabase: SupabaseClient,
