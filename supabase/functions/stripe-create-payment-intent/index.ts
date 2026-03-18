@@ -129,6 +129,7 @@ serve(async (req) => {
         payment_intent_id: paymentIntent.id,
         livemode: paymentIntent.livemode,
         payment_intent_status: paymentIntent.status,
+        capture_method: paymentIntent.capture_method,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
