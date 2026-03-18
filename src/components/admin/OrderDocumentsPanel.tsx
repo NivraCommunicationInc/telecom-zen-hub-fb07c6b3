@@ -96,7 +96,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
       if (successCount === 6) {
         toast.success("6 documents téléchargés ✓");
       } else {
-        toast.warning(`${successCount}/5 documents générés`);
+        toast.warning(`${successCount}/6 documents générés`);
       }
     } catch (err) {
       console.error("[OrderDocumentsPanel] Error:", err);
