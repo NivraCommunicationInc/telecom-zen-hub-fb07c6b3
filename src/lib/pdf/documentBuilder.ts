@@ -18,6 +18,7 @@ import { generateContractV3PDF, type ContractDataV3 } from "./contractTemplateV3
 import { generateContractSummaryPDF, type ContractSummaryData } from "./contractSummaryTemplate";
 import { generateOrderSummaryPDF, type OrderSummaryV3Data } from "./orderSummaryTemplate";
 import { generateServiceTermsPDF, CURRENT_TERMS_VERSION } from "./serviceTermsTemplate";
+import { generateReceiptPDF, type ReceiptData } from "./receiptTemplate";
 import type { InvoiceDataV2, PDFGenerationResult, InvoiceItem } from "./types";
 import { TAX } from "./companyInfo";
 import { fetchInvoiceBreakdown, type InvoiceBreakdown, type InvoiceBreakdownItem } from "@/lib/billing/useInvoiceBreakdown";
