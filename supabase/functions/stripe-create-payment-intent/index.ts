@@ -37,7 +37,7 @@ serve(async (req) => {
     const db = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    const { invoice_id, amount, description, customer_email, customer_id } = body;
+    const { invoice_id, amount, description, customer_email, customer_id, intent_context } = body;
 
     if (!amount || amount <= 0) throw new Error("Invalid amount");
 
@@ -46,6 +46,8 @@ serve(async (req) => {
       invoice_number: string;
       status: string | null;
       customer_id: string | null;
+      order_id: string | null;
+      subscription_id: string | null;
       customer?: {
         id: string;
         email: string;
@@ -57,7 +59,7 @@ serve(async (req) => {
     if (invoice_id) {
       const { data: fetchedInvoice, error: invError } = await db
         .from("billing_invoices")
-        .select("*, customer:billing_customers(id, email, first_name, last_name)")
+        .select("id, invoice_number, status, customer_id, order_id, subscription_id, customer:billing_customers(id, email, first_name, last_name)")
         .eq("id", invoice_id)
         .single();
 
@@ -67,6 +69,9 @@ serve(async (req) => {
           JSON.stringify({ error: "Invoice already paid" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+      if (!fetchedInvoice.order_id && !fetchedInvoice.subscription_id) {
+        throw new Error("Invoice is not billable yet: missing confirmed order/subscription reference");
       }
 
       invoice = fetchedInvoice;
@@ -96,8 +101,10 @@ serve(async (req) => {
       }
     }
 
+    const isInvoicePayment = Boolean(invoice_id || intent_context === "invoice_payment");
     const metadata: Record<string, string> = {
-      source: "portal_checkout_public",
+      source: isInvoicePayment ? "portal_invoice_payment" : "portal_checkout_preconfirm",
+      intent_context: isInvoicePayment ? "invoice_payment" : "checkout_preconfirm",
     };
 
     if (invoice_id) metadata.invoice_id = invoice_id;
