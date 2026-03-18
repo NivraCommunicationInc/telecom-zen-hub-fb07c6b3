@@ -147,8 +147,8 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         }
       }
 
-      const c = inv.customer as any;
-      const o = inv.order as any;
+      const c = customerRel as any;
+      const o = orderRel as any;
 
       return {
         id: inv.id,
