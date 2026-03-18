@@ -590,7 +590,12 @@ serve(async (req) => {
     // 4) Invoice
     if (customerId) {
       try {
-        const subtotal = toMoney(response.pricing?.subtotal ?? payload.pricing_snapshot?.subtotal ?? payload.pricing_snapshot?.taxable_base);
+        // CANONICAL TAX RULE: invoice.subtotal = taxable_base (post-discount amount on which taxes are computed)
+        // This ensures: taxes = subtotal × rate, with zero ambiguity.
+        const subtotal = toMoney(
+          response.pricing?.taxable_base ?? response.pricing?.subtotal ??
+          payload.pricing_snapshot?.taxable_base ?? payload.pricing_snapshot?.subtotal
+        );
         const tpsAmount = toMoney(response.pricing?.tps_amount ?? payload.pricing_snapshot?.tps_amount);
         const tvqAmount = toMoney(response.pricing?.tvq_amount ?? payload.pricing_snapshot?.tvq_amount);
         const total = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total ?? subtotal + tpsAmount + tvqAmount);
