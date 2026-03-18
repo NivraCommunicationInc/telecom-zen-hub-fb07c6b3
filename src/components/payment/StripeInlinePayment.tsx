@@ -384,6 +384,7 @@ function PaymentForm({
 
 export interface StripeInlinePaymentProps {
   invoiceId?: string;
+  intentContext?: StripeIntentContext;
   amount: number;
   description?: string;
   customerEmail?: string;
@@ -397,6 +398,7 @@ export interface StripeInlinePaymentProps {
 
 export function StripeInlinePayment({
   invoiceId,
+  intentContext = "checkout_preconfirm",
   amount,
   description,
   customerEmail,
