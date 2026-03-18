@@ -1,9 +1,9 @@
 /**
- * Nivra Invoice Engine V2.5
+ * Nivra Invoice Engine V3.0 — LOCKED PRODUCTION TEMPLATE (2026-03-18)
  * 
  * POINT D'ENTRÉE UNIQUE pour la génération de factures PDF.
- * Ce moteur utilise UNIQUEMENT les templates V2.5 actifs définis dans pdf_template_config.
- * Les templates legacy (V1.0) ne sont PLUS appelés.
+ * Utilise EXCLUSIVEMENT le template V3 approuvé (TELUS-grade).
+ * Les templates V2.5 et antérieurs sont définitivement retirés.
  * 
  * AUDIT: Chaque génération est loggée dans pdf_generation_logs (append-only).
  * 
@@ -13,17 +13,16 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { generateInvoiceMonthlyV2PDF } from "./invoiceMonthlyTemplateV2";
-import { generateInvoiceOneTimeV2PDF } from "./invoiceOneTimeTemplateV2";
+import { generateInvoiceV3PDF } from "./invoiceTemplateV3";
 import type { InvoiceDataV2, PDFGenerationResult, InvoiceType } from "./types";
 import { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER } from "./types";
 import { createBlankInvoiceDataV2, TEMPLATE_WATERMARK } from "./blankTemplateData";
 
 // ============================================================================
-// ENGINE VERSION - MUST MATCH DATABASE
+// ENGINE VERSION — LOCKED V3.0 (approved 2026-03-18)
 // ============================================================================
 
-const ENGINE_VERSION = "V2.5";
+const ENGINE_VERSION = "V3.0";
 
 // ============================================================================
 // FORBIDDEN TERMS (Prépayé - aucune dette)
@@ -293,10 +292,8 @@ function getTemplateKeyFromType(invoiceType: InvoiceType): string {
 /**
  * Détermine le chemin du template à partir du type de facture
  */
-function getTemplatePathFromType(invoiceType: InvoiceType): string {
-  return invoiceType === "MONTHLY" 
-    ? "src/lib/pdf/invoiceMonthlyTemplateV2.ts" 
-    : "src/lib/pdf/invoiceOneTimeTemplateV2.ts";
+function getTemplatePathFromType(_invoiceType: InvoiceType): string {
+  return "src/lib/pdf/invoiceTemplateV3.ts";
 }
 
 // ============================================================================
@@ -439,14 +436,11 @@ export async function generateInvoicePDF(
       console.warn(`[InvoiceEngine] Aucun template actif trouvé, utilisation du template par défaut: ${templateKey}`);
     }
     
-    // 5. Générer le PDF avec le template V2.5 approprié
+    // 5. Générer le PDF avec le template V3 approuvé (LOCKED 2026-03-18)
     let result: PDFGenerationResult;
     
-    if (sanitizedData.invoice_type === "MONTHLY") {
-      result = generateInvoiceMonthlyV2PDF(sanitizedData);
-    } else {
-      result = generateInvoiceOneTimeV2PDF(sanitizedData);
-    }
+    // V3 unified template — handles both MONTHLY and ONETIME
+    result = generateInvoiceV3PDF(sanitizedData);
     
     // 6. Logger la génération dans l'audit trail (APPEND-ONLY)
     await logPDFGeneration({

@@ -537,6 +537,7 @@ export function buildContractSummaryData(data: OrderDocumentData): ContractSumma
 export function buildReceiptData(data: OrderDocumentData): ReceiptData | null {
   const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
   const clientName = buildClientName(order, profile);
+  const addr = buildCustomerAddress(order, profile, account);
 
   // Find confirmed payment
   const confirmedPayment = billingPayments.find((p: any) =>
@@ -555,11 +556,18 @@ export function buildReceiptData(data: OrderDocumentData): ReceiptData | null {
     payment_date: confirmedPayment?.received_at || confirmedPayment?.created_at || order.paid_at || order.updated_at || "",
     payment_method: confirmedPayment?.method || order.payment_method || "Interac",
     amount_paid: amountPaid,
-    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "—",
+    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "",
     invoice_total: breakdown?.total || billingInvoice?.total || 0,
+    order_number: order.order_number?.toString(),
     client_name: requireField(clientName, "client_name"),
     client_email: requireField(order.client_email || profile?.email, "client_email"),
+    client_phone: order.client_phone || profile?.phone || undefined,
+    client_address: addr.billing || addr.service || undefined,
     account_number: requireField(account?.account_number, "account_number"),
+    billed_items: breakdown ? breakdown.items
+      .filter(i => i.line_type !== "discount" && i.line_type !== "credit")
+      .map(i => ({ description: i.description, amount: i.line_total_cents / 100 }))
+      : undefined,
     transaction_reference: confirmedPayment?.provider_payment_id || confirmedPayment?.reference || undefined,
     balance_remaining: breakdown ? breakdown.balance_due : (billingInvoice?.balance_due || 0),
   };

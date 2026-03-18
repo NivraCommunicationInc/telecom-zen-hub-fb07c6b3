@@ -38,8 +38,8 @@ export { generateOrderDocuments, downloadPDF, buildInvoiceData, buildContractDat
 export type { OrderDocuments } from "./documentBuilder";
 
 // ============================================================================
-// LEGACY EXPORTS (backward compat — V2.5)
-// ═══ PHASE 3: billingCalculator barrel export REMOVED (TAX_RATES, calculateBillingTotals no longer re-exported) ═══
+// BACKWARD COMPAT EXPORTS — all delegate to V3 approved templates
+// ============================================================================
 export { formatCurrencyCAD, formatDateFR, formatDateShort, sanitizeLegalText } from "./helpers";
 export * from "./pdfHelpers";
 export * from "./annexes";
