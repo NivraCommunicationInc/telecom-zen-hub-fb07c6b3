@@ -231,6 +231,7 @@ import ClientTickets from "@/pages/client/ClientTickets";
 import ClientServices from "@/pages/client/ClientServices";
 import ClientProfile from "@/pages/client/ClientProfile";
 import ClientPayments from "@/pages/client/ClientPayments";
+import ClientBillingHub from "@/pages/client/ClientBillingHub";
 import ClientOrders from "@/pages/client/ClientOrders";
 import ClientContracts from "@/pages/client/ClientContracts";
 import ClientNewOrder from "@/pages/client/ClientNewOrder";
