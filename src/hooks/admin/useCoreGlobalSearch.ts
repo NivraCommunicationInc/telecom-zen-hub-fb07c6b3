@@ -190,7 +190,7 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
           type: "customer",
           title: p.full_name || p.email || p.user_id,
           subtitle: p.email,
-          badge: p.account_number || p.client_number || null,
+          badge: p.client_number || null,
           href: `/core/clients/${p.user_id}`,
         });
       }
