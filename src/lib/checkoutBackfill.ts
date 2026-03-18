@@ -566,7 +566,9 @@ export async function backfillCheckoutToSupabase(
             },
             { onConflict: "id" },
           );
-        } catch { /* best-effort */ }
+        } catch (eqErr2: any) {
+          console.warn("[Backfill] Equipment one_time line insert failed:", eqErr2?.message);
+        }
       }
     } catch (e: any) {
       result.errors.push(`subscription: ${e.message}`);
