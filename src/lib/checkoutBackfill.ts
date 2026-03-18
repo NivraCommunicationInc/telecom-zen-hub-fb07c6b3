@@ -106,8 +106,17 @@ export async function backfillCheckoutToSupabase(
   const userId = payload.customer.user_id;
   const now = new Date().toISOString();
   const pricing = response.pricing;
-  const billingMethod = toBillingMethod(payload.payment.method);
+  const billingMethod = toBillingMethod(payload.payment.method, payload.payment.reference);
   const paid = isPaidCheckout(payload);
+  const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;
+  const derivedServiceType = payload.services.length > 0
+    ? payload.services.map((s) => s.name).join(", ")
+    : (isStreamingOnly
+      ? payload.streaming_addons?.map((s) => s.name).join(", ") || "Streaming+"
+      : "Service Nivra");
+  const normalizedDeliveryMethod = isStreamingOnly
+    ? "Livraison numérique par courriel"
+    : (payload.installation.type || null);
 
   // 1) billing customer
   try {
