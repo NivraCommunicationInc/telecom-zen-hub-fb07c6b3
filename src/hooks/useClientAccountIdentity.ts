@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { portalClient } from "@/integrations/backend/portalClient";
+import {
+  assertCanonicalAccountInvariant,
+  buildCanonicalAccountMaps,
+  resolveCanonicalAccountNumber,
+} from "@/lib/canonicalAccountResolver";
 
 type AccountIdentity = {
   accountNumber: string | null;
@@ -30,7 +35,6 @@ export const useClientAccountIdentity = (userId?: string) => {
         return { accountNumber: null, clientNumber: null, source: "none" };
       }
 
-      // client_number remains informational-only from profile
       const { data: profile } = await portalClient
         .from("profiles")
         .select("client_number")
@@ -39,16 +43,11 @@ export const useClientAccountIdentity = (userId?: string) => {
 
       const profileClientNumber = cleanValue(profile?.client_number);
 
-      const { data: accountRow } = await portalClient
-        .from("accounts")
-        .select("account_number")
-        .eq("client_id", userId)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const maps = await buildCanonicalAccountMaps(portalClient, { userIds: [userId] });
+      const accountNumber = cleanValue(
+        resolveCanonicalAccountNumber(maps, { userId }),
+      );
 
-      const accountNumber = cleanValue(accountRow?.account_number);
       if (accountNumber) {
         return {
           accountNumber,
@@ -72,11 +71,12 @@ export const useClientAccountIdentity = (userId?: string) => {
           .limit(1)
           .maybeSingle();
 
-        if (existingInvoice?.id) {
-          throw new Error(
-            "CANONICAL_IDENTITY_INVARIANT_VIOLATION: billing data exists but no active canonical account number was found in accounts."
-          );
-        }
+        assertCanonicalAccountInvariant(
+          "client_identity",
+          userId,
+          { customerId: billingCustomer.id, userId },
+          existingInvoice?.id ? accountNumber : "ok",
+        );
       }
 
       return {
