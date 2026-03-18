@@ -47,6 +47,8 @@ export function useAdminPayments(environment: EnvironmentFilter = 'all') {
           id, payment_number, amount, method, status, reference, provider,
           provider_payment_id, source, received_at, created_at, confirmed_by,
           legacy_note, created_by_name, invoice_id, customer_id, environment,
+          stripe_payment_intent_id, authorized_amount, authorization_status,
+          authorized_at, captured_at, captured_by,
           invoice:billing_invoices(invoice_number, billing_snapshot_account_number),
           customer:billing_customers(id, first_name, last_name, email)
         `)
