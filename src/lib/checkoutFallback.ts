@@ -182,50 +182,8 @@ async function findExistingCheckout(
     .maybeSingle();
 
   if (recentOrder) {
-    // Found a recent duplicate — resolve chain
-    let accountNumber = "";
-    let billingCycleDay: number | null = null;
-    if (recentOrder.account_id) {
-      const { data: acct } = await supabase
-        .from("accounts")
-        .select("account_number, billing_cycle_day")
-        .eq("id", recentOrder.account_id)
-        .maybeSingle();
-      accountNumber = acct?.account_number || "";
-      billingCycleDay = acct?.billing_cycle_day || null;
-    }
-
-    const { data: invoice } = await supabase
-      .from("billing_invoices")
-      .select("id, invoice_number")
-      .eq("order_id", recentOrder.id)
-      .maybeSingle();
-
-    const { data: payment } = await supabase
-      .from("billing_payments")
-      .select("id, payment_number")
-      .eq("invoice_id", invoice?.id || "00000000-0000-0000-0000-000000000000")
-      .maybeSingle();
-
-    const { data: sub } = await supabase
-      .from("billing_subscriptions")
-      .select("id")
-      .eq("order_id", recentOrder.id)
-      .maybeSingle();
-
-    return {
-      order_id: recentOrder.id,
-      order_number: recentOrder.order_number,
-      invoice_id: invoice?.id || null,
-      invoice_number: invoice?.invoice_number || null,
-      payment_id: payment?.id || null,
-      payment_number: payment?.payment_number || null,
-      subscription_id: sub?.id || null,
-      account_number: accountNumber,
-      grand_total: recentOrder.total_amount,
-      billing_cycle_day: billingCycleDay,
-      created_at: recentOrder.created_at,
-    };
+    console.log("[FallbackCheckout] ✓ IDEMPOTENT HIT via 2-min window:", recentOrder.order_number);
+    return resolveOrderChain(supabase, recentOrder);
   }
 
   return null; // No prior checkout found — safe to proceed
