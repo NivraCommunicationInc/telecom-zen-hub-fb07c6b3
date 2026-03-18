@@ -118,16 +118,38 @@ serve(async (req) => {
           }
         }
         
+        // ═══ AUTOPAY DISCOUNT CHECK ═══
+        // If customer has autopay enabled, apply $5 monthly discount
+        let autopayDiscount = 0;
+        let autopayNote = "";
+        
+        const { data: customerData } = await supabase
+          .from("billing_customers")
+          .select("autopay_enabled, autopay_discount_active, stripe_customer_id, default_payment_method_id")
+          .eq("id", sub.customer_id)
+          .single();
+        
+        const isAutopayEligible = customerData?.autopay_enabled && 
+                                   customerData?.autopay_discount_active &&
+                                   customerData?.stripe_customer_id &&
+                                   customerData?.default_payment_method_id;
+        
+        if (isAutopayEligible) {
+          autopayDiscount = 5;
+          autopayNote = " (Rabais prélèvement automatique -5$)";
+          console.log(`[billing-generate-renewals] Autopay discount: -5$ for customer ${sub.customer_id}`);
+        }
+        
         // Calculate amounts via canonical tax module
-        const subtotal = Math.max(0, sub.plan_price - promoDiscount);
+        const subtotal = Math.max(0, sub.plan_price - promoDiscount - autopayDiscount);
         const { tps: tpsAmount, tvq: tvqAmount, total } = computeTaxes(subtotal);
         
         // Due date = current cycle end date (J0) - prepaid model requires payment BEFORE service expires
         const dueDate = sub.cycle_end_date;
         
-        // Determine payment method based on subscription
+        // Determine payment method based on subscription/autopay
         const hasPayPalSubscription = !!sub.paypal_subscription_id;
-        const paymentMethod = hasPayPalSubscription ? 'paypal' : 'interac';
+        const paymentMethod = hasPayPalSubscription ? 'paypal' : (isAutopayEligible ? 'card' : 'interac');
         
         // Create renewal invoice
         const { data: invoice, error: invoiceError } = await supabase
