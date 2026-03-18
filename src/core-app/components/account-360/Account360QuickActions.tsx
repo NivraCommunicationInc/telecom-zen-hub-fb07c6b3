@@ -9,8 +9,8 @@ import { toast } from "sonner";
 import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
-  MessageSquare, Mail, Wrench, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package,
+  MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
+  StickyNote, Package, UserPen,
 } from "lucide-react";
 
 interface Props {
@@ -19,9 +19,10 @@ interface Props {
   accountStatus: string | null;
   onRefresh: () => void;
   onNavigateSection: (section: string) => void;
+  onEditProfile: () => void;
 }
 
-export function Account360QuickActions({ accountId, clientId, accountStatus, onRefresh, onNavigateSection }: Props) {
+export function Account360QuickActions({ accountId, clientId, accountStatus, onRefresh, onNavigateSection, onEditProfile }: Props) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 

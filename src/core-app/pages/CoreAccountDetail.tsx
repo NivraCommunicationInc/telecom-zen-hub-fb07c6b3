@@ -12,6 +12,7 @@ import { Account360Header } from "@/core-app/components/account-360/Account360He
 import { Account360KPIStrip } from "@/core-app/components/account-360/Account360KPIStrip";
 import { Account360QuickActions } from "@/core-app/components/account-360/Account360QuickActions";
 import { Account360RightPanel } from "@/core-app/components/account-360/Account360RightPanel";
+import { Account360ProfileEditDialog } from "@/core-app/components/account-360/Account360ProfileEditDialog";
 import {
   ProfileSection, BillingSection, SubscriptionsSection, OrdersSection,
   InvoicesSection, PaymentsSection, EquipmentSection, TicketsSection,
