@@ -169,7 +169,7 @@ serve(async (req) => {
             cycle_start_date: newCycleStart.toISOString().split('T')[0],
             cycle_end_date: newCycleEnd.toISOString().split('T')[0],
             due_date: dueDate,
-            notes: promoNote || null
+            notes: [promoNote, autopayNote].filter(Boolean).join("") || null
           })
           .select()
           .single();
