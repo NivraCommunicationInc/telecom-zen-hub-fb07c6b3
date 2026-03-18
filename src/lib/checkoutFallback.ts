@@ -37,11 +37,70 @@ interface ExistingRecords {
  * Try to find an already-processed checkout for this payment.
  * Returns null if no prior record exists (safe to proceed).
  */
+async function resolveOrderChain(
+  supabase: SupabaseClient,
+  order: { id: string; order_number: string; account_id: string | null; total_amount: number; created_at: string },
+): Promise<ExistingRecords> {
+  let accountNumber = "";
+  let billingCycleDay: number | null = null;
+  if (order.account_id) {
+    const { data: acct } = await supabase
+      .from("accounts")
+      .select("account_number, billing_cycle_day")
+      .eq("id", order.account_id)
+      .maybeSingle();
+    accountNumber = acct?.account_number || "";
+    billingCycleDay = acct?.billing_cycle_day || null;
+  }
+  const { data: invoice } = await supabase
+    .from("billing_invoices")
+    .select("id, invoice_number")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  const { data: payment } = await supabase
+    .from("billing_payments")
+    .select("id, payment_number")
+    .eq("invoice_id", invoice?.id || "00000000-0000-0000-0000-000000000000")
+    .maybeSingle();
+  const { data: sub } = await supabase
+    .from("billing_subscriptions")
+    .select("id")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  return {
+    order_id: order.id,
+    order_number: order.order_number,
+    invoice_id: invoice?.id || null,
+    invoice_number: invoice?.invoice_number || null,
+    payment_id: payment?.id || null,
+    payment_number: payment?.payment_number || null,
+    subscription_id: sub?.id || null,
+    account_number: accountNumber,
+    grand_total: order.total_amount,
+    billing_cycle_day: billingCycleDay,
+    created_at: order.created_at,
+  };
+}
+
 async function findExistingCheckout(
   supabase: SupabaseClient,
   payload: NivraFullCheckoutPayload,
 ): Promise<ExistingRecords | null> {
   const userId = payload.customer.user_id;
+
+  // ── Strategy 0: client_request_id (strongest idempotency key) ──
+  if (payload.client_request_id) {
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id, order_number, account_id, total_amount, created_at")
+      .eq("client_request_id", payload.client_request_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existingOrder) {
+      console.log("[FallbackCheckout] ✓ IDEMPOTENT HIT via client_request_id:", existingOrder.order_number);
+      return resolveOrderChain(supabase, existingOrder);
+    }
+  }
 
   // ── Strategy 1: PayPal capture ID (strongest dedup key) ──
   if (payload.payment.paypal_capture_id) {
