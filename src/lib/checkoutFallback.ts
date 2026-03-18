@@ -357,9 +357,11 @@ export async function fallbackCheckout(
 
   // ── 5. Determine canonical billing fields ──
   const rawMethod = String(payload.payment.method || "").toLowerCase();
+  const paymentReferenceRaw = String(payload.payment.reference || "");
+  const inferredCardByReference = paymentReferenceRaw.toLowerCase().startsWith("pi_");
   const cardCaptured =
-    (rawMethod === "credit_card" || rawMethod === "card") &&
-    (payload.payment.status === "captured" || String(payload.payment.reference || "").startsWith("pi_"));
+    (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) &&
+    (payload.payment.status === "captured" || inferredCardByReference);
   const isPaid = (rawMethod === "paypal" && !!payload.payment.paypal_capture_id) || cardCaptured;
   const isFree = rawMethod === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
@@ -368,7 +370,7 @@ export async function fallbackCheckout(
       ? "paypal"
       : (["etransfer", "e_transfer", "interac"].includes(rawMethod)
           ? "interac"
-          : (rawMethod === "credit_card" || rawMethod === "card" ? "card" : "manual"));
+          : (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference ? "card" : "manual"));
   const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : billingMethod === "card" ? "stripe" : "manual";
   const paymentReference = paymentProvider === "paypal"
     ? null
@@ -378,6 +380,12 @@ export async function fallbackCheckout(
     : paymentProvider === "stripe"
       ? (payload.payment.reference || null)
       : null;
+  const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;
+  const derivedServiceType = payload.services.length > 0
+    ? payload.services.map((s) => s.name).join(", ")
+    : (isStreamingOnly
+      ? payload.streaming_addons?.map((s) => s.name).join(", ") || "Streaming+"
+      : "Service Nivra");
 
   // ── 6. Create order ──
   const { error: orderErr } = await supabase.from("orders").insert({
