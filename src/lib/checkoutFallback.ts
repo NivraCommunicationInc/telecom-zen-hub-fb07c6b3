@@ -406,8 +406,8 @@ export async function fallbackCheckout(
       ? payload.streaming_addons?.map((s) => s.name).join(", ") || "Streaming+"
       : "Service Nivra");
 
-  // ── 6. Create order ──
-  const { error: orderErr } = await supabase.from("orders").insert({
+  // ── 6. Create order (idempotent — handle duplicate client_request_id gracefully) ──
+  const orderRow = {
     id: orderId,
     order_number: orderNumber,
     client_request_id: payload.client_request_id,
@@ -434,8 +434,51 @@ export async function fallbackCheckout(
     installation_fee: isStreamingOnly ? 0 : (payload.installation?.installation_fee || 0),
     provider_payment_id: paymentProviderPaymentId,
     payment_method: billingMethod === "card" ? "card" : payload.payment.method,
-  });
-  if (orderErr) throw new Error(`Order creation failed: ${orderErr.message}`);
+  };
+  const { error: orderErr } = await supabase.from("orders").insert(orderRow);
+  if (orderErr) {
+    // ── IDEMPOTENCY GUARD: If duplicate client_request_id, recover existing order ──
+    if (orderErr.code === "23505" && orderErr.message?.includes("client_request")) {
+      console.warn("[FallbackCheckout] Duplicate client_request_id detected — recovering existing order");
+      const { data: existingOrder } = await supabase
+        .from("orders")
+        .select("id, order_number, account_id, total_amount, created_at")
+        .eq("client_request_id", payload.client_request_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (existingOrder) {
+        const recovered = await resolveOrderChain(supabase, existingOrder);
+        const rp = payload.pricing_snapshot;
+        return {
+          success: true,
+          order_id: recovered.order_id,
+          order_number: recovered.order_number,
+          invoice_id: recovered.invoice_id || "",
+          invoice_number: recovered.invoice_number || "",
+          payment_id: recovered.payment_id || "",
+          payment_number: recovered.payment_number || "",
+          subscription_id: recovered.subscription_id,
+          account_number: recovered.account_number,
+          pricing: {
+            subtotal: Number(rp.subtotal) || 0,
+            recurring_subtotal: Number(rp.recurring_subtotal) || 0,
+            one_time_subtotal: Number(rp.one_time_subtotal) || 0,
+            discount_total: Number(rp.discount_total) || 0,
+            welcome_discount: Number(rp.welcome_discount) || 0,
+            promo_discount: Number(rp.promo_discount) || 0,
+            preauth_discount: Number(rp.preauth_discount) || 0,
+            taxable_base: Number(rp.taxable_base) || 0,
+            tps_amount: Number(rp.tps_amount) || 0,
+            tvq_amount: Number(rp.tvq_amount) || 0,
+            grand_total: recovered.grand_total,
+          },
+          billing_cycle_day: recovered.billing_cycle_day || new Date().getDate(),
+          created_at: recovered.created_at,
+        };
+      }
+    }
+    throw new Error(`Order creation failed: ${orderErr.message}`);
+  }
   console.log("[FallbackCheckout] ✓ Order created:", orderNumber);
 
   // ── 7. Create invoice ──

@@ -322,8 +322,9 @@ const VerifyIdentityPage = () => {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   En poursuivant, vous consentez à ce que Nivra collecte et vérifie votre pièce d'identité
                   gouvernementale avec photo aux fins de validation de votre identité. Aucune vérification
-                  de crédit ne sera effectuée. Vos documents seront traités de manière confidentielle et
-                  supprimés automatiquement après 90 jours.
+                  de crédit ne sera effectuée. Vos documents d'identité sont chiffrés et utilisés uniquement
+                  pour compléter la vérification d'identité. Ils sont supprimés automatiquement après
+                  validation, conformément à nos règles de sécurité et de conformité.
                 </p>
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <p className="text-xs text-amber-800 font-medium flex items-center gap-2">
