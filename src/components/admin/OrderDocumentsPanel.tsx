@@ -74,6 +74,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
       const results: Record<string, boolean> = {};
       const entries: { name: string; key: DocType; result: any }[] = [
         { name: "Facture", key: "invoice", result: docs.invoice },
+        { name: "Reçu", key: "receipt", result: docs.receipt },
         { name: "Sommaire", key: "orderSummary", result: docs.orderSummary },
         { name: "Contrat", key: "contract", result: docs.contract },
         { name: "RRE", key: "contractSummary", result: docs.contractSummary },
