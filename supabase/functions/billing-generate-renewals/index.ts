@@ -200,6 +200,18 @@ serve(async (req) => {
           });
         }
         
+        // ═══ AUTOPAY DISCOUNT LINE ═══
+        if (autopayDiscount > 0) {
+          invoiceLines.push({
+            invoice_id: invoice.id,
+            description: "Rabais prélèvement automatique",
+            unit_price: -autopayDiscount,
+            quantity: 1,
+            line_total: -autopayDiscount,
+            line_type: 'discount'
+          });
+        }
+        
         await supabase
           .from("billing_invoice_lines")
           .insert(invoiceLines);
@@ -215,8 +227,57 @@ serve(async (req) => {
             status: 'pending'
           });
         
+        // ═══ AUTOPAY: Auto-charge via Stripe ═══
+        if (isAutopayEligible && customerData?.stripe_customer_id && customerData?.default_payment_method_id) {
+          console.log(`[billing-generate-renewals] Triggering Stripe autopay for customer ${sub.customer_id}`);
+          try {
+            const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+            if (stripeKey) {
+              const Stripe = (await import("https://esm.sh/stripe@18.5.0")).default;
+              const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+              
+              const pi = await stripe.paymentIntents.create({
+                amount: Math.round(total * 100),
+                currency: "cad",
+                customer: customerData.stripe_customer_id,
+                payment_method: customerData.default_payment_method_id,
+                off_session: true,
+                confirm: true,
+                metadata: {
+                  invoice_id: invoice.id,
+                  invoice_number: invoiceNumber,
+                  customer_id: sub.customer_id,
+                  source: "autopay_renewal",
+                },
+                description: `Renouvellement automatique — ${sub.plan_name} — Nivra Telecom`,
+              });
+              
+              console.log(`[billing-generate-renewals] ✓ Stripe autopay PI ${pi.id} status: ${pi.status}`);
+              
+              // If succeeded immediately, apply payment
+              if (pi.status === "succeeded") {
+                await supabase.rpc("apply_payment_to_invoice", {
+                  p_invoice_id: invoice.id,
+                  p_amount: total,
+                  p_method: "card",
+                  p_provider: "stripe",
+                  p_provider_payment_id: pi.id,
+                  p_source: "live",
+                  p_created_by_name: "autopay_renewal",
+                  p_created_by_role: "system",
+                  p_customer_id: sub.customer_id,
+                });
+                console.log(`[billing-generate-renewals] ✓ Autopay payment applied for invoice ${invoiceNumber}`);
+              }
+              // If requires_action, the webhook will handle it
+            }
+          } catch (chargeErr) {
+            console.error(`[billing-generate-renewals] Stripe autopay error:`, chargeErr);
+            // Continue - invoice remains pending for manual payment
+          }
+        }
         // If PayPal subscription, trigger automatic charge
-        if (hasPayPalSubscription) {
+        else if (hasPayPalSubscription) {
           console.log(`[billing-generate-renewals] Triggering PayPal auto-charge for ${sub.id}`);
           try {
             await supabase.functions.invoke("paypal-charge-subscription", {
@@ -228,11 +289,10 @@ serve(async (req) => {
             });
           } catch (chargeErr) {
             console.error(`[billing-generate-renewals] PayPal charge error:`, chargeErr);
-            // Continue - PayPal will charge automatically via their scheduler
           }
         }
         
-        // Queue reminder email with correct column names
+        // Queue reminder email
         if (sub.customer) {
           await supabase.from("email_queue").insert({
             event_key: `billing_renewal_${sub.id}_${newCycleStart.toISOString().split('T')[0]}`,
