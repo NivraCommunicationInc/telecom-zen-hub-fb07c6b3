@@ -362,6 +362,8 @@ export async function fallbackCheckout(
   const cardCaptured =
     (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) &&
     (payload.payment.status === "captured" || inferredCardByReference);
+  // ★ Card payments are AUTHORIZED ONLY (manual capture) — NOT considered "paid" until admin captures
+  const isCardAuthorizedOnly = (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) && !cardCaptured;
   const isPaid = (rawMethod === "paypal" && !!payload.payment.paypal_capture_id) || cardCaptured;
   const isFree = rawMethod === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
