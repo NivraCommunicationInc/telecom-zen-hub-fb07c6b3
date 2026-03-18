@@ -538,7 +538,7 @@ serve(async (req) => {
             order_number: response.order_number,
             user_id: payload.customer.user_id,
             account_id: accountId,
-            status: "submitted",
+            status: paid ? "confirmed" : "submitted",
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
             service_type: (payload.services || []).map((s) => s.name).join(", "),
             order_type: "new",
