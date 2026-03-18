@@ -372,7 +372,13 @@ serve(async (req) => {
     } as CheckoutResponse;
 
     const paid = isPaidCheckout(payload);
-    const billingMethod = toBillingMethod(payload.payment?.method);
+    const billingMethod = toBillingMethod(payload.payment?.method, payload.payment?.reference);
+    const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;
+    const derivedServiceType = (payload.services || []).length > 0
+      ? (payload.services || []).map((s) => s.name).join(", ")
+      : (isStreamingOnly
+        ? (payload.streaming_addons || []).map((s) => s.name).join(", ") || "Streaming+"
+        : "Service Nivra");
     const results: Record<string, unknown> = {};
     const errors: string[] = [];
 
