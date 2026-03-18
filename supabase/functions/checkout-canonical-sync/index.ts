@@ -205,6 +205,24 @@ function buildInvoiceLines(payload: CheckoutPayload, invoiceId: string) {
     }
   }
 
+  // Delivery fee from installation payload (may not be in fees[])
+  const deliveryFee = toMoney(payload.installation?.delivery_fee);
+  if (deliveryFee > 0) {
+    const alreadyHasDelivery = lines.some(l =>
+      l.line_type === "fee" && l.description.toLowerCase().includes("livraison")
+    );
+    if (!alreadyHasDelivery) {
+      lines.push({
+        invoice_id: invoiceId,
+        description: "Frais de livraison",
+        unit_price: deliveryFee,
+        quantity: 1,
+        line_total: deliveryFee,
+        line_type: "fee",
+      });
+    }
+  }
+
   const promoDiscount = toMoney(payload.pricing_snapshot?.promo_discount);
   if (promoDiscount > 0 && payload.promo?.code) {
     lines.push({
