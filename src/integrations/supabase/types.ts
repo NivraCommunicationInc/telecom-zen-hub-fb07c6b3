@@ -1164,35 +1164,50 @@ export type Database = {
       }
       billing_customers: {
         Row: {
+          autopay_consent_at: string | null
+          autopay_discount_active: boolean
+          autopay_enabled: boolean
           created_at: string | null
+          default_payment_method_id: string | null
           email: string
           first_name: string
           id: string
           last_name: string
           phone: string
           status: Database["public"]["Enums"]["billing_customer_status"] | null
+          stripe_customer_id: string | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          autopay_consent_at?: string | null
+          autopay_discount_active?: boolean
+          autopay_enabled?: boolean
           created_at?: string | null
+          default_payment_method_id?: string | null
           email: string
           first_name: string
           id?: string
           last_name: string
           phone: string
           status?: Database["public"]["Enums"]["billing_customer_status"] | null
+          stripe_customer_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          autopay_consent_at?: string | null
+          autopay_discount_active?: boolean
+          autopay_enabled?: boolean
           created_at?: string | null
+          default_payment_method_id?: string | null
           email?: string
           first_name?: string
           id?: string
           last_name?: string
           phone?: string
           status?: Database["public"]["Enums"]["billing_customer_status"] | null
+          stripe_customer_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1393,6 +1408,12 @@ export type Database = {
       billing_payments: {
         Row: {
           amount: number
+          authorization_status: string | null
+          authorized_amount: number | null
+          authorized_at: string | null
+          capture_expired_at: string | null
+          captured_at: string | null
+          captured_by: string | null
           confirmed_by: string | null
           created_at: string | null
           created_by_id: string | null
@@ -1411,9 +1432,16 @@ export type Database = {
           reference: string | null
           source: string | null
           status: Database["public"]["Enums"]["billing_payment_status"] | null
+          stripe_payment_intent_id: string | null
         }
         Insert: {
           amount: number
+          authorization_status?: string | null
+          authorized_amount?: number | null
+          authorized_at?: string | null
+          capture_expired_at?: string | null
+          captured_at?: string | null
+          captured_by?: string | null
           confirmed_by?: string | null
           created_at?: string | null
           created_by_id?: string | null
@@ -1432,9 +1460,16 @@ export type Database = {
           reference?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
+          stripe_payment_intent_id?: string | null
         }
         Update: {
           amount?: number
+          authorization_status?: string | null
+          authorized_amount?: number | null
+          authorized_at?: string | null
+          capture_expired_at?: string | null
+          captured_at?: string | null
+          captured_by?: string | null
           confirmed_by?: string | null
           created_at?: string | null
           created_by_id?: string | null
@@ -1453,6 +1488,7 @@ export type Database = {
           reference?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["billing_payment_status"] | null
+          stripe_payment_intent_id?: string | null
         }
         Relationships: [
           {
@@ -7222,6 +7258,7 @@ export type Database = {
           notes: string | null
           order_number: string | null
           order_type: string | null
+          payment_authorization_status: string | null
           payment_confirmed_at: string | null
           payment_method: string | null
           payment_reference: string | null
@@ -7324,6 +7361,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           order_type?: string | null
+          payment_authorization_status?: string | null
           payment_confirmed_at?: string | null
           payment_method?: string | null
           payment_reference?: string | null
@@ -7426,6 +7464,7 @@ export type Database = {
           notes?: string | null
           order_number?: string | null
           order_type?: string | null
+          payment_authorization_status?: string | null
           payment_confirmed_at?: string | null
           payment_method?: string | null
           payment_reference?: string | null
