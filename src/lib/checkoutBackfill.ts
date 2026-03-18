@@ -16,10 +16,14 @@ export interface BackfillResult {
 
 type BillingMethod = "paypal" | "interac" | "card" | "manual";
 
-const toBillingMethod = (method?: string): BillingMethod => {
-  if (method === "paypal") return "paypal";
-  if (method === "etransfer" || method === "e_transfer" || method === "interac") return "interac";
-  if (method === "credit_card" || method === "card") return "card";
+const toBillingMethod = (method?: string, reference?: string | null): BillingMethod => {
+  const normalizedMethod = String(method || "").toLowerCase();
+  const normalizedReference = String(reference || "").toLowerCase();
+
+  if (normalizedMethod === "paypal") return "paypal";
+  if (normalizedMethod === "etransfer" || normalizedMethod === "e_transfer" || normalizedMethod === "interac") return "interac";
+  if (normalizedMethod === "credit_card" || normalizedMethod === "card") return "card";
+  if (normalizedReference.startsWith("pi_")) return "card";
   return "manual";
 };
 
@@ -27,7 +31,7 @@ const isPaidCheckout = (payload: NivraFullCheckoutPayload) => {
   const method = String(payload.payment.method || "").toLowerCase();
   const reference = String(payload.payment.reference || "");
   const cardCaptured =
-    (method === "credit_card" || method === "card") &&
+    (method === "credit_card" || method === "card" || reference.startsWith("pi_")) &&
     (payload.payment.status === "captured" || reference.startsWith("pi_"));
 
   return (
@@ -102,8 +106,17 @@ export async function backfillCheckoutToSupabase(
   const userId = payload.customer.user_id;
   const now = new Date().toISOString();
   const pricing = response.pricing;
-  const billingMethod = toBillingMethod(payload.payment.method);
+  const billingMethod = toBillingMethod(payload.payment.method, payload.payment.reference);
   const paid = isPaidCheckout(payload);
+  const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;
+  const derivedServiceType = payload.services.length > 0
+    ? payload.services.map((s) => s.name).join(", ")
+    : (isStreamingOnly
+      ? payload.streaming_addons?.map((s) => s.name).join(", ") || "Streaming+"
+      : "Service Nivra");
+  const normalizedDeliveryMethod = isStreamingOnly
+    ? "Livraison numérique par courriel"
+    : (payload.installation.type || null);
 
   // 1) billing customer
   try {
@@ -196,22 +209,29 @@ export async function backfillCheckoutToSupabase(
         account_id: resolvedAccountId,
         status: paid ? "confirmed" : "submitted",
         payment_status: paid ? "paid" : (payload.payment.method === "etransfer" ? "pending" : "pre_authorized"),
-        service_type: payload.services.map((s) => s.name).join(", "),
+        service_type: derivedServiceType,
+        fulfillment_type: isStreamingOnly ? "digital" : null,
+        delivery_method: normalizedDeliveryMethod,
         order_type: "new",
         total_amount: pricing?.grand_total ?? Number(payload.pricing_snapshot?.grand_total ?? 0),
         environment: "live",
         created_at: response.created_at || now,
         pricing_snapshot: payload.pricing_snapshot,
         notes: payload.notes || null,
-        shipping_address: payload.service_address.street || null,
-        shipping_city: payload.service_address.city || null,
-        shipping_province: payload.service_address.province || "QC",
-        shipping_postal_code: payload.service_address.postal_code || null,
-        installation_type: payload.installation.type || null,
-        delivery_fee: payload.installation.delivery_fee || 0,
-        installation_fee: payload.installation.installation_fee || 0,
-        provider_payment_id: payload.payment.paypal_capture_id || null,
-        payment_method: payload.payment.method,
+        shipping_address: isStreamingOnly ? null : (payload.service_address.street || null),
+        shipping_city: isStreamingOnly ? null : (payload.service_address.city || null),
+        shipping_province: isStreamingOnly ? null : (payload.service_address.province || "QC"),
+        shipping_postal_code: isStreamingOnly ? null : (payload.service_address.postal_code || null),
+        installation_type: isStreamingOnly ? "digital_email" : (payload.installation.type || null),
+        delivery_fee: isStreamingOnly ? 0 : (payload.installation.delivery_fee || 0),
+        installation_fee: isStreamingOnly ? 0 : (payload.installation.installation_fee || 0),
+        provider_payment_id:
+          billingMethod === "paypal"
+            ? (payload.payment.paypal_capture_id || null)
+            : billingMethod === "card"
+              ? (payload.payment.reference || null)
+              : null,
+        payment_method: billingMethod === "card" ? "card" : payload.payment.method,
         payment_reference: billingMethod === "paypal" ? null : (payload.payment.reference || response.payment_number || null),
       },
       { onConflict: "order_number" },

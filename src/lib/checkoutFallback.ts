@@ -357,9 +357,11 @@ export async function fallbackCheckout(
 
   // ── 5. Determine canonical billing fields ──
   const rawMethod = String(payload.payment.method || "").toLowerCase();
+  const paymentReferenceRaw = String(payload.payment.reference || "");
+  const inferredCardByReference = paymentReferenceRaw.toLowerCase().startsWith("pi_");
   const cardCaptured =
-    (rawMethod === "credit_card" || rawMethod === "card") &&
-    (payload.payment.status === "captured" || String(payload.payment.reference || "").startsWith("pi_"));
+    (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) &&
+    (payload.payment.status === "captured" || inferredCardByReference);
   const isPaid = (rawMethod === "paypal" && !!payload.payment.paypal_capture_id) || cardCaptured;
   const isFree = rawMethod === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
@@ -368,7 +370,7 @@ export async function fallbackCheckout(
       ? "paypal"
       : (["etransfer", "e_transfer", "interac"].includes(rawMethod)
           ? "interac"
-          : (rawMethod === "credit_card" || rawMethod === "card" ? "card" : "manual"));
+          : (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference ? "card" : "manual"));
   const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : billingMethod === "card" ? "stripe" : "manual";
   const paymentReference = paymentProvider === "paypal"
     ? null
@@ -378,6 +380,12 @@ export async function fallbackCheckout(
     : paymentProvider === "stripe"
       ? (payload.payment.reference || null)
       : null;
+  const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;
+  const derivedServiceType = payload.services.length > 0
+    ? payload.services.map((s) => s.name).join(", ")
+    : (isStreamingOnly
+      ? payload.streaming_addons?.map((s) => s.name).join(", ") || "Streaming+"
+      : "Service Nivra");
 
   // ── 6. Create order ──
   const { error: orderErr } = await supabase.from("orders").insert({
@@ -388,22 +396,24 @@ export async function fallbackCheckout(
     account_id: accountId,
     status: (isPaid || isFree) ? "confirmed" : "submitted",
     payment_status: paymentStatus,
-    service_type: payload.services.map(s => s.name).join(", "),
+    service_type: derivedServiceType,
+    fulfillment_type: isStreamingOnly ? "digital" : null,
+    delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : (payload.installation?.type || null),
     order_type: "new",
     total_amount: grandTotal,
     environment: "live",
     created_at: now,
     pricing_snapshot: pricing,
     notes: payload.notes || null,
-    shipping_address: payload.service_address?.street || null,
-    shipping_city: payload.service_address?.city || null,
-    shipping_province: payload.service_address?.province || "QC",
-    shipping_postal_code: payload.service_address?.postal_code || null,
-    installation_type: payload.installation?.type || null,
-    delivery_fee: payload.installation?.delivery_fee || 0,
-    installation_fee: payload.installation?.installation_fee || 0,
-    provider_payment_id: payload.payment.paypal_capture_id || null,
-    payment_method: payload.payment.method,
+    shipping_address: isStreamingOnly ? null : (payload.service_address?.street || null),
+    shipping_city: isStreamingOnly ? null : (payload.service_address?.city || null),
+    shipping_province: isStreamingOnly ? null : (payload.service_address?.province || "QC"),
+    shipping_postal_code: isStreamingOnly ? null : (payload.service_address?.postal_code || null),
+    installation_type: isStreamingOnly ? "digital_email" : (payload.installation?.type || null),
+    delivery_fee: isStreamingOnly ? 0 : (payload.installation?.delivery_fee || 0),
+    installation_fee: isStreamingOnly ? 0 : (payload.installation?.installation_fee || 0),
+    provider_payment_id: paymentProviderPaymentId,
+    payment_method: billingMethod === "card" ? "card" : payload.payment.method,
   });
   if (orderErr) throw new Error(`Order creation failed: ${orderErr.message}`);
   console.log("[FallbackCheckout] ✓ Order created:", orderNumber);

@@ -101,11 +101,13 @@ type CheckoutResponse = {
   created_at?: string;
 };
 
-const toBillingMethod = (method?: string): "paypal" | "interac" | "card" | "manual" => {
+const toBillingMethod = (method?: string, reference?: string | null): "paypal" | "interac" | "card" | "manual" => {
   const m = String(method || "").toLowerCase();
+  const ref = String(reference || "").toLowerCase();
   if (m === "paypal") return "paypal";
   if (m === "etransfer" || m === "e_transfer" || m === "interac") return "interac";
   if (m === "credit_card" || m === "card") return "card";
+  if (ref.startsWith("pi_")) return "card";
   return "manual";
 };
 
@@ -113,7 +115,7 @@ const isPaidCheckout = (payload: CheckoutPayload) => {
   const method = String(payload.payment?.method || "").toLowerCase();
   const reference = String(payload.payment?.reference || "");
   const cardCaptured =
-    (method === "credit_card" || method === "card") &&
+    (method === "credit_card" || method === "card" || reference.startsWith("pi_")) &&
     (payload.payment?.status === "captured" || reference.startsWith("pi_"));
 
   return (
@@ -370,7 +372,13 @@ serve(async (req) => {
     } as CheckoutResponse;
 
     const paid = isPaidCheckout(payload);
-    const billingMethod = toBillingMethod(payload.payment?.method);
+    const billingMethod = toBillingMethod(payload.payment?.method, payload.payment?.reference);
+    const isStreamingOnly = (payload.services?.length || 0) === 0 && (payload.streaming_addons?.length || 0) > 0;
+    const derivedServiceType = (payload.services || []).length > 0
+      ? (payload.services || []).map((s) => s.name).join(", ")
+      : (isStreamingOnly
+        ? (payload.streaming_addons || []).map((s) => s.name).join(", ") || "Streaming+"
+        : "Service Nivra");
     const results: Record<string, unknown> = {};
     const errors: string[] = [];
 
@@ -540,7 +548,9 @@ serve(async (req) => {
             account_id: accountId,
             status: paid ? "confirmed" : "submitted",
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
-            service_type: (payload.services || []).map((s) => s.name).join(", "),
+            service_type: derivedServiceType,
+            fulfillment_type: isStreamingOnly ? "digital" : null,
+            delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : null,
             order_type: "new",
             total_amount: grandTotal,
             environment: "live",
@@ -548,19 +558,24 @@ serve(async (req) => {
             pricing_snapshot: payload.pricing_snapshot || null,
             line_items: payload.line_items || null,
             notes: payload.notes || null,
-            shipping_address: payload.service_address?.street || null,
-            shipping_city: payload.service_address?.city || null,
-            shipping_province: payload.service_address?.province || "QC",
-            shipping_postal_code: payload.service_address?.postal_code || null,
-            installation_type: payload.installation?.type || null,
-            delivery_fee: toMoney(payload.installation?.delivery_fee),
-            installation_fee: toMoney(payload.installation?.installation_fee),
-            payment_method: payload.payment?.method || null,
+            shipping_address: isStreamingOnly ? null : (payload.service_address?.street || null),
+            shipping_city: isStreamingOnly ? null : (payload.service_address?.city || null),
+            shipping_province: isStreamingOnly ? null : (payload.service_address?.province || "QC"),
+            shipping_postal_code: isStreamingOnly ? null : (payload.service_address?.postal_code || null),
+            installation_type: isStreamingOnly ? "digital_email" : (payload.installation?.type || null),
+            delivery_fee: isStreamingOnly ? 0 : toMoney(payload.installation?.delivery_fee),
+            installation_fee: isStreamingOnly ? 0 : toMoney(payload.installation?.installation_fee),
+            payment_method: billingMethod === "card" ? "card" : (payload.payment?.method || null),
             payment_reference:
               billingMethod === "paypal"
                 ? null
                 : (payload.payment?.reference || response.payment_number || null),
-            provider_payment_id: payload.payment?.paypal_capture_id || null,
+            provider_payment_id:
+              billingMethod === "paypal"
+                ? (payload.payment?.paypal_capture_id || null)
+                : billingMethod === "card"
+                  ? (payload.payment?.reference || null)
+                  : null,
           },
           { onConflict: "id" },
         );
