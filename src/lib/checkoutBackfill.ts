@@ -545,8 +545,8 @@ export async function backfillCheckoutToSupabase(
             },
             { onConflict: "id" },
           );
-        } catch (eqErr: any) {
-          console.warn("[Backfill] Equipment service line insert failed:", eq.name, eqErr?.message);
+        } catch (svcErr: any) {
+          console.warn("[Backfill] Service line insert failed:", svc.name, svcErr?.message);
         }
       }
 
