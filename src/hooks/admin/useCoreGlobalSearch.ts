@@ -82,11 +82,12 @@ async function searchAll(query: string, env: EnvironmentFilter): Promise<SearchR
       return qb;
     })(),
 
-    // 7. Profiles — search by client_number, account_number, full_name, email, phone
+    // 7. Profiles — search by client_number, full_name, email, phone
+    // NOTE: account_number is NOT read from profiles (non-canonical). Use accounts table above.
     supabase
       .from("profiles")
-      .select("user_id, full_name, email, phone, client_number, account_number")
-      .or(`full_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},client_number.ilike.${pattern},account_number.ilike.${pattern}`)
+      .select("user_id, full_name, email, phone, client_number")
+      .or(`full_name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},client_number.ilike.${pattern}`)
       .limit(8),
   ]);
 
