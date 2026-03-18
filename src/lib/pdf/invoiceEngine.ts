@@ -292,10 +292,8 @@ function getTemplateKeyFromType(invoiceType: InvoiceType): string {
 /**
  * Détermine le chemin du template à partir du type de facture
  */
-function getTemplatePathFromType(invoiceType: InvoiceType): string {
-  return invoiceType === "MONTHLY" 
-    ? "src/lib/pdf/invoiceMonthlyTemplateV2.ts" 
-    : "src/lib/pdf/invoiceOneTimeTemplateV2.ts";
+function getTemplatePathFromType(_invoiceType: InvoiceType): string {
+  return "src/lib/pdf/invoiceTemplateV3.ts";
 }
 
 // ============================================================================
