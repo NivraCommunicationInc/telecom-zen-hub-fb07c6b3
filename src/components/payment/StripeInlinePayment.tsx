@@ -109,6 +109,14 @@ function PaymentForm({
     !paymentElementError &&
     isBillingComplete;
 
+  const paymentActionLabel = allowAuthorizationSuccess ? "Autoriser" : "Payer";
+  const successTitle = allowAuthorizationSuccess
+    ? "Carte autorisée avec succès !"
+    : "Paiement par carte confirmé !";
+  const successDescription = allowAuthorizationSuccess
+    ? "Votre commande est en attente de validation par notre équipe."
+    : "Votre facture a été réglée avec succès.";
+
   const handleBillingFieldChange = (field: keyof StripeBillingDetails, value: string) => {
     setBillingDetails((prev) => ({ ...prev, [field]: value }));
   };
@@ -170,7 +178,7 @@ function PaymentForm({
         const { error, paymentIntent } = await stripe.confirmPayment({
           elements,
           confirmParams: {
-            return_url: `${window.location.origin}/portal/payment-success`,
+            return_url: `${window.location.origin}${window.location.pathname}`,
             payment_method_data: billingPayload
               ? {
                   billing_details: billingPayload,
@@ -187,7 +195,7 @@ function PaymentForm({
           onError?.(msg);
         } else if (paymentIntent?.status === "succeeded") {
           setIsComplete(true);
-          toast.success("Paiement par carte confirmé !");
+          toast.success(successTitle);
           queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
           queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
           queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
@@ -229,6 +237,8 @@ function PaymentForm({
       queryClient,
       onSuccess,
       onError,
+      successTitle,
+      allowAuthorizationSuccess,
     ]
   );
 
@@ -236,8 +246,8 @@ function PaymentForm({
     return (
       <div className="flex flex-col items-center gap-3 py-6">
         <CheckCircle2 className="w-10 h-10 text-primary" />
-        <p className="text-sm font-semibold text-foreground">Carte autorisée avec succès !</p>
-        <p className="text-xs text-muted-foreground">Votre commande est en attente de validation par notre équipe.</p>
+        <p className="text-sm font-semibold text-foreground">{successTitle}</p>
+        <p className="text-xs text-muted-foreground">{successDescription}</p>
       </div>
     );
   }
@@ -365,7 +375,7 @@ function PaymentForm({
         ) : (
           <>
             <CreditCard className="w-4 h-4" />
-            Autoriser {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+            {paymentActionLabel} {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
           </>
         )}
       </Button>

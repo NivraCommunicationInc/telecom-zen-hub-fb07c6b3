@@ -113,12 +113,14 @@ serve(async (req) => {
     const resolvedCustomerId = customer_id || invoice?.customer_id;
     if (resolvedCustomerId) metadata.customer_id = resolvedCustomerId;
 
-    // ★ MANUAL CAPTURE: Authorize only — admin must capture later
+    // Checkout preconfirm stays manual authorization; invoice payments are immediate capture.
+    const captureMethod: "manual" | "automatic" = isInvoicePayment ? "automatic" : "manual";
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "cad",
       customer: stripeCustomerId,
-      capture_method: "manual",
+      capture_method: captureMethod,
       metadata,
       description: description || (invoice
         ? `Facture ${invoice.invoice_number} — Nivra Telecom`
