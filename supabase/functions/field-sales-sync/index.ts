@@ -20,14 +20,11 @@ const corsHeaders = {
   'Content-Type': 'application/json',
 };
 
-// Generate order number
-function generateOrderNumber(): string {
-  const date = new Date();
-  const year = date.getFullYear().toString().slice(-2);
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `FS${year}${month}${day}-${random}`;
+// Generate order number from DB sequence — NO local generation
+async function generateOrderNumberFromDB(admin: any): Promise<string> {
+  const { data, error } = await admin.rpc("generate_order_number");
+  if (error || !data) throw new Error(`FATAL: generate_order_number RPC failed: ${error?.message}`);
+  return String(data);
 }
 
 function splitName(fullName?: string | null): { firstName?: string; lastName?: string } {

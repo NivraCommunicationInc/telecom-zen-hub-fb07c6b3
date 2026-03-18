@@ -247,9 +247,12 @@ export async function fallbackCheckout(
     supabase.rpc("generate_payment_number"),
   ]);
 
-  const orderNumber = orderNumResult.data || `ORD-${Date.now()}`;
-  const invoiceNumber = invoiceNumResult.data || `INV-${Date.now()}`;
-  const paymentNumber = paymentNumResult.data || `PAY-${Date.now()}`;
+  if (!orderNumResult.data || !invoiceNumResult.data || !paymentNumResult.data) {
+    throw new Error("[CheckoutFallback] FATAL: DB sequence generation failed — cannot proceed without canonical identifiers");
+  }
+  const orderNumber = String(orderNumResult.data);
+  const invoiceNumber = String(invoiceNumResult.data);
+  const paymentNumber = String(paymentNumResult.data);
 
   const orderId = crypto.randomUUID();
   const invoiceId = crypto.randomUUID();

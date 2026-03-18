@@ -369,13 +369,18 @@ serve(async (req) => {
         : admin.rpc("generate_payment_number"),
     ]);
 
+    // INVARIANT: All identifiers must come from DB sequences or Core response — NO local fallbacks
+    if (!response.order_number && !orderNumRes.data) throw new Error("FATAL: order_number generation failed");
+    if (!response.invoice_number && !invoiceNumRes.data) throw new Error("FATAL: invoice_number generation failed");
+    if (!response.payment_number && !paymentNumRes.data) throw new Error("FATAL: payment_number generation failed");
+
     response = {
       order_id: response.order_id || crypto.randomUUID(),
-      order_number: response.order_number || String(orderNumRes.data || `ORD-${Date.now()}`),
+      order_number: response.order_number || String(orderNumRes.data),
       invoice_id: response.invoice_id || crypto.randomUUID(),
-      invoice_number: response.invoice_number || String(invoiceNumRes.data || `INV-${Date.now()}`),
+      invoice_number: response.invoice_number || String(invoiceNumRes.data),
       payment_id: response.payment_id || crypto.randomUUID(),
-      payment_number: response.payment_number || String(paymentNumRes.data || `PAY-${Date.now()}`),
+      payment_number: response.payment_number || String(paymentNumRes.data),
       subscription_id: response.subscription_id || null,
       account_number: response.account_number || null,
       billing_cycle_day: response.billing_cycle_day || null,
