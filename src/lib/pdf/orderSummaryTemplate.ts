@@ -276,7 +276,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.text("Adresse de service", rx + 6, ry);
     doc.setFontSize(7.5);
     doc.setTextColor(...C.text);
-    const addrLines = doc.splitTextToSize(d.service_address || "—", colW - 14);
+    const addrLines = doc.splitTextToSize(fmtAddress(d.service_address) || "—", colW - 14);
     doc.text(addrLines.slice(0, 2), rx + 6, ry + 4);
     ry += 4 + Math.min(addrLines.length, 2) * 4;
 
