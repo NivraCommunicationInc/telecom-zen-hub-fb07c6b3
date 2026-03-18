@@ -571,7 +571,7 @@ serve(async (req) => {
             order_number: response.order_number,
             user_id: payload.customer.user_id,
             account_id: accountId,
-            status: paid ? "confirmed" : "submitted",
+            status: "submitted", // INVARIANT: checkout NEVER auto-confirms/completes orders — operational processing only
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
             service_type: derivedServiceType,
             fulfillment_type: isStreamingOnly ? "digital" : null,
