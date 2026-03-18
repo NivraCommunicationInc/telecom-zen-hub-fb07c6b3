@@ -537,6 +537,7 @@ export function buildContractSummaryData(data: OrderDocumentData): ContractSumma
 export function buildReceiptData(data: OrderDocumentData): ReceiptData | null {
   const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
   const clientName = buildClientName(order, profile);
+  const addr = buildCustomerAddress(order, profile, account);
 
   // Find confirmed payment
   const confirmedPayment = billingPayments.find((p: any) =>
