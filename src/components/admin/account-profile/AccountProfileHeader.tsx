@@ -425,6 +425,16 @@ export function AccountProfileHeader({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Profile Edit Dialog */}
+      <AccountProfileEditDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        profile={profile}
+        account={account}
+        clientId={clientId}
+        onSaved={onRefresh}
+      />
     </div>
   );
 }
