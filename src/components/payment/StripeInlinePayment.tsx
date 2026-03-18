@@ -363,7 +363,7 @@ function PaymentForm({
         ) : (
           <>
             <CreditCard className="w-4 h-4" />
-            Payer {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+            Autoriser {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
           </>
         )}
       </Button>
