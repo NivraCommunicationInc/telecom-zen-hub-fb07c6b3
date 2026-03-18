@@ -138,12 +138,10 @@ export function generateOrderNumber(): string {
 }
 
 /**
- * Génère un numéro de facture sécurisé (7 chiffres, commence par 2-9)
- * 
- * @example
- * generateInvoiceNumber() // "2345678"
+ * @deprecated DO NOT USE — Invoice numbers must come from DB sequences (generate_billing_invoice_number RPC) or Nivra Core.
  */
 export function generateInvoiceNumber(): string {
+  console.error("[SecureIdGenerator] ❌ VIOLATION: generateInvoiceNumber() called locally — must come from Nivra Core DB sequences");
   return generateSecureNumericId(ID_LENGTHS.invoice);
 }
 
