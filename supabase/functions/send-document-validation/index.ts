@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import jsPDF from "https://esm.sh/jspdf@2.5.1";
 
 const corsHeaders = {
@@ -7,10 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Company info
+// ═══════════════════════════════════════════════════════════════
+// COMPANY CONSTANTS
+// ═══════════════════════════════════════════════════════════════
 const NIVRA = {
   legalName: "NIVRA COMMUNICATIONS INC.",
-  tradeName: "Nivra Telecom",
   neq: "2291249786",
   tps: "TPS : 732287291 RT0001",
   tvq: "TVQ : 1229249786 TQ0001",
@@ -21,260 +21,579 @@ const NIVRA = {
   tagline: "Fournisseur de services de télécommunications — Province de Québec",
 };
 
+// Colors
+const NAVY: [number, number, number] = [15, 23, 42];
+const TEAL: [number, number, number] = [20, 184, 166];
+const BLUE: [number, number, number] = [0, 102, 204];
+const WHITE: [number, number, number] = [255, 255, 255];
+const LIGHT_BG: [number, number, number] = [248, 250, 252];
+const TEXT: [number, number, number] = [30, 41, 59];
+const TEXT_MUTED: [number, number, number] = [100, 116, 139];
+const SUCCESS: [number, number, number] = [22, 163, 74];
+const BORDER: [number, number, number] = [226, 232, 240];
+
 const fmt = (amount: number): string =>
-  new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
+  new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | null): string => {
-  if (!dateStr) return "—";
+  if (!dateStr) return "";
   try { return new Date(dateStr).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }); }
   catch { return dateStr; }
 };
 
-const fmtPayMethod = (m: string): string => {
-  const map: Record<string, string> = { PayPal: "PayPal", paypal: "PayPal", Interac: "Virement Interac", interac: "Virement Interac", e_transfer: "Virement Interac", card: "Carte de crédit", "Credit Card": "Carte de crédit" };
-  return map[m] || m;
+const fmtShortDate = (dateStr: string | null): string => {
+  if (!dateStr) return "";
+  try { return new Date(dateStr).toLocaleDateString("fr-CA", { year: "numeric", month: "2-digit", day: "2-digit" }); }
+  catch { return dateStr; }
 };
 
-// ═══════════════════════════════════════════════════════════════════
-// 1. INVOICE — Pure billing document (no receipt section)
-// ═══════════════════════════════════════════════════════════════════
-function generateInvoice(data: any): Uint8Array {
+// ═══════════════════════════════════════════════════════════════
+// REAL ORDER DATA — Order #80876
+// ═══════════════════════════════════════════════════════════════
+const ORDER = {
+  order_number: "80876",
+  order_date: "2026-03-18T03:10:32.928Z",
+  status: "confirmed",
+  total_amount: 248.34,
+};
+
+const CLIENT = {
+  first_name: "Camerhy",
+  last_name: "Junior",
+  full_name: "Camerhy Junior",
+  email: "lavaud.oldo9902@icloud.com",
+  phone: "(438) 792-3288",
+};
+
+const ACCOUNT = {
+  account_number: "200700",
+  service_address: "1477 rue des Rossignols",
+  service_city: "Saint-Jérôme",
+  service_province: "QC",
+  service_postal_code: "J7Z 6Z3",
+  full_service_address: "1477 rue des Rossignols, Saint-Jérôme, QC J7Z 6Z3",
+};
+
+const INVOICE = {
+  invoice_number: "8548553",
+  invoice_date: "2026-03-18",
+  due_date: "2026-03-18",
+  cycle_start: "2026-03-18",
+  cycle_end: "2026-04-17",
+  subtotal: 215.99,
+  tps: 10.80,
+  tvq: 21.55,
+  total: 248.34,
+  status: "paid",
+  paid_at: "2026-03-18T03:10:32.928Z",
+  payment_method: "card",
+  balance_due: 0,
+};
+
+const PAYMENT = {
+  payment_number: "5174657336",
+  amount: 248.34,
+  method: "card",
+  status: "confirmed",
+  received_at: "2026-03-18T03:10:32.928Z",
+  provider: "Stripe",
+};
+
+// Invoice lines — EXCLUDING internal "Ajustement taxable de réconciliation"
+const RECURRING_SERVICES = [
+  { description: "GIGA + TV 25 choix", unit_price: 100.00, total: 100.00 },
+  { description: "Mobile 75GB 4G Unlimited Canada", unit_price: 60.00, total: 60.00 },
+  { description: "Spotify Premium", unit_price: 10.99, total: 10.99 },
+];
+
+const EQUIPMENT = [
+  { description: "Nivra Born Wifi Router", unit_price: 60.00, total: 60.00 },
+  { description: "Nivra 4K Smart Terminal", unit_price: 50.00, total: 50.00 },
+  { description: "Nivra Physical SIM", unit_price: 25.00, total: 25.00 },
+];
+
+const FEES = [
+  { description: "Frais d'activation", amount: 25.00 },
+  { description: "Installation professionnelle", amount: 50.00 },
+];
+
+const DISCOUNT = {
+  code: "EQUIP26",
+  label: "Rabais EQUIP26 (100% équipement)",
+  amount: 185.00,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED HEADER/FOOTER COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+
+function drawInvoiceHeader(doc: any, pw: number) {
+  // Navy bar
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, pw, 32, "F");
+  // Teal accent
+  doc.setFillColor(...TEAL);
+  doc.rect(0, 32, pw, 2, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...WHITE);
+  doc.text(NIVRA.legalName, 15, 12);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(180, 190, 210);
+  doc.text(NIVRA.division, 15, 18);
+  doc.text(NIVRA.tagline, 15, 23);
+  doc.text(`${NIVRA.address} | ${NIVRA.email}`, 15, 28);
+
+  // Document type
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...TEAL);
+  doc.text("FACTURE", pw - 15, 14, { align: "right" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(160, 170, 190);
+  doc.text(`NEQ: ${NIVRA.neq} | ${NIVRA.tps} | ${NIVRA.tvq}`, pw - 15, 22, { align: "right" });
+}
+
+function drawInvoiceFooter(doc: any, pw: number, ph: number) {
+  const footerH = 36;
+  const footerY = ph - footerH;
+  doc.setFillColor(...NAVY);
+  doc.rect(0, footerY, pw, footerH, "F");
+  doc.setFillColor(...TEAL);
+  doc.rect(0, footerY, pw, 1.5, "F");
+
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.text("POLITIQUE DE FACTURATION PRÉPAYÉE", 15, footerY + 6);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5);
+  const lines = [
+    "Le cycle de facturation commence à la date de confirmation du paiement. Les services sont facturés à l'avance sur base mensuelle.",
+    "Le paiement doit être confirmé AVANT la date de cycle (J0). Si non payé à J0, le service expire (non renouvelé).",
+    "Aucun intérêt ni frais de réactivation pour non-renouvellement normal. Après 90 jours, le numéro peut devenir irrécupérable.",
+    "Intérêt (5%/mois) + 15$ frais de réactivation s'appliquent UNIQUEMENT pour litiges bancaires/rétrofacturations.",
+    "Garantie équipement: 12 mois fabricant dès activation. Perte/vol/dommages client exclus sauf approbation interne.",
+  ];
+  let ly = footerY + 11;
+  lines.forEach(l => { doc.text(l, 15, ly); ly += 3; });
+
+  doc.setFontSize(6.5);
+  doc.text(`${NIVRA.legalName} — Page 1/1`, pw - 15, ph - 4, { align: "right" });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 1. INVOICE PDF — Official billing document
+// ═══════════════════════════════════════════════════════════════
+function generateInvoice(): Uint8Array {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const m = 15;
   const cw = pw - m * 2;
 
-  // NAVY HEADER
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pw, 32, "F");
-  doc.setFillColor(20, 184, 166);
-  doc.rect(0, 32, pw, 2, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-  doc.text(NIVRA.legalName, m, 12);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(180, 190, 210);
-  doc.text(NIVRA.division, m, 18);
-  doc.text(NIVRA.tagline, m, 23);
-  doc.text(`${NIVRA.address} | ${NIVRA.email}`, m, 28);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(20, 184, 166);
-  doc.text("FACTURE", pw - m, 14, { align: "right" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(160, 170, 190);
-  doc.text(`NEQ: ${NIVRA.neq} | ${NIVRA.tps} | ${NIVRA.tvq}`, pw - m, 22, { align: "right" });
-
+  drawInvoiceHeader(doc, pw);
   let y = 40;
+
+  // ── TWO COLUMNS: Client Info + Invoice Details ──
   const colW = (cw - 8) / 2;
+  const boxH = 62;
 
-  // LEFT: Client Info
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(m, y, colW, 52, 2, 2, "F");
-  doc.setFillColor(20, 184, 166);
-  doc.rect(m, y, 3, 52, "F");
+  // LEFT: FACTURÉ À
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, colW, boxH, 2, 2, "F");
+  doc.setFillColor(...TEAL);
+  doc.rect(m, y, 3, boxH, "F");
+
   let ly = y + 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(15, 23, 42);
-  doc.text("FACTURÉ À", m + 7, ly); ly += 7;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("FACTURÉ À", m + 7, ly);
+  ly += 7;
 
-  const fields = [["Nom", data.client_name], ["Courriel", data.client_email], ["Téléphone", data.client_phone || "—"], ["Adresse", data.address || "—"], ["Compte #", data.account_number]];
-  fields.forEach(([label, value]: any) => {
-    doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+  const drawClientField = (label: string, value: string) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...TEXT_MUTED);
     doc.text(label, m + 7, ly);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
-    doc.text((value || "—").substring(0, 35), m + 32, ly);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(value, m + 35, ly);
     ly += 5.5;
-  });
+  };
 
-  // RIGHT: Invoice Details
+  drawClientField("Nom", CLIENT.full_name);
+  drawClientField("Courriel", CLIENT.email);
+  drawClientField("Téléphone", CLIENT.phone);
+
+  // Address block
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Adresse fact.", m + 7, ly);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT);
+  doc.text(ACCOUNT.service_address, m + 35, ly);
+  ly += 4.5;
+  doc.text(`${ACCOUNT.service_city}, ${ACCOUNT.service_province} ${ACCOUNT.service_postal_code}`, m + 35, ly);
+  ly += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Adresse service", m + 7, ly);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT);
+  doc.text(ACCOUNT.full_service_address, m + 35, ly);
+
+  // RIGHT: DÉTAILS FACTURE
   const rx = m + colW + 8;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(rx, y, colW, 52, 2, 2, "F");
-  doc.setFillColor(0, 102, 204);
-  doc.rect(rx, y, 3, 52, "F");
-  let ry = y + 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(15, 23, 42);
-  doc.text("DÉTAILS FACTURE", rx + 7, ry); ry += 7;
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(rx, y, colW, boxH, 2, 2, "F");
+  doc.setFillColor(...BLUE);
+  doc.rect(rx, y, 3, boxH, "F");
 
-  const rFields = [["N° facture", data.invoice_number], ["Émission", fmtDate(data.invoice_date)], ["Échéance", fmtDate(data.due_date)], ["Période", `${fmtDate(data.cycle_start)} au ${fmtDate(data.cycle_end)}`], ["Statut", data.status === "paid" ? "Payée" : "En attente"]];
-  rFields.forEach(([label, value]: any) => {
-    doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+  let ry = y + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("DÉTAILS FACTURE", rx + 7, ry);
+  ry += 7;
+
+  const drawRightField = (label: string, value: string, highlight = false) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...TEXT_MUTED);
     doc.text(label, rx + 7, ry);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
-    doc.text((value || "—").substring(0, 25), rx + 40, ry);
+    doc.setFont("helvetica", highlight ? "bold" : "normal");
+    doc.setFontSize(highlight ? 9 : 8);
+    doc.setTextColor(...(highlight ? BLUE : TEXT));
+    doc.text(value, rx + 42, ry);
     ry += 5.5;
+  };
+
+  drawRightField("N° compte", ACCOUNT.account_number);
+  drawRightField("N° facture", INVOICE.invoice_number);
+  drawRightField("N° commande", ORDER.order_number);
+  drawRightField("Émission", fmtDate(INVOICE.invoice_date));
+  drawRightField("Échéance", fmtDate(INVOICE.due_date));
+  drawRightField("Période", `${fmtShortDate(INVOICE.cycle_start)} au ${fmtShortDate(INVOICE.cycle_end)}`);
+
+  // Status badge
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Statut", rx + 7, ry);
+  const badgeLabel = "Payée";
+  const badgeW = doc.getTextWidth(badgeLabel) + 6;
+  doc.setFillColor(...SUCCESS);
+  doc.roundedRect(rx + 42, ry - 3.5, badgeW, 5, 1, 1, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(7);
+  doc.text(badgeLabel, rx + 45, ry);
+
+  y = y + boxH + 8;
+
+  // ── SECTION A: SERVICES MENSUELS RÉCURRENTS ──
+  const drawSectionHeader = (title: string) => {
+    doc.setFillColor(...LIGHT_BG);
+    doc.rect(m, y, cw, 7, "F");
+    doc.setFillColor(...TEAL);
+    doc.rect(m, y, 3, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...NAVY);
+    doc.text(title, m + 7, y + 5);
+    y += 10;
+  };
+
+  const drawTableHeader = (col3Label: string) => {
+    doc.setFillColor(...NAVY);
+    doc.rect(m, y, cw, 7, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.text("Description", m + 3, y + 5);
+    doc.text(col3Label, m + 100, y + 5);
+    doc.text("P.U.", m + 130, y + 5);
+    doc.text("Montant", m + 155, y + 5);
+    y += 9;
+  };
+
+  const drawItemRow = (desc: string, col3: string, unitPrice: number, total: number, rowIndex: number) => {
+    const rowH = 7;
+    if (rowIndex % 2 === 0) {
+      doc.setFillColor(250, 250, 252);
+      doc.rect(m, y - 1, cw, rowH, "F");
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(desc, m + 3, y + 4);
+    doc.setFontSize(7);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(col3, m + 100, y + 4);
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(fmt(unitPrice), m + 130, y + 4);
+    doc.setFont("helvetica", "bold");
+    doc.text(fmt(total), m + 155, y + 4);
+    y += rowH;
+  };
+
+  drawSectionHeader("SECTION A — SERVICES MENSUELS RÉCURRENTS");
+  drawTableHeader("Période");
+
+  const period = `${fmtShortDate(INVOICE.cycle_start)} au ${fmtShortDate(INVOICE.cycle_end)}`;
+  RECURRING_SERVICES.forEach((svc, i) => {
+    drawItemRow(svc.description, period, svc.unit_price, svc.total, i);
   });
 
-  y += 58;
-
-  // ITEMS TABLE
-  doc.setFillColor(248, 250, 252);
-  doc.rect(m, y, cw, 7, "F");
-  doc.setFillColor(20, 184, 166);
-  doc.rect(m, y, 3, 7, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(15, 23, 42);
-  doc.text("DÉTAIL DES SERVICES ET FRAIS", m + 7, y + 5);
+  // Section subtotal
+  doc.setDrawColor(...BORDER);
+  doc.line(m, y, m + cw, y);
+  y += 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...NAVY);
+  doc.text("Sous-total services mensuels", m + cw - 85, y + 4);
+  doc.text(fmt(170.99), m + cw - 2, y + 4, { align: "right" });
   y += 10;
 
-  // Table header
-  doc.setFillColor(15, 23, 42);
-  doc.rect(m, y, cw, 7, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(7.5);
-  doc.text("Description", m + 3, y + 5);
-  doc.text("Qté", m + 120, y + 5);
-  doc.text("P.U.", m + 133, y + 5);
-  doc.text("Montant", m + 153, y + 5);
-  y += 9;
+  // ── SECTION B: FRAIS UNIQUES ──
+  drawSectionHeader("SECTION B — FRAIS UNIQUES (ÉQUIPEMENT ET ACTIVATION)");
+  drawTableHeader("Type");
 
-  (data.lines || []).forEach((line: any, i: number) => {
-    if (i % 2 === 0) { doc.setFillColor(250, 250, 252); doc.rect(m, y - 1, cw, 7, "F"); }
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
-    doc.text((line.description || "—").substring(0, 55), m + 3, y + 4);
-    doc.text(String(line.quantity || 1), m + 120, y + 4);
-    doc.text(fmt(line.unit_price), m + 133, y + 4);
-    doc.setFont("helvetica", "bold");
-    doc.text(fmt(line.line_total), m + 153, y + 4);
-    y += 7;
+  EQUIPMENT.forEach((eq, i) => {
+    drawItemRow(eq.description, "Équipement", eq.unit_price, eq.total, i);
+  });
+  FEES.forEach((fee, i) => {
+    drawItemRow(fee.description, "Frais", fee.amount, fee.amount, EQUIPMENT.length + i);
   });
 
-  // Discounts
-  (data.discounts || []).forEach((d: any) => {
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
-    doc.text(d.description, m + 3, y + 4);
-    doc.setFont("helvetica", "bold"); doc.setTextColor(22, 163, 74);
-    doc.text(fmt(d.line_total), m + 153, y + 4);
-    y += 7;
-  });
+  doc.setDrawColor(...BORDER);
+  doc.line(m, y, m + cw, y);
+  y += 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...NAVY);
+  doc.text("Sous-total frais uniques", m + cw - 85, y + 4);
+  doc.text(fmt(210.00), m + cw - 2, y + 4, { align: "right" });
+  y += 10;
 
-  // FINANCIAL SUMMARY
-  y += 5;
-  const tx = m + cw - 90;
-  const drawLine = (label: string, value: string, opts: any = {}) => {
-    if (opts.bg) { doc.setFillColor(...opts.bg); doc.roundedRect(tx - 3, y - 2, 96, 9, 1, 1, "F"); doc.setTextColor(255, 255, 255); }
-    else { doc.setTextColor(...(opts.color || [30, 41, 59])); }
-    doc.setFont("helvetica", opts.bold ? "bold" : "normal"); doc.setFontSize(opts.size || 9);
+  // ── SECTION C: PROMOTIONS ──
+  drawSectionHeader("SECTION C — PROMOTIONS ET RABAIS");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT);
+  doc.text(DISCOUNT.label, m + 3, y + 4);
+  doc.setFontSize(6.5);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("(appliqué sur équipement et installation)", m + 3 + doc.getTextWidth(DISCOUNT.label) + 3, y + 4);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...SUCCESS);
+  doc.text(`- ${fmt(DISCOUNT.amount)}`, m + cw - 2, y + 4, { align: "right" });
+  y += 12;
+
+  // ── SOMMAIRE FINANCIER ──
+  drawSectionHeader("SOMMAIRE FINANCIER");
+
+  const totW = 90;
+  const tx = m + cw - totW;
+
+  const drawTotalLine = (label: string, value: string, opts: { bold?: boolean; bg?: [number, number, number]; textColor?: [number, number, number]; fontSize?: number } = {}) => {
+    if (opts.bg) {
+      doc.setFillColor(...opts.bg);
+      doc.roundedRect(tx - 3, y - 2, totW + 6, 9, 1, 1, "F");
+      doc.setTextColor(...(opts.textColor || WHITE));
+    } else {
+      doc.setTextColor(...(opts.textColor || TEXT));
+    }
+    doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+    doc.setFontSize(opts.fontSize || 9);
     doc.text(label, tx, y + 4);
-    doc.text(value, tx + 90, y + 4, { align: "right" });
+    doc.text(value, tx + totW, y + 4, { align: "right" });
     y += opts.bg ? 12 : 6.5;
   };
 
-  drawLine("Sous-total", fmt(data.subtotal), { bold: true });
-  if (data.discount_total && data.discount_total < 0) drawLine("Rabais", fmt(data.discount_total), { color: [22, 163, 74] });
-  drawLine("TPS (5%)", fmt(data.tps_amount));
-  drawLine("TVQ (9,975%)", fmt(data.tvq_amount));
-  drawLine("SOLDE À PAYER", fmt(data.total), { bold: true, bg: [15, 23, 42], size: 10 });
+  drawTotalLine("Services mensuels", fmt(170.99));
+  drawTotalLine("Frais uniques", fmt(210.00));
+  drawTotalLine("Rabais EQUIP26", `- ${fmt(185.00)}`, { textColor: SUCCESS });
+  drawTotalLine("Sous-total", fmt(INVOICE.subtotal), { bold: true });
+  drawTotalLine("TPS (5%)", fmt(INVOICE.tps));
+  drawTotalLine("TVQ (9,975%)", fmt(INVOICE.tvq));
+  drawTotalLine("Total facture", fmt(INVOICE.total), { bold: true });
+  drawTotalLine("Paiement reçu (Carte de crédit)", `- ${fmt(INVOICE.total)}`, { textColor: SUCCESS });
+  drawTotalLine("SOLDE À PAYER", fmt(0), { bold: true, bg: NAVY, fontSize: 10 });
 
-  // Brief note (NO receipt section)
+  // Footer note
   y += 4;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
-  doc.text("Un reçu de paiement distinct sera émis lors de la confirmation du paiement.", m, y);
-
-  // FOOTER
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, ph - 20, pw, 20, "F");
-  doc.setFillColor(20, 184, 166);
-  doc.rect(0, ph - 20, pw, 1.5, "F");
-  doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(5.5);
-  doc.text("Le cycle de facturation commence à la date de confirmation du paiement. Services prépayés — paiement requis avant activation.", m, ph - 13);
-  doc.text("Aucun intérêt ni frais de réactivation pour non-renouvellement normal. Garantie équipement: 12 mois fabricant dès activation.", m, ph - 9);
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, pw / 2, ph - 4, { align: "center" });
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Merci de votre confiance. Un reçu de paiement distinct a été émis.", m, y + 3);
 
-  return doc.output("arraybuffer") as unknown as Uint8Array;
+  drawInvoiceFooter(doc, pw, ph);
+
+  return doc.output("arraybuffer");
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 2. RECEIPT — Compact payment proof (NOT invoice)
-// ═══════════════════════════════════════════════════════════════════
-function generateReceipt(data: any): Uint8Array {
+// ═══════════════════════════════════════════════════════════════
+// 2. RECEIPT PDF — Payment proof only
+// ═══════════════════════════════════════════════════════════════
+function generateReceipt(): Uint8Array {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const m = 20;
+  const cw = pw - m * 2;
 
   // GREEN HEADER
-  doc.setFillColor(22, 163, 74);
+  doc.setFillColor(...SUCCESS);
   doc.rect(0, 0, pw, 36, "F");
   doc.setFillColor(34, 197, 94);
   doc.rect(0, 36, pw, 2, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...WHITE);
   doc.text(NIVRA.legalName, m, 14);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(220, 252, 231);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(220, 252, 231);
   doc.text(NIVRA.address, m, 21);
   doc.text(`${NIVRA.email} | ${NIVRA.website}`, m, 27);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...WHITE);
   doc.text("REÇU DE PAIEMENT", pw - m, 16, { align: "right" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(220, 252, 231);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(220, 252, 231);
   doc.text(`NEQ: ${NIVRA.neq}`, pw - m, 24, { align: "right" });
 
   let y = 48;
+
+  // PAYÉ watermark
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(72);
+  doc.setTextColor(22, 163, 74);
+  try {
+    const gState = new (doc as any).GState({ opacity: 0.06 });
+    (doc as any).setGState(gState);
+    doc.text("PAYÉ", pw / 2, 140, { align: "center", angle: -25 });
+    const gStateN = new (doc as any).GState({ opacity: 1 });
+    (doc as any).setGState(gStateN);
+  } catch { /* GState may not be available in all builds */ }
+
+  // Receipt banner
   const cardW = 140;
   const cardX = (pw - cardW) / 2;
 
-  // Receipt number banner
-  doc.setFillColor(22, 163, 74);
+  doc.setFillColor(...SUCCESS);
   doc.roundedRect(cardX, y, cardW, 14, 3, 3, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text(`Reçu Nº ${data.payment_number}`, pw / 2, y + 9, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...WHITE);
+  doc.text(`Reçu N° ${PAYMENT.payment_number}`, pw / 2, y + 9, { align: "center" });
   y += 22;
 
-  // Payment info card
+  // Payment details card
   doc.setFillColor(240, 253, 244);
-  doc.setDrawColor(187, 247, 208); doc.setLineWidth(0.5);
-  doc.roundedRect(cardX, y, cardW, 54, 3, 3, "FD");
+  doc.setDrawColor(187, 247, 208);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(cardX, y, cardW, 55, 3, 3, "FD");
   doc.setLineWidth(0.2);
 
   let fy = y + 10;
-  const drawField = (label: string, value: string, bold = false) => {
-    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+  const drawReceiptField = (label: string, value: string, isBold = false) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT_MUTED);
     doc.text(label, cardX + 12, fy);
-    doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(bold ? 10 : 9); doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", isBold ? "bold" : "normal");
+    doc.setFontSize(isBold ? 10 : 9);
+    doc.setTextColor(...NAVY);
     doc.text(value, cardX + cardW - 12, fy, { align: "right" });
     fy += 9;
   };
 
-  drawField("Date de paiement", fmtDate(data.payment_date));
-  drawField("Mode de paiement", fmtPayMethod(data.payment_method));
-  drawField("Montant payé", fmt(data.amount_paid), true);
+  drawReceiptField("Date de paiement", fmtDate(PAYMENT.received_at));
+  drawReceiptField("Mode de paiement", "Carte de crédit");
+  drawReceiptField("Montant payé", fmt(PAYMENT.amount), true);
 
+  // Separator
   doc.setDrawColor(187, 247, 208);
   doc.line(cardX + 12, fy - 3, cardX + cardW - 12, fy - 3);
   fy += 3;
 
-  drawField("Facture Nº", data.invoice_number);
-  drawField("Total facture", fmt(data.invoice_total));
+  drawReceiptField("Facture N°", INVOICE.invoice_number);
+  drawReceiptField("Solde restant", fmt(0));
 
   y += 62;
 
   // Client reference card
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(cardX, y, cardW, 28, 3, 3, "F");
-  fy = y + 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(15, 23, 42);
-  doc.text("CLIENT", cardX + 12, fy); fy += 7;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
-  doc.text(data.client_name, cardX + 12, fy); fy += 5;
-  doc.setFontSize(7.5); doc.setTextColor(100, 116, 139);
-  doc.text(`${data.client_email} | Compte: ${data.account_number}`, cardX + 12, fy);
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(cardX, y, cardW, 35, 3, 3, "F");
 
-  y += 38;
+  fy = y + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...NAVY);
+  doc.text("CLIENT", cardX + 12, fy);
+  fy += 7;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...TEXT);
+  doc.text(CLIENT.full_name, cardX + 12, fy);
+  fy += 5;
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text(`${CLIENT.email}`, cardX + 12, fy);
+  fy += 4.5;
+  doc.text(`Compte: ${ACCOUNT.account_number} | Commande: #${ORDER.order_number}`, cardX + 12, fy);
+
+  y += 44;
 
   // Legal note
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
-  doc.text("Ce reçu confirme la réception du paiement. Il ne remplace pas la facture officielle.", cardX, y);
-  doc.text(`Pour toute question : ${NIVRA.email}`, cardX, y + 4);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  const legalNote = `Ce reçu confirme la réception du paiement indiqué ci-dessus. Il ne remplace pas la facture officielle. Conservez ce document pour vos dossiers. Pour toute question, contactez-nous à ${NIVRA.email}.`;
+  const legalLines = doc.splitTextToSize(legalNote, cardW);
+  doc.text(legalLines, cardX, y);
 
-  // GREEN FOOTER
-  doc.setFillColor(22, 163, 74);
+  // Green footer
+  doc.setFillColor(...SUCCESS);
   doc.rect(0, ph - 16, pw, 16, "F");
-  doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
   doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, pw / 2, ph - 10, { align: "center" });
   doc.text(`${NIVRA.tps} | ${NIVRA.tvq}`, pw / 2, ph - 5.5, { align: "center" });
 
-  return doc.output("arraybuffer") as unknown as Uint8Array;
+  return doc.output("arraybuffer");
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 3. ORDER SUMMARY — Pre-billing confirmation (card layout, NOT invoice)
-// ═══════════════════════════════════════════════════════════════════
-function generateOrderSummary(data: any): Uint8Array {
+// ═══════════════════════════════════════════════════════════════
+// 3. ORDER SUMMARY PDF — Pre-billing order confirmation
+// ═══════════════════════════════════════════════════════════════
+function generateOrderSummary(): Uint8Array {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
@@ -286,450 +605,713 @@ function generateOrderSummary(data: any): Uint8Array {
   doc.rect(0, 0, pw, 34, "F");
   doc.setFillColor(96, 165, 250);
   doc.rect(0, 34, pw, 2, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...WHITE);
   doc.text("NIVRA TELECOM", m, 14);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(191, 219, 254);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(191, 219, 254);
   doc.text("Confirmation de votre commande", m, 21);
   doc.text(`${NIVRA.email} | ${NIVRA.website}`, m, 27);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...WHITE);
   doc.text("SOMMAIRE DE COMMANDE", pw - m, 14, { align: "right" });
 
   let y = 44;
 
   // Order banner
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(m, y, cw, 18, 3, 3, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(15, 23, 42);
-  doc.text(`Commande #${data.order_number}`, m + 8, y + 8);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
-  doc.text(`Passée le ${fmtDate(data.order_date)}`, m + 8, y + 14);
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, cw, 22, 3, 3, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(...NAVY);
+  doc.text(`Commande #${ORDER.order_number}`, m + 8, y + 9);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text(`Passée le ${fmtDate(ORDER.order_date)}`, m + 8, y + 16);
 
   // Status pill
-  const statusLabel = data.order_status === "confirmed" || data.order_status === "paid" ? "CONFIRMÉE" : "EN ATTENTE";
-  const statusColor = data.order_status === "confirmed" || data.order_status === "paid" ? [22, 163, 74] : [245, 158, 11];
-  const pillW = 30;
-  doc.setFillColor(...statusColor as [number, number, number]);
+  const statusLabel = "COMMANDE CONFIRMÉE";
+  const pillW = doc.getTextWidth(statusLabel) + 12;
+  doc.setFillColor(...SUCCESS);
   doc.roundedRect(pw - m - pillW - 4, y + 5, pillW, 8, 4, 4, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
-  doc.text(statusLabel, pw - m - pillW / 2 - 4, y + 10.5, { align: "center" });
-  y += 24;
-
-  // CLIENT + DELIVERY (2 cards)
-  const colW2 = (cw - 6) / 2;
-  doc.setFillColor(239, 246, 255);
-  doc.setDrawColor(191, 219, 254); doc.setLineWidth(0.3);
-  doc.roundedRect(m, y, colW2, 36, 2, 2, "FD");
-  doc.setLineWidth(0.2);
-
-  let ly = y + 7;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(37, 99, 235);
-  doc.text("VOS INFORMATIONS", m + 6, ly); ly += 7;
-  const clientFields = [["Nom", data.client_name], ["Courriel", data.client_email], ["Compte", data.account_number]];
-  clientFields.forEach(([label, value]: any) => {
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
-    doc.text(label, m + 6, ly);
-    doc.setFontSize(8); doc.setTextColor(30, 41, 59);
-    doc.text((value || "—").substring(0, 30), m + 6, ly + 4);
-    ly += 9;
-  });
-
-  const rx2 = m + colW2 + 6;
-  doc.setFillColor(239, 246, 255);
-  doc.setDrawColor(191, 219, 254); doc.setLineWidth(0.3);
-  doc.roundedRect(rx2, y, colW2, 36, 2, 2, "FD");
-  doc.setLineWidth(0.2);
-  let ry2 = y + 7;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(37, 99, 235);
-  doc.text("LIVRAISON", rx2 + 6, ry2); ry2 += 7;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
-  doc.text("Adresse de service", rx2 + 6, ry2);
-  doc.setFontSize(7.5); doc.setTextColor(30, 41, 59);
-  const addrLines = doc.splitTextToSize(data.address || "—", colW2 - 14);
-  doc.text(addrLines.slice(0, 2), rx2 + 6, ry2 + 4);
-
-  y += 42;
-
-  // SERVICES — card-based (NOT table)
-  if (data.lines && data.lines.length > 0) {
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(37, 99, 235);
-    doc.text("Ce que vous avez commandé", m, y + 4);
-    y += 10;
-
-    data.lines.forEach((line: any) => {
-      if (line.line_total < 0) return; // Skip discounts here
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
-      doc.roundedRect(m, y, cw, 14, 2, 2, "FD");
-      doc.setLineWidth(0.2);
-
-      // Type badge
-      const type = (line.line_type || "service").toUpperCase();
-      doc.setFillColor(37, 99, 235);
-      doc.roundedRect(m + 4, y + 3, 24, 5, 1, 1, "F");
-      doc.setFont("helvetica", "bold"); doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
-      doc.text(type.substring(0, 10), m + 16, y + 6.5, { align: "center" });
-
-      doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(15, 23, 42);
-      doc.text((line.description || "—").substring(0, 45), m + 32, y + 7);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(37, 99, 235);
-      doc.text(fmt(line.line_total), pw - m - 4, y + 7, { align: "right" });
-      y += 16;
-    });
-  }
-
-  // ESTIMATED TOTAL (blue card)
-  y += 4;
-  doc.setFillColor(37, 99, 235);
-  doc.roundedRect(pw / 2, y, pw / 2 - m, 20, 3, 3, "F");
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(191, 219, 254);
-  doc.text("Sous-total", pw / 2 + 8, y + 7);
-  doc.text(fmt(data.subtotal), pw - m - 8, y + 7, { align: "right" });
-  doc.setDrawColor(96, 165, 250);
-  doc.line(pw / 2 + 8, y + 10, pw - m - 8, y + 10);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text("Total estimé (taxes incl.)", pw / 2 + 8, y + 16);
-  doc.text(fmt(data.total), pw - m - 8, y + 16, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...WHITE);
+  doc.text(statusLabel, pw - m - pillW / 2 - 4 + 6, y + 10.5, { align: "center" });
 
   y += 28;
 
-  // Next steps
-  doc.setFillColor(254, 252, 232);
-  doc.setDrawColor(253, 224, 71); doc.setLineWidth(0.3);
-  doc.roundedRect(m, y, cw, 18, 2, 2, "FD");
-  doc.setLineWidth(0.2);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(161, 98, 7);
-  doc.text("PROCHAINES ÉTAPES", m + 6, y + 7);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(120, 83, 9);
-  doc.text("1. Confirmation de paiement → 2. Activation du service → 3. Facture officielle et contrat", m + 6, y + 12);
-  doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 16);
+  // Two-column client + delivery
+  const colW = (cw - 6) / 2;
 
-  // BLUE FOOTER
+  // Left: Client info
+  doc.setFillColor(239, 246, 255);
+  doc.setDrawColor(191, 219, 254);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(m, y, colW, 42, 2, 2, "FD");
+  doc.setLineWidth(0.2);
+
+  let ly = y + 7;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(37, 99, 235);
+  doc.text("VOS INFORMATIONS", m + 6, ly);
+  ly += 7;
+
+  const drawField = (label: string, value: string) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(label, m + 6, ly);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(value, m + 6, ly + 4);
+    ly += 10;
+  };
+
+  drawField("Nom", CLIENT.full_name);
+  drawField("Courriel", CLIENT.email);
+  drawField("Compte", ACCOUNT.account_number);
+
+  // Right: Delivery
+  const rx = m + colW + 6;
+  doc.setFillColor(239, 246, 255);
+  doc.setDrawColor(191, 219, 254);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(rx, y, colW, 42, 2, 2, "FD");
+  doc.setLineWidth(0.2);
+
+  let ry = y + 7;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(37, 99, 235);
+  doc.text("LIVRAISON & ACTIVATION", rx + 6, ry);
+  ry += 7;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Adresse de service", rx + 6, ry);
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT);
+  doc.text(ACCOUNT.service_address, rx + 6, ry + 4);
+  ry += 9;
+  doc.text(`${ACCOUNT.service_city}, ${ACCOUNT.service_province} ${ACCOUNT.service_postal_code}`, rx + 6, ry);
+  ry += 7;
+
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Mode de paiement", rx + 6, ry);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT);
+  doc.text("Carte de crédit", rx + 6, ry + 4);
+
+  y += 48;
+
+  // ── SERVICES COMMANDÉS ──
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(37, 99, 235);
+  doc.text("Services commandés", m, y + 4);
+  y += 10;
+
+  const drawServiceCard = (type: string, name: string, price: number) => {
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(m, y, cw, 14, 2, 2, "FD");
+    doc.setLineWidth(0.2);
+
+    // Type badge
+    doc.setFillColor(37, 99, 235);
+    doc.roundedRect(m + 4, y + 4, 24, 5, 1, 1, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6);
+    doc.setTextColor(...WHITE);
+    doc.text(type, m + 16, y + 7.5, { align: "center" });
+
+    // Name
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...NAVY);
+    doc.text(name, m + 32, y + 9);
+
+    // Price
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(37, 99, 235);
+    doc.text(`${fmt(price)}/mois`, pw - m - 4, y + 9, { align: "right" });
+
+    y += 17;
+  };
+
+  drawServiceCard("INTERNET+TV", "GIGA + TV 25 choix", 100.00);
+  drawServiceCard("MOBILE", "Mobile 75GB 4G Unlimited Canada", 60.00);
+  drawServiceCard("STREAMING", "Spotify Premium", 10.99);
+
+  // ── EQUIPMENT AND FEES ──
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("Équipements et frais", m, y + 4);
+  y += 8;
+
+  const allItems = [
+    ...EQUIPMENT.map(e => ({ label: e.description, amount: e.total })),
+    ...FEES.map(f => ({ label: f.description, amount: f.amount })),
+  ];
+
+  allItems.forEach(item => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(`•  ${item.label}`, m + 4, y + 3);
+    doc.setFont("helvetica", "bold");
+    doc.text(fmt(item.amount), pw - m - 4, y + 3, { align: "right" });
+    y += 6;
+  });
+
+  // Discount
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...SUCCESS);
+  doc.text(`•  ${DISCOUNT.label}`, m + 4, y + 3);
+  doc.setFont("helvetica", "bold");
+  doc.text(`- ${fmt(DISCOUNT.amount)}`, pw - m - 4, y + 3, { align: "right" });
+  y += 10;
+
+  // ── ESTIMATED TOTAL ──
+  doc.setFillColor(37, 99, 235);
+  doc.roundedRect(pw / 2, y, pw / 2 - m, 32, 3, 3, "F");
+
+  let ty = y + 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(191, 219, 254);
+
+  doc.text("Services mensuels", pw / 2 + 8, ty);
+  doc.text(fmt(170.99), pw - m - 8, ty, { align: "right" });
+  ty += 5;
+
+  doc.text("Frais uniques", pw / 2 + 8, ty);
+  doc.text(fmt(210.00), pw - m - 8, ty, { align: "right" });
+  ty += 5;
+
+  doc.setTextColor(134, 239, 172);
+  doc.text("Rabais EQUIP26", pw / 2 + 8, ty);
+  doc.text(`- ${fmt(185.00)}`, pw - m - 8, ty, { align: "right" });
+  ty += 6;
+
+  doc.setDrawColor(96, 165, 250);
+  doc.line(pw / 2 + 8, ty - 1, pw - m - 8, ty - 1);
+  ty += 3;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...WHITE);
+  doc.text("Total estimé (taxes incl.)", pw / 2 + 8, ty + 1);
+  doc.text(fmt(ORDER.total_amount), pw - m - 8, ty + 1, { align: "right" });
+
+  y += 38;
+
+  // Next steps
+  y += 4;
+  doc.setFillColor(254, 252, 232);
+  doc.setDrawColor(253, 224, 71);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(m, y, cw, 20, 2, 2, "FD");
+  doc.setLineWidth(0.2);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(161, 98, 7);
+  doc.text("PROCHAINES ÉTAPES", m + 6, y + 7);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(120, 83, 9);
+  doc.text("1. Confirmation de paiement  →  2. Activation du service  →  3. Réception de la facture officielle et du contrat", m + 6, y + 13);
+  doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 17);
+
+  // Blue footer
   doc.setFillColor(37, 99, 235);
   doc.rect(0, ph - 14, pw, 14, "F");
-  doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(6.5);
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
   doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, pw / 2, ph - 9, { align: "center" });
   doc.text("Ce sommaire est un document informatif et ne constitue pas une facture.", pw / 2, ph - 5, { align: "center" });
 
-  return doc.output("arraybuffer") as unknown as Uint8Array;
+  return doc.output("arraybuffer");
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 4. CONTRACT — Legal agreement with mandatory clauses
-// ═══════════════════════════════════════════════════════════════════
-function generateContract(data: any): Uint8Array {
+// ═══════════════════════════════════════════════════════════════
+// 4. CONTRACT PDF — Legal service agreement (4 pages)
+// ═══════════════════════════════════════════════════════════════
+function generateContract(): Uint8Array {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const m = 15;
   const cw = pw - m * 2;
+  const totalPages = 4;
 
-  // NAVY HEADER
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pw, 28, "F");
-  doc.setFillColor(20, 184, 166);
-  doc.rect(0, 28, pw, 2, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-  doc.text(NIVRA.legalName, m, 12);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(180, 190, 210);
-  doc.text(NIVRA.address, m, 19);
-  doc.text(NIVRA.email, m, 24);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(20, 184, 166);
-  doc.text("CONTRAT DE SERVICE", pw - m, 14, { align: "right" });
+  const drawHeader = (title: string) => {
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, pw, 28, "F");
+    doc.setFillColor(...TEAL);
+    doc.rect(0, 28, pw, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...WHITE);
+    doc.text(NIVRA.legalName, 15, 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(180, 190, 210);
+    doc.text(NIVRA.address, 15, 19);
+    doc.text(NIVRA.email, 15, 24);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...TEAL);
+    doc.text(title, pw - 15, 14, { align: "right" });
+  };
 
+  const drawFooter = (pageNum: number) => {
+    doc.setFillColor(...NAVY);
+    doc.rect(0, ph - 14, pw, 14, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, pw / 2, ph - 9, { align: "center" });
+    doc.text(`NEQ: ${NIVRA.neq} | ${NIVRA.tps} | ${NIVRA.tvq}`, pw / 2, ph - 5, { align: "center" });
+    doc.setFontSize(7);
+    doc.text(`Page ${pageNum} / ${totalPages}`, pw - 15, ph - 7, { align: "right" });
+  };
+
+  const sectionTitle = (title: string, yPos: number): number => {
+    doc.setFillColor(...LIGHT_BG);
+    doc.rect(m, yPos, cw, 7, "F");
+    doc.setFillColor(...TEAL);
+    doc.rect(m, yPos, 3, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...NAVY);
+    doc.text(title, m + 7, yPos + 5);
+    return yPos + 10;
+  };
+
+  // === PAGE 1 ===
+  drawHeader("CONTRAT DE SERVICE");
   let y = 36;
 
   // Contract ID banner
-  doc.setFillColor(0, 102, 204);
-  doc.roundedRect(m, y, cw, 16, 2, 2, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  doc.text(`Contrat Nº CTR-${data.order_number}`, pw / 2, y + 7, { align: "center" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-  doc.text(`Date: ${fmtDate(data.order_date)} | Commande: ${data.order_number}`, pw / 2, y + 13, { align: "center" });
-  y += 22;
+  doc.setFillColor(...BLUE);
+  doc.roundedRect(m, y, cw, 18, 2, 2, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(`Contrat N° CTR-${ORDER.order_number}`, pw / 2, y + 8, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Date d'entrée en vigueur: ${fmtDate(ORDER.order_date)} | Commande: #${ORDER.order_number}`, pw / 2, y + 14, { align: "center" });
+  y += 24;
 
-  // Client info section
-  doc.setFillColor(248, 250, 252);
-  doc.rect(m, y, cw, 7, "F");
-  doc.setFillColor(20, 184, 166);
-  doc.rect(m, y, 3, 7, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(15, 23, 42);
-  doc.text("INFORMATIONS DU CLIENT", m + 7, y + 5);
-  y += 10;
+  // Client info
+  y = sectionTitle("INFORMATIONS DU CLIENT", y);
 
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(m, y, cw, 36, 2, 2, "F");
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, cw, 40, 2, 2, "F");
+
+  const fields = [
+    ["Nom complet", CLIENT.full_name],
+    ["Courriel", CLIENT.email],
+    ["Téléphone", CLIENT.phone],
+    ["Adresse de facturation", ACCOUNT.full_service_address],
+    ["Adresse de service", ACCOUNT.full_service_address],
+    ["N° compte", ACCOUNT.account_number],
+  ];
+
   let fy = y + 6;
-  const cFields = [["Nom complet", data.client_name], ["Courriel", data.client_email], ["Téléphone", data.client_phone || "—"], ["Adresse de service", data.address || "—"], ["N° compte", data.account_number]];
-  cFields.forEach(([label, value]: any) => {
-    doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(100, 116, 139);
+  fields.forEach(([label, value]) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT_MUTED);
     doc.text(`${label}:`, m + 5, fy);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
-    doc.text((value || "—").substring(0, 55), m + 48, fy);
-    fy += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(value, m + 48, fy);
+    fy += 5.8;
   });
-  y += 40;
+  y += 44;
 
-  // Services section
-  if (data.lines && data.lines.length > 0) {
-    doc.setFillColor(248, 250, 252);
-    doc.rect(m, y, cw, 7, "F");
-    doc.setFillColor(20, 184, 166);
-    doc.rect(m, y, 3, 7, "F");
-    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(15, 23, 42);
-    doc.text("SERVICES SOUSCRITS", m + 7, y + 5);
-    y += 10;
+  // Services table
+  y = sectionTitle("SERVICES SOUSCRITS", y);
+  doc.setFillColor(...NAVY);
+  doc.rect(m, y, cw, 7, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("TYPE", m + 3, y + 5);
+  doc.text("PLAN / DESCRIPTION", m + 30, y + 5);
+  doc.text("MENSUEL", pw - m - 3, y + 5, { align: "right" });
+  y += 9;
 
-    data.lines.filter((l: any) => l.line_total >= 0).forEach((line: any, i: number) => {
-      if (i % 2 === 0) { doc.setFillColor(250, 250, 252); doc.rect(m, y - 1, cw, 7, "F"); }
-      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(30, 41, 59);
-      doc.text((line.description || "—").substring(0, 55), m + 5, y + 4);
-      doc.setFont("helvetica", "bold");
-      doc.text(fmt(line.line_total), pw - m - 3, y + 4, { align: "right" });
-      y += 7;
-    });
-    y += 5;
-  }
+  const services = [
+    { type: "INTERNET+TV", name: "GIGA + TV 25 choix", price: 100.00 },
+    { type: "MOBILE", name: "Mobile 75GB 4G Unlimited Canada", price: 60.00 },
+    { type: "STREAMING", name: "Spotify Premium", price: 10.99 },
+  ];
 
-  // Financial reference (brief — NOT duplicating invoice)
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
-  doc.roundedRect(m, y, cw, 14, 2, 2, "FD");
+  services.forEach((svc, i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(250, 250, 252);
+      doc.rect(m, y - 1, cw, 7, "F");
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEAL);
+    doc.text(svc.type, m + 3, y + 4);
+    doc.setTextColor(...TEXT);
+    doc.text(svc.name, m + 30, y + 4);
+    doc.setFont("helvetica", "bold");
+    doc.text(fmt(svc.price), pw - m - 3, y + 4, { align: "right" });
+    y += 7;
+  });
+  y += 3;
+
+  // Equipment
+  y = sectionTitle("ÉQUIPEMENTS (FRAIS UNIQUES)", y);
+  EQUIPMENT.forEach((eq, i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(250, 250, 252);
+      doc.rect(m, y - 1, cw, 7, "F");
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(eq.description, m + 5, y + 4);
+    doc.setFont("helvetica", "bold");
+    doc.text(fmt(eq.total), pw - m - 3, y + 4, { align: "right" });
+    y += 7;
+  });
+  y += 3;
+
+  // Fees
+  y = sectionTitle("FRAIS D'ACTIVATION", y);
+  FEES.forEach(fee => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(fee.description, m + 5, y + 4);
+    doc.text(fmt(fee.amount), pw - m - 3, y + 4, { align: "right" });
+    y += 7;
+  });
+  y += 3;
+
+  // Financial reference
+  y += 2;
+  doc.setFillColor(...LIGHT_BG);
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(m, y, cw, 18, 2, 2, "FD");
   doc.setLineWidth(0.2);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(15, 23, 42);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...NAVY);
   doc.text("RÉFÉRENCE FINANCIÈRE", m + 5, y + 6);
-  doc.setFont("helvetica", "italic"); doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
-  doc.text("Le détail complet des montants, taxes et frais est présenté sur la facture officielle jointe.", m + 5, y + 11);
-  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT);
+  doc.text(`Services mensuels récurrents : ${fmt(170.99)}/mois | Mode de paiement : Carte de crédit`, m + 5, y + 12);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Le détail complet des montants, taxes et frais est présenté sur la facture officielle jointe.", m + 5, y + 17);
 
-  // Footer for page 1
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, ph - 14, pw, 14, "F");
-  doc.setTextColor(255, 255, 255); doc.setFontSize(6.5); doc.setFont("helvetica", "normal");
-  doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, pw / 2, ph - 9, { align: "center" });
-  doc.text(`NEQ: ${NIVRA.neq} | ${NIVRA.tps} | ${NIVRA.tvq}`, pw / 2, ph - 5, { align: "center" });
-  doc.setFontSize(7);
-  doc.text("Page 1 / 2", pw - m, ph - 7, { align: "right" });
+  drawFooter(1);
 
-  // === PAGE 2: CONDITIONS GÉNÉRALES ===
+  // === PAGE 2: TERMS ===
   doc.addPage();
-  doc.setFillColor(255, 255, 255); doc.rect(0, 0, pw, ph, "F");
-
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pw, 28, "F");
-  doc.setFillColor(20, 184, 166);
-  doc.rect(0, 28, pw, 2, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-  doc.text(NIVRA.legalName, m, 12);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(180, 190, 210);
-  doc.text(NIVRA.address, m, 19);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(20, 184, 166);
-  doc.text("CONDITIONS GÉNÉRALES", pw - m, 14, { align: "right" });
-
+  drawHeader("CONDITIONS GÉNÉRALES");
   y = 36;
 
+  // Payment method
+  y += 3;
+  y = sectionTitle("MODE DE PAIEMENT", y);
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, cw, 14, 2, 2, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT);
+  doc.text("Mode de paiement sélectionné : Carte de crédit", m + 5, y + 6);
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Le cycle de facturation commence après confirmation du paiement par le fournisseur.", m + 5, y + 11);
+  y += 18;
+
   const terms = [
-    { title: "1. DURÉE ET RÉSILIATION", content: "Le présent contrat est sans engagement. Le client peut résilier en tout temps avec un préavis de 30 jours. Aucuns frais de résiliation." },
-    { title: "2. PAIEMENT ET FACTURATION", content: "Services prépayés. Le paiement doit être confirmé avant activation ou renouvellement. Sans paiement à la date de cycle, le service expire." },
-    { title: "3. PAIEMENT AUTOMATIQUE (AUTOPAY)", content: "Le client peut activer le prélèvement automatique mensuel. Un rabais de 5,00 $/mois est appliqué tant que l'autopay est actif. Ce rabais est retiré immédiatement si l'autopay est désactivé et n'est jamais rétroactif." },
-    { title: "4. SUSPENSION POUR NON-PAIEMENT", content: "Sans paiement au renouvellement, le service passe à « Expiré ». Après 90 jours, le numéro peut devenir irrécupérable. Intérêts de 5%/mois + 15$ frais de réactivation UNIQUEMENT en cas de litige bancaire." },
-    { title: "5. ÉQUIPEMENT", content: "L'équipement demeure propriété de Nivra et doit être retourné en bon état à la résiliation. Garantie fabricant de 12 mois." },
-    { title: "6. MODIFICATIONS TARIFAIRES", content: "Nivra peut modifier les tarifs avec 30 jours de préavis écrit. Le client peut résilier sans frais s'il refuse les modifications." },
-    { title: "7. LIMITATION DE RESPONSABILITÉ", content: "Nivra n'est pas responsable des dommages indirects. Responsabilité limitée aux frais payés au cours des 3 derniers mois. Disponibilité cible: 99,5%." },
-    { title: "8. LOI APPLICABLE", content: "Ce contrat est régi par les lois du Québec et les lois fédérales du Canada. Juridiction exclusive: tribunaux du Québec, district de Laval." },
+    { title: "1. DURÉE ET RÉSILIATION", content: "Le présent contrat est sans engagement et peut être résilié en tout temps par le client avec un préavis de 30 jours. Les services sont fournis sur une base mensuelle prépayée. Aucuns frais de résiliation ne s'appliquent. À la résiliation, le client doit retourner tout équipement fourni dans les 15 jours." },
+    { title: "2. PAIEMENT ET FACTURATION", content: "Les services sont prépayés. Le paiement doit être reçu et confirmé avant l'activation ou le renouvellement. Nivra accepte les virements Interac, PayPal et cartes de crédit. Le cycle de facturation commence à la date de confirmation du paiement. Sans paiement confirmé à la date de renouvellement (J0), le service expire automatiquement." },
+    { title: "3. PAIEMENT AUTOMATIQUE (AUTOPAY)", content: "Le client peut activer le prélèvement automatique mensuel via carte de crédit enregistrée de manière sécurisée. Tant que le paiement automatique est actif, un rabais mensuel de 5,00 $ est appliqué sur les services récurrents admissibles. Ce rabais est retiré immédiatement et sans préavis si le client désactive le paiement automatique, et s'applique uniquement aux factures futures — il n'est jamais rétroactif. Le montant est prélevé automatiquement 3 jours avant la date de renouvellement du cycle." },
+    { title: "4. SUSPENSION POUR NON-PAIEMENT", content: "En cas de non-paiement à la date de renouvellement (J0), le service n'est pas renouvelé et passe au statut « Expiré ». Aucun intérêt ni frais de réactivation ne s'appliquent pour un non-renouvellement normal. Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable. Des intérêts de 5 % par mois et des frais de réactivation de 15 $ s'appliquent UNIQUEMENT en cas de litiges bancaires ou de rétrofacturations." },
+    { title: "5. ÉQUIPEMENT", content: "L'équipement fourni (routeur, terminal TV, carte SIM, etc.) demeure la propriété de Nivra Communications Inc. et doit être retourné en bon état à la résiliation. Garantie fabricant de 12 mois dès activation. Perte, vol et dommages causés par le client sont exclus sauf approbation interne." },
+    { title: "6. UTILISATION ACCEPTABLE", content: "Le client s'engage à utiliser les services conformément aux lois en vigueur au Canada et au Québec. Toute utilisation abusive, frauduleuse ou contraire aux politiques de Nivra peut entraîner la suspension immédiate des services sans préavis ni compensation." },
+    { title: "7. MODIFICATIONS TARIFAIRES", content: "Nivra se réserve le droit de modifier les tarifs, frais et conditions applicables avec un préavis écrit de 30 jours transmis par courriel. Le client peut résilier sans frais s'il n'accepte pas les modifications, dans les 30 jours suivant la réception de l'avis." },
+    { title: "8. LIMITATION DE RESPONSABILITÉ", content: "Nivra Communications Inc. n'est pas responsable des dommages indirects, consécutifs, spéciaux ou punitifs. La responsabilité totale de Nivra est limitée au montant des frais effectivement payés par le client au cours des trois (3) derniers mois de service. La disponibilité de service cible est de 99,5 % sur base mensuelle." },
+    { title: "9. LOI APPLICABLE ET JURIDICTION", content: "Le présent contrat est régi par les lois de la province de Québec et les lois fédérales du Canada. Tout litige sera soumis à la compétence exclusive des tribunaux de la province de Québec, district de Laval." },
   ];
 
   terms.forEach(term => {
-    if (y > ph - 40) return;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(15, 23, 42);
+    if (y > ph - 45) {
+      drawFooter(2);
+      doc.addPage();
+      drawHeader("CONDITIONS GÉNÉRALES (suite)");
+      y = 36;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...NAVY);
     doc.text(term.title, m, y);
-    y += 4;
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(30, 41, 59);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT);
     const lines = doc.splitTextToSize(term.content, cw);
     doc.text(lines, m, y);
     y += lines.length * 3.5 + 5;
   });
 
-  // Signature section
+  drawFooter(2);
+
+  // === PAGE 3: ANNEXES ===
+  doc.addPage();
+  drawHeader("ANNEXES");
+  y = 36;
+
+  const annexes = [
+    { title: "ANNEXE A — NIVEAUX DE SERVICE (SLA)", content: "Nivra s'engage à fournir une disponibilité de 99,5% sur base mensuelle. Les interruptions planifiées seront communiquées 48 heures à l'avance par courriel. En cas de panne majeure (> 24h consécutives), un crédit proportionnel sera appliqué automatiquement au prochain cycle." },
+    { title: "ANNEXE B — PROTECTION DES RENSEIGNEMENTS PERSONNELS", content: "Nivra protège les renseignements personnels conformément à la Loi 25 du Québec et à la LPRPDE fédérale. Les données sont collectées uniquement pour la fourniture des services, la facturation et le support. Aucune donnée n'est vendue à des tiers. Le client peut demander l'accès, la rectification ou la suppression de ses données en contactant support@nivra-telecom.ca." },
+    { title: "ANNEXE C — PROCÉDURE DE PLAINTES ET RÉSOLUTION DE DIFFÉRENDS", content: "Pour toute plainte : contacter support@nivra-telecom.ca. Délai de réponse : 48 heures ouvrables. Si non résolue : escalade au gestionnaire de service. En dernier recours : Commission des plaintes relatives aux services de télécom (CPRST) ou le CRTC." },
+  ];
+
+  annexes.forEach(annex => {
+    y = sectionTitle(annex.title, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    const lines = doc.splitTextToSize(annex.content, cw - 10);
+    doc.text(lines, m + 5, y);
+    y += lines.length * 3.8 + 10;
+  });
+
+  // Terms version
   y += 5;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(15, 23, 42);
-  doc.text("ACCEPTATION", m, y); y += 6;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(30, 41, 59);
-  doc.text("En procédant à la commande, le client confirme avoir lu et accepté les conditions ci-dessus.", m, y);
-  y += 10;
+  doc.setFillColor(...LIGHT_BG);
+  doc.setDrawColor(...TEAL);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(m, y, cw, 12, 1, 1, "FD");
+  doc.setLineWidth(0.2);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...NAVY);
+  doc.text("RÉFÉRENCE AUX MODALITÉS DE SERVICE", m + 5, y + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Ce contrat est soumis aux Modalités de service Nivra Telecom (version v2026.01.02-Prepaid-01), disponibles sur le portail client.", m + 5, y + 10);
+
+  drawFooter(3);
+
+  // === PAGE 4: SIGNATURES ===
+  doc.addPage();
+  drawHeader("ACCEPTATION");
+  y = 36;
+
+  y = sectionTitle("ACCEPTATION DU CONTRAT", y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT);
+  const acceptText = "En signant le présent contrat, le Client déclare avoir lu, compris et accepté l'ensemble des conditions générales, annexes et Modalités de service ci-dessus. Le Client confirme que les informations fournies sont exactes et complètes.";
+  const acceptLines = doc.splitTextToSize(acceptText, cw);
+  doc.text(acceptLines, m, y);
+  y += acceptLines.length * 4 + 15;
 
   const boxW = (cw - 15) / 2;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(m, y, boxW, 30, 2, 2, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(15, 23, 42);
-  doc.text("CLIENT", m + 5, y + 8);
-  doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(0, 102, 204);
-  doc.text(data.client_name, m + 10, y + 18);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
-  doc.text(`Accepté le: ${fmtDate(data.order_date)}`, m + 10, y + 24);
 
-  const agentX = m + boxW + 15;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(agentX, y, boxW, 30, 2, 2, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(15, 23, 42);
-  doc.text("REPRÉSENTANT NIVRA", agentX + 5, y + 8);
-  doc.setDrawColor(100, 116, 139);
-  doc.line(agentX + 10, y + 20, agentX + boxW - 10, y + 20);
-  doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
-  doc.text("Signature", agentX + 10, y + 25);
+  // Client signature box
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, boxW, 50, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("SIGNATURE DU CLIENT", m + 5, y + 10);
 
-  // Footer page 2
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, ph - 14, pw, 14, "F");
-  doc.setTextColor(255, 255, 255); doc.setFontSize(6.5); doc.setFont("helvetica", "normal");
-  doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, pw / 2, ph - 9, { align: "center" });
-  doc.text(`NEQ: ${NIVRA.neq} | ${NIVRA.tps} | ${NIVRA.tvq}`, pw / 2, ph - 5, { align: "center" });
+  // Show signed
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(12);
+  doc.setTextColor(...BLUE);
+  doc.text(CLIENT.full_name, m + 10, y + 25);
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Page 2 / 2", pw - m, ph - 7, { align: "right" });
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text(`Signé le: ${fmtDate(ORDER.order_date)}`, m + 10, y + 32);
+  doc.text("Acceptation en ligne lors du checkout", m + 10, y + 37);
 
-  return doc.output("arraybuffer") as unknown as Uint8Array;
+  // Nivra representative
+  const agentX = m + boxW + 15;
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(agentX, y, boxW, 50, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("REPRÉSENTANT NIVRA", agentX + 5, y + 10);
+  doc.setDrawColor(...TEXT_MUTED);
+  doc.line(agentX + 10, y + 32, agentX + boxW - 10, y + 32);
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Signature", agentX + 10, y + 37);
+  doc.text("Agent: _______________", agentX + 10, y + 43);
+
+  y += 60;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text(`Generated by Nivra – Contract Engine – Template v2026.01.02-Prepaid-01 – ContractID: CTR-${ORDER.order_number}`, pw / 2, y, { align: "center" });
+
+  drawFooter(4);
+
+  return doc.output("arraybuffer");
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// EMAIL SENDER
+// ═══════════════════════════════════════════════════════════════
+async function sendEmail(to: string, subject: string, htmlBody: string, pdfBytes: Uint8Array, filename: string) {
+  const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_KEY) throw new Error("RESEND_API_KEY not set");
+
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "Nivra Telecom <no-reply@nivra-telecom.ca>",
+      to: [to],
+      subject,
+      html: htmlBody,
+      attachments: [{ filename, content: base64 }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Resend error: ${res.status} ${err}`);
+  }
+  return await res.json();
+}
+
+function wrapEmailHtml(docTitle: string, docDescription: string): string {
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background: #0f172a; padding: 24px 32px;">
+      <h1 style="color: #ffffff; font-size: 20px; margin: 0;">NIVRA COMMUNICATIONS INC.</h1>
+      <p style="color: #94a3b8; font-size: 13px; margin: 6px 0 0 0;">Fournisseur de services de télécommunications — Province de Québec</p>
+    </div>
+    <div style="padding: 32px;">
+      <h2 style="color: #0f172a; font-size: 18px; margin: 0 0 12px 0;">${docTitle}</h2>
+      <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">${docDescription}</p>
+      <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <p style="color: #334155; font-size: 13px; margin: 0;"><strong>Client:</strong> ${CLIENT.full_name}</p>
+        <p style="color: #334155; font-size: 13px; margin: 4px 0 0 0;"><strong>Compte:</strong> ${ACCOUNT.account_number}</p>
+        <p style="color: #334155; font-size: 13px; margin: 4px 0 0 0;"><strong>Commande:</strong> #${ORDER.order_number}</p>
+      </div>
+      <p style="color: #64748b; font-size: 12px; margin: 0;">Le document est joint en pièce jointe (PDF).</p>
+    </div>
+    <div style="background: #0f172a; padding: 16px 32px; text-align: center;">
+      <p style="color: #94a3b8; font-size: 11px; margin: 0;">${NIVRA.legalName} — ${NIVRA.address}</p>
+      <p style="color: #64748b; font-size: 11px; margin: 4px 0 0 0;">${NIVRA.email} | ${NIVRA.website}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN HANDLER
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    const supabase = createClient(supabaseUrl, serviceKey);
+    const to = "oldo.lavaud3112@icloud.com";
 
-    const { email } = await req.json();
-    if (!email) throw new Error("Missing email");
-
-    // Get latest real invoice with lines
-    const { data: invoice } = await supabase
-      .from("billing_invoices")
-      .select("*, billing_customers(first_name, last_name, email, phone)")
-      .eq("environment", "live")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (!invoice) throw new Error("No live invoice found");
-
-    const { data: lines } = await supabase
-      .from("billing_invoice_lines")
-      .select("*")
-      .eq("invoice_id", invoice.id)
-      .order("created_at", { ascending: true });
-
-    const { data: payment } = await supabase
-      .from("billing_payments")
-      .select("*")
-      .eq("invoice_id", invoice.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const { data: order } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", invoice.order_id)
-      .maybeSingle();
-
-    const { data: account } = await supabase
-      .from("accounts")
-      .select("account_number")
-      .eq("client_id", order?.user_id)
-      .maybeSingle();
-
-    const customer = invoice.billing_customers as any;
-    const clientName = `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim();
-
-    const positiveLines = (lines || []).filter((l: any) => l.line_total >= 0);
-    const discountLines = (lines || []).filter((l: any) => l.line_total < 0);
-
-    const commonData = {
-      client_name: clientName,
-      client_email: customer?.email || "",
-      client_phone: customer?.phone || "",
-      account_number: account?.account_number || invoice.billing_snapshot_account_number || "—",
-      address: order?.shipping_address ? `${order.shipping_address}, ${order.shipping_city || ""}, QC ${order.shipping_postal_code || ""}` : "—",
-      invoice_number: invoice.invoice_number,
-      invoice_date: invoice.created_at,
-      due_date: invoice.due_date,
-      cycle_start: invoice.cycle_start_date,
-      cycle_end: invoice.cycle_end_date,
-      status: invoice.status,
-      subtotal: invoice.subtotal,
-      tps_amount: invoice.tps_amount,
-      tvq_amount: invoice.tvq_amount,
-      total: invoice.total,
-      discount_total: discountLines.reduce((s: number, l: any) => s + l.line_total, 0),
-      lines: positiveLines,
-      discounts: discountLines,
-      order_number: order?.order_number?.toString() || "—",
-      order_date: order?.created_at || invoice.created_at,
-      order_status: order?.status || "confirmed",
-      payment_method: payment?.method || order?.payment_method || "Interac",
-      payment_number: payment?.payment_number || payment?.reference || invoice.invoice_number,
-      payment_date: payment?.received_at || payment?.created_at || invoice.paid_at,
-      amount_paid: payment?.amount || invoice.amount_paid || invoice.total,
-      invoice_total: invoice.total,
-    };
-
-    // Generate 4 distinct PDFs
-    const invoicePdf = generateInvoice(commonData);
-    const receiptPdf = generateReceipt(commonData);
-    const summaryPdf = generateOrderSummary(commonData);
-    const contractPdf = generateContract(commonData);
-
-    if (!resendKey) throw new Error("RESEND_API_KEY not configured");
+    // Generate all 4 PDFs
+    const invoicePdf = generateInvoice();
+    const receiptPdf = generateReceipt();
+    const orderSummaryPdf = generateOrderSummary();
+    const contractPdf = generateContract();
 
     // Send 4 separate emails
-    const docs = [
-      { name: "Facture", filename: `Facture_${invoice.invoice_number}_Nivra.pdf`, pdf: invoicePdf, subject: `Nivra Telecom — Facture ${invoice.invoice_number}` },
-      { name: "Reçu de paiement", filename: `Recu_${commonData.payment_number}_Nivra.pdf`, pdf: receiptPdf, subject: `Nivra Telecom — Reçu de paiement` },
-      { name: "Sommaire de commande", filename: `Sommaire_${commonData.order_number}_Nivra.pdf`, pdf: summaryPdf, subject: `Nivra Telecom — Sommaire de commande #${commonData.order_number}` },
-      { name: "Contrat de service", filename: `Contrat_CTR-${commonData.order_number}_Nivra.pdf`, pdf: contractPdf, subject: `Nivra Telecom — Contrat de service` },
-    ];
-
     const results = [];
-    for (const d of docs) {
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(d.pdf)));
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "Nivra Telecom <no-reply@nivra-telecom.ca>",
-          to: [email],
-          subject: d.subject,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-            <div style="background:#0F172A;padding:20px;border-radius:8px 8px 0 0;">
-              <h1 style="color:white;margin:0;font-size:18px;">NIVRA COMMUNICATIONS INC.</h1>
-              <p style="color:#94a3b8;margin:4px 0 0;font-size:12px;">Service à la clientèle — Division facturation</p>
-            </div>
-            <div style="padding:24px;border:1px solid #e2e8f0;border-top:none;">
-              <h2 style="color:#0F172A;margin:0 0 12px;font-size:16px;">${d.name}</h2>
-              <p style="color:#334155;line-height:1.6;">Bonjour ${clientName},</p>
-              <p style="color:#334155;line-height:1.6;">Veuillez trouver ci-joint votre <strong>${d.name.toLowerCase()}</strong>.</p>
-              <p style="color:#334155;line-height:1.6;">Pour consulter votre dossier ou gérer votre compte, visitez votre <a href="https://nivra-telecom.ca/portal" style="color:#14B8A6;">portail client</a>.</p>
-              <p style="color:#64748b;font-size:13px;margin-top:24px;">Cordialement,<br/>L'équipe Nivra Telecom</p>
-            </div>
-            <div style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
-              <p style="color:#94a3b8;font-size:11px;margin:0;">NIVRA COMMUNICATIONS INC. — 1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5<br/>Support@nivra-telecom.ca | www.nivra-telecom.ca</p>
-            </div>
-          </div>`,
-          attachments: [{ filename: d.filename, content: base64 }],
-        }),
-      });
-      const result = await res.json();
-      results.push({ doc: d.name, status: res.ok ? "sent" : "failed", id: result.id });
-    }
 
-    return new Response(JSON.stringify({ success: true, results, invoice_number: invoice.invoice_number, order_number: commonData.order_number }), {
+    results.push(await sendEmail(
+      to,
+      `Facture N° ${INVOICE.invoice_number} — Nivra Telecom`,
+      wrapEmailHtml("Votre facture", `Veuillez trouver ci-joint votre facture N° ${INVOICE.invoice_number} d'un montant de ${fmt(INVOICE.total)} pour la commande #${ORDER.order_number}.`),
+      invoicePdf,
+      `Facture_${INVOICE.invoice_number}_Nivra.pdf`
+    ));
+
+    results.push(await sendEmail(
+      to,
+      `Reçu de paiement N° ${PAYMENT.payment_number} — Nivra Telecom`,
+      wrapEmailHtml("Votre reçu de paiement", `Votre paiement de ${fmt(PAYMENT.amount)} par carte de crédit a été confirmé. Ce reçu confirme la réception du paiement pour la facture N° ${INVOICE.invoice_number}.`),
+      receiptPdf,
+      `Recu_${PAYMENT.payment_number}_Nivra.pdf`
+    ));
+
+    results.push(await sendEmail(
+      to,
+      `Sommaire de commande #${ORDER.order_number} — Nivra Telecom`,
+      wrapEmailHtml("Sommaire de votre commande", `Votre commande #${ORDER.order_number} a été confirmée. Ce sommaire récapitule les services, équipements et frais associés à votre commande.`),
+      orderSummaryPdf,
+      `Sommaire_${ORDER.order_number}_Nivra.pdf`
+    ));
+
+    results.push(await sendEmail(
+      to,
+      `Contrat de service CTR-${ORDER.order_number} — Nivra Telecom`,
+      wrapEmailHtml("Votre contrat de service", `Votre contrat de service CTR-${ORDER.order_number} est joint en pièce jointe. Ce document contient les conditions générales, les annexes et les clauses légales applicables à vos services.`),
+      contractPdf,
+      `Contrat_CTR-${ORDER.order_number}_Nivra.pdf`
+    ));
+
+    return new Response(JSON.stringify({
+      success: true,
+      emails_sent: 4,
+      results,
+      order: ORDER.order_number,
+      invoice: INVOICE.invoice_number,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("Error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
