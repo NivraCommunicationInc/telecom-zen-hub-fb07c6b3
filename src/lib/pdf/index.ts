@@ -29,6 +29,7 @@ export { generateContractSummaryPDF, type ContractSummaryData } from "./contract
 export { generateServiceTermsPDF, CURRENT_TERMS_VERSION } from "./serviceTermsTemplate";
 export { generateReceiptPDF, type ReceiptData } from "./receiptTemplate";
 export { generateCanonicalInvoicePDF, generateCanonicalContractPDF, fetchCanonicalDocumentData, buildCanonicalInvoiceData, buildCanonicalContractData } from "./canonicalDocumentService";
+export { generateCanonicalReceiptPDF, generateCanonicalOrderSummaryPDF } from "./canonicalDocumentExtensions";
 export { type OrderSummaryV3Data } from "./orderSummaryTemplate";
 
 // ============================================================================
