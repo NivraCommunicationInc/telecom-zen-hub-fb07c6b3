@@ -456,7 +456,7 @@ function generateReceipt(): Uint8Array {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const m = 20;
+  const m = 15;
   const cw = pw - m * 2;
 
   // GREEN HEADER
@@ -479,14 +479,14 @@ function generateReceipt(): Uint8Array {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(...WHITE);
-  doc.text("REÇU DE PAIEMENT", pw - m, 16, { align: "right" });
+  doc.text("RECU DE PAIEMENT", pw - m, 16, { align: "right" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(220, 252, 231);
   doc.text(`NEQ: ${NIVRA.neq}`, pw - m, 24, { align: "right" });
 
-  let y = 48;
+  let y = 46;
 
   // PAYÉ watermark
   doc.setFont("helvetica", "bold");
@@ -495,88 +495,211 @@ function generateReceipt(): Uint8Array {
   try {
     const gState = new (doc as any).GState({ opacity: 0.06 });
     (doc as any).setGState(gState);
-    doc.text("PAYÉ", pw / 2, 140, { align: "center", angle: -25 });
+    doc.text("PAYE", pw / 2, 160, { align: "center", angle: -25 });
     const gStateN = new (doc as any).GState({ opacity: 1 });
     (doc as any).setGState(gStateN);
-  } catch { /* GState may not be available in all builds */ }
+  } catch { /* GState may not be available */ }
 
-  // Receipt banner
-  const cardW = 140;
-  const cardX = (pw - cardW) / 2;
-
+  // ── Receipt number banner ──
   doc.setFillColor(...SUCCESS);
-  doc.roundedRect(cardX, y, cardW, 14, 3, 3, "F");
+  doc.roundedRect(m, y, cw, 12, 2, 2, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...WHITE);
-  doc.text(`Reçu N° ${PAYMENT.payment_number}`, pw / 2, y + 9, { align: "center" });
-  y += 22;
+  doc.text(`Recu de paiement N. ${PAYMENT.payment_number}`, pw / 2, y + 8, { align: "center" });
+  y += 18;
 
-  // Payment details card
+  // ── TWO COLUMNS: Client Identity + Payment Details ──
+  const colW = (cw - 8) / 2;
+
+  // LEFT: CLIENT
+  const clientBoxH = 72;
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, colW, clientBoxH, 2, 2, "F");
+  doc.setFillColor(...SUCCESS);
+  doc.rect(m, y, 3, clientBoxH, "F");
+
+  let ly = y + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("CLIENT", m + 7, ly);
+  ly += 8;
+
+  const drawLeftField = (label: string, value: string) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(label, m + 7, ly);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...TEXT);
+    doc.text(value, m + 7, ly + 4.5);
+    ly += 10;
+  };
+
+  drawLeftField("Nom", CLIENT.full_name);
+  drawLeftField("Courriel", CLIENT.email);
+  drawLeftField("Telephone", CLIENT.phone);
+  drawLeftField("Adresse", `${ACCOUNT.service_address}, ${ACCOUNT.service_city}`);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT);
+  doc.text(`${ACCOUNT.service_province} ${ACCOUNT.service_postal_code}`, m + 7, ly);
+  ly += 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("N. compte", m + 7, ly);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text(ACCOUNT.account_number, m + 30, ly);
+
+  // RIGHT: PAIEMENT
+  const rx = m + colW + 8;
   doc.setFillColor(240, 253, 244);
   doc.setDrawColor(187, 247, 208);
   doc.setLineWidth(0.5);
-  doc.roundedRect(cardX, y, cardW, 55, 3, 3, "FD");
+  doc.roundedRect(rx, y, colW, clientBoxH, 2, 2, "FD");
   doc.setLineWidth(0.2);
+  doc.setFillColor(...SUCCESS);
+  doc.rect(rx, y, 3, clientBoxH, "F");
 
-  let fy = y + 10;
-  const drawReceiptField = (label: string, value: string, isBold = false) => {
+  let ry = y + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...SUCCESS);
+  doc.text("PAIEMENT", rx + 7, ry);
+  ry += 8;
+
+  const drawRF = (label: string, value: string, isBold = false) => {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(...TEXT_MUTED);
-    doc.text(label, cardX + 12, fy);
+    doc.text(label, rx + 7, ry);
     doc.setFont("helvetica", isBold ? "bold" : "normal");
-    doc.setFontSize(isBold ? 10 : 9);
-    doc.setTextColor(...NAVY);
-    doc.text(value, cardX + cardW - 12, fy, { align: "right" });
-    fy += 9;
+    doc.setFontSize(isBold ? 10 : 8);
+    if (isBold) { doc.setTextColor(...SUCCESS); } else { doc.setTextColor(...TEXT); }
+    doc.text(value, rx + 7, ry + 4.5);
+    ry += 10;
   };
 
-  drawReceiptField("Date de paiement", fmtDate(PAYMENT.received_at));
-  drawReceiptField("Mode de paiement", "Carte de crédit");
-  drawReceiptField("Montant payé", fmt(PAYMENT.amount), true);
+  drawRF("Date de paiement", fmtDate(PAYMENT.received_at));
+  drawRF("Mode de paiement", "Carte de credit");
+  drawRF("Montant paye", fmt(PAYMENT.amount), true);
 
   // Separator
   doc.setDrawColor(187, 247, 208);
-  doc.line(cardX + 12, fy - 3, cardX + cardW - 12, fy - 3);
-  fy += 3;
+  doc.line(rx + 7, ry - 2, rx + colW - 7, ry - 2);
+  ry += 3;
 
-  drawReceiptField("Facture N°", INVOICE.invoice_number);
-  drawReceiptField("Solde restant", fmt(0));
-
-  y += 62;
-
-  // Client reference card
-  doc.setFillColor(...LIGHT_BG);
-  doc.roundedRect(cardX, y, cardW, 35, 3, 3, "F");
-
-  fy = y + 8;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...NAVY);
-  doc.text("CLIENT", cardX + 12, fy);
-  fy += 7;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...TEXT);
-  doc.text(CLIENT.full_name, cardX + 12, fy);
-  fy += 5;
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.setTextColor(...TEXT_MUTED);
-  doc.text(`${CLIENT.email}`, cardX + 12, fy);
-  fy += 4.5;
-  doc.text(`Compte: ${ACCOUNT.account_number} | Commande: #${ORDER.order_number}`, cardX + 12, fy);
+  doc.text("N. facture", rx + 7, ry);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT);
+  doc.text(INVOICE.invoice_number, rx + 7, ry + 4.5);
 
-  y += 44;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("N. commande", rx + colW / 2, ry);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT);
+  doc.text(`#${ORDER.order_number}`, rx + colW / 2, ry + 4.5);
+
+  ry += 10;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Solde restant", rx + 7, ry);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...SUCCESS);
+  doc.text(fmt(0), rx + 7, ry + 4.5);
+
+  y += clientBoxH + 10;
+
+  // ── SHORT SERVICE SUMMARY ──
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, cw, 8, 2, 2, "F");
+  doc.setFillColor(...NAVY);
+  doc.rect(m, y, 3, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("SERVICES FACTURES", m + 7, y + 5.5);
+  y += 11;
+
+  const allBilledItems = [
+    ...RECURRING_SERVICES.map(s => ({ label: s.description, amount: s.total, type: "Mensuel" })),
+    ...EQUIPMENT.map(e => ({ label: e.description, amount: e.total, type: "Equipement" })),
+    ...FEES.map(f => ({ label: f.description, amount: f.amount, type: "Frais" })),
+  ];
+
+  allBilledItems.forEach((item, i) => {
+    if (i % 2 === 0) {
+      doc.setFillColor(250, 250, 252);
+      doc.rect(m, y - 1.5, cw, 6.5, "F");
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT);
+    doc.text(item.label, m + 4, y + 2.5);
+    doc.setFontSize(6.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(item.type, m + 100, y + 2.5);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT);
+    doc.text(fmt(item.amount), m + cw - 4, y + 2.5, { align: "right" });
+    y += 6.5;
+  });
+
+  // Discount line
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...SUCCESS);
+  doc.text(DISCOUNT.label, m + 4, y + 2.5);
+  doc.setFont("helvetica", "bold");
+  doc.text(`- ${fmt(DISCOUNT.amount)}`, m + cw - 4, y + 2.5, { align: "right" });
+  y += 8;
+
+  // Taxes + total mini summary
+  doc.setDrawColor(...BORDER);
+  doc.line(m + cw - 70, y, m + cw, y);
+  y += 4;
+
+  const drawMiniTotalLine = (label: string, value: string, bold = false) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(bold ? 8.5 : 7.5);
+    if (bold) { doc.setTextColor(...NAVY); } else { doc.setTextColor(...TEXT_MUTED); }
+    doc.text(label, m + cw - 70, y);
+    if (bold) { doc.setTextColor(...NAVY); } else { doc.setTextColor(...TEXT); }
+    doc.text(value, m + cw - 4, y, { align: "right" });
+    y += 5;
+  };
+
+  drawMiniTotalLine("Sous-total", fmt(INVOICE.subtotal));
+  drawMiniTotalLine("TPS (5%)", fmt(INVOICE.tps));
+  drawMiniTotalLine("TVQ (9,975%)", fmt(INVOICE.tvq));
+  drawMiniTotalLine("Total paye", fmt(INVOICE.total), true);
+
+  y += 6;
 
   // Legal note
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...TEXT_MUTED);
-  const legalNote = `Ce reçu confirme la réception du paiement indiqué ci-dessus. Il ne remplace pas la facture officielle. Conservez ce document pour vos dossiers. Pour toute question, contactez-nous à ${NIVRA.email}.`;
-  const legalLines = doc.splitTextToSize(legalNote, cardW);
-  doc.text(legalLines, cardX, y);
+  const legalNote = `Ce recu confirme la reception du paiement indique ci-dessus. Il ne remplace pas la facture officielle. Conservez ce document pour vos dossiers. Pour toute question, contactez-nous a ${NIVRA.email}.`;
+  const legalLines = doc.splitTextToSize(legalNote, cw);
+  doc.text(legalLines, m, y);
 
   // Green footer
   doc.setFillColor(...SUCCESS);
@@ -824,23 +947,27 @@ function generateOrderSummary(): Uint8Array {
 
   y += 38;
 
-  // Next steps
+  // Next steps — expanded box to prevent overflow
   y += 4;
   doc.setFillColor(254, 252, 232);
   doc.setDrawColor(253, 224, 71);
   doc.setLineWidth(0.3);
-  doc.roundedRect(m, y, cw, 20, 2, 2, "FD");
+  doc.roundedRect(m, y, cw, 34, 2, 2, "FD");
   doc.setLineWidth(0.2);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(161, 98, 7);
-  doc.text("PROCHAINES ÉTAPES", m + 6, y + 7);
+  doc.text("PROCHAINES ETAPES", m + 6, y + 7);
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(7.5);
   doc.setTextColor(120, 83, 9);
-  doc.text("1. Confirmation de paiement  →  2. Activation du service  →  3. Réception de la facture officielle et du contrat", m + 6, y + 13);
-  doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 17);
+  doc.text("1. Confirmation de paiement", m + 6, y + 14);
+  doc.text("2. Activation du service", m + 6, y + 19);
+  doc.text("3. Reception de la facture officielle et du contrat", m + 6, y + 24);
+  doc.setFontSize(7);
+  doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 30);
 
   // Blue footer
   doc.setFillColor(37, 99, 235);
