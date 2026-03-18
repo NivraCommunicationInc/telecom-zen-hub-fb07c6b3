@@ -539,6 +539,24 @@ export async function fallbackCheckout(
     }
   }
 
+  // Delivery fee from installation payload (may not be in fees[])
+  const deliveryFeeAmount = Number(payload.installation?.delivery_fee) || 0;
+  if (deliveryFeeAmount > 0) {
+    const alreadyHasDelivery = invoiceLines.some(l =>
+      l.line_type === "fee" && l.description.toLowerCase().includes("livraison")
+    );
+    if (!alreadyHasDelivery) {
+      invoiceLines.push({
+        invoice_id: invoiceId,
+        description: "Frais de livraison",
+        unit_price: deliveryFeeAmount,
+        quantity: 1,
+        line_total: deliveryFeeAmount,
+        line_type: "fee",
+      });
+    }
+  }
+
   // Promo / discount
   if (payload.promo && promoDiscount > 0) {
     invoiceLines.push({
