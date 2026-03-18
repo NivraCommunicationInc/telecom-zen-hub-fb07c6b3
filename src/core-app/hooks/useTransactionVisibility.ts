@@ -139,8 +139,8 @@ export function useTransactionVisibility() {
           }
         }
 
-        // ── Failed orders
-        if (o.failure_reason && !["completed", "cancelled"].includes(o.status)) {
+        // ── Failed orders — ANTI-REGRESSION: suppress if canonically resolved
+        if (o.failure_reason && !["completed", "cancelled", "confirmed", "paid"].includes(o.status) && !isCanonicallyResolved) {
           rows.push({
             id: `failed-${o.id}`,
             category: "failed_order",
