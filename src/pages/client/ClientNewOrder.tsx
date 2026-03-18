@@ -3589,6 +3589,33 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     createOrderMutation.mutate();
   };
 
+  // ═══ AUTO-FINALIZE AFTER CARD PAYMENT ═══
+  // When Stripe card payment succeeds, automatically trigger order creation
+  // so the user doesn't need to click "Confirmer" after paying.
+  // This prevents orphaned Stripe payments without canonical orders.
+  useEffect(() => {
+    if (!autoFinalizeAfterCardPayment) return;
+    if (autoFinalizeTriggeredRef.current) return;
+    if (!paymentComplete || !paymentConfirmationNumber) return;
+    // Don't auto-finalize if already submitting
+    if (submittingRef.current || createOrderMutation.isPending) return;
+
+    // Auto-accept terms for card payment flow (user already committed by paying)
+    if (!termsAccepted) {
+      setTermsAccepted(true);
+    }
+
+    // Small delay to let state settle after payment confirmation
+    const timer = setTimeout(() => {
+      if (autoFinalizeTriggeredRef.current) return;
+      autoFinalizeTriggeredRef.current = true;
+      console.log("[AutoFinalize] Card payment confirmed, auto-triggering order creation with PI:", paymentConfirmationNumber);
+      handleSubmit();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [autoFinalizeAfterCardPayment, paymentComplete, paymentConfirmationNumber, termsAccepted]);
+
 
   // Dynamic checkout steps based on service selection
   const checkoutSteps = (() => {
