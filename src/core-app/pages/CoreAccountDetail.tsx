@@ -95,7 +95,10 @@ const CoreAccountDetail = () => {
   const activeSubs = data.subscriptions.filter((s: any) => s.status === "active");
   const suspendedSubs = data.subscriptions.filter((s: any) => s.status === "suspended");
   const latestKyc = data.kycSessions[0];
-  const totalPaid = data.payments.reduce((s, p: any) => s + (p.amount ?? 0), 0);
+  // CANONICAL: Only count confirmed payments in total
+  const totalPaid = data.payments
+    .filter((p: any) => p.status === "confirmed" || p.status === "completed")
+    .reduce((s, p: any) => s + (p.amount ?? 0), 0);
   const monthlyRevenue = activeSubs.reduce((s, sub: any) => s + (sub.plan_price ?? 0), 0);
   const openTickets = data.tickets.filter((t: any) => ["open", "in_progress", "waiting_client"].includes(t.status));
   const now = new Date();

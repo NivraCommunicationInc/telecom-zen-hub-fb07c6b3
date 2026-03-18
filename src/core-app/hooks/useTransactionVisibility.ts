@@ -71,12 +71,23 @@ export function useTransactionVisibility() {
       const paymentProviderIds = new Set((allPayments || []).map(p => p.provider_payment_id).filter(Boolean));
       const invoiceOrderIds = new Set((allInvoices || []).map(i => i.order_id).filter(Boolean));
 
+      // Build a set of orders that have billing_invoices linked
+      const confirmedOrderIds = new Set(
+        (allInvoices || [])
+          .filter(i => i.status !== "void" && i.status !== "cancelled")
+          .map(i => i.order_id)
+          .filter(Boolean)
+      );
+
       for (const o of (allOrders || [])) {
         const customerName = [o.client_first_name, o.client_last_name].filter(Boolean).join(" ") || null;
         const isPaypal = (o.payment_method || "").toLowerCase().includes("paypal");
 
+        // ANTI-REGRESSION: Skip orders that have a canonical confirmed status
+        const isCanonicallyResolved = ["confirmed", "completed", "paid"].includes(o.status) && confirmedOrderIds.has(o.id);
+
         // ── Orphan PayPal: captured/paid but no billing_payment record
-        if (isPaypal && o.provider_payment_id && !paymentProviderIds.has(o.provider_payment_id)) {
+        if (isPaypal && o.provider_payment_id && !paymentProviderIds.has(o.provider_payment_id) && !isCanonicallyResolved) {
           rows.push({
             id: `orphan-${o.id}`,
             category: "orphan_payment",
