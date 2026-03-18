@@ -28,6 +28,13 @@ export interface AdminPayment {
   customer_email: string | null;
   account_number: string | null;
   environment?: string;
+  // ★ Stripe authorization fields
+  stripe_payment_intent_id?: string | null;
+  authorized_amount?: number | null;
+  authorization_status?: string | null;
+  authorized_at?: string | null;
+  captured_at?: string | null;
+  captured_by?: string | null;
 }
 
 export function useAdminPayments(environment: EnvironmentFilter = 'all') {
