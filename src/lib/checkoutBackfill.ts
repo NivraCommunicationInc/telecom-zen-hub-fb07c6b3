@@ -194,7 +194,7 @@ export async function backfillCheckoutToSupabase(
         client_request_id: payload.client_request_id,
         user_id: userId,
         account_id: resolvedAccountId,
-        status: "submitted",
+        status: paid ? "confirmed" : "submitted",
         payment_status: paid ? "paid" : (payload.payment.method === "etransfer" ? "pending" : "pre_authorized"),
         service_type: payload.services.map((s) => s.name).join(", "),
         order_type: "new",
