@@ -41,6 +41,7 @@ const CoreAccountDetail = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const data = useAccountProfile(accountId);
   const [activeSection, setActiveSection] = useState<SectionId>("profile");
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   /* ── Loading ── */
   if (data.isLoading) {
