@@ -39,11 +39,14 @@ export interface StripeInlinePaymentSuccessPayload {
   paymentIntentId: string;
 }
 
+type StripeIntentContext = "checkout_preconfirm" | "invoice_payment";
+
 interface InnerFormProps {
   amount: number;
   customerEmail?: string;
   collectBillingDetails: boolean;
   defaultBillingDetails?: Partial<StripeBillingDetails>;
+  allowAuthorizationSuccess: boolean;
   onSuccess?: (payload: StripeInlinePaymentSuccessPayload) => void;
   onError?: (msg: string) => void;
 }
@@ -61,6 +64,7 @@ function PaymentForm({
   customerEmail,
   collectBillingDetails,
   defaultBillingDetails,
+  allowAuthorizationSuccess,
   onSuccess,
   onError,
 }: InnerFormProps) {
