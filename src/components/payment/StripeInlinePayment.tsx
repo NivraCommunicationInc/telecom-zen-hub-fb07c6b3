@@ -507,7 +507,7 @@ export function StripeInlinePayment({
     return () => {
       cancelled = true;
     };
-  }, [invoiceId, description, customerEmail, customerId, disabled]);
+  }, [invoiceId, intentContext, description, customerEmail, customerId, disabled]);
 
   if (disabled) return null;
 
