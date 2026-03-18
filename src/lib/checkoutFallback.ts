@@ -37,11 +37,70 @@ interface ExistingRecords {
  * Try to find an already-processed checkout for this payment.
  * Returns null if no prior record exists (safe to proceed).
  */
+async function resolveOrderChain(
+  supabase: SupabaseClient,
+  order: { id: string; order_number: string; account_id: string | null; total_amount: number; created_at: string },
+): Promise<ExistingRecords> {
+  let accountNumber = "";
+  let billingCycleDay: number | null = null;
+  if (order.account_id) {
+    const { data: acct } = await supabase
+      .from("accounts")
+      .select("account_number, billing_cycle_day")
+      .eq("id", order.account_id)
+      .maybeSingle();
+    accountNumber = acct?.account_number || "";
+    billingCycleDay = acct?.billing_cycle_day || null;
+  }
+  const { data: invoice } = await supabase
+    .from("billing_invoices")
+    .select("id, invoice_number")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  const { data: payment } = await supabase
+    .from("billing_payments")
+    .select("id, payment_number")
+    .eq("invoice_id", invoice?.id || "00000000-0000-0000-0000-000000000000")
+    .maybeSingle();
+  const { data: sub } = await supabase
+    .from("billing_subscriptions")
+    .select("id")
+    .eq("order_id", order.id)
+    .maybeSingle();
+  return {
+    order_id: order.id,
+    order_number: order.order_number,
+    invoice_id: invoice?.id || null,
+    invoice_number: invoice?.invoice_number || null,
+    payment_id: payment?.id || null,
+    payment_number: payment?.payment_number || null,
+    subscription_id: sub?.id || null,
+    account_number: accountNumber,
+    grand_total: order.total_amount,
+    billing_cycle_day: billingCycleDay,
+    created_at: order.created_at,
+  };
+}
+
 async function findExistingCheckout(
   supabase: SupabaseClient,
   payload: NivraFullCheckoutPayload,
 ): Promise<ExistingRecords | null> {
   const userId = payload.customer.user_id;
+
+  // ── Strategy 0: client_request_id (strongest idempotency key) ──
+  if (payload.client_request_id) {
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id, order_number, account_id, total_amount, created_at")
+      .eq("client_request_id", payload.client_request_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existingOrder) {
+      console.log("[FallbackCheckout] ✓ IDEMPOTENT HIT via client_request_id:", existingOrder.order_number);
+      return resolveOrderChain(supabase, existingOrder);
+    }
+  }
 
   // ── Strategy 1: PayPal capture ID (strongest dedup key) ──
   if (payload.payment.paypal_capture_id) {
@@ -123,50 +182,8 @@ async function findExistingCheckout(
     .maybeSingle();
 
   if (recentOrder) {
-    // Found a recent duplicate — resolve chain
-    let accountNumber = "";
-    let billingCycleDay: number | null = null;
-    if (recentOrder.account_id) {
-      const { data: acct } = await supabase
-        .from("accounts")
-        .select("account_number, billing_cycle_day")
-        .eq("id", recentOrder.account_id)
-        .maybeSingle();
-      accountNumber = acct?.account_number || "";
-      billingCycleDay = acct?.billing_cycle_day || null;
-    }
-
-    const { data: invoice } = await supabase
-      .from("billing_invoices")
-      .select("id, invoice_number")
-      .eq("order_id", recentOrder.id)
-      .maybeSingle();
-
-    const { data: payment } = await supabase
-      .from("billing_payments")
-      .select("id, payment_number")
-      .eq("invoice_id", invoice?.id || "00000000-0000-0000-0000-000000000000")
-      .maybeSingle();
-
-    const { data: sub } = await supabase
-      .from("billing_subscriptions")
-      .select("id")
-      .eq("order_id", recentOrder.id)
-      .maybeSingle();
-
-    return {
-      order_id: recentOrder.id,
-      order_number: recentOrder.order_number,
-      invoice_id: invoice?.id || null,
-      invoice_number: invoice?.invoice_number || null,
-      payment_id: payment?.id || null,
-      payment_number: payment?.payment_number || null,
-      subscription_id: sub?.id || null,
-      account_number: accountNumber,
-      grand_total: recentOrder.total_amount,
-      billing_cycle_day: billingCycleDay,
-      created_at: recentOrder.created_at,
-    };
+    console.log("[FallbackCheckout] ✓ IDEMPOTENT HIT via 2-min window:", recentOrder.order_number);
+    return resolveOrderChain(supabase, recentOrder);
   }
 
   return null; // No prior checkout found — safe to proceed
@@ -389,8 +406,8 @@ export async function fallbackCheckout(
       ? payload.streaming_addons?.map((s) => s.name).join(", ") || "Streaming+"
       : "Service Nivra");
 
-  // ── 6. Create order ──
-  const { error: orderErr } = await supabase.from("orders").insert({
+  // ── 6. Create order (idempotent — handle duplicate client_request_id gracefully) ──
+  const orderRow = {
     id: orderId,
     order_number: orderNumber,
     client_request_id: payload.client_request_id,
@@ -417,8 +434,51 @@ export async function fallbackCheckout(
     installation_fee: isStreamingOnly ? 0 : (payload.installation?.installation_fee || 0),
     provider_payment_id: paymentProviderPaymentId,
     payment_method: billingMethod === "card" ? "card" : payload.payment.method,
-  });
-  if (orderErr) throw new Error(`Order creation failed: ${orderErr.message}`);
+  };
+  const { error: orderErr } = await supabase.from("orders").insert(orderRow);
+  if (orderErr) {
+    // ── IDEMPOTENCY GUARD: If duplicate client_request_id, recover existing order ──
+    if (orderErr.code === "23505" && orderErr.message?.includes("client_request")) {
+      console.warn("[FallbackCheckout] Duplicate client_request_id detected — recovering existing order");
+      const { data: existingOrder } = await supabase
+        .from("orders")
+        .select("id, order_number, account_id, total_amount, created_at")
+        .eq("client_request_id", payload.client_request_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (existingOrder) {
+        const recovered = await resolveOrderChain(supabase, existingOrder);
+        const rp = payload.pricing_snapshot;
+        return {
+          success: true,
+          order_id: recovered.order_id,
+          order_number: recovered.order_number,
+          invoice_id: recovered.invoice_id || "",
+          invoice_number: recovered.invoice_number || "",
+          payment_id: recovered.payment_id || "",
+          payment_number: recovered.payment_number || "",
+          subscription_id: recovered.subscription_id,
+          account_number: recovered.account_number,
+          pricing: {
+            subtotal: Number(rp.subtotal) || 0,
+            recurring_subtotal: Number(rp.recurring_subtotal) || 0,
+            one_time_subtotal: Number(rp.one_time_subtotal) || 0,
+            discount_total: Number(rp.discount_total) || 0,
+            welcome_discount: Number(rp.welcome_discount) || 0,
+            promo_discount: Number(rp.promo_discount) || 0,
+            preauth_discount: Number(rp.preauth_discount) || 0,
+            taxable_base: Number(rp.taxable_base) || 0,
+            tps_amount: Number(rp.tps_amount) || 0,
+            tvq_amount: Number(rp.tvq_amount) || 0,
+            grand_total: recovered.grand_total,
+          },
+          billing_cycle_day: recovered.billing_cycle_day || new Date().getDate(),
+          created_at: recovered.created_at,
+        };
+      }
+    }
+    throw new Error(`Order creation failed: ${orderErr.message}`);
+  }
   console.log("[FallbackCheckout] ✓ Order created:", orderNumber);
 
   // ── 7. Create invoice ──
