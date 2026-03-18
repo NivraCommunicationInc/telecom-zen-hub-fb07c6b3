@@ -720,6 +720,13 @@ serve(async (req) => {
                 amount_paid: paid ? correctedTotal : 0,
                 balance_due: paid ? 0 : correctedTotal,
               }).eq("id", response.invoice_id);
+              // BLOCKER 1 FIX: Also update order.total_amount to match corrected invoice total
+              if (accountId) {
+                await admin.from("orders").update({
+                  total_amount: correctedTotal,
+                }).eq("id", response.order_id);
+                console.log(`[checkout-canonical-sync] ✅ Order total_amount corrected to ${correctedTotal}`);
+              }
               console.log(`[checkout-canonical-sync] ✅ Invoice corrected: subtotal=${netLineSum}, tps=${correctedTps}, tvq=${correctedTvq}, total=${correctedTotal}`);
             }
           }
