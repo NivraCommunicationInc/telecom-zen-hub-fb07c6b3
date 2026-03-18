@@ -22,8 +22,9 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { StaffSidebar } from "@/components/staff/StaffSidebar";
-import { generateContractPDF, generateInvoicePDF, type ContractData, type InvoiceDataV2 } from "@/lib/pdf";
+import { generateCanonicalInvoicePDF, generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
 import { safePDFOpen } from "@/lib/pdfUtils";
+import PDFViewerDialog from "@/components/PDFViewerDialog";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
