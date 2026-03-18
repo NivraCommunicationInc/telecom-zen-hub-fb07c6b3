@@ -679,9 +679,9 @@ function generateReceipt(): Uint8Array {
   const drawMiniTotalLine = (label: string, value: string, bold = false) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(bold ? 8.5 : 7.5);
-    doc.setTextColor(bold ? NAVY : TEXT_MUTED);
+    if (bold) { doc.setTextColor(...NAVY); } else { doc.setTextColor(...TEXT_MUTED); }
     doc.text(label, m + cw - 70, y);
-    doc.setTextColor(bold ? NAVY : TEXT);
+    if (bold) { doc.setTextColor(...NAVY); } else { doc.setTextColor(...TEXT); }
     doc.text(value, m + cw - 4, y, { align: "right" });
     y += 5;
   };
