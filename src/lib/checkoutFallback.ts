@@ -348,7 +348,7 @@ export async function fallbackCheckout(
   const taxableBase = Number(pricing.taxable_base) || subtotal;
   const tpsAmount = Number(pricing.tps_amount);
   const tvqAmount = Number(pricing.tvq_amount);
-  const grandTotal = Number(pricing.grand_total);
+  let grandTotal = Number(pricing.grand_total);
   if (!tpsAmount || !tvqAmount || !grandTotal) {
     console.error("[FallbackCheckout] ❌ CRITICAL: pricing_snapshot missing tax/total values — refusing silent local fallback", { tps_amount: pricing.tps_amount, tvq_amount: pricing.tvq_amount, grand_total: pricing.grand_total });
     throw new Error("Checkout blocked: pricing_snapshot is incomplete (missing tps_amount, tvq_amount, or grand_total). Server pricing RPC must provide these values.");
