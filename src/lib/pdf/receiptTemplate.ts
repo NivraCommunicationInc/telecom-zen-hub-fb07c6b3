@@ -1,16 +1,18 @@
 /**
- * Nivra Receipt Template — STANDALONE Payment Proof
+ * Nivra Receipt Template V3.0 — LOCKED PRODUCTION (2026-03-18)
  * 
- * This is NOT an invoice. It is a compact 1-page payment confirmation.
+ * Standalone payment proof with full customer identity.
+ * Approved as the only production receipt template.
  * 
  * Layout:
  * ┌─────────────────────────────────────────────┐
  * │ GREEN HEADER: NIVRA — REÇU DE PAIEMENT     │
  * ├─────────────────────────────────────────────┤
  * │ Large "PAYÉ" watermark                       │
- * │ Payment #, Date, Method, Amount              │
- * │ Brief invoice reference                      │
- * │ Client name + account                        │
+ * │ Full client identity (name, address, etc.)   │
+ * │ Payment details (amount, method, date)       │
+ * │ Invoice & order reference                    │
+ * │ Brief billed items summary                   │
  * ├─────────────────────────────────────────────┤
  * │ Compact footer                               │
  * └─────────────────────────────────────────────┘
@@ -23,24 +25,33 @@ import { NIVRA, PDF_THEME } from "./companyInfo";
 const C = PDF_THEME;
 
 // ============================================================================
-// DATA INTERFACE
+// DATA INTERFACE — Full customer identity (approved 2026-03-18)
 // ============================================================================
 
 export interface ReceiptData {
-  receipt_number: string;       // Payment number or reference
+  receipt_number: string;
   payment_date: string;
   payment_method: string;
   amount_paid: number;
-  
-  // Invoice reference (brief only)
+
+  // Invoice / order reference
   invoice_number: string;
   invoice_total: number;
-  
-  // Client (minimal)
+  order_number?: string;
+
+  // Full client identity
   client_name: string;
   client_email: string;
+  client_phone?: string;
+  client_address?: string;
   account_number: string;
-  
+
+  // Billed items summary (brief, not full invoice duplication)
+  billed_items?: Array<{
+    description: string;
+    amount: number;
+  }>;
+
   // Optional
   transaction_reference?: string;
   balance_remaining?: number;
