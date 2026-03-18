@@ -217,14 +217,22 @@ serve(async (req) => {
           .insert(invoiceLines);
         
         // Create pending payment with appropriate method
+        const { data: payNumData } = await supabase.rpc("generate_payment_number");
+        const paymentNumber = payNumData || `PAY-${Date.now()}`;
+        
         await supabase
           .from("billing_payments")
           .insert({
             invoice_id: invoice.id,
             customer_id: sub.customer_id,
             method: paymentMethod,
+            provider: isAutopayEligible ? 'stripe' : (hasPayPalSubscription ? 'paypal' : 'interac'),
             amount: total,
-            status: 'pending'
+            status: 'pending',
+            payment_number: paymentNumber,
+            source: 'live',
+            created_by_name: 'billing_renewal',
+            created_by_role: 'system',
           });
         
         // ═══ AUTOPAY: Auto-charge via Stripe ═══
