@@ -687,8 +687,9 @@ export async function fallbackCheckout(
         subscription_id: createdSubscriptionId,
       }).eq("id", invoiceId);
 
-      // If paid, force-activate the subscription (trigger may have blocked it)
-      if (isPaid || isFree) {
+      // If paid (NOT just authorized), force-activate the subscription
+      // Card-authorized orders stay pending until admin captures
+      if ((isPaid || isFree) && !isCardAuthorizedOnly) {
         const { data: subCheck } = await supabase
           .from("billing_subscriptions")
           .select("status")
