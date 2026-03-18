@@ -198,6 +198,9 @@ function generateInvoice(): Uint8Array {
   const m = 15;
   const cw = pw - m * 2;
 
+  // ════════════════════════════════════════════════════
+  // PAGE 1: Client info + Sections A, B, C
+  // ════════════════════════════════════════════════════
   drawInvoiceHeader(doc, pw);
   let y = 40;
 
@@ -234,7 +237,6 @@ function generateInvoice(): Uint8Array {
   drawClientField("Courriel", CLIENT.email);
   drawClientField("Téléphone", CLIENT.phone);
 
-  // Address block
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.setTextColor(...TEXT_MUTED);
@@ -304,7 +306,7 @@ function generateInvoice(): Uint8Array {
 
   y = y + boxH + 8;
 
-  // ── SECTION A: SERVICES MENSUELS RÉCURRENTS ──
+  // ── Section helpers ──
   const drawSectionHeader = (title: string) => {
     doc.setFillColor(...LIGHT_BG);
     doc.rect(m, y, cw, 7, "F");
@@ -351,6 +353,7 @@ function generateInvoice(): Uint8Array {
     y += rowH;
   };
 
+  // ── SECTION A: SERVICES MENSUELS RÉCURRENTS ──
   drawSectionHeader("SECTION A — SERVICES MENSUELS RÉCURRENTS");
   drawTableHeader("Période");
 
@@ -359,7 +362,6 @@ function generateInvoice(): Uint8Array {
     drawItemRow(svc.description, period, svc.unit_price, svc.total, i);
   });
 
-  // Section subtotal
   doc.setDrawColor(...BORDER);
   doc.line(m, y, m + cw, y);
   y += 2;
@@ -404,47 +406,143 @@ function generateInvoice(): Uint8Array {
   doc.setFontSize(8);
   doc.setTextColor(...SUCCESS);
   doc.text(`- ${fmt(DISCOUNT.amount)}`, m + cw - 2, y + 4, { align: "right" });
-  y += 12;
+  y += 10;
 
-  // ── SOMMAIRE FINANCIER ──
-  drawSectionHeader("SOMMAIRE FINANCIER");
+  // ── Page 1 note ──
+  doc.setDrawColor(...BORDER);
+  doc.line(m, y, m + cw, y);
+  y += 5;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text("Suite en page 2 — Sommaire financier et informations de paiement", pw / 2, y + 3, { align: "center" });
 
-  const totW = 90;
-  const tx = m + cw - totW;
+  // Page 1 footer (no billing policy — just branding)
+  const footerY1 = ph - 12;
+  doc.setFillColor(...NAVY);
+  doc.rect(0, footerY1, pw, 12, "F");
+  doc.setFillColor(...TEAL);
+  doc.rect(0, footerY1, pw, 1, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, 15, footerY1 + 7);
+  doc.text("Page 1/2", pw - 15, footerY1 + 7, { align: "right" });
 
-  const drawTotalLine = (label: string, value: string, opts: { bold?: boolean; bg?: [number, number, number]; textColor?: [number, number, number]; fontSize?: number } = {}) => {
-    if (opts.bg) {
-      doc.setFillColor(...opts.bg);
-      doc.roundedRect(tx - 3, y - 2, totW + 6, 9, 1, 1, "F");
-      doc.setTextColor(...(opts.textColor || WHITE));
-    } else {
-      doc.setTextColor(...(opts.textColor || TEXT));
-    }
+  // ════════════════════════════════════════════════════
+  // PAGE 2: Financial summary + Payment + Policy
+  // ════════════════════════════════════════════════════
+  doc.addPage();
+  drawInvoiceHeader(doc, pw);
+  y = 40;
+
+  // Page 2 subtitle
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...NAVY);
+  doc.text("SOMMAIRE FINANCIER", m, y + 4);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT_MUTED);
+  doc.text(`Facture N° ${INVOICE.invoice_number} — Compte ${ACCOUNT.account_number}`, m, y + 11);
+  y += 18;
+
+  // ── Financial summary box ──
+  const summaryBoxH = 82;
+  doc.setFillColor(...LIGHT_BG);
+  doc.roundedRect(m, y, cw, summaryBoxH, 3, 3, "F");
+  doc.setFillColor(...TEAL);
+  doc.rect(m, y, 3, summaryBoxH, "F");
+
+  let sy = y + 8;
+  const totW = 92;
+  const lx = m + 10;
+  const vx = m + cw - 12;
+
+  const drawSummaryLine = (label: string, value: string, opts: { bold?: boolean; color?: [number, number, number]; size?: number } = {}) => {
     doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-    doc.setFontSize(opts.fontSize || 9);
-    doc.text(label, tx, y + 4);
-    doc.text(value, tx + totW, y + 4, { align: "right" });
-    y += opts.bg ? 12 : 6.5;
+    doc.setFontSize(opts.size || 9);
+    doc.setTextColor(...(opts.color || TEXT));
+    doc.text(label, lx, sy);
+    doc.text(value, vx, sy, { align: "right" });
+    sy += 7;
   };
 
-  drawTotalLine("Services mensuels", fmt(170.99));
-  drawTotalLine("Frais uniques", fmt(210.00));
-  drawTotalLine("Rabais EQUIP26", `- ${fmt(185.00)}`, { textColor: SUCCESS });
-  drawTotalLine("Sous-total", fmt(INVOICE.subtotal), { bold: true });
-  drawTotalLine("TPS (5%)", fmt(INVOICE.tps));
-  drawTotalLine("TVQ (9,975%)", fmt(INVOICE.tvq));
-  drawTotalLine("Total facture", fmt(INVOICE.total), { bold: true });
-  drawTotalLine("Paiement reçu (Carte de crédit)", `- ${fmt(INVOICE.total)}`, { textColor: SUCCESS });
-  drawTotalLine("SOLDE À PAYER", fmt(0), { bold: true, bg: NAVY, fontSize: 10 });
+  drawSummaryLine("Services mensuels récurrents", fmt(170.99));
+  drawSummaryLine("Frais uniques (équipement + activation)", fmt(210.00));
+  drawSummaryLine("Rabais EQUIP26 (100% équipement)", `- ${fmt(185.00)}`, { color: SUCCESS });
 
-  // Footer note
-  y += 4;
+  // Separator
+  sy += 1;
+  doc.setDrawColor(...BORDER);
+  doc.line(lx, sy, vx, sy);
+  sy += 5;
+
+  drawSummaryLine("Sous-total avant taxes", fmt(INVOICE.subtotal), { bold: true });
+  drawSummaryLine("TPS (5%)", fmt(INVOICE.tps));
+  drawSummaryLine("TVQ (9,975%)", fmt(INVOICE.tvq));
+
+  // Separator
+  sy += 1;
+  doc.setDrawColor(...BORDER);
+  doc.line(lx, sy, vx, sy);
+  sy += 5;
+
+  drawSummaryLine("Total de la facture", fmt(INVOICE.total), { bold: true, size: 10 });
+
+  y = y + summaryBoxH + 10;
+
+  // ── Payment information box ──
+  const payBoxH = 44;
+  doc.setFillColor(240, 253, 244); // light green bg
+  doc.roundedRect(m, y, cw, payBoxH, 3, 3, "F");
+  doc.setFillColor(...SUCCESS);
+  doc.rect(m, y, 3, payBoxH, "F");
+
+  let py2 = y + 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...NAVY);
+  doc.text("INFORMATIONS DE PAIEMENT", m + 10, py2);
+  py2 += 8;
+
+  const drawPayField = (label: string, value: string) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...TEXT_MUTED);
+    doc.text(label, m + 10, py2);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...TEXT);
+    doc.text(value, m + 55, py2);
+    py2 += 6;
+  };
+
+  drawPayField("Montant payé", fmt(PAYMENT.amount));
+  drawPayField("Méthode", "Carte de crédit (Stripe)");
+  drawPayField("Date", fmtDate(PAYMENT.received_at));
+  drawPayField("Référence", PAYMENT.payment_number);
+
+  y = y + payBoxH + 8;
+
+  // ── Balance box ──
+  doc.setFillColor(...NAVY);
+  doc.roundedRect(m, y, cw, 14, 3, 3, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("SOLDE À PAYER", m + 10, y + 9.5);
+  doc.text(fmt(0), m + cw - 12, y + 9.5, { align: "right" });
+  y += 22;
+
+  // ── Thank you note ──
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   doc.setTextColor(...TEXT_MUTED);
-  doc.text("Merci de votre confiance. Un reçu de paiement distinct a été émis.", m, y + 3);
+  doc.text("Merci de votre confiance. Un reçu de paiement distinct a été émis pour vos dossiers.", m, y + 3);
 
-  drawInvoiceFooter(doc, pw, ph);
+  // Page 2 footer with billing policy
+  drawInvoiceFooter(doc, pw, ph, 2, 2);
 
   return doc.output("arraybuffer");
 }
