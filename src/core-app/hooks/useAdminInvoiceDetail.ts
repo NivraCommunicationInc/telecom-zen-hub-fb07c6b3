@@ -4,6 +4,11 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  assertCanonicalAccountInvariant,
+  buildCanonicalAccountMaps,
+  resolveCanonicalAccountNumber,
+} from "@/lib/canonicalAccountResolver";
 
 export interface InvoiceDetailLine {
   id: string;
@@ -71,15 +76,44 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
           id, invoice_number, type, subtotal, tps_amount, tvq_amount, total,
           amount_paid, balance_due, status, payment_method, due_date,
           cycle_start_date, cycle_end_date, created_at, paid_at, notes,
-          fees, activation_fee, billing_snapshot_account_number,
-          order_id,
+          fees, activation_fee, order_id, customer_id,
           customer:billing_customers(id, first_name, last_name, email, phone),
-          order:orders(order_number)
+          order:orders(order_number, account_id, user_id)
         `)
         .eq("id", invoiceId)
         .single();
       if (error) throw error;
       if (!inv) return null;
+
+      if (!inv.invoice_number) {
+        throw new Error(`CANONICAL_IDENTIFIER_INVARIANT_VIOLATION: invoice(${inv.id}) missing invoice_number.`);
+      }
+
+      const maps = await buildCanonicalAccountMaps(supabase, {
+        orderIds: [inv.order_id],
+        customerIds: [inv.customer?.id ?? inv.customer_id],
+        accountIds: [inv.order?.account_id],
+        userIds: [inv.order?.user_id],
+      });
+
+      const accountNumber = resolveCanonicalAccountNumber(maps, {
+        orderId: inv.order_id,
+        accountId: inv.order?.account_id,
+        userId: inv.order?.user_id,
+        customerId: inv.customer?.id ?? inv.customer_id,
+      });
+
+      assertCanonicalAccountInvariant(
+        "invoice",
+        inv.id,
+        {
+          orderId: inv.order_id,
+          accountId: inv.order?.account_id,
+          userId: inv.order?.user_id,
+          customerId: inv.customer?.id ?? inv.customer_id,
+        },
+        accountNumber,
+      );
 
       const { data: lines } = await supabase
         .from("billing_invoice_lines")
@@ -96,7 +130,7 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
       const confirmedByIds = (payments ?? [])
         .map((p: any) => p.confirmed_by)
         .filter((id: string | null) => id && id.length > 10);
-      
+
       let confirmedByMap: Record<string, string> = {};
       if (confirmedByIds.length > 0) {
         const { data: profiles } = await supabase
@@ -133,10 +167,10 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         notes: inv.notes,
         fees: inv.fees,
         activation_fee: inv.activation_fee,
-        account_number: inv.billing_snapshot_account_number ?? null,
+        account_number: accountNumber,
         order_id: inv.order_id,
         order_number: o?.order_number ?? null,
-        customer_id: c?.id ?? (inv as any).customer_id,
+        customer_id: c?.id ?? inv.customer_id,
         customer_name: c ? `${c.first_name} ${c.last_name}`.trim() : null,
         customer_email: c?.email ?? null,
         customer_phone: c?.phone ?? null,
