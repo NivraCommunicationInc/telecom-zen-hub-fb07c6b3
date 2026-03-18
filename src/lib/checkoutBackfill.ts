@@ -16,10 +16,14 @@ export interface BackfillResult {
 
 type BillingMethod = "paypal" | "interac" | "card" | "manual";
 
-const toBillingMethod = (method?: string): BillingMethod => {
-  if (method === "paypal") return "paypal";
-  if (method === "etransfer" || method === "e_transfer" || method === "interac") return "interac";
-  if (method === "credit_card" || method === "card") return "card";
+const toBillingMethod = (method?: string, reference?: string | null): BillingMethod => {
+  const normalizedMethod = String(method || "").toLowerCase();
+  const normalizedReference = String(reference || "").toLowerCase();
+
+  if (normalizedMethod === "paypal") return "paypal";
+  if (normalizedMethod === "etransfer" || normalizedMethod === "e_transfer" || normalizedMethod === "interac") return "interac";
+  if (normalizedMethod === "credit_card" || normalizedMethod === "card") return "card";
+  if (normalizedReference.startsWith("pi_")) return "card";
   return "manual";
 };
 
@@ -27,7 +31,7 @@ const isPaidCheckout = (payload: NivraFullCheckoutPayload) => {
   const method = String(payload.payment.method || "").toLowerCase();
   const reference = String(payload.payment.reference || "");
   const cardCaptured =
-    (method === "credit_card" || method === "card") &&
+    (method === "credit_card" || method === "card" || reference.startsWith("pi_")) &&
     (payload.payment.status === "captured" || reference.startsWith("pi_"));
 
   return (
