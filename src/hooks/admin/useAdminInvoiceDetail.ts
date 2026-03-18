@@ -89,18 +89,21 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         throw new Error(`CANONICAL_IDENTIFIER_INVARIANT_VIOLATION: invoice(${inv.id}) missing invoice_number.`);
       }
 
+      const customerRel = Array.isArray(inv.customer) ? inv.customer[0] : inv.customer;
+      const orderRel = Array.isArray(inv.order) ? inv.order[0] : inv.order;
+
       const maps = await buildCanonicalAccountMaps(supabase, {
         orderIds: [inv.order_id],
-        customerIds: [inv.customer?.id ?? inv.customer_id],
-        accountIds: [inv.order?.account_id],
-        userIds: [inv.order?.user_id],
+        customerIds: [customerRel?.id ?? inv.customer_id],
+        accountIds: [orderRel?.account_id],
+        userIds: [orderRel?.user_id],
       });
 
       const accountNumber = resolveCanonicalAccountNumber(maps, {
         orderId: inv.order_id,
-        accountId: inv.order?.account_id,
-        userId: inv.order?.user_id,
-        customerId: inv.customer?.id ?? inv.customer_id,
+        accountId: orderRel?.account_id,
+        userId: orderRel?.user_id,
+        customerId: customerRel?.id ?? inv.customer_id,
       });
 
       assertCanonicalAccountInvariant(
@@ -108,9 +111,9 @@ export function useAdminInvoiceDetail(invoiceId: string | undefined) {
         inv.id,
         {
           orderId: inv.order_id,
-          accountId: inv.order?.account_id,
-          userId: inv.order?.user_id,
-          customerId: inv.customer?.id ?? inv.customer_id,
+          accountId: orderRel?.account_id,
+          userId: orderRel?.user_id,
+          customerId: customerRel?.id ?? inv.customer_id,
         },
         accountNumber,
       );
