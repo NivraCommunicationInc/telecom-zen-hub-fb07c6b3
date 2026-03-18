@@ -2,13 +2,16 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
-import { PayPalCheckoutButton } from "@/components/payment/PayPalCheckoutButton";
+import { PayPalButton } from "@/components/payment/PayPalButton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { portalClient as supabase } from "@/integrations/backend/portalClient";
+import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 
 interface PayInvoiceDialogProps {
   open: boolean;
@@ -29,10 +32,12 @@ const PayInvoiceDialog = ({
 }: PayInvoiceDialogProps) => {
   const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal" | "interac" | null>(null);
   const [copied, setCopied] = useState(false);
+  const [interacReference, setInteracReference] = useState("");
+  const [isSubmittingInterac, setIsSubmittingInterac] = useState(false);
 
   if (!invoice) return null;
 
-  const invoiceNumber = invoice.invoice_number || invoice.id?.slice(0, 8).toUpperCase();
+  const invoiceNumber = invoice.invoice_number || "—";
   const amount = totalDue;
 
   const handleCopyEmail = () => {
@@ -50,6 +55,41 @@ const PayInvoiceDialog = ({
 
   const handlePaymentError = (error: string) => {
     toast.error(`Erreur de paiement: ${error}`);
+  };
+
+  const handleSubmitInterac = async () => {
+    if (!invoice?.id) return;
+    if (!interacReference.trim()) {
+      toast.error("Entrez une référence de virement Interac.");
+      return;
+    }
+
+    setIsSubmittingInterac(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("portal-submit-interac-payment", {
+        body: {
+          invoice_id: invoice.id,
+          reference: interacReference.trim(),
+          amount,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.already_exists) {
+        toast.success("Ce virement est déjà enregistré et en vérification.");
+      } else {
+        toast.success("Votre virement Interac a été soumis. Nous le validerons rapidement.");
+      }
+
+      onOpenChange(false);
+      onPaymentSuccess?.();
+    } catch (err) {
+      const message = await getInvokeErrorMessage(err);
+      toast.error(message);
+    } finally {
+      setIsSubmittingInterac(false);
+    }
   };
 
   return (
@@ -111,12 +151,12 @@ const PayInvoiceDialog = ({
             onClick={() => setPaymentMethod("paypal")}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
               paymentMethod === "paypal"
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                ? "border-primary bg-primary/5"
                 : "border-border hover:border-muted-foreground/30 bg-background"
             }`}
           >
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-              <Wallet className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Wallet className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">PayPal</p>
@@ -129,16 +169,16 @@ const PayInvoiceDialog = ({
             onClick={() => setPaymentMethod("interac")}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
               paymentMethod === "interac"
-                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                ? "border-primary bg-primary/5"
                 : "border-border hover:border-muted-foreground/30 bg-background"
             }`}
           >
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
-              <Banknote className="w-5 h-5 text-emerald-600" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Banknote className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">Virement Interac</p>
-              <p className="text-xs text-muted-foreground">Envoyez un virement par votre banque</p>
+              <p className="text-xs text-muted-foreground">Envoyez et soumettez votre référence directement ici</p>
             </div>
           </button>
         </div>
@@ -150,6 +190,7 @@ const PayInvoiceDialog = ({
           <div className="mt-2">
             <StripeInlinePayment
               invoiceId={invoice.id}
+              intentContext="invoice_payment"
               amount={amount}
               description={`Facture ${invoiceNumber} - Nivra Telecom`}
               customerEmail={profile?.email}
@@ -163,13 +204,14 @@ const PayInvoiceDialog = ({
         {paymentMethod === "paypal" && (
           <div className="mt-2 space-y-3">
             <p className="text-xs text-muted-foreground">
-              Vous serez redirigé vers PayPal pour compléter le paiement avec votre compte PayPal.
+              Paiement immédiat sécurisé avec PayPal.
             </p>
-            <PayPalCheckoutButton
-              invoiceId={invoice.id}
+            <PayPalButton
               amount={amount}
+              invoiceId={invoice.id}
               description={`Facture ${invoiceNumber} - Nivra Telecom`}
-              onSuccess={handlePaymentSuccess}
+              customer={{ email: profile?.email || undefined }}
+              onSuccess={() => handlePaymentSuccess()}
               onError={handlePaymentError}
             />
           </div>
@@ -178,15 +220,15 @@ const PayInvoiceDialog = ({
         {/* Interac */}
         {paymentMethod === "interac" && (
           <div className="space-y-3 mt-2">
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+            <div className="p-4 bg-muted/50 border border-border rounded-xl">
               <p className="text-sm font-medium text-foreground mb-3">
                 Envoyez votre virement Interac à :
               </p>
-              <div className="flex items-center gap-3 p-3 bg-background rounded-lg border border-emerald-200 dark:border-emerald-800">
-                <Mail className="w-5 h-5 text-emerald-600" />
+              <div className="flex items-center gap-3 p-3 bg-background rounded-lg border border-border">
+                <Mail className="w-5 h-5 text-primary" />
                 <span className="font-mono text-base flex-1">{ETRANSFER_CONFIG.emailDisplay}</span>
                 <Button variant="outline" size="sm" onClick={handleCopyEmail} className="gap-1.5 shrink-0">
-                  {copied ? <><Check className="w-3.5 h-3.5 text-emerald-500" /> Copié!</> : <><Copy className="w-3.5 h-3.5" /> Copier</>}
+                  {copied ? <><Check className="w-3.5 h-3.5 text-primary" /> Copié!</> : <><Copy className="w-3.5 h-3.5" /> Copier</>}
                 </Button>
               </div>
             </div>
@@ -209,11 +251,37 @@ const PayInvoiceDialog = ({
               </p>
             </div>
 
-            <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div className="p-3 bg-muted/50 rounded-lg border border-border space-y-2">
+              <label className="text-xs text-muted-foreground">Référence de votre virement Interac</label>
+              <Input
+                value={interacReference}
+                onChange={(e) => setInteracReference(e.target.value)}
+                placeholder="Ex: TRF-847291"
+              />
               <p className="text-xs text-muted-foreground">
                 Incluez votre numéro de facture <strong className="text-foreground">{invoiceNumber}</strong> dans le message du virement.
-                Le paiement sera traité automatiquement dès réception.
+              </p>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleSubmitInterac}
+              disabled={isSubmittingInterac || !interacReference.trim()}
+            >
+              {isSubmittingInterac ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Soumission en cours…
+                </>
+              ) : (
+                "J’ai envoyé le virement"
+              )}
+            </Button>
+
+            <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
+              <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Votre paiement Interac sera marqué payé après validation.
               </p>
             </div>
           </div>
