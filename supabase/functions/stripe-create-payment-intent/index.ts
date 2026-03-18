@@ -25,9 +25,12 @@ serve(async (req) => {
   try {
     const stripeKey = (Deno.env.get("STRIPE_SECRET_KEY") || "").trim();
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not configured");
-    if (!stripeKey.startsWith("sk_test_")) {
-      throw new Error("Stripe checkout public est forcé en mode test: STRIPE_SECRET_KEY doit commencer par sk_test_.");
+    // Production-ready: accept both test and live keys
+    if (!stripeKey.startsWith("sk_test_") && !stripeKey.startsWith("sk_live_")) {
+      throw new Error("STRIPE_SECRET_KEY invalide: doit commencer par sk_test_ ou sk_live_.");
     }
+    const isLiveMode = stripeKey.startsWith("sk_live_");
+    console.log(`[stripe-create-payment-intent] Mode: ${isLiveMode ? "LIVE" : "TEST"}`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
