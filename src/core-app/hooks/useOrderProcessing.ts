@@ -637,33 +637,63 @@ export function useOrderProcessing(orderId: string | undefined) {
   };
 
   /* ── Mark payment invalid ── */
-  /* PHASE 1 FIX: Updates billing_payments + billing_invoices, not just the order. */
+  /* PRODUCTION FIX: Updates billing_payments + recalculates invoice balance_due from confirmed payments. */
   const markPaymentInvalid = async (reason?: string) => {
     const targetInvoice = data?.invoice;
 
     // Update billing_payments if a pending payment exists
+    let invalidatedAmount = 0;
     if (targetInvoice?.id) {
       const { data: pendingPayments } = await supabase
         .from("billing_payments")
-        .select("id")
+        .select("id, amount")
         .eq("invoice_id", targetInvoice.id)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
         .limit(1);
 
       if (pendingPayments?.[0]) {
-        await supabase
+        invalidatedAmount = Number(pendingPayments[0].amount || 0);
+        const { error: payErr } = await supabase
           .from("billing_payments")
           .update({
             status: "failed" as any,
             legacy_note: reason || "Marqué invalide par admin",
           })
           .eq("id", pendingPayments[0].id);
+        if (payErr) throw payErr;
       }
+
+      // Recalculate invoice totals from confirmed payments only (SSOT)
+      const { data: confirmedPayments } = await supabase
+        .from("billing_payments")
+        .select("amount")
+        .eq("invoice_id", targetInvoice.id)
+        .in("status", ["confirmed", "completed"]);
+
+      const totalPaid = (confirmedPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const invoiceTotal = Number(targetInvoice.total || 0);
+      const newBalanceDue = Math.max(0, Math.round((invoiceTotal - totalPaid) * 100) / 100);
+      const newAmountPaid = Math.round(totalPaid * 100) / 100;
+      const newStatus = newAmountPaid <= 0 ? "pending" : (newBalanceDue <= 0.01 ? "paid" : "partially_paid");
+
+      const { error: invErr } = await supabase
+        .from("billing_invoices")
+        .update({
+          amount_paid: newAmountPaid,
+          balance_due: newBalanceDue,
+          status: newStatus as any,
+        })
+        .eq("id", targetInvoice.id);
+      if (invErr) throw invErr;
     }
 
     await updateOrder.mutateAsync({ payment_status: "failed" });
-    await logActivity("payment_invalidated", "order", orderId, { reason });
+    await logActivity("payment_invalidated", "order", orderId, {
+      reason,
+      invalidated_amount: invalidatedAmount,
+      invoice_id: targetInvoice?.id,
+    });
 
     const email = getClientEmail();
     if (email) {
@@ -682,7 +712,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
 
     invalidateAll();
-    toast.warning("Paiement marqué comme invalide (billing + commande)");
+    toast.warning("Paiement marqué comme invalide — facture recalculée");
   };
 
   /* ── Mark payment partial ── */
