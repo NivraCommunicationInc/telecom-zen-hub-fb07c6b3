@@ -100,16 +100,13 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.rect(0, 0, pw, ph, "F");
 
     // ========================================================================
-    // GREEN HEADER — distinct from invoice navy header
+    // GREEN HEADER
     // ========================================================================
     doc.setFillColor(...C.success);
     doc.rect(0, 0, pw, 36, "F");
-
-    // Lighter green accent
     doc.setFillColor(34, 197, 94);
     doc.rect(0, 36, pw, 2, "F");
 
-    // Company name
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
@@ -121,12 +118,10 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.text(NIVRA.address, m, 21);
     doc.text(`${NIVRA.email} | ${NIVRA.website}`, m, 27);
 
-    // Document type
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(255, 255, 255);
-    doc.text("REÇU DE PAIEMENT", pw - m, 16, { align: "right" });
-
+    doc.text("RECU DE PAIEMENT", pw - m, 16, { align: "right" });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(220, 252, 231);
@@ -140,33 +135,87 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(72);
     doc.setTextColor(22, 163, 74, 0.08);
-    // @ts-ignore - jspdf supports alpha via GState
     const gState = new (doc as any).GState({ opacity: 0.06 });
     (doc as any).setGState(gState);
-    doc.text("PAYÉ", pw / 2, 140, { align: "center", angle: -25 });
+    doc.text("PAYE", pw / 2, 160, { align: "center", angle: -25 });
     const gStateNormal = new (doc as any).GState({ opacity: 1 });
     (doc as any).setGState(gStateNormal);
 
     // ========================================================================
-    // RECEIPT DETAILS — centered card
+    // CLIENT IDENTITY — Full (approved 2026-03-18)
     // ========================================================================
-    const cardW = 140;
-    const cardX = (pw - cardW) / 2;
+    const halfW = (cw - 6) / 2;
 
-    // Receipt number banner
-    doc.setFillColor(22, 163, 74);
-    doc.roundedRect(cardX, y, cardW, 14, 3, 3, "F");
+    // Left: Client info
+    doc.setFillColor(...C.lightBg);
+    doc.roundedRect(m, y, halfW, 48, 2, 2, "F");
+
+    let ly = y + 8;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(255, 255, 255);
-    doc.text(`Reçu Nº ${data.receipt_number}`, pw / 2, y + 9, { align: "center" });
-    y += 22;
+    doc.setFontSize(8);
+    doc.setTextColor(...C.navy);
+    doc.text("CLIENT", m + 8, ly);
+    ly += 7;
 
-    // Payment info card
-    doc.setFillColor(240, 253, 244); // very light green
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...C.text);
+    doc.text(data.client_name, m + 8, ly);
+    ly += 5.5;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...C.textMuted);
+    if (data.client_address) {
+      const addrLines = doc.splitTextToSize(data.client_address, halfW - 16);
+      doc.text(addrLines, m + 8, ly);
+      ly += addrLines.length * 4;
+    }
+    if (data.client_phone) {
+      doc.text(data.client_phone, m + 8, ly);
+      ly += 4;
+    }
+    doc.text(data.client_email, m + 8, ly);
+
+    // Right: Reference numbers
+    const rx = m + halfW + 6;
+    doc.setFillColor(...C.lightBg);
+    doc.roundedRect(rx, y, halfW, 48, 2, 2, "F");
+
+    let ry = y + 8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...C.navy);
+    doc.text("REFERENCES", rx + 8, ry);
+    ry += 7;
+
+    const drawRefField = (label: string, value: string) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...C.textMuted);
+      doc.text(label, rx + 8, ry);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...C.text);
+      doc.text(value, rx + halfW - 8, ry, { align: "right" });
+      ry += 6;
+    };
+
+    drawRefField("Compte", data.account_number);
+    drawRefField("Facture", data.invoice_number);
+    if (data.order_number) drawRefField("Commande", data.order_number);
+    drawRefField("Recu", data.receipt_number);
+
+    y += 56;
+
+    // ========================================================================
+    // PAYMENT DETAILS — Green card
+    // ========================================================================
+    const cardW = cw;
+    doc.setFillColor(240, 253, 244);
     doc.setDrawColor(187, 247, 208);
     doc.setLineWidth(0.5);
-    doc.roundedRect(cardX, y, cardW, 62, 3, 3, "FD");
+    doc.roundedRect(m, y, cardW, 50, 3, 3, "FD");
     doc.setLineWidth(0.2);
 
     let fy = y + 10;
@@ -174,70 +223,74 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
-      doc.text(label, cardX + 12, fy);
+      doc.text(label, m + 12, fy);
       doc.setFont("helvetica", isBold ? "bold" : "normal");
       doc.setFontSize(isBold ? 10 : 9);
       doc.setTextColor(15, 23, 42);
-      doc.text(value, cardX + cardW - 12, fy, { align: "right" });
+      doc.text(value, m + cardW - 12, fy, { align: "right" });
       fy += 9;
     };
 
     drawReceiptField("Date de paiement", fmtDate(data.payment_date));
     drawReceiptField("Mode de paiement", fmtPayMethod(data.payment_method));
-    drawReceiptField("Montant payé", fmt(data.amount_paid), true);
+    drawReceiptField("Montant paye", fmt(data.amount_paid), true);
 
-    // Separator
     doc.setDrawColor(187, 247, 208);
-    doc.line(cardX + 12, fy - 3, cardX + cardW - 12, fy - 3);
+    doc.line(m + 12, fy - 3, m + cardW - 12, fy - 3);
     fy += 3;
 
-    drawReceiptField("Facture Nº", data.invoice_number);
     drawReceiptField("Total facture", fmt(data.invoice_total));
-
     if (data.balance_remaining !== undefined && data.balance_remaining > 0) {
       drawReceiptField("Solde restant", fmt(data.balance_remaining));
     }
 
-    y += 70;
-
-    // ========================================================================
-    // CLIENT REFERENCE — compact
-    // ========================================================================
-    doc.setFillColor(...C.lightBg);
-    doc.roundedRect(cardX, y, cardW, 32, 3, 3, "F");
-
-    fy = y + 8;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...C.navy);
-    doc.text("CLIENT", cardX + 12, fy);
-    fy += 7;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...C.text);
-    doc.text(data.client_name, cardX + 12, fy);
-    fy += 5;
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.textMuted);
-    doc.text(`${data.client_email} | Compte: ${data.account_number}`, cardX + 12, fy);
-    fy += 5;
     if (data.transaction_reference) {
-      doc.text(`Réf. transaction: ${data.transaction_reference}`, cardX + 12, fy);
+      fy += 1;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(...C.textMuted);
+      doc.text(`Ref. transaction: ${data.transaction_reference}`, m + 12, fy);
     }
 
-    y += 42;
+    y += 58;
 
     // ========================================================================
-    // LEGAL NOTE — minimal
+    // BILLED ITEMS SUMMARY (brief — not a duplicate invoice)
+    // ========================================================================
+    if (data.billed_items && data.billed_items.length > 0) {
+      doc.setFillColor(...C.lightBg);
+      const itemsH = 12 + data.billed_items.length * 6;
+      doc.roundedRect(m, y, cardW, itemsH, 2, 2, "F");
+
+      let iy = y + 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...C.navy);
+      doc.text("SERVICES FACTURES", m + 8, iy);
+      iy += 7;
+
+      for (const item of data.billed_items) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...C.text);
+        doc.text(item.description, m + 8, iy);
+        doc.text(fmt(item.amount), m + cardW - 8, iy, { align: "right" });
+        iy += 6;
+      }
+
+      y += itemsH + 6;
+    }
+
+    // ========================================================================
+    // LEGAL NOTE
     // ========================================================================
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...C.textMuted);
-    const legalNote = "Ce reçu confirme la réception du paiement indiqué ci-dessus. Il ne remplace pas la facture officielle. " +
-      "Conservez ce document pour vos dossiers. Pour toute question, contactez-nous à " + NIVRA.email + ".";
+    const legalNote = "Ce recu confirme la reception du paiement indique ci-dessus. Il ne remplace pas la facture officielle. " +
+      "Conservez ce document pour vos dossiers. Pour toute question, contactez-nous a " + NIVRA.email + ".";
     const legalLines = doc.splitTextToSize(legalNote, cardW);
-    doc.text(legalLines, cardX, y);
+    doc.text(legalLines, m, y);
 
     // ========================================================================
     // COMPACT GREEN FOOTER
@@ -254,7 +307,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     const filename = `Recu_${data.receipt_number}.pdf`;
     return { success: true, blob, filename };
   } catch (error) {
-    console.error("[ReceiptTemplate] Generation error:", error);
+    console.error("[ReceiptTemplate V3] Generation error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Erreur inconnue" };
   }
 }
