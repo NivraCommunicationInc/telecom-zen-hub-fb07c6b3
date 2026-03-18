@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
-import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt, AlertCircle } from "lucide-react";
+import { FileText, Download, DollarSign, CheckCircle, Calendar, ChevronRight, Receipt, AlertCircle, ScrollText } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +17,7 @@ import PDFViewerDialog from "@/components/PDFViewerDialog";
 import PayInvoiceDialog from "@/components/client/PayInvoiceDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchInvoiceBreakdowns, type InvoiceBreakdown } from "@/lib/billing/useInvoiceBreakdown";
-import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
+import { generateCanonicalInvoicePDF, generateCanonicalOrderSummaryPDF, generateCanonicalReceiptPDF } from "@/lib/pdf";
 
 /**
  * ClientInvoices — CANONICAL DOCUMENT ARCHITECTURE
@@ -195,6 +195,102 @@ const ClientInvoices = () => {
     [],
   );
 
+  const handleViewReceiptPDF = useCallback(
+    async (bd: InvoiceBreakdown) => {
+      try {
+        setPdfLoading(true);
+        setPdfViewerOpen(true);
+        setPdfTitle(`Reçu ${bd.invoice_number}`);
+        setPdfFilename(`Recu_${bd.invoice_number}.pdf`);
+
+        const result = await generateCanonicalReceiptPDF(portalSupabase, bd.invoice_id);
+        if (result.success && result.blob) {
+          setPdfBlob(result.blob);
+        } else {
+          throw new Error(result.error || "Reçu non disponible");
+        }
+      } catch (error: any) {
+        console.error("[ClientInvoices] Receipt PDF error:", error);
+        toast.error(error.message || "Erreur lors de la génération du reçu");
+        setPdfViewerOpen(false);
+      } finally {
+        setPdfLoading(false);
+      }
+    },
+    [],
+  );
+
+  const handleDownloadReceiptPDF = useCallback(
+    async (bd: InvoiceBreakdown) => {
+      try {
+        const result = await generateCanonicalReceiptPDF(portalSupabase, bd.invoice_id);
+        if (result.success && result.blob) {
+          safePDFDownload(result.blob, result.filename || `Recu_${bd.invoice_number}.pdf`);
+          toast.success("Reçu téléchargé");
+        } else {
+          throw new Error(result.error || "Reçu non disponible");
+        }
+      } catch (error: any) {
+        console.error("[ClientInvoices] Receipt download error:", error);
+        toast.error("Impossible de générer le reçu");
+      }
+    },
+    [],
+  );
+
+  const handleViewOrderSummaryPDF = useCallback(
+    async (bd: InvoiceBreakdown) => {
+      if (!bd.order_id) {
+        toast.error("Sommaire non disponible pour cette facture");
+        return;
+      }
+
+      try {
+        setPdfLoading(true);
+        setPdfViewerOpen(true);
+        setPdfTitle(`Sommaire ${bd.invoice_number}`);
+        setPdfFilename(`Sommaire_${bd.invoice_number}.pdf`);
+
+        const result = await generateCanonicalOrderSummaryPDF(portalSupabase, bd.order_id);
+        if (result.success && result.blob) {
+          setPdfBlob(result.blob);
+        } else {
+          throw new Error(result.error || "Sommaire non disponible");
+        }
+      } catch (error: any) {
+        console.error("[ClientInvoices] Order summary PDF error:", error);
+        toast.error(error.message || "Erreur lors de la génération du sommaire");
+        setPdfViewerOpen(false);
+      } finally {
+        setPdfLoading(false);
+      }
+    },
+    [],
+  );
+
+  const handleDownloadOrderSummaryPDF = useCallback(
+    async (bd: InvoiceBreakdown) => {
+      if (!bd.order_id) {
+        toast.error("Sommaire non disponible pour cette facture");
+        return;
+      }
+
+      try {
+        const result = await generateCanonicalOrderSummaryPDF(portalSupabase, bd.order_id);
+        if (result.success && result.blob) {
+          safePDFDownload(result.blob, result.filename || `Sommaire_${bd.invoice_number}.pdf`);
+          toast.success("Sommaire téléchargé");
+        } else {
+          throw new Error(result.error || "Sommaire non disponible");
+        }
+      } catch (error: any) {
+        console.error("[ClientInvoices] Order summary download error:", error);
+        toast.error("Impossible de générer le sommaire");
+      }
+    },
+    [],
+  );
+
   // ── Pay ──
   const handlePayInvoice = (bd: InvoiceBreakdown) => {
     setPayingInvoice(bd);
@@ -282,11 +378,19 @@ const ClientInvoices = () => {
                   )}
                   <Button variant="outline" className="gap-1.5" onClick={() => handleViewPDF(currentInvoice)}>
                     <FileText className="w-4 h-4" />
-                    Voir PDF
+                    Facture
+                  </Button>
+                  <Button variant="outline" className="gap-1.5" onClick={() => handleViewReceiptPDF(currentInvoice)}>
+                    <Receipt className="w-4 h-4" />
+                    Reçu
+                  </Button>
+                  <Button variant="outline" className="gap-1.5" onClick={() => handleViewOrderSummaryPDF(currentInvoice)}>
+                    <ScrollText className="w-4 h-4" />
+                    Sommaire
                   </Button>
                   <Button variant="outline" className="gap-1.5" onClick={() => handleDownloadPDF(currentInvoice)}>
                     <Download className="w-4 h-4" />
-                    Télécharger
+                    Télécharger facture
                   </Button>
                 </div>
               </div>
@@ -353,7 +457,7 @@ const ClientInvoices = () => {
                           {bd.due_date && <span>Éch. {format(parseISO(bd.due_date), "d MMM", { locale: fr })}</span>}
                           {bd.balance_due > 0 && <span className="text-amber-600 font-medium">Solde: {cad(bd.balance_due)}</span>}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {open && (
                             <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white text-xs h-8" onClick={() => handlePayInvoice(bd)}>
                               <DollarSign className="w-3.5 h-3.5 mr-1" />
@@ -362,10 +466,24 @@ const ClientInvoices = () => {
                           )}
                           <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => handleViewPDF(bd)}>
                             <FileText className="w-3.5 h-3.5 mr-1" />
-                            PDF
+                            Facture
                           </Button>
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(bd)}>
+                          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => handleViewReceiptPDF(bd)}>
+                            <Receipt className="w-3.5 h-3.5 mr-1" />
+                            Reçu
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => handleViewOrderSummaryPDF(bd)}>
+                            <ScrollText className="w-3.5 h-3.5 mr-1" />
+                            Sommaire
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(bd)} title="Télécharger facture">
                             <Download className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadReceiptPDF(bd)} title="Télécharger reçu">
+                            <Receipt className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadOrderSummaryPDF(bd)} title="Télécharger sommaire">
+                            <ScrollText className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -429,7 +547,7 @@ const ClientInvoices = () => {
                               </Badge>
                             </td>
                             <td className="py-3 px-4">
-                              <div className="flex gap-1.5">
+                              <div className="flex gap-1.5 flex-wrap">
                                 {open && (
                                   <Button
                                     size="sm"
@@ -440,11 +558,23 @@ const ClientInvoices = () => {
                                     Payer
                                   </Button>
                                 )}
-                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleViewPDF(bd)} title="Voir PDF">
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleViewPDF(bd)} title="Voir facture">
                                   <FileText className="w-3.5 h-3.5" />
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(bd)} title="Télécharger PDF">
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleViewReceiptPDF(bd)} title="Voir reçu">
+                                  <Receipt className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleViewOrderSummaryPDF(bd)} title="Voir sommaire">
+                                  <ScrollText className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadPDF(bd)} title="Télécharger facture">
                                   <Download className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadReceiptPDF(bd)} title="Télécharger reçu">
+                                  <Receipt className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8 w-8 p-0" onClick={() => handleDownloadOrderSummaryPDF(bd)} title="Télécharger sommaire">
+                                  <ScrollText className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
                             </td>

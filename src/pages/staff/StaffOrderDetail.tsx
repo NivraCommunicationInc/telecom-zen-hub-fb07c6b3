@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   ArrowLeft, Package, MapPin, Phone, Mail, User, 
   FileText, MessageSquare, Plus, Clock, CreditCard, Send,
-  Download, Eye, FileCheck, Receipt
+  Download, Eye, FileCheck, Receipt, ScrollText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,12 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import StaffBackground from "@/components/staff/StaffBackground";
 import { StaffSidebar } from "@/components/staff/StaffSidebar";
-import { generateCanonicalInvoicePDF, generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
+import {
+  generateCanonicalInvoicePDF,
+  generateCanonicalContractPDF,
+  generateCanonicalReceiptPDF,
+  generateCanonicalOrderSummaryPDF,
+} from "@/lib/pdf";
 import { safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 
@@ -161,6 +166,19 @@ export default function StaffOrderDetail() {
     return <Badge variant="outline" className="text-xs">{role}</Badge>;
   };
 
+  const getInvoiceIdForOrder = async (): Promise<string | null> => {
+    if (!order) return null;
+    const { data: billingInvoice } = await supabase
+      .from("billing_invoices")
+      .select("id")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return billingInvoice?.id || null;
+  };
+
   const handleViewContract = async () => {
     if (!order) return;
     setIsGeneratingPdf("contract");
@@ -184,27 +202,66 @@ export default function StaffOrderDetail() {
     if (!order) return;
     setIsGeneratingPdf("invoice");
     try {
-      // Find billing invoice for this order
-      const { data: billingInvoice } = await supabase
-        .from("billing_invoices")
-        .select("id")
-        .eq("order_id", order.id)
-        .maybeSingle();
-
-      if (billingInvoice?.id) {
-        const result = await generateCanonicalInvoicePDF(supabase, billingInvoice.id);
-        if (result.success && result.blob) {
-          safePDFOpen(result.blob, result.filename || "facture.pdf");
-          toast.success("Facture ouverte");
-        } else {
-          toast.error(result.error || "Impossible de générer la facture");
-        }
-      } else {
+      const invoiceId = await getInvoiceIdForOrder();
+      if (!invoiceId) {
         toast.error("Aucune facture trouvée pour cette commande");
+        return;
+      }
+
+      const result = await generateCanonicalInvoicePDF(supabase, invoiceId);
+      if (result.success && result.blob) {
+        safePDFOpen(result.blob, result.filename || "facture.pdf");
+        toast.success("Facture ouverte");
+      } else {
+        toast.error(result.error || "Impossible de générer la facture");
       }
     } catch (error) {
       console.error("Invoice PDF error:", error);
       toast.error("Impossible de générer la facture");
+    } finally {
+      setIsGeneratingPdf(null);
+    }
+  };
+
+  const handleViewReceipt = async () => {
+    if (!order) return;
+    setIsGeneratingPdf("receipt");
+    try {
+      const invoiceId = await getInvoiceIdForOrder();
+      if (!invoiceId) {
+        toast.error("Aucune facture trouvée pour cette commande");
+        return;
+      }
+
+      const result = await generateCanonicalReceiptPDF(supabase, invoiceId);
+      if (result.success && result.blob) {
+        safePDFOpen(result.blob, result.filename || "recu.pdf");
+        toast.success("Reçu ouvert");
+      } else {
+        toast.error(result.error || "Impossible de générer le reçu");
+      }
+    } catch (error) {
+      console.error("Receipt PDF error:", error);
+      toast.error("Impossible de générer le reçu");
+    } finally {
+      setIsGeneratingPdf(null);
+    }
+  };
+
+  const handleViewOrderSummary = async () => {
+    if (!order) return;
+    setIsGeneratingPdf("summary");
+    try {
+      const result = await generateCanonicalOrderSummaryPDF(supabase, order.id);
+      if (result.success && result.blob) {
+        safePDFOpen(result.blob, result.filename || "sommaire-commande.pdf");
+        toast.success("Sommaire ouvert");
+      } else {
+        toast.error(result.error || "Impossible de générer le sommaire");
+      }
+    } catch (error) {
+      console.error("Order summary PDF error:", error);
+      toast.error("Impossible de générer le sommaire");
     } finally {
       setIsGeneratingPdf(null);
     }
@@ -253,7 +310,7 @@ export default function StaffOrderDetail() {
           </div>
           
           {/* PDF Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button 
               variant="outline" 
               size="sm" 
@@ -281,8 +338,40 @@ export default function StaffOrderDetail() {
                 <span className="animate-pulse">Génération...</span>
               ) : (
                 <>
-                  <Receipt className="h-4 w-4 mr-2" />
+                  <FileText className="h-4 w-4 mr-2" />
                   Voir Facture
+                </>
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleViewReceipt}
+              disabled={isGeneratingPdf === "receipt"}
+              className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              {isGeneratingPdf === "receipt" ? (
+                <span className="animate-pulse">Génération...</span>
+              ) : (
+                <>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Voir Reçu
+                </>
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleViewOrderSummary}
+              disabled={isGeneratingPdf === "summary"}
+              className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10"
+            >
+              {isGeneratingPdf === "summary" ? (
+                <span className="animate-pulse">Génération...</span>
+              ) : (
+                <>
+                  <ScrollText className="h-4 w-4 mr-2" />
+                  Voir Sommaire
                 </>
               )}
             </Button>
