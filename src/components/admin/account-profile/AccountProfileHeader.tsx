@@ -71,6 +71,7 @@ export function AccountProfileHeader({
   const [commSubject, setCommSubject] = useState("");
   const [commBody, setCommBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!account) return null;
 
