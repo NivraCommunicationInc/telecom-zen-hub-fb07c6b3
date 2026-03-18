@@ -51,9 +51,10 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
       // Fetch invoices (debits)
       const { data: invoices } = await portalClient
         .from('billing_invoices')
-        .select('id, invoice_number, created_at, total, status, type')
+        .select('id, invoice_number, created_at, total, status, type, order_id')
         .eq('customer_id', customer.id)
-        .not('status', 'in', '("cancelled","refunded")')
+        .not('order_id', 'is', null)
+        .not('status', 'in', '("cancelled","refunded","failed")')
         .order('created_at', { ascending: false })
         .limit(50);
 

@@ -409,9 +409,21 @@ export async function backfillCheckoutToSupabase(
   // 5) payment
   try {
     const total = pricing?.grand_total ?? Number(payload.pricing_snapshot?.grand_total ?? 0);
-    const provider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+    const provider =
+      billingMethod === "paypal"
+        ? "paypal"
+        : billingMethod === "interac"
+          ? "interac"
+          : billingMethod === "card"
+            ? "stripe"
+            : "manual";
     const reference = provider === "paypal" ? null : (payload.payment.reference || response.payment_number || null);
-    const providerPaymentId = provider === "paypal" ? (payload.payment.paypal_capture_id || null) : null;
+    const providerPaymentId =
+      provider === "paypal"
+        ? (payload.payment.paypal_capture_id || null)
+        : provider === "stripe"
+          ? (payload.payment.reference || null)
+          : null;
 
     const { error } = await supabase.from("billing_payments").upsert(
       {

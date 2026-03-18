@@ -375,7 +375,9 @@ export async function fallbackCheckout(
     : (payload.payment.reference || paymentNumber || null);
   const paymentProviderPaymentId = paymentProvider === "paypal"
     ? (payload.payment.paypal_capture_id || null)
-    : null;
+    : paymentProvider === "stripe"
+      ? (payload.payment.reference || null)
+      : null;
 
   // ── 6. Create order ──
   const { error: orderErr } = await supabase.from("orders").insert({
@@ -384,7 +386,7 @@ export async function fallbackCheckout(
     client_request_id: payload.client_request_id,
     user_id: userId,
     account_id: accountId,
-    status: "submitted",
+    status: (isPaid || isFree) ? "confirmed" : "submitted",
     payment_status: paymentStatus,
     service_type: payload.services.map(s => s.name).join(", "),
     order_type: "new",

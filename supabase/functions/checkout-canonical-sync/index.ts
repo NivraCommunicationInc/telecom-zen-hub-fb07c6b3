@@ -650,8 +650,21 @@ serve(async (req) => {
     if (customerId) {
       try {
         const total = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total);
-        const provider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+        const provider =
+          billingMethod === "paypal"
+            ? "paypal"
+            : billingMethod === "interac"
+              ? "interac"
+              : billingMethod === "card"
+                ? "stripe"
+                : "manual";
         const reference = provider === "paypal" ? null : (payload.payment?.reference || response.payment_number || null);
+        const providerPaymentId =
+          provider === "paypal"
+            ? (payload.payment?.paypal_capture_id || null)
+            : provider === "stripe"
+              ? (payload.payment?.reference || null)
+              : null;
 
         const { error: paymentError } = await admin.from("billing_payments").upsert(
           {
@@ -664,7 +677,7 @@ serve(async (req) => {
             status: paid ? "confirmed" : "pending",
             reference,
             provider,
-            provider_payment_id: payload.payment?.paypal_capture_id || null,
+            provider_payment_id: providerPaymentId,
             received_at: paid ? nowIso : null,
             source: "live",
             environment: "live",

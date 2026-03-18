@@ -37,7 +37,7 @@ export default function CoreBillingPage() {
   const { data: invoices = [] } = useQuery({
     queryKey: ["core-billing-invoices-overview"],
     queryFn: async () => {
-      const { data } = await supabase.from("billing_invoices").select("*, billing_customers(first_name, last_name, email)").order("created_at", { ascending: false }).limit(100);
+      const { data } = await supabase.from("billing_invoices").select("*, billing_customers(first_name, last_name, email)").not("order_id", "is", null).order("created_at", { ascending: false }).limit(100);
       return data || [];
     },
   });

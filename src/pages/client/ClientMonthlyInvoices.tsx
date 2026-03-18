@@ -61,7 +61,8 @@ const ClientMonthlyInvoices = () => {
         .from("billing_invoices")
         .select("*")
         .eq("customer_id", customer.id)
-        .not("status", "eq", "void")
+        .not("order_id", "is", null)
+        .not("status", "in", "(\"void\",\"failed\")")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
