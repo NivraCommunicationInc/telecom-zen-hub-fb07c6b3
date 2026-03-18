@@ -618,7 +618,7 @@ serve(async (req) => {
         );
         const tpsAmount = toMoney(response.pricing?.tps_amount ?? payload.pricing_snapshot?.tps_amount);
         const tvqAmount = toMoney(response.pricing?.tvq_amount ?? payload.pricing_snapshot?.tvq_amount);
-        const total = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total ?? subtotal + tpsAmount + tvqAmount);
+        const total = toMoney(canonicalGrandTotal || (subtotal + tpsAmount + tvqAmount));
 
         const { error: invoiceError } = await admin.from("billing_invoices").upsert(
           {
