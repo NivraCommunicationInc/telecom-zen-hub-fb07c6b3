@@ -175,6 +175,7 @@ const CoreAccountDetail = () => {
         accountStatus={acct.status}
         onRefresh={data.refetch}
         onNavigateSection={(s) => setActiveSection(s as SectionId)}
+        onEditProfile={() => setEditProfileOpen(true)}
       />
 
       {/* 3-column layout: Nav | Content | Summary */}
