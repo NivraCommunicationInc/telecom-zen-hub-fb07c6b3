@@ -39,11 +39,14 @@ export interface StripeInlinePaymentSuccessPayload {
   paymentIntentId: string;
 }
 
+type StripeIntentContext = "checkout_preconfirm" | "invoice_payment";
+
 interface InnerFormProps {
   amount: number;
   customerEmail?: string;
   collectBillingDetails: boolean;
   defaultBillingDetails?: Partial<StripeBillingDetails>;
+  allowAuthorizationSuccess: boolean;
   onSuccess?: (payload: StripeInlinePaymentSuccessPayload) => void;
   onError?: (msg: string) => void;
 }
@@ -61,6 +64,7 @@ function PaymentForm({
   customerEmail,
   collectBillingDetails,
   defaultBillingDetails,
+  allowAuthorizationSuccess,
   onSuccess,
   onError,
 }: InnerFormProps) {
@@ -181,20 +185,14 @@ function PaymentForm({
           const msg = error.message || "Erreur lors du paiement";
           toast.error(msg);
           onError?.(msg);
-        } else if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "requires_capture") {
-          // ★ requires_capture = authorization success (manual capture mode)
-          // ★ succeeded = full capture (legacy/autopay flows)
-          const isAuthOnly = paymentIntent.status === "requires_capture";
+        } else if (paymentIntent?.status === "succeeded") {
           setIsComplete(true);
-          toast.success(
-            isAuthOnly
-              ? "Carte autorisée avec succès ! Votre commande est en attente de traitement."
-              : "Paiement par carte confirmé !"
-          );
+          toast.success("Paiement par carte confirmé !");
           queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
           queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
           queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
           queryClient.invalidateQueries({ queryKey: ["client-invoices"] });
+          queryClient.invalidateQueries({ queryKey: ["client-invoice-breakdowns"] });
           queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
           queryClient.invalidateQueries({ queryKey: ["client-profile-dashboard"] });
           queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
@@ -202,6 +200,10 @@ function PaymentForm({
           queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
           queryClient.invalidateQueries({ queryKey: ["client-balance"] });
           queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
+          onSuccess?.({ paymentIntentId: paymentIntent.id });
+        } else if (paymentIntent?.status === "requires_capture" && allowAuthorizationSuccess) {
+          setIsComplete(true);
+          toast.success("Carte autorisée avec succès ! Votre commande est en attente de traitement.");
           onSuccess?.({ paymentIntentId: paymentIntent.id });
         } else {
           toast.info("Le paiement est en cours de traitement.");
@@ -382,6 +384,7 @@ function PaymentForm({
 
 export interface StripeInlinePaymentProps {
   invoiceId?: string;
+  intentContext?: StripeIntentContext;
   amount: number;
   description?: string;
   customerEmail?: string;
@@ -395,6 +398,7 @@ export interface StripeInlinePaymentProps {
 
 export function StripeInlinePayment({
   invoiceId,
+  intentContext = "checkout_preconfirm",
   amount,
   description,
   customerEmail,
@@ -449,6 +453,7 @@ export function StripeInlinePayment({
           {
             body: {
               invoice_id: invoiceId || undefined,
+              intent_context: intentContext,
               amount: intentAmountRef.current,
               description: description || undefined,
               customer_email: customerEmail || undefined,
@@ -502,7 +507,7 @@ export function StripeInlinePayment({
     return () => {
       cancelled = true;
     };
-  }, [invoiceId, description, customerEmail, customerId, disabled]);
+  }, [invoiceId, intentContext, description, customerEmail, customerId, disabled]);
 
   if (disabled) return null;
 
@@ -546,6 +551,7 @@ export function StripeInlinePayment({
         customerEmail={customerEmail}
         collectBillingDetails={collectBillingDetails}
         defaultBillingDetails={defaultBillingDetails}
+        allowAuthorizationSuccess={intentContext === "checkout_preconfirm"}
         onSuccess={onSuccess}
         onError={onError}
       />
