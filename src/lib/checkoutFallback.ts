@@ -628,7 +628,7 @@ export async function fallbackCheckout(
     invoice_id: invoiceId,
     method: billingMethod,
     amount: grandTotal,
-    status: (isPaid || isFree) ? "confirmed" : "pending",
+    status: isCardAuthorizedOnly ? "pending" : ((isPaid || isFree) ? "confirmed" : "pending"),
     reference: paymentReference,
     provider: paymentProvider,
     provider_payment_id: paymentProviderPaymentId,
@@ -636,6 +636,11 @@ export async function fallbackCheckout(
     source: "live",
     environment: "live",
     created_by_name: `${payload.customer.first_name} ${payload.customer.last_name}`.trim(),
+    // ★ Authorization tracking for card orders
+    stripe_payment_intent_id: isCardAuthorizedOnly ? (payload.payment.reference || null) : null,
+    authorized_amount: isCardAuthorizedOnly ? grandTotal : null,
+    authorization_status: isCardAuthorizedOnly ? "authorized" : (isPaid ? "captured" : "none"),
+    authorized_at: isCardAuthorizedOnly ? now : null,
   });
   if (payErr) throw new Error(`Payment creation failed: ${payErr.message}`);
   console.log("[FallbackCheckout] ✓ Payment created:", paymentNumber);
