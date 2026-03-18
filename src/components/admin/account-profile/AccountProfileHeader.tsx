@@ -20,7 +20,7 @@ import {
 import {
   Building2, MapPin, Calendar, Shield, CreditCard, Star,
   StickyNote, Ban, PlusCircle, Package, Headphones, Mail,
-  ArrowLeft, RefreshCw, AlertTriangle,
+  ArrowLeft, RefreshCw, AlertTriangle, UserPen,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
