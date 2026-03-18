@@ -4,6 +4,11 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  assertCanonicalAccountInvariant,
+  buildCanonicalAccountMaps,
+  resolveCanonicalAccountNumber,
+} from "@/lib/canonicalAccountResolver";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface AdminSubscription {
@@ -25,7 +30,7 @@ export interface AdminSubscription {
   account_number: string | null;
 }
 
-export function useAdminSubscriptions(environment: EnvironmentFilter = 'all') {
+export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
   return useQuery<AdminSubscription[]>({
     queryKey: ["admin-subscriptions", environment],
     queryFn: async () => {
@@ -34,28 +39,37 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = 'all') {
         .select("id, plan_name, plan_code, plan_price, status, service_category, cycle_start_date, cycle_end_date, auto_billing_enabled, order_id, customer_id, created_at, environment")
         .order("created_at", { ascending: false })
         .limit(500);
-      if (environment !== 'all') query = query.eq("environment", environment);
+      if (environment !== "all") query = query.eq("environment", environment);
       const { data: subs, error } = await query;
       if (error) throw error;
       if (!subs?.length) return [];
 
-      const customerIds = [...new Set(subs.map(s => s.customer_id))];
+      const customerIds = [...new Set(subs.map((s) => s.customer_id))];
       const { data: customers } = await supabase
         .from("billing_customers")
         .select("id, first_name, last_name, email, user_id")
         .in("id", customerIds);
 
-      const customerMap = new Map((customers || []).map(c => [c.id, c]));
+      const customerMap = new Map((customers || []).map((c) => [c.id, c]));
+      const maps = await buildCanonicalAccountMaps(supabase, {
+        customerIds,
+        userIds: (customers || []).map((c) => c.user_id),
+      });
 
-      const userIds = [...new Set((customers || []).map(c => c.user_id).filter(Boolean))] as string[];
-      const { data: profiles } = userIds.length > 0
-        ? await supabase.from("profiles").select("user_id, account_number").in("user_id", userIds)
-        : { data: [] };
-      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
-
-      return subs.map(s => {
+      return subs.map((s) => {
         const cust = customerMap.get(s.customer_id);
-        const prof = cust?.user_id ? profileMap.get(cust.user_id) : null;
+        const accountNumber = resolveCanonicalAccountNumber(maps, {
+          customerId: s.customer_id,
+          userId: cust?.user_id,
+        });
+
+        assertCanonicalAccountInvariant(
+          "subscription",
+          s.id,
+          { customerId: s.customer_id, userId: cust?.user_id },
+          accountNumber,
+        );
+
         return {
           id: s.id,
           plan_name: s.plan_name,
@@ -72,7 +86,7 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = 'all') {
           environment: (s as any).environment,
           client_name: cust ? `${cust.first_name} ${cust.last_name}` : null,
           client_email: cust?.email ?? null,
-          account_number: prof?.account_number ?? null,
+          account_number: accountNumber,
         };
       });
     },
