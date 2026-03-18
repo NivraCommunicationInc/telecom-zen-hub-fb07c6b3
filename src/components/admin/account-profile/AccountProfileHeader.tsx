@@ -267,6 +267,10 @@ export function AccountProfileHeader({
 
         {/* Quick Actions — ALL OPERATIONAL */}
         <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setEditOpen(true)}>
+            <UserPen className="h-3.5 w-3.5" />
+            Modifier le profil
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setNoteOpen(true)}>
             <StickyNote className="h-3.5 w-3.5" />
             Note
