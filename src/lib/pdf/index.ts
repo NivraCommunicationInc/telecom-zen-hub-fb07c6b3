@@ -34,7 +34,7 @@ export { type OrderSummaryV3Data } from "./orderSummaryTemplate";
 // ============================================================================
 // DOCUMENT BUILDER — Order→PDF Pipeline (generates all 4+1 documents)
 // ============================================================================
-export { generateOrderDocuments, downloadPDF, buildInvoiceData, buildContractData, buildOrderSummaryData, buildContractSummaryData, fetchOrderDocumentData } from "./documentBuilder";
+export { generateOrderDocuments, downloadPDF, buildInvoiceData, buildContractData, buildOrderSummaryData, buildContractSummaryData, buildReceiptData, fetchOrderDocumentData } from "./documentBuilder";
 export type { OrderDocuments } from "./documentBuilder";
 
 // ============================================================================
