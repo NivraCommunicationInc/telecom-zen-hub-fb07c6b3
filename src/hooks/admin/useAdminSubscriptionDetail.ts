@@ -4,6 +4,11 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  assertCanonicalAccountInvariant,
+  buildCanonicalAccountMaps,
+  resolveCanonicalAccountNumber,
+} from "@/lib/canonicalAccountResolver";
 
 export function useAdminSubscriptionDetail(subscriptionId: string | undefined) {
   const subscription = useQuery({
