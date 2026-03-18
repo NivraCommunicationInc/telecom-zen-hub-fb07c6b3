@@ -27,6 +27,7 @@ export { generateInvoiceV3PDF, generateInvoiceMonthlyV3PDF, generateInvoiceOneTi
 export { generateContractV3PDF, type ContractDataV3 } from "./contractTemplateV3";
 export { generateContractSummaryPDF, type ContractSummaryData } from "./contractSummaryTemplate";
 export { generateServiceTermsPDF, CURRENT_TERMS_VERSION } from "./serviceTermsTemplate";
+export { generateReceiptPDF, type ReceiptData } from "./receiptTemplate";
 export { generateCanonicalInvoicePDF, generateCanonicalContractPDF, fetchCanonicalDocumentData, buildCanonicalInvoiceData, buildCanonicalContractData } from "./canonicalDocumentService";
 export { type OrderSummaryV3Data } from "./orderSummaryTemplate";
 
