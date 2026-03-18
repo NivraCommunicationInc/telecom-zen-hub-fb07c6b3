@@ -1,17 +1,15 @@
 /**
- * Nivra Contract Template - PRODUCTION STANDARD
- * Matches the approved server-side pdfGenerator.ts style exactly.
+ * Nivra Contract Template — LEGACY ADAPTER (delegates to V3.0)
  * 
- * 4-page clean layout:
- * - Page 1: Cover (client info, services, equipment, totals)
- * - Page 2: Terms & Conditions (6 sections)
- * - Page 3: Annexes (A, B, C)
- * - Page 4: Signatures
+ * This file preserves the ContractData interface for backward compatibility.
+ * All generation now delegates to contractTemplateV3.ts (approved 2026-03-18).
  * 
- * Visual: Navy header bar (#0F172A) + Blue accent (#0066CC)
+ * DO NOT add new callers to this file. Use contractTemplateV3 directly.
  */
 
-import jsPDF from "jspdf";
+import type { PDFGenerationResult } from "./types";
+import { generateContractV3PDF, type ContractDataV3 } from "./contractTemplateV3";
+import { CURRENT_TERMS_VERSION } from "./serviceTermsTemplate";
 import type { PDFGenerationResult } from "./types";
 
 // ============================================================================
