@@ -86,12 +86,19 @@ const CoreAccountDetail = () => {
   const acct = data.account;
   const prof = data.profile;
   const clientName = prof ? `${prof.first_name || ""} ${prof.last_name || ""}`.trim() || "Client" : "Client";
-  const totalDue = data.invoices.reduce((sum, inv: any) => sum + (inv.balance_due ?? 0), 0);
-  const unpaidInvoices = data.invoices.filter((inv: any) => (inv.balance_due ?? 0) > 0);
+  // CANONICAL INVARIANT: paid/void/cancelled invoices NEVER contribute to balance
+  const CLOSED_STATUSES = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
+  const unpaidInvoices = data.invoices.filter((inv: any) =>
+    !CLOSED_STATUSES.includes(inv.status) && (inv.balance_due ?? 0) > 0
+  );
+  const totalDue = unpaidInvoices.reduce((sum, inv: any) => sum + (inv.balance_due ?? 0), 0);
   const activeSubs = data.subscriptions.filter((s: any) => s.status === "active");
   const suspendedSubs = data.subscriptions.filter((s: any) => s.status === "suspended");
   const latestKyc = data.kycSessions[0];
-  const totalPaid = data.payments.reduce((s, p: any) => s + (p.amount ?? 0), 0);
+  // CANONICAL: Only count confirmed payments in total
+  const totalPaid = data.payments
+    .filter((p: any) => p.status === "confirmed" || p.status === "completed")
+    .reduce((s, p: any) => s + (p.amount ?? 0), 0);
   const monthlyRevenue = activeSubs.reduce((s, sub: any) => s + (sub.plan_price ?? 0), 0);
   const openTickets = data.tickets.filter((t: any) => ["open", "in_progress", "waiting_client"].includes(t.status));
   const now = new Date();
