@@ -686,6 +686,7 @@ const ClientNewOrder = () => {
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
   const [autoFinalizeAfterCardPayment, setAutoFinalizeAfterCardPayment] = useState(false);
+  const autoFinalizeTriggeredRef = useRef(false);
 
   // Stripe inline state for checkout
   const [stripeDraft, setStripeDraft] = useState<CheckoutDraftInvoiceResult | null>(null);
@@ -2312,7 +2313,11 @@ const ClientNewOrder = () => {
         } : null,
         payment: {
           method: paymentMethodValue as any,
-          status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
+          status: (paymentMethodValue === "paypal" && paypalCaptureId)
+            ? "captured"
+            : (paymentMethodValue === "credit_card" && paymentConfirmationNumber?.startsWith("pi_"))
+              ? "captured"
+              : "pre_authorized",
           reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : paymentConfirmationNumber || null,
           paypal_capture_id: paypalCaptureId || null,
           preauth_opt_in: acceptPreauthorized,
@@ -3583,6 +3588,33 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
 
     createOrderMutation.mutate();
   };
+
+  // ═══ AUTO-FINALIZE AFTER CARD PAYMENT ═══
+  // When Stripe card payment succeeds, automatically trigger order creation
+  // so the user doesn't need to click "Confirmer" after paying.
+  // This prevents orphaned Stripe payments without canonical orders.
+  useEffect(() => {
+    if (!autoFinalizeAfterCardPayment) return;
+    if (autoFinalizeTriggeredRef.current) return;
+    if (!paymentComplete || !paymentConfirmationNumber) return;
+    // Don't auto-finalize if already submitting
+    if (submittingRef.current || createOrderMutation.isPending) return;
+
+    // Auto-accept terms for card payment flow (user already committed by paying)
+    if (!termsAccepted) {
+      setTermsAccepted(true);
+    }
+
+    // Small delay to let state settle after payment confirmation
+    const timer = setTimeout(() => {
+      if (autoFinalizeTriggeredRef.current) return;
+      autoFinalizeTriggeredRef.current = true;
+      console.log("[AutoFinalize] Card payment confirmed, auto-triggering order creation with PI:", paymentConfirmationNumber);
+      handleSubmit();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [autoFinalizeAfterCardPayment, paymentComplete, paymentConfirmationNumber, termsAccepted]);
 
 
   // Dynamic checkout steps based on service selection
@@ -6369,7 +6401,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           onSuccess={({ paymentIntentId }) => {
                             setPaymentComplete(true);
                             setPaymentConfirmationNumber(paymentIntentId);
-                            toast.success("Paiement par carte confirmé !");
+                            toast.success("Paiement par carte confirmé ! Finalisation de la commande…");
+                            setAutoFinalizeAfterCardPayment(true);
                             // Traceability
                             logPaymentConfirmed({
                               payment_reference: paymentIntentId,
