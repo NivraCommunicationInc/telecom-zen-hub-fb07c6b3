@@ -5,7 +5,6 @@ import ClientLayout from "@/components/client/ClientLayout";
 import { ProfessionalOrderSummary } from "@/components/checkout/ProfessionalOrderSummary";
 import PayPalButton from "@/components/payment/PayPalButton";
 import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
-import { createCheckoutDraftInvoice, type CheckoutDraftInvoiceResult } from "@/lib/checkout/createCheckoutDraftInvoice";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -685,13 +684,6 @@ const ClientNewOrder = () => {
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentConfirmationNumber, setPaymentConfirmationNumber] = useState("");
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
-  const [autoFinalizeAfterCardPayment, setAutoFinalizeAfterCardPayment] = useState(false);
-  const autoFinalizeTriggeredRef = useRef(false);
-
-  // Stripe inline state for checkout
-  const [stripeDraft, setStripeDraft] = useState<CheckoutDraftInvoiceResult | null>(null);
-  const [stripeDraftLoading, setStripeDraftLoading] = useState(false);
-  const [stripeDraftError, setStripeDraftError] = useState<string | null>(null);
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -3589,34 +3581,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     createOrderMutation.mutate();
   };
 
-  // ═══ AUTO-FINALIZE AFTER CARD PAYMENT ═══
-  // When Stripe card payment succeeds, automatically trigger order creation
-  // so the user doesn't need to click "Confirmer" after paying.
-  // This prevents orphaned Stripe payments without canonical orders.
-  useEffect(() => {
-    if (!autoFinalizeAfterCardPayment) return;
-    if (autoFinalizeTriggeredRef.current) return;
-    if (!paymentComplete || !paymentConfirmationNumber) return;
-    // Don't auto-finalize if already submitting
-    if (submittingRef.current || createOrderMutation.isPending) return;
-
-    // Auto-accept terms for card payment flow (user already committed by paying)
-    if (!termsAccepted) {
-      setTermsAccepted(true);
-    }
-
-    // Small delay to let state settle after payment confirmation
-    const timer = setTimeout(() => {
-      if (autoFinalizeTriggeredRef.current) return;
-      autoFinalizeTriggeredRef.current = true;
-      console.log("[AutoFinalize] Card authorized (manual capture), auto-triggering order creation with PI:", paymentConfirmationNumber);
-      handleSubmit();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [autoFinalizeAfterCardPayment, paymentComplete, paymentConfirmationNumber, termsAccepted]);
-
-
   // Dynamic checkout steps based on service selection
   const checkoutSteps = (() => {
     const steps = [{ id: 1, labelFr: "Services", labelEn: "Services" }];
@@ -6253,36 +6217,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setPaymentComplete(false);
                         setPaymentConfirmationNumber("");
                         setPaypalCaptureId("");
-                        // Create draft invoice for Stripe if not already created
-                        if (!stripeDraft && !stripeDraftLoading && user && authoritativePricing && uiTodayTotal > 0) {
-                          setStripeDraftLoading(true);
-                          setStripeDraftError(null);
-                          createCheckoutDraftInvoice({
-                            userId: user.id,
-                            email: profile?.email || user.email || "",
-                            firstName: firstName || profile?.first_name || "",
-                            lastName: lastName || profile?.last_name || "",
-                            phone: checkoutPhone || profile?.phone || "",
-                            totalAmount: uiTodayTotal,
-                            subtotal: authoritativePricing.subtotal ?? 0,
-                            tpsAmount: (authoritativePricing as any).tps ?? (authoritativePricing as any).gst ?? 0,
-                            tvqAmount: (authoritativePricing as any).tvq ?? (authoritativePricing as any).qst ?? 0,
-                            serviceAddress: serviceAddressStreet || "",
-                            serviceCity: serviceAddressCity || "",
-                            servicePostalCode: serviceAddressPostalCode || "",
-                            serviceType: selectedServices[0]?.category || (selectedStreamingServices.length > 0 ? "streaming" : "bundle"),
-                            description: `Checkout public — Commande Nivra`,
-                          })
-                            .then((result) => {
-                              setStripeDraft(result);
-                              setStripeDraftLoading(false);
-                            })
-                            .catch((err) => {
-                              console.error("[Checkout] Stripe draft invoice error:", err);
-                              setStripeDraftError(err instanceof Error ? err.message : "Erreur de préparation du paiement");
-                              setStripeDraftLoading(false);
-                            });
-                        }
                       }}
                     >
                       <div className="absolute top-2 right-2">
