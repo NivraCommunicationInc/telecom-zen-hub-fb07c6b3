@@ -2313,7 +2313,11 @@ const ClientNewOrder = () => {
         } : null,
         payment: {
           method: paymentMethodValue as any,
-          status: paymentMethodValue === "paypal" && paypalCaptureId ? "captured" : "pre_authorized",
+          status: (paymentMethodValue === "paypal" && paypalCaptureId)
+            ? "captured"
+            : (paymentMethodValue === "credit_card" && paymentConfirmationNumber?.startsWith("pi_"))
+              ? "captured"
+              : "pre_authorized",
           reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : paymentConfirmationNumber || null,
           paypal_capture_id: paypalCaptureId || null,
           preauth_opt_in: acceptPreauthorized,
