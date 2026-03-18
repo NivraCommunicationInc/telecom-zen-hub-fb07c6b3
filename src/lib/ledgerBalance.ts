@@ -77,7 +77,7 @@ export async function calculateLedgerBalance(
           id: `invoice-debit-${inv.id}`,
           type: "debit",
           amount: invoiceAmount,
-          description: `Facture ${inv.invoice_number || inv.id.slice(0, 8)}`,
+          description: `Facture ${inv.invoice_number || "—"}`,
           source: "invoice",
           date: inv.created_at,
           reference: inv.invoice_number,

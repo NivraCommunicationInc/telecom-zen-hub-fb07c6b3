@@ -1099,7 +1099,7 @@ const ClientMyServices = () => {
                   {billingRecords.slice(0, 5).map((invoice: any) => (
                     <div key={invoice.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                       <div>
-                        <p className="text-sm font-medium">{invoice.invoice_number || invoice.id.slice(0, 8)}</p>
+                        <p className="text-sm font-medium">{invoice.invoice_number || "—"}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(invoice.created_at), "d MMM yyyy", { locale: fr })}
                         </p>

@@ -1953,7 +1953,7 @@ const AdminClients = () => {
                                 <div className="flex items-center gap-4">
                                   <FileText className="w-6 h-6 text-cyan-400" />
                                   <div>
-                                    <p className="font-medium text-foreground">{bill.invoice_number || `Facture #${bill.id.slice(0, 8)}`}</p>
+                                    <p className="font-medium text-foreground">{bill.invoice_number || "Facture"}</p>
                                     <p className="text-sm text-muted-foreground">
                                       {format(new Date(bill.created_at), "d MMM yyyy", { locale: fr })}
                                       {bill.due_date && ` • Échéance: ${format(new Date(bill.due_date), "d MMM", { locale: fr })}`}

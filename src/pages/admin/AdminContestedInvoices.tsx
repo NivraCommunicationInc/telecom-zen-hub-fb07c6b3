@@ -313,7 +313,7 @@ export default function AdminContestedInvoices() {
                       <TableRow key={invoice.id}>
                         <TableCell>
                           <div className="font-medium">
-                            {invoice.invoice_number || invoice.id.slice(0, 8)}
+                            {invoice.invoice_number || "—"}
                           </div>
                         </TableCell>
                         <TableCell>

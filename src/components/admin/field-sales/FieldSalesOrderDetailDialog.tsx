@@ -181,7 +181,7 @@ export function FieldSalesOrderDetailDialog({
       const { generateFieldSalesInvoicePDF } = await import("@/lib/fieldSalesInvoiceGenerator");
       
       await generateFieldSalesInvoicePDF({
-        invoiceNumber: `INV-FS-${order.id.slice(0, 8).toUpperCase()}`,
+        invoiceNumber: `INV-FS-${order.order_number || "UNKNOWN"}`,
         orderNumber: order.order_number || `FS-${order.id.slice(0, 8)}`,
         createdAt: order.created_at,
         customer: {

@@ -79,7 +79,7 @@ export function PendingETransferProofs({ limit = 5 }: PendingETransferProofsProp
                   </div>
                   <div>
                     <p className="font-medium text-sm">
-                      {billing?.invoice_number || `Facture #${proof.payment_id.slice(0, 8)}`}
+                      {billing?.invoice_number || "Facture"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Soumis {format(new Date(proof.created_at), "d MMM à HH:mm", { locale: fr })}

@@ -74,7 +74,7 @@ export function ClientInfoStep({ proc }: Props) {
             <div><span className="text-gray-500">Nom complet:</span> <span className="text-gray-900 font-medium">{profile.full_name || "—"}</span></div>
             <div><span className="text-gray-500">Courriel:</span> <span className="text-gray-900">{profile.email || "—"}</span></div>
             <div><span className="text-gray-500">Téléphone:</span> <span className="text-gray-900">{profile.phone || "—"}</span></div>
-            <div><span className="text-gray-500">Numéro compte:</span> <span className="text-gray-900 font-mono">{profile.account_number || proc.account?.account_number || "—"}</span></div>
+            <div><span className="text-gray-500">Numéro compte:</span> <span className="text-gray-900 font-mono">{proc.account?.account_number || "—"}</span></div>
           </div>
         </div>
       )}

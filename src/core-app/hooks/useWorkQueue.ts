@@ -1,9 +1,10 @@
 /**
  * useWorkQueue — Core-local copy for deployment decoupling.
- * Identical logic to @/hooks/admin/useWorkQueue.
+ * account_number resolved via canonical accounts table (NOT profiles).
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { buildCanonicalAccountMaps, resolveCanonicalAccountNumber } from "@/lib/canonicalAccountResolver";
 
 export interface WorkQueueItem {
   id: string;
@@ -50,12 +51,14 @@ async function fetchQueueOrders(statuses: string[], limit: number): Promise<Work
 
   const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
   const orderIds = orders.map(o => o.id);
+  const accountIds = [...new Set(orders.map(o => o.account_id).filter(Boolean))];
 
-  const [profilesRes, invoicesRes] = await Promise.all([
+  const [profilesRes, invoicesRes, maps] = await Promise.all([
     userIds.length > 0
-      ? supabase.from("profiles").select("user_id, full_name, email, account_number").in("user_id", userIds)
+      ? supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds)
       : Promise.resolve({ data: [] }),
     supabase.from("billing_invoices").select("order_id, invoice_number, id").in("order_id", orderIds),
+    buildCanonicalAccountMaps(supabase, { orderIds, userIds, accountIds }),
   ]);
 
   const profileMap = new Map((profilesRes.data || []).map(p => [p.user_id, p]));
@@ -64,12 +67,17 @@ async function fetchQueueOrders(statuses: string[], limit: number): Promise<Work
   return orders.map(o => {
     const profile = profileMap.get(o.user_id);
     const invoice = invoiceMap.get(o.id);
+    const accountNumber = resolveCanonicalAccountNumber(maps, {
+      orderId: o.id,
+      accountId: o.account_id,
+      userId: o.user_id,
+    });
     return {
       id: o.id,
       order_number: o.order_number,
       client_name: profile?.full_name ?? null,
       client_email: profile?.email ?? null,
-      account_number: profile?.account_number ?? null,
+      account_number: accountNumber,
       account_id: o.account_id,
       status: o.status,
       payment_status: o.payment_status,
@@ -104,19 +112,28 @@ export function useWorkQueue() {
       if (!orders?.length) return [];
 
       const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
-      const { data: profiles } = userIds.length > 0
-        ? await supabase.from("profiles").select("user_id, full_name, email, account_number").in("user_id", userIds)
-        : { data: [] };
-      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      const accountIds = [...new Set(orders.map(o => o.account_id).filter(Boolean))];
+
+      const [profilesRes, maps] = await Promise.all([
+        userIds.length > 0
+          ? supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds)
+          : Promise.resolve({ data: [] }),
+        buildCanonicalAccountMaps(supabase, { userIds, accountIds }),
+      ]);
+      const profileMap = new Map((profilesRes.data || []).map(p => [p.user_id, p]));
 
       return orders.map(o => {
         const profile = profileMap.get(o.user_id);
+        const accountNumber = resolveCanonicalAccountNumber(maps, {
+          accountId: o.account_id,
+          userId: o.user_id,
+        });
         return {
           id: o.id,
           order_number: o.order_number,
           client_name: profile?.full_name ?? null,
           client_email: profile?.email ?? null,
-          account_number: profile?.account_number ?? null,
+          account_number: accountNumber,
           account_id: o.account_id,
           status: o.status,
           payment_status: o.payment_status,
