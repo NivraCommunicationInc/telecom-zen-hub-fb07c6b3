@@ -243,8 +243,8 @@ Deno.serve(async (req) => {
         const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
         const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
-        // Generate order number
-        const orderNumber = generateOrderNumber();
+        // Generate order number from DB sequence — Core is sole source of truth
+        const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
 
         const serviceTypeLabel = normalizeServiceTypeLabel(services);
         const { firstName, lastName } = splitName(sale.customer_name);

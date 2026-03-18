@@ -129,12 +129,11 @@ export function generateAccountNumber(): string {
 }
 
 /**
- * Génère un numéro de commande sécurisé (5 chiffres, commence par 2-9)
- * 
- * @example
- * generateOrderNumber() // "23456"
+ * @deprecated DO NOT USE — Order numbers must come from DB sequences (generate_order_number RPC) or Nivra Core.
+ * Local generation is prohibited. This function is kept only for backward compatibility.
  */
 export function generateOrderNumber(): string {
+  console.error("[SecureIdGenerator] ❌ VIOLATION: generateOrderNumber() called locally — order numbers must come from Nivra Core DB sequences");
   return generateSecureNumericId(ID_LENGTHS.order);
 }
 
