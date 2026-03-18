@@ -188,7 +188,7 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setFontSize(7.5);
     doc.setTextColor(...C.textMuted);
     if (data.client_address) {
-      const addrLines = doc.splitTextToSize(data.client_address, halfW - 16);
+      const addrLines = doc.splitTextToSize(fmtAddress(data.client_address), halfW - 16);
       doc.text(addrLines, m + 8, ly);
       ly += addrLines.length * 4;
     }
