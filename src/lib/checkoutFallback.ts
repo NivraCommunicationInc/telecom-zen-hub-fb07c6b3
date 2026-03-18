@@ -356,21 +356,28 @@ export async function fallbackCheckout(
   const billingCycleDay = new Date().getDate();
 
   // ── 5. Determine canonical billing fields ──
-  const isPaid = payload.payment.method === "paypal" && !!payload.payment.paypal_capture_id;
-  const isFree = payload.payment.method === "promo_free";
-  const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
   const rawMethod = String(payload.payment.method || "").toLowerCase();
-  const billingMethod: "paypal" | "interac" | "manual" =
+  const cardCaptured =
+    (rawMethod === "credit_card" || rawMethod === "card") &&
+    (payload.payment.status === "captured" || String(payload.payment.reference || "").startsWith("pi_"));
+  const isPaid = (rawMethod === "paypal" && !!payload.payment.paypal_capture_id) || cardCaptured;
+  const isFree = rawMethod === "promo_free";
+  const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
+  const billingMethod: "paypal" | "interac" | "card" | "manual" =
     rawMethod === "paypal"
       ? "paypal"
-      : (["etransfer", "e_transfer", "interac"].includes(rawMethod) ? "interac" : "manual");
-  const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+      : (["etransfer", "e_transfer", "interac"].includes(rawMethod)
+          ? "interac"
+          : (rawMethod === "credit_card" || rawMethod === "card" ? "card" : "manual"));
+  const paymentProvider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : billingMethod === "card" ? "stripe" : "manual";
   const paymentReference = paymentProvider === "paypal"
     ? null
     : (payload.payment.reference || paymentNumber || null);
   const paymentProviderPaymentId = paymentProvider === "paypal"
     ? (payload.payment.paypal_capture_id || null)
-    : null;
+    : paymentProvider === "stripe"
+      ? (payload.payment.reference || null)
+      : null;
 
   // ── 6. Create order ──
   const { error: orderErr } = await supabase.from("orders").insert({
@@ -379,7 +386,7 @@ export async function fallbackCheckout(
     client_request_id: payload.client_request_id,
     user_id: userId,
     account_id: accountId,
-    status: "submitted",
+    status: (isPaid || isFree) ? "confirmed" : "submitted",
     payment_status: paymentStatus,
     service_type: payload.services.map(s => s.name).join(", "),
     order_type: "new",

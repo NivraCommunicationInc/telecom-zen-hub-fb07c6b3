@@ -47,6 +47,7 @@ export function useAdminInvoices(environment: EnvironmentFilter = 'all') {
           customer:billing_customers(id, first_name, last_name, email),
           order:orders(order_number)
         `)
+        .not("order_id", "is", null)
         .order("created_at", { ascending: false })
         .limit(500);
       if (environment !== 'all') query = query.eq("environment", environment);

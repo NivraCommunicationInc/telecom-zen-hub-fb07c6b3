@@ -14,17 +14,28 @@ export interface BackfillResult {
   errors: string[];
 }
 
-type BillingMethod = "paypal" | "interac" | "manual";
+type BillingMethod = "paypal" | "interac" | "card" | "manual";
 
 const toBillingMethod = (method?: string): BillingMethod => {
   if (method === "paypal") return "paypal";
   if (method === "etransfer" || method === "e_transfer" || method === "interac") return "interac";
+  if (method === "credit_card" || method === "card") return "card";
   return "manual";
 };
 
-const isPaidCheckout = (payload: NivraFullCheckoutPayload) =>
-  (payload.payment.method === "paypal" && !!payload.payment.paypal_capture_id) ||
-  payload.payment.method === "promo_free";
+const isPaidCheckout = (payload: NivraFullCheckoutPayload) => {
+  const method = String(payload.payment.method || "").toLowerCase();
+  const reference = String(payload.payment.reference || "");
+  const cardCaptured =
+    (method === "credit_card" || method === "card") &&
+    (payload.payment.status === "captured" || reference.startsWith("pi_"));
+
+  return (
+    (method === "paypal" && !!payload.payment.paypal_capture_id) ||
+    method === "promo_free" ||
+    cardCaptured
+  );
+};
 
 async function resolveServiceAddressId(
   supabase: SupabaseClient,
@@ -183,7 +194,7 @@ export async function backfillCheckoutToSupabase(
         client_request_id: payload.client_request_id,
         user_id: userId,
         account_id: resolvedAccountId,
-        status: "submitted",
+        status: paid ? "confirmed" : "submitted",
         payment_status: paid ? "paid" : (payload.payment.method === "etransfer" ? "pending" : "pre_authorized"),
         service_type: payload.services.map((s) => s.name).join(", "),
         order_type: "new",
@@ -398,9 +409,21 @@ export async function backfillCheckoutToSupabase(
   // 5) payment
   try {
     const total = pricing?.grand_total ?? Number(payload.pricing_snapshot?.grand_total ?? 0);
-    const provider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+    const provider =
+      billingMethod === "paypal"
+        ? "paypal"
+        : billingMethod === "interac"
+          ? "interac"
+          : billingMethod === "card"
+            ? "stripe"
+            : "manual";
     const reference = provider === "paypal" ? null : (payload.payment.reference || response.payment_number || null);
-    const providerPaymentId = provider === "paypal" ? (payload.payment.paypal_capture_id || null) : null;
+    const providerPaymentId =
+      provider === "paypal"
+        ? (payload.payment.paypal_capture_id || null)
+        : provider === "stripe"
+          ? (payload.payment.reference || null)
+          : null;
 
     const { error } = await supabase.from("billing_payments").upsert(
       {

@@ -101,16 +101,27 @@ type CheckoutResponse = {
   created_at?: string;
 };
 
-const toBillingMethod = (method?: string): "paypal" | "interac" | "manual" => {
+const toBillingMethod = (method?: string): "paypal" | "interac" | "card" | "manual" => {
   const m = String(method || "").toLowerCase();
   if (m === "paypal") return "paypal";
   if (m === "etransfer" || m === "e_transfer" || m === "interac") return "interac";
+  if (m === "credit_card" || m === "card") return "card";
   return "manual";
 };
 
-const isPaidCheckout = (payload: CheckoutPayload) =>
-  (payload.payment?.method === "paypal" && !!payload.payment?.paypal_capture_id) ||
-  payload.payment?.method === "promo_free";
+const isPaidCheckout = (payload: CheckoutPayload) => {
+  const method = String(payload.payment?.method || "").toLowerCase();
+  const reference = String(payload.payment?.reference || "");
+  const cardCaptured =
+    (method === "credit_card" || method === "card") &&
+    (payload.payment?.status === "captured" || reference.startsWith("pi_"));
+
+  return (
+    (method === "paypal" && !!payload.payment?.paypal_capture_id) ||
+    method === "promo_free" ||
+    cardCaptured
+  );
+};
 
 const toDateOnly = (value?: string) => (value || new Date().toISOString()).split("T")[0];
 const toMoney = (value: unknown) => {
@@ -527,7 +538,7 @@ serve(async (req) => {
             order_number: response.order_number,
             user_id: payload.customer.user_id,
             account_id: accountId,
-            status: "submitted",
+            status: paid ? "confirmed" : "submitted",
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
             service_type: (payload.services || []).map((s) => s.name).join(", "),
             order_type: "new",
@@ -639,8 +650,21 @@ serve(async (req) => {
     if (customerId) {
       try {
         const total = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total);
-        const provider = billingMethod === "paypal" ? "paypal" : billingMethod === "interac" ? "interac" : "manual";
+        const provider =
+          billingMethod === "paypal"
+            ? "paypal"
+            : billingMethod === "interac"
+              ? "interac"
+              : billingMethod === "card"
+                ? "stripe"
+                : "manual";
         const reference = provider === "paypal" ? null : (payload.payment?.reference || response.payment_number || null);
+        const providerPaymentId =
+          provider === "paypal"
+            ? (payload.payment?.paypal_capture_id || null)
+            : provider === "stripe"
+              ? (payload.payment?.reference || null)
+              : null;
 
         const { error: paymentError } = await admin.from("billing_payments").upsert(
           {
@@ -653,7 +677,7 @@ serve(async (req) => {
             status: paid ? "confirmed" : "pending",
             reference,
             provider,
-            provider_payment_id: payload.payment?.paypal_capture_id || null,
+            provider_payment_id: providerPaymentId,
             received_at: paid ? nowIso : null,
             source: "live",
             environment: "live",
