@@ -555,9 +555,11 @@ serve(async (req) => {
     }
 
     // 3) Order
+    // CANONICAL INVARIANT: order.total_amount MUST equal invoice.total
+    // Use pricing_snapshot.grand_total as the single source of truth (server-computed)
+    const canonicalGrandTotal = toMoney(payload.pricing_snapshot?.grand_total ?? response.pricing?.grand_total);
     if (accountId) {
       try {
-        const grandTotal = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total);
         const { error: orderError } = await admin.from("orders").upsert(
           {
             id: response.order_id,
@@ -570,7 +572,7 @@ serve(async (req) => {
             fulfillment_type: isStreamingOnly ? "digital" : null,
             delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : null,
             order_type: "new",
-            total_amount: grandTotal,
+            total_amount: canonicalGrandTotal,
             environment: "live",
             created_at: nowIso,
             pricing_snapshot: payload.pricing_snapshot || null,
@@ -616,7 +618,7 @@ serve(async (req) => {
         );
         const tpsAmount = toMoney(response.pricing?.tps_amount ?? payload.pricing_snapshot?.tps_amount);
         const tvqAmount = toMoney(response.pricing?.tvq_amount ?? payload.pricing_snapshot?.tvq_amount);
-        const total = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total ?? subtotal + tpsAmount + tvqAmount);
+        const total = toMoney(canonicalGrandTotal || (subtotal + tpsAmount + tvqAmount));
 
         const { error: invoiceError } = await admin.from("billing_invoices").upsert(
           {
@@ -718,6 +720,13 @@ serve(async (req) => {
                 amount_paid: paid ? correctedTotal : 0,
                 balance_due: paid ? 0 : correctedTotal,
               }).eq("id", response.invoice_id);
+              // BLOCKER 1 FIX: Also update order.total_amount to match corrected invoice total
+              if (accountId) {
+                await admin.from("orders").update({
+                  total_amount: correctedTotal,
+                }).eq("id", response.order_id);
+                console.log(`[checkout-canonical-sync] ✅ Order total_amount corrected to ${correctedTotal}`);
+              }
               console.log(`[checkout-canonical-sync] ✅ Invoice corrected: subtotal=${netLineSum}, tps=${correctedTps}, tvq=${correctedTvq}, total=${correctedTotal}`);
             }
           }
@@ -812,6 +821,32 @@ serve(async (req) => {
         );
 
         if (subError) throw subError;
+
+        // BLOCKER 2 FIX: Link subscription to invoice (required for trigger-based activation)
+        // AND force-activate subscription if invoice is already paid
+        await admin.from("billing_invoices").update({
+          subscription_id: subscriptionId,
+        }).eq("id", response.invoice_id);
+
+        // If paid, the protect_subscription_activation trigger may have downgraded to 'pending'
+        // because the invoice didn't have subscription_id at insert time.
+        // Force-activate now that the link exists.
+        if (paid) {
+          const { data: subCheck } = await admin
+            .from("billing_subscriptions")
+            .select("status")
+            .eq("id", subscriptionId)
+            .single();
+
+          if (subCheck && subCheck.status !== "active") {
+            console.warn(`[checkout-canonical-sync] ⚠️ Subscription ${subscriptionId} stuck as '${subCheck.status}' despite paid invoice — force-activating`);
+            await admin.from("billing_subscriptions").update({
+              status: "active",
+              last_invoice_id: response.invoice_id,
+            }).eq("id", subscriptionId);
+          }
+        }
+
         results.subscription = true;
       } catch (err: any) {
         errors.push(`subscription: ${err?.message || String(err)}`);

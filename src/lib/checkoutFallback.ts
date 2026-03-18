@@ -348,7 +348,7 @@ export async function fallbackCheckout(
   const taxableBase = Number(pricing.taxable_base) || subtotal;
   const tpsAmount = Number(pricing.tps_amount);
   const tvqAmount = Number(pricing.tvq_amount);
-  const grandTotal = Number(pricing.grand_total);
+  let grandTotal = Number(pricing.grand_total);
   if (!tpsAmount || !tvqAmount || !grandTotal) {
     console.error("[FallbackCheckout] ❌ CRITICAL: pricing_snapshot missing tax/total values — refusing silent local fallback", { tps_amount: pricing.tps_amount, tvq_amount: pricing.tvq_amount, grand_total: pricing.grand_total });
     throw new Error("Checkout blocked: pricing_snapshot is incomplete (missing tps_amount, tvq_amount, or grand_total). Server pricing RPC must provide these values.");
@@ -606,7 +606,13 @@ export async function fallbackCheckout(
           amount_paid: (isPaid || isFree) ? correctedTotal : 0,
           balance_due: (isPaid || isFree) ? 0 : correctedTotal,
         }).eq("id", invoiceId);
-        console.log(`[FallbackCheckout] ✅ Invoice corrected: subtotal=${netLineSum}, total=${correctedTotal}`);
+        // BLOCKER 1 FIX: Also update order.total_amount to match corrected invoice total
+        await supabase.from("orders").update({
+          total_amount: correctedTotal,
+        }).eq("id", orderId);
+        // Update grandTotal for downstream payment record
+        grandTotal = correctedTotal;
+        console.log(`[FallbackCheckout] ✅ Invoice + Order corrected: subtotal=${netLineSum}, total=${correctedTotal}`);
       }
     }
   }
@@ -664,6 +670,30 @@ export async function fallbackCheckout(
       } else {
         createdSubscriptionId = subscriptionId;
         console.log("[FallbackCheckout] ✓ Subscription created for:", mainService.name);
+      }
+    }
+
+    // BLOCKER 2 FIX: Link subscription to invoice for trigger-based activation
+    if (createdSubscriptionId) {
+      await supabase.from("billing_invoices").update({
+        subscription_id: createdSubscriptionId,
+      }).eq("id", invoiceId);
+
+      // If paid, force-activate the subscription (trigger may have blocked it)
+      if (isPaid || isFree) {
+        const { data: subCheck } = await supabase
+          .from("billing_subscriptions")
+          .select("status")
+          .eq("id", createdSubscriptionId)
+          .single();
+
+        if (subCheck && subCheck.status !== "active") {
+          console.warn(`[FallbackCheckout] ⚠️ Subscription stuck as '${subCheck.status}' — force-activating`);
+          await supabase.from("billing_subscriptions").update({
+            status: "active",
+            last_invoice_id: invoiceId,
+          }).eq("id", createdSubscriptionId);
+        }
       }
     }
   }
