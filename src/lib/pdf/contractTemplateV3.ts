@@ -307,47 +307,27 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       y += 3;
     }
 
-    // ── CONTRACT FINANCIAL SUMMARY (commercially clear for prepaid) ──
+    // ── CONTRACT REFERENCE NOTE (no financial duplication — invoice is the billing document) ──
     y += 5;
-    const totX = pw / 2;
-    const netMonthly = Math.max(0, data.subtotal_monthly - data.discount_amount);
-
-    // Calculate box height dynamically
-    let boxLines = 3; // monthly, discount/net, one-time fees
-    if (data.discount_amount > 0) boxLines += 1;
-    const boxH = 7 + boxLines * 6 + 14; // header padding + lines + note area
     doc.setFillColor(...C.lightBg);
-    doc.roundedRect(totX, y, pw / 2 - m, boxH, 2, 2, "F");
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(m, y, cw, 18, 2, 2, "FD");
+    doc.setLineWidth(0.2);
 
-    let ty = y + 7;
-    const drawTot = (label: string, value: string, bold = false) => {
-      doc.setFont("helvetica", bold ? "bold" : "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.text);
-      doc.text(label, totX + 5, ty);
-      doc.text(value, pw - m - 5, ty, { align: "right" });
-      ty += 6;
-    };
-
-    drawTot("Services mensuels récurrents:", fmt(data.subtotal_monthly));
-    if (data.discount_amount > 0) {
-      drawTot("Rabais 1ère période:", `- ${fmt(data.discount_amount)}`);
-      drawTot("Net mensuel (1ère période prépayée):", fmt(netMonthly), true);
-    }
-    if (data.subtotal_one_time > 0) {
-      drawTot("Frais uniques applicables:", fmt(data.subtotal_one_time));
-    }
-
-    // Note instead of misleading total
-    ty += 2;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...C.navy);
+    doc.text("RÉFÉRENCE FINANCIÈRE", m + 5, y + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...C.text);
+    doc.text(`Services mensuels récurrents : ${fmt(data.subtotal_monthly)}/mois`, m + 5, y + 12);
     doc.setFont("helvetica", "italic");
     doc.setFontSize(6.5);
     doc.setTextColor(...C.textMuted);
-    const noteLines = doc.splitTextToSize(
-      "Le montant total facturé incluant taxes est détaillé sur la facture officielle jointe à ce contrat.",
-      pw / 2 - m - 10
-    );
-    doc.text(noteLines, totX + 5, ty);
+    doc.text("Le détail complet des montants, taxes et frais est présenté sur la facture officielle jointe.", m + 5, y + 17);
+    y += 22;
 
     drawFooter(doc, 1, totalPages);
 
