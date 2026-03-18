@@ -434,7 +434,7 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.setTextColor(120, 83, 9);
     doc.text("1. Confirmation de paiement", m + 6, y + 14);
     doc.text("2. Activation du service", m + 6, y + 19);
-    doc.text("3. Reception de la facture officielle et du contrat", m + 6, y + 24);
+    doc.text("3. Vous recevrez votre facture officielle et votre contrat", m + 6, y + 24);
     doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 30);
 
     // ========================================================================
