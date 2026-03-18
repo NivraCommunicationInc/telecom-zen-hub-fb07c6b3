@@ -89,8 +89,14 @@ const fmt = (amount: number): string =>
 
 const fmtDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return "—";
-  try { return new Date(dateStr).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" }); }
-  catch { return dateStr || "—"; }
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "—";
+    const year = date.getFullYear();
+    const month = date.toLocaleString("fr-CA", { month: "long" });
+    const day = date.getDate();
+    return `${day} ${month} ${year}`;
+  } catch { return dateStr || "—"; }
 };
 
 const fmtStatus = (status: string): { label: string; color: [number, number, number] } => {
