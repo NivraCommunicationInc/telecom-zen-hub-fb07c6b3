@@ -234,8 +234,8 @@ function PaymentForm({
     return (
       <div className="flex flex-col items-center gap-3 py-6">
         <CheckCircle2 className="w-10 h-10 text-primary" />
-        <p className="text-sm font-semibold text-foreground">Paiement réussi !</p>
-        <p className="text-xs text-muted-foreground">Votre facture a été mise à jour.</p>
+        <p className="text-sm font-semibold text-foreground">Carte autorisée avec succès !</p>
+        <p className="text-xs text-muted-foreground">Votre commande est en attente de validation par notre équipe.</p>
       </div>
     );
   }
