@@ -571,7 +571,7 @@ serve(async (req) => {
             order_number: response.order_number,
             user_id: payload.customer.user_id,
             account_id: accountId,
-            status: paid ? "confirmed" : "submitted",
+            status: "submitted", // INVARIANT: checkout NEVER auto-confirms/completes orders — operational processing only
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
             service_type: derivedServiceType,
             fulfillment_type: isStreamingOnly ? "digital" : null,
@@ -815,7 +815,7 @@ serve(async (req) => {
             plan_code: firstService?.plan_code || "UNKNOWN",
             plan_name: (payload.services || []).map((s) => s.name).join(", "),
             plan_price: planPrice,
-            status: paid ? "active" : "pending",
+            status: "pending", // INVARIANT: checkout NEVER auto-activates subscriptions — operational processing only
             cycle_start_date: cycleDate,
             cycle_end_date: cycleDate,
             service_category: firstService?.category?.toLowerCase() || null,
@@ -833,24 +833,10 @@ serve(async (req) => {
           subscription_id: subscriptionId,
         }).eq("id", response.invoice_id);
 
-        // If paid, the protect_subscription_activation trigger may have downgraded to 'pending'
-        // because the invoice didn't have subscription_id at insert time.
-        // Force-activate now that the link exists.
-        if (paid) {
-          const { data: subCheck } = await admin
-            .from("billing_subscriptions")
-            .select("status")
-            .eq("id", subscriptionId)
-            .single();
-
-          if (subCheck && subCheck.status !== "active") {
-            console.warn(`[checkout-canonical-sync] ⚠️ Subscription ${subscriptionId} stuck as '${subCheck.status}' despite paid invoice — force-activating`);
-            await admin.from("billing_subscriptions").update({
-              status: "active",
-              last_invoice_id: response.invoice_id,
-            }).eq("id", subscriptionId);
-          }
-        }
+        // INVARIANT: Subscription activation is NEVER done at checkout.
+        // Subscriptions remain "pending" until operational processing (admin/staff/automation) activates them.
+        // This ensures order lifecycle is operationally controlled, not payment-driven.
+        console.log(`[checkout-canonical-sync] Subscription ${subscriptionId} created as 'pending' — awaiting operational activation`);
 
         results.subscription = true;
       } catch (err: any) {

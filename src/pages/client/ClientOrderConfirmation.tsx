@@ -388,10 +388,10 @@ END:VCALENDAR`;
               <div className="flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="font-display text-2xl font-bold text-foreground">
-                    Commande confirmée
+                    Commande soumise avec succès
                   </h1>
                   <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30">
-                    {order.status === "pending" ? "Reçue" : "En traitement"}
+                    {order.status === "submitted" || order.status === "pending" ? "Reçue — en attente de traitement" : "En traitement"}
                   </Badge>
                 </div>
                 
@@ -436,7 +436,7 @@ END:VCALENDAR`;
                 </div>
                 
                 <p className="text-sm text-muted-foreground pt-2">
-                  Merci. Votre commande a été reçue. Vous recevrez une confirmation par courriel/SMS.
+                  Merci. Votre commande a été soumise et votre paiement enregistré. Notre équipe la traitera sous peu. Vous recevrez une mise à jour par courriel.
                 </p>
               </div>
             </div>
