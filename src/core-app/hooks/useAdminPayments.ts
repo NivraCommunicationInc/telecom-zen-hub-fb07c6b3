@@ -4,6 +4,11 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  assertCanonicalAccountInvariant,
+  buildCanonicalAccountMaps,
+  resolveCanonicalAccountNumber,
+} from "@/lib/canonicalAccountResolver";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface AdminPayment {
@@ -28,7 +33,6 @@ export interface AdminPayment {
   customer_email: string | null;
   account_number: string | null;
   environment?: string;
-  // ★ Stripe authorization fields
   stripe_payment_intent_id?: string | null;
   authorized_amount?: number | null;
   authorization_status?: string | null;
@@ -37,7 +41,7 @@ export interface AdminPayment {
   captured_by?: string | null;
 }
 
-export function useAdminPayments(environment: EnvironmentFilter = 'all') {
+export function useAdminPayments(environment: EnvironmentFilter = "all") {
   return useQuery<AdminPayment[]>({
     queryKey: ["admin-payments-v2", environment],
     queryFn: async () => {
@@ -49,45 +53,71 @@ export function useAdminPayments(environment: EnvironmentFilter = 'all') {
           legacy_note, created_by_name, invoice_id, customer_id, environment,
           stripe_payment_intent_id, authorized_amount, authorization_status,
           authorized_at, captured_at, captured_by,
-          invoice:billing_invoices(invoice_number, billing_snapshot_account_number),
+          invoice:billing_invoices(invoice_number, order_id, customer_id),
           customer:billing_customers(id, first_name, last_name, email)
         `)
         .order("created_at", { ascending: false })
         .limit(500);
-      if (environment !== 'all') query = query.eq("environment", environment);
+      if (environment !== "all") query = query.eq("environment", environment);
       const { data, error } = await query;
       if (error) throw error;
       if (!data) return [];
 
-      return data.map((p: any): AdminPayment => ({
-        id: p.id,
-        payment_number: p.payment_number,
-        amount: p.amount,
-        method: p.method,
-        status: p.status,
-        reference: p.reference,
-        provider: p.provider,
-        provider_payment_id: p.provider_payment_id,
-        source: p.source,
-        received_at: p.received_at,
-        created_at: p.created_at,
-        confirmed_by: p.confirmed_by,
-        legacy_note: p.legacy_note,
-        created_by_name: p.created_by_name,
-        invoice_id: p.invoice_id,
-        invoice_number: p.invoice?.invoice_number ?? null,
-        customer_id: p.customer?.id ?? p.customer_id,
-        customer_name: p.customer ? `${p.customer.first_name} ${p.customer.last_name}`.trim() : null,
-        customer_email: p.customer?.email ?? null,
-        account_number: p.invoice?.billing_snapshot_account_number ?? null,
-        environment: p.environment,
-        stripe_payment_intent_id: p.stripe_payment_intent_id,
-        authorized_amount: p.authorized_amount,
-        authorization_status: p.authorization_status,
-        authorized_at: p.authorized_at,
-        captured_at: p.captured_at,
-        captured_by: p.captured_by,
-      }));
+      const maps = await buildCanonicalAccountMaps(supabase, {
+        orderIds: data.map((p: any) => p.invoice?.order_id),
+        customerIds: data.map((p: any) => p.invoice?.customer_id ?? p.customer?.id ?? p.customer_id),
+      });
+
+      return data.map((p: any): AdminPayment => {
+        if (!p.payment_number) {
+          throw new Error(`CANONICAL_IDENTIFIER_INVARIANT_VIOLATION: payment(${p.id}) missing payment_number.`);
+        }
+
+        const accountNumber = resolveCanonicalAccountNumber(maps, {
+          orderId: p.invoice?.order_id,
+          customerId: p.invoice?.customer_id ?? p.customer?.id ?? p.customer_id,
+        });
+
+        assertCanonicalAccountInvariant(
+          "payment",
+          p.id,
+          {
+            orderId: p.invoice?.order_id,
+            customerId: p.invoice?.customer_id ?? p.customer?.id ?? p.customer_id,
+          },
+          accountNumber,
+        );
+
+        return {
+          id: p.id,
+          payment_number: p.payment_number,
+          amount: p.amount,
+          method: p.method,
+          status: p.status,
+          reference: p.reference,
+          provider: p.provider,
+          provider_payment_id: p.provider_payment_id,
+          source: p.source,
+          received_at: p.received_at,
+          created_at: p.created_at,
+          confirmed_by: p.confirmed_by,
+          legacy_note: p.legacy_note,
+          created_by_name: p.created_by_name,
+          invoice_id: p.invoice_id,
+          invoice_number: p.invoice?.invoice_number ?? null,
+          customer_id: p.customer?.id ?? p.customer_id,
+          customer_name: p.customer ? `${p.customer.first_name} ${p.customer.last_name}`.trim() : null,
+          customer_email: p.customer?.email ?? null,
+          account_number: accountNumber,
+          environment: p.environment,
+          stripe_payment_intent_id: p.stripe_payment_intent_id,
+          authorized_amount: p.authorized_amount,
+          authorization_status: p.authorization_status,
+          authorized_at: p.authorized_at,
+          captured_at: p.captured_at,
+          captured_by: p.captured_by,
+        };
+      });
     },
   });
 }
