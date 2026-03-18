@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AccountProfileEditDialog } from "./AccountProfileEditDialog";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -19,7 +20,7 @@ import {
 import {
   Building2, MapPin, Calendar, Shield, CreditCard, Star,
   StickyNote, Ban, PlusCircle, Package, Headphones, Mail,
-  ArrowLeft, RefreshCw, AlertTriangle,
+  ArrowLeft, RefreshCw, AlertTriangle, UserPen,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -70,6 +71,7 @@ export function AccountProfileHeader({
   const [commSubject, setCommSubject] = useState("");
   const [commBody, setCommBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!account) return null;
 
@@ -265,6 +267,10 @@ export function AccountProfileHeader({
 
         {/* Quick Actions — ALL OPERATIONAL */}
         <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setEditOpen(true)}>
+            <UserPen className="h-3.5 w-3.5" />
+            Modifier le profil
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setNoteOpen(true)}>
             <StickyNote className="h-3.5 w-3.5" />
             Note
@@ -419,6 +425,16 @@ export function AccountProfileHeader({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Profile Edit Dialog */}
+      <AccountProfileEditDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        profile={profile}
+        account={account}
+        clientId={clientId}
+        onSaved={onRefresh}
+      />
     </div>
   );
 }
