@@ -1,9 +1,14 @@
 /**
  * useAdminOrders — Fetches orders with joined profile + invoice data
- * CANONICAL: Uses billing_invoices.total as the authoritative transaction amount.
+ * CANONICAL: Uses billing_invoices.total + accounts.account_number as authoritative values.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  assertCanonicalAccountInvariant,
+  buildCanonicalAccountMaps,
+  resolveCanonicalAccountNumber,
+} from "@/lib/canonicalAccountResolver";
 import type { EnvironmentFilter } from "./useEnvironmentFilter";
 
 export interface AdminOrder {
@@ -18,25 +23,23 @@ export interface AdminOrder {
   risk_flags: string[] | null;
   created_at: string;
   environment?: string;
-  // Joined profile
   client_full_name: string | null;
   client_email: string | null;
   account_number: string | null;
-  // Joined invoice
   invoice_number: string | null;
   invoice_status: string | null;
 }
 
-export function useAdminOrders(environment: EnvironmentFilter = 'all') {
+export function useAdminOrders(environment: EnvironmentFilter = "all") {
   return useQuery<AdminOrder[]>({
     queryKey: ["admin-orders-v2", environment],
     queryFn: async () => {
       let query = supabase
         .from("orders")
-        .select("id, order_number, user_id, service_type, order_type, status, payment_status, total_amount, risk_flags, created_at, environment")
+        .select("id, order_number, user_id, account_id, service_type, order_type, status, payment_status, total_amount, risk_flags, created_at, environment")
         .order("created_at", { ascending: false })
         .limit(500);
-      if (environment !== 'all') query = query.eq("environment", environment);
+      if (environment !== "all") query = query.eq("environment", environment);
       const { data: orders, error } = await query;
       if (error) throw error;
       if (!orders || orders.length === 0) return [];
@@ -44,7 +47,7 @@ export function useAdminOrders(environment: EnvironmentFilter = 'all') {
       const userIds = [...new Set(orders.map((o) => o.user_id))];
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email, account_number")
+        .select("user_id, full_name, email")
         .in("user_id", userIds);
 
       const orderIds = orders.map((o) => o.id);
@@ -53,20 +56,38 @@ export function useAdminOrders(environment: EnvironmentFilter = 'all') {
         .select("order_id, invoice_number, status, total")
         .in("order_id", orderIds);
 
+      const maps = await buildCanonicalAccountMaps(supabase, {
+        orderIds,
+        userIds,
+        accountIds: orders.map((o: any) => o.account_id),
+      });
+
       const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) ?? []);
-      // Group invoices by order_id, pick first non-void
-      const invoiceMap = new Map<string, { invoice_number: string; status: string; total: number }>();
-      for (const inv of (invoices || [])) {
+      const invoiceMap = new Map<string, { invoice_number: string; status: string | null; total: number }>();
+      for (const inv of invoices || []) {
         if (!inv.order_id) continue;
         const existing = invoiceMap.get(inv.order_id);
-        if (!existing || (existing.status === 'void' && inv.status !== 'void')) {
+        if (!existing || (existing.status === "void" && inv.status !== "void")) {
           invoiceMap.set(inv.order_id, inv as any);
         }
       }
 
-      return orders.map((o): AdminOrder => {
+      return orders.map((o: any): AdminOrder => {
         const profile = profileMap.get(o.user_id);
         const invoice = invoiceMap.get(o.id);
+        const accountNumber = resolveCanonicalAccountNumber(maps, {
+          orderId: o.id,
+          accountId: o.account_id,
+          userId: o.user_id,
+        });
+
+        assertCanonicalAccountInvariant(
+          "order",
+          o.id,
+          { orderId: o.id, accountId: o.account_id, userId: o.user_id },
+          accountNumber,
+        );
+
         return {
           id: o.id,
           order_number: o.order_number,
@@ -75,14 +96,13 @@ export function useAdminOrders(environment: EnvironmentFilter = 'all') {
           order_type: o.order_type,
           status: o.status,
           payment_status: o.payment_status,
-          // CANONICAL: prefer billing_invoices.total over orders.total_amount
           total_amount: invoice?.total ?? o.total_amount,
           risk_flags: o.risk_flags as string[] | null,
           created_at: o.created_at,
-          environment: (o as any).environment,
+          environment: o.environment,
           client_full_name: profile?.full_name ?? null,
           client_email: profile?.email ?? null,
-          account_number: profile?.account_number ?? null,
+          account_number: accountNumber,
           invoice_number: invoice?.invoice_number ?? null,
           invoice_status: invoice?.status ?? null,
         };
