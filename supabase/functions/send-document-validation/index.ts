@@ -582,7 +582,7 @@ function generateReceipt(): Uint8Array {
     doc.text(label, rx + 7, ry);
     doc.setFont("helvetica", isBold ? "bold" : "normal");
     doc.setFontSize(isBold ? 10 : 8);
-    doc.setTextColor(isBold ? SUCCESS : TEXT);
+    if (isBold) { doc.setTextColor(...SUCCESS); } else { doc.setTextColor(...TEXT); }
     doc.text(value, rx + 7, ry + 4.5);
     ry += 10;
   };
