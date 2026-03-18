@@ -101,11 +101,13 @@ type CheckoutResponse = {
   created_at?: string;
 };
 
-const toBillingMethod = (method?: string): "paypal" | "interac" | "card" | "manual" => {
+const toBillingMethod = (method?: string, reference?: string | null): "paypal" | "interac" | "card" | "manual" => {
   const m = String(method || "").toLowerCase();
+  const ref = String(reference || "").toLowerCase();
   if (m === "paypal") return "paypal";
   if (m === "etransfer" || m === "e_transfer" || m === "interac") return "interac";
   if (m === "credit_card" || m === "card") return "card";
+  if (ref.startsWith("pi_")) return "card";
   return "manual";
 };
 
@@ -113,7 +115,7 @@ const isPaidCheckout = (payload: CheckoutPayload) => {
   const method = String(payload.payment?.method || "").toLowerCase();
   const reference = String(payload.payment?.reference || "");
   const cardCaptured =
-    (method === "credit_card" || method === "card") &&
+    (method === "credit_card" || method === "card" || reference.startsWith("pi_")) &&
     (payload.payment?.status === "captured" || reference.startsWith("pi_"));
 
   return (
