@@ -947,23 +947,27 @@ function generateOrderSummary(): Uint8Array {
 
   y += 38;
 
-  // Next steps
+  // Next steps — expanded box to prevent overflow
   y += 4;
   doc.setFillColor(254, 252, 232);
   doc.setDrawColor(253, 224, 71);
   doc.setLineWidth(0.3);
-  doc.roundedRect(m, y, cw, 20, 2, 2, "FD");
+  doc.roundedRect(m, y, cw, 34, 2, 2, "FD");
   doc.setLineWidth(0.2);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(161, 98, 7);
-  doc.text("PROCHAINES ÉTAPES", m + 6, y + 7);
+  doc.text("PROCHAINES ETAPES", m + 6, y + 7);
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
+  doc.setFontSize(7.5);
   doc.setTextColor(120, 83, 9);
-  doc.text("1. Confirmation de paiement  →  2. Activation du service  →  3. Réception de la facture officielle et du contrat", m + 6, y + 13);
-  doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 17);
+  doc.text("1. Confirmation de paiement", m + 6, y + 14);
+  doc.text("2. Activation du service", m + 6, y + 19);
+  doc.text("3. Reception de la facture officielle et du contrat", m + 6, y + 24);
+  doc.setFontSize(7);
+  doc.text(`Pour toute question : ${NIVRA.email}`, m + 6, y + 30);
 
   // Blue footer
   doc.setFillColor(37, 99, 235);
