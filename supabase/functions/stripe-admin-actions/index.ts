@@ -117,7 +117,7 @@ serve(async (req) => {
           authorization_status: "captured",
           captured_at: new Date().toISOString(),
           captured_by: adminLabel,
-          confirmed_by: adminLabel,
+          confirmed_by: adminId,
           received_at: new Date().toISOString(),
         }).eq("id", payment_id);
       }
