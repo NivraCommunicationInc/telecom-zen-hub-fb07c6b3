@@ -19,10 +19,11 @@ interface OrderDocumentsPanelProps {
   kycSessionId?: string | null;
 }
 
-type DocType = "invoice" | "orderSummary" | "contract" | "contractSummary" | "terms";
+type DocType = "invoice" | "receipt" | "orderSummary" | "contract" | "contractSummary" | "terms";
 
 const DOC_LABELS: Record<DocType, string> = {
   invoice: "Facture",
+  receipt: "Reçu",
   orderSummary: "Sommaire",
   contract: "Contrat",
   contractSummary: "RRE",
