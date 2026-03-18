@@ -6374,7 +6374,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           onSuccess={({ paymentIntentId }) => {
                             setPaymentComplete(true);
                             setPaymentConfirmationNumber(paymentIntentId);
-                            toast.success("Paiement par carte confirmé !");
+                            toast.success("Paiement par carte confirmé ! Finalisation de la commande…");
+                            setAutoFinalizeAfterCardPayment(true);
                             // Traceability
                             logPaymentConfirmed({
                               payment_reference: paymentIntentId,
