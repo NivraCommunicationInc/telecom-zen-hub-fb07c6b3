@@ -29,6 +29,7 @@ import { fetchInvoiceBreakdown, type InvoiceBreakdown, type InvoiceBreakdownItem
 
 export interface OrderDocuments {
   invoice: PDFGenerationResult;
+  receipt: PDFGenerationResult;
   orderSummary: PDFGenerationResult;
   contract: PDFGenerationResult;
   contractSummary: PDFGenerationResult;
