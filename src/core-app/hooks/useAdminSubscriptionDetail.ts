@@ -92,19 +92,18 @@ export function useAdminSubscriptionDetail(subscriptionId: string | undefined) {
   });
 
   const userId = customer.data?.user_id;
-  const profile = useQuery({
-    queryKey: ["admin-subscription-profile", userId],
+  const accountIdentity = useQuery({
+    queryKey: ["admin-subscription-account", subscriptionId, userId, customerId],
     queryFn: async () => {
-      if (!userId) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("account_number, full_name")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const maps = await buildCanonicalAccountMaps(supabase, {
+        customerIds: customerId ? [customerId] : [],
+        userIds: userId ? [userId] : [],
+      });
+      const accountNumber = resolveCanonicalAccountNumber(maps, { customerId, userId });
+      assertCanonicalAccountInvariant("subscription", subscriptionId || "unknown", { customerId, userId }, accountNumber);
+      return accountNumber;
     },
-    enabled: !!userId,
+    enabled: !!subscriptionId,
   });
 
   return {
