@@ -426,7 +426,7 @@ const ClientProfile = () => {
     suspended: "Suspendu",
   };
 
-  const resolvedAccountNumber = accountIdentity?.accountNumber || profile?.account_number || null;
+  const resolvedAccountNumber = accountIdentity?.accountNumber || null;
   const resolvedClientNumber = accountIdentity?.clientNumber || profile?.client_number || null;
 
   return (
