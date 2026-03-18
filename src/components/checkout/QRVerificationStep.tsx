@@ -774,8 +774,8 @@ export const QRVerificationStep = ({
             <Shield className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
             <span className="text-xs text-slate-500">
               {isFrench
-                ? "Confidentialité\u00a0: vos documents sont chiffrés et utilisés uniquement pour compléter la vérification d'identité. L'accès est strictement limité à l'équipe de conformité. Vous pouvez demander la suppression à tout moment."
-                : "Privacy: your documents are encrypted and used solely to complete identity verification. Access is strictly limited to the compliance team. You may request deletion at any time."}
+                ? "Confidentialité\u00a0: vos documents d'identité sont chiffrés et utilisés uniquement pour compléter la vérification d'identité. Ils sont supprimés automatiquement après validation, conformément à nos règles de sécurité et de conformité. Aucune copie n'est conservée inutilement."
+                : "Privacy: your identity documents are encrypted and used solely to complete identity verification. They are automatically deleted after validation, in accordance with our security and compliance policies. No copies are retained unnecessarily."}
             </span>
           </div>
         </CardContent>
