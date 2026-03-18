@@ -105,7 +105,7 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
       
       case 'summary': {
         const summaryData: SummaryData = {
-          order_number: vars.order_number || vars.order_id?.substring(0, 8) || `CMD-${Date.now()}`,
+          order_number: vars.order_number || vars.order_id?.substring(0, 8) || "—",
           order_date: vars.order_date || vars.created_at || new Date().toISOString(),
           status: vars.status || 'En traitement',
           client_name: vars.client_name || vars.name || 'Client',
