@@ -64,9 +64,27 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[billing-subscription-cycle] Error:", error);
+
+    // Log failure to automation runs for observability
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      await supabase.from("billing_automation_runs").insert({
+        run_type: "subscription_renewal_cycle",
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+        status: "failed",
+        errors_count: 1,
+        summary: `FAILED: ${errorMessage}`,
+        errors: [{ message: errorMessage, timestamp: new Date().toISOString() }],
+      });
+    } catch { /* don't let logging failure mask the original error */ }
+
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
