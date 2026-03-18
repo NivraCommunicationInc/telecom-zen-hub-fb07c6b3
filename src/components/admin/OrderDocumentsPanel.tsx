@@ -188,7 +188,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
           ) : (
             <Download className="w-4 h-4 mr-2" />
           )}
-          {generating ? "Génération..." : "Télécharger les 5 documents"}
+          {generating ? "Génération..." : "Télécharger les 6 documents"}
         </Button>
 
         {/* Check readiness */}
