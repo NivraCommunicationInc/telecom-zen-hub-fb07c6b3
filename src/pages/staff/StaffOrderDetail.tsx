@@ -163,34 +163,14 @@ export default function StaffOrderDetail() {
 
   const handleViewContract = async () => {
     if (!order) return;
-    
     setIsGeneratingPdf("contract");
     try {
-      // Build contract data from order
-      const contractData = {
-        client: {
-          name: order.profile?.full_name || order.client_first_name || "Client",
-          email: order.profile?.email || order.client_email || "",
-          phone: order.profile?.phone || order.client_phone || "",
-          address: order.profile?.service_address || order.shipping_address || "",
-          city: order.profile?.service_city || order.shipping_city || "",
-          postal_code: order.profile?.service_postal_code || order.shipping_postal_code || "",
-        },
-        order: {
-          order_number: order.order_number || order.confirmation_number,
-          service_type: order.service_type,
-          subtotal: order.subtotal || 0,
-          tps: order.tps_amount || 0,
-          tvq: order.tvq_amount || 0,
-          total: order.total_amount || 0,
-          created_at: order.created_at,
-        },
-      };
-      
-      const result = generateContractPDF(contractData as ContractData);
+      const result = await generateCanonicalContractPDF(supabase, order.related_contract_id || order.id);
       if (result.success && result.blob) {
         safePDFOpen(result.blob, result.filename || `Contrat_${order.order_number}.pdf`);
         toast.success("Contrat ouvert");
+      } else {
+        toast.error(result.error || "Impossible de générer le contrat");
       }
     } catch (error) {
       console.error("Contract PDF error:", error);
@@ -202,38 +182,25 @@ export default function StaffOrderDetail() {
 
   const handleViewInvoice = async () => {
     if (!order) return;
-    
     setIsGeneratingPdf("invoice");
     try {
-      // Build invoice data from order
-      const invoiceData = {
-        invoice_number: order.order_number ? `INV-${order.order_number.replace("ORD-", "")}` : "INV-TEMP",
-        client: {
-          name: order.profile?.full_name || order.client_first_name || "Client",
-          email: order.profile?.email || order.client_email || "",
-          phone: order.profile?.phone || order.client_phone || "",
-          address: order.profile?.service_address || order.shipping_address || "",
-          city: order.profile?.service_city || order.shipping_city || "",
-        },
-        line_items: [
-          {
-            description: order.service_type || "Service",
-            amount: order.subtotal || order.total_amount || 0,
-          }
-        ],
-        subtotal: order.subtotal || 0,
-        tps: order.tps_amount || 0,
-        tvq: order.tvq_amount || 0,
-        total: order.total_amount || 0,
-        created_at: order.created_at,
-        due_date: order.created_at,
-        status: order.payment_status || order.status,
-      };
-      
-      const result = await generateInvoicePDF(invoiceData as unknown as InvoiceDataV2);
-      if (result.success && result.blob) {
-        safePDFOpen(result.blob, result.filename || "facture.pdf");
-        toast.success("Facture ouverte");
+      // Find billing invoice for this order
+      const { data: billingInvoice } = await supabase
+        .from("billing_invoices")
+        .select("id")
+        .eq("order_id", order.id)
+        .maybeSingle();
+
+      if (billingInvoice?.id) {
+        const result = await generateCanonicalInvoicePDF(supabase, billingInvoice.id);
+        if (result.success && result.blob) {
+          safePDFOpen(result.blob, result.filename || "facture.pdf");
+          toast.success("Facture ouverte");
+        } else {
+          toast.error(result.error || "Impossible de générer la facture");
+        }
+      } else {
+        toast.error("Aucune facture trouvée pour cette commande");
       }
     } catch (error) {
       console.error("Invoice PDF error:", error);
