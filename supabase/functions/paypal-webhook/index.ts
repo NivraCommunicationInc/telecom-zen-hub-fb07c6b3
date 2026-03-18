@@ -183,7 +183,12 @@ serve(async (req) => {
         );
       }
     } else {
-      console.warn("[PayPal Webhook] WARNING: PAYPAL_WEBHOOK_ID not configured - signature verification disabled");
+      // PRODUCTION HARDENING: Webhook signature verification is MANDATORY
+      console.error("[PayPal Webhook] PAYPAL_WEBHOOK_ID not configured — rejecting request for security");
+      return new Response(
+        JSON.stringify({ error: "Webhook signature verification not configured — refusing to process" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
     
     // Parse the webhook event

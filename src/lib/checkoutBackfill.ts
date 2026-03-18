@@ -545,7 +545,9 @@ export async function backfillCheckoutToSupabase(
             },
             { onConflict: "id" },
           );
-        } catch { /* best-effort */ }
+        } catch (eqErr: any) {
+          console.warn("[Backfill] Equipment service line insert failed:", eq.name, eqErr?.message);
+        }
       }
 
       // 6c) Create equipment lines (one_time) from payload

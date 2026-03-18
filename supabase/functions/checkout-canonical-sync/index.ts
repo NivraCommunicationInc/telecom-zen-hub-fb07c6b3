@@ -639,7 +639,7 @@ serve(async (req) => {
       }
     }
 
-    // 5) Invoice lines (critical auto-recovery)
+    // 5) Invoice lines (CRITICAL — blocking gate)
     try {
       const { count } = await admin
         .from("billing_invoice_lines")
@@ -648,17 +648,47 @@ serve(async (req) => {
 
       if (!count || count === 0) {
         const invoiceLines = buildInvoiceLines(payload, response.invoice_id);
-        const { error: linesError } = await admin
-          .from("billing_invoice_lines")
-          .insert(invoiceLines);
 
-        if (linesError) throw linesError;
-        results.invoice_lines_created = invoiceLines.length;
+        if (invoiceLines.length === 0) {
+          console.error("[checkout-canonical-sync] ❌ CRITICAL: Zero invoice lines generated from payload");
+          errors.push("invoice_lines_critical: zero lines generated — data integrity violation");
+        } else {
+          const { error: linesError } = await admin
+            .from("billing_invoice_lines")
+            .insert(invoiceLines);
+
+          if (linesError) {
+            console.error("[checkout-canonical-sync] ❌ CRITICAL: Invoice lines insert failed:", linesError);
+            errors.push(`invoice_lines_critical: ${linesError.message}`);
+          } else {
+            results.invoice_lines_created = invoiceLines.length;
+
+            // VALIDATION: Verify line totals match invoice subtotal
+            const positiveLineSum = invoiceLines
+              .filter(l => l.line_total > 0)
+              .reduce((sum, l) => sum + l.line_total, 0);
+            const discountSum = Math.abs(
+              invoiceLines
+                .filter(l => l.line_total < 0)
+                .reduce((sum, l) => sum + l.line_total, 0)
+            );
+            const expectedSubtotal = toMoney(response.pricing?.subtotal ?? payload.pricing_snapshot?.subtotal ?? payload.pricing_snapshot?.taxable_base);
+
+            console.log("[checkout-canonical-sync] Invoice lines validation:", {
+              positive_line_sum: positiveLineSum,
+              discount_sum: discountSum,
+              net_lines: toMoney(positiveLineSum - discountSum),
+              expected_subtotal: expectedSubtotal,
+              lines_count: invoiceLines.length,
+            });
+          }
+        }
       } else {
         results.invoice_lines_existing = count;
       }
     } catch (err: any) {
-      errors.push(`invoice_lines: ${err?.message || String(err)}`);
+      console.error("[checkout-canonical-sync] ❌ CRITICAL: Invoice lines exception:", err);
+      errors.push(`invoice_lines_critical: ${err?.message || String(err)}`);
     }
 
     // 6) Payment
