@@ -174,13 +174,13 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
             
             {/* Pay Now Button - Only show if balance > 0 */}
             {balance > 0 && (
-              <Link to="/portal/invoices" className="w-full sm:w-auto">
+              <Link to="/portal/billing" className="w-full sm:w-auto">
                 <Button 
                   className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
                   size="sm"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Renouveler
+                  Faire un paiement
                 </Button>
               </Link>
             )}
