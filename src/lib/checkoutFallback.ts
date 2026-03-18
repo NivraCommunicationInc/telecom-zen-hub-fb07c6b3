@@ -539,6 +539,24 @@ export async function fallbackCheckout(
     }
   }
 
+  // Delivery fee from installation payload (may not be in fees[])
+  const deliveryFeeAmount = Number(payload.installation?.delivery_fee) || 0;
+  if (deliveryFeeAmount > 0) {
+    const alreadyHasDelivery = invoiceLines.some(l =>
+      l.line_type === "fee" && l.description.toLowerCase().includes("livraison")
+    );
+    if (!alreadyHasDelivery) {
+      invoiceLines.push({
+        invoice_id: invoiceId,
+        description: "Frais de livraison",
+        unit_price: deliveryFeeAmount,
+        quantity: 1,
+        line_total: deliveryFeeAmount,
+        line_type: "fee",
+      });
+    }
+  }
+
   // Promo / discount
   if (payload.promo && promoDiscount > 0) {
     invoiceLines.push({
@@ -568,9 +586,28 @@ export async function fallbackCheckout(
       .from("billing_invoice_lines")
       .insert(invoiceLines);
     if (linesErr) {
-      console.error("[FallbackCheckout] Invoice lines creation failed (non-blocking):", linesErr);
+      console.error("[FallbackCheckout] ❌ CRITICAL: Invoice lines creation failed:", linesErr);
+      throw new Error(`Invoice lines creation failed: ${linesErr.message}`);
     } else {
       console.log(`[FallbackCheckout] ✓ ${invoiceLines.length} invoice lines created`);
+
+      // INVARIANT: invoice.subtotal MUST = sum(invoice_lines)
+      const netLineSum = Math.round(invoiceLines.reduce((s, l) => s + l.line_total, 0) * 100) / 100;
+      if (Math.abs(netLineSum - taxableBase) >= 0.02) {
+        console.warn(`[FallbackCheckout] ⚠️ Line sum ${netLineSum} ≠ taxableBase ${taxableBase} — correcting invoice`);
+        const correctedTps = Math.round(netLineSum * 0.05 * 100) / 100;
+        const correctedTvq = Math.round(netLineSum * 0.09975 * 100) / 100;
+        const correctedTotal = Math.round((netLineSum + correctedTps + correctedTvq) * 100) / 100;
+        await supabase.from("billing_invoices").update({
+          subtotal: netLineSum,
+          tps_amount: correctedTps,
+          tvq_amount: correctedTvq,
+          total: correctedTotal,
+          amount_paid: (isPaid || isFree) ? correctedTotal : 0,
+          balance_due: (isPaid || isFree) ? 0 : correctedTotal,
+        }).eq("id", invoiceId);
+        console.log(`[FallbackCheckout] ✅ Invoice corrected: subtotal=${netLineSum}, total=${correctedTotal}`);
+      }
     }
   }
 
