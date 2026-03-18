@@ -2,16 +2,18 @@
  * Nivra Core — Invoice Detail (ops-grade)
  * Reuses useAdminInvoiceDetail hook — zero duplicated business logic.
  * Document actions use canonical PDF services.
+ * All 4 documents accessible: Invoice, Receipt, Contract, Order Summary.
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAdminInvoiceDetail } from "@/core-app/hooks/useAdminInvoiceDetail";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, FileText, User, Mail, Phone, Hash, Eye, Download, AlertTriangle, Receipt, ClipboardList } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { generateCanonicalInvoicePDF } from "@/lib/pdf/canonicalDocumentService";
+import { generateCanonicalInvoicePDF, generateCanonicalContractPDF } from "@/lib/pdf/canonicalDocumentService";
+import { generateCanonicalReceiptPDF, generateCanonicalOrderSummaryPDF } from "@/lib/pdf/canonicalDocumentExtensions";
 import { supabase as adminClient } from "@/integrations/supabase/client";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { toast } from "sonner";
@@ -29,6 +31,8 @@ const STATUS_LABELS: Record<string, string> = {
   void: "Annulée", not_renewed: "Non renouvelée",
 };
 
+type DocType = "invoice" | "receipt" | "contract" | "summary";
+
 const InfoRow = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
   <div className="flex justify-between py-1.5 border-b border-[hsl(220,15%,13%)] last:border-0">
     <span className="text-[10px] text-[hsl(220,10%,40%)] uppercase tracking-wider font-medium">{label}</span>
@@ -41,41 +45,67 @@ const CoreInvoiceDetail = () => {
   const { data: inv, isLoading, refetch } = useAdminInvoiceDetail(invoiceId);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfFilename, setPdfFilename] = useState("");
+  const [pdfLoading, setPdfLoading] = useState<DocType | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  const handleViewInvoicePDF = async () => {
-    if (!invoiceId) return;
-    setPdfLoading(true);
+  const generateDoc = async (type: DocType) => {
+    if (!invoiceId || !inv) return;
+    setPdfLoading(type);
     setPdfError(null);
     try {
-      const result = await generateCanonicalInvoicePDF(adminClient, invoiceId);
-      if (result.success && result.blob) {
+      let result;
+      let title = "";
+      let filename = "";
+
+      switch (type) {
+        case "invoice":
+          result = await generateCanonicalInvoicePDF(adminClient, invoiceId);
+          title = `Facture ${inv.invoice_number}`;
+          filename = `Facture_${inv.invoice_number}.pdf`;
+          break;
+        case "receipt":
+          result = await generateCanonicalReceiptPDF(adminClient, invoiceId);
+          title = `Reçu ${inv.invoice_number}`;
+          filename = `Recu_${inv.invoice_number}.pdf`;
+          break;
+        case "contract":
+          if (!inv.order_id) {
+            setPdfError("Aucune commande liée — contrat non disponible");
+            return;
+          }
+          result = await generateCanonicalContractPDF(adminClient, inv.order_id);
+          title = `Contrat — ${inv.order_number || ""}`;
+          filename = `Contrat_${inv.order_number || inv.invoice_number}.pdf`;
+          break;
+        case "summary":
+          if (!inv.order_id) {
+            setPdfError("Aucune commande liée — sommaire non disponible");
+            return;
+          }
+          result = await generateCanonicalOrderSummaryPDF(adminClient, inv.order_id);
+          title = `Sommaire — ${inv.order_number || ""}`;
+          filename = `Sommaire_${inv.order_number || inv.invoice_number}.pdf`;
+          break;
+      }
+
+      if (result?.success && result.blob) {
         setPdfBlob(result.blob);
+        setPdfTitle(title);
+        setPdfFilename(result.filename || filename);
         setPdfOpen(true);
       } else {
-        setPdfError(result.error || "Erreur de génération");
-        toast.error(result.error || "Erreur de génération du PDF");
+        const err = result?.error || "Erreur de génération";
+        setPdfError(err);
+        toast.error(err);
       }
     } catch (err: any) {
       setPdfError(err.message || "Erreur inattendue");
       toast.error("Erreur lors de la génération du PDF");
     } finally {
-      setPdfLoading(false);
+      setPdfLoading(null);
     }
-  };
-
-  const handleDownloadInvoicePDF = async () => {
-    if (pdfBlob) {
-      const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Facture_${inv?.invoice_number || ""}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      return;
-    }
-    await handleViewInvoicePDF();
   };
 
   if (isLoading) {
@@ -92,6 +122,17 @@ const CoreInvoiceDetail = () => {
     );
   }
 
+  const DocButton = ({ type, label, icon: Icon, disabled }: { type: DocType; label: string; icon: any; disabled?: boolean }) => (
+    <button
+      onClick={() => generateDoc(type)}
+      disabled={pdfLoading === type || disabled}
+      className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:border-blue-500/30 transition-colors disabled:opacity-50"
+    >
+      {pdfLoading === type ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+      {label}
+    </button>
+  );
+
   return (
     <div className="space-y-4">
       {/* Nav */}
@@ -99,13 +140,11 @@ const CoreInvoiceDetail = () => {
         <Link to={corePath("/invoices")} className="flex items-center gap-1.5 text-[12px] text-[hsl(220,10%,50%)] hover:text-white transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Factures
         </Link>
-        <div className="flex items-center gap-2">
-          <button onClick={handleViewInvoicePDF} disabled={pdfLoading} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:border-blue-500/30 transition-colors disabled:opacity-50">
-            {pdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Voir PDF
-          </button>
-          <button onClick={handleDownloadInvoicePDF} disabled={pdfLoading} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors disabled:opacity-50">
-            <Download className="h-3.5 w-3.5" /> Télécharger
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <DocButton type="invoice" label="Facture" icon={Eye} />
+          <DocButton type="receipt" label="Reçu" icon={Receipt} />
+          <DocButton type="contract" label="Contrat" icon={FileText} disabled={!inv.order_id} />
+          <DocButton type="summary" label="Sommaire" icon={ClipboardList} disabled={!inv.order_id} />
           <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
             <RefreshCw className="h-3.5 w-3.5" /> Actualiser
           </button>
@@ -254,8 +293,8 @@ const CoreInvoiceDetail = () => {
         open={pdfOpen}
         onOpenChange={setPdfOpen}
         pdfBlob={pdfBlob}
-        title={`Facture ${inv.invoice_number}`}
-        filename={`Facture_${inv.invoice_number}.pdf`}
+        title={pdfTitle}
+        filename={pdfFilename}
       />
     </div>
   );

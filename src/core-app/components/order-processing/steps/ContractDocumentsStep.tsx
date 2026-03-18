@@ -58,12 +58,9 @@ export function ContractDocumentsStep({ proc }: Props) {
           filename = result.orderSummary.filename || filename;
           break;
         case "receipt":
-          blob = result.invoice.blob || null;
-          title = "Reçu";
-          // Use the invoice filename but prefixed with Recu
-          filename = result.invoice.filename
-            ? result.invoice.filename.replace("Facture", "Recu de paiement")
-            : `Nivra Telecom - Recu de paiement - ${order.order_number || ""}.pdf`;
+          blob = result.receipt.blob || null;
+          title = "Reçu de paiement";
+          filename = result.receipt.filename || `Nivra Telecom - Recu de paiement - ${order.order_number || ""}.pdf`;
           break;
         case "terms":
           blob = result.terms.blob || null;
