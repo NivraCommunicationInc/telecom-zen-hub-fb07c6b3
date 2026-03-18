@@ -551,6 +551,7 @@ export function StripeInlinePayment({
         customerEmail={customerEmail}
         collectBillingDetails={collectBillingDetails}
         defaultBillingDetails={defaultBillingDetails}
+        allowAuthorizationSuccess={intentContext === "checkout_preconfirm"}
         onSuccess={onSuccess}
         onError={onError}
       />
