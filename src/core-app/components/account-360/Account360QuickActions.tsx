@@ -9,8 +9,8 @@ import { toast } from "sonner";
 import { corePath } from "@/core-app/lib/corePaths";
 import {
   ShoppingCart, FileText, CreditCard, PauseCircle, PlayCircle,
-  MessageSquare, Mail, Wrench, Calendar, AlertTriangle, DollarSign,
-  StickyNote, Package,
+  MessageSquare, Mail, Calendar, AlertTriangle, DollarSign,
+  StickyNote, Package, UserPen,
 } from "lucide-react";
 
 interface Props {
@@ -19,9 +19,10 @@ interface Props {
   accountStatus: string | null;
   onRefresh: () => void;
   onNavigateSection: (section: string) => void;
+  onEditProfile: () => void;
 }
 
-export function Account360QuickActions({ accountId, clientId, accountStatus, onRefresh, onNavigateSection }: Props) {
+export function Account360QuickActions({ accountId, clientId, accountStatus, onRefresh, onNavigateSection, onEditProfile }: Props) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +41,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, onR
   };
 
   const actions = [
-    { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders"), color: "emerald" },
+    { icon: UserPen, label: "Modifier le profil", onClick: onEditProfile, color: "emerald" },
+    { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders"), color: "default" },
     { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices"), color: "default" },
     { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments"), color: "default" },
     ...(accountStatus !== "suspended"

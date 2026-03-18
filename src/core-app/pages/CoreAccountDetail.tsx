@@ -12,6 +12,7 @@ import { Account360Header } from "@/core-app/components/account-360/Account360He
 import { Account360KPIStrip } from "@/core-app/components/account-360/Account360KPIStrip";
 import { Account360QuickActions } from "@/core-app/components/account-360/Account360QuickActions";
 import { Account360RightPanel } from "@/core-app/components/account-360/Account360RightPanel";
+import { Account360ProfileEditDialog } from "@/core-app/components/account-360/Account360ProfileEditDialog";
 import {
   ProfileSection, BillingSection, SubscriptionsSection, OrdersSection,
   InvoicesSection, PaymentsSection, EquipmentSection, TicketsSection,
@@ -40,6 +41,7 @@ const CoreAccountDetail = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const data = useAccountProfile(accountId);
   const [activeSection, setActiveSection] = useState<SectionId>("profile");
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   /* ── Loading ── */
   if (data.isLoading) {
@@ -173,6 +175,7 @@ const CoreAccountDetail = () => {
         accountStatus={acct.status}
         onRefresh={data.refetch}
         onNavigateSection={(s) => setActiveSection(s as SectionId)}
+        onEditProfile={() => setEditProfileOpen(true)}
       />
 
       {/* 3-column layout: Nav | Content | Summary */}
@@ -229,6 +232,15 @@ const CoreAccountDetail = () => {
           onRefresh={data.refetch}
         />
       </div>
+
+      <Account360ProfileEditDialog
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        account={acct}
+        profile={prof}
+        clientId={data.clientId}
+        onSaved={data.refetch}
+      />
     </div>
   );
 };
