@@ -299,7 +299,16 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.text("Adresse de service", rx + 6, ry);
     doc.setFontSize(7.5);
     doc.setTextColor(...C.text);
-    const addrLines = doc.splitTextToSize(fmtAddress(d.service_address) || "—", colW - 14);
+    const formattedAddress = fmtAddress(d.service_address || "—");
+    const addressParts = formattedAddress.split(",").map((p) => p.trim()).filter(Boolean);
+    const addressLine1 = addressParts[0] || formattedAddress;
+    const addressLine2 = addressParts.length > 1 ? addressParts.slice(1).join(", ") : "";
+
+    const addrLines = [
+      ...doc.splitTextToSize(addressLine1, colW - 14),
+      ...(addressLine2 ? doc.splitTextToSize(addressLine2, colW - 14) : []),
+    ];
+
     doc.text(addrLines.slice(0, 2), rx + 6, ry + 4);
     ry += 4 + Math.min(addrLines.length, 2) * 4;
 

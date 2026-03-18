@@ -217,10 +217,11 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
       doc.text(addrLines, m + 8, ly);
       ly += addrLines.length * 4;
     }
-    if (data.client_phone) {
-      doc.text(data.client_phone, m + 8, ly);
-      ly += 4;
-    }
+
+    const phoneLine = data.client_phone?.trim() || "Téléphone non fourni";
+    doc.text(phoneLine, m + 8, ly);
+    ly += 4;
+
     doc.text(data.client_email, m + 8, ly);
 
     // Right: Reference numbers
