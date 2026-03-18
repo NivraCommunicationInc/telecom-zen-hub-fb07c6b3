@@ -181,9 +181,16 @@ function PaymentForm({
           const msg = error.message || "Erreur lors du paiement";
           toast.error(msg);
           onError?.(msg);
-        } else if (paymentIntent?.status === "succeeded") {
+        } else if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "requires_capture") {
+          // ★ requires_capture = authorization success (manual capture mode)
+          // ★ succeeded = full capture (legacy/autopay flows)
+          const isAuthOnly = paymentIntent.status === "requires_capture";
           setIsComplete(true);
-          toast.success("Paiement par carte confirmé !");
+          toast.success(
+            isAuthOnly
+              ? "Carte autorisée avec succès ! Votre commande est en attente de traitement."
+              : "Paiement par carte confirmé !"
+          );
           queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
           queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
           queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
