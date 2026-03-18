@@ -7,11 +7,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  * STRIPE — WEBHOOK HANDLER
  * ============================================================================
  *
- * Receives Stripe webhook events and processes payment confirmations.
- * Uses apply_payment_to_invoice RPC (SINGLE SOURCE OF TRUTH).
+ * Receives Stripe webhook events and processes payment state changes.
  *
- * SUPPORTED EVENTS:
- * - checkout.session.completed → apply payment to invoice
+ * MANUAL CAPTURE FLOW:
+ * - payment_intent.amount_capturable_updated → Card authorized (hold placed)
+ * - payment_intent.succeeded → Card captured (admin captured, or autopay)
+ * - checkout.session.completed → Checkout page completed
+ *
+ * Uses apply_payment_to_invoice RPC only for CAPTURED payments.
+ * Authorization events only update the payment record status.
  */
 
 const corsHeaders = {
@@ -40,7 +44,6 @@ serve(async (req) => {
     let event: Stripe.Event;
 
     // PRODUCTION HARDENING: Webhook signature verification is MANDATORY.
-    // Without it, anyone can forge payment confirmations.
     if (!webhookSecret) {
       console.error("[stripe-webhook] STRIPE_WEBHOOK_SECRET is NOT configured — rejecting request for security");
       return new Response(
@@ -61,7 +64,7 @@ serve(async (req) => {
     console.log(`[stripe-webhook] Event received: ${event.type} (${event.id})`);
 
     // ─────────────────────────────────────────────────────────────
-    // SHARED HELPER: apply payment idempotently
+    // SHARED HELPER: apply payment idempotently (ONLY for captured/succeeded)
     // ─────────────────────────────────────────────────────────────
     async function applyPayment(
       invoiceId: string,
@@ -73,11 +76,44 @@ serve(async (req) => {
       // Idempotency: check if this payment_intent was already processed
       const { data: existingPayment } = await supabase
         .from("billing_payments")
-        .select("id")
+        .select("id, authorization_status")
         .eq("provider_payment_id", paymentIntentId)
         .maybeSingle();
 
       if (existingPayment) {
+        // If it exists as "authorized", upgrade to "confirmed/captured"
+        if (existingPayment.authorization_status === "authorized") {
+          await supabase.from("billing_payments").update({
+            status: "confirmed" as any,
+            authorization_status: "captured",
+            captured_at: new Date().toISOString(),
+            captured_by: "stripe_webhook",
+            received_at: new Date().toISOString(),
+          }).eq("id", existingPayment.id);
+
+          // Update invoice
+          const { data: inv } = await supabase.from("billing_invoices")
+            .select("amount_paid, total, paid_at")
+            .eq("id", invoiceId)
+            .single();
+
+          if (inv) {
+            const newAmountPaid = (inv.amount_paid ?? 0) + amountPaid;
+            const newBalanceDue = Math.max(0, (inv.total ?? 0) - newAmountPaid);
+            const isFullyPaid = newBalanceDue <= 0;
+
+            await supabase.from("billing_invoices").update({
+              amount_paid: newAmountPaid,
+              balance_due: newBalanceDue,
+              status: (isFullyPaid ? "paid" : "partially_paid") as any,
+              paid_at: isFullyPaid ? new Date().toISOString() : inv.paid_at,
+            }).eq("id", invoiceId);
+          }
+
+          console.log(`[stripe-webhook] ✓ Existing authorized payment ${existingPayment.id} upgraded to captured`);
+          return { upgraded_from_authorized: true };
+        }
+
         console.log(`[stripe-webhook] Payment ${paymentIntentId} already processed (via ${eventSource}) — idempotent skip`);
         return { already_processed: true };
       }
@@ -144,8 +180,84 @@ serve(async (req) => {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // EVENT: payment_intent.amount_capturable_updated
+    // ★ NEW: Card authorized (hold placed), NOT yet captured
+    // This fires when capture_method=manual and card is authorized
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "payment_intent.amount_capturable_updated") {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const metadata = paymentIntent.metadata || {};
+      const invoiceId = metadata.invoice_id;
+      const customerId = metadata.customer_id;
+      const paymentIntentId = paymentIntent.id;
+      const authorizedAmount = (paymentIntent.amount_capturable || paymentIntent.amount) / 100;
+
+      console.log(`[stripe-webhook] payment_intent.amount_capturable_updated: PI=${paymentIntentId}, amount=${authorizedAmount}`);
+
+      if (invoiceId) {
+        // Check if payment record already exists
+        const { data: existingPayment } = await supabase
+          .from("billing_payments")
+          .select("id")
+          .eq("provider_payment_id", paymentIntentId)
+          .maybeSingle();
+
+        if (!existingPayment) {
+          // Create a pending/authorized payment record — NOT confirmed yet
+          const { data: invoiceNumberData } = await supabase.rpc("generate_billing_payment_number");
+          const paymentNumber = invoiceNumberData || `PAY-${Date.now()}`;
+
+          await supabase.from("billing_payments").insert({
+            invoice_id: invoiceId,
+            customer_id: customerId || null,
+            method: "card" as any,
+            provider: "stripe",
+            provider_payment_id: paymentIntentId,
+            amount: authorizedAmount,
+            status: "pending" as any,
+            source: "live" as any,
+            payment_number: paymentNumber,
+            created_by_name: "stripe_webhook",
+            created_by_role: "system",
+            stripe_payment_intent_id: paymentIntentId,
+            authorized_amount: authorizedAmount,
+            authorization_status: "authorized",
+            authorized_at: new Date().toISOString(),
+          });
+
+          console.log(`[stripe-webhook] ✓ Authorization recorded for PI ${paymentIntentId}`);
+        } else {
+          // Update existing record to authorized status
+          await supabase.from("billing_payments").update({
+            authorization_status: "authorized",
+            authorized_amount: authorizedAmount,
+            authorized_at: new Date().toISOString(),
+            stripe_payment_intent_id: paymentIntentId,
+          }).eq("id", existingPayment.id);
+        }
+
+        // Update order authorization status
+        const { data: invData } = await supabase.from("billing_invoices")
+          .select("order_id")
+          .eq("id", invoiceId)
+          .single();
+
+        if (invData?.order_id) {
+          await supabase.from("orders").update({
+            payment_authorization_status: "authorized",
+          }).eq("id", invData.order_id);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, authorization_recorded: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // EVENT: checkout.session.completed
-    // Primary path — fires when user completes Stripe Checkout
+    // For Checkout Sessions — check if payment is captured or only authorized
     // ─────────────────────────────────────────────────────────────
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -165,6 +277,18 @@ serve(async (req) => {
         ? session.payment_intent
         : session.payment_intent?.id || session.id;
 
+      // Check if the PI is in requires_capture state (manual capture mode)
+      if (paymentIntentId && paymentIntentId.startsWith("pi_")) {
+        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+        if (pi.status === "requires_capture") {
+          console.log(`[stripe-webhook] checkout.session.completed but PI requires_capture — authorization only, skipping apply`);
+          return new Response(
+            JSON.stringify({ received: true, authorization_only: true }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
       console.log(`[stripe-webhook] checkout.session.completed: invoice=${invoiceId}, amount=${amountPaid}, pi=${paymentIntentId}`);
 
       const result = await applyPayment(invoiceId, amountPaid, paymentIntentId, customerId, "checkout.session.completed");
@@ -177,9 +301,8 @@ serve(async (req) => {
 
     // ─────────────────────────────────────────────────────────────
     // EVENT: payment_intent.succeeded
-    // Safety net — fires independently of Checkout Sessions.
-    // If checkout.session.completed already processed this PI,
-    // the idempotency check in applyPayment() will skip gracefully.
+    // ★ Only fires when payment is CAPTURED (either admin capture or auto)
+    // In manual capture mode, this fires AFTER admin captures.
     // ─────────────────────────────────────────────────────────────
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
@@ -203,6 +326,35 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ received: true, invoice_id: invoiceId, ...result }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // EVENT: payment_intent.canceled
+    // Authorization was cancelled (expired or admin cancelled)
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "payment_intent.canceled") {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const paymentIntentId = paymentIntent.id;
+
+      const { data: existingPayment } = await supabase
+        .from("billing_payments")
+        .select("id")
+        .eq("provider_payment_id", paymentIntentId)
+        .maybeSingle();
+
+      if (existingPayment) {
+        await supabase.from("billing_payments").update({
+          status: "cancelled" as any,
+          authorization_status: "cancelled",
+        }).eq("id", existingPayment.id);
+
+        console.log(`[stripe-webhook] ✓ Authorization cancelled for PI ${paymentIntentId}`);
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, cancelled: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
