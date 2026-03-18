@@ -821,6 +821,32 @@ serve(async (req) => {
         );
 
         if (subError) throw subError;
+
+        // BLOCKER 2 FIX: Link subscription to invoice (required for trigger-based activation)
+        // AND force-activate subscription if invoice is already paid
+        await admin.from("billing_invoices").update({
+          subscription_id: subscriptionId,
+        }).eq("id", response.invoice_id);
+
+        // If paid, the protect_subscription_activation trigger may have downgraded to 'pending'
+        // because the invoice didn't have subscription_id at insert time.
+        // Force-activate now that the link exists.
+        if (paid) {
+          const { data: subCheck } = await admin
+            .from("billing_subscriptions")
+            .select("status")
+            .eq("id", subscriptionId)
+            .single();
+
+          if (subCheck && subCheck.status !== "active") {
+            console.warn(`[checkout-canonical-sync] ⚠️ Subscription ${subscriptionId} stuck as '${subCheck.status}' despite paid invoice — force-activating`);
+            await admin.from("billing_subscriptions").update({
+              status: "active",
+              last_invoice_id: response.invoice_id,
+            }).eq("id", subscriptionId);
+          }
+        }
+
         results.subscription = true;
       } catch (err: any) {
         errors.push(`subscription: ${err?.message || String(err)}`);
