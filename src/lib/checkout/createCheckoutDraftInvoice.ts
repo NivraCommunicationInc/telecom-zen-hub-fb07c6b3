@@ -36,6 +36,10 @@ export interface CheckoutDraftInvoiceResult {
 
 // ── Account resolution (for billing snapshot only) ──
 
+const generateAccountNumber = (): string => {
+  return String(Math.floor(100000 + Math.random() * 900000));
+};
+
 async function resolveAccount(
   userId: string,
   address: {
@@ -56,22 +60,30 @@ async function resolveAccount(
 
   if (existing) return { accountId: existing.id, accountNumber: existing.account_number || "" };
 
-  // Create new account
-  const { data: created, error } = await supabase
-    .from("accounts")
-    .insert({
-      client_id: userId,
-      status: "active",
-      primary_service_address: address.street || null,
-      primary_service_city: address.city || null,
-      primary_service_province: "QC",
-      primary_service_postal_code: address.postalCode || null,
-    })
-    .select("id, account_number")
-    .single();
+  // Create new account with required account_number (retry on rare unique collisions)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const candidateAccountNumber = generateAccountNumber();
 
-  if (error) {
-    if (error.code === "23505") {
+    const { data: created, error } = await supabase
+      .from("accounts")
+      .insert({
+        client_id: userId,
+        account_number: candidateAccountNumber,
+        status: "active",
+        primary_service_address: address.street || null,
+        primary_service_city: address.city || null,
+        primary_service_province: "QC",
+        primary_service_postal_code: address.postalCode || null,
+      })
+      .select("id, account_number")
+      .single();
+
+    if (!error && created) {
+      return { accountId: created.id, accountNumber: created.account_number || candidateAccountNumber };
+    }
+
+    if (error?.code === "23505") {
+      // If account already got created by another concurrent request, fetch and return it.
       const { data: reFetched } = await supabase
         .from("accounts")
         .select("id, account_number")
@@ -79,11 +91,15 @@ async function resolveAccount(
         .eq("status", "active")
         .maybeSingle();
       if (reFetched) return { accountId: reFetched.id, accountNumber: reFetched.account_number || "" };
+
+      // Otherwise retry with another generated account number.
+      continue;
     }
-    throw new Error(`Échec résolution compte: ${error.message}`);
+
+    throw new Error(`Échec résolution compte: ${error?.message || "Erreur inconnue"}`);
   }
 
-  return { accountId: created.id, accountNumber: created.account_number || "" };
+  throw new Error("Échec résolution compte: impossible de générer un numéro de compte unique");
 }
 
 // ── Billing customer resolution ──
