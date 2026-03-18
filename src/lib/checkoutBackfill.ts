@@ -414,15 +414,25 @@ export async function backfillCheckoutToSupabase(
             .from("billing_invoice_lines")
             .insert(invoiceLines);
           if (linesErr) {
-            console.error("[Backfill] Invoice lines creation failed (non-blocking):", linesErr);
-            result.errors.push(`invoice_lines: ${linesErr.message}`);
+            // BLOCKING: Invoice without lines is an incomplete operational record
+            console.error("[Backfill] ❌ CRITICAL: Invoice lines creation FAILED — blocking checkout:", linesErr);
+            result.errors.push(`invoice_lines_critical: ${linesErr.message}`);
+            // Force invoice flag to false — downstream must retry or halt
+            result.invoice = false;
           } else {
             console.log(`[Backfill] ✓ ${invoiceLines.length} canonical invoice lines created`);
           }
+        } else {
+          // BLOCKING: Zero lines generated from payload — data integrity violation
+          console.error("[Backfill] ❌ CRITICAL: Zero invoice lines generated from checkout payload");
+          result.errors.push("invoice_lines_critical: zero lines generated from payload");
+          result.invoice = false;
         }
       }
     } catch (e: any) {
-      result.errors.push(`invoice_lines: ${e.message}`);
+      console.error("[Backfill] ❌ CRITICAL: Invoice lines exception:", e);
+      result.errors.push(`invoice_lines_critical: ${e.message}`);
+      result.invoice = false;
     }
   }
 
@@ -535,7 +545,9 @@ export async function backfillCheckoutToSupabase(
             },
             { onConflict: "id" },
           );
-        } catch { /* best-effort */ }
+        } catch (svcErr: any) {
+          console.warn("[Backfill] Service line insert failed:", svc.name, svcErr?.message);
+        }
       }
 
       // 6c) Create equipment lines (one_time) from payload
@@ -554,7 +566,9 @@ export async function backfillCheckoutToSupabase(
             },
             { onConflict: "id" },
           );
-        } catch { /* best-effort */ }
+        } catch (eqErr2: any) {
+          console.warn("[Backfill] Equipment one_time line insert failed:", eqErr2?.message);
+        }
       }
     } catch (e: any) {
       result.errors.push(`subscription: ${e.message}`);
