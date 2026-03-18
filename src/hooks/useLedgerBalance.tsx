@@ -83,10 +83,11 @@ async function fetchLedgerBalance(
     console.warn("[useLedgerBalance] billing_invoices query failed:", invoicesErr);
   }
 
+  // CANONICAL INVARIANT: paid/void/cancelled invoices contribute ZERO to balance
+  const CLOSED_STATUSES = ["paid", "paid_by_promo", "void", "cancelled", "refunded"];
   for (const inv of invoices || []) {
     totalDebits += Number(inv.total) || 0;
-    const balanceDue = Number(inv.balance_due) || 0;
-    if (balanceDue > 0 && inv.status !== "paid" && inv.status !== "paid_by_promo") {
+    if (!CLOSED_STATUSES.includes(inv.status) && (Number(inv.balance_due) || 0) > 0) {
       unpaidInvoiceCount++;
     }
   }

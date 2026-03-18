@@ -196,15 +196,25 @@ export function useTransactionVisibility() {
       }
 
       // ═══ 3. TRANSACTION EVENTS: abandoned/failed checkouts from transaction_events ═══
+      // CANONICAL: Exclude order_submitted — these are technical lifecycle traces.
+      // Only show genuine failures/abandonments that have NO canonical confirmed order.
       const { data: events } = await supabase
         .from("transaction_events" as any)
         .select("*")
         .in("event_type", [
           "checkout_abandoned", "checkout_error", "payment_failed",
-          "order_failed", "order_submitted",
+          "order_failed",
         ])
         .order("created_at", { ascending: false })
         .limit(200);
+
+      // Build a set of order_numbers that have canonical confirmed/paid orders
+      const confirmedOrderNumbers = new Set(
+        (allOrders || [])
+          .filter(o => ["confirmed", "completed", "paid", "processing", "shipped"].includes(o.status))
+          .map(o => o.order_number)
+          .filter(Boolean)
+      );
 
       // Get user profiles for events
       const eventUserIds = [...new Set((events || []).map((e: any) => e.user_id))];
@@ -217,6 +227,10 @@ export function useTransactionVisibility() {
 
       for (const ev of (events || []) as any[]) {
         const profile = profileMap.get(ev.user_id);
+
+        // ANTI-REGRESSION INVARIANT: If a canonical confirmed order exists for the
+        // same order_number, suppress this technical event entirely.
+        if (ev.order_number && confirmedOrderNumbers.has(ev.order_number)) continue;
 
         // Determine category
         let category: TransactionRow["category"] = "transaction_event";
