@@ -436,7 +436,7 @@ END:VCALENDAR`;
                 </div>
                 
                 <p className="text-sm text-muted-foreground pt-2">
-                  Merci. Votre commande a été reçue. Vous recevrez une confirmation par courriel/SMS.
+                  Merci. Votre commande a été soumise et votre paiement enregistré. Notre équipe la traitera sous peu. Vous recevrez une mise à jour par courriel.
                 </p>
               </div>
             </div>
