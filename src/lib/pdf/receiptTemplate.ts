@@ -67,13 +67,33 @@ const fmt = (amount: number): string =>
 const fmtDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return "—";
   try {
-    const date = new Date(dateStr);
+    const raw = String(dateStr).trim();
+
+    // Robust parsing for Postgres timestamps (e.g. "2026-03-18 14:19:49.142036+00")
+    const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (ymd) {
+      const year = Number(ymd[1]);
+      const monthIdx = Number(ymd[2]) - 1;
+      const day = Number(ymd[3]);
+      const safeDate = new Date(year, monthIdx, day);
+      const month = safeDate.toLocaleString("fr-CA", { month: "long" });
+      return `${day} ${month} ${year}`;
+    }
+
+    const normalized = raw
+      .replace(" ", "T")
+      .replace(/([+-]\d{2})$/, "$1:00");
+
+    const date = new Date(normalized);
     if (isNaN(date.getTime())) return "—";
+
     const year = date.getFullYear();
     const month = date.toLocaleString("fr-CA", { month: "long" });
     const day = date.getDate();
     return `${day} ${month} ${year}`;
-  } catch { return dateStr || "—"; }
+  } catch {
+    return "—";
+  }
 };
 
 const fmtPayMethod = (m: string): string => {
@@ -89,17 +109,22 @@ const fmtPayMethod = (m: string): string => {
 /** Format address with proper casing and postal code spacing */
 const fmtAddress = (addr: string | undefined): string => {
   if (!addr) return "";
+
+  let result = addr.trim().replace(/\s+/g, " ");
   const cityFixes: Record<string, string> = {
-    "saint jerome": "Saint-Jerome",
-    "saint-jerome": "Saint-Jerome",
-    "st jerome": "Saint-Jerome",
-    "st-jerome": "Saint-Jerome",
+    "saint jerome": "Saint-Jérôme",
+    "saint-jerome": "Saint-Jérôme",
+    "saint-j erome": "Saint-Jérôme",
+    "st jerome": "Saint-Jérôme",
+    "st-jerome": "Saint-Jérôme",
   };
-  let result = addr;
+
   for (const [key, val] of Object.entries(cityFixes)) {
     result = result.replace(new RegExp(key, "gi"), val);
   }
-  result = result.replace(/([A-Z]\d[A-Z])(\d[A-Z]\d)/gi, "$1 $2");
+
+  // Fix Canadian postal code spacing: J7Z6Z3 -> J7Z 6Z3
+  result = result.replace(/([A-Z]\d[A-Z])\s*(\d[A-Z]\d)/gi, "$1 $2");
   return result;
 };
 // MAIN GENERATOR
