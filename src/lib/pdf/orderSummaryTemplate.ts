@@ -90,13 +90,33 @@ const fmt = (amount: number): string =>
 const fmtDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return "—";
   try {
-    const date = new Date(dateStr);
+    const raw = String(dateStr).trim();
+
+    // Robust parsing for Postgres timestamps (e.g. "2026-03-18 14:19:49.142036+00")
+    const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (ymd) {
+      const year = Number(ymd[1]);
+      const monthIdx = Number(ymd[2]) - 1;
+      const day = Number(ymd[3]);
+      const safeDate = new Date(year, monthIdx, day);
+      const month = safeDate.toLocaleString("fr-CA", { month: "long" });
+      return `${day} ${month} ${year}`;
+    }
+
+    const normalized = raw
+      .replace(" ", "T")
+      .replace(/([+-]\d{2})$/, "$1:00");
+
+    const date = new Date(normalized);
     if (isNaN(date.getTime())) return "—";
+
     const year = date.getFullYear();
     const month = date.toLocaleString("fr-CA", { month: "long" });
     const day = date.getDate();
     return `${day} ${month} ${year}`;
-  } catch { return dateStr || "—"; }
+  } catch {
+    return "—";
+  }
 };
 
 const fmtStatus = (status: string): { label: string; color: [number, number, number] } => {
@@ -124,20 +144,23 @@ const fmtPayMethod = (m: string | undefined): string => {
 /** Format address with proper casing and postal code spacing */
 const fmtAddress = (addr: string): string => {
   if (!addr) return "—";
-  // Title-case city names with hyphens (e.g., "saint jerome" → "Saint-Jérôme")
+
+  let result = addr.trim().replace(/\s+/g, " ");
   const cityFixes: Record<string, string> = {
-    "saint jerome": "Saint-Jerome",
-    "saint-jerome": "Saint-Jerome",
-    "st jerome": "Saint-Jerome",
-    "st-jerome": "Saint-Jerome",
+    "saint jerome": "Saint-Jérôme",
+    "saint-jerome": "Saint-Jérôme",
+    "saint-j erome": "Saint-Jérôme",
+    "st jerome": "Saint-Jérôme",
+    "st-jerome": "Saint-Jérôme",
   };
-  let result = addr;
+
   for (const [key, val] of Object.entries(cityFixes)) {
     const re = new RegExp(key, "gi");
     result = result.replace(re, val);
   }
-  // Fix postal code spacing: "J7Z6Z3" → "J7Z 6Z3"
-  result = result.replace(/([A-Z]\d[A-Z])(\d[A-Z]\d)/gi, "$1 $2");
+
+  // Fix postal code spacing: "J7Z6Z3" -> "J7Z 6Z3"
+  result = result.replace(/([A-Z]\d[A-Z])\s*(\d[A-Z]\d)/gi, "$1 $2");
   return result;
 };
 
@@ -276,7 +299,16 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.text("Adresse de service", rx + 6, ry);
     doc.setFontSize(7.5);
     doc.setTextColor(...C.text);
-    const addrLines = doc.splitTextToSize(fmtAddress(d.service_address) || "—", colW - 14);
+    const formattedAddress = fmtAddress(d.service_address || "—");
+    const addressParts = formattedAddress.split(",").map((p) => p.trim()).filter(Boolean);
+    const addressLine1 = addressParts[0] || formattedAddress;
+    const addressLine2 = addressParts.length > 1 ? addressParts.slice(1).join(", ") : "";
+
+    const addrLines = [
+      ...doc.splitTextToSize(addressLine1, colW - 14),
+      ...(addressLine2 ? doc.splitTextToSize(addressLine2, colW - 14) : []),
+    ];
+
     doc.text(addrLines.slice(0, 2), rx + 6, ry + 4);
     ry += 4 + Math.min(addrLines.length, 2) * 4;
 
