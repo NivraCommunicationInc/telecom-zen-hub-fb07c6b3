@@ -13631,7 +13631,12 @@ export type Database = {
         | "not_renewed"
       billing_invoice_type: "initial" | "renewal" | "adjustment" | "credit"
       billing_payment_method: "interac" | "manual" | "paypal" | "card"
-      billing_payment_status: "pending" | "confirmed" | "failed"
+      billing_payment_status:
+        | "pending"
+        | "confirmed"
+        | "failed"
+        | "cancelled"
+        | "refunded"
       billing_subscription_status:
         | "active"
         | "pending"
@@ -14067,7 +14072,13 @@ export const Constants = {
       ],
       billing_invoice_type: ["initial", "renewal", "adjustment", "credit"],
       billing_payment_method: ["interac", "manual", "paypal", "card"],
-      billing_payment_status: ["pending", "confirmed", "failed"],
+      billing_payment_status: [
+        "pending",
+        "confirmed",
+        "failed",
+        "cancelled",
+        "refunded",
+      ],
       billing_subscription_status: [
         "active",
         "pending",

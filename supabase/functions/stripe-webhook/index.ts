@@ -204,7 +204,7 @@ serve(async (req) => {
 
         if (!existingPayment) {
           // Create a pending/authorized payment record — NOT confirmed yet
-          const { data: invoiceNumberData } = await supabase.rpc("generate_billing_payment_number");
+          const { data: invoiceNumberData } = await supabase.rpc("generate_payment_number");
           const paymentNumber = invoiceNumberData || `PAY-${Date.now()}`;
 
           await supabase.from("billing_payments").insert({
