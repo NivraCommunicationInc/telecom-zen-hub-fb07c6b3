@@ -185,20 +185,14 @@ function PaymentForm({
           const msg = error.message || "Erreur lors du paiement";
           toast.error(msg);
           onError?.(msg);
-        } else if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "requires_capture") {
-          // ★ requires_capture = authorization success (manual capture mode)
-          // ★ succeeded = full capture (legacy/autopay flows)
-          const isAuthOnly = paymentIntent.status === "requires_capture";
+        } else if (paymentIntent?.status === "succeeded") {
           setIsComplete(true);
-          toast.success(
-            isAuthOnly
-              ? "Carte autorisée avec succès ! Votre commande est en attente de traitement."
-              : "Paiement par carte confirmé !"
-          );
+          toast.success("Paiement par carte confirmé !");
           queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
           queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
           queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
           queryClient.invalidateQueries({ queryKey: ["client-invoices"] });
+          queryClient.invalidateQueries({ queryKey: ["client-invoice-breakdowns"] });
           queryClient.invalidateQueries({ queryKey: ["client-subscriptions"] });
           queryClient.invalidateQueries({ queryKey: ["client-profile-dashboard"] });
           queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
@@ -206,6 +200,10 @@ function PaymentForm({
           queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
           queryClient.invalidateQueries({ queryKey: ["client-balance"] });
           queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
+          onSuccess?.({ paymentIntentId: paymentIntent.id });
+        } else if (paymentIntent?.status === "requires_capture" && allowAuthorizationSuccess) {
+          setIsComplete(true);
+          toast.success("Carte autorisée avec succès ! Votre commande est en attente de traitement.");
           onSuccess?.({ paymentIntentId: paymentIntent.id });
         } else {
           toast.info("Le paiement est en cours de traitement.");
