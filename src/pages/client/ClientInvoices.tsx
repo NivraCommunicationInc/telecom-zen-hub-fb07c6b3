@@ -82,7 +82,7 @@ const ClientInvoices = () => {
     queryFn: async () => {
       const { data } = await portalSupabase
         .from("profiles")
-        .select("full_name, email, phone, account_number, client_number, service_address, service_city, service_postal_code")
+        .select("full_name, email, phone, client_number, service_address, service_city, service_postal_code")
         .eq("user_id", user?.id)
         .maybeSingle();
       return data;
