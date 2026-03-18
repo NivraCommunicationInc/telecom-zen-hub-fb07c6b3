@@ -39,21 +39,24 @@ serve(async (req) => {
     const body = await req.text();
     let event: Stripe.Event;
 
-    // Verify webhook signature if secret is configured
-    if (webhookSecret) {
-      const signature = req.headers.get("stripe-signature");
-      if (!signature) {
-        return new Response(
-          JSON.stringify({ error: "Missing stripe-signature header" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } else {
-      // Development fallback — parse directly (not recommended for production)
-      console.warn("[stripe-webhook] No STRIPE_WEBHOOK_SECRET — skipping signature verification");
-      event = JSON.parse(body) as Stripe.Event;
+    // PRODUCTION HARDENING: Webhook signature verification is MANDATORY.
+    // Without it, anyone can forge payment confirmations.
+    if (!webhookSecret) {
+      console.error("[stripe-webhook] STRIPE_WEBHOOK_SECRET is NOT configured — rejecting request for security");
+      return new Response(
+        JSON.stringify({ error: "Webhook signature verification not configured — refusing to process" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    const signature = req.headers.get("stripe-signature");
+    if (!signature) {
+      return new Response(
+        JSON.stringify({ error: "Missing stripe-signature header" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
 
     console.log(`[stripe-webhook] Event received: ${event.type} (${event.id})`);
 

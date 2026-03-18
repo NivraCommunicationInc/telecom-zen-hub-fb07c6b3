@@ -716,15 +716,31 @@ export function useOrderProcessing(orderId: string | undefined) {
   };
 
   /* ── Mark payment partial ── */
-  /* PHASE 1 FIX: Updates billing_invoices status, not just the order. */
+  /* PRODUCTION FIX: Recalculates invoice from confirmed payments (SSOT). */
   const markPaymentPartial = async () => {
     const targetInvoice = data?.invoice;
 
     if (targetInvoice?.id) {
-      await supabase
+      // Recalculate from confirmed payments only
+      const { data: confirmedPayments } = await supabase
+        .from("billing_payments")
+        .select("amount")
+        .eq("invoice_id", targetInvoice.id)
+        .in("status", ["confirmed", "completed"]);
+
+      const totalPaid = (confirmedPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const invoiceTotal = Number(targetInvoice.total || 0);
+      const newBalanceDue = Math.max(0, Math.round((invoiceTotal - totalPaid) * 100) / 100);
+
+      const { error: invErr } = await supabase
         .from("billing_invoices")
-        .update({ status: "partially_paid" as any })
+        .update({
+          status: "partially_paid" as any,
+          amount_paid: Math.round(totalPaid * 100) / 100,
+          balance_due: newBalanceDue,
+        })
         .eq("id", targetInvoice.id);
+      if (invErr) throw invErr;
     }
 
     await updateOrder.mutateAsync({ payment_status: "partial" });
@@ -732,7 +748,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       invoice_id: targetInvoice?.id,
     });
     invalidateAll();
-    toast.info("Paiement marqué comme partiel (billing + commande)");
+    toast.info("Paiement marqué comme partiel — facture recalculée");
   };
 
   /* ── Update fulfillment type ── */
