@@ -37,12 +37,12 @@ export function PrepaidUrgentBanner({ userId }: PrepaidUrgentBannerProps) {
       if (!customer) return { count: 0, oldestDueDate: null, daysPastDue: 0 };
 
       // Check for pending invoices past due date (need renewal)
-      // PREPAID MODEL: Only pending/renewal_required statuses, NOT "overdue"
+      // PREPAID MODEL: Only pending/not_renewed statuses, NOT "overdue"
       const { data: pendingInvoices } = await portalClient
         .from('billing_invoices')
         .select('id, due_date, balance_due')
         .eq('customer_id', customer.id)
-        .in('status', ['pending', 'renewal_required'])
+        .in('status', ['pending', 'not_renewed'])
         .gt('balance_due', 0)
         .order('due_date', { ascending: true });
 
