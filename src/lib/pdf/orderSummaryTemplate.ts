@@ -121,6 +121,26 @@ const fmtPayMethod = (m: string | undefined): string => {
   return map[m] || m;
 };
 
+/** Format address with proper casing and postal code spacing */
+const fmtAddress = (addr: string): string => {
+  if (!addr) return "—";
+  // Title-case city names with hyphens (e.g., "saint jerome" → "Saint-Jérôme")
+  const cityFixes: Record<string, string> = {
+    "saint jerome": "Saint-Jerome",
+    "saint-jerome": "Saint-Jerome",
+    "st jerome": "Saint-Jerome",
+    "st-jerome": "Saint-Jerome",
+  };
+  let result = addr;
+  for (const [key, val] of Object.entries(cityFixes)) {
+    const re = new RegExp(key, "gi");
+    result = result.replace(re, val);
+  }
+  // Fix postal code spacing: "J7Z6Z3" → "J7Z 6Z3"
+  result = result.replace(/([A-Z]\d[A-Z])(\d[A-Z]\d)/gi, "$1 $2");
+  return result;
+};
+
 // ============================================================================
 // MAIN GENERATOR
 // ============================================================================
