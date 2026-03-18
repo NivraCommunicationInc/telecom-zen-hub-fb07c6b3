@@ -327,6 +327,16 @@ serve(async (req) => {
       const metadata = paymentIntent.metadata || {};
       const invoiceId = metadata.invoice_id;
       const customerId = metadata.customer_id;
+      const isCheckoutPreconfirm =
+        metadata.intent_context === "checkout_preconfirm" ||
+        metadata.source === "portal_checkout_preconfirm";
+
+      if (isCheckoutPreconfirm) {
+        console.log("[stripe-webhook] payment_intent.succeeded for preconfirm checkout PI — skipping");
+        return new Response(JSON.stringify({ received: true, skipped_preconfirm: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       if (!invoiceId) {
         console.log("[stripe-webhook] payment_intent.succeeded without invoice_id metadata — skipping");
