@@ -555,9 +555,11 @@ serve(async (req) => {
     }
 
     // 3) Order
+    // CANONICAL INVARIANT: order.total_amount MUST equal invoice.total
+    // Use pricing_snapshot.grand_total as the single source of truth (server-computed)
+    const canonicalGrandTotal = toMoney(payload.pricing_snapshot?.grand_total ?? response.pricing?.grand_total);
     if (accountId) {
       try {
-        const grandTotal = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total);
         const { error: orderError } = await admin.from("orders").upsert(
           {
             id: response.order_id,
@@ -570,7 +572,7 @@ serve(async (req) => {
             fulfillment_type: isStreamingOnly ? "digital" : null,
             delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : null,
             order_type: "new",
-            total_amount: grandTotal,
+            total_amount: canonicalGrandTotal,
             environment: "live",
             created_at: nowIso,
             pricing_snapshot: payload.pricing_snapshot || null,
