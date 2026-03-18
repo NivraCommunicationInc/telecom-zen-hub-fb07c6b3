@@ -172,7 +172,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
       combined.push({
         id: i.id,
         type: "invoice",
-        title: `Facture ${i.invoice_number || i.id.slice(0, 8)}`,
+        title: `Facture ${i.invoice_number || "—"}`,
         subtitle: `${(i as any).customer?.email || ""} • ${(i.total || 0).toFixed(2)} $`,
         status: i.status,
         href: `/admin/billing?search=${encodeURIComponent(i.invoice_number || i.id)}`,
