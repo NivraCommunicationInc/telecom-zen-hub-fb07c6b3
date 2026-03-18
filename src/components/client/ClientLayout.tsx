@@ -40,6 +40,8 @@ const navGroups = [
     label: "Facturation et paiement",
     path: null,
     children: [
+      { path: "/portal/billing", label: "Faire un paiement" },
+      { path: "/portal/billing?tab=add-credit", label: "Ajouter un crédit" },
       { path: "/portal/invoices", label: "Mes factures" },
       { path: "/portal/payments", label: "Moyens de paiement" },
       { path: "/portal/monthly-invoices", label: "Historique des paiements" },

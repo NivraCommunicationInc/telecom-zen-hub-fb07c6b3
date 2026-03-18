@@ -164,7 +164,7 @@ const ClientDashboard = () => {
                 <Button
                   variant="outline"
                   className="w-full border-teal-600 text-teal-700 hover:bg-teal-50 rounded-lg h-11"
-                  onClick={() => navigate("/portal/invoices?pay=true")}
+                  onClick={() => navigate("/portal/billing")}
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
                   Faire un paiement
