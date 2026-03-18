@@ -81,6 +81,12 @@ export function useAdminPayments(environment: EnvironmentFilter = 'all') {
         customer_email: p.customer?.email ?? null,
         account_number: p.invoice?.billing_snapshot_account_number ?? null,
         environment: p.environment,
+        stripe_payment_intent_id: p.stripe_payment_intent_id,
+        authorized_amount: p.authorized_amount,
+        authorization_status: p.authorization_status,
+        authorized_at: p.authorized_at,
+        captured_at: p.captured_at,
+        captured_by: p.captured_by,
       }));
     },
   });
