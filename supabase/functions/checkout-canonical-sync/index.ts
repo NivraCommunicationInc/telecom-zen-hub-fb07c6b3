@@ -815,7 +815,7 @@ serve(async (req) => {
             plan_code: firstService?.plan_code || "UNKNOWN",
             plan_name: (payload.services || []).map((s) => s.name).join(", "),
             plan_price: planPrice,
-            status: paid ? "active" : "pending",
+            status: "pending", // INVARIANT: checkout NEVER auto-activates subscriptions — operational processing only
             cycle_start_date: cycleDate,
             cycle_end_date: cycleDate,
             service_category: firstService?.category?.toLowerCase() || null,
