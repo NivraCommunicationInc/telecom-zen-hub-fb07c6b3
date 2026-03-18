@@ -13,9 +13,9 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const { payment_intent_id } = await req.json();
     
-    // Confirm with test card
     const pi = await stripe.paymentIntents.confirm(payment_intent_id, {
       payment_method: "pm_card_visa",
+      return_url: "https://telecom-zen-hub.lovable.app/checkout/complete",
     });
     
     return new Response(JSON.stringify({
