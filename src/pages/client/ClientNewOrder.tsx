@@ -6306,62 +6306,47 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   {/* Stripe Inline Payment Form for Credit Card */}
                   {paymentMethod === "credit_card" && !paymentComplete && (
                     <div className="space-y-4 p-4 bg-primary/10 rounded-lg border border-primary/30">
-                      {stripeDraftLoading && (
-                        <div className="flex items-center justify-center gap-2 py-6">
-                          <svg className="w-5 h-5 animate-spin text-primary" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
-                          <span className="text-sm text-muted-foreground">Préparation du formulaire de paiement…</span>
-                        </div>
-                      )}
-                      {stripeDraftError && (
-                        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
-                          {stripeDraftError}
-                        </div>
-                      )}
-                      {stripeDraft && !stripeDraftLoading && (
-                        <StripeInlinePayment
-                          invoiceId={stripeDraft.invoiceId}
-                          amount={uiTodayTotal}
-                          customerEmail={profile?.email || user?.email || ""}
-                          customerId={stripeDraft.customerId}
-                          collectBillingDetails
-                          defaultBillingDetails={{
-                            firstName: firstName || profile?.first_name || "",
-                            lastName: lastName || profile?.last_name || "",
-                            addressLine1: [serviceAddressStreet, serviceAddressApartment].filter(Boolean).join(" "),
-                            city: serviceAddressCity || "",
-                            state: serviceAddressProvince || "QC",
-                            postalCode: serviceAddressPostalCode || "",
-                            country: "CA",
-                            email: profile?.email || user?.email || "",
-                          }}
-                          onSuccess={({ paymentIntentId }) => {
-                            setPaymentComplete(true);
-                            setPaymentConfirmationNumber(paymentIntentId);
-                            toast.success("Carte autorisée ! Votre commande sera traitée par notre équipe.");
-                            setAutoFinalizeAfterCardPayment(true);
-                            // Traceability
-                            logPaymentConfirmed({
-                              payment_reference: paymentIntentId,
-                              amount: uiTodayTotal,
-                              method: "card",
-                            });
-                            // Invalidate billing caches
-                            queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
-                            queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
-                            queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
-                            queryClient.invalidateQueries({ queryKey: ["client-balance"] });
-                            queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
-                          }}
-                          onError={(msg) => {
-                            toast.error(msg);
-                            logPaymentFailed({
-                              error_message: msg,
-                              method: "card",
-                              amount: uiTodayTotal,
-                            });
-                          }}
-                        />
-                      )}
+                      <StripeInlinePayment
+                        amount={uiTodayTotal}
+                        description="Préautorisation carte — en attente de confirmation finale"
+                        customerEmail={profile?.email || user?.email || ""}
+                        collectBillingDetails
+                        defaultBillingDetails={{
+                          firstName: firstName || profile?.first_name || "",
+                          lastName: lastName || profile?.last_name || "",
+                          addressLine1: [serviceAddressStreet, serviceAddressApartment].filter(Boolean).join(" "),
+                          city: serviceAddressCity || "",
+                          state: serviceAddressProvince || "QC",
+                          postalCode: serviceAddressPostalCode || "",
+                          country: "CA",
+                          email: profile?.email || user?.email || "",
+                        }}
+                        onSuccess={({ paymentIntentId }) => {
+                          setPaymentComplete(true);
+                          setPaymentConfirmationNumber(paymentIntentId);
+                          toast.success("Carte autorisée. Aucun enregistrement de facturation n'est créé avant la confirmation finale.");
+                          // Traceability
+                          logPaymentConfirmed({
+                            payment_reference: paymentIntentId,
+                            amount: uiTodayTotal,
+                            method: "card",
+                          });
+                        }}
+                        onError={(msg) => {
+                          toast.error(msg);
+                          logPaymentFailed({
+                            error_message: msg,
+                            method: "card",
+                            amount: uiTodayTotal,
+                          });
+                        }}
+                      />
+                      <div className="flex items-start gap-2 p-3 bg-background/70 border border-border rounded-lg">
+                        <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          Aucun solde, aucune facture, et aucune transaction admin ne sont créés tant que vous n'avez pas cliqué sur « Confirmer la commande ».
+                        </p>
+                      </div>
                     </div>
                   )}
 
