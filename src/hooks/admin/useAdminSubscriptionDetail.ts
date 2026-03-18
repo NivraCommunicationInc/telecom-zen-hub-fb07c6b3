@@ -112,7 +112,7 @@ export function useAdminSubscriptionDetail(subscriptionId: string | undefined) {
     address: address.data,
     invoices: invoices.data || [],
     audit: audit.data || [],
-    accountNumber: profile.data?.account_number ?? null,
-    isLoading: subscription.isLoading,
+    accountNumber: accountIdentity.data ?? null,
+    isLoading: subscription.isLoading || accountIdentity.isLoading,
   };
 }
