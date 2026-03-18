@@ -307,47 +307,27 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       y += 3;
     }
 
-    // ── CONTRACT FINANCIAL SUMMARY (commercially clear for prepaid) ──
+    // ── CONTRACT REFERENCE NOTE (no financial duplication — invoice is the billing document) ──
     y += 5;
-    const totX = pw / 2;
-    const netMonthly = Math.max(0, data.subtotal_monthly - data.discount_amount);
-
-    // Calculate box height dynamically
-    let boxLines = 3; // monthly, discount/net, one-time fees
-    if (data.discount_amount > 0) boxLines += 1;
-    const boxH = 7 + boxLines * 6 + 14; // header padding + lines + note area
     doc.setFillColor(...C.lightBg);
-    doc.roundedRect(totX, y, pw / 2 - m, boxH, 2, 2, "F");
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(m, y, cw, 18, 2, 2, "FD");
+    doc.setLineWidth(0.2);
 
-    let ty = y + 7;
-    const drawTot = (label: string, value: string, bold = false) => {
-      doc.setFont("helvetica", bold ? "bold" : "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.text);
-      doc.text(label, totX + 5, ty);
-      doc.text(value, pw - m - 5, ty, { align: "right" });
-      ty += 6;
-    };
-
-    drawTot("Services mensuels récurrents:", fmt(data.subtotal_monthly));
-    if (data.discount_amount > 0) {
-      drawTot("Rabais 1ère période:", `- ${fmt(data.discount_amount)}`);
-      drawTot("Net mensuel (1ère période prépayée):", fmt(netMonthly), true);
-    }
-    if (data.subtotal_one_time > 0) {
-      drawTot("Frais uniques applicables:", fmt(data.subtotal_one_time));
-    }
-
-    // Note instead of misleading total
-    ty += 2;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...C.navy);
+    doc.text("RÉFÉRENCE FINANCIÈRE", m + 5, y + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...C.text);
+    doc.text(`Services mensuels récurrents : ${fmt(data.subtotal_monthly)}/mois`, m + 5, y + 12);
     doc.setFont("helvetica", "italic");
     doc.setFontSize(6.5);
     doc.setTextColor(...C.textMuted);
-    const noteLines = doc.splitTextToSize(
-      "Le montant total facturé incluant taxes est détaillé sur la facture officielle jointe à ce contrat.",
-      pw / 2 - m - 10
-    );
-    doc.text(noteLines, totX + 5, ty);
+    doc.text("Le détail complet des montants, taxes et frais est présenté sur la facture officielle jointe.", m + 5, y + 17);
+    y += 22;
 
     drawFooter(doc, 1, totalPages);
 
@@ -380,12 +360,15 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y += 20;
 
     const terms = [
-      { title: "1. DURÉE ET RÉSILIATION", content: "Le présent contrat est sans engagement et peut être résilié en tout temps par le client avec un préavis de 30 jours. Les services sont fournis sur une base mensuelle prépayée. Aucuns frais de résiliation ne s'appliquent." },
-      { title: "2. PAIEMENT ET FACTURATION", content: "Les services sont prépayés. Le paiement doit être reçu et confirmé avant l'activation ou le renouvellement. Nivra accepte les virements Interac, PayPal et cartes de crédit. Le cycle de facturation commence à la date de confirmation du paiement. Sans paiement à la date de cycle (J0), le service n'est pas renouvelé." },
-      { title: "3. ÉQUIPEMENT", content: "L'équipement fourni (routeur, terminal TV, etc.) demeure la propriété de Nivra Communications Inc. et doit être retourné en bon état à la résiliation. Des frais s'appliquent pour équipement non retourné ou endommagé. Garantie fabricant de 12 mois dès activation." },
-      { title: "4. UTILISATION ACCEPTABLE", content: "Le client s'engage à utiliser les services conformément aux lois en vigueur au Canada et au Québec. Toute utilisation abusive, frauduleuse ou contraire aux politiques de Nivra peut entraîner la suspension immédiate des services sans préavis." },
-      { title: "5. MODIFICATIONS TARIFAIRES", content: "Nivra se réserve le droit de modifier les tarifs et conditions avec un préavis écrit de 30 jours. Le client peut résilier sans frais s'il n'accepte pas les modifications, dans les 30 jours suivant l'avis." },
-      { title: "6. LIMITATION DE RESPONSABILITÉ", content: "Nivra n'est pas responsable des dommages indirects, consécutifs ou punitifs. La responsabilité totale est limitée aux frais payés par le client au cours des trois (3) derniers mois. La disponibilité de service cible est de 99,5% sur base mensuelle." },
+      { title: "1. DURÉE ET RÉSILIATION", content: "Le présent contrat est sans engagement et peut être résilié en tout temps par le client avec un préavis de 30 jours. Les services sont fournis sur une base mensuelle prépayée. Aucuns frais de résiliation ne s'appliquent. À la résiliation, le client doit retourner tout équipement fourni dans les 15 jours." },
+      { title: "2. PAIEMENT ET FACTURATION", content: "Les services sont prépayés. Le paiement doit être reçu et confirmé avant l'activation ou le renouvellement. Nivra accepte les virements Interac, PayPal et cartes de crédit. Le cycle de facturation commence à la date de confirmation du paiement. Sans paiement confirmé à la date de renouvellement (J0), le service expire automatiquement." },
+      { title: "3. PAIEMENT AUTOMATIQUE (AUTOPAY)", content: "Le client peut activer le prélèvement automatique mensuel via carte de crédit enregistrée de manière sécurisée. Tant que le paiement automatique est actif, un rabais mensuel de 5,00 $ est appliqué sur les services récurrents admissibles. Ce rabais est retiré immédiatement et sans préavis si le client désactive le paiement automatique, et s'applique uniquement aux factures futures générées après la réactivation — il n'est jamais rétroactif. Le montant est prélevé automatiquement 3 jours avant la date de renouvellement du cycle." },
+      { title: "4. SUSPENSION POUR NON-PAIEMENT", content: "En cas de non-paiement à la date de renouvellement (J0), le service n'est pas renouvelé et passe au statut « Expiré ». Aucun intérêt ni frais de réactivation ne s'appliquent pour un non-renouvellement normal. Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable et un nouveau numéro sera requis. Des intérêts de 5 % par mois et des frais de réactivation de 15 $ s'appliquent UNIQUEMENT en cas de litiges bancaires ou de rétrofacturations." },
+      { title: "5. ÉQUIPEMENT", content: "L'équipement fourni (routeur, terminal TV, carte SIM, etc.) demeure la propriété de Nivra Communications Inc. et doit être retourné en bon état à la résiliation. Des frais de remplacement s'appliquent pour équipement non retourné ou endommagé. Garantie fabricant de 12 mois dès activation. Perte, vol et dommages causés par le client sont exclus sauf approbation interne." },
+      { title: "6. UTILISATION ACCEPTABLE", content: "Le client s'engage à utiliser les services conformément aux lois en vigueur au Canada et au Québec. Toute utilisation abusive, frauduleuse ou contraire aux politiques de Nivra peut entraîner la suspension immédiate des services sans préavis ni compensation." },
+      { title: "7. MODIFICATIONS TARIFAIRES", content: "Nivra se réserve le droit de modifier les tarifs, frais et conditions applicables avec un préavis écrit de 30 jours transmis par courriel. Le client peut résilier sans frais s'il n'accepte pas les modifications, dans les 30 jours suivant la réception de l'avis. L'utilisation continue des services après ce délai constitue l'acceptation des nouvelles conditions." },
+      { title: "8. LIMITATION DE RESPONSABILITÉ", content: "Nivra Communications Inc. n'est pas responsable des dommages indirects, consécutifs, spéciaux ou punitifs, y compris la perte de revenus, de données ou d'occasions d'affaires. La responsabilité totale de Nivra envers le client est limitée au montant des frais effectivement payés par le client au cours des trois (3) derniers mois de service. La disponibilité de service cible est de 99,5 % sur base mensuelle." },
+      { title: "9. LOI APPLICABLE ET JURIDICTION", content: "Le présent contrat est régi par les lois de la province de Québec et les lois fédérales du Canada qui s'y appliquent. Tout litige découlant du présent contrat sera soumis à la compétence exclusive des tribunaux de la province de Québec, district de Laval. Les parties conviennent de tenter une résolution à l'amiable avant toute procédure judiciaire." },
     ];
 
     terms.forEach(term => {

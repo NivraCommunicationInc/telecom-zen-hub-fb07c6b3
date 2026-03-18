@@ -19,10 +19,11 @@ interface OrderDocumentsPanelProps {
   kycSessionId?: string | null;
 }
 
-type DocType = "invoice" | "orderSummary" | "contract" | "contractSummary" | "terms";
+type DocType = "invoice" | "receipt" | "orderSummary" | "contract" | "contractSummary" | "terms";
 
 const DOC_LABELS: Record<DocType, string> = {
   invoice: "Facture",
+  receipt: "Reçu",
   orderSummary: "Sommaire",
   contract: "Contrat",
   contractSummary: "RRE",
@@ -73,6 +74,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
       const results: Record<string, boolean> = {};
       const entries: { name: string; key: DocType; result: any }[] = [
         { name: "Facture", key: "invoice", result: docs.invoice },
+        { name: "Reçu", key: "receipt", result: docs.receipt },
         { name: "Sommaire", key: "orderSummary", result: docs.orderSummary },
         { name: "Contrat", key: "contract", result: docs.contract },
         { name: "RRE", key: "contractSummary", result: docs.contractSummary },
@@ -91,10 +93,10 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
       });
 
       setLastResults(results);
-      if (successCount === 5) {
-        toast.success("5 documents téléchargés ✓");
+      if (successCount === 6) {
+        toast.success("6 documents téléchargés ✓");
       } else {
-        toast.warning(`${successCount}/5 documents générés`);
+        toast.warning(`${successCount}/6 documents générés`);
       }
     } catch (err) {
       console.error("[OrderDocumentsPanel] Error:", err);
@@ -152,7 +154,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Document buttons */}
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-6 gap-2">
           {(Object.entries(DOC_LABELS) as [DocType, string][]).map(([key, label]) => (
             <Button
               key={key}
@@ -186,7 +188,7 @@ export function OrderDocumentsPanel({ orderId, orderNumber, orderStatus, kycSess
           ) : (
             <Download className="w-4 h-4 mr-2" />
           )}
-          {generating ? "Génération..." : "Télécharger les 5 documents"}
+          {generating ? "Génération..." : "Télécharger les 6 documents"}
         </Button>
 
         {/* Check readiness */}

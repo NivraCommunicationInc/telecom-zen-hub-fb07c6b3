@@ -18,6 +18,7 @@ import { generateContractV3PDF, type ContractDataV3 } from "./contractTemplateV3
 import { generateContractSummaryPDF, type ContractSummaryData } from "./contractSummaryTemplate";
 import { generateOrderSummaryPDF, type OrderSummaryV3Data } from "./orderSummaryTemplate";
 import { generateServiceTermsPDF, CURRENT_TERMS_VERSION } from "./serviceTermsTemplate";
+import { generateReceiptPDF, type ReceiptData } from "./receiptTemplate";
 import type { InvoiceDataV2, PDFGenerationResult, InvoiceItem } from "./types";
 import { TAX } from "./companyInfo";
 import { fetchInvoiceBreakdown, type InvoiceBreakdown, type InvoiceBreakdownItem } from "@/lib/billing/useInvoiceBreakdown";
@@ -28,6 +29,7 @@ import { fetchInvoiceBreakdown, type InvoiceBreakdown, type InvoiceBreakdownItem
 
 export interface OrderDocuments {
   invoice: PDFGenerationResult;
+  receipt: PDFGenerationResult;
   orderSummary: PDFGenerationResult;
   contract: PDFGenerationResult;
   contractSummary: PDFGenerationResult;
@@ -529,6 +531,41 @@ export function buildContractSummaryData(data: OrderDocumentData): ContractSumma
 }
 
 // ============================================================================
+// RECEIPT DATA BUILDER
+// ============================================================================
+
+export function buildReceiptData(data: OrderDocumentData): ReceiptData | null {
+  const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
+  const clientName = buildClientName(order, profile);
+
+  // Find confirmed payment
+  const confirmedPayment = billingPayments.find((p: any) =>
+    ["confirmed", "completed", "captured"].includes(p.status)
+  );
+
+  if (!confirmedPayment && (!breakdown || breakdown.amount_paid <= 0)) {
+    return null; // No payment to receipt
+  }
+
+  const paymentNum = confirmedPayment?.payment_number || confirmedPayment?.reference || billingInvoice?.invoice_number || order.order_number?.toString() || "—";
+  const amountPaid = confirmedPayment ? Number(confirmedPayment.amount) : (breakdown?.amount_paid || 0);
+
+  return {
+    receipt_number: paymentNum,
+    payment_date: confirmedPayment?.received_at || confirmedPayment?.created_at || order.paid_at || order.updated_at || "",
+    payment_method: confirmedPayment?.method || order.payment_method || "Interac",
+    amount_paid: amountPaid,
+    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "—",
+    invoice_total: breakdown?.total || billingInvoice?.total || 0,
+    client_name: requireField(clientName, "client_name"),
+    client_email: requireField(order.client_email || profile?.email, "client_email"),
+    account_number: requireField(account?.account_number, "account_number"),
+    transaction_reference: confirmedPayment?.provider_payment_id || confirmedPayment?.reference || undefined,
+    balance_remaining: breakdown ? breakdown.balance_due : (billingInvoice?.balance_due || 0),
+  };
+}
+
+// ============================================================================
 // FILENAME HELPERS
 // ============================================================================
 
@@ -593,6 +630,7 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     const blockedResult: PDFGenerationResult = { success: false, error: "Aucune ligne de facturation canonique (billing_invoice_lines). Commande marquée comme exception pré-canonique." };
     return {
       invoice: blockedResult,
+      receipt: blockedResult,
       orderSummary: blockedResult,
       contract: blockedResult,
       contractSummary: blockedResult,
@@ -605,6 +643,7 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     const blockedResult: PDFGenerationResult = { success: false, error: "Données de facturation indisponibles (RPC breakdown requis)" };
     return {
       invoice: blockedResult,
+      receipt: blockedResult,
       orderSummary: blockedResult,
       contract: blockedResult,
       contractSummary: blockedResult,
@@ -619,6 +658,11 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
   const invoiceData = buildInvoiceData(data);
   const invoice = generateInvoiceV3PDF(invoiceData);
   if (invoice.success) invoice.filename = filenames.invoice;
+
+  // Receipt — standalone payment proof
+  const receiptData = buildReceiptData(data);
+  const receipt = receiptData ? generateReceiptPDF(receiptData) : { success: false, error: "Aucun paiement confirmé — reçu non généré" } as PDFGenerationResult;
+  if (receipt.success) receipt.filename = filenames.receipt;
 
   const orderSummaryData = buildOrderSummaryData(data);
   const orderSummary = generateOrderSummaryPDF(orderSummaryData);
@@ -635,9 +679,9 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
   const terms = generateServiceTermsPDF();
   if (terms.success) terms.filename = filenames.terms;
 
-  console.log(`[DocumentBuilder V4] Generated: invoice=${invoice.success}, summary=${orderSummary.success}, contract=${contract.success}, rre=${contractSummary.success}, terms=${terms.success}`);
+  console.log(`[DocumentBuilder V4] Generated: invoice=${invoice.success}, receipt=${receipt.success}, summary=${orderSummary.success}, contract=${contract.success}, rre=${contractSummary.success}, terms=${terms.success}`);
 
-  return { invoice, orderSummary, contract, contractSummary, terms };
+  return { invoice, receipt, orderSummary, contract, contractSummary, terms };
 }
 
 /** Download a PDF blob */

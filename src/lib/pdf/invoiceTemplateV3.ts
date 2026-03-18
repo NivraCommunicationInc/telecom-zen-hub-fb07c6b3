@@ -568,7 +568,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     drawTotalLine("Total facture", fmt(data.total), { bold: true });
 
     // ────────────────────────────────────────────────────────────
-    // SECTION 6: PAYMENTS
+    // PAYMENTS RECEIVED (line items only — no receipt section)
     // ────────────────────────────────────────────────────────────
     if (data.payments && data.payments.length > 0) {
       const confirmedPayments = data.payments.filter(p =>
@@ -578,7 +578,7 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
         confirmedPayments.forEach(p => {
           const pData = sanitizePaymentData(p);
           drawTotalLine(
-            `Paiement (${fmtPayMethod(pData.method)})`,
+            `Paiement reçu (${fmtPayMethod(pData.method)})`,
             `- ${fmt(pData.paid_amount)}`,
             { textColor: C.success }
           );
@@ -591,93 +591,17 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     // BALANCE DUE — prominent box
     drawTotalLine("SOLDE À PAYER", fmt(data.balance_due), { bold: true, bg: C.navy, fontSize: 10 });
 
-    // ========================================================================
-    // PAYMENT SECTION
-    // ========================================================================
-    const isPaid = data.status?.toLowerCase() === "paid" || data.balance_due === 0;
-
-    if (isPaid && data.payments && data.payments.length > 0) {
-      const payment = sanitizePaymentData(data.payments[0]);
-
-      // Green banner
-      doc.setFillColor(...C.success);
-      doc.roundedRect(m, y, cw, 7, 1, 1, "F");
-      doc.setTextColor(...C.white);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text("✓ PAIEMENT CONFIRMÉ", m + 5, y + 5);
-      y += 10;
-
-      // Payment details box
-      doc.setFillColor(...C.lightBg);
-      doc.setDrawColor(...C.success);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(m, y, cw, 22, 1, 1, "FD");
-      doc.setLineWidth(0.2);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.text);
-      doc.text(`Méthode: ${fmtPayMethod(payment.method)}`, m + 5, y + 6);
-      doc.text(`Date: ${fmtDate(payment.paid_at)}`, m + 5, y + 12);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      const ref = payment.processor_txn_id !== "—" ? payment.processor_txn_id : payment.payment_reference;
-      if (ref && ref !== "—") {
-        doc.text(`Référence: ${ref}`, m + 5, y + 17);
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...C.success);
-      doc.setFontSize(9);
-      doc.text(`Montant confirmé: ${fmt(payment.paid_amount)}`, m + cw - 5, y + 12, { align: "right" });
-
-      y += 26;
-    } else {
-      // Payment instructions — adapt to selected method
-      doc.setFillColor(...C.lightBg);
-      doc.rect(m, y, cw, 7, "F");
-      doc.setFillColor(...C.teal);
-      doc.rect(m, y, 3, 7, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...C.navy);
-      doc.text("INSTRUCTIONS DE PAIEMENT", m + 7, y + 5);
-      y += 10;
-
-      const selectedMethod = (data.payments?.[0]?.method || "").toLowerCase();
-      const isPayPal = selectedMethod.includes("paypal");
-
-      if (isPayPal) {
-        // PayPal instructions
-        doc.setFillColor(...C.lightBg);
-        doc.roundedRect(m, y, cw, 18, 1, 1, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(...C.text);
-        doc.text("PayPal", m + 5, y + 6);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.5);
-        doc.text("Procédez au paiement via le portail client Nivra ou le lien PayPal fourni par courriel.", m + 5, y + 12);
-        doc.text(`Référence de commande : ${assertPrintableText(data.invoice_number, "invoice_number")}`, m + 5, y + 17);
-        y += 22;
-      } else {
-        // Interac / default instructions
-        doc.setFillColor(...C.lightBg);
-        doc.roundedRect(m, y, cw, 24, 1, 1, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(...C.text);
-        doc.text("Virement Interac (e-Transfer)", m + 5, y + 6);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.5);
-        doc.text(`Courriel: ${NIVRA.email}`, m + 5, y + 12);
-        doc.text("Question secrète: Numéro de facture", m + 5, y + 17);
-        doc.text(`Réponse: ${assertPrintableText(data.invoice_number, "invoice_number")}`, m + 5, y + 22);
-        y += 28;
-      }
-    }
+    // ────────────────────────────────────────────────────────────
+    // BRIEF FOOTER NOTE (no receipt — receipt is a separate document)
+    // ────────────────────────────────────────────────────────────
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...C.textMuted);
+    const footerNote = data.balance_due === 0
+      ? "Merci de votre confiance. Un reçu de paiement distinct a été émis."
+      : `Pour effectuer votre paiement : ${NIVRA.email} — Réf. facture: ${data.invoice_number}`;
+    doc.text(footerNote, m, y + 3);
 
     // ========================================================================
     // FOOTER
