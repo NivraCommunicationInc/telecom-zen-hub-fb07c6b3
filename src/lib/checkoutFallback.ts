@@ -606,7 +606,13 @@ export async function fallbackCheckout(
           amount_paid: (isPaid || isFree) ? correctedTotal : 0,
           balance_due: (isPaid || isFree) ? 0 : correctedTotal,
         }).eq("id", invoiceId);
-        console.log(`[FallbackCheckout] ✅ Invoice corrected: subtotal=${netLineSum}, total=${correctedTotal}`);
+        // BLOCKER 1 FIX: Also update order.total_amount to match corrected invoice total
+        await supabase.from("orders").update({
+          total_amount: correctedTotal,
+        }).eq("id", orderId);
+        // Update grandTotal for downstream payment record
+        grandTotal = correctedTotal;
+        console.log(`[FallbackCheckout] ✅ Invoice + Order corrected: subtotal=${netLineSum}, total=${correctedTotal}`);
       }
     }
   }
