@@ -340,7 +340,7 @@ const VerifyIdentityPage = () => {
                   />
                   <label htmlFor="consent" className="text-sm text-slate-700 cursor-pointer">
                     J'accepte que mes documents d'identité soient collectés et vérifiés par Nivra conformément
-                    à la politique de confidentialité. Je comprends que mes documents seront supprimés après 90 jours.
+                    à la politique de confidentialité. Je comprends que mes documents seront supprimés automatiquement après validation.
                   </label>
                 </div>
               </CardContent>
