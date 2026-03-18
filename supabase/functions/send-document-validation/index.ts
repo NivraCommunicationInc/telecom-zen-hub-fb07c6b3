@@ -159,7 +159,7 @@ function drawInvoiceHeader(doc: any, pw: number) {
   doc.text(`NEQ: ${NIVRA.neq} | ${NIVRA.tps} | ${NIVRA.tvq}`, pw - 15, 22, { align: "right" });
 }
 
-function drawInvoiceFooter(doc: any, pw: number, ph: number) {
+function drawInvoiceFooter(doc: any, pw: number, ph: number, pageNum: number, totalPages: number) {
   const footerH = 36;
   const footerY = ph - footerH;
   doc.setFillColor(...NAVY);
@@ -185,7 +185,7 @@ function drawInvoiceFooter(doc: any, pw: number, ph: number) {
   lines.forEach(l => { doc.text(l, 15, ly); ly += 3; });
 
   doc.setFontSize(6.5);
-  doc.text(`${NIVRA.legalName} — Page 1/1`, pw - 15, ph - 4, { align: "right" });
+  doc.text(`${NIVRA.legalName} — Page ${pageNum}/${totalPages}`, pw - 15, ph - 4, { align: "right" });
 }
 
 // ═══════════════════════════════════════════════════════════════
