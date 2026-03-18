@@ -548,7 +548,9 @@ serve(async (req) => {
             account_id: accountId,
             status: paid ? "confirmed" : "submitted",
             payment_status: paid ? "paid" : (payload.payment?.method === "etransfer" ? "pending" : "pre_authorized"),
-            service_type: (payload.services || []).map((s) => s.name).join(", "),
+            service_type: derivedServiceType,
+            fulfillment_type: isStreamingOnly ? "digital" : null,
+            delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : null,
             order_type: "new",
             total_amount: grandTotal,
             environment: "live",
@@ -556,19 +558,24 @@ serve(async (req) => {
             pricing_snapshot: payload.pricing_snapshot || null,
             line_items: payload.line_items || null,
             notes: payload.notes || null,
-            shipping_address: payload.service_address?.street || null,
-            shipping_city: payload.service_address?.city || null,
-            shipping_province: payload.service_address?.province || "QC",
-            shipping_postal_code: payload.service_address?.postal_code || null,
-            installation_type: payload.installation?.type || null,
-            delivery_fee: toMoney(payload.installation?.delivery_fee),
-            installation_fee: toMoney(payload.installation?.installation_fee),
-            payment_method: payload.payment?.method || null,
+            shipping_address: isStreamingOnly ? null : (payload.service_address?.street || null),
+            shipping_city: isStreamingOnly ? null : (payload.service_address?.city || null),
+            shipping_province: isStreamingOnly ? null : (payload.service_address?.province || "QC"),
+            shipping_postal_code: isStreamingOnly ? null : (payload.service_address?.postal_code || null),
+            installation_type: isStreamingOnly ? "digital_email" : (payload.installation?.type || null),
+            delivery_fee: isStreamingOnly ? 0 : toMoney(payload.installation?.delivery_fee),
+            installation_fee: isStreamingOnly ? 0 : toMoney(payload.installation?.installation_fee),
+            payment_method: billingMethod === "card" ? "card" : (payload.payment?.method || null),
             payment_reference:
               billingMethod === "paypal"
                 ? null
                 : (payload.payment?.reference || response.payment_number || null),
-            provider_payment_id: payload.payment?.paypal_capture_id || null,
+            provider_payment_id:
+              billingMethod === "paypal"
+                ? (payload.payment?.paypal_capture_id || null)
+                : billingMethod === "card"
+                  ? (payload.payment?.reference || null)
+                  : null,
           },
           { onConflict: "id" },
         );
