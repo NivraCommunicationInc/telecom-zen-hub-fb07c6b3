@@ -2305,9 +2305,11 @@ const ClientNewOrder = () => {
         } : null,
         payment: {
           method: paymentMethodValue as any,
-          status: (paymentMethodValue === "paypal" && paypalCaptureId)
-            ? "captured"
-            : (paymentMethodValue === "credit_card" && paymentConfirmationNumber?.startsWith("pi_"))
+          // BILLING INVARIANT LOCK:
+          // Card authorizations are never treated as captured at checkout stage.
+          // Capture/posted state can only be reached by explicit backend/admin capture flow.
+          status:
+            (paymentMethodValue === "paypal" && !!paypalCaptureId) || paymentMethodValue === "promo_free"
               ? "captured"
               : "pre_authorized",
           reference: paymentMethodValue === "paypal" && paypalCaptureId ? paypalCaptureId : paymentConfirmationNumber || null,
