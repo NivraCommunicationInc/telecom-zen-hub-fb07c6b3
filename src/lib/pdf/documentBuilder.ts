@@ -531,6 +531,41 @@ export function buildContractSummaryData(data: OrderDocumentData): ContractSumma
 }
 
 // ============================================================================
+// RECEIPT DATA BUILDER
+// ============================================================================
+
+export function buildReceiptData(data: OrderDocumentData): ReceiptData | null {
+  const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
+  const clientName = buildClientName(order, profile);
+
+  // Find confirmed payment
+  const confirmedPayment = billingPayments.find((p: any) =>
+    ["confirmed", "completed", "captured"].includes(p.status)
+  );
+
+  if (!confirmedPayment && (!breakdown || breakdown.amount_paid <= 0)) {
+    return null; // No payment to receipt
+  }
+
+  const paymentNum = confirmedPayment?.payment_number || confirmedPayment?.reference || billingInvoice?.invoice_number || order.order_number?.toString() || "—";
+  const amountPaid = confirmedPayment ? Number(confirmedPayment.amount) : (breakdown?.amount_paid || 0);
+
+  return {
+    receipt_number: paymentNum,
+    payment_date: confirmedPayment?.received_at || confirmedPayment?.created_at || order.paid_at || order.updated_at || "",
+    payment_method: confirmedPayment?.method || order.payment_method || "Interac",
+    amount_paid: amountPaid,
+    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "—",
+    invoice_total: breakdown?.total || billingInvoice?.total || 0,
+    client_name: requireField(clientName, "client_name"),
+    client_email: requireField(order.client_email || profile?.email, "client_email"),
+    account_number: requireField(account?.account_number, "account_number"),
+    transaction_reference: confirmedPayment?.provider_payment_id || confirmedPayment?.reference || undefined,
+    balance_remaining: breakdown ? breakdown.balance_due : (billingInvoice?.balance_due || 0),
+  };
+}
+
+// ============================================================================
 // FILENAME HELPERS
 // ============================================================================
 
