@@ -86,7 +86,22 @@ const fmtPayMethod = (m: string): string => {
   return map[m] || m;
 };
 
-// ============================================================================
+/** Format address with proper casing and postal code spacing */
+const fmtAddress = (addr: string | undefined): string => {
+  if (!addr) return "";
+  const cityFixes: Record<string, string> = {
+    "saint jerome": "Saint-Jerome",
+    "saint-jerome": "Saint-Jerome",
+    "st jerome": "Saint-Jerome",
+    "st-jerome": "Saint-Jerome",
+  };
+  let result = addr;
+  for (const [key, val] of Object.entries(cityFixes)) {
+    result = result.replace(new RegExp(key, "gi"), val);
+  }
+  result = result.replace(/([A-Z]\d[A-Z])(\d[A-Z]\d)/gi, "$1 $2");
+  return result;
+};
 // MAIN GENERATOR
 // ============================================================================
 
