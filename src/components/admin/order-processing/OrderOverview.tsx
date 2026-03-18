@@ -96,7 +96,7 @@ export function OrderOverview({ orderId, onSwitchToProcess }: Props) {
             <Row label="Courriel" value={order.client_email || profile?.email} />
             <Row label="Téléphone" value={order.client_phone || profile?.phone} />
             <Row label="Adresse" value={order.client_full_address || "—"} />
-            <Row label="Compte" value={order.account_id ? "—" : "—"} />
+            <Row label="Compte" value={data?.accountNumber || "—"} />
           </div>
         </div>
 
