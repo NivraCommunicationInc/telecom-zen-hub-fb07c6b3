@@ -61,9 +61,9 @@ export const ClientBalanceSummary = ({ userId }: ClientBalanceSummaryProps) => {
   // Use V2 ledger balance hook with portal client for proper RLS
   const { data: ledger, isLoading: ledgerLoading } = useLedgerBalance(userId, portalClient);
 
-  // Fetch pending invoices from BOTH V2 and legacy systems
+  // Fetch pending invoices from canonical billing_invoices only
   const { data: pendingInvoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["pending-invoices-unified", userId],
+    queryKey: ["pending-invoices-canonical", userId],
     queryFn: async () => {
       const allPending: PendingInvoice[] = [];
 

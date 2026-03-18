@@ -27,7 +27,7 @@ const ClientDashboard = () => {
       if (!user?.id) return null;
       const { data } = await portalSupabase
         .from("profiles")
-        .select("full_name, account_number, client_number, account_status, phone")
+        .select("full_name, client_number, account_status, phone")
         .eq("user_id", user.id)
         .maybeSingle();
       return data;
@@ -40,7 +40,6 @@ const ClientDashboard = () => {
     queryKey: ["client-billing-subscriptions", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Find billing_customer for this user
       const { data: customer } = await portalSupabase
         .from("billing_customers")
         .select("id")
@@ -55,7 +54,6 @@ const ClientDashboard = () => {
         .select("*, services:billing_subscription_services(*)")
         .eq("customer_id", customer.id)
         .eq("status", "active");
-      // Map to compatible shape
       return (subs || []).map((s: any) => ({
         id: s.id,
         plan_name: s.plan_name,
@@ -90,7 +88,7 @@ const ClientDashboard = () => {
 
   const dismiss = (id: string) => setDismissedBanners((prev) => [...prev, id]);
 
-  const accountNumber = accountIdentity?.accountNumber || profile?.account_number || "Non attribué";
+  const accountNumber = accountIdentity?.accountNumber || "Non attribué";
 
   // Group subscriptions by type
   const mobileServices = subscriptions?.filter((s: any) => 

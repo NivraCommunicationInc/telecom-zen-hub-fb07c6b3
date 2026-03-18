@@ -82,7 +82,7 @@ const ClientInvoices = () => {
     queryFn: async () => {
       const { data } = await portalSupabase
         .from("profiles")
-        .select("full_name, email, phone, account_number, client_number, service_address, service_city, service_postal_code")
+        .select("full_name, email, phone, client_number, service_address, service_city, service_postal_code")
         .eq("user_id", user?.id)
         .maybeSingle();
       return data;
@@ -105,7 +105,7 @@ const ClientInvoices = () => {
 
       const { data: invoices } = await portalSupabase
         .from("billing_invoices")
-        .select("id")
+        .select("id, invoice_number, total, status, balance_due")
         .eq("customer_id", customer.id)
         .order("created_at", { ascending: false });
       if (!invoices || invoices.length === 0) return [];
@@ -116,15 +116,22 @@ const ClientInvoices = () => {
       const result: InvoiceBreakdown[] = [];
       for (const inv of invoices) {
         const bd = bdMap.get(inv.id);
-        if (bd) {
-          if (bd.status !== "paid" && bd.status !== "void" && bd.status !== "cancelled" && bd.due_date && isPast(parseISO(bd.due_date))) {
-            (bd as any).display_status = "overdue";
-          } else {
-            (bd as any).display_status = bd.status;
-          }
-          result.push(bd);
+        if (!bd) {
+          throw new Error(`CANONICAL_INVARIANT_VIOLATION: Missing breakdown for invoice ${inv.id}`);
         }
+
+        const totalMatch = Math.round((Number(bd.total) || 0) * 100) === Math.round((Number(inv.total) || 0) * 100);
+        const balanceMatch = Math.round((Number(bd.balance_due) || 0) * 100) === Math.round((Number(inv.balance_due) || 0) * 100);
+        const statusMatch = bd.status === inv.status;
+        const invoiceNumberMatch = bd.invoice_number === inv.invoice_number;
+
+        if (!totalMatch || !balanceMatch || !statusMatch || !invoiceNumberMatch) {
+          throw new Error(`CANONICAL_INVARIANT_VIOLATION: Portal/Core mismatch on invoice ${inv.id}`);
+        }
+
+        result.push(bd);
       }
+
       return result;
     },
     enabled: !!user?.id,
