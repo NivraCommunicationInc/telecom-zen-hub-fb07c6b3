@@ -27,70 +27,15 @@ const ClientDashboard = () => {
       if (!user?.id) return null;
       const { data } = await portalSupabase
         .from("profiles")
-        .select("full_name, account_number, client_number, account_status, phone")
+        .select("full_name, client_number, account_status, phone")
         .eq("user_id", user.id)
         .maybeSingle();
       return data;
     },
     enabled: !!user?.id,
   });
-
-  // Fetch from billing_subscriptions (V2 source of truth) via billing_customer
-  const { data: subscriptions } = useQuery({
-    queryKey: ["client-billing-subscriptions", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      // Find billing_customer for this user
-      const { data: customer } = await portalSupabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!customer) {
-        console.warn("[ClientDashboard] Aucun billing_customer trouvé — le client n'a pas encore de profil de facturation V2.");
-        return [];
-      }
-      const { data: subs } = await portalSupabase
-        .from("billing_subscriptions")
-        .select("*, services:billing_subscription_services(*)")
-        .eq("customer_id", customer.id)
-        .eq("status", "active");
-      // Map to compatible shape
-      return (subs || []).map((s: any) => ({
-        id: s.id,
-        plan_name: s.plan_name,
-        amount: s.plan_price,
-        billing_cycle: "monthly",
-        service_type: s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
-        status: s.status,
-      }));
-    },
-    enabled: !!user?.id,
-  });
-
-  const { data: orders } = useQuery({
-    queryKey: ["client-orders", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data } = await portalSupabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(3);
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copié dans le presse-papiers");
-  };
-
-  const dismiss = (id: string) => setDismissedBanners((prev) => [...prev, id]);
-
-  const accountNumber = accountIdentity?.accountNumber || profile?.account_number || "Non attribué";
+...
+  const accountNumber = accountIdentity?.accountNumber || "Non attribué";
 
   // Group subscriptions by type
   const mobileServices = subscriptions?.filter((s: any) => 
