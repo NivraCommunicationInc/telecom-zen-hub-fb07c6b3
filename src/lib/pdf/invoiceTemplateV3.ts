@@ -515,98 +515,196 @@ export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
     }
 
     // ────────────────────────────────────────────────────────────
-    // SECTION 4 & 5: TAXES + TOTAL PROGRESSION
+    // END OF PAGE 1 — Note + minimal footer
     // ────────────────────────────────────────────────────────────
-    if (y > maxY - 55) {
-      drawNivraFooter(doc, 1, 2);
-      doc.addPage();
-      drawNivraHeader(doc, "FACTURE (suite)");
-      y = 40;
-    }
+    // Page 1 note: "Suite en page 2"
+    y += 4;
+    doc.setDrawColor(...C.border);
+    doc.line(m, y, m + cw, y);
+    y += 5;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...C.textMuted);
+    doc.text("Suite en page 2 — Sommaire financier et informations de paiement", pw / 2, y + 3, { align: "center" });
 
-    drawSectionHeader("SOMMAIRE FINANCIER");
+    // Page 1 minimal footer (no billing policy — just branding)
+    const footerY1 = ph - 12;
+    doc.setFillColor(...C.navy);
+    doc.rect(0, footerY1, pw, 12, "F");
+    doc.setFillColor(...C.teal);
+    doc.rect(0, footerY1, pw, 1, "F");
+    doc.setTextColor(...C.white);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, 15, footerY1 + 7);
+    doc.text("Page 1/2", pw - 15, footerY1 + 7, { align: "right" });
 
-    const totW = 90;
-    const tx = m + cw - totW;
+    // ════════════════════════════════════════════════════════════
+    // PAGE 2: Financial summary + Payment + Policy
+    // ════════════════════════════════════════════════════════════
+    doc.addPage();
+    drawNivraHeader(doc, "FACTURE");
+    y = 40;
 
-    const drawTotalLine = (label: string, value: string, opts: { bold?: boolean; bg?: [number, number, number]; textColor?: [number, number, number]; fontSize?: number; indent?: boolean } = {}) => {
-      if (opts.bg) {
-        doc.setFillColor(...opts.bg);
-        doc.roundedRect(tx - 3, y - 2, totW + 6, 9, 1, 1, "F");
-        doc.setTextColor(...(opts.textColor || C.white));
-      } else {
-        doc.setTextColor(...(opts.textColor || C.text));
-      }
+    // Page 2 subtitle
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...C.navy);
+    doc.text("SOMMAIRE FINANCIER", m, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...C.textMuted);
+    doc.text(`Facture N° ${critical(data.invoice_number, "invoice_number")} — Compte ${critical(data.account_number, "account_number")}`, m, y + 11);
+    y += 18;
+
+    // ── Financial summary box ──
+    const summaryBoxH = 82;
+    doc.setFillColor(...C.lightBg);
+    doc.roundedRect(m, y, cw, summaryBoxH, 3, 3, "F");
+    doc.setFillColor(...C.teal);
+    doc.rect(m, y, 3, summaryBoxH, "F");
+
+    let sy = y + 8;
+    const lx = m + 10;
+    const vx = m + cw - 12;
+
+    const drawSummaryLine = (label: string, value: string, opts: { bold?: boolean; color?: [number, number, number]; size?: number } = {}) => {
       doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-      doc.setFontSize(opts.fontSize || 9);
-      const labelX = opts.indent ? tx + 6 : tx;
-      doc.text(label, labelX, y + 4);
-      doc.text(value, tx + totW, y + 4, { align: "right" });
-      y += opts.bg ? 12 : 6.5;
+      doc.setFontSize(opts.size || 9);
+      doc.setTextColor(...(opts.color || C.text));
+      doc.text(label, lx, sy);
+      doc.text(value, vx, sy, { align: "right" });
+      sy += 7;
     };
 
-    // Show structured subtotals if available
+    // Structured subtotals
     if (data.subtotal_monthly !== undefined && data.subtotal_monthly > 0) {
-      drawTotalLine("Services mensuels", fmt(data.subtotal_monthly), { indent: true });
+      drawSummaryLine("Services mensuels récurrents", fmt(data.subtotal_monthly));
     }
     if (data.subtotal_onetime !== undefined && data.subtotal_onetime > 0) {
-      drawTotalLine("Frais uniques", fmt(data.subtotal_onetime), { indent: true });
+      drawSummaryLine("Frais uniques (équipement + activation)", fmt(data.subtotal_onetime));
     }
 
-    drawTotalLine("Sous-total", fmt(data.subtotal), { bold: true });
-
-    // Discounts summary
+    // Discounts
     if (data.discounts && data.discounts.length > 0) {
       const totalDiscount = data.discounts.reduce((sum, d) => sum + d.amount, 0);
-      drawTotalLine("Rabais / promotions", `- ${fmt(totalDiscount)}`, { textColor: C.success });
+      drawSummaryLine(
+        data.discounts.length === 1 ? data.discounts[0].label : "Rabais / promotions",
+        `- ${fmt(totalDiscount)}`,
+        { color: C.success }
+      );
     }
 
-    // Taxes — with name + percentage
-    drawTotalLine(`TPS (${(data.taxes.gst_rate * 100).toFixed(0)}%)`, fmt(data.taxes.gst_amount));
-    drawTotalLine(`TVQ (${(data.taxes.qst_rate * 100).toFixed(3).replace(".", ",")}%)`, fmt(data.taxes.qst_amount));
+    // Separator
+    sy += 1;
+    doc.setDrawColor(...C.border);
+    doc.line(lx, sy, vx, sy);
+    sy += 5;
 
-    drawTotalLine("Total facture", fmt(data.total), { bold: true });
+    drawSummaryLine("Sous-total avant taxes", fmt(data.subtotal), { bold: true });
+    drawSummaryLine(`TPS (${(data.taxes.gst_rate * 100).toFixed(0)}%)`, fmt(data.taxes.gst_amount));
+    drawSummaryLine(`TVQ (${(data.taxes.qst_rate * 100).toFixed(3).replace(".", ",")}%)`, fmt(data.taxes.qst_amount));
 
-    // ────────────────────────────────────────────────────────────
-    // PAYMENTS RECEIVED (line items only — no receipt section)
-    // ────────────────────────────────────────────────────────────
+    // Separator
+    sy += 1;
+    doc.setDrawColor(...C.border);
+    doc.line(lx, sy, vx, sy);
+    sy += 5;
+
+    drawSummaryLine("Total de la facture", fmt(data.total), { bold: true, size: 10 });
+
+    y = y + summaryBoxH + 10;
+
+    // ── Payment information box ──
     if (data.payments && data.payments.length > 0) {
       const confirmedPayments = data.payments.filter(p =>
         ["Confirmed", "confirmed", "Captured", "captured", "completed"].includes(p.status)
       );
       if (confirmedPayments.length > 0) {
-        confirmedPayments.forEach(p => {
+        const payBoxH = 8 + confirmedPayments.length * 24 + 4;
+        doc.setFillColor(240, 253, 244);
+        doc.setDrawColor(187, 247, 208);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(m, y, cw, payBoxH, 3, 3, "FD");
+        doc.setLineWidth(0.2);
+        doc.setFillColor(...C.success);
+        doc.rect(m, y, 3, payBoxH, "F");
+
+        let py2 = y + 8;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(...C.navy);
+        doc.text("INFORMATIONS DE PAIEMENT", m + 10, py2);
+        py2 += 8;
+
+        for (const p of confirmedPayments) {
           const pData = sanitizePaymentData(p);
-          drawTotalLine(
-            `Paiement reçu (${fmtPayMethod(pData.method)})`,
-            `- ${fmt(pData.paid_amount)}`,
-            { textColor: C.success }
-          );
-        });
+          const drawPayField = (label: string, value: string) => {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(7.5);
+            doc.setTextColor(...C.textMuted);
+            doc.text(label, m + 10, py2);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8.5);
+            doc.setTextColor(...C.text);
+            doc.text(value, m + 55, py2);
+            py2 += 6;
+          };
+          drawPayField("Montant payé", fmt(pData.paid_amount));
+          drawPayField("Méthode", fmtPayMethod(pData.method));
+          drawPayField("Date", fmtDate(pData.paid_at));
+          if (pData.payment_reference && pData.payment_reference !== "—") {
+            drawPayField("Référence", assertPrintableText(pData.payment_reference, "ref"));
+          }
+        }
+        y += payBoxH + 8;
       }
     } else if (data.payments_total && data.payments_total > 0) {
-      drawTotalLine("Paiements reçus", `- ${fmt(data.payments_total)}`, { textColor: C.success });
+      const payBoxH = 36;
+      doc.setFillColor(240, 253, 244);
+      doc.setDrawColor(187, 247, 208);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(m, y, cw, payBoxH, 3, 3, "FD");
+      doc.setLineWidth(0.2);
+      doc.setFillColor(...C.success);
+      doc.rect(m, y, 3, payBoxH, "F");
+
+      let py2 = y + 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...C.navy);
+      doc.text("INFORMATIONS DE PAIEMENT", m + 10, py2);
+      py2 += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...C.text);
+      doc.text(`Paiements reçus: ${fmt(data.payments_total)}`, m + 10, py2);
+      y += payBoxH + 8;
     }
 
-    // BALANCE DUE — prominent box
-    drawTotalLine("SOLDE À PAYER", fmt(data.balance_due), { bold: true, bg: C.navy, fontSize: 10 });
+    // ── Balance box ──
+    doc.setFillColor(...C.navy);
+    doc.roundedRect(m, y, cw, 14, 3, 3, "F");
+    doc.setTextColor(...C.white);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("SOLDE À PAYER", m + 10, y + 9.5);
+    doc.text(fmt(data.balance_due), m + cw - 12, y + 9.5, { align: "right" });
+    y += 22;
 
-    // ────────────────────────────────────────────────────────────
-    // BRIEF FOOTER NOTE (no receipt — receipt is a separate document)
-    // ────────────────────────────────────────────────────────────
-    y += 4;
+    // ── Thank you note ──
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
+    doc.setFontSize(8);
     doc.setTextColor(...C.textMuted);
     const footerNote = data.balance_due === 0
-      ? "Merci de votre confiance. Un reçu de paiement distinct a été émis."
+      ? "Merci de votre confiance. Un reçu de paiement distinct a été émis pour vos dossiers."
       : `Pour effectuer votre paiement : ${NIVRA.email} — Réf. facture: ${data.invoice_number}`;
     doc.text(footerNote, m, y + 3);
 
     // ========================================================================
-    // FOOTER
+    // PAGE 2 FOOTER — with billing policy
     // ========================================================================
-    drawNivraFooter(doc, 1, 1);
+    drawNivraFooter(doc, 2, 2);
 
     // Generate
     const blob = doc.output("blob");
