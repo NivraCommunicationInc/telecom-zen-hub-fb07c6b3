@@ -595,6 +595,7 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     const blockedResult: PDFGenerationResult = { success: false, error: "Aucune ligne de facturation canonique (billing_invoice_lines). Commande marquée comme exception pré-canonique." };
     return {
       invoice: blockedResult,
+      receipt: blockedResult,
       orderSummary: blockedResult,
       contract: blockedResult,
       contractSummary: blockedResult,
@@ -607,6 +608,7 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
     const blockedResult: PDFGenerationResult = { success: false, error: "Données de facturation indisponibles (RPC breakdown requis)" };
     return {
       invoice: blockedResult,
+      receipt: blockedResult,
       orderSummary: blockedResult,
       contract: blockedResult,
       contractSummary: blockedResult,
@@ -621,6 +623,11 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
   const invoiceData = buildInvoiceData(data);
   const invoice = generateInvoiceV3PDF(invoiceData);
   if (invoice.success) invoice.filename = filenames.invoice;
+
+  // Receipt — standalone payment proof
+  const receiptData = buildReceiptData(data);
+  const receipt = receiptData ? generateReceiptPDF(receiptData) : { success: false, error: "Aucun paiement confirmé — reçu non généré" } as PDFGenerationResult;
+  if (receipt.success) receipt.filename = filenames.receipt;
 
   const orderSummaryData = buildOrderSummaryData(data);
   const orderSummary = generateOrderSummaryPDF(orderSummaryData);
@@ -637,9 +644,9 @@ export async function generateOrderDocuments(orderId: string): Promise<OrderDocu
   const terms = generateServiceTermsPDF();
   if (terms.success) terms.filename = filenames.terms;
 
-  console.log(`[DocumentBuilder V4] Generated: invoice=${invoice.success}, summary=${orderSummary.success}, contract=${contract.success}, rre=${contractSummary.success}, terms=${terms.success}`);
+  console.log(`[DocumentBuilder V4] Generated: invoice=${invoice.success}, receipt=${receipt.success}, summary=${orderSummary.success}, contract=${contract.success}, rre=${contractSummary.success}, terms=${terms.success}`);
 
-  return { invoice, orderSummary, contract, contractSummary, terms };
+  return { invoice, receipt, orderSummary, contract, contractSummary, terms };
 }
 
 /** Download a PDF blob */
