@@ -453,6 +453,7 @@ export function StripeInlinePayment({
           {
             body: {
               invoice_id: invoiceId || undefined,
+              intent_context: intentContext,
               amount: intentAmountRef.current,
               description: description || undefined,
               customer_email: customerEmail || undefined,
