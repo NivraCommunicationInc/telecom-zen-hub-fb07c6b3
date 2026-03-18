@@ -48,47 +48,48 @@ export function PaymentHistoryV2({ userId }: PaymentHistoryV2Props) {
 
       if (!customer) return [];
 
-      // Fetch invoices (debits)
+      // Fetch invoices (debits) from canonical source only
       const { data: invoices } = await portalClient
         .from('billing_invoices')
-        .select('id, invoice_number, created_at, total, status, type, order_id')
+        .select('id, invoice_number, created_at, total, status')
         .eq('customer_id', customer.id)
-        .not('order_id', 'is', null)
-        .not('status', 'in', '("cancelled","refunded","failed")')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
-      // Fetch payments (credits) — exclude failed/cancelled to avoid confusing duplicates
+      // Fetch payments (credits) from canonical source only
       const { data: payments } = await portalClient
         .from('billing_payments')
-        .select('id, reference, created_at, amount, status, method')
+        .select('id, payment_number, reference, created_at, amount, status, method')
         .eq('customer_id', customer.id)
-        .in('status', ['confirmed', 'pending', 'in_verification'])
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       const ledgerEntries: LedgerEntry[] = [];
 
-      // Add invoices as debits
+      // Add invoices as debits (no fallback identifiers)
       for (const inv of invoices || []) {
+        if (!inv.invoice_number) {
+          throw new Error(`CANONICAL_INVARIANT_VIOLATION: invoice_number missing for invoice ${inv.id}`);
+        }
+
         ledgerEntries.push({
           id: inv.id,
           type: 'debit',
           date: inv.created_at,
-          description: `Facture ${inv.invoice_number || inv.id.slice(0, 8)}`,
+          description: `Facture ${inv.invoice_number}`,
           amount: Number(inv.total) || 0,
           reference: inv.invoice_number,
           status: inv.status,
         });
       }
 
-      // Add payments as credits
+      // Add payments as credits (keep exact canonical reference field)
       for (const pay of payments || []) {
         ledgerEntries.push({
           id: pay.id,
           type: 'credit',
           date: pay.created_at,
-          description: `Paiement reçu`,
+          description: `Paiement ${pay.payment_number}`,
           amount: Number(pay.amount) || 0,
           reference: pay.reference,
           status: pay.status,
