@@ -672,6 +672,30 @@ export async function fallbackCheckout(
         console.log("[FallbackCheckout] ✓ Subscription created for:", mainService.name);
       }
     }
+
+    // BLOCKER 2 FIX: Link subscription to invoice for trigger-based activation
+    if (createdSubscriptionId) {
+      await supabase.from("billing_invoices").update({
+        subscription_id: createdSubscriptionId,
+      }).eq("id", invoiceId);
+
+      // If paid, force-activate the subscription (trigger may have blocked it)
+      if (isPaid || isFree) {
+        const { data: subCheck } = await supabase
+          .from("billing_subscriptions")
+          .select("status")
+          .eq("id", createdSubscriptionId)
+          .single();
+
+        if (subCheck && subCheck.status !== "active") {
+          console.warn(`[FallbackCheckout] ⚠️ Subscription stuck as '${subCheck.status}' — force-activating`);
+          await supabase.from("billing_subscriptions").update({
+            status: "active",
+            last_invoice_id: invoiceId,
+          }).eq("id", createdSubscriptionId);
+        }
+      }
+    }
   }
 
   // ── 10. Update account billing_cycle_day ──
