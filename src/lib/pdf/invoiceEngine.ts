@@ -438,14 +438,11 @@ export async function generateInvoicePDF(
       console.warn(`[InvoiceEngine] Aucun template actif trouvé, utilisation du template par défaut: ${templateKey}`);
     }
     
-    // 5. Générer le PDF avec le template V2.5 approprié
+    // 5. Générer le PDF avec le template V3 approuvé (LOCKED 2026-03-18)
     let result: PDFGenerationResult;
     
-    if (sanitizedData.invoice_type === "MONTHLY") {
-      result = generateInvoiceMonthlyV2PDF(sanitizedData);
-    } else {
-      result = generateInvoiceOneTimeV2PDF(sanitizedData);
-    }
+    // V3 unified template — handles both MONTHLY and ONETIME
+    result = generateInvoiceV3PDF(sanitizedData);
     
     // 6. Logger la génération dans l'audit trail (APPEND-ONLY)
     await logPDFGeneration({
