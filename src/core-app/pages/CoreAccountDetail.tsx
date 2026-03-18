@@ -232,6 +232,15 @@ const CoreAccountDetail = () => {
           onRefresh={data.refetch}
         />
       </div>
+
+      <Account360ProfileEditDialog
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        account={acct}
+        profile={prof}
+        clientId={data.clientId}
+        onSaved={data.refetch}
+      />
     </div>
   );
 };

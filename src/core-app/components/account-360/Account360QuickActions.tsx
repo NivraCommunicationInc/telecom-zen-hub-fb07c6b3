@@ -41,7 +41,8 @@ export function Account360QuickActions({ accountId, clientId, accountStatus, onR
   };
 
   const actions = [
-    { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders"), color: "emerald" },
+    { icon: UserPen, label: "Modifier le profil", onClick: onEditProfile, color: "emerald" },
+    { icon: ShoppingCart, label: "Nouvelle commande", onClick: () => onNavigateSection("orders"), color: "default" },
     { icon: FileText, label: "Ouvrir facture", onClick: () => onNavigateSection("invoices"), color: "default" },
     { icon: CreditCard, label: "Enregistrer paiement", onClick: () => onNavigateSection("payments"), color: "default" },
     ...(accountStatus !== "suspended"
