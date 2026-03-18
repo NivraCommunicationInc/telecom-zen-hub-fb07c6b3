@@ -224,3 +224,9 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.stripe-admin-actions]
+verify_jwt = false
+
+[functions.stripe-setup-autopay]
+verify_jwt = false
