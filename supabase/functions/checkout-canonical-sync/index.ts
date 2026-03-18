@@ -686,24 +686,40 @@ serve(async (req) => {
           } else {
             results.invoice_lines_created = invoiceLines.length;
 
-            // VALIDATION: Verify line totals match invoice subtotal
-            const positiveLineSum = invoiceLines
-              .filter(l => l.line_total > 0)
-              .reduce((sum, l) => sum + l.line_total, 0);
-            const discountSum = Math.abs(
-              invoiceLines
-                .filter(l => l.line_total < 0)
-                .reduce((sum, l) => sum + l.line_total, 0)
+            // VALIDATION: Verify line totals match invoice subtotal (taxable_base)
+            const netLineSum = toMoney(
+              invoiceLines.reduce((sum, l) => sum + l.line_total, 0)
             );
-            const expectedSubtotal = toMoney(response.pricing?.subtotal ?? payload.pricing_snapshot?.subtotal ?? payload.pricing_snapshot?.taxable_base);
+            const expectedSubtotal = toMoney(
+              response.pricing?.taxable_base ?? response.pricing?.subtotal ??
+              payload.pricing_snapshot?.taxable_base ?? payload.pricing_snapshot?.subtotal
+            );
+            const lineDelta = toMoney(Math.abs(netLineSum - expectedSubtotal));
 
             console.log("[checkout-canonical-sync] Invoice lines validation:", {
-              positive_line_sum: positiveLineSum,
-              discount_sum: discountSum,
-              net_lines: toMoney(positiveLineSum - discountSum),
-              expected_subtotal: expectedSubtotal,
+              net_line_sum: netLineSum,
+              expected_taxable_base: expectedSubtotal,
+              delta: lineDelta,
+              match: lineDelta < 0.02 ? "✅" : "⚠️ MISMATCH",
               lines_count: invoiceLines.length,
             });
+
+            // If mismatch, update invoice subtotal to match actual lines
+            if (lineDelta >= 0.02) {
+              console.warn(`[checkout-canonical-sync] ⚠️ Correcting invoice subtotal from ${expectedSubtotal} to ${netLineSum} to match line totals`);
+              const correctedTps = toMoney(netLineSum * 0.05);
+              const correctedTvq = toMoney(netLineSum * 0.09975);
+              const correctedTotal = toMoney(netLineSum + correctedTps + correctedTvq);
+              await admin.from("billing_invoices").update({
+                subtotal: netLineSum,
+                tps_amount: correctedTps,
+                tvq_amount: correctedTvq,
+                total: correctedTotal,
+                amount_paid: paid ? correctedTotal : 0,
+                balance_due: paid ? 0 : correctedTotal,
+              }).eq("id", response.invoice_id);
+              console.log(`[checkout-canonical-sync] ✅ Invoice corrected: subtotal=${netLineSum}, tps=${correctedTps}, tvq=${correctedTvq}, total=${correctedTotal}`);
+            }
           }
         }
       } else {
