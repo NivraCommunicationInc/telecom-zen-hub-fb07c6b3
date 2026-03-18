@@ -191,62 +191,80 @@ serve(async (req) => {
       const customerId = metadata.customer_id;
       const paymentIntentId = paymentIntent.id;
       const authorizedAmount = (paymentIntent.amount_capturable || paymentIntent.amount) / 100;
+      const isCheckoutPreconfirm =
+        metadata.intent_context === "checkout_preconfirm" ||
+        metadata.source === "portal_checkout_preconfirm";
 
       console.log(`[stripe-webhook] payment_intent.amount_capturable_updated: PI=${paymentIntentId}, amount=${authorizedAmount}`);
 
-      if (invoiceId) {
-        // Check if payment record already exists
-        const { data: existingPayment } = await supabase
-          .from("billing_payments")
-          .select("id")
-          .eq("provider_payment_id", paymentIntentId)
-          .maybeSingle();
+      // HARD LOCK: pre-confirmation checkout intents must NEVER create billable records.
+      if (isCheckoutPreconfirm) {
+        console.log(`[stripe-webhook] preconfirm authorization ignored for PI ${paymentIntentId}`);
+        return new Response(
+          JSON.stringify({ received: true, skipped_preconfirm: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-        if (!existingPayment) {
-          // Create a pending/authorized payment record — NOT confirmed yet
-          const { data: invoiceNumberData } = await supabase.rpc("generate_payment_number");
-          const paymentNumber = invoiceNumberData || `PAY-${Date.now()}`;
+      if (!invoiceId) {
+        console.warn(`[stripe-webhook] amount_capturable_updated without invoice_id metadata — skipping PI ${paymentIntentId}`);
+        return new Response(
+          JSON.stringify({ received: true, skipped_no_invoice: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-          await supabase.from("billing_payments").insert({
-            invoice_id: invoiceId,
-            customer_id: customerId || null,
-            method: "card" as any,
-            provider: "stripe",
-            provider_payment_id: paymentIntentId,
-            amount: authorizedAmount,
-            status: "pending" as any,
-            source: "live" as any,
-            payment_number: paymentNumber,
-            created_by_name: "stripe_webhook",
-            created_by_role: "system",
-            stripe_payment_intent_id: paymentIntentId,
-            authorized_amount: authorizedAmount,
-            authorization_status: "authorized",
-            authorized_at: new Date().toISOString(),
-          });
+      // Check if payment record already exists
+      const { data: existingPayment } = await supabase
+        .from("billing_payments")
+        .select("id")
+        .eq("provider_payment_id", paymentIntentId)
+        .maybeSingle();
 
-          console.log(`[stripe-webhook] ✓ Authorization recorded for PI ${paymentIntentId}`);
-        } else {
-          // Update existing record to authorized status
-          await supabase.from("billing_payments").update({
-            authorization_status: "authorized",
-            authorized_amount: authorizedAmount,
-            authorized_at: new Date().toISOString(),
-            stripe_payment_intent_id: paymentIntentId,
-          }).eq("id", existingPayment.id);
-        }
+      if (!existingPayment) {
+        // Create a pending/authorized payment record — NOT confirmed yet
+        const { data: invoiceNumberData } = await supabase.rpc("generate_payment_number");
+        const paymentNumber = invoiceNumberData || `PAY-${Date.now()}`;
 
-        // Update order authorization status
-        const { data: invData } = await supabase.from("billing_invoices")
-          .select("order_id")
-          .eq("id", invoiceId)
-          .single();
+        await supabase.from("billing_payments").insert({
+          invoice_id: invoiceId,
+          customer_id: customerId || null,
+          method: "card" as any,
+          provider: "stripe",
+          provider_payment_id: paymentIntentId,
+          amount: authorizedAmount,
+          status: "pending" as any,
+          source: "live" as any,
+          payment_number: paymentNumber,
+          created_by_name: "stripe_webhook",
+          created_by_role: "system",
+          stripe_payment_intent_id: paymentIntentId,
+          authorized_amount: authorizedAmount,
+          authorization_status: "authorized",
+          authorized_at: new Date().toISOString(),
+        });
 
-        if (invData?.order_id) {
-          await supabase.from("orders").update({
-            payment_authorization_status: "authorized",
-          }).eq("id", invData.order_id);
-        }
+        console.log(`[stripe-webhook] ✓ Authorization recorded for PI ${paymentIntentId}`);
+      } else {
+        // Update existing record to authorized status
+        await supabase.from("billing_payments").update({
+          authorization_status: "authorized",
+          authorized_amount: authorizedAmount,
+          authorized_at: new Date().toISOString(),
+          stripe_payment_intent_id: paymentIntentId,
+        }).eq("id", existingPayment.id);
+      }
+
+      // Update order authorization status
+      const { data: invData } = await supabase.from("billing_invoices")
+        .select("order_id")
+        .eq("id", invoiceId)
+        .single();
+
+      if (invData?.order_id) {
+        await supabase.from("orders").update({
+          payment_authorization_status: "authorized",
+        }).eq("id", invData.order_id);
       }
 
       return new Response(
