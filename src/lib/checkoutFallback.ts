@@ -362,6 +362,8 @@ export async function fallbackCheckout(
   const cardCaptured =
     (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) &&
     (payload.payment.status === "captured" || inferredCardByReference);
+  // ★ Card payments are AUTHORIZED ONLY (manual capture) — NOT considered "paid" until admin captures
+  const isCardAuthorizedOnly = (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) && !cardCaptured;
   const isPaid = (rawMethod === "paypal" && !!payload.payment.paypal_capture_id) || cardCaptured;
   const isFree = rawMethod === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
@@ -394,8 +396,9 @@ export async function fallbackCheckout(
     client_request_id: payload.client_request_id,
     user_id: userId,
     account_id: accountId,
-    status: (isPaid || isFree) ? "confirmed" : "submitted",
-    payment_status: paymentStatus,
+    status: isCardAuthorizedOnly ? "pending_admin_review" : ((isPaid || isFree) ? "confirmed" : "submitted"),
+    payment_status: isCardAuthorizedOnly ? "authorized" : paymentStatus,
+    payment_authorization_status: isCardAuthorizedOnly ? "authorized" : (isPaid ? "captured" : "none"),
     service_type: derivedServiceType,
     fulfillment_type: isStreamingOnly ? "digital" : null,
     delivery_method: isStreamingOnly ? "Livraison numérique par courriel" : (payload.installation?.type || null),
@@ -625,7 +628,7 @@ export async function fallbackCheckout(
     invoice_id: invoiceId,
     method: billingMethod,
     amount: grandTotal,
-    status: (isPaid || isFree) ? "confirmed" : "pending",
+    status: isCardAuthorizedOnly ? "pending" : ((isPaid || isFree) ? "confirmed" : "pending"),
     reference: paymentReference,
     provider: paymentProvider,
     provider_payment_id: paymentProviderPaymentId,
@@ -633,6 +636,11 @@ export async function fallbackCheckout(
     source: "live",
     environment: "live",
     created_by_name: `${payload.customer.first_name} ${payload.customer.last_name}`.trim(),
+    // ★ Authorization tracking for card orders
+    stripe_payment_intent_id: isCardAuthorizedOnly ? (payload.payment.reference || null) : null,
+    authorized_amount: isCardAuthorizedOnly ? grandTotal : null,
+    authorization_status: isCardAuthorizedOnly ? "authorized" : (isPaid ? "captured" : "none"),
+    authorized_at: isCardAuthorizedOnly ? now : null,
   });
   if (payErr) throw new Error(`Payment creation failed: ${payErr.message}`);
   console.log("[FallbackCheckout] ✓ Payment created:", paymentNumber);
@@ -679,8 +687,9 @@ export async function fallbackCheckout(
         subscription_id: createdSubscriptionId,
       }).eq("id", invoiceId);
 
-      // If paid, force-activate the subscription (trigger may have blocked it)
-      if (isPaid || isFree) {
+      // If paid (NOT just authorized), force-activate the subscription
+      // Card-authorized orders stay pending until admin captures
+      if ((isPaid || isFree) && !isCardAuthorizedOnly) {
         const { data: subCheck } = await supabase
           .from("billing_subscriptions")
           .select("status")

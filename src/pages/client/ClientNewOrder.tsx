@@ -3609,7 +3609,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     const timer = setTimeout(() => {
       if (autoFinalizeTriggeredRef.current) return;
       autoFinalizeTriggeredRef.current = true;
-      console.log("[AutoFinalize] Card payment confirmed, auto-triggering order creation with PI:", paymentConfirmationNumber);
+      console.log("[AutoFinalize] Card authorized (manual capture), auto-triggering order creation with PI:", paymentConfirmationNumber);
       handleSubmit();
     }, 500);
 
@@ -6401,7 +6401,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                           onSuccess={({ paymentIntentId }) => {
                             setPaymentComplete(true);
                             setPaymentConfirmationNumber(paymentIntentId);
-                            toast.success("Paiement par carte confirmé ! Finalisation de la commande…");
+                            toast.success("Carte autorisée ! Votre commande sera traitée par notre équipe.");
                             setAutoFinalizeAfterCardPayment(true);
                             // Traceability
                             logPaymentConfirmed({

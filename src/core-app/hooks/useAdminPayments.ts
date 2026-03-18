@@ -28,6 +28,13 @@ export interface AdminPayment {
   customer_email: string | null;
   account_number: string | null;
   environment?: string;
+  // ★ Stripe authorization fields
+  stripe_payment_intent_id?: string | null;
+  authorized_amount?: number | null;
+  authorization_status?: string | null;
+  authorized_at?: string | null;
+  captured_at?: string | null;
+  captured_by?: string | null;
 }
 
 export function useAdminPayments(environment: EnvironmentFilter = 'all') {
@@ -40,6 +47,8 @@ export function useAdminPayments(environment: EnvironmentFilter = 'all') {
           id, payment_number, amount, method, status, reference, provider,
           provider_payment_id, source, received_at, created_at, confirmed_by,
           legacy_note, created_by_name, invoice_id, customer_id, environment,
+          stripe_payment_intent_id, authorized_amount, authorization_status,
+          authorized_at, captured_at, captured_by,
           invoice:billing_invoices(invoice_number, billing_snapshot_account_number),
           customer:billing_customers(id, first_name, last_name, email)
         `)
@@ -72,6 +81,12 @@ export function useAdminPayments(environment: EnvironmentFilter = 'all') {
         customer_email: p.customer?.email ?? null,
         account_number: p.invoice?.billing_snapshot_account_number ?? null,
         environment: p.environment,
+        stripe_payment_intent_id: p.stripe_payment_intent_id,
+        authorized_amount: p.authorized_amount,
+        authorization_status: p.authorization_status,
+        authorized_at: p.authorized_at,
+        captured_at: p.captured_at,
+        captured_by: p.captured_by,
       }));
     },
   });

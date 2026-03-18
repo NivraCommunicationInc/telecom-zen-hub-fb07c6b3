@@ -181,9 +181,16 @@ function PaymentForm({
           const msg = error.message || "Erreur lors du paiement";
           toast.error(msg);
           onError?.(msg);
-        } else if (paymentIntent?.status === "succeeded") {
+        } else if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "requires_capture") {
+          // ★ requires_capture = authorization success (manual capture mode)
+          // ★ succeeded = full capture (legacy/autopay flows)
+          const isAuthOnly = paymentIntent.status === "requires_capture";
           setIsComplete(true);
-          toast.success("Paiement par carte confirmé !");
+          toast.success(
+            isAuthOnly
+              ? "Carte autorisée avec succès ! Votre commande est en attente de traitement."
+              : "Paiement par carte confirmé !"
+          );
           queryClient.invalidateQueries({ queryKey: ["ledger-balance"] });
           queryClient.invalidateQueries({ queryKey: ["overdue-count-unified"] });
           queryClient.invalidateQueries({ queryKey: ["ledger-history-v2"] });
@@ -227,8 +234,8 @@ function PaymentForm({
     return (
       <div className="flex flex-col items-center gap-3 py-6">
         <CheckCircle2 className="w-10 h-10 text-primary" />
-        <p className="text-sm font-semibold text-foreground">Paiement réussi !</p>
-        <p className="text-xs text-muted-foreground">Votre facture a été mise à jour.</p>
+        <p className="text-sm font-semibold text-foreground">Carte autorisée avec succès !</p>
+        <p className="text-xs text-muted-foreground">Votre commande est en attente de validation par notre équipe.</p>
       </div>
     );
   }
@@ -356,7 +363,7 @@ function PaymentForm({
         ) : (
           <>
             <CreditCard className="w-4 h-4" />
-            Payer {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+            Autoriser {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
           </>
         )}
       </Button>

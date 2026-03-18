@@ -106,10 +106,12 @@ serve(async (req) => {
     const resolvedCustomerId = customer_id || invoice?.customer_id;
     if (resolvedCustomerId) metadata.customer_id = resolvedCustomerId;
 
+    // ★ MANUAL CAPTURE: Authorize only — admin must capture later
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "cad",
       customer: stripeCustomerId,
+      capture_method: "manual",
       metadata,
       description: description || (invoice
         ? `Facture ${invoice.invoice_number} — Nivra Telecom`
@@ -127,6 +129,7 @@ serve(async (req) => {
         payment_intent_id: paymentIntent.id,
         livemode: paymentIntent.livemode,
         payment_intent_status: paymentIntent.status,
+        capture_method: paymentIntent.capture_method,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
