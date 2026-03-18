@@ -6217,36 +6217,6 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         setPaymentComplete(false);
                         setPaymentConfirmationNumber("");
                         setPaypalCaptureId("");
-                        // Create draft invoice for Stripe if not already created
-                        if (!stripeDraft && !stripeDraftLoading && user && authoritativePricing && uiTodayTotal > 0) {
-                          setStripeDraftLoading(true);
-                          setStripeDraftError(null);
-                          createCheckoutDraftInvoice({
-                            userId: user.id,
-                            email: profile?.email || user.email || "",
-                            firstName: firstName || profile?.first_name || "",
-                            lastName: lastName || profile?.last_name || "",
-                            phone: checkoutPhone || profile?.phone || "",
-                            totalAmount: uiTodayTotal,
-                            subtotal: authoritativePricing.subtotal ?? 0,
-                            tpsAmount: (authoritativePricing as any).tps ?? (authoritativePricing as any).gst ?? 0,
-                            tvqAmount: (authoritativePricing as any).tvq ?? (authoritativePricing as any).qst ?? 0,
-                            serviceAddress: serviceAddressStreet || "",
-                            serviceCity: serviceAddressCity || "",
-                            servicePostalCode: serviceAddressPostalCode || "",
-                            serviceType: selectedServices[0]?.category || (selectedStreamingServices.length > 0 ? "streaming" : "bundle"),
-                            description: `Checkout public — Commande Nivra`,
-                          })
-                            .then((result) => {
-                              setStripeDraft(result);
-                              setStripeDraftLoading(false);
-                            })
-                            .catch((err) => {
-                              console.error("[Checkout] Stripe draft invoice error:", err);
-                              setStripeDraftError(err instanceof Error ? err.message : "Erreur de préparation du paiement");
-                              setStripeDraftLoading(false);
-                            });
-                        }
                       }}
                     >
                       <div className="absolute top-2 right-2">
