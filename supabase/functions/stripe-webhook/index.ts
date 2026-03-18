@@ -364,7 +364,19 @@ serve(async (req) => {
     // ─────────────────────────────────────────────────────────────
     if (event.type === "payment_intent.canceled") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const metadata = paymentIntent.metadata || {};
       const paymentIntentId = paymentIntent.id;
+      const isCheckoutPreconfirm =
+        metadata.intent_context === "checkout_preconfirm" ||
+        metadata.source === "portal_checkout_preconfirm";
+
+      if (isCheckoutPreconfirm) {
+        console.log(`[stripe-webhook] preconfirm PI cancelled — no billing mutation required (${paymentIntentId})`);
+        return new Response(
+          JSON.stringify({ received: true, cancelled: true, skipped_preconfirm: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       const { data: existingPayment } = await supabase
         .from("billing_payments")
