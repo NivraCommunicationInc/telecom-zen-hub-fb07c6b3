@@ -27,9 +27,14 @@ export function OrderOverview({ orderId, onSwitchToProcess }: Props) {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("*")
+        .select("user_id, full_name, email, phone")
         .eq("user_id", order.user_id)
         .maybeSingle();
+
+      // Canonical account_number from accounts table (NOT profiles)
+      const { data: account } = order.account_id
+        ? await supabase.from("accounts").select("account_number").eq("id", order.account_id).maybeSingle()
+        : { data: null };
 
       const { data: invoice } = await supabase
         .from("billing_invoices")
@@ -42,7 +47,7 @@ export function OrderOverview({ orderId, onSwitchToProcess }: Props) {
         .select("*")
         .eq("order_id", orderId);
 
-      return { order, profile, invoice, items: items || [] };
+      return { order, profile, invoice, items: items || [], accountNumber: account?.account_number ?? null };
     },
   });
 
