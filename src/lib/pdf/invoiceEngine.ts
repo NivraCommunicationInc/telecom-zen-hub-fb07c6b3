@@ -1,9 +1,9 @@
 /**
- * Nivra Invoice Engine V2.5
+ * Nivra Invoice Engine V3.0 — LOCKED PRODUCTION TEMPLATE (2026-03-18)
  * 
  * POINT D'ENTRÉE UNIQUE pour la génération de factures PDF.
- * Ce moteur utilise UNIQUEMENT les templates V2.5 actifs définis dans pdf_template_config.
- * Les templates legacy (V1.0) ne sont PLUS appelés.
+ * Utilise EXCLUSIVEMENT le template V3 approuvé (TELUS-grade).
+ * Les templates V2.5 et antérieurs sont définitivement retirés.
  * 
  * AUDIT: Chaque génération est loggée dans pdf_generation_logs (append-only).
  * 
@@ -13,17 +13,16 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { generateInvoiceMonthlyV2PDF } from "./invoiceMonthlyTemplateV2";
-import { generateInvoiceOneTimeV2PDF } from "./invoiceOneTimeTemplateV2";
+import { generateInvoiceV3PDF } from "./invoiceTemplateV3";
 import type { InvoiceDataV2, PDFGenerationResult, InvoiceType } from "./types";
 import { NIVRA_COMPANY, PREPAID_LEGAL_FOOTER } from "./types";
 import { createBlankInvoiceDataV2, TEMPLATE_WATERMARK } from "./blankTemplateData";
 
 // ============================================================================
-// ENGINE VERSION - MUST MATCH DATABASE
+// ENGINE VERSION — LOCKED V3.0 (approved 2026-03-18)
 // ============================================================================
 
-const ENGINE_VERSION = "V2.5";
+const ENGINE_VERSION = "V3.0";
 
 // ============================================================================
 // FORBIDDEN TERMS (Prépayé - aucune dette)
