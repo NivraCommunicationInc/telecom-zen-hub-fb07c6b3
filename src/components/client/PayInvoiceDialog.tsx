@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet, Loader2 } from "lucide-react";
+import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet, Loader2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
+import { CARD_PAYMENTS_DISABLED, CARD_MAINTENANCE_MESSAGE_FR } from "@/config/paymentMaintenance";
 
 interface PayInvoiceDialogProps {
   open: boolean;
