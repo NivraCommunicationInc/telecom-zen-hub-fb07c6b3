@@ -139,7 +139,7 @@ const ClientOrders = () => {
   const activeOrders = orders?.filter((o: any) => !["completed", "cancel"].includes(o.status)).length || 0;
   const completedOrders = orders?.filter((o: any) => o.status === "completed").length || 0;
   const totalSpent = orders?.filter((o: any) => o.status === "completed")
-    .reduce((acc: number, o: any) => acc + (Number(o.total_amount) || 0), 0) || 0;
+    .reduce((acc: number, o: any) => acc + (Number(o.pricing_snapshot?.grand_total ?? o.total_amount) || 0), 0) || 0;
 
   return (
     <ClientLayout>
