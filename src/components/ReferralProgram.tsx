@@ -30,15 +30,15 @@ const steps = [
 
 const ReferralProgram = () => {
   return (
-    <section className="py-20 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
+    <section className="py-20 bg-secondary/40 relative overflow-hidden">
       {/* Subtle decorative elements */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-[#003366]/3 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-      <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-500/3 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/3 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-500/3 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
       <div className="container mx-auto px-4 max-w-6xl relative">
         {/* Badge */}
         <div className="flex justify-center mb-6">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/8 border border-emerald-500/15 text-emerald-700 text-sm font-semibold">
             <Gift className="w-4 h-4" />
             Programme de parrainage
           </span>
@@ -46,10 +46,10 @@ const ReferralProgram = () => {
 
         {/* Headline */}
         <div className="text-center max-w-2xl mx-auto mb-14">
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Parrainez un proche, recevez <span className="text-emerald-600">25$</span>
           </h2>
-          <p className="text-lg text-slate-600 leading-relaxed">
+          <p className="text-lg text-muted-foreground leading-relaxed">
             Invitez vos proches chez Nivra et recevez une carte-cadeau Visa/Mastercard de 25$ après leur 3e cycle mensuel payé. Sans limite de parrainages.
           </p>
         </div>
@@ -58,21 +58,21 @@ const ReferralProgram = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
           {steps.map((step, i) => (
             <div key={i} className="relative group">
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 h-full shadow-sm hover:shadow-md hover:border-emerald-300 transition-all duration-300">
+              <div className="bg-card rounded-2xl border border-border p-7 h-full hover:shadow-lg hover:border-emerald-500/25 transition-all duration-300">
                 {/* Step number */}
-                <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-[#003366] text-white flex items-center justify-center text-xs font-bold shadow-md">
+                <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-md">
                   {i + 1}
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors">
-                  <step.icon className="w-6 h-6 text-emerald-600" />
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/8 flex items-center justify-center mb-5 group-hover:bg-emerald-500/12 transition-colors duration-300">
+                  <step.icon className="w-6 h-6 text-emerald-600 transition-transform duration-300 group-hover:scale-110" />
                 </div>
-                <h3 className="font-semibold text-slate-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{step.description}</p>
+                <h3 className="font-bold text-foreground mb-2">{step.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
               </div>
               {/* Connector arrow (hidden on last) */}
               {i < steps.length - 1 && (
                 <div className="hidden lg:flex absolute top-1/2 -right-3 -translate-y-1/2 z-10">
-                  <ArrowRight className="w-5 h-5 text-slate-300" />
+                  <ArrowRight className="w-5 h-5 text-border" />
                 </div>
               )}
             </div>
@@ -80,38 +80,43 @@ const ReferralProgram = () => {
         </div>
 
         {/* Reward highlight */}
-        <div className="bg-[#003366] rounded-2xl p-8 md:p-10 text-center shadow-xl">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center">
-              <CreditCard className="w-7 h-7 text-emerald-400" />
-            </div>
+        <div className="bg-primary rounded-2xl p-8 md:p-12 text-center shadow-xl relative overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/5 to-transparent" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-2">
-            Carte-cadeau Visa/Mastercard de 25$
-          </h3>
-          <p className="text-white/70 max-w-lg mx-auto mb-6">
-            Pour chaque parrainage qualifié. Aucune limite — plus vous parrainez, plus vous gagnez. Programme transparent, sans conditions cachées.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button
-              className="bg-white text-[#003366] hover:bg-slate-100 rounded-full px-6 h-11 font-semibold gap-2"
-              asChild
-            >
-              <Link to="/portal/referrals">
-                <Gift className="w-4 h-4" />
-                Voir mon code
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 rounded-full px-6 h-11 font-semibold gap-2"
-              asChild
-            >
-              <Link to="/parrainage">
-                En savoir plus
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
+          <div className="relative">
+            <div className="flex items-center justify-center gap-3 mb-5">
+              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                <CreditCard className="w-8 h-8 text-emerald-400" />
+              </div>
+            </div>
+            <h3 className="text-2xl md:text-3xl font-bold text-primary-foreground mb-3">
+              Carte-cadeau Visa/Mastercard de 25$
+            </h3>
+            <p className="text-primary-foreground/70 max-w-lg mx-auto mb-8 text-lg leading-relaxed">
+              Pour chaque parrainage qualifié. Aucune limite — plus vous parrainez, plus vous gagnez. Programme transparent, sans conditions cachées.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button
+                className="bg-white text-primary hover:bg-white/90 rounded-full px-8 h-12 font-bold gap-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                asChild
+              >
+                <Link to="/portal/referrals">
+                  <Gift className="w-4 h-4" />
+                  Voir mon code
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="border-white/25 text-primary-foreground hover:bg-white/10 rounded-full px-8 h-12 font-semibold gap-2 transition-all duration-300"
+                asChild
+              >
+                <Link to="/parrainage">
+                  En savoir plus
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>

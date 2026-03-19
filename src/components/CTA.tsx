@@ -10,10 +10,11 @@ const CTA = () => {
 
   return (
     <section id="contact" className="py-20 bg-primary relative overflow-hidden">
-      {/* Subtle background accents */}
+      {/* Background accents */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-1/3 h-1/2 bg-gradient-to-bl from-white/5 to-transparent" />
         <div className="absolute bottom-0 left-0 w-1/4 h-1/3 bg-gradient-to-tr from-white/3 to-transparent" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/2 rounded-full blur-3xl" />
       </div>
 
       <div className="container mx-auto px-4 relative max-w-7xl">
@@ -28,32 +29,32 @@ const CTA = () => {
             </p>
 
             {/* Trust micro-indicators */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 mb-8">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 mb-8">
               {[
                 { icon: Shield, text: isFrench ? "Sans contrat" : "No contract" },
                 { icon: Zap, text: isFrench ? "Activation rapide" : "Fast activation" },
                 { icon: Clock, text: isFrench ? "Support 7j/7" : "24/7 support" },
               ].map((item) => (
-                <div key={item.text} className="flex items-center gap-2 text-sm text-primary-foreground/60">
+                <div key={item.text} className="flex items-center gap-2 text-sm text-primary-foreground/50">
                   <item.icon className="w-4 h-4" />
-                  <span className="font-medium">{item.text}</span>
+                  <span className="font-semibold">{item.text}</span>
                 </div>
               ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-5">
-              <Button 
-                className="bg-white text-primary hover:bg-white/90 rounded-full px-8 h-12 font-bold gap-2 text-base shadow-lg"
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-6">
+              <Button
+                className="bg-white text-primary hover:bg-white/90 rounded-full px-10 h-14 font-bold gap-2 text-base shadow-lg hover:shadow-xl transition-all duration-300"
                 asChild
               >
                 <Link to="/portal/auth">
-                  <MessageSquare className="w-4 h-4" />
+                  <MessageSquare className="w-5 h-5" />
                   {isFrench ? "Chat / Ouvrir un ticket" : "Chat / Open a ticket"}
                 </Link>
               </Button>
             </div>
 
-            <p className="text-sm text-primary-foreground/40">
+            <p className="text-sm text-primary-foreground/35 font-medium">
               {isFrench ? "Réponse entre 1h et 24h • Chat live selon disponibilité" : "Response within 1h to 24h • Live chat based on availability"}
             </p>
           </div>
