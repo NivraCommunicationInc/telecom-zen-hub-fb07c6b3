@@ -986,6 +986,306 @@ serve(async (req: Request) => {
         return json(200, { ok: true, request_id: requestId, message: "Accès portail mis à jour" });
       }
 
+      case "update_mfa_requirement": {
+        const { user_id, mfa_required } = body as UpdateMfaRequirementRequest;
+
+        if (!user_id || typeof mfa_required !== "boolean") {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            message: "user_id et mfa_required requis",
+          });
+        }
+
+        const { error } = await adminClient
+          .from("user_roles")
+          .update({ mfa_required })
+          .eq("user_id", user_id);
+
+        if (error) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: error.message,
+          });
+        }
+
+        await logAction(
+          "staff_mfa_requirement_updated",
+          { request_id: requestId, mfa_required },
+          { type: "user", id: user_id }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          message: "Exigence MFA mise à jour",
+        });
+      }
+
+      case "generate_invitation":
+      case "send_invitation":
+      case "resend_invitation": {
+        const { user_id } = body as GenerateInvitationRequest | SendInvitationRequest | ResendInvitationRequest;
+
+        if (!user_id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            message: "user_id requis",
+          });
+        }
+
+        const shouldSendEmail = body.action !== "generate_invitation";
+
+        const { data: roleData, error: roleError } = await adminClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        if (roleError || !roleData) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            message: "Employé introuvable",
+          });
+        }
+
+        const { data: profileData } = await adminClient
+          .from("profiles")
+          .select("email, full_name, first_name, last_name")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        const targetEmail = profileData?.email?.trim().toLowerCase();
+        if (!targetEmail) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            message: "Email introuvable pour cet employé",
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        await adminClient
+          .from("staff_onboarding_tokens")
+          .update({ revoked_at: nowIso, revoked_by_admin_id: callingUser.id })
+          .eq("user_id", user_id)
+          .is("used_at", null)
+          .is("revoked_at", null);
+
+        const tokenBytes = new Uint8Array(32);
+        crypto.getRandomValues(tokenBytes);
+        const token = Array.from(tokenBytes)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        const tokenHash = await hashToken(token);
+
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 48);
+
+        const invitationPayload = {
+          user_id,
+          email: targetEmail,
+          role: roleData.role,
+          token_hash: tokenHash,
+          expires_at: expiresAt.toISOString(),
+          created_by_admin_id: callingUser.id,
+          sent_at: shouldSendEmail ? nowIso : null,
+        };
+
+        const { error: tokenError } = await adminClient
+          .from("staff_onboarding_tokens")
+          .insert(invitationPayload);
+
+        if (tokenError) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: tokenError.message,
+          });
+        }
+
+        if (shouldSendEmail) {
+          const resendApiKey = Deno.env.get("RESEND_API_KEY");
+          if (!resendApiKey) {
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              message: "Configuration email manquante",
+            });
+          }
+
+          const appBaseUrl = getAppBaseUrl();
+          const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
+          const displayName =
+            profileData?.full_name ||
+            `${profileData?.first_name || ""} ${profileData?.last_name || ""}`.trim() ||
+            "Collègue";
+
+          const roleLabels: Record<string, string> = {
+            admin: "Administrateur",
+            employee: "Employé",
+            technician: "Technicien",
+            field_sales: "Ventes terrain",
+            supervisor: "Superviseur",
+            sales: "Ventes",
+            support: "Support",
+            billing_admin: "Admin facturation",
+            techops: "TechOps",
+            kyc_agent: "Agent KYC",
+          };
+
+          const resend = new Resend(resendApiKey);
+          await resend.emails.send({
+            from: "Nivra Telecom <support@nivra-telecom.ca>",
+            reply_to: "support@nivra-telecom.ca",
+            to: [targetEmail],
+            subject: "Invitation interne Nivra — Activez votre compte",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background:#0f172a;padding:24px;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-size:24px;">Nivra Core</h1>
+                  <p style="color:#cbd5e1;margin:8px 0 0;font-size:13px;">Invitation d'accès interne</p>
+                </div>
+                <div style="padding:24px;background:#ffffff;border:1px solid #e2e8f0;">
+                  <p style="margin:0 0 16px;color:#0f172a;">Bonjour ${displayName},</p>
+                  <p style="margin:0 0 16px;color:#334155;line-height:1.6;">
+                    Vous avez été invité à activer votre compte interne avec le rôle <strong>${roleLabels[roleData.role] || roleData.role}</strong>.
+                  </p>
+                  <p style="text-align:center;margin:24px 0;">
+                    <a href="${setupLink}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">
+                      Activer mon compte
+                    </a>
+                  </p>
+                  <p style="margin:0;color:#64748b;font-size:12px;">Ce lien expire dans 48 heures.</p>
+                </div>
+              </div>
+            `,
+          });
+        }
+
+        await logAction(
+          body.action === "resend_invitation" ? "staff_invitation_resent" : "staff_invitation_generated",
+          {
+            request_id: requestId,
+            sent: shouldSendEmail,
+            expires_at: expiresAt.toISOString(),
+          },
+          { type: "user", id: user_id, email: targetEmail }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          invitation: {
+            user_id,
+            email: targetEmail,
+            role: roleData.role,
+            status: shouldSendEmail ? "sent" : "generated",
+            expires_at: expiresAt.toISOString(),
+            sent_at: shouldSendEmail ? nowIso : null,
+          },
+          message: shouldSendEmail ? "Invitation envoyée" : "Invitation générée",
+        });
+      }
+
+      case "revoke_invitation": {
+        const { user_id } = body as RevokeInvitationRequest;
+
+        if (!user_id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            message: "user_id requis",
+          });
+        }
+
+        const revokedAt = new Date().toISOString();
+        const { data: revokedRows, error } = await adminClient
+          .from("staff_onboarding_tokens")
+          .update({ revoked_at: revokedAt, revoked_by_admin_id: callingUser.id })
+          .eq("user_id", user_id)
+          .is("used_at", null)
+          .is("revoked_at", null)
+          .select("id");
+
+        if (error) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: error.message,
+          });
+        }
+
+        await logAction(
+          "staff_invitation_revoked",
+          { request_id: requestId, revoked_count: revokedRows?.length || 0 },
+          { type: "user", id: user_id }
+        );
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          revoked_count: revokedRows?.length || 0,
+          message: "Invitation révoquée",
+        });
+      }
+
+      case "list_invitation_statuses": {
+        const { user_ids } = body as ListInvitationStatusesRequest;
+
+        let invitationQuery = adminClient
+          .from("staff_onboarding_tokens")
+          .select("id, user_id, email, role, created_at, expires_at, sent_at, used_at, revoked_at")
+          .order("created_at", { ascending: false })
+          .limit(500);
+
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          invitationQuery = invitationQuery.in("user_id", user_ids);
+        }
+
+        const { data, error } = await invitationQuery;
+
+        if (error) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: error.message,
+          });
+        }
+
+        const latestByUser = new Map<string, any>();
+        for (const row of data || []) {
+          if (!latestByUser.has(row.user_id)) {
+            latestByUser.set(row.user_id, row);
+          }
+        }
+
+        const now = Date.now();
+        const invitations = Array.from(latestByUser.values()).map((row) => {
+          let status = "generated";
+          if (row.revoked_at) status = "revoked";
+          else if (row.used_at) status = "accepted";
+          else if (new Date(row.expires_at).getTime() < now) status = "expired";
+          else if (row.sent_at) status = "sent";
+
+          return {
+            ...row,
+            status,
+          };
+        });
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          invitations,
+        });
+      }
+
       case "disable": {
         const { user_id } = body;
         if (user_id === callingUser.id) {
@@ -1058,7 +1358,7 @@ serve(async (req: Request) => {
       case "change_role": {
         const { user_id, new_role } = body;
 
-        if (!(["admin", "employee", "technician"] as const).includes(new_role)) {
+        if (!INTERNAL_STAFF_ROLES.includes(new_role as StaffRole)) {
           return json(400, {
             ok: false,
             request_id: requestId,
