@@ -2074,6 +2074,72 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_consent_records: {
+        Row: {
+          account_id: string | null
+          consent_timestamp: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          legal_versions: Json | null
+          order_id: string | null
+          payment_method: string | null
+          recurring_payment_accepted: boolean | null
+          services_displayed: Json | null
+          terms_accepted: boolean
+          total_amount_displayed: number | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          consent_timestamp?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          legal_versions?: Json | null
+          order_id?: string | null
+          payment_method?: string | null
+          recurring_payment_accepted?: boolean | null
+          services_displayed?: Json | null
+          terms_accepted?: boolean
+          total_amount_displayed?: number | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          consent_timestamp?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          legal_versions?: Json | null
+          order_id?: string | null
+          payment_method?: string | null
+          recurring_payment_accepted?: boolean | null
+          services_displayed?: Json | null
+          terms_accepted?: boolean
+          total_amount_displayed?: number | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_consent_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "checkout_consent_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checkout_sessions: {
         Row: {
           appointment_id: string | null
