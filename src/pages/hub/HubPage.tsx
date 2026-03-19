@@ -191,6 +191,34 @@ export default function HubPage() {
     );
   }
 
+  // MFA enrollment gate — user has no TOTP factor
+  if (showMfaEnroll) {
+    return (
+      <MfaEnrollmentDialog
+        onComplete={() => {
+          setShowMfaEnroll(false);
+          // Re-check MFA status after enrollment
+          window.location.reload();
+        }}
+        onCancel={handleLogout}
+      />
+    );
+  }
+
+  // MFA verification gate — user is enrolled but hasn't verified this session
+  if (showMfaVerify && mfaStatus?.factorId) {
+    return (
+      <MfaVerificationGate
+        factorId={mfaStatus.factorId}
+        onVerified={() => {
+          setShowMfaVerify(false);
+          auditAccess("hub_access", "hub");
+        }}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)]">
