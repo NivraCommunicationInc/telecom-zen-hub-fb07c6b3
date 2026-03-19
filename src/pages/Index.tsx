@@ -5,7 +5,6 @@ import NetworkTrust from "@/components/NetworkTrust";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 import { FeaturedOffers } from "@/components/FeaturedOffers";
-import ShopServices from "@/components/ShopServices";
 import ReferralProgram from "@/components/ReferralProgram";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
@@ -19,12 +18,17 @@ const Index = () => {
       <Header />
       <HomeStatusBanner />
       <main>
+        {/* 1. Hero — Value prop + primary CTA */}
         <Hero />
-        <FeaturedOffers />
+        {/* 2. Service selection — Internet / Mobile / Combo */}
         <ServiceShowcase />
+        {/* 3. Featured offers — Top plans highlighted */}
+        <FeaturedOffers />
+        {/* 4. Why Nivra — Trust elements */}
         <NetworkTrust />
+        {/* 5. Referral program */}
         <ReferralProgram />
-        <ShopServices />
+        {/* 6. Final CTA — Push to order */}
         <CTA />
       </main>
       <Footer />

@@ -46,7 +46,7 @@ const ServiceShowcase = () => {
     return [
       buildCard("Internet", Wifi, "Internet", "/internet", "Internet haute vitesse illimité", true),
       buildCard("Mobile", Smartphone, "Mobile", "/mobile", "Forfaits prépayés flexibles"),
-      buildCard("TV", Tv, "Internet + TV", "/tv", "Combinez Internet et TV pour une expérience complète"),
+      buildCard("TV", Tv, "Combos Internet + TV", "/tv", "Combinez Internet et TV pour économiser"),
     ];
   }, [services]);
 
