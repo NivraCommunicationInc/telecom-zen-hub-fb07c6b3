@@ -665,6 +665,19 @@ serve(async (req: Request) => {
 
             userId = existingUser.id;
             console.log(`[admin-manage-staff] ${stepLookup} found existing user_id=${userId}`);
+
+            // CRITICAL: Prevent admin from demoting themselves
+            if (userId === callingUser.id) {
+              console.warn(`[admin-manage-staff] ${stepLookup} BLOCKED: admin tried to modify their own role`);
+              return json(400, {
+                ok: false,
+                request_id: requestId,
+                step: stepLookup,
+                message: "Vous ne pouvez pas modifier votre propre rôle. Demandez à un autre administrateur.",
+                http_status: 400,
+                details: { email, reason: "self_role_change_blocked" },
+              });
+            }
           } else {
             console.error(`[admin-manage-staff] ${stepAuthCreate} error:`, authError);
             await logAction("staff_create_failed", {
