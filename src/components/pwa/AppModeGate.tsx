@@ -83,7 +83,6 @@ export function AppModeGate({ children }: AppModeGateProps) {
     }
   }, [location.pathname, navigate]);
 
-
   // Show loading screen while determining correct mode
   if (!isReady) {
     return (
