@@ -1,23 +1,139 @@
 /**
- * HubLoginPage — Secure internal login for the Nivra staff hub.
- * Minimal, professional, no client-facing elements.
+ * HubLoginPage — Login + MFA for a specific portal selected from /hub.
+ * URL: /hub/login?portal=core|employee|field|technician
+ * Flow: Login → Role/Portal check → MFA → Redirect to portal
  */
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Loader2, AlertCircle } from "lucide-react";
+import { Shield, Loader2, AlertCircle, ArrowLeft, Terminal, Briefcase, MapPin, Wrench } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { checkMfaStatus } from "@/lib/security/mfaUtils";
+import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
+import MfaVerificationGate from "@/components/security/MfaVerificationGate";
+import { createHubSession, clearHubSession } from "@/lib/security/hubSession";
+import { auditAccess } from "@/lib/security/internalAuditLogger";
+
+const PORTAL_CONFIG: Record<string, { label: string; icon: typeof Terminal; color: string; accessKey: string; href: string }> = {
+  core: { label: "Nivra Core", icon: Terminal, color: "text-emerald-400", accessKey: "can_access_core", href: "/core" },
+  employee: { label: "Nivra Employee", icon: Briefcase, color: "text-blue-400", accessKey: "can_access_employee", href: "/employee" },
+  field: { label: "Nivra Field", icon: MapPin, color: "text-amber-400", accessKey: "can_access_field", href: "/field" },
+  technician: { label: "Nivra Technician", icon: Wrench, color: "text-purple-400", accessKey: "can_access_technician", href: "/staff/technician" },
+};
+
+const INTERNAL_ROLES = [
+  "admin", "employee", "technician", "supervisor",
+  "sales", "kyc_agent", "billing_admin", "techops", "support", "field_sales"
+];
+
+type Stage = "login" | "mfa_enroll" | "mfa_verify" | "redirecting";
 
 export default function HubLoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const portalId = searchParams.get("portal");
+  const portal = portalId ? PORTAL_CONFIG[portalId] : null;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stage, setStage] = useState<Stage>("login");
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Check if already authenticated on mount
+  useEffect(() => {
+    if (!portal) {
+      setCheckingSession(false);
+      return;
+    }
+    
+    const checkExisting = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          setCheckingSession(false);
+          return;
+        }
+        // Already logged in — verify role + portal access + MFA
+        await verifyAndProceed(session.user.id);
+      } catch {
+        setCheckingSession(false);
+      }
+    };
+    checkExisting();
+  }, [portal]);
+
+  const verifyAndProceed = async (userId: string) => {
+    if (!portal || !portalId) return;
+
+    // Check role + portal access
+    const { data: roleData, error: roleError } = await supabase
+      .from("user_roles")
+      .select(`role, status, is_active, ${portal.accessKey}`)
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .in("role", INTERNAL_ROLES)
+      .maybeSingle();
+
+    if (roleError || !roleData || !roleData.is_active) {
+      await supabase.auth.signOut();
+      setError("Accès refusé. Vous n'avez aucun rôle interne actif.");
+      setCheckingSession(false);
+      setLoading(false);
+      return;
+    }
+
+    const hasPortalAccess = (roleData as any)[portal.accessKey];
+    if (!hasPortalAccess) {
+      await supabase.auth.signOut();
+      setError(`Accès refusé à ${portal.label}. Contactez votre administrateur.`);
+      setCheckingSession(false);
+      setLoading(false);
+      return;
+    }
+
+    // Check MFA
+    const mfa = await checkMfaStatus();
+    if (!mfa.isEnrolled) {
+      setStage("mfa_enroll");
+      setCheckingSession(false);
+      setLoading(false);
+      return;
+    }
+    if (!mfa.isVerified) {
+      setMfaFactorId(mfa.factorId);
+      setStage("mfa_verify");
+      setCheckingSession(false);
+      setLoading(false);
+      return;
+    }
+
+    // All clear — create hub session and redirect
+    createHubSession(userId);
+    await auditAccess("hub_access", portalId);
+    await auditAccess("portal_entry", portalId);
+
+    // Log the login
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.email) {
+      await supabase.from("hub_login_audit").insert({
+        user_id: userId,
+        email: session.user.email,
+        event: "login_success",
+        portal_accessed: portalId,
+      });
+    }
+
+    setStage("redirecting");
+    navigate(portal.href, { replace: true });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!portal) return;
     setError(null);
     setLoading(true);
 
@@ -33,31 +149,7 @@ export default function HubLoginPage() {
         return;
       }
 
-      // Verify the user has an internal role
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role, status, is_active")
-        .eq("user_id", data.session.user.id)
-        .eq("status", "active")
-        .in("role", ["admin", "employee", "technician", "supervisor", "sales", "kyc_agent", "billing_admin", "techops", "support", "field_sales"])
-        .maybeSingle();
-
-      if (roleError || !roleData || !roleData.is_active) {
-        await supabase.auth.signOut();
-        setError("Accès refusé. Ce portail est réservé au personnel interne Nivra.");
-        setLoading(false);
-        return;
-      }
-
-      // Log the login
-      await supabase.from("hub_login_audit").insert({
-        user_id: data.session.user.id,
-        email: data.session.user.email,
-        event: "login_success",
-        portal_accessed: "hub",
-      });
-
-      navigate("/hub", { replace: true });
+      await verifyAndProceed(data.session.user.id);
     } catch (err) {
       console.error("[HubLogin] Error:", err);
       setError("Erreur de connexion. Veuillez réessayer.");
@@ -65,18 +157,104 @@ export default function HubLoginPage() {
     }
   };
 
+  const handleLogout = async () => {
+    clearHubSession();
+    await supabase.auth.signOut();
+    navigate("/hub", { replace: true });
+  };
+
+  // No portal selected — redirect to hub
+  if (!portal) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)] px-4">
+        <div className="text-center">
+          <p className="text-sm text-[hsl(220,10%,50%)] mb-4">Aucun espace sélectionné.</p>
+          <Button asChild variant="outline" className="border-[hsl(220,15%,18%)] text-[hsl(220,10%,60%)]">
+            <Link to="/hub">Retour au Hub</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Checking existing session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <p className="text-sm text-[hsl(220,10%,45%)]">Vérification de la session…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // MFA enrollment
+  if (stage === "mfa_enroll") {
+    return (
+      <MfaEnrollmentDialog
+        onComplete={() => {
+          window.location.reload();
+        }}
+        onCancel={handleLogout}
+      />
+    );
+  }
+
+  // MFA verification
+  if (stage === "mfa_verify" && mfaFactorId) {
+    return (
+      <MfaVerificationGate
+        factorId={mfaFactorId}
+        onVerified={async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            createHubSession(session.user.id);
+            await auditAccess("hub_access", portalId!);
+            await auditAccess("portal_entry", portalId!);
+            navigate(portal.href, { replace: true });
+          }
+        }}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // Redirecting
+  if (stage === "redirecting") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <p className="text-sm text-[hsl(220,10%,45%)]">Redirection vers {portal.label}…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const PortalIcon = portal.icon;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)] px-4">
       <div className="w-full max-w-sm">
+        {/* Back to hub */}
+        <div className="mb-6">
+          <Link to="/hub" className="inline-flex items-center gap-1.5 text-xs text-[hsl(220,10%,40%)] hover:text-[hsl(220,10%,60%)] transition-colors">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Retour à la sélection
+          </Link>
+        </div>
+
         {/* Branding */}
         <div className="text-center mb-8">
           <div className="h-12 w-12 mx-auto rounded-xl bg-emerald-600 flex items-center justify-center mb-4">
             <Shield className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">Nivra Internal</h1>
-          <p className="text-xs text-[hsl(220,10%,40%)] mt-1 uppercase tracking-widest">
-            Accès sécurisé
-          </p>
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[hsl(220,20%,10%)] border border-[hsl(220,15%,18%)]">
+            <PortalIcon className={`h-4 w-4 ${portal.color}`} />
+            <span className="text-xs font-medium text-[hsl(220,10%,60%)]">{portal.label}</span>
+          </div>
         </div>
 
         {/* Login form */}
