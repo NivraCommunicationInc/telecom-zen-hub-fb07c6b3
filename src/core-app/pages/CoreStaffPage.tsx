@@ -398,6 +398,25 @@ export default function CoreStaffPage() {
                     className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none" />
                 </div>
               </div>
+
+              {/* Portal Access */}
+              <div>
+                <label className="text-[11px] text-[#94A3B8] uppercase block mb-2">Accès aux portails</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "can_access_core", label: "Core" },
+                    { key: "can_access_employee", label: "Employee" },
+                    { key: "can_access_field", label: "Field" },
+                    { key: "can_access_technician", label: "Technician" },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-[12px] text-[#CBD5E1] cursor-pointer">
+                      <input type="checkbox" checked={(newStaff as any)[key]} onChange={(e) => setNewStaff({ ...newStaff, [key]: e.target.checked })} className="rounded" />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <label className="flex items-center gap-2 text-[12px] text-[#CBD5E1] cursor-pointer">
                 <input type="checkbox" checked={newStaff.send_invitation} onChange={(e) => setNewStaff({ ...newStaff, send_invitation: e.target.checked })} className="rounded" />
                 Envoyer une invitation par email
