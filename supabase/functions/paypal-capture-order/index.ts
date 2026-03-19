@@ -165,7 +165,7 @@ serve(async (req) => {
       // Try V2 billing_invoices first
       const { data: v2Invoice } = await supabase
         .from("billing_invoices")
-        .select("id, invoice_number, total, customer:billing_customers(email, first_name, last_name)")
+        .select("id, order_id, invoice_number, total, customer:billing_customers(email, first_name, last_name)")
         .eq("id", invoiceId)
         .maybeSingle();
 
@@ -220,6 +220,10 @@ serve(async (req) => {
               template_vars: {
                 client_name: customerName || "Client",
                 amount: amount.toFixed(2),
+                amount_paid_today: amount.toFixed(2),
+                total_payable: Number(v2Invoice.total).toFixed(2),
+                invoice_id: v2Invoice.id,
+                order_id: v2Invoice.order_id || body.order_id || undefined,
                 invoice_number: v2Invoice.invoice_number,
                 payment_method: "PayPal",
                 reference: captureId,
