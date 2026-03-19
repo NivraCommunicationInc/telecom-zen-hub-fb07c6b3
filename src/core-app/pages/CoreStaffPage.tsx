@@ -13,7 +13,7 @@ import { fr } from "date-fns/locale";
 import { Ban, CheckCircle2, Eye, Mail, Plus, Search, ShieldCheck, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
-...
+
 type StaffFormData = {
   first_name: string;
   last_name: string;
