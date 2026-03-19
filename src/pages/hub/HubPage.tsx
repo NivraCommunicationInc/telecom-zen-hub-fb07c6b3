@@ -12,6 +12,10 @@ import {
   Lock, ChevronRight, AlertTriangle, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { checkMfaStatus, type MfaStatus } from "@/lib/security/mfaUtils";
+import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
+import MfaVerificationGate from "@/components/security/MfaVerificationGate";
+import { auditAccess } from "@/lib/security/internalAuditLogger";
 
 interface PortalCard {
   id: string;
