@@ -596,6 +596,7 @@ const ClientNewOrder = () => {
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [recurringPaymentAccepted, setRecurringPaymentAccepted] = useState(false);
   // Welcome discount dismissal — client can remove the auto-applied welcome discount
   const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
   
