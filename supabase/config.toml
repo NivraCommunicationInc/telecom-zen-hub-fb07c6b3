@@ -230,3 +230,6 @@ verify_jwt = false
 
 [functions.stripe-setup-autopay]
 verify_jwt = false
+
+[functions.employee-work-engine]
+verify_jwt = false
