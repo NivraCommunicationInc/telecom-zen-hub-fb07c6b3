@@ -72,7 +72,7 @@ export default function HubLoginPage() {
     // Check role + portal access
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
-      .select(`role, status, is_active, ${portal.accessKey}`)
+      .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician")
       .eq("user_id", userId)
       .eq("status", "active")
       .in("role", INTERNAL_ROLES)
