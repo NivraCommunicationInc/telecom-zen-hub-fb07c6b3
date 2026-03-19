@@ -2849,7 +2849,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
         await supabase.from("checkout_consent_records" as any).insert({
           order_id: orderData.id,
           user_id: user.id,
-          account_id: orderData.account_id || null,
+          account_id: null,
           terms_accepted: termsAccepted,
           recurring_payment_accepted: recurringPaymentAccepted,
           total_amount_displayed: todayTotal,
