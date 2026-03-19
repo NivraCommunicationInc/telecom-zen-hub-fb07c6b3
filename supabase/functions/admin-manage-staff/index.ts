@@ -1355,7 +1355,7 @@ serve(async (req: Request) => {
       case "list_staff": {
         const { data: roleRows, error: roleError } = await adminClient
           .from("user_roles")
-          .select("id, user_id, role, status, is_active, created_at, updated_at, can_access_core, can_access_employee, can_access_field, can_access_technician, mfa_required, mfa_enrolled_at, last_login_at")
+          .select("id, user_id, role, status, is_active, created_at, can_access_core, can_access_employee, can_access_field, can_access_technician, mfa_required, mfa_enrolled_at, last_login_at")
           .in("role", INTERNAL_STAFF_ROLES)
           .order("created_at", { ascending: false });
 
