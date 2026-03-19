@@ -35,25 +35,25 @@ const NetworkTrust = () => {
   ];
 
   return (
-    <section className="py-20 lg:py-28 bg-slate-50">
-      <div className="container mx-auto px-4 max-w-7xl">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
-            {isFr ? "Pourquoi Nivra" : "Why Nivra"}
-          </h2>
-          <p className="text-slate-500 text-lg max-w-xl mx-auto">
-            {isFr ? "Des valeurs simples pour un service irréprochable" : "Simple values for impeccable service"}
+    <section className="py-16 lg:py-24 bg-white">
+      <div className="container mx-auto px-4 max-w-[1320px]">
+        <div className="text-center mb-12">
+          <p className="text-amber-600 text-sm font-bold uppercase tracking-[0.15em] mb-3">
+            {isFr ? "POURQUOI NIVRA" : "WHY NIVRA"}
           </p>
+          <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
+            {isFr ? "L'avantage Nivra" : "The Nivra advantage"}
+          </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
           {trustPoints.map((point) => (
             <div
               key={point.title}
-              className="bg-white rounded-2xl border-2 border-slate-200 p-7 hover:border-blue-400 hover:shadow-lg transition-all duration-300 group"
+              className="bg-slate-50 rounded-xl border-2 border-slate-200 p-6 hover:border-amber-400 hover:shadow-lg transition-all duration-300 group"
             >
-              <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <point.icon className="w-7 h-7 text-white" />
+              <div className="w-12 h-12 rounded-lg bg-slate-900 flex items-center justify-center mb-4 group-hover:bg-amber-400 transition-colors">
+                <point.icon className="w-6 h-6 text-amber-400 group-hover:text-black transition-colors" />
               </div>
               <h3 className="font-bold text-lg text-slate-900 mb-2">{point.title}</h3>
               <p className="text-sm text-slate-500 leading-relaxed">{point.description}</p>
@@ -61,16 +61,14 @@ const NetworkTrust = () => {
           ))}
         </div>
 
-        {/* Trust stats — bold style */}
-        <div className="bg-gradient-to-br from-blue-700 to-indigo-800 rounded-3xl p-10 lg:p-16 shadow-2xl shadow-blue-500/20">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
+        {/* Stats bar */}
+        <div className="bg-black rounded-xl p-8 lg:p-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             {stats.map((stat) => (
               <div key={stat.value}>
-                <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center mx-auto mb-4">
-                  <stat.icon className="w-6 h-6 text-amber-300" />
-                </div>
-                <div className="text-4xl lg:text-5xl font-extrabold text-white mb-2">{stat.value}</div>
-                <div className="text-sm text-white/70 font-medium">{stat.label}</div>
+                <stat.icon className="w-6 h-6 text-amber-400 mx-auto mb-3" />
+                <div className="text-4xl lg:text-5xl font-black text-white mb-1">{stat.value}</div>
+                <div className="text-sm text-white/50 font-medium uppercase tracking-wider">{stat.label}</div>
               </div>
             ))}
           </div>

@@ -1,21 +1,14 @@
 import { useMemo } from "react";
 import { usePublicServices, type PublicService } from "@/hooks/usePublicServices";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, ArrowRight, Star, Flame } from "lucide-react";
+import { ArrowRight, Wifi, Smartphone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const LINK_BY_CATEGORY: Record<string, string> = {
-  Internet: "/internet",
-  Mobile: "/mobile",
-  TV: "/tv",
-};
-
 const getServiceFeatures = (service: PublicService): string[] => {
-  if (service.features_json.length > 0) return service.features_json.slice(0, 4);
-  if (service.short_description) return service.short_description.split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 4);
-  return (service.description || "").split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 4);
+  if (service.features_json.length > 0) return service.features_json.slice(0, 3);
+  if (service.short_description) return service.short_description.split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 3);
+  return (service.description || "").split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 3);
 };
 
 export function FeaturedOffers() {
@@ -23,123 +16,167 @@ export function FeaturedOffers() {
   const { language } = useLanguage();
   const isFr = language === 'fr';
 
-  const featuredPlans = useMemo(() => {
-    if (!services?.length) return [];
-    return services
-      .filter(s => s.is_featured || s.is_recommended)
-      .sort((a, b) => {
-        const aScore = (a.is_featured ? 2 : 0) + (a.is_recommended ? 1 : 0);
-        const bScore = (b.is_featured ? 2 : 0) + (b.is_recommended ? 1 : 0);
-        return bScore - aScore || a.display_order - b.display_order;
-      })
-      .slice(0, 3);
+  const { leftCard, rightCard } = useMemo(() => {
+    if (!services?.length) return { leftCard: null, rightCard: null };
+
+    // Find best Internet plan for left card, best Mobile for right card
+    const internet = services
+      .filter(s => s.category === "Internet" && (s.is_featured || s.is_recommended))
+      .sort((a, b) => a.display_order - b.display_order)[0];
+
+    const mobile = services
+      .filter(s => s.category === "Mobile" && (s.is_featured || s.is_recommended))
+      .sort((a, b) => a.display_order - b.display_order)[0];
+
+    // Fallbacks
+    const fallbackLeft = internet || services.filter(s => s.category === "Internet").sort((a, b) => a.display_order - b.display_order)[0];
+    const fallbackRight = mobile || services.filter(s => s.category === "Mobile").sort((a, b) => a.display_order - b.display_order)[0];
+
+    return { leftCard: fallbackLeft || null, rightCard: fallbackRight || null };
   }, [services]);
 
   if (isLoading) {
     return (
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-[420px] rounded-2xl" />
-            ))}
+      <section className="bg-white py-0">
+        <div className="container mx-auto px-4 max-w-[1320px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-[420px] rounded-xl" />
+            <Skeleton className="h-[420px] rounded-xl" />
           </div>
         </div>
       </section>
     );
   }
 
-  if (featuredPlans.length === 0) return null;
-
   return (
-    <section className="py-20 lg:py-28 bg-white">
-      <div className="container mx-auto px-4 max-w-7xl">
-        <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-full px-4 py-1.5 mb-6">
-            <Flame className="w-4 h-4 text-amber-600" />
-            <span className="text-sm font-bold text-amber-700 uppercase tracking-wider">
-              {isFr ? "Offres limitées" : "Limited offers"}
-            </span>
-          </div>
-          <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
-            {isFr ? "Plans populaires" : "Popular Plans"}
-          </h2>
-          <p className="text-slate-500 text-lg">
-            {isFr ? "Nos forfaits les plus choisis par nos clients" : "Our most chosen plans by customers"}
-          </p>
-        </div>
+    <section className="bg-white pt-0 pb-6">
+      <div className="container mx-auto px-4 max-w-[1320px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-          {featuredPlans.map((plan, index) => {
-            const features = getServiceFeatures(plan);
-            const isHighlight = index === 1;
+          {/* LEFT CARD — Dark, product-focused (Videotron style) */}
+          <Link
+            to="/internet"
+            className="group relative overflow-hidden rounded-xl min-h-[400px] md:min-h-[440px] flex flex-col justify-between bg-[#1a1a2e] transition-transform duration-300 hover:scale-[1.01]"
+          >
+            {/* Badge */}
+            <div className="relative z-10 p-6 sm:p-8">
+              <span className="inline-block bg-amber-400 text-black text-xs font-extrabold uppercase tracking-wider px-3 py-1.5">
+                {isFr ? "OFFRE DE LANCEMENT" : "LAUNCH OFFER"}
+              </span>
+            </div>
 
-            return (
-              <div
-                key={plan.id}
-                className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
-                  isHighlight
-                    ? "bg-gradient-to-br from-blue-700 to-indigo-800 text-white shadow-2xl shadow-blue-500/25 scale-[1.03]"
-                    : "bg-white border-2 border-slate-200 hover:border-blue-300 hover:shadow-xl"
-                }`}
-              >
-                {isHighlight && (
-                  <div className="absolute top-4 right-4">
-                    <span className="inline-flex items-center gap-1.5 bg-amber-400 text-slate-900 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-                      <Star className="w-3 h-3 fill-current" />
-                      {isFr ? "Populaire" : "Popular"}
+            {/* Decorative glow */}
+            <div className="absolute top-1/2 right-0 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
+
+            {/* Content */}
+            <div className="relative z-10 p-6 sm:p-8 flex-1 flex flex-col justify-center">
+              <h3 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
+                {leftCard?.name || (isFr ? "Internet haute vitesse" : "High-speed Internet")}
+              </h3>
+              <p className="text-white/60 text-base mb-6 max-w-xs">
+                {isFr
+                  ? "La vitesse et la fiabilité dont vous avez besoin."
+                  : "The speed and reliability you need."}
+              </p>
+
+              {/* Wifi icon as visual element */}
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-10">
+                <Wifi className="w-48 h-48 text-blue-400" strokeWidth={1} />
+              </div>
+            </div>
+
+            {/* Price + CTA */}
+            <div className="relative z-10 p-6 sm:p-8 pt-0">
+              {leftCard && (
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-5xl sm:text-6xl font-black text-white leading-none">
+                    {Number(leftCard.price).toFixed(0)}
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-white/80 text-sm font-semibold">00 $</span>
+                    <span className="text-white/50 text-sm">/{isFr ? "mois" : "mo"}*</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider group-hover:gap-3 transition-all">
+                {isFr ? "Profitez de l'offre" : "Get the offer"}
+                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 -ml-2" />
+                <ArrowRight className="w-4 h-4 -ml-2" />
+              </div>
+            </div>
+          </Link>
+
+          {/* RIGHT CARD — Bright promotional (Videotron style) */}
+          <Link
+            to="/mobile"
+            className="group relative overflow-hidden rounded-xl min-h-[400px] md:min-h-[440px] flex flex-col justify-between bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 transition-transform duration-300 hover:scale-[1.01]"
+          >
+            {/* Badge */}
+            <div className="relative z-10 p-6 sm:p-8">
+              <span className="inline-block bg-amber-400 text-black text-xs font-extrabold uppercase tracking-wider px-3 py-1.5">
+                {isFr ? "PROMO EN LUMIÈRE" : "PROMO SPOTLIGHT"}
+              </span>
+            </div>
+
+            {/* Promotional burst element */}
+            <div className="absolute top-8 right-6 sm:right-10 z-10">
+              <div className="relative w-28 h-28 sm:w-36 sm:h-36">
+                <div className="absolute inset-0 bg-amber-400 rounded-full flex items-center justify-center rotate-12 shadow-lg shadow-amber-400/30">
+                  <div className="text-center text-black leading-tight">
+                    <span className="block text-xs font-bold uppercase">
+                      {isFr ? "1 MOIS" : "1 MONTH"}
+                    </span>
+                    <span className="block text-lg sm:text-xl font-black uppercase">
+                      {isFr ? "GRATUIT" : "FREE"}
                     </span>
                   </div>
-                )}
-
-                {!isHighlight && (
-                  <div className="absolute top-4 right-4">
-                    <span className="inline-block bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-blue-200">
-                      {isFr ? "OFFRE LIMITÉE" : "LIMITED OFFER"}
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-8">
-                  <h3 className={`text-lg font-bold mb-2 ${isHighlight ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
-                  
-                  <div className="flex items-baseline gap-1 mb-6">
-                    <span className={`text-5xl font-extrabold ${isHighlight ? 'text-white' : 'text-slate-900'}`}>
-                      {Number(plan.price).toFixed(0)}$
-                    </span>
-                    <span className={isHighlight ? 'text-white/60' : 'text-slate-400'}>/{isFr ? "mois" : "mo"}</span>
-                  </div>
-
-                  <div className="space-y-3 mb-8">
-                    {features.map((feature, i) => (
-                      <div key={i} className="flex items-start gap-3 text-sm">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                          isHighlight ? 'bg-white/20' : 'bg-emerald-50'
-                        }`}>
-                          <Check className={`w-3 h-3 ${isHighlight ? 'text-amber-300' : 'text-emerald-600'}`} />
-                        </div>
-                        <span className={isHighlight ? 'text-white/90' : 'text-slate-600'}>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button
-                    asChild
-                    className={`w-full rounded-xl h-12 font-bold text-base transition-all duration-200 hover:scale-[1.02] ${
-                      isHighlight
-                        ? "bg-amber-400 hover:bg-amber-300 text-slate-900 shadow-lg"
-                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-                    }`}
-                  >
-                    <Link to={LINK_BY_CATEGORY[plan.category] || "/compare"}>
-                      {isFr ? "Choisir ce plan" : "Choose this plan"}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Link>
-                  </Button>
                 </div>
               </div>
-            );
-          })}
+            </div>
+
+            {/* Content */}
+            <div className="relative z-10 p-6 sm:p-8 flex-1 flex flex-col justify-center">
+              <h3 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
+                {rightCard?.name || (isFr ? "Forfait Mobile" : "Mobile Plan")}
+              </h3>
+              <p className="text-white/70 text-base max-w-xs">
+                {isFr
+                  ? "Tellement généreux qu'on en prend deux."
+                  : "So generous you'll want two."}
+              </p>
+
+              {/* Phone icon as visual */}
+              <div className="absolute right-6 bottom-24 opacity-10">
+                <Smartphone className="w-40 h-40 text-white" strokeWidth={1} />
+              </div>
+            </div>
+
+            {/* Price + CTA */}
+            <div className="relative z-10 p-6 sm:p-8 pt-0">
+              <p className="text-white/50 text-xs uppercase tracking-wider mb-1">
+                {isFr ? "À PARTIR DE" : "STARTING AT"}
+              </p>
+              {rightCard && (
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-5xl sm:text-6xl font-black text-white leading-none">
+                    {Number(rightCard.price).toFixed(0)}
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-white/80 text-sm font-semibold">00 $</span>
+                    <span className="text-white/50 text-sm">/{isFr ? "mois" : "mo"}*</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider group-hover:gap-3 transition-all">
+                {isFr ? "Ajoutez le forfait" : "Add the plan"}
+                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 -ml-2" />
+                <ArrowRight className="w-4 h-4 -ml-2" />
+              </div>
+            </div>
+          </Link>
+
         </div>
       </div>
     </section>
