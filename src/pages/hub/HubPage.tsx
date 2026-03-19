@@ -16,6 +16,7 @@ import { checkMfaStatus, type MfaStatus } from "@/lib/security/mfaUtils";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
+import { createHubSession, clearHubSession } from "@/lib/security/hubSession";
 
 interface PortalCard {
   id: string;
@@ -147,7 +148,8 @@ export default function HubPage() {
             setShowMfaVerify(true);
             setLoading(false);
           } else {
-            // Fully authenticated + MFA verified
+            // Fully authenticated + MFA verified — create hub session
+            createHubSession(session.user.id);
             await auditAccess("hub_access", "hub");
             setLoading(false);
           }
@@ -176,6 +178,7 @@ export default function HubPage() {
   };
 
   const handleLogout = async () => {
+    clearHubSession();
     await supabase.auth.signOut();
     navigate("/hub/login", { replace: true });
   };
@@ -210,8 +213,10 @@ export default function HubPage() {
     return (
       <MfaVerificationGate
         factorId={mfaStatus.factorId}
-        onVerified={() => {
+        onVerified={async () => {
           setShowMfaVerify(false);
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) createHubSession(session.user.id);
           auditAccess("hub_access", "hub");
         }}
         onLogout={handleLogout}

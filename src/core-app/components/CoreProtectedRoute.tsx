@@ -1,34 +1,39 @@
 /**
  * CoreProtectedRoute — Auth gate for Nivra Core /core/* routes.
- * Checks Supabase session + verifies user has an internal role (admin, employee, technician).
- * Redirects unauthenticated users to /core/login.
+ * Enforces: hub session → authenticated → active role → can_access_core.
+ * Redirects to /hub if not entered through the hub.
  */
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { corePath } from "@/core-app/lib/corePaths";
+import { hasValidHubSession } from "@/lib/security/hubSession";
 import { Terminal } from "lucide-react";
 
 type InternalRole = "admin" | "employee" | "technician";
 const ALLOWED_ROLES: InternalRole[] = ["admin", "employee", "technician"];
 
 export default function CoreProtectedRoute() {
-  const [state, setState] = useState<"loading" | "authorized" | "unauthorized">("loading");
+  const [state, setState] = useState<"loading" | "authorized" | "unauthorized" | "no_hub">("loading");
   const location = useLocation();
 
   useEffect(() => {
     let mounted = true;
 
     const verify = async () => {
+      // CRITICAL: Must have entered through /hub
+      if (!hasValidHubSession()) {
+        if (mounted) setState("no_hub");
+        return;
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session?.user) {
-          if (mounted) setState("unauthorized");
+          if (mounted) setState("no_hub");
           return;
         }
 
-        // Verify the user holds an internal role AND has can_access_core flag
         const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role, status, can_access_core")
@@ -37,15 +42,7 @@ export default function CoreProtectedRoute() {
           .in("role", ALLOWED_ROLES)
           .maybeSingle();
 
-        if (error || !roleData) {
-          console.warn("[CoreGuard] No valid internal role found");
-          if (mounted) setState("unauthorized");
-          return;
-        }
-
-        // Hard enforcement: must have can_access_core flag
-        if (!roleData.can_access_core) {
-          console.warn("[CoreGuard] User lacks can_access_core flag");
+        if (error || !roleData || !roleData.can_access_core) {
           if (mounted) setState("unauthorized");
           return;
         }
@@ -59,14 +56,9 @@ export default function CoreProtectedRoute() {
 
     verify();
 
-    // Listen for auth changes (logout elsewhere, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        if (mounted) setState("unauthorized");
-      }
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        verify();
-      }
+      if (event === "SIGNED_OUT" && mounted) setState("no_hub");
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && mounted) verify();
     });
 
     return () => {
@@ -88,8 +80,12 @@ export default function CoreProtectedRoute() {
     );
   }
 
+  if (state === "no_hub") {
+    return <Navigate to="/hub" state={{ from: location }} replace />;
+  }
+
   if (state === "unauthorized") {
-    return <Navigate to={corePath("/login")} state={{ from: location }} replace />;
+    return <Navigate to="/hub" state={{ from: location }} replace />;
   }
 
   return <Outlet />;

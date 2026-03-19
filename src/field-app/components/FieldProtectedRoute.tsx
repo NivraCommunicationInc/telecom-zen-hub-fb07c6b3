@@ -1,11 +1,13 @@
 /**
  * FieldProtectedRoute — Guards all /field/* routes.
- * Requires: authenticated + active role + can_access_field + MFA verified.
+ * Enforces: hub session → authenticated → active role → can_access_field → MFA verified.
+ * Redirects to /hub if not entered through the hub.
  */
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
+import { hasValidHubSession } from "@/lib/security/hubSession";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
@@ -22,9 +24,15 @@ export default function FieldProtectedRoute() {
     let mounted = true;
 
     const check = async () => {
+      // CRITICAL: Must have entered through /hub
+      if (!hasValidHubSession()) {
+        navigate("/hub", { replace: true });
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
-        navigate("/hub/login", { replace: true });
+        navigate("/hub", { replace: true });
         return;
       }
 
@@ -73,7 +81,7 @@ export default function FieldProtectedRoute() {
     return (
       <MfaEnrollmentDialog
         onComplete={() => window.location.reload()}
-        onCancel={async () => { await supabase.auth.signOut(); navigate("/hub/login", { replace: true }); }}
+        onCancel={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
       />
     );
   }
@@ -83,7 +91,7 @@ export default function FieldProtectedRoute() {
       <MfaVerificationGate
         factorId={factorId}
         onVerified={() => { setState("authorized"); auditAccess("portal_entry", "field"); }}
-        onLogout={async () => { await supabase.auth.signOut(); navigate("/hub/login", { replace: true }); }}
+        onLogout={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
       />
     );
   }
