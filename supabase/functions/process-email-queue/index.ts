@@ -57,6 +57,28 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
   try {
     switch (pdfType) {
       case 'invoice': {
+        const canonicalTotal = Number(
+          vars.total_payable ??
+          vars.canonical_total_payable ??
+          vars.total ??
+          vars.amount ??
+          0,
+        ) || 0;
+        const canonicalAmountDue = Number(
+          vars.amount_due_today ??
+          vars.balance_due ??
+          vars.canonical_balance_due ??
+          canonicalTotal,
+        ) || 0;
+        const canonicalSubtotal = Number(
+          vars.subtotal ??
+          vars.taxable_base ??
+          vars.canonical_subtotal ??
+          canonicalTotal,
+        ) || 0;
+        const canonicalTps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
+        const canonicalTvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
+
         const invoiceData: InvoiceData = {
           invoice_number: vars.invoice_number || vars.invoiceNumber || `NV-${Date.now()}`,
           invoice_date: vars.invoice_date || vars.created_at || new Date().toISOString(),
@@ -69,15 +91,15 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
           client_phone: vars.client_phone || vars.phone || '',
           client_address: vars.client_address || vars.address || '',
           services: vars.services || [
-            { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: vars.amount || 0 }
+            { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: canonicalTotal }
           ],
-          subtotal: vars.subtotal || vars.amount || 0,
-          tps: vars.tps || (vars.amount || 0) * 0.05,
-          tvq: vars.tvq || (vars.amount || 0) * 0.09975,
-          total: vars.total || (vars.amount || 0) * 1.14975,
+          subtotal: canonicalSubtotal,
+          tps: canonicalTps,
+          tvq: canonicalTvq,
+          total: canonicalTotal,
           previous_balance: vars.previous_balance || 0,
           payments: vars.payments || [],
-          balance_due: vars.balance_due || vars.amount || 0,
+          balance_due: canonicalAmountDue,
         };
         return generatePDFAttachment('invoice', invoiceData);
       }
@@ -104,6 +126,11 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
       }
       
       case 'summary': {
+        const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_amount ?? 0) || 0;
+        const totalPayable = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? paidToday) || 0;
+        const tps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
+        const tvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
+
         const summaryData: SummaryData = {
           order_number: vars.order_number || vars.order_id?.substring(0, 8) || "—",
           order_date: vars.order_date || vars.created_at || new Date().toISOString(),
@@ -113,13 +140,13 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
           client_phone: vars.client_phone || vars.phone || '',
           client_address: vars.client_address || vars.service_address || '',
           services: vars.services || [
-            { name: vars.service_type || 'Service Nivra', price: vars.total_amount || 0, is_recurring: true }
+            { name: vars.service_type || 'Service Nivra', price: paidToday || totalPayable, is_recurring: true }
           ],
-          subtotal_recurring: vars.subtotal_recurring || vars.monthly_amount || 0,
-          subtotal_one_time: vars.subtotal_one_time || vars.one_time_amount || 0,
-          tps: vars.tps || (vars.total_amount || 0) * 0.05,
-          tvq: vars.tvq || (vars.total_amount || 0) * 0.09975,
-          total: vars.total || vars.total_amount || 0,
+          subtotal_recurring: Number(vars.monthly_recurring_amount ?? vars.subtotal_recurring ?? vars.monthly_amount ?? 0) || 0,
+          subtotal_one_time: Number(vars.one_time_charges ?? vars.subtotal_one_time ?? vars.one_time_amount ?? 0) || 0,
+          tps,
+          tvq,
+          total: totalPayable,
           installation_date: vars.installation_date || vars.scheduled_at || '',
         };
         return generatePDFAttachment('summary', summaryData);
