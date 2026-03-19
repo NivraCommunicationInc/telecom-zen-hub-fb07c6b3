@@ -794,8 +794,8 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
-      {/* Catch-all 404 */}
-      <Route path="*" element={<NotFound />} />
+      {/* Catch-all redirect (no visible 404 page) */}
+      <Route path="*" element={<Navigate to="/hub" replace />} />
     </Routes>
   );
 };
