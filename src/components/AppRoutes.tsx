@@ -10,6 +10,23 @@ const HubPage = lazy(() => import("@/pages/hub/HubPage"));
 const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
 
+// Employee Portal (lazy-loaded, fully isolated)
+const EmployeeAppLayout = lazy(() => import("@/employee-app/EmployeeAppLayout"));
+const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/EmployeeProtectedRoute"));
+const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
+const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
+const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
+const EmployeeOrderDetail = lazy(() => import("@/employee-app/pages/EmployeeOrderDetail"));
+const EmployeeClients = lazy(() => import("@/employee-app/pages/EmployeeClients"));
+const EmployeeClientDetail = lazy(() => import("@/employee-app/pages/EmployeeClientDetail"));
+const EmployeePayments = lazy(() => import("@/employee-app/pages/EmployeePayments"));
+const EmployeeKYC = lazy(() => import("@/employee-app/pages/EmployeeKYC"));
+const EmployeeActivations = lazy(() => import("@/employee-app/pages/EmployeeActivations"));
+const EmployeeSupport = lazy(() => import("@/employee-app/pages/EmployeeSupport"));
+const EmployeeAudit = lazy(() => import("@/employee-app/pages/EmployeeAudit"));
+const EmployeeProfile = lazy(() => import("@/employee-app/pages/EmployeeProfile"));
+const EmployeeSecurity = lazy(() => import("@/employee-app/pages/EmployeeSecurity"));
+
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
