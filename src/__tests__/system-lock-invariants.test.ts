@@ -84,7 +84,8 @@ describe("LOCK 1 — Checkout Pricing & Promo", () => {
 
   it("serverTaxEngine must be marked as preview-only, not for writes", () => {
     const code = readFile("src/lib/pricing/serverTaxEngine.ts");
-    expect(code).toMatch(/FORBIDDEN.*checkout|preview.only/i);
+    expect(code).toMatch(/FORBIDDEN usage/i);
+    expect(code).toMatch(/ESTIMATION ONLY|preview|NOT.*SERVER.*SOURCE.*TRUTH/i);
   });
 
   it("checkout MUST send pricing_snapshot from RPC to backend", () => {
