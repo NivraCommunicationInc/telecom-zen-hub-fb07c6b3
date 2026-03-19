@@ -19,12 +19,17 @@ const Index = () => {
       <Header />
       <HomeStatusBanner />
       <main>
+        {/* 1. Hero — Value prop + primary CTA */}
         <Hero />
-        <FeaturedOffers />
+        {/* 2. Service selection — Internet / Mobile / Combo */}
         <ServiceShowcase />
+        {/* 3. Featured offers — Top plans highlighted */}
+        <FeaturedOffers />
+        {/* 4. Why Nivra — Trust elements */}
         <NetworkTrust />
+        {/* 5. Referral program */}
         <ReferralProgram />
-        <ShopServices />
+        {/* 6. Final CTA — Push to order */}
         <CTA />
       </main>
       <Footer />
