@@ -75,14 +75,14 @@ interface NewClientForm {
 
 type PaymentMethod = "paypal" | "interac" | "cash" | "card" | "debit" | "bank_transfer" | "deferred";
 
-const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ElementType }[] = [
-  { value: "card", label: "Carte (Stripe)", icon: CreditCard },
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ElementType; disabled?: boolean }[] = [
   { value: "paypal", label: "PayPal", icon: CreditCard },
   { value: "interac", label: "Interac e-Transfer", icon: Banknote },
   { value: "cash", label: "Argent comptant", icon: Banknote },
   { value: "debit", label: "Débit", icon: CreditCard },
   { value: "bank_transfer", label: "Virement bancaire", icon: Banknote },
   { value: "deferred", label: "Payer plus tard", icon: Calendar },
+  { value: "card", label: "Carte (Stripe) — Maintenance", icon: CreditCard, disabled: true },
 ];
 
 const DELIVERY_PRESETS = [
