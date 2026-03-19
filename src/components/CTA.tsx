@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { MessageSquare, ArrowRight, Shield, Zap, Clock } from "lucide-react";
+import { MessageSquare, Shield, Zap, Clock } from "lucide-react";
 import ContactForm from "./ContactForm";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
@@ -10,18 +10,15 @@ const CTA = () => {
 
   return (
     <section id="contact" className="py-20 bg-primary relative overflow-hidden">
-      {/* Background accents */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-1/3 h-1/2 bg-gradient-to-bl from-white/5 to-transparent" />
-        <div className="absolute bottom-0 left-0 w-1/4 h-1/3 bg-gradient-to-tr from-white/3 to-transparent" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/2 rounded-full blur-3xl" />
       </div>
 
       <div className="container mx-auto px-4 relative max-w-7xl">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           {/* Left Content */}
           <div className="text-center lg:text-left lg:pt-8">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-5 leading-tight">
+            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4 leading-tight">
               {t('cta.title.order')}
             </h2>
             <p className="text-primary-foreground/70 mb-8 max-w-md mx-auto lg:mx-0 leading-relaxed text-lg">
@@ -29,7 +26,7 @@ const CTA = () => {
             </p>
 
             {/* Trust micro-indicators */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 mb-8">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 mb-8">
               {[
                 { icon: Shield, text: isFrench ? "Sans contrat" : "No contract" },
                 { icon: Zap, text: isFrench ? "Activation rapide" : "Fast activation" },
@@ -42,19 +39,17 @@ const CTA = () => {
               ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-6">
-              <Button
-                className="bg-white text-primary hover:bg-white/90 rounded-full px-10 h-14 font-bold gap-2 text-base shadow-lg hover:shadow-xl transition-all duration-300"
-                asChild
-              >
-                <Link to="/portal/auth">
-                  <MessageSquare className="w-5 h-5" />
-                  {isFrench ? "Chat / Ouvrir un ticket" : "Chat / Open a ticket"}
-                </Link>
-              </Button>
-            </div>
+            <Button
+              className="bg-white text-primary hover:bg-white/90 rounded-full px-8 h-12 font-bold gap-2 text-sm shadow-md transition-all duration-200"
+              asChild
+            >
+              <Link to="/portal/auth">
+                <MessageSquare className="w-4 h-4" />
+                {isFrench ? "Chat / Ouvrir un ticket" : "Chat / Open a ticket"}
+              </Link>
+            </Button>
 
-            <p className="text-sm text-primary-foreground/35 font-medium">
+            <p className="text-sm text-primary-foreground/35 font-medium mt-4">
               {isFrench ? "Réponse entre 1h et 24h • Chat live selon disponibilité" : "Response within 1h to 24h • Live chat based on availability"}
             </p>
           </div>

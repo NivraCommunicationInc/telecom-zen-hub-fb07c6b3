@@ -63,7 +63,7 @@ const NetworkTrust = () => {
             {trustPoints.map((point, i) => (
               <div
                 key={point.title}
-                className="bg-card rounded-2xl p-7 border border-border hover:border-primary/25 hover:shadow-lg transition-all duration-300 group relative overflow-hidden"
+                className="bg-card rounded-2xl p-7 border border-border hover:border-primary/20 hover:shadow-md transition-all duration-200 group relative overflow-hidden"
               >
                 {/* Subtle corner accent on hover */}
                 <div className="absolute top-0 right-0 w-20 h-20 bg-primary/0 group-hover:bg-primary/5 rounded-bl-[3rem] transition-colors duration-500" />

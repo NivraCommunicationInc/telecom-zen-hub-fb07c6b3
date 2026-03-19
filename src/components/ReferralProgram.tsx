@@ -96,27 +96,15 @@ const ReferralProgram = () => {
             <p className="text-primary-foreground/70 max-w-lg mx-auto mb-8 text-lg leading-relaxed">
               Pour chaque parrainage qualifié. Aucune limite — plus vous parrainez, plus vous gagnez. Programme transparent, sans conditions cachées.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button
-                className="bg-white text-primary hover:bg-white/90 rounded-full px-8 h-12 font-bold gap-2 shadow-lg hover:shadow-xl transition-all duration-300"
-                asChild
-              >
-                <Link to="/portal/referrals">
-                  <Gift className="w-4 h-4" />
-                  Voir mon code
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                className="border-white/25 text-primary-foreground hover:bg-white/10 rounded-full px-8 h-12 font-semibold gap-2 transition-all duration-300"
-                asChild
-              >
-                <Link to="/parrainage">
-                  En savoir plus
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </Button>
-            </div>
+            <Button
+              className="bg-white text-primary hover:bg-white/90 rounded-full px-8 h-12 font-bold gap-2 shadow-md transition-all duration-200"
+              asChild
+            >
+              <Link to="/parrainage">
+                En savoir plus
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </div>

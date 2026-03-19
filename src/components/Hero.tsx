@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Wifi, Smartphone, Tv, Monitor, Radio, Tag, Shield, Clock, Zap, CheckCircle } from "lucide-react";
+import { ArrowRight, Wifi, Smartphone, Tv, Monitor, Radio, Shield, Clock, CheckCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { usePublicServices } from "@/hooks/usePublicServices";
 
 const Hero = () => {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const isFr = language === 'fr';
   const { data: services } = usePublicServices();
 
@@ -19,19 +19,16 @@ const Hero = () => {
   const quickCategories = [
     { icon: Smartphone, label: isFr ? "Mobile" : "Mobility", link: "/mobile" },
     { icon: Wifi, label: "Internet", link: "/internet" },
-    { icon: Tv, label: isFr ? "TV" : "TV", link: "/tv" },
+    { icon: Tv, label: "TV", link: "/tv" },
     { icon: Monitor, label: "Streaming+", link: "/streaming" },
     { icon: Radio, label: isFr ? "Combos" : "Bundles", link: "/compare" },
   ];
 
   return (
     <section className="bg-background">
-      {/* Promo banner — urgent deal feel */}
+      {/* Promo banner */}
       <div className="bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 max-w-[1320px] py-3 flex items-center justify-center gap-3">
-          <span className="hidden sm:inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/15 shrink-0">
-            <Tag className="w-3.5 h-3.5" />
-          </span>
+        <div className="container mx-auto px-4 max-w-[1320px] py-2.5 flex items-center justify-center gap-3">
           <p className="text-xs sm:text-sm text-center leading-snug font-semibold tracking-wide">
             {isFr
               ? "🔥 Nouveau client? 50% de rabais sur votre 1re facture. Sans contrat."
@@ -51,13 +48,11 @@ const Hero = () => {
       <div className="container mx-auto px-4 max-w-[1320px]">
         <div className="py-8 sm:py-10 lg:py-14">
           <div className="bg-gradient-to-br from-secondary via-primary/5 to-secondary rounded-2xl sm:rounded-3xl overflow-hidden relative">
-            {/* Subtle glow */}
             <div className="absolute -top-32 -right-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="grid lg:grid-cols-2 gap-8 lg:gap-10 items-center p-7 sm:p-10 lg:py-16 lg:px-12 relative">
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-10 items-center p-6 sm:p-10 lg:py-16 lg:px-12 relative">
               {/* Left Content */}
               <div>
-                {/* Eyebrow */}
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/8 border border-primary/15 mb-5">
                   <Wifi className="w-3.5 h-3.5 text-primary" />
                   <span className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -65,7 +60,7 @@ const Hero = () => {
                   </span>
                 </div>
 
-                <h1 className="text-[26px] sm:text-[34px] lg:text-[3.25rem] font-extrabold leading-[1.08] text-foreground mb-4 sm:mb-5">
+                <h1 className="text-[26px] sm:text-[34px] lg:text-[3.25rem] font-extrabold leading-[1.08] text-foreground mb-4">
                   {isFr
                     ? "Internet haute vitesse. Sans contrat."
                     : "High-speed Internet. No contract."}
@@ -76,8 +71,8 @@ const Hero = () => {
                     : "Unlimited fibre optic Internet for the whole family."}
                 </p>
 
-                {/* Price block — deal-focused */}
-                <div className="mb-7 sm:mb-8 bg-card rounded-2xl border border-border p-5 inline-block shadow-sm">
+                {/* Price block */}
+                <div className="mb-7 bg-card rounded-2xl border border-border p-5 inline-block shadow-sm">
                   <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {isFr ? "À partir de" : "Starting at"}
                   </span>
@@ -90,24 +85,15 @@ const Hero = () => {
                   </p>
                 </div>
 
-                {/* CTAs — clear hierarchy */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                {/* Single dominant CTA */}
+                <div className="mb-6">
                   <Button
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-10 h-14 text-base font-bold w-full sm:w-auto shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-10 h-14 text-base font-bold w-full sm:w-auto shadow-lg hover:shadow-xl transition-all duration-200"
                     asChild
                   >
                     <Link to="/internet">
                       {isFr ? "Voir les forfaits" : "View plans"}
                       <ArrowRight className="w-5 h-5 ml-2" />
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-border text-foreground rounded-full px-8 h-14 text-base font-semibold hover:bg-secondary w-full sm:w-auto transition-all duration-300"
-                    asChild
-                  >
-                    <Link to="/contact">
-                      {isFr ? "Nous joindre" : "Contact us"}
                     </Link>
                   </Button>
                 </div>
@@ -136,8 +122,8 @@ const Hero = () => {
                     { value: "200+", label: isFr ? "Chaînes TV" : "TV channels" },
                     { value: "7j/7", label: isFr ? "Support local" : "Local support" },
                   ].map((stat) => (
-                    <div key={stat.value} className="bg-card rounded-2xl p-6 shadow-sm border border-border hover:shadow-md hover:border-primary/20 transition-all duration-300 group">
-                      <div className="text-3xl lg:text-4xl font-black text-primary mb-1.5 group-hover:scale-105 transition-transform duration-300 origin-left">{stat.value}</div>
+                    <div key={stat.value} className="bg-card rounded-2xl p-6 shadow-sm border border-border group">
+                      <div className="text-3xl lg:text-4xl font-black text-primary mb-1.5">{stat.value}</div>
                       <div className="text-xs lg:text-sm text-muted-foreground font-medium">{stat.label}</div>
                     </div>
                   ))}
@@ -150,7 +136,7 @@ const Hero = () => {
 
       {/* Quick category pills */}
       <div className="border-t border-border bg-background">
-        <div className="container mx-auto px-4 max-w-[1320px] py-5 sm:py-6">
+        <div className="container mx-auto px-4 max-w-[1320px] py-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
             <div className="shrink-0">
               <p className="text-sm font-semibold text-foreground">
@@ -165,7 +151,7 @@ const Hero = () => {
                 <Link
                   key={cat.link}
                   to={cat.link}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border rounded-full text-sm font-semibold text-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-200 shadow-sm whitespace-nowrap shrink-0 min-h-[44px] hover:shadow-md"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border rounded-full text-sm font-semibold text-foreground hover:border-primary hover:text-primary transition-colors duration-200 whitespace-nowrap shrink-0 min-h-[44px]"
                 >
                   <cat.icon className="w-4 h-4" />
                   {cat.label}
