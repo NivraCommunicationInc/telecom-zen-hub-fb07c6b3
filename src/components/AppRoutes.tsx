@@ -500,9 +500,7 @@ const AppRoutes = () => {
         </>
       )}
       
-      {/* LEGACY STAFF ROUTES - Redirect to unified /staff portal */}
-      <Route path="/employee/*" element={<Navigate to="/staff" replace />} />
-      <Route path="/employee" element={<Navigate to="/staff" replace />} />
+      {/* LEGACY STAFF ROUTES */}
       <Route path="/technician/*" element={<Navigate to="/staff" replace />} />
       <Route path="/technician" element={<Navigate to="/staff" replace />} />
       <Route path="/portal/login" element={<Navigate to="/portal/auth" replace />} />

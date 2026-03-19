@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, Loader2, Check } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
+import { cn } from "@/lib/utils";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { toast } from "sonner";
 
