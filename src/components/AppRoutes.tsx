@@ -777,6 +777,25 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
+      {/* ============================================ */}
+      {/* FIELD PORTAL — Field Sales Workspace          */}
+      {/* ============================================ */}
+      <Route path="/field" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(225,20%,5%)]" />}><FieldProtectedRoute /></Suspense>}>
+        <Route element={<Suspense fallback={null}><FieldAppLayout /></Suspense>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={null}><FieldDashboard /></Suspense>} />
+          <Route path="leads" element={<Suspense fallback={null}><FieldLeads /></Suspense>} />
+          <Route path="leads/new" element={<Suspense fallback={null}><FieldNewLead /></Suspense>} />
+          <Route path="leads/:leadId" element={<Suspense fallback={null}><FieldLeadDetail /></Suspense>} />
+          <Route path="offers" element={<Suspense fallback={null}><FieldOffers /></Suspense>} />
+          <Route path="submissions" element={<Suspense fallback={null}><FieldSubmissions /></Suspense>} />
+          <Route path="tracking" element={<Suspense fallback={null}><FieldTracking /></Suspense>} />
+          <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={null}><FieldProfile /></Suspense>} />
+          <Route path="security" element={<Suspense fallback={null}><FieldSecurity /></Suspense>} />
+        </Route>
+      </Route>
+
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
