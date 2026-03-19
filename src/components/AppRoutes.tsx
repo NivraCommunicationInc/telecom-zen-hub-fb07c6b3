@@ -5,6 +5,11 @@ import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { PublicLayout } from "@/components/PublicLayout";
 import { lazy, Suspense } from "react";
 
+// Hub pages
+const HubPage = lazy(() => import("@/pages/hub/HubPage"));
+const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
+const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
+
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
