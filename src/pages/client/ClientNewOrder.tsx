@@ -596,6 +596,7 @@ const ClientNewOrder = () => {
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
   const [installationCredit, setInstallationCredit] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [recurringPaymentAccepted, setRecurringPaymentAccepted] = useState(false);
   // Welcome discount dismissal — client can remove the auto-applied welcome discount
   const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
   
@@ -2843,6 +2844,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       
+      // ★ LEGAL: Persist consent record for chargeback/dispute proof
+      try {
+        await supabase.from("checkout_consent_records" as any).insert({
+          order_id: orderData.id,
+          user_id: user.id,
+          account_id: null,
+          terms_accepted: termsAccepted,
+          recurring_payment_accepted: recurringPaymentAccepted,
+          total_amount_displayed: todayTotal,
+          payment_method: paymentMethod,
+          services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
+          legal_versions: { terms: "2026-03-19", privacy: "2026-03-19", refund: "2026-03-19", payment: "2026-03-19" },
+          ip_address: null, // collected server-side if needed
+          user_agent: navigator.userAgent,
+          consent_timestamp: new Date().toISOString(),
+        });
+        console.log("[Consent] Legal consent record persisted for order:", orderData.order_number);
+      } catch (consentErr) {
+        console.error("[Consent] Failed to persist consent record (non-blocking):", consentErr);
+      }
+
       // Send confirmation email (non-blocking, wrapped in try-catch)
       try {
         const servicesForEmail = selectedServices.map(s => ({
@@ -3563,6 +3585,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
     if (!termsAccepted) {
       submittingRef.current = false;
       toast.error("Veuillez accepter les termes et conditions");
+      return;
+    }
+    if (acceptPreauthorized && !recurringPaymentAccepted) {
+      submittingRef.current = false;
+      toast.error("Veuillez autoriser le prélèvement automatique pour continuer");
       return;
     }
 
@@ -6527,6 +6554,21 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
               )}
 
+              {/* Legal Notices */}
+              <Card className="bg-card border-border">
+                <CardContent className="py-4 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Les prix, taxes et frais applicables sont affichés avant la confirmation finale.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Les services prépayés sont activés après validation du paiement et des vérifications requises, le cas échéant.
+                  </p>
+                  <p className="text-xs text-muted-foreground font-medium text-amber-600">
+                    Toute tentative de fraude, de rétrofacturation abusive ou de fausse déclaration peut entraîner l'annulation de la commande ou la suspension du service.
+                  </p>
+                </CardContent>
+              </Card>
+
               {/* Terms and Conditions Acceptance */}
               <Card className="bg-card border-border">
                 <CardHeader>
@@ -6537,24 +6579,48 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-4 bg-accent/30 rounded-lg text-sm text-muted-foreground space-y-2 max-h-40 overflow-y-auto">
-                    <p><strong>Politique d'annulation:</strong> Vous pouvez annuler en tout temps. Après l'installation, 1 mois de frais sera facturé. Avant 1 mois d'utilisation, les frais d'installation seront facturés.</p>
-                    <p><strong>Équipement:</strong> Location gratuite. Retour à vos frais en cas d'annulation. Équipement endommagé: frais applicables.</p>
-                    <p><strong>Paiement:</strong> Paiement direct à Nivra. Retard de paiement: 5% de frais supplémentaires.</p>
-                    <p><strong>Vérification:</strong> Pièce d'identité avec photo requise. Aucune vérification de crédit effectuée.</p>
+                    <p><strong>Services prépayés :</strong> Les services Nivra sont prépayés. Aucun crédit n'est accordé. Le service est activé uniquement après réception du paiement.</p>
+                    <p><strong>Remboursement :</strong> Aucun remboursement pour une période de service déjà entamée, sauf indication contraire explicite.</p>
+                    <p><strong>Activation :</strong> Les délais d'activation sont estimés. Nivra Telecom ne garantit pas un délai d'activation exact.</p>
+                    <p><strong>Équipement :</strong> Location gratuite. Retour à vos frais en cas d'annulation. Équipement endommagé : frais applicables.</p>
+                    <p><strong>Vérification :</strong> Pièce d'identité avec photo requise. Aucune vérification de crédit effectuée.</p>
+                    <p><strong>Contestation :</strong> Le client doit contacter Nivra Telecom avant toute contestation ou rétrofacturation auprès de son institution financière.</p>
                   </div>
                   
+                  {/* Primary consent checkbox */}
                   <div className="flex items-start gap-3 p-4 bg-accent/50 rounded-lg border border-cyan-500/30">
                     <Checkbox 
                       id="terms-accept" 
                       checked={termsAccepted}
                       onCheckedChange={(checked) => setTermsAccepted(checked === true)}
                     />
-                    <Label htmlFor="terms-accept" className="text-sm leading-relaxed cursor-pointer">
-                      J'ai lu et j'accepte les <a href="/terms" className="text-cyan-500 underline">Conditions d'utilisation</a>, 
-                      la <a href="/privacy" className="text-cyan-500 underline">Politique de confidentialité</a>, 
-                      et les termes de facturation ci-dessus.
-                    </Label>
+                    <div>
+                      <Label htmlFor="terms-accept" className="text-sm leading-relaxed cursor-pointer">
+                        En confirmant votre commande, vous reconnaissez avoir lu et accepté les{" "}
+                        <a href="/conditions-de-service" target="_blank" className="text-cyan-500 underline">Conditions de service</a>,{" "}
+                        la <a href="/conditions-de-service#nature-services" target="_blank" className="text-cyan-500 underline">Politique de remboursement</a>,{" "}
+                        les <a href="/modalites-paiement" target="_blank" className="text-cyan-500 underline">Modalités de paiement</a>{" "}
+                        et la <a href="/confidentialite-loi25" target="_blank" className="text-cyan-500 underline">Politique de confidentialité</a> de Nivra Telecom.
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Vous autorisez également la facturation applicable au service sélectionné, y compris les paiements récurrents lorsqu'un abonnement ou un renouvellement automatique est activé.
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Conditional recurring payment consent */}
+                  {acceptPreauthorized && (
+                    <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                      <Checkbox 
+                        id="recurring-accept" 
+                        checked={recurringPaymentAccepted}
+                        onCheckedChange={(checked) => setRecurringPaymentAccepted(checked === true)}
+                      />
+                      <Label htmlFor="recurring-accept" className="text-sm leading-relaxed cursor-pointer">
+                        J'autorise Nivra Telecom à prélever automatiquement les montants dus selon le cycle de facturation applicable à mon service, jusqu'à modification ou annulation conforme aux conditions du service.
+                      </Label>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -6692,7 +6758,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         className="w-full"
                         size="lg"
                         onClick={handleSubmit}
-                        disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}
+                        disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (acceptPreauthorized && !recurringPaymentAccepted) || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}
                       >
                         {createOrderMutation.isPending ? "Traitement..." : "Confirmer la commande"}
                       </Button>
@@ -6708,7 +6774,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </div>
 
                   <p className="text-xs text-muted-foreground text-center">
-                    En confirmant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité.
+                    La commande sera traitée par notre équipe après confirmation du paiement.
                   </p>
                 </CardContent>
               </Card>
@@ -6829,7 +6895,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </Button>
                   <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
                     <Button variant="hero" className="flex-1" size="lg" onClick={handleSubmit}
-                      disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}>
+                      disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (acceptPreauthorized && !recurringPaymentAccepted) || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}>
                       {createOrderMutation.isPending ? "..." : "Confirmer"}
                     </Button>
                   </BlockedActionWrapper>

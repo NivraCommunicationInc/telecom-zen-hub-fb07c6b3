@@ -276,12 +276,12 @@ export const ProfessionalConfirmation = ({
             {/* Title */}
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                {isFrench ? "Commande confirmée" : "Order Confirmed"}
+                {isFrench ? "Commande soumise avec succès" : "Order Submitted Successfully"}
               </h1>
               <p className="text-muted-foreground max-w-lg mx-auto">
                 {isFrench 
-                  ? "Merci. Nous avons bien reçu votre commande et nous la traitons maintenant."
-                  : "Thank you. We have received your order and are now processing it."}
+                  ? "Merci. Votre commande a été reçue et sera traitée par notre équipe. Un courriel de confirmation vous a été envoyé."
+                  : "Thank you. Your order has been received and will be processed by our team. A confirmation email has been sent."}
               </p>
             </div>
 
