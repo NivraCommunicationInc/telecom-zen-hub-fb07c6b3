@@ -114,7 +114,7 @@ const Careers = () => {
               <Building2 className="w-3 h-3 mr-1" />
               Carrières chez Nivra
             </Badge>
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6">
               Bâtissez votre carrière dans les{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-300">
                 télécommunications

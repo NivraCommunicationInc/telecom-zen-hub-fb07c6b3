@@ -96,10 +96,10 @@ const Aide = () => {
             <HelpCircle className="w-4 h-4 text-accent" />
             <span className="text-sm font-medium text-accent">Centre d'aide</span>
           </div>
-          <h1 className="text-white mb-4">
+          <h1 className="text-slate-900 mb-4">
             Foire aux <span className="text-accent">questions</span>
           </h1>
-          <p className="text-lg text-white/70 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
             Trouvez rapidement des réponses à vos questions sur nos services.
           </p>
         </div>

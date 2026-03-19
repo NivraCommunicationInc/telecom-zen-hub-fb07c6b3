@@ -40,11 +40,11 @@ const serviceIcons: Record<string, any> = {
 };
 
 const serviceStatusConfig: Record<string, { label: string; labelEn: string; color: string; bgColor: string; badgeBg: string; badgeText: string }> = {
-  operational: { label: "Opérationnel", labelEn: "Operational", color: "bg-green-500", bgColor: "bg-green-50 dark:bg-green-950/30", badgeBg: "bg-green-500", badgeText: "text-white" },
-  degraded: { label: "Performance dégradée", labelEn: "Degraded", color: "bg-amber-500", bgColor: "bg-amber-50 dark:bg-amber-950/30", badgeBg: "bg-amber-500", badgeText: "text-white" },
-  partial_outage: { label: "Panne partielle", labelEn: "Partial Outage", color: "bg-orange-500", bgColor: "bg-orange-50 dark:bg-orange-950/30", badgeBg: "bg-orange-500", badgeText: "text-white" },
-  major_outage: { label: "Panne majeure", labelEn: "Major Outage", color: "bg-red-500", bgColor: "bg-red-50 dark:bg-red-950/30", badgeBg: "bg-red-500", badgeText: "text-white" },
-  maintenance: { label: "Maintenance en cours", labelEn: "Under Maintenance", color: "bg-blue-500", bgColor: "bg-blue-50 dark:bg-blue-950/30", badgeBg: "bg-blue-500", badgeText: "text-white" },
+  operational: { label: "Opérationnel", labelEn: "Operational", color: "bg-green-500", bgColor: "bg-green-50 dark:bg-green-950/30", badgeBg: "bg-green-500", badgeText: "text-slate-900" },
+  degraded: { label: "Performance dégradée", labelEn: "Degraded", color: "bg-amber-500", bgColor: "bg-amber-50 dark:bg-amber-950/30", badgeBg: "bg-amber-500", badgeText: "text-slate-900" },
+  partial_outage: { label: "Panne partielle", labelEn: "Partial Outage", color: "bg-orange-500", bgColor: "bg-orange-50 dark:bg-orange-950/30", badgeBg: "bg-orange-500", badgeText: "text-slate-900" },
+  major_outage: { label: "Panne majeure", labelEn: "Major Outage", color: "bg-red-500", bgColor: "bg-red-50 dark:bg-red-950/30", badgeBg: "bg-red-500", badgeText: "text-slate-900" },
+  maintenance: { label: "Maintenance en cours", labelEn: "Under Maintenance", color: "bg-blue-500", bgColor: "bg-blue-50 dark:bg-blue-950/30", badgeBg: "bg-blue-500", badgeText: "text-slate-900" },
 };
 
 const StatusPage = () => {
@@ -156,18 +156,18 @@ const StatusPage = () => {
         )}>
           <CardContent className="py-6 px-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+              <div className="p-3 rounded-full bg-slate-100 backdrop-blur-sm">
                 <overallStatus.icon className="w-8 h-8 text-white" />
               </div>
               <div className="flex-1">
                 <h2 className="text-xl md:text-2xl font-bold text-white">
                   {overallStatus.label}
                 </h2>
-                <p className="text-white/80 text-sm">
+                <p className="text-slate-600 text-sm">
                   {operationalCount}/{totalServices} {isFr ? "services opérationnels" : "services operational"}
                 </p>
               </div>
-              <div className="hidden md:block text-right text-white/70 text-sm">
+              <div className="hidden md:block text-right text-slate-500 text-sm">
                 <span className="flex items-center gap-1">
                   <Shield className="w-4 h-4" />
                   {format(lastRefresh, "HH:mm", { locale: dateLocale })}

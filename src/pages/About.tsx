@@ -129,10 +129,10 @@ const About = () => {
               <Shield className="w-4 h-4 text-accent" />
               <span className="text-sm font-medium text-accent">Fournisseur télécom canadien</span>
             </div>
-            <h1 className="text-white mb-4">
+            <h1 className="text-slate-900 mb-4">
               Nivra <span className="text-accent">Telecom</span>
             </h1>
-            <p className="text-lg text-white/70 mb-6 leading-relaxed max-w-2xl mx-auto">
+            <p className="text-lg text-slate-500 mb-6 leading-relaxed max-w-2xl mx-auto">
               Services télécoms au Canada : activation, installation, support et gestion de compte. 
               Une expérience simple, structurée et fiable — pour le résidentiel et l'entreprise.
             </p>
@@ -190,9 +190,9 @@ const About = () => {
               <div className="aspect-square rounded-2xl bg-primary border border-border p-8 flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-4">
-                    <span className="font-bold text-white text-4xl">N</span>
+                    <span className="font-bold text-slate-900 text-4xl">N</span>
                   </div>
-                  <p className="text-white/60 text-sm">Fournisseur indépendant depuis 2020</p>
+                  <p className="text-slate-500 text-sm">Fournisseur indépendant depuis 2020</p>
                 </div>
               </div>
             </div>
@@ -319,10 +319,10 @@ const About = () => {
                 <Shield className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-semibold text-white mb-1">
+                <h2 className="text-xl md:text-2xl font-semibold text-slate-900 mb-1">
                   La sécurité fait partie du service
                 </h2>
-                <p className="text-white/60 text-sm">
+                <p className="text-slate-500 text-sm">
                   Vos données sont protégées à chaque étape.
                 </p>
               </div>
@@ -331,25 +331,25 @@ const About = () => {
             <div className="grid md:grid-cols-2 gap-4 mb-6">
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                <p className="text-white/80 text-sm">
+                <p className="text-slate-600 text-sm">
                   Nous ne demandons <strong>jamais</strong> de NAS ni de numéros de carte de crédit par courriel.
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                <p className="text-white/80 text-sm">
+                <p className="text-slate-600 text-sm">
                   Les informations sensibles doivent être transmises uniquement via les canaux sécurisés.
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                <p className="text-white/80 text-sm">
+                <p className="text-slate-600 text-sm">
                   Accès au portail selon les rôles, avec permissions contrôlées.
                 </p>
               </div>
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                <p className="text-white/80 text-sm">
+                <p className="text-slate-600 text-sm">
                   Pratiques alignées avec les principes de protection des renseignements personnels au Canada.
                 </p>
               </div>
@@ -398,8 +398,8 @@ const About = () => {
               <div className="aspect-video rounded-2xl bg-primary border border-border overflow-hidden flex items-center justify-center">
                 <div className="text-center p-8">
                   <MapPin className="w-12 h-12 text-accent/30 mx-auto mb-3" />
-                  <p className="text-white/60 text-sm">Couverture nationale</p>
-                  <p className="text-xs text-white/40 mt-1">Focus Québec</p>
+                  <p className="text-slate-500 text-sm">Couverture nationale</p>
+                  <p className="text-xs text-slate-400 mt-1">Focus Québec</p>
                 </div>
               </div>
             </div>

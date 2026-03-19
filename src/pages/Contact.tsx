@@ -52,10 +52,10 @@ const Contact = () => {
               {isFrench ? "Support client réactif" : "Responsive Customer Support"}
             </span>
           </div>
-          <h1 className="font-display text-4xl md:text-5xl font-bold text-white mb-6">
+          <h1 className="font-display text-4xl md:text-5xl font-bold text-slate-900 mb-6">
             {isFrench ? "Nous sommes là pour vous aider" : "We're Here to Help"}
           </h1>
-          <p className="text-xl text-white/70 max-w-2xl mx-auto">
+          <p className="text-xl text-slate-500 max-w-2xl mx-auto">
             {isFrench 
               ? "Ouverture de demande, assistance, activation ou problème technique — notre équipe vous répond rapidement."
               : "Service requests, assistance, activation or technical issues — our team responds quickly."}
