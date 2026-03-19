@@ -676,7 +676,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: 'Nº commande / Order #', value: vars.order_number || vars.order_id?.substring(0, 8) || 'N/A' },
         { label: 'Service', value: vars.service_type || 'N/A' },
-        { label: 'Payé aujourd’hui / Paid today', value: formatCurrency(vars.amount_paid_today ?? vars.total_amount ?? vars.total_payable) },
+        { label: 'Payé aujourd’hui / Paid today', value: formatCurrency(vars.amount_paid_today ?? vars.total_payable ?? vars.total_amount) },
         ...(vars.total_payable !== undefined ? [{ label: 'Total payable / Total payable', value: formatCurrency(vars.total_payable) }] : []),
         ...(vars.monthly_recurring_amount !== undefined ? [{ label: 'Mensuel récurrent / Recurring monthly', value: formatCurrency(vars.monthly_recurring_amount) }] : []),
         ...(vars.one_time_charges !== undefined ? [{ label: 'Frais uniques / One-time', value: formatCurrency(vars.one_time_charges) }] : []),
