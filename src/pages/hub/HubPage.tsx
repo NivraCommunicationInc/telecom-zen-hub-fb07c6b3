@@ -83,6 +83,9 @@ export default function HubPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [accessFlags, setAccessFlags] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [mfaStatus, setMfaStatus] = useState<MfaStatus | null>(null);
+  const [showMfaEnroll, setShowMfaEnroll] = useState(false);
+  const [showMfaVerify, setShowMfaVerify] = useState(false);
 
   useEffect(() => {
     let mounted = true;
