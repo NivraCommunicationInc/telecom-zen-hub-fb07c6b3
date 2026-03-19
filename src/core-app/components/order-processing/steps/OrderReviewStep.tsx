@@ -54,7 +54,7 @@ export function OrderReviewStep({ proc }: Props) {
   // Taxes and total from invoice (canonical source of truth)
   const tpsAmount = toNonNegativeMoney(invoice?.tps_amount ?? 0);
   const tvqAmount = toNonNegativeMoney(invoice?.tvq_amount ?? 0);
-  const totalAmount = toNonNegativeMoney(invoice?.total ?? order.total_amount ?? 0);
+  const totalAmount = toNonNegativeMoney(invoice?.total ?? (order.pricing_snapshot as any)?.grand_total ?? order.total_amount ?? 0);
   const amountPaid = toNonNegativeMoney(invoice?.amount_paid ?? 0);
   const balanceDue = toNonNegativeMoney(invoice?.balance_due ?? (totalAmount - amountPaid));
 
