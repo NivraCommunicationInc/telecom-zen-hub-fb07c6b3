@@ -101,48 +101,8 @@ export default function CoreStaffPage() {
   const { data: staffList = [], isLoading } = useQuery({
     queryKey: ["core-staff-list"],
     queryFn: async () => {
-      const { data: roleRows, error: roleError } = await supabase
-        .from("user_roles")
-        .select("id, user_id, role, status, is_active, created_at, updated_at, can_access_core, can_access_employee, can_access_field, can_access_technician, mfa_required, mfa_enrolled_at, last_login_at")
-        .in("role", ["admin", "employee", "technician", "field_sales", "supervisor", "sales", "support", "billing_admin", "techops", "kyc_agent"])
-        .order("created_at", { ascending: false });
-
-      if (roleError) throw roleError;
-      if (!roleRows?.length) return [];
-
-      const userIds = [...new Set(roleRows.map((row: any) => row.user_id))];
-
-      const [profilesResult, employeesResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("user_id, first_name, last_name, full_name, email, phone, last_login_at, mfa_enabled, mfa_verified_at")
-          .in("user_id", userIds),
-        supabase
-          .from("employees")
-          .select("user_id, phone, badge_number, job_title, pin_set_at")
-          .in("user_id", userIds),
-      ]);
-
-      const profileMap = new Map((profilesResult.data || []).map((profile: any) => [profile.user_id, profile]));
-      const employeeMap = new Map((employeesResult.data || []).map((employee: any) => [employee.user_id, employee]));
-
-      return roleRows.map((row: any) => {
-        const profile = profileMap.get(row.user_id) || {};
-        const employee = employeeMap.get(row.user_id) || {};
-        const firstName = profile.first_name || "";
-        const lastName = profile.last_name || "";
-        const fallbackName = `${firstName} ${lastName}`.trim();
-
-        return {
-          ...row,
-          profile,
-          employee,
-          displayName: profile.full_name || fallbackName || profile.email || "—",
-          lastLoginAt: row.last_login_at || profile.last_login_at || null,
-          mfaRequired: row.mfa_required !== false,
-          mfaEnabled: Boolean(row.mfa_enrolled_at || profile.mfa_verified_at || profile.mfa_enabled),
-        };
-      });
+      const response = await invokeAdminStaffAction({ action: "list_staff" });
+      return response.staff || [];
     },
   });
 
