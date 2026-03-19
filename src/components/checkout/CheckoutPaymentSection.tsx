@@ -93,8 +93,8 @@ export const CheckoutPaymentSection = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Credit card is in maintenance mode
-  const isCreditCardMaintenance = true;
+  // Credit card is in maintenance mode — use central config
+  const isCreditCardMaintenance = CARD_PAYMENTS_DISABLED;
 
   return (
     <Card className="bg-card border-border">
