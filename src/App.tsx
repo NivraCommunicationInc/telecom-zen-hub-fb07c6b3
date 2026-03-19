@@ -61,3 +61,5 @@ const App = () => (
     </LanguageProvider>
   </QueryClientProvider>
 );
+
+export default App;
