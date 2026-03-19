@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet, Loader2 } from "lucide-react";
+import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet, Loader2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
+import { CARD_PAYMENTS_DISABLED, CARD_MAINTENANCE_MESSAGE_FR } from "@/config/paymentMaintenance";
 
 interface PayInvoiceDialogProps {
   open: boolean;
@@ -127,26 +128,7 @@ const PayInvoiceDialog = ({
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Choisir un mode de paiement</p>
 
-          {/* Credit/Debit Card via Stripe */}
-          <button
-            onClick={() => setPaymentMethod("card")}
-            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-              paymentMethod === "card"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-muted-foreground/30 bg-background"
-            }`}
-          >
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
-              <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé via Stripe</p>
-            </div>
-            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
-          </button>
-
-          {/* PayPal */}
+          {/* PayPal — PRIMARY */}
           <button
             onClick={() => setPaymentMethod("paypal")}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
@@ -160,8 +142,9 @@ const PayInvoiceDialog = ({
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">PayPal</p>
-              <p className="text-xs text-muted-foreground">Payez avec votre compte PayPal</p>
+              <p className="text-xs text-muted-foreground">Payez avec votre compte PayPal ou carte via PayPal</p>
             </div>
+            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
           </button>
 
           {/* Interac */}
@@ -181,12 +164,46 @@ const PayInvoiceDialog = ({
               <p className="text-xs text-muted-foreground">Envoyez et soumettez votre référence directement ici</p>
             </div>
           </button>
+
+          {/* Credit Card — DISABLED / MAINTENANCE */}
+          {CARD_PAYMENTS_DISABLED ? (
+            <div className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border bg-muted/50 opacity-60 cursor-not-allowed">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <CreditCard className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-muted-foreground">Carte de crédit ou débit</p>
+                <p className="text-xs text-muted-foreground">{CARD_MAINTENANCE_MESSAGE_FR}</p>
+              </div>
+              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10 text-xs shrink-0">
+                <Wrench className="w-3 h-3" />
+                Maintenance
+              </Badge>
+            </div>
+          ) : (
+            <button
+              onClick={() => setPaymentMethod("card")}
+              className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+                paymentMethod === "card"
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-muted-foreground/30 bg-background"
+              }`}
+            >
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <CreditCard className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
+                <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé via Stripe</p>
+              </div>
+            </button>
+          )}
         </div>
 
         {/* ============ Payment Form Based on Selection ============ */}
 
-        {/* Credit/Debit Card via Stripe Elements (inline) */}
-        {paymentMethod === "card" && (
+        {/* Credit/Debit Card via Stripe Elements (inline) — only if not in maintenance */}
+        {paymentMethod === "card" && !CARD_PAYMENTS_DISABLED && (
           <div className="mt-2">
             <StripeInlinePayment
               invoiceId={invoice.id}

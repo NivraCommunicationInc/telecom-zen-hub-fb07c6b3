@@ -6251,41 +6251,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Payment method selection — All methods active */}
+                  {/* Payment method selection — Card payments in maintenance */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* 1. Credit Card - PRIMARY via Stripe */}
-                    <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
-                        paymentMethod === "credit_card"
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                      onClick={() => {
-                        setPaymentMethod("credit_card");
-                        setPaymentComplete(false);
-                        setPaymentConfirmationNumber("");
-                        setPaypalCaptureId("");
-                      }}
-                    >
-                      <div className="absolute top-2 right-2">
-                        <Badge className="bg-primary text-primary-foreground text-xs">
-                          Recommandé
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          paymentMethod === "credit_card" ? "bg-primary" : "bg-muted"
-                        }`}>
-                          <CreditCard className={`w-5 h-5 ${paymentMethod === "credit_card" ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">Carte de crédit</p>
-                          <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 2. PayPal */}
+                    {/* 1. PayPal - PRIMARY */}
                     <div
                       className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
                         paymentMethod === "paypal"
@@ -6300,8 +6268,8 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       }}
                     >
                       <div className="absolute top-2 right-2">
-                        <Badge className="bg-blue-500/20 text-blue-600 border-0 text-xs">
-                          Sécurisé
+                        <Badge className="bg-primary text-primary-foreground text-xs">
+                          Recommandé
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3">
@@ -6321,7 +6289,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                       </div>
                     </div>
 
-                    {/* 3. Interac E-Transfer */}
+                    {/* 2. Interac E-Transfer */}
                     <div
                       className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
                         paymentMethod === "etransfer"
@@ -6347,54 +6315,31 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Stripe Inline Payment Form for Credit Card */}
-                  {paymentMethod === "credit_card" && !paymentComplete && (
-                    <div className="space-y-4 p-4 bg-primary/10 rounded-lg border border-primary/30">
-                      <StripeInlinePayment
-                        amount={uiTodayTotal}
-                        description="Préautorisation carte — en attente de confirmation finale"
-                        customerEmail={profile?.email || user?.email || ""}
-                        collectBillingDetails
-                        defaultBillingDetails={{
-                          firstName: firstName || profile?.first_name || "",
-                          lastName: lastName || profile?.last_name || "",
-                          addressLine1: [serviceAddressStreet, serviceAddressApartment].filter(Boolean).join(" "),
-                          city: serviceAddressCity || "",
-                          state: serviceAddressProvince || "QC",
-                          postalCode: serviceAddressPostalCode || "",
-                          country: "CA",
-                          email: profile?.email || user?.email || "",
-                        }}
-                        onSuccess={({ paymentIntentId }) => {
-                          setPaymentComplete(true);
-                          setPaymentConfirmationNumber(paymentIntentId);
-                          toast.success("Carte autorisée. Aucun enregistrement de facturation n'est créé avant la confirmation finale.");
-                          // Traceability
-                          logPaymentConfirmed({
-                            payment_reference: paymentIntentId,
-                            amount: uiTodayTotal,
-                            method: "card",
-                          });
-                        }}
-                        onError={(msg) => {
-                          toast.error(msg);
-                          logPaymentFailed({
-                            error_message: msg,
-                            method: "card",
-                            amount: uiTodayTotal,
-                          });
-                        }}
-                      />
-                      <div className="flex items-start gap-2 p-3 bg-background/70 border border-border rounded-lg">
-                        <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-muted-foreground">
-                          Aucun solde, aucune facture, et aucune transaction admin ne sont créés tant que vous n'avez pas cliqué sur « Confirmer la commande ».
-                        </p>
+                    {/* 3. Credit Card - MAINTENANCE */}
+                    <div className="p-4 rounded-lg border-2 border-border bg-muted/50 opacity-60 cursor-not-allowed relative">
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10 text-xs">
+                          Maintenance
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
+                          <CreditCard className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground">Carte de crédit</p>
+                          <p className="text-xs text-muted-foreground">Temporairement indisponible</p>
+                        </div>
                       </div>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Card maintenance message */}
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-muted-foreground">
+                    <CreditCard className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Les paiements par carte sont temporairement indisponibles pour maintenance. Veuillez utiliser PayPal.</span>
+                  </div>
 
                   {/* E-Transfer Form */}
                   {paymentMethod === "etransfer" && !paymentComplete && (
