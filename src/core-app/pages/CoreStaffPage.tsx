@@ -316,6 +316,32 @@ export default function CoreStaffPage() {
                 ))}
               </div>
 
+              {/* Portal Access */}
+              <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 space-y-2">
+                <h3 className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Accès aux portails</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "can_access_core", label: "Core" },
+                    { key: "can_access_employee", label: "Employee" },
+                    { key: "can_access_field", label: "Field" },
+                    { key: "can_access_technician", label: "Technician" },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-[12px] text-[#CBD5E1] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!selected[key]}
+                        onChange={(e) => {
+                          updatePortalAccessMutation.mutate({ userId: selected.user_id, key, value: e.target.checked });
+                          setSelected({ ...selected, [key]: e.target.checked });
+                        }}
+                        className="rounded"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Actions */}
               <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 space-y-2">
                 <h3 className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Actions</h3>
