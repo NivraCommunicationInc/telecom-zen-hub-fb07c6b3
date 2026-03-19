@@ -6890,7 +6890,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </Button>
                   <BlockedActionWrapper action="order" showInlineNotice={isAccountBlocked}>
                     <Button variant="hero" className="flex-1" size="lg" onClick={handleSubmit}
-                      disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}>
+                      disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (acceptPreauthorized && !recurringPaymentAccepted) || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}>
                       {createOrderMutation.isPending ? "..." : "Confirmer"}
                     </Button>
                   </BlockedActionWrapper>
