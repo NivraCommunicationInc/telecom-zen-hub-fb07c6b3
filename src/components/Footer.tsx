@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { Mail, MapPin, Clock, MessageSquare, Facebook, Instagram } from "lucide-react";
+import { Mail, MapPin, Clock, Facebook, Instagram } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT } from "@/config/company";
@@ -47,46 +47,46 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   return (
-    <footer ref={ref} className="bg-[#020617] text-white border-t border-white/5" data-testid="footer">
+    <footer ref={ref} className="bg-slate-900 text-white border-t border-slate-800" data-testid="footer">
       <div className="container mx-auto px-4 sm:px-6 py-14 lg:py-20 max-w-[1320px]">
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
           
           {/* Brand */}
           <div className="col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
               <span className="font-bold text-lg text-white">{COMPANY_CONTACT.companyName}</span>
             </div>
             
-            <p className="text-sm font-medium mb-3 text-white/40">
+            <p className="text-sm font-medium mb-3 text-slate-400">
               {isFr ? "Télécoms prépayés au Québec" : "Prepaid Telecom in Quebec"}
             </p>
             
             <div className="space-y-3 mt-5">
               <a 
                 href={`mailto:${supportEmail.toLowerCase()}`} 
-                className="flex items-center gap-2.5 text-white/40 hover:text-white transition-colors text-sm"
+                className="flex items-center gap-2.5 text-slate-400 hover:text-white transition-colors text-sm"
               >
                 <Mail className="w-4 h-4 shrink-0" />
                 <span className="break-all">{supportEmail}</span>
               </a>
-              <div className="flex items-start gap-2.5 text-white/40 text-sm">
+              <div className="flex items-start gap-2.5 text-slate-400 text-sm">
                 <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{address}</span>
               </div>
-              <div className="flex items-start gap-2.5 text-white/40 text-sm">
+              <div className="flex items-start gap-2.5 text-slate-400 text-sm">
                 <Clock className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{businessHours}</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3 mt-5">
-              <a href="https://www.facebook.com/profile.php?id=61584408712750" target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white transition-colors" aria-label="Facebook">
+              <a href="https://www.facebook.com/profile.php?id=61584408712750" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-white transition-colors" aria-label="Facebook">
                 <Facebook className="w-5 h-5" />
               </a>
-              <a href="https://www.instagram.com/nivratelecom/" target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white transition-colors" aria-label="Instagram">
+              <a href="https://www.instagram.com/nivratelecom/" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-white transition-colors" aria-label="Instagram">
                 <Instagram className="w-5 h-5" />
               </a>
             </div>
@@ -94,11 +94,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Services */}
           <div>
-            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-white/60">Services</h4>
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-slate-400">Services</h4>
             <ul className="space-y-3">
               {links.services.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-white/35 hover:text-white transition-colors text-sm">{link.label}</Link>
+                  <Link to={link.href} className="text-slate-500 hover:text-white transition-colors text-sm">{link.label}</Link>
                 </li>
               ))}
             </ul>
@@ -106,11 +106,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Support */}
           <div>
-            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-white/60">Support</h4>
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-slate-400">Support</h4>
             <ul className="space-y-3">
               {links.support.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-white/35 hover:text-white transition-colors text-sm">{link.label}</Link>
+                  <Link to={link.href} className="text-slate-500 hover:text-white transition-colors text-sm">{link.label}</Link>
                 </li>
               ))}
             </ul>
@@ -118,11 +118,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Legal */}
           <div>
-            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-white/60">{isFr ? "Légal" : "Legal"}</h4>
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-slate-400">{isFr ? "Légal" : "Legal"}</h4>
             <ul className="space-y-3">
               {links.legal.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-white/35 hover:text-white transition-colors text-sm">{link.label}</Link>
+                  <Link to={link.href} className="text-slate-500 hover:text-white transition-colors text-sm">{link.label}</Link>
                 </li>
               ))}
             </ul>
@@ -131,18 +131,18 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       </div>
 
       {/* Payment & Security */}
-      <div className="border-t border-white/5">
+      <div className="border-t border-slate-800">
         <div className="container mx-auto px-4 sm:px-6 py-5 max-w-[1320px]">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex flex-col items-center sm:items-start gap-2">
-              <p className="text-white/30 text-xs uppercase tracking-wider font-medium">{isFr ? "Paiement" : "Payment"}</p>
+              <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">{isFr ? "Paiement" : "Payment"}</p>
               <div className="flex items-center gap-3">
                 <img src={paymentMethodsImg} alt="Interac, Cash, Mastercard" className="h-7 object-contain opacity-60" />
                 <img src={paypalSecureImg} alt="PayPal" className="h-7 object-contain opacity-60" />
               </div>
             </div>
             <div className="flex flex-col items-center sm:items-end gap-2">
-              <p className="text-white/30 text-xs uppercase tracking-wider font-medium">{isFr ? "Sécurité" : "Security"}</p>
+              <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">{isFr ? "Sécurité" : "Security"}</p>
               <img src={googleSafeBrowsingImg} alt="Google Safe Browsing" className="h-8 object-contain opacity-60" />
             </div>
           </div>
@@ -150,16 +150,16 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       </div>
 
       {/* Bottom Bar */}
-      <div className="border-t border-white/5">
+      <div className="border-t border-slate-800">
         <div className="container mx-auto px-4 sm:px-6 py-4 max-w-[1320px]">
           <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:text-left">
-            <p className="text-white/25 text-xs">© {currentYear} {COMPANY_CONTACT.legalName}</p>
+            <p className="text-slate-500 text-xs">© {currentYear} {COMPANY_CONTACT.legalName}</p>
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-              <Link to="/privacy-policy" className="text-white/25 hover:text-white transition-colors text-xs">{isFr ? "Confidentialité" : "Privacy"}</Link>
-              <span className="text-white/10 text-xs">·</span>
-              <Link to="/terms-and-conditions" className="text-white/25 hover:text-white transition-colors text-xs">{isFr ? "Conditions" : "Terms"}</Link>
-              <span className="text-white/10 text-xs">·</span>
-              <span className="text-white/15 text-xs">HTTPS + WAF</span>
+              <Link to="/privacy-policy" className="text-slate-500 hover:text-white transition-colors text-xs">{isFr ? "Confidentialité" : "Privacy"}</Link>
+              <span className="text-slate-700 text-xs">·</span>
+              <Link to="/terms-and-conditions" className="text-slate-500 hover:text-white transition-colors text-xs">{isFr ? "Conditions" : "Terms"}</Link>
+              <span className="text-slate-700 text-xs">·</span>
+              <span className="text-slate-600 text-xs">HTTPS + WAF</span>
             </div>
           </div>
         </div>

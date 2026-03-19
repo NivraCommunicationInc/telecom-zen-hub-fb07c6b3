@@ -25,8 +25,6 @@ export function FeaturedOffers() {
 
   const featuredPlans = useMemo(() => {
     if (!services?.length) return [];
-
-    // Pick top 2-3 featured plans across categories
     return services
       .filter(s => s.is_featured || s.is_recommended)
       .sort((a, b) => {
@@ -39,11 +37,11 @@ export function FeaturedOffers() {
 
   if (isLoading) {
     return (
-      <section className="py-20">
+      <section className="py-20 bg-slate-50">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-[420px] rounded-2xl bg-white/5" />
+              <Skeleton key={i} className="h-[420px] rounded-2xl" />
             ))}
           </div>
         </div>
@@ -54,13 +52,13 @@ export function FeaturedOffers() {
   if (featuredPlans.length === 0) return null;
 
   return (
-    <section className="py-20 lg:py-28">
+    <section className="py-20 lg:py-28 bg-slate-50">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="text-center mb-14">
-          <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-2xl md:text-4xl font-bold text-slate-900 mb-4">
             {isFr ? "Plans populaires" : "Popular Plans"}
           </h2>
-          <p className="text-white/50 text-lg">
+          <p className="text-slate-500 text-lg">
             {isFr ? "Nos forfaits les plus choisis par nos clients" : "Our most chosen plans by customers"}
           </p>
         </div>
@@ -68,43 +66,43 @@ export function FeaturedOffers() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
           {featuredPlans.map((plan, index) => {
             const features = getServiceFeatures(plan);
-            const isHighlight = index === 1; // Middle card highlighted
+            const isHighlight = index === 1;
 
             return (
               <div
                 key={plan.id}
-                className={`relative bg-[#0B1220] rounded-2xl border overflow-hidden transition-all duration-300 ${
+                className={`relative bg-white rounded-2xl border overflow-hidden transition-all duration-300 ${
                   isHighlight
-                    ? "border-blue-500/50 shadow-xl shadow-blue-500/10 scale-[1.02]"
-                    : "border-white/8 hover:border-white/15"
+                    ? "border-blue-300 shadow-lg shadow-blue-100 scale-[1.02]"
+                    : "border-slate-200/80 hover:border-slate-300 hover:shadow-md"
                 }`}
               >
                 {isHighlight && (
-                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-600 to-blue-500" />
                 )}
 
                 <div className="p-8">
                   {isHighlight && (
                     <div className="flex items-center gap-1.5 mb-4">
-                      <Star className="w-4 h-4 text-blue-400 fill-blue-400" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
+                      <Star className="w-4 h-4 text-blue-600 fill-blue-600" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
                         {isFr ? "Populaire" : "Popular"}
                       </span>
                     </div>
                   )}
 
-                  <h3 className="text-lg font-bold text-white mb-2">{plan.name}</h3>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">{plan.name}</h3>
                   
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-4xl font-bold text-white">{Number(plan.price).toFixed(0)}$</span>
-                    <span className="text-white/40">/{isFr ? "mois" : "mo"}</span>
+                    <span className="text-4xl font-bold text-slate-900">{Number(plan.price).toFixed(0)}$</span>
+                    <span className="text-slate-400">/{isFr ? "mois" : "mo"}</span>
                   </div>
 
                   <div className="space-y-3 mb-8">
                     {features.map((feature, i) => (
                       <div key={i} className="flex items-start gap-3 text-sm">
-                        <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                        <span className="text-white/60">{feature}</span>
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span className="text-slate-600">{feature}</span>
                       </div>
                     ))}
                   </div>
@@ -113,8 +111,8 @@ export function FeaturedOffers() {
                     asChild
                     className={`w-full rounded-xl h-12 font-semibold ${
                       isHighlight
-                        ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/25"
-                        : "bg-white/5 border border-white/10 text-white hover:bg-white/10"
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                        : "bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
                     <Link to={LINK_BY_CATEGORY[plan.category] || "/compare"}>

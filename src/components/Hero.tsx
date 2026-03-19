@@ -23,33 +23,24 @@ const Hero = () => {
   ];
 
   return (
-    <section className="relative overflow-hidden">
-      {/* Background gradient effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-blue-500/8 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/5 rounded-full blur-[100px]" />
-      </div>
-
+    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white">
       <div className="container mx-auto px-4 max-w-[1320px] relative">
         <div className="py-20 sm:py-28 lg:py-36 text-center max-w-4xl mx-auto">
-          {/* Headline */}
-          <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold leading-[1.1] text-white mb-6 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold leading-[1.1] text-slate-900 mb-6 tracking-tight">
             {isFr
               ? "Internet et mobile haute performance"
               : "High-performance Internet and mobile"}
           </h1>
 
-          {/* Subtext */}
-          <p className="text-lg sm:text-xl text-white/60 mb-10 leading-relaxed max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-slate-500 mb-10 leading-relaxed max-w-2xl mx-auto">
             {isFr
               ? "Des forfaits simples, rapides et sans surprise. Activez votre service en quelques minutes."
               : "Simple, fast plans with no surprises. Activate your service in minutes."}
           </p>
 
-          {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             <Button
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 h-14 text-base font-semibold shadow-xl shadow-blue-500/25 w-full sm:w-auto"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 h-14 text-base font-semibold shadow-md shadow-blue-600/20 w-full sm:w-auto"
               asChild
             >
               <Link to="/compare">
@@ -59,7 +50,7 @@ const Hero = () => {
             </Button>
             <Button
               variant="outline"
-              className="border-white/20 text-white bg-white/5 hover:bg-white/10 rounded-full px-8 h-14 text-base font-medium w-full sm:w-auto"
+              className="border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-full px-8 h-14 text-base font-medium w-full sm:w-auto"
               asChild
             >
               <Link to="/portal/auth">
@@ -68,11 +59,10 @@ const Hero = () => {
             </Button>
           </div>
 
-          {/* Trust bullets */}
           <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
             {bullets.map((bullet) => (
-              <div key={bullet.text} className="flex items-center gap-2.5 text-white/50">
-                <bullet.icon className="w-4 h-4 text-blue-400" />
+              <div key={bullet.text} className="flex items-center gap-2.5 text-slate-500">
+                <bullet.icon className="w-4 h-4 text-blue-600" />
                 <span className="text-sm font-medium">{bullet.text}</span>
               </div>
             ))}
