@@ -161,6 +161,21 @@ export default function CoreStaffPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const updatePortalAccessMutation = useMutation({
+    mutationFn: async ({ userId, key, value }: { userId: string; key: string; value: boolean }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "update_portal_access", user_id: userId, [key]: value },
+      });
+      if (response.error) throw new Error(response.error.message);
+      if ((response.data as any)?.ok === false) throw new Error((response.data as any)?.message || "Erreur");
+    },
+    onSuccess: () => {
+      toast.success("Accès portail mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   // ═══ FILTERING ═══
   const filtered = useMemo(() => {
     return staffList.filter((s: any) => {
