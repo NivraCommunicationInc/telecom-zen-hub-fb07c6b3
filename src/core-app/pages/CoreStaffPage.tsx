@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Ban, CheckCircle2, Eye, Mail, Plus, Search, ShieldCheck, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
+import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 
 type StaffFormData = {
   first_name: string;
@@ -87,9 +88,12 @@ export default function CoreStaffPage() {
 
   const invokeAdminStaffAction = async (payload: Record<string, unknown>) => {
     const response = await supabase.functions.invoke("admin-manage-staff", { body: payload });
-    if (response.error) throw new Error(response.error.message);
+    if (response.error) {
+      const msg = await getInvokeErrorMessage(response.error);
+      throw new Error(msg || "Erreur edge function");
+    }
     if ((response.data as any)?.ok === false) {
-      throw new Error((response.data as any)?.message || "Erreur inattendue");
+      throw new Error((response.data as any)?.message || (response.data as any)?.error?.message || "Erreur inattendue");
     }
     return response.data as any;
   };
