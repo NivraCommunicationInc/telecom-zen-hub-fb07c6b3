@@ -81,7 +81,11 @@ export default function EmployeeClientDetail() {
     );
   }
 
-  return <ClientDetailContent clientId={clientId} />;
+  return (
+    <CustomerPinGate customerId={clientId}>
+      <ClientDetailContent clientId={clientId} />
+    </CustomerPinGate>
+  );
 }
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
