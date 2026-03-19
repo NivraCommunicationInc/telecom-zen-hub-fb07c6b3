@@ -718,6 +718,14 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
+      {/* ============================================ */}
+      {/* INTERNAL HUB — Secure Staff Gateway          */}
+      {/* ============================================ */}
+      <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubLoginPage /></Suspense>} />
+      <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubProtectedRoute /></Suspense>}>
+        <Route index element={<Suspense fallback={null}><HubPage /></Suspense>} />
+      </Route>
+
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
