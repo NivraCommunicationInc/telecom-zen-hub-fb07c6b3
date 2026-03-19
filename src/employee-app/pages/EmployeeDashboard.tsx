@@ -1,29 +1,38 @@
 /**
- * EmployeeDashboard — Phase 2: Operational command center.
- * Priority zone (urgent/assigned), actionable widgets, recent activity feed.
+ * EmployeeDashboard — Phase 3: Powered by unified work items + SLA engine.
+ * Priority zone shows SLA breaches, urgent items, and assigned tasks.
  */
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
   ShoppingCart, CreditCard, ShieldCheck, Zap, Headphones,
-  UserCheck, AlertTriangle, Search, FileText, ListTodo, Clock,
-  Loader2, ArrowUpRight, TrendingUp, Activity,
+  UserCheck, AlertTriangle, Search, FileText, ListTodo,
+  Loader2, ArrowUpRight, Activity, Clock,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useWorkItemCounts } from "@/employee-app/hooks/useWorkItems";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-interface DashboardCounts {
-  pendingOrders: number;
-  manualPayments: number;
-  kycPending: number;
-  blockedActivations: number;
-  openTickets: number;
-  assignedToMe: number;
-  overdueItems: number;
+function useEmployeeName() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["employee-name", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      return data?.full_name ?? null;
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 30,
+  });
 }
 
 interface RecentItem {
@@ -35,37 +44,10 @@ interface RecentItem {
   href: string;
 }
 
-function useEmployeeDashboard() {
-  return useQuery<{ counts: DashboardCounts; recentItems: RecentItem[]; userName: string | null }>({
-    queryKey: ["employee-dashboard-v2"],
+function useRecentActivity() {
+  return useQuery<RecentItem[]>({
+    queryKey: ["employee-recent-activity"],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-
-      const [ordersRes, paymentsRes, kycRes, activationsRes, ticketsRes, profileRes] = await Promise.all([
-        supabase.from("orders").select("id", { count: "exact", head: true })
-          .in("status", ["pending", "submitted", "received"]).eq("environment", "live"),
-        supabase.from("billing_payments").select("id", { count: "exact", head: true })
-          .eq("status", "pending").eq("method", "etransfer").eq("environment", "live"),
-        supabase.from("order_identity_data").select("id", { count: "exact", head: true })
-          .eq("verification_status", "pending"),
-        supabase.from("orders").select("id", { count: "exact", head: true })
-          .in("status", ["delivered", "installed"]).eq("environment", "live"),
-        supabase.from("support_tickets").select("id", { count: "exact", head: true })
-          .in("status", ["open", "in_progress"]),
-        userId ? supabase.from("profiles").select("full_name").eq("user_id", userId).maybeSingle() : Promise.resolve({ data: null }),
-      ]);
-
-      const assignedRes = userId
-        ? await supabase.from("orders").select("id", { count: "exact", head: true })
-            .eq("assigned_to", userId).not("status", "in", '("completed","cancelled")').eq("environment", "live")
-        : { count: 0 };
-
-      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-      const overdueRes = await supabase.from("orders").select("id", { count: "exact", head: true })
-        .in("status", ["pending", "submitted"]).lt("created_at", cutoff).eq("environment", "live");
-
-      // Recent items for activity feed
       const [recentOrders, recentTickets] = await Promise.all([
         supabase.from("orders").select("id, order_number, status, created_at")
           .eq("environment", "live").order("created_at", { ascending: false }).limit(5),
@@ -73,7 +55,7 @@ function useEmployeeDashboard() {
           .order("created_at", { ascending: false }).limit(5),
       ]);
 
-      const recentItems: RecentItem[] = [
+      return [
         ...(recentOrders.data ?? []).map(o => ({
           id: o.id, type: "order" as const, reference: o.order_number ?? o.id.slice(0, 8),
           status: o.status, createdAt: o.created_at, href: employeePath(`/orders/${o.id}`),
@@ -83,20 +65,6 @@ function useEmployeeDashboard() {
           status: t.status ?? "open", createdAt: t.created_at, href: employeePath("/support"),
         })),
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8);
-
-      return {
-        counts: {
-          pendingOrders: ordersRes.count ?? 0,
-          manualPayments: paymentsRes.count ?? 0,
-          kycPending: kycRes.count ?? 0,
-          blockedActivations: activationsRes.count ?? 0,
-          openTickets: ticketsRes.count ?? 0,
-          assignedToMe: assignedRes.count ?? 0,
-          overdueItems: overdueRes.count ?? 0,
-        },
-        recentItems,
-        userName: profileRes.data?.full_name ?? null,
-      };
     },
     staleTime: 1000 * 60 * 2,
   });
@@ -104,10 +72,10 @@ function useEmployeeDashboard() {
 
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useEmployeeDashboard();
+  const { data: counts, isLoading } = useWorkItemCounts();
+  const { data: userName } = useEmployeeName();
+  const { data: recentItems = [] } = useRecentActivity();
   const [searchQuery, setSearchQuery] = useState("");
-  const counts = data?.counts;
-  const recentItems = data?.recentItems ?? [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,19 +84,12 @@ export default function EmployeeDashboard() {
     }
   };
 
-  // Split into priority zone (urgent) and standard widgets
-  const urgentWidgets = [
-    { label: "Assignés à moi", value: counts?.assignedToMe ?? 0, icon: UserCheck, color: "text-blue-400", ring: "ring-blue-500/30", bg: "bg-blue-500/10", href: employeePath("/work-queue?filter=mine"), highlight: true },
-    { label: "Urgents / en retard", value: counts?.overdueItems ?? 0, icon: AlertTriangle, color: "text-red-400", ring: "ring-red-500/30", bg: "bg-red-500/10", href: employeePath("/work-queue?filter=overdue"), highlight: true },
-  ];
-
-  const standardWidgets = [
-    { label: "Commandes", value: counts?.pendingOrders ?? 0, icon: ShoppingCart, color: "text-blue-400", bg: "bg-blue-500/10", href: employeePath("/orders?status=pending") },
-    { label: "Paiements manuels", value: counts?.manualPayments ?? 0, icon: CreditCard, color: "text-emerald-400", bg: "bg-emerald-500/10", href: employeePath("/payments?tab=manual") },
-    { label: "KYC", value: counts?.kycPending ?? 0, icon: ShieldCheck, color: "text-amber-400", bg: "bg-amber-500/10", href: employeePath("/kyc") },
-    { label: "Activations", value: counts?.blockedActivations ?? 0, icon: Zap, color: "text-purple-400", bg: "bg-purple-500/10", href: employeePath("/activations") },
-    { label: "Tickets", value: counts?.openTickets ?? 0, icon: Headphones, color: "text-cyan-400", bg: "bg-cyan-500/10", href: employeePath("/support") },
-  ];
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Bonjour";
+    if (h < 18) return "Bon après-midi";
+    return "Bonsoir";
+  };
 
   const quickActions = [
     { label: "Rechercher client", icon: Search, action: () => document.getElementById("emp-search")?.focus() },
@@ -137,20 +98,55 @@ export default function EmployeeDashboard() {
     { label: "Paiements", icon: CreditCard, action: () => navigate(employeePath("/payments")) },
   ];
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return "Bonjour";
-    if (h < 18) return "Bon après-midi";
-    return "Bonsoir";
-  };
+  // Priority zone widgets
+  const priorityWidgets = [
+    {
+      label: "SLA dépassés",
+      value: counts?.breached ?? 0,
+      icon: AlertTriangle,
+      color: "text-red-400",
+      ring: "ring-red-500/30",
+      bg: "bg-red-500/10",
+      bar: "bg-red-500",
+      href: employeePath("/work-queue?filter=breached"),
+    },
+    {
+      label: "Assignés à moi",
+      value: counts?.mine ?? 0,
+      icon: UserCheck,
+      color: "text-blue-400",
+      ring: "ring-blue-500/30",
+      bg: "bg-blue-500/10",
+      bar: "bg-blue-500",
+      href: employeePath("/work-queue?filter=mine"),
+    },
+    {
+      label: "À risque",
+      value: counts?.atRisk ?? 0,
+      icon: Clock,
+      color: "text-amber-400",
+      ring: "ring-amber-500/30",
+      bg: "bg-amber-500/10",
+      bar: "bg-amber-500",
+      href: employeePath("/work-queue?filter=urgent"),
+    },
+  ];
+
+  const standardWidgets = [
+    { label: "Commandes", value: counts?.byType?.order ?? 0, icon: ShoppingCart, color: "text-blue-400", bg: "bg-blue-500/10", href: employeePath("/work-queue?filter=order") },
+    { label: "Paiements", value: counts?.byType?.payment ?? 0, icon: CreditCard, color: "text-emerald-400", bg: "bg-emerald-500/10", href: employeePath("/work-queue?filter=payment") },
+    { label: "KYC", value: counts?.byType?.kyc ?? 0, icon: ShieldCheck, color: "text-amber-400", bg: "bg-amber-500/10", href: employeePath("/work-queue?filter=kyc") },
+    { label: "Activations", value: counts?.byType?.activation ?? 0, icon: Zap, color: "text-purple-400", bg: "bg-purple-500/10", href: employeePath("/work-queue?filter=activation") },
+    { label: "Tickets", value: counts?.byType?.ticket ?? 0, icon: Headphones, color: "text-cyan-400", bg: "bg-cyan-500/10", href: employeePath("/work-queue?filter=ticket") },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Header with greeting */}
+      {/* Header */}
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight">
-            {greeting()}{data?.userName ? `, ${data.userName.split(" ")[0]}` : ""}
+            {greeting()}{userName ? `, ${userName.split(" ")[0]}` : ""}
           </h1>
           <p className="text-sm text-[hsl(220,10%,45%)] mt-0.5">
             Vue opérationnelle — {new Date().toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long" })}
@@ -191,9 +187,9 @@ export default function EmployeeDashboard() {
         </div>
       ) : (
         <>
-          {/* Priority Zone — Assigned & Overdue */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {urgentWidgets.map((w) => {
+          {/* Priority Zone */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {priorityWidgets.map((w) => {
               const hasItems = w.value > 0;
               return (
                 <button
@@ -206,9 +202,7 @@ export default function EmployeeDashboard() {
                       : "border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7%)] opacity-60"
                   )}
                 >
-                  {hasItems && (
-                    <div className={cn("absolute top-0 left-0 w-1 h-full rounded-l-xl", w.color === "text-red-400" ? "bg-red-500" : "bg-blue-500")} />
-                  )}
+                  {hasItems && <div className={cn("absolute top-0 left-0 w-1 h-full rounded-l-xl", w.bar)} />}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", w.bg)}>
@@ -219,9 +213,7 @@ export default function EmployeeDashboard() {
                         <p className="text-2xl font-bold text-white mt-0.5">{w.value}</p>
                       </div>
                     </div>
-                    {hasItems && (
-                      <ArrowUpRight className="h-4 w-4 text-[hsl(220,10%,30%)] group-hover:text-white transition-colors" />
-                    )}
+                    {hasItems && <ArrowUpRight className="h-4 w-4 text-[hsl(220,10%,30%)] group-hover:text-white transition-colors" />}
                   </div>
                 </button>
               );
@@ -270,8 +262,7 @@ export default function EmployeeDashboard() {
                       )}>
                         {item.type === "order"
                           ? <ShoppingCart className="h-3 w-3 text-blue-400" />
-                          : <Headphones className="h-3 w-3 text-cyan-400" />
-                        }
+                          : <Headphones className="h-3 w-3 text-cyan-400" />}
                       </div>
                       <div>
                         <span className="text-xs text-white font-mono">{item.reference}</span>
