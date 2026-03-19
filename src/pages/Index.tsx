@@ -5,7 +5,6 @@ import NetworkTrust from "@/components/NetworkTrust";
 import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 import { FeaturedOffers } from "@/components/FeaturedOffers";
-import ShopServices from "@/components/ShopServices";
 import ReferralProgram from "@/components/ReferralProgram";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
