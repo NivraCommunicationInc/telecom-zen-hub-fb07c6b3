@@ -1,12 +1,10 @@
 /**
- * AddAccountCredit — Custom amount payment via Stripe
+ * AddAccountCredit — Custom amount payment via PayPal (Stripe temporarily disabled)
  * 
  * Rules:
  * - If balance_due > 0, payment applies to balance first
  * - Any excess becomes account credit
  * - If balance_due = 0, full amount becomes credit
- * 
- * Uses canonical edge function: portal-add-credit
  */
 
 import { useState, useCallback } from "react";
@@ -14,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { StripeInlinePayment, type StripeInlinePaymentSuccessPayload } from "@/components/payment/StripeInlinePayment";
 import { useQueryClient } from "@tanstack/react-query";
 import { portalClient as supabase } from "@/integrations/backend";
 import { toast } from "sonner";
@@ -26,7 +23,9 @@ import {
   CheckCircle,
   ArrowRight,
   Wallet,
+  Wrench,
 } from "lucide-react";
+import { PayPalButton } from "@/components/payment/PayPalButton";
 
 interface AddAccountCreditProps {
   userId: string;
@@ -48,7 +47,7 @@ export const AddAccountCredit = ({
   const queryClient = useQueryClient();
   const [customAmount, setCustomAmount] = useState("");
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
-  const [showStripe, setShowStripe] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
 
   const balanceDue = currentBalance > 0 ? currentBalance : 0;
@@ -64,7 +63,7 @@ export const AddAccountCredit = ({
   const handleSelectPreset = (preset: number) => {
     setSelectedAmount(preset);
     setCustomAmount("");
-    setShowStripe(false);
+    setShowPayment(false);
     setPaymentComplete(false);
   };
 
@@ -73,24 +72,24 @@ export const AddAccountCredit = ({
     const sanitized = value.replace(/[^0-9.]/g, "");
     setCustomAmount(sanitized);
     setSelectedAmount(null);
-    setShowStripe(false);
+    setShowPayment(false);
     setPaymentComplete(false);
   };
 
   const handleProceedToPayment = () => {
     if (!isValid) return;
-    setShowStripe(true);
+    setShowPayment(true);
   };
 
-  const handlePaymentSuccess = useCallback(
-    async (payload: StripeInlinePaymentSuccessPayload) => {
+  const handlePayPalSuccess = useCallback(
+    async (captureId: string) => {
       try {
-        // Call edge function to record the credit payment
+        // Call edge function to record the credit payment via PayPal
         const { data, error } = await supabase.functions.invoke("portal-add-credit", {
           body: {
             user_id: userId,
             amount,
-            payment_intent_id: payload.paymentIntentId,
+            paypal_capture_id: captureId,
           },
         });
 
@@ -98,7 +97,7 @@ export const AddAccountCredit = ({
         if (data?.error) throw new Error(data.error);
 
         setPaymentComplete(true);
-        setShowStripe(false);
+        setShowPayment(false);
 
         toast.success(
           appliedToCredit > 0
@@ -237,7 +236,7 @@ export const AddAccountCredit = ({
       </Card>
 
       {/* Breakdown Preview */}
-      {isValid && !showStripe && (
+      {isValid && !showPayment && (
         <Card className="border-primary/20">
           <CardContent className="p-4 space-y-3">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -275,35 +274,42 @@ export const AddAccountCredit = ({
               )}
             </div>
             <Button onClick={handleProceedToPayment} className="w-full mt-2" size="lg">
-              <CreditCard className="w-5 h-5 mr-2" />
-              Procéder au paiement par carte
+              <Wallet className="w-5 h-5 mr-2" />
+              Procéder au paiement via PayPal
             </Button>
+
+            {/* Card maintenance notice */}
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-muted-foreground">
+              <Wrench className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Les paiements par carte sont temporairement indisponibles. Veuillez utiliser PayPal.</span>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Stripe Payment Form */}
-      {showStripe && isValid && (
+      {/* PayPal Payment */}
+      {showPayment && isValid && (
         <Card className="border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <CreditCard className="w-5 h-5 text-primary" />
-              Paiement sécurisé — {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+              <Wallet className="w-5 h-5 text-primary" />
+              Paiement PayPal — {amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <StripeInlinePayment
-              intentContext="invoice_payment"
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Payez de façon sécurisée avec votre compte PayPal ou carte via PayPal.
+            </p>
+            <PayPalButton
               amount={amount}
-              description={`Crédit au compte — Nivra Telecom`}
-              customerEmail={userEmail}
-              onSuccess={handlePaymentSuccess}
+              description="Crédit au compte — Nivra Telecom"
+              onSuccess={(captureId) => handlePayPalSuccess(captureId)}
               onError={(msg) => toast.error(msg)}
             />
             <Button
               variant="ghost"
-              className="w-full mt-3 text-muted-foreground"
-              onClick={() => setShowStripe(false)}
+              className="w-full mt-1 text-muted-foreground"
+              onClick={() => setShowPayment(false)}
             >
               ← Modifier le montant
             </Button>
