@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Wifi, Smartphone, Tv, Monitor, Radio, Tag } from "lucide-react";
+import { ArrowRight, Wifi, Smartphone, Tv, Monitor, Radio, Tag, Shield, Clock, Zap } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { usePublicServices } from "@/hooks/usePublicServices";
@@ -25,12 +25,12 @@ const Hero = () => {
   ];
 
   return (
-    <section className="bg-white">
+    <section className="bg-background">
       {/* Promo banner */}
-      <div className="bg-[#003366] text-white">
+      <div className="bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 max-w-[1320px] py-2.5 flex items-center justify-center gap-2">
-          <Tag className="w-4 h-4 text-white/80 shrink-0 hidden sm:block" />
-          <p className="text-xs sm:text-sm text-center leading-snug">
+          <Tag className="w-4 h-4 text-primary-foreground/80 shrink-0 hidden sm:block" />
+          <p className="text-xs sm:text-sm text-center leading-snug font-medium">
             {isFr 
               ? "Nouveau client? 50% de rabais sur votre 1re facture. Sans contrat." 
               : "New customer? 50% off your first bill. No contract."}
@@ -40,41 +40,47 @@ const Hero = () => {
 
       {/* Main Hero */}
       <div className="container mx-auto px-4 max-w-[1320px]">
-        <div className="py-6 sm:py-8 lg:py-12">
-          <div className="bg-gradient-to-br from-slate-50 via-blue-50/60 to-slate-100 rounded-2xl sm:rounded-3xl overflow-hidden">
-            <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-center p-6 sm:p-8 lg:py-14 lg:px-10">
+        <div className="py-8 sm:py-10 lg:py-14">
+          <div className="bg-gradient-to-br from-secondary via-primary/5 to-secondary rounded-2xl sm:rounded-3xl overflow-hidden">
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-10 items-center p-7 sm:p-10 lg:py-16 lg:px-12">
               {/* Left Content */}
               <div>
-                {/* Mobile: 22-26px, Tablet: 28-32px, Desktop: up to 44px */}
-                <h1 className="text-[22px] sm:text-[28px] lg:text-[2.75rem] font-bold leading-[1.15] text-slate-900 mb-3 sm:mb-4">
+                <h1 className="text-[24px] sm:text-[32px] lg:text-[3rem] font-extrabold leading-[1.1] text-foreground mb-4 sm:mb-5">
                   {isFr 
                     ? "Internet haute vitesse. Sans contrat." 
                     : "High-speed Internet. No contract."}
                 </h1>
-                <p className="text-base sm:text-lg text-slate-600 mb-4 leading-relaxed">
+                <p className="text-base sm:text-lg text-muted-foreground mb-5 leading-relaxed max-w-md">
                   {isFr 
                     ? "Internet fibre optique illimité pour toute la famille." 
                     : "Unlimited fibre optic Internet for the whole family."}
                 </p>
-                <div className="mb-5 sm:mb-6">
-                  <span className="text-sm text-slate-500">{isFr ? "À partir de" : "Starting at"}</span>
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="text-4xl sm:text-5xl font-bold text-slate-900">{internetPrice}$</span>
-                    <span className="text-base sm:text-lg text-slate-500">/{isFr ? "mois" : "mo."}</span>
+
+                {/* Price block */}
+                <div className="mb-6 sm:mb-8">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {isFr ? "À partir de" : "Starting at"}
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-5xl sm:text-6xl font-extrabold text-foreground">{internetPrice}$</span>
+                    <span className="text-base sm:text-lg text-muted-foreground font-medium">/{isFr ? "mois" : "mo."}</span>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
+
+                {/* CTAs */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-6">
                   <Button 
-                    className="bg-[#003366] hover:bg-[#002244] text-white rounded-full px-8 h-12 text-base font-semibold w-full sm:w-auto"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-10 h-13 text-base font-bold w-full sm:w-auto shadow-lg"
                     asChild
                   >
                     <Link to="/internet">
                       {isFr ? "Magasiner" : "Shop now"}
+                      <ArrowRight className="w-4 h-4 ml-2" />
                     </Link>
                   </Button>
                   <Button 
                     variant="outline"
-                    className="border-slate-300 text-slate-700 rounded-full px-8 h-12 text-base font-medium hover:bg-slate-50 w-full sm:w-auto"
+                    className="border-border text-foreground rounded-full px-8 h-13 text-base font-semibold hover:bg-secondary w-full sm:w-auto"
                     asChild
                   >
                     <Link to="/contact">
@@ -82,20 +88,34 @@ const Hero = () => {
                     </Link>
                   </Button>
                 </div>
+
+                {/* Trust micro-indicators */}
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { icon: Shield, text: isFr ? "Sans contrat" : "No contract" },
+                    { icon: Clock, text: isFr ? "Activation rapide" : "Fast activation" },
+                    { icon: Zap, text: isFr ? "Fibre optique" : "Fibre optic" },
+                  ].map((item) => (
+                    <div key={item.text} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <item.icon className="w-3.5 h-3.5 text-primary" />
+                      <span className="font-medium">{item.text}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Right - Stats grid (tablet+) */}
               <div className="hidden md:flex items-center justify-center">
-                <div className="grid grid-cols-2 gap-3 lg:gap-4 w-full max-w-sm">
+                <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
                   {[
                     { value: "1 Gbps", label: isFr ? "Vitesse max" : "Max speed" },
                     { value: "5G", label: isFr ? "Réseau mobile" : "Mobile network" },
                     { value: "200+", label: isFr ? "Chaînes TV" : "TV channels" },
                     { value: "7j/7", label: isFr ? "Support local" : "Local support" },
                   ].map((stat) => (
-                    <div key={stat.value} className="bg-white rounded-2xl p-5 lg:p-6 shadow-sm border border-slate-200">
-                      <div className="text-2xl lg:text-4xl font-bold text-[#003366] mb-1">{stat.value}</div>
-                      <div className="text-xs lg:text-sm text-slate-500">{stat.label}</div>
+                    <div key={stat.value} className="bg-card rounded-2xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow">
+                      <div className="text-3xl lg:text-4xl font-extrabold text-primary mb-1">{stat.value}</div>
+                      <div className="text-xs lg:text-sm text-muted-foreground font-medium">{stat.label}</div>
                     </div>
                   ))}
                 </div>
@@ -106,14 +126,14 @@ const Hero = () => {
       </div>
 
       {/* Quick category pills */}
-      <div className="border-t border-slate-200 bg-white">
-        <div className="container mx-auto px-4 max-w-[1320px] py-4 sm:py-5">
+      <div className="border-t border-border bg-background">
+        <div className="container mx-auto px-4 max-w-[1320px] py-5 sm:py-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
             <div className="shrink-0">
-              <p className="text-sm font-medium text-slate-900">
+              <p className="text-sm font-semibold text-foreground">
                 {isFr ? "Déjà client Nivra?" : "Already a Nivra customer?"}
               </p>
-              <Link to="/portal/auth" className="text-sm text-[#003366] hover:underline font-medium">
+              <Link to="/portal/auth" className="text-sm text-primary hover:underline font-semibold">
                 {isFr ? "Connexion à MonNivra" : "Log in to MyNivra"} →
               </Link>
             </div>
@@ -123,7 +143,7 @@ const Hero = () => {
                 <Link
                   key={cat.link}
                   to={cat.link}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-700 hover:border-[#003366] hover:text-[#003366] hover:bg-blue-50/40 transition-all shadow-sm whitespace-nowrap shrink-0 min-h-[44px]"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border rounded-full text-sm font-semibold text-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all shadow-sm whitespace-nowrap shrink-0 min-h-[44px]"
                 >
                   <cat.icon className="w-4 h-4" />
                   {cat.label}
