@@ -35,10 +35,10 @@ const NetworkTrust = () => {
   ];
 
   return (
-    <section className="py-20 lg:py-28">
+    <section className="py-20 lg:py-28 bg-slate-50">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="text-center mb-14">
-          <h2 className="text-2xl md:text-4xl font-bold text-slate-900 mb-4">
+          <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
             {isFr ? "Pourquoi Nivra" : "Why Nivra"}
           </h2>
           <p className="text-slate-500 text-lg max-w-xl mx-auto">
@@ -50,25 +50,27 @@ const NetworkTrust = () => {
           {trustPoints.map((point) => (
             <div
               key={point.title}
-              className="bg-white rounded-2xl border border-slate-200/80 p-7 hover:border-blue-200 hover:shadow-md transition-all duration-300"
+              className="bg-white rounded-2xl border-2 border-slate-200 p-7 hover:border-blue-400 hover:shadow-lg transition-all duration-300 group"
             >
-              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-5">
-                <point.icon className="w-6 h-6 text-blue-600" />
+              <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                <point.icon className="w-7 h-7 text-white" />
               </div>
-              <h3 className="font-semibold text-slate-900 mb-2">{point.title}</h3>
+              <h3 className="font-bold text-lg text-slate-900 mb-2">{point.title}</h3>
               <p className="text-sm text-slate-500 leading-relaxed">{point.description}</p>
             </div>
           ))}
         </div>
 
-        {/* Trust stats */}
-        <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-10 lg:p-14">
+        {/* Trust stats — bold style */}
+        <div className="bg-gradient-to-br from-blue-700 to-indigo-800 rounded-3xl p-10 lg:p-16 shadow-2xl shadow-blue-500/20">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
             {stats.map((stat) => (
               <div key={stat.value}>
-                <stat.icon className="w-6 h-6 text-blue-600 mx-auto mb-3" />
-                <div className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">{stat.value}</div>
-                <div className="text-sm text-slate-500">{stat.label}</div>
+                <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center mx-auto mb-4">
+                  <stat.icon className="w-6 h-6 text-amber-300" />
+                </div>
+                <div className="text-4xl lg:text-5xl font-extrabold text-white mb-2">{stat.value}</div>
+                <div className="text-sm text-white/70 font-medium">{stat.label}</div>
               </div>
             ))}
           </div>
