@@ -387,16 +387,7 @@ const ClientMonthlyInvoices = () => {
                 {/* Payment method selection */}
                 <div className="space-y-3">
                   <p className="text-sm font-medium">Mode de paiement</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <Button
-                      type="button"
-                      variant={paymentMethod === "card" ? "default" : "outline"}
-                      className="flex items-center justify-center gap-2 h-14"
-                      onClick={() => setPaymentMethod("card")}
-                    >
-                      <CreditCard className="w-5 h-5" />
-                      <span>Carte</span>
-                    </Button>
+                  <div className="grid grid-cols-2 gap-3">
                     <Button
                       type="button"
                       variant={paymentMethod === "paypal" ? "default" : "outline"}
@@ -420,30 +411,12 @@ const ClientMonthlyInvoices = () => {
                       <span>Interac</span>
                     </Button>
                   </div>
-                </div>
-
-                {/* Card via Stripe Elements */}
-                {paymentMethod === "card" && (
-                  <div className="space-y-4">
-                    <StripeInlinePayment
-                      invoiceId={selectedInvoice.id}
-                      amount={Number(selectedInvoice.balance_due || selectedInvoice.total)}
-                      description={`Facture ${selectedInvoice.invoice_number}`}
-                      onSuccess={() => {
-                        setPaymentDialogOpen(false);
-                        setSelectedInvoice(null);
-                        queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
-                        queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
-                        queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
-                        queryClient.invalidateQueries({ queryKey: ["client-balance"] });
-                        queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
-                      }}
-                      onError={(error) => {
-                        toast({ title: "Erreur de paiement", description: error, variant: "destructive" });
-                      }}
-                    />
+                  {/* Card maintenance notice */}
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-muted-foreground">
+                    <CreditCard className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Les paiements par carte sont temporairement indisponibles pour maintenance. Veuillez utiliser PayPal.</span>
                   </div>
-                )}
+                </div>
 
                 {/* PayPal Button */}
                 {paymentMethod === "paypal" && (
