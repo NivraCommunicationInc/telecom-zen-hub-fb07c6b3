@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,11 +15,11 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 1000 * 60 * 10, // 10 minutes - prevent unnecessary refetches
-      gcTime: 1000 * 60 * 30, // 30 minutes cache time
-      refetchOnWindowFocus: false, // CRITICAL: Disable auto-refresh on tab switch
-      refetchOnReconnect: false, // Disable refetch on network reconnect
-      refetchInterval: false, // No polling
+      staleTime: 1000 * 60 * 10,
+      gcTime: 1000 * 60 * 30,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchInterval: false,
     },
     mutations: {
       retry: 1,
@@ -26,18 +27,27 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * HydrationSignal — fires once on first React paint to swap
+ * pre-rendered HTML for the live React tree (zero blank flash).
+ */
+function HydrationSignal() {
+  useEffect(() => {
+    document.documentElement.classList.add("app-hydrated");
+  }, []);
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
       <TooltipProvider>
+        <HydrationSignal />
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          {/* DEV-ONLY: Overflow detector - only active in development */}
           {import.meta.env.DEV && <DevOverflowDetector />}
-          {/* SECURITY: Total lockdown guard - blocks entire site when activated */}
           <LockdownGuard>
-            {/* AppModeGate wraps routes to block rendering until PWA mode is determined */}
             <AppModeGate>
               <AppRoutes />
               <ChatbotWidget />
