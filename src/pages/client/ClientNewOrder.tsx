@@ -6753,7 +6753,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         className="w-full"
                         size="lg"
                         onClick={handleSubmit}
-                        disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}
+                        disabled={isAccountBlocked || createOrderMutation.isPending || !termsAccepted || !isPaymentComplete || (acceptPreauthorized && !recurringPaymentAccepted) || (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))}
                       >
                         {createOrderMutation.isPending ? "Traitement..." : "Confirmer la commande"}
                       </Button>
