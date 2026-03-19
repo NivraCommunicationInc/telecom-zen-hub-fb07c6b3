@@ -39,18 +39,18 @@ const ReferralProgram = () => {
   const isFr = language === 'fr';
 
   return (
-    <section className="py-20 lg:py-28 bg-slate-50">
+    <section className="py-20 lg:py-28 bg-gradient-to-br from-emerald-700 to-teal-800 text-white">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-white text-sm font-bold mb-6">
             <Gift className="w-4 h-4" />
             {isFr ? "Programme de parrainage" : "Referral program"}
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+          <h2 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
             {isFr ? "Parrainez un proche, recevez " : "Refer a friend, get "}
-            <span className="text-emerald-600">25$</span>
+            <span className="text-amber-300">25$</span>
           </h2>
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+          <p className="text-lg text-white/70 max-w-2xl mx-auto">
             {isFr
               ? "Sans limite de parrainages. Programme transparent, sans conditions cachées."
               : "No referral limit. Transparent program, no hidden conditions."}
@@ -60,42 +60,42 @@ const ReferralProgram = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
           {steps.map((step, i) => (
             <div key={i} className="relative group">
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 h-full hover:border-emerald-300 hover:shadow-md transition-all duration-300">
-                <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 p-6 h-full hover:bg-white/15 transition-all duration-300">
+                <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center text-xs font-bold shadow-sm">
                   {i + 1}
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center mb-4">
-                  <step.icon className="w-6 h-6 text-emerald-600" />
+                <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center mb-4">
+                  <step.icon className="w-6 h-6 text-amber-300" />
                 </div>
-                <h3 className="font-semibold text-slate-900 mb-2">{isFr ? step.title_fr : step.title_en}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{isFr ? step.desc_fr : step.desc_en}</p>
+                <h3 className="font-bold text-white mb-2">{isFr ? step.title_fr : step.title_en}</h3>
+                <p className="text-sm text-white/60 leading-relaxed">{isFr ? step.desc_fr : step.desc_en}</p>
               </div>
               {i < steps.length - 1 && (
                 <div className="hidden lg:flex absolute top-1/2 -right-3 -translate-y-1/2 z-10">
-                  <ArrowRight className="w-5 h-5 text-slate-300" />
+                  <ArrowRight className="w-5 h-5 text-white/30" />
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl border border-emerald-200 p-8 md:p-10 text-center">
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 p-8 md:p-10 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
-              <CreditCard className="w-7 h-7 text-emerald-600" />
+            <div className="w-14 h-14 rounded-full bg-amber-400/20 flex items-center justify-center">
+              <CreditCard className="w-7 h-7 text-amber-300" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900 mb-2">
+          <h3 className="text-2xl font-bold text-white mb-2">
             {isFr ? "Carte-cadeau Visa/Mastercard de 25$" : "$25 Visa/Mastercard Gift Card"}
           </h3>
-          <p className="text-slate-500 max-w-lg mx-auto mb-6">
+          <p className="text-white/60 max-w-lg mx-auto mb-6">
             {isFr
               ? "Pour chaque parrainage qualifié. Plus vous parrainez, plus vous gagnez."
               : "For every qualified referral. The more you refer, the more you earn."}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
-              className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-full px-6 h-11 font-semibold gap-2"
+              className="bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-full px-6 h-11 font-bold gap-2 transition-all duration-200 hover:scale-105"
               asChild
             >
               <Link to="/portal/referrals">
@@ -104,8 +104,7 @@ const ReferralProgram = () => {
               </Link>
             </Button>
             <Button
-              variant="outline"
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 rounded-full px-6 h-11 font-semibold gap-2"
+              className="border-2 border-white/30 text-white bg-transparent hover:bg-white/10 rounded-full px-6 h-11 font-semibold gap-2"
               asChild
             >
               <Link to="/parrainage">
