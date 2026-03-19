@@ -4,7 +4,30 @@ import { Resend } from "../_shared/ResendProxy.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
-type StaffRole = "admin" | "employee" | "technician";
+type StaffRole =
+  | "admin"
+  | "employee"
+  | "technician"
+  | "field_sales"
+  | "supervisor"
+  | "sales"
+  | "support"
+  | "billing_admin"
+  | "techops"
+  | "kyc_agent";
+
+const INTERNAL_STAFF_ROLES: StaffRole[] = [
+  "admin",
+  "employee",
+  "technician",
+  "field_sales",
+  "supervisor",
+  "sales",
+  "support",
+  "billing_admin",
+  "techops",
+  "kyc_agent",
+];
 
 interface PermissionSet {
   view_clients?: boolean;
@@ -28,7 +51,9 @@ interface PermissionSet {
 interface CreateStaffRequest {
   action: "create";
   email: string;
-  full_name: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
   role: StaffRole;
   require_password_change?: boolean;
   permissions?: PermissionSet;
@@ -40,6 +65,11 @@ interface CreateStaffRequest {
   is_active?: boolean;
   send_invitation?: boolean;
   internal_note?: string;
+  mfa_required?: boolean;
+  can_access_core?: boolean;
+  can_access_employee?: boolean;
+  can_access_field?: boolean;
+  can_access_technician?: boolean;
 }
 
 interface UpdatePermissionsRequest {
@@ -160,7 +190,73 @@ interface CreateFieldSalesRequest {
   commission_rate?: number;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest | LinkAuthRequest | CreateFieldSalesRequest;
+interface UpdatePortalAccessRequest {
+  action: "update_portal_access";
+  user_id: string;
+  can_access_core?: boolean;
+  can_access_employee?: boolean;
+  can_access_field?: boolean;
+  can_access_technician?: boolean;
+}
+
+interface UpdateMfaRequirementRequest {
+  action: "update_mfa_requirement";
+  user_id: string;
+  mfa_required: boolean;
+}
+
+interface GenerateInvitationRequest {
+  action: "generate_invitation";
+  user_id: string;
+}
+
+interface SendInvitationRequest {
+  action: "send_invitation";
+  user_id: string;
+}
+
+interface ResendInvitationRequest {
+  action: "resend_invitation";
+  user_id: string;
+}
+
+interface RevokeInvitationRequest {
+  action: "revoke_invitation";
+  user_id: string;
+}
+
+interface ListInvitationStatusesRequest {
+  action: "list_invitation_statuses";
+  user_ids?: string[];
+}
+
+type RequestBody =
+  | CreateStaffRequest
+  | DisableEnableRequest
+  | ChangeRoleRequest
+  | SendResetRequest
+  | UpdatePermissionsRequest
+  | ApplyRolePackRequest
+  | SetPinRequest
+  | UpdateProfileRequest
+  | ForcePasswordChangeRequest
+  | UpdateStatusRequest
+  | HardDeleteUserRequest
+  | InviteSetPinRequest
+  | VerifyAdminPinRequest
+  | UpdateAuthCheckRequest
+  | AdminRecoverRequest
+  | SetStaffPasswordRequest
+  | SendPasswordResetRequest
+  | LinkAuthRequest
+  | CreateFieldSalesRequest
+  | UpdatePortalAccessRequest
+  | UpdateMfaRequirementRequest
+  | GenerateInvitationRequest
+  | SendInvitationRequest
+  | ResendInvitationRequest
+  | RevokeInvitationRequest
+  | ListInvitationStatusesRequest;
 
 // Generate cryptographically secure salt
 function generateSalt(): string {
@@ -385,10 +481,12 @@ serve(async (req: Request) => {
 
     switch (body.action) {
       case "create": {
-        const { 
-          email, 
-          full_name, 
-          role, 
+        const {
+          email,
+          full_name,
+          first_name,
+          last_name,
+          role,
           require_password_change = true,
           phone,
           badge_number,
@@ -398,27 +496,54 @@ serve(async (req: Request) => {
           is_active = true,
           send_invitation = true,
           internal_note,
+          mfa_required = true,
         } = body;
         const createStep = "create";
-        console.log(`[admin-manage-staff] ${createStep}.start email=${email} role=${role} request_id=${requestId}`);
+        const normalizedEmail = email?.trim().toLowerCase();
+        const normalizedFirstName = first_name?.trim() || "";
+        const normalizedLastName = last_name?.trim() || "";
+        const resolvedFullName =
+          full_name?.trim() || `${normalizedFirstName} ${normalizedLastName}`.trim();
 
-        if (!email || !full_name || !role) {
+        console.log(`[admin-manage-staff] ${createStep}.start email=${normalizedEmail} role=${role} request_id=${requestId}`);
+
+        if (!normalizedEmail || !resolvedFullName || !role) {
           const step = `${createStep}.validate_input`;
           await logAction("staff_create_failed", {
             request_id: requestId,
             step,
-            message: "Email, nom complet et rôle requis",
-            target_email: email,
-          }, { type: "user", email });
+            message: "Email, prénom/nom et rôle requis",
+            target_email: normalizedEmail,
+          }, { type: "user", email: normalizedEmail });
 
           return json(400, {
             ok: false,
             request_id: requestId,
             step,
-            message: "Email, nom complet et rôle requis",
+            message: "Email, prénom/nom et rôle requis",
             http_status: 400,
             supabase_error: null,
-            details: { email, full_name, role },
+            details: { email: normalizedEmail, full_name: resolvedFullName, role },
+          });
+        }
+
+        if (!INTERNAL_STAFF_ROLES.includes(role)) {
+          const step = `${createStep}.validate_input`;
+          await logAction("staff_create_failed", {
+            request_id: requestId,
+            step,
+            message: "Rôle invalide",
+            target_email: normalizedEmail,
+          }, { type: "user", email: normalizedEmail });
+
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            step,
+            message: "Rôle invalide",
+            http_status: 400,
+            supabase_error: null,
+            details: { role },
           });
         }
 
@@ -428,7 +553,7 @@ serve(async (req: Request) => {
             .select("id")
             .eq("badge_number", badge_number)
             .maybeSingle();
-          
+
           if (existingBadge) {
             return json(400, {
               ok: false,
@@ -447,26 +572,6 @@ serve(async (req: Request) => {
             step: `${createStep}.validate_pin`,
             message: "Le PIN doit être exactement 4 chiffres",
             http_status: 400,
-          });
-        }
-
-        if (!(["admin", "employee", "technician"] as const).includes(role)) {
-          const step = `${createStep}.validate_input`;
-          await logAction("staff_create_failed", {
-            request_id: requestId,
-            step,
-            message: "Rôle invalide",
-            target_email: email,
-          }, { type: "user", email });
-
-          return json(400, {
-            ok: false,
-            request_id: requestId,
-            step,
-            message: "Rôle invalide",
-            http_status: 400,
-            supabase_error: null,
-            details: { role },
           });
         }
 
@@ -608,11 +713,17 @@ serve(async (req: Request) => {
 
         const { error: profileError } = await adminClient
           .from("profiles")
-          .upsert({
-            user_id: userId,
-            email,
-            full_name,
-          }, { onConflict: "user_id" });
+          .upsert(
+            {
+              user_id: userId,
+              email: normalizedEmail,
+              full_name: resolvedFullName,
+              first_name: normalizedFirstName || null,
+              last_name: normalizedLastName || null,
+              phone: phone || null,
+            },
+            { onConflict: "user_id" }
+          );
 
         if (profileError) {
           console.error(`[admin-manage-staff] ${stepProfiles} error:`, profileError);
@@ -620,9 +731,9 @@ serve(async (req: Request) => {
             request_id: requestId,
             step: stepProfiles,
             message: profileError.message,
-            target_email: email,
+            target_email: normalizedEmail,
             supabase_error: { code: profileError.code, message: profileError.message, details: profileError.details },
-          }, { type: "user", id: userId, email });
+          }, { type: "user", id: userId, email: normalizedEmail });
 
           return json(500, {
             ok: false,
@@ -645,8 +756,9 @@ serve(async (req: Request) => {
           permissions: body.permissions || {},
           is_active: is_active,
           require_password_change: require_password_change || send_invitation,
+          mfa_required,
           can_access_core: body.can_access_core ?? (role === "admin"),
-          can_access_employee: body.can_access_employee ?? (role === "employee" || role === "admin"),
+          can_access_employee: body.can_access_employee ?? (role !== "admin"),
           can_access_field: body.can_access_field ?? (role === "field_sales"),
           can_access_technician: body.can_access_technician ?? (role === "technician"),
         });
