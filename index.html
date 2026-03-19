@@ -38,9 +38,9 @@
 
 <style>
 html,body{margin:0;padding:0;background:#0b1220;font-family:Inter,sans-serif;color:#e2e8f0}
-/* Pre-render stays visible until React populates #root */
-#root:empty{display:none}
-#root:not(:empty)~#prerender{display:none}
+/* Keep pre-render visible until React explicitly marks hydration ready */
+html:not(.app-hydrated) #root{display:none}
+html.app-hydrated #prerender{display:none}
 .pre-header{background:#0b1220;border-bottom:1px solid rgba(255,255,255,.08);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
 .pre-logo{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.5px}
 .pre-nav{display:flex;gap:24px}

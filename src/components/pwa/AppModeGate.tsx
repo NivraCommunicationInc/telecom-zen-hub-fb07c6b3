@@ -83,6 +83,17 @@ export function AppModeGate({ children }: AppModeGateProps) {
     }
   }, [location.pathname, navigate]);
 
+  // Mark hydration ready only after the app tree has rendered once
+  useEffect(() => {
+    if (!isReady) return;
+
+    const rafId = window.requestAnimationFrame(() => {
+      document.documentElement.classList.add("app-hydrated");
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [isReady]);
+
   // Show loading screen while determining correct mode
   if (!isReady) {
     return (
