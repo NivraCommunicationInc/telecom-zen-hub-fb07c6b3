@@ -3403,6 +3403,42 @@ export type Database = {
           },
         ]
       }
+      customer_access_sessions: {
+        Row: {
+          created_at: string
+          customer_id: string
+          employee_id: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          revoked_at: string | null
+          user_agent: string | null
+          verified_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          employee_id: string
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          user_agent?: string | null
+          verified_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          employee_id?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          revoked_at?: string | null
+          user_agent?: string | null
+          verified_at?: string
+        }
+        Relationships: []
+      }
       customer_referral_usage: {
         Row: {
           attribution_id: string
@@ -3434,6 +3470,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customer_security: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          last_verified_at: string | null
+          lock_until: string | null
+          pin_attempts: number
+          pin_hash: string
+          pin_salt: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          last_verified_at?: string | null
+          lock_until?: string | null
+          pin_attempts?: number
+          pin_hash: string
+          pin_salt: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          last_verified_at?: string | null
+          lock_until?: string | null
+          pin_attempts?: number
+          pin_hash?: string
+          pin_salt?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       direct_email_recipients: {
         Row: {
