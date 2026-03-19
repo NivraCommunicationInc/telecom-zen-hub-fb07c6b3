@@ -700,11 +700,11 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    let latestPayment: { provider_payment_id?: string | null; reference?: string | null; method?: string | null } | null = null;
+    let latestPayment: { provider_payment_id?: string | null; reference?: string | null; method?: string | null; amount?: number | null } | null = null;
     if (latestInvoice?.id) {
       const { data } = await supabase
         .from("billing_payments")
-        .select("provider_payment_id, reference, method")
+        .select("provider_payment_id, reference, method, amount")
         .eq("invoice_id", latestInvoice.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -749,7 +749,10 @@ Deno.serve(async (req) => {
     const canonicalTotalPayable = toNum(pricingSnapshot?.grand_total ?? latestInvoice?.total ?? orderData?.total_amount ?? monthly_total_tax_in);
     const canonicalAmountPaidTotal = toNum(latestInvoice?.amount_paid);
     const canonicalBalanceDue = toNum(latestInvoice?.balance_due ?? Math.max(canonicalTotalPayable - canonicalAmountPaidTotal, 0));
-    const canonicalAmountPaidToday = canonicalAmountPaidTotal > 0 ? canonicalAmountPaidTotal : canonicalTotalPayable;
+    const latestPaymentAmount = toNum(latestPayment?.amount);
+    const canonicalAmountPaidToday = latestPaymentAmount > 0
+      ? latestPaymentAmount
+      : (canonicalAmountPaidTotal > 0 ? canonicalAmountPaidTotal : canonicalTotalPayable);
     const canonicalRecurring = toNum(pricingSnapshot?.recurring_subtotal);
     const canonicalOneTime = toNum(pricingSnapshot?.one_time_subtotal ?? one_time_total ?? 0);
     const canonicalDiscount = toNum(

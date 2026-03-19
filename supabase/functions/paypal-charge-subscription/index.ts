@@ -170,7 +170,7 @@ serve(async (req) => {
         // Update invoice to paid
         const { data: invoice } = await supabase
           .from("billing_invoices")
-          .select("total, amount_paid")
+          .select("id, order_id, invoice_number, total, amount_paid")
           .eq("id", body.invoice_id)
           .single();
 
@@ -199,6 +199,11 @@ serve(async (req) => {
             template_vars: {
               client_name: `${subscription.customer.first_name} ${subscription.customer.last_name}`,
               amount: amount.toFixed(2),
+              amount_paid_today: amount.toFixed(2),
+              total_payable: Number(invoice?.total || body.amount).toFixed(2),
+              invoice_id: body.invoice_id,
+              invoice_number: invoice?.invoice_number || undefined,
+              order_id: invoice?.order_id || undefined,
               payment_method: "PayPal (Prélèvement automatique)",
               reference: captureId,
             },

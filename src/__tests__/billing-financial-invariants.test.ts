@@ -119,16 +119,33 @@ describe("Billing Financial Invariants", () => {
       expect(code).toContain("total_payable: canonicalTotalPayable");
     });
 
+    it("send-order-confirmation MUST prioritize latest payment amount for amount_paid_today", () => {
+      const code = readFile("supabase/functions/send-order-confirmation/index.ts");
+      expect(code).toContain("const latestPaymentAmount = toNum(latestPayment?.amount)");
+      expect(code).toContain("const canonicalAmountPaidToday = latestPaymentAmount > 0");
+    });
+
     it("process-email-queue MUST enforce canonical enrichment before rendering", () => {
       const code = readFile("supabase/functions/process-email-queue/index.ts");
       expect(code).toContain("resolveCanonicalFinancialVars(");
       expect(code).toContain("const templateVars = await resolveCanonicalFinancialVars");
     });
 
-    it("order_submitted template MUST show paid today, not legacy monthly-only total", () => {
+    it("order_submitted template MUST show paid today from canonical paid/total fields", () => {
       const code = readFile("supabase/functions/process-email-queue/index.ts");
       expect(code).toContain("Payé aujourd’hui / Paid today");
-      expect(code).toContain("formatCurrency(vars.amount_paid_today ?? vars.total_amount ?? vars.total_payable)");
+      expect(code).toContain("formatCurrency(vars.amount_paid_today ?? vars.total_payable ?? vars.total_amount)");
+      expect(code).toContain("ORDER_CONFIRMATION_TEMPLATES");
+    });
+
+    it("PayPal payment confirmation email producers MUST include invoice_id for canonical enrichment", () => {
+      const captureCode = readFile("supabase/functions/paypal-capture-order/index.ts");
+      const webhookCode = readFile("supabase/functions/paypal-webhook/index.ts");
+      const chargeCode = readFile("supabase/functions/paypal-charge-subscription/index.ts");
+
+      expect(captureCode).toContain("invoice_id: v2Invoice.id");
+      expect(webhookCode).toContain("invoice_id: invoice.id");
+      expect(chargeCode).toContain("invoice_id: body.invoice_id");
     });
   });
 });

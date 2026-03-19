@@ -126,7 +126,7 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
       }
       
       case 'summary': {
-        const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_amount ?? 0) || 0;
+        const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_payable ?? vars.total_amount ?? 0) || 0;
         const totalPayable = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? paidToday) || 0;
         const tps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
         const tvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
@@ -231,6 +231,11 @@ const PAYMENT_AMOUNT_TEMPLATES = new Set([
   "payment_received",
   "payment_receipt",
   "invoice_paid",
+]);
+
+const ORDER_CONFIRMATION_TEMPLATES = new Set([
+  "order_submitted",
+  "order_confirmation",
 ]);
 
 const DUE_AMOUNT_TEMPLATES = new Set([
@@ -368,14 +373,16 @@ async function resolveCanonicalFinancialVars(
       ((canonicalTotalPayable || 0) - (canonicalAmountPaidTotal || 0)),
     );
 
-    const canonicalAmountPaidToday = toMoney(
-      payment?.amount ??
-      vars.amount_paid_today ??
-      vars.amount_paid ??
-      (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)
-        ? (canonicalAmountPaidTotal ?? canonicalTotalPayable)
-        : null),
-    );
+    const canonicalAmountPaidToday = ORDER_CONFIRMATION_TEMPLATES.has(templateKey)
+      ? toMoney(payment?.amount ?? canonicalAmountPaidTotal ?? canonicalTotalPayable ?? vars.amount_paid_today ?? vars.amount_paid)
+      : toMoney(
+        payment?.amount ??
+        vars.amount_paid_today ??
+        vars.amount_paid ??
+        (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)
+          ? (canonicalAmountPaidTotal ?? canonicalTotalPayable)
+          : null),
+      );
 
     const merged: Record<string, any> = {
       ...vars,
@@ -401,7 +408,7 @@ async function resolveCanonicalFinancialVars(
       canonical_amount_paid_today: canonicalAmountPaidToday,
       amount_due_today: canonicalAmountDue ?? vars.amount_due_today,
       canonical_balance_due: canonicalAmountDue,
-      total_amount: (templateKey === "order_submitted" || templateKey === "order_confirmation")
+      total_amount: ORDER_CONFIRMATION_TEMPLATES.has(templateKey)
         ? (canonicalAmountPaidToday ?? canonicalTotalPayable ?? vars.total_amount)
         : vars.total_amount,
     };
@@ -727,7 +734,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: 'Nº commande / Order #', value: vars.order_number || vars.order_id?.substring(0, 8) || 'N/A' },
         { label: 'Service', value: vars.service_type || 'N/A' },
-        { label: 'Payé aujourd’hui / Paid today', value: formatCurrency(vars.amount_paid_today ?? vars.total_amount ?? vars.total_payable) },
+        { label: 'Payé aujourd’hui / Paid today', value: formatCurrency(vars.amount_paid_today ?? vars.total_payable ?? vars.total_amount) },
         ...(vars.total_payable !== undefined ? [{ label: 'Total payable / Total payable', value: formatCurrency(vars.total_payable) }] : []),
         ...(vars.monthly_recurring_amount !== undefined ? [{ label: 'Mensuel récurrent / Recurring monthly', value: formatCurrency(vars.monthly_recurring_amount) }] : []),
         ...(vars.one_time_charges !== undefined ? [{ label: 'Frais uniques / One-time', value: formatCurrency(vars.one_time_charges) }] : []),
