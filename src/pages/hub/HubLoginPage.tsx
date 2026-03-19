@@ -86,7 +86,13 @@ export default function HubLoginPage() {
       return;
     }
 
-    const hasPortalAccess = (roleData as any)[portal.accessKey];
+    const accessKeyMap: Record<string, keyof typeof roleData> = {
+      can_access_core: "can_access_core",
+      can_access_employee: "can_access_employee",
+      can_access_field: "can_access_field",
+      can_access_technician: "can_access_technician",
+    };
+    const hasPortalAccess = roleData[accessKeyMap[portal.accessKey] as keyof typeof roleData];
     if (!hasPortalAccess) {
       await supabase.auth.signOut();
       setError(`Accès refusé à ${portal.label}. Contactez votre administrateur.`);
