@@ -8,7 +8,7 @@ import { AlertTriangle, Info, MessageSquare, Phone, Mail, Clock, Shield, Externa
 
 const SupportEtPlaintes = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
       <Header />
       
       <main className="pt-24 pb-16">

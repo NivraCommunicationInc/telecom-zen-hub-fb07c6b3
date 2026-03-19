@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const EquipementGarantie = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
       <Header />
       
       <main className="pt-24 pb-16">
