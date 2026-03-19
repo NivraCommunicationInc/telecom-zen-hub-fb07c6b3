@@ -178,6 +178,7 @@ export default function HubPage() {
   };
 
   const handleLogout = async () => {
+    clearHubSession();
     await supabase.auth.signOut();
     navigate("/hub/login", { replace: true });
   };
