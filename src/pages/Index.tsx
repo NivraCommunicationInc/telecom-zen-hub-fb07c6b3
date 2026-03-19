@@ -10,18 +10,20 @@ import ReferralProgram from "@/components/ReferralProgram";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import HomeStatusBanner from "@/components/HomeStatusBanner";
+import PromoBar from "@/components/PromoBar";
 
 const Index = () => {
   return (
     <div className="min-h-screen public-light bg-white">
       <SEOHead {...SEO_DATA.home} />
       <LocalBusinessSchema />
+      <PromoBar />
       <Header />
       <HomeStatusBanner />
       <main>
         <Hero />
-        <ServiceShowcase />
         <FeaturedOffers />
+        <ServiceShowcase />
         <NetworkTrust />
         <ReferralProgram />
         <ShopServices />
