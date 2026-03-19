@@ -360,9 +360,11 @@ END:VCALENDAR`;
   );
   const tpsAmount = taxes.tps;
   const tvqAmount = taxes.tvq;
+  // BILLING INVARIANT: pricing_snapshot.grand_total is the SOLE authority.
+  // order.total_amount may contain gross (pre-discount) amounts from Nivra Core API.
   const totalAmount = normalizedSnapshot
     ? normalizedSnapshot.grand_total
-    : toNonNegativeMoney(order.amount_paid ?? order.total_amount ?? 0);
+    : toNonNegativeMoney((order.pricing_snapshot as any)?.grand_total ?? order.total_amount ?? 0);
 
   // Monthly tax ratio from canonical totals with safe denominator
   const monthlyTaxRatio = taxes.taxableBase > 0 ? (monthlyRecurringNet / taxes.taxableBase) : 0;

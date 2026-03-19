@@ -76,7 +76,7 @@ export function OrderSummaryPanel({ proc }: Props) {
   // Today's total — CANONICAL from invoice
   const tps = invoice?.tps_amount ?? 0;
   const tvq = invoice?.tvq_amount ?? 0;
-  const total = invoice?.total ?? order.total_amount;
+  const total = invoice?.total ?? (order.pricing_snapshot as any)?.grand_total ?? order.total_amount;
   const amountPaid = invoice?.amount_paid ?? 0;
   const balanceDue = invoice?.balance_due ?? (total ? Number(total) - Number(amountPaid) : 0);
 

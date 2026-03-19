@@ -747,7 +747,10 @@ serve(async (req) => {
     // 6) Payment
     if (customerId) {
       try {
-        const total = toMoney(response.pricing?.grand_total ?? payload.pricing_snapshot?.grand_total);
+        // BILLING INVARIANT: pricing_snapshot (from compute_checkout_pricing RPC) is the SOLE authority.
+        // response.pricing (from Nivra Core API) returns GROSS totals that ignore discounts.
+        // Priority MUST match order (line 565) and invoice (line 626): pricing_snapshot FIRST.
+        const total = toMoney(payload.pricing_snapshot?.grand_total ?? response.pricing?.grand_total);
         const provider =
           billingMethod === "paypal"
             ? "paypal"

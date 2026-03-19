@@ -92,7 +92,7 @@ export function CoreOrderFilePanel({ proc }: Props) {
   const contract = contracts?.[0] || null;
 
   // Financial calculations from invoice (CANONICAL source of truth)
-  const total = invoice?.total ?? order.total_amount;
+  const total = invoice?.total ?? (order.pricing_snapshot as any)?.grand_total ?? order.total_amount;
   const subtotal = invoice?.subtotal ?? order.subtotal;
   const amountPaid = invoice?.amount_paid ?? 0;
   const balanceDue = invoice?.balance_due ?? (total ? Number(total) - Number(amountPaid) : 0);

@@ -27,7 +27,7 @@ export function PaymentInvoiceStep({ proc }: Props) {
   const subtotal = toNonNegativeMoney(invoice?.subtotal ?? order.subtotal ?? 0);
   const tps = toNonNegativeMoney(invoice?.tps_amount ?? order.tps_amount ?? 0);
   const tvq = toNonNegativeMoney(invoice?.tvq_amount ?? order.tvq_amount ?? 0);
-  const total = toNonNegativeMoney(invoice?.total ?? order.total_amount ?? 0);
+  const total = toNonNegativeMoney(invoice?.total ?? (order.pricing_snapshot as any)?.grand_total ?? order.total_amount ?? 0);
   const amountPaid = toNonNegativeMoney(invoice?.amount_paid ?? order.amount_paid ?? 0);
   const balanceDue = toNonNegativeMoney(invoice?.balance_due ?? toMoney(total - amountPaid));
   const invoiceStatus = String(invoice?.status || order.payment_status || "pending").toLowerCase();
