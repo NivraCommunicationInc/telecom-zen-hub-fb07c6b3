@@ -120,7 +120,7 @@ const StreamingPlans = () => {
   );
 
   return (
-    <div className="min-h-screen public-light" >
+    <div className="min-h-screen bg-background">
       <SEOHead {...SEO_DATA.streaming} />
       <Header />
       

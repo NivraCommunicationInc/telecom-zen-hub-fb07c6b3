@@ -5,7 +5,7 @@ import { COMPANY_CONTACT } from "@/config/company";
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen public-light" >
+    <div className="min-h-screen bg-background">
       <SEOHead {...SEO_DATA.privacy} />
       <Header />
       

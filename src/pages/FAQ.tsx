@@ -63,7 +63,7 @@ const FAQ = () => {
   );
 
   return (
-    <div className="min-h-screen public-light" >
+    <div className="min-h-screen bg-background">
       <SEOHead {...SEO_DATA.faq} />
       <FAQSchema faqs={allFaqs} pageUrl="https://nivra-telecom.ca/faq" />
       <BreadcrumbSchema />

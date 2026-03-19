@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const EquipementGarantie = () => {
   return (
-    <div className="min-h-screen public-light" >
+    <div className="min-h-screen bg-background">
       <Header />
       
       <main className="pt-24 pb-16">

@@ -1,189 +1,159 @@
 import { useMemo } from "react";
 import { usePublicServices, type PublicService } from "@/hooks/usePublicServices";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, Smartphone, Wifi } from "lucide-react";
+import { Wifi, Tv, Smartphone, Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useLanguage } from "@/contexts/LanguageContext";
 
-const getServiceFeatures = (service: PublicService): string[] => {
-  if (service.features_json.length > 0) return service.features_json.slice(0, 2);
-  if (service.short_description) {
-    return service.short_description
-      .split(/•|\||;/g)
-      .map((f) => f.trim())
-      .filter(Boolean)
-      .slice(0, 2);
-  }
-  return (service.description || "")
-    .split(/•|\||;/g)
-    .map((f) => f.trim())
-    .filter(Boolean)
-    .slice(0, 2);
+interface FeaturedService {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  description: string | null;
+  badge: string;
+  badgeColor: string;
+  icon: React.ReactNode;
+  features: string[];
+  link: string;
+  highlight?: boolean;
+}
+
+const LINK_BY_CATEGORY: Record<string, string> = {
+  Internet: "/internet",
+  Mobile: "/mobile",
+  TV: "/tv",
 };
 
-const isPlaceholderService = (service: PublicService) => /\btest\b/i.test(service.name);
+const ICON_BY_CATEGORY: Record<string, React.ReactNode> = {
+  Internet: <Wifi className="w-6 h-6 text-[#003366]" />,
+  Mobile: <Smartphone className="w-6 h-6 text-slate-700" />,
+  TV: <Tv className="w-6 h-6 text-[#003366]" />,
+};
+
+const getServiceFeatures = (service: PublicService): string[] => {
+  if (service.features_json.length > 0) return service.features_json.slice(0, 4);
+  if (service.short_description) return service.short_description.split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 4);
+  return (service.description || "").split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 4);
+};
 
 export function FeaturedOffers() {
   const { data: services, isLoading } = usePublicServices({ surface: "website" });
-  const { language } = useLanguage();
-  const isFr = language === "fr";
 
-  const { leftCard, rightCard } = useMemo(() => {
-    const cleanServices = (services || []).filter((service) => !isPlaceholderService(service));
-    if (!cleanServices.length) return { leftCard: null, rightCard: null };
+  const featuredOffers = useMemo((): FeaturedService[] => {
+    if (!services?.length) return [];
 
-    const byRank = (a: PublicService, b: PublicService) =>
-      (b.is_featured ? 2 : 0) +
-      (b.is_recommended ? 1 : 0) -
-      ((a.is_featured ? 2 : 0) + (a.is_recommended ? 1 : 0)) ||
-      a.display_order - b.display_order ||
-      Number(a.price) - Number(b.price);
+    const pickByCategory = (category: string) => {
+      return services
+        .filter((service) => service.category === category)
+        .sort((a, b) => {
+          const aScore = (a.is_featured ? 2 : 0) + (a.is_recommended ? 1 : 0);
+          const bScore = (b.is_featured ? 2 : 0) + (b.is_recommended ? 1 : 0);
+          if (bScore !== aScore) return bScore - aScore;
+          if (a.display_order !== b.display_order) return a.display_order - b.display_order;
+          return a.price - b.price;
+        })[0];
+    };
 
-    const internet = cleanServices
-      .filter((s) => s.category === "Internet")
-      .sort(byRank)[0];
+    const picks = [pickByCategory("Internet"), pickByCategory("Mobile"), pickByCategory("TV")].filter(Boolean) as PublicService[];
 
-    const mobile = cleanServices
-      .filter((s) => s.category === "Mobile")
-      .sort(byRank)[0];
+    return picks.map((service) => {
+      const highlight = service.is_featured || service.is_recommended;
+      const fallbackBadge = highlight ? "VEDETTE" : "OFFRE";
 
-    return { leftCard: internet || null, rightCard: mobile || null };
+      return {
+        id: service.id,
+        name: service.name,
+        category: service.category,
+        price: Number(service.price),
+        description: service.short_description || service.description,
+        badge: (service.badges[0] || fallbackBadge).toUpperCase(),
+        badgeColor: highlight ? "bg-[#003366] text-white" : "bg-slate-700 text-white",
+        icon: ICON_BY_CATEGORY[service.category] || <Wifi className="w-6 h-6 text-slate-700" />,
+        features: getServiceFeatures(service),
+        link: LINK_BY_CATEGORY[service.category] || "/services",
+        highlight,
+      };
+    });
   }, [services]);
 
   if (isLoading) {
     return (
-      <section className="bg-background py-0">
-        <div className="container mx-auto max-w-[1320px] px-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Skeleton className="h-[420px] rounded-2xl" />
-            <Skeleton className="h-[420px] rounded-2xl" />
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <Skeleton className="h-8 w-48 mb-8" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-[380px] rounded-2xl" />
+            ))}
           </div>
         </div>
       </section>
     );
   }
 
-  if (!leftCard && !rightCard) return null;
-
-  const leftFeatures = leftCard ? getServiceFeatures(leftCard) : [];
-  const rightFeatures = rightCard ? getServiceFeatures(rightCard) : [];
+  if (featuredOffers.length === 0) return null;
 
   return (
-    <section className="bg-background pb-8 pt-1">
-      <div className="container mx-auto max-w-[1320px] px-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {leftCard && (
-            <Link
-              to="/internet"
-              className="group relative flex min-h-[430px] flex-col justify-between overflow-hidden rounded-2xl bg-foreground text-primary-foreground transition-transform duration-300 hover:scale-[1.01]"
+    <section className="py-16 bg-white">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-8">Offres vedettes</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {featuredOffers.map((offer) => (
+            <div
+              key={offer.id}
+              className={`relative rounded-2xl border overflow-hidden transition-all duration-300 bg-white group hover:shadow-lg ${
+                offer.highlight ? "border-[#003366] shadow-md" : "border-slate-200 hover:border-slate-300"
+              }`}
             >
-              <div className="absolute right-0 top-1/2 h-[320px] w-[320px] -translate-y-1/2 rounded-full bg-primary/20 blur-3xl" />
+              <div className={`h-1.5 w-full ${offer.highlight ? "bg-[#003366]" : "bg-slate-200"}`} />
 
-              <div className="relative z-10 p-6 sm:p-8">
-                {leftCard.badges[0] && (
-                  <span className="inline-flex rounded-full bg-background px-3 py-1 text-xs font-black uppercase tracking-wider text-foreground">
-                    {leftCard.badges[0]}
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
+                    {offer.icon}
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full ${offer.badgeColor}`}>
+                    {offer.badge}
                   </span>
-                )}
-              </div>
+                </div>
 
-              <div className="relative z-10 flex flex-1 flex-col justify-center p-6 sm:p-8">
-                <h3 className="mb-3 text-3xl font-black leading-tight sm:text-4xl">{leftCard.name}</h3>
-                {(leftCard.short_description || leftCard.description) && (
-                  <p className="mb-4 max-w-sm text-base text-primary-foreground/70">
-                    {leftCard.short_description || leftCard.description}
-                  </p>
-                )}
+                <h3 className="text-lg font-bold text-slate-900 mb-4 leading-tight">{offer.name}</h3>
 
-                <div className="space-y-2">
-                  {leftFeatures.map((feature) => (
-                    <p key={feature} className="text-sm text-primary-foreground/75">
-                      • {feature}
-                    </p>
+                <div className="space-y-2.5 pb-5 border-b border-slate-100 mb-5">
+                  {offer.features.map((feature, index) => (
+                    <div key={index} className="flex items-start gap-2.5 text-sm">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="text-slate-600">{feature}</span>
+                    </div>
                   ))}
                 </div>
 
-                <div className="pointer-events-none absolute right-6 top-1/2 -translate-y-1/2 opacity-15">
-                  <Wifi className="h-48 w-48" strokeWidth={1} />
-                </div>
-              </div>
-
-              <div className="relative z-10 p-6 pt-0 sm:p-8 sm:pt-0">
-                <div className="mb-4 flex items-baseline gap-2">
-                  <span className="text-5xl font-black leading-none sm:text-6xl">{Number(leftCard.price).toFixed(0)}</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold">00 $</span>
-                    <span className="text-sm text-primary-foreground/60">/{isFr ? "mois" : "mo"}*</span>
+                <div className="mb-5">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-slate-900">{offer.price.toFixed(0)}$</span>
+                    <span className="text-slate-500">/mois</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-background transition-all group-hover:gap-3">
-                  {isFr ? "Profitez de l'offre" : "Get the offer"}
-                  <ArrowRight className="h-4 w-4" />
-                  <ArrowRight className="-ml-2 h-4 w-4" />
-                  <ArrowRight className="-ml-2 h-4 w-4" />
-                </div>
+                <Button
+                  asChild
+                  className={`w-full rounded-full h-11 font-semibold ${
+                    offer.highlight
+                      ? "bg-[#003366] hover:bg-[#002244] text-white"
+                      : "bg-white border-2 border-[#003366] text-[#003366] hover:bg-[#003366] hover:text-white"
+                  }`}
+                  variant={offer.highlight ? "default" : "outline"}
+                >
+                  <Link to={offer.link}>
+                    Voir les détails
+                    <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </Link>
+                </Button>
               </div>
-            </Link>
-          )}
-
-          {rightCard && (
-            <Link
-              to="/mobile"
-              className="group relative flex min-h-[430px] flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-foreground text-primary-foreground transition-transform duration-300 hover:scale-[1.01]"
-            >
-              <div className="absolute -right-12 -top-10 h-52 w-52 rounded-full bg-background/20 blur-2xl" />
-
-              <div className="relative z-10 flex items-start justify-between p-6 sm:p-8">
-                {rightCard.badges[0] ? (
-                  <span className="inline-flex rounded-full bg-background px-3 py-1 text-xs font-black uppercase tracking-wider text-foreground">
-                    {rightCard.badges[0]}
-                  </span>
-                ) : (
-                  <span />
-                )}
-
-                {rightFeatures[0] && (
-                  <span className="rounded-full bg-background px-4 py-2 text-sm font-black uppercase text-foreground shadow-card">
-                    {rightFeatures[0]}
-                  </span>
-                )}
-              </div>
-
-              <div className="relative z-10 flex flex-1 flex-col justify-center p-6 sm:p-8">
-                <h3 className="mb-3 text-3xl font-black leading-tight sm:text-4xl">{rightCard.name}</h3>
-                {(rightCard.short_description || rightCard.description) && (
-                  <p className="max-w-sm text-base text-primary-foreground/80">
-                    {rightCard.short_description || rightCard.description}
-                  </p>
-                )}
-
-                <div className="pointer-events-none absolute bottom-20 right-6 opacity-15">
-                  <Smartphone className="h-44 w-44" strokeWidth={1} />
-                </div>
-              </div>
-
-              <div className="relative z-10 p-6 pt-0 sm:p-8 sm:pt-0">
-                <p className="mb-1 text-xs uppercase tracking-wider text-primary-foreground/70">
-                  {isFr ? "À PARTIR DE" : "STARTING AT"}
-                </p>
-                <div className="mb-4 flex items-baseline gap-2">
-                  <span className="text-5xl font-black leading-none sm:text-6xl">{Number(rightCard.price).toFixed(0)}</span>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold">00 $</span>
-                    <span className="text-sm text-primary-foreground/60">/{isFr ? "mois" : "mo"}*</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-background transition-all group-hover:gap-3">
-                  {isFr ? "Ajoutez le forfait" : "Add the plan"}
-                  <ArrowRight className="h-4 w-4" />
-                  <ArrowRight className="-ml-2 h-4 w-4" />
-                  <ArrowRight className="-ml-2 h-4 w-4" />
-                </div>
-              </div>
-            </Link>
-          )}
+            </div>
+          ))}
         </div>
       </div>
     </section>

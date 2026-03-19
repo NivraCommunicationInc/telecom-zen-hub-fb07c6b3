@@ -1,46 +1,52 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { MessageSquare, ArrowRight } from "lucide-react";
+import ContactForm from "./ContactForm";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 
 const CTA = () => {
-  const { language } = useLanguage();
-  const isFr = language === 'fr';
+  const { t, language } = useLanguage();
+  const isFrench = language === 'fr';
 
   return (
-    <section className="py-16 lg:py-24">
-      <div className="container mx-auto px-4 max-w-[1320px]">
-        <div className="relative bg-black rounded-xl p-10 lg:p-16 text-center overflow-hidden">
-          {/* Spotlight effect */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[400px]"
-              style={{
-                background: 'conic-gradient(from 180deg at 50% 0%, transparent 140deg, rgba(250,204,21,0.08) 170deg, rgba(250,204,21,0.15) 180deg, rgba(250,204,21,0.08) 190deg, transparent 220deg)',
-              }}
-            />
+    <section id="contact" className="py-16 bg-[#003366] relative overflow-hidden">
+      {/* Subtle background accents */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-1/3 h-1/2 bg-gradient-to-bl from-white/5 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-1/4 h-1/3 bg-gradient-to-tr from-white/3 to-transparent" />
+      </div>
+
+      <div className="container mx-auto px-4 relative max-w-7xl">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-start">
+          {/* Left Content */}
+          <div className="text-center lg:text-left lg:pt-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              {t('cta.title.order')}
+            </h2>
+            <p className="text-white/75 mb-6 max-w-md mx-auto lg:mx-0 leading-relaxed text-lg">
+              {t('cta.subtitle.order')}
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-5">
+              <Button 
+                className="bg-white text-[#003366] hover:bg-slate-100 rounded-full px-6 h-11 font-semibold gap-2"
+                asChild
+              >
+                <Link to="/portal/auth">
+                  <MessageSquare className="w-4 h-4" />
+                  {isFrench ? "Chat / Ouvrir un ticket" : "Chat / Open a ticket"}
+                </Link>
+              </Button>
+            </div>
+
+            <p className="text-sm text-white/50">
+              {isFrench ? "Réponse entre 1h et 24h • Chat live selon disponibilité" : "Response within 1h to 24h • Live chat based on availability"}
+            </p>
           </div>
 
-          <div className="relative">
-            <p className="text-amber-400 text-sm font-bold uppercase tracking-[0.15em] mb-4">
-              {isFr ? "OFFRE EN COURS" : "CURRENT OFFER"}
-            </p>
-            <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
-              {isFr ? "Prêt à commencer?" : "Ready to get started?"}
-            </h2>
-            <p className="text-white/50 mb-8 max-w-lg mx-auto text-lg">
-              {isFr
-                ? "Choisissez votre forfait et activez votre service dès aujourd'hui."
-                : "Choose your plan and activate your service today."}
-            </p>
-            <Button
-              className="bg-amber-400 hover:bg-amber-300 text-black rounded-none px-10 h-14 text-base font-bold uppercase tracking-wider transition-all duration-200 hover:scale-105"
-              asChild
-            >
-              <Link to="/compare">
-                {isFr ? "Choisir mon plan" : "Choose my plan"}
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Link>
-            </Button>
+          {/* Right - Contact Form */}
+          <div>
+            <ContactForm />
           </div>
         </div>
       </div>
