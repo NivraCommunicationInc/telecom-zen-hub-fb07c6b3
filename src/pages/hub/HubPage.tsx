@@ -148,7 +148,8 @@ export default function HubPage() {
             setShowMfaVerify(true);
             setLoading(false);
           } else {
-            // Fully authenticated + MFA verified
+            // Fully authenticated + MFA verified — create hub session
+            createHubSession(session.user.id);
             await auditAccess("hub_access", "hub");
             setLoading(false);
           }
