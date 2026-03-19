@@ -866,6 +866,42 @@ export type Database = {
           },
         ]
       }
+      assignment_rules: {
+        Row: {
+          at_risk_hours: number
+          auto_assign: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          item_type: string
+          sla_hours: number
+          team: string
+          updated_at: string
+        }
+        Insert: {
+          at_risk_hours?: number
+          auto_assign?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_type: string
+          sla_hours?: number
+          team: string
+          updated_at?: string
+        }
+        Update: {
+          at_risk_hours?: number
+          auto_assign?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_type?: string
+          sla_hours?: number
+          team?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       authorized_users: {
         Row: {
           client_id: string
@@ -4143,6 +4179,50 @@ export type Database = {
           },
         ]
       }
+      employee_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string | null
+          notification_type: string
+          read_at: string | null
+          title: string
+          user_id: string
+          work_item_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          notification_type: string
+          read_at?: string | null
+          title: string
+          user_id: string
+          work_item_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          notification_type?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+          work_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_notifications_work_item_id_fkey"
+            columns: ["work_item_id"]
+            isOneToOne: false
+            referencedRelation: "employee_work_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_operations_audit: {
         Row: {
           account_id: string | null
@@ -4419,6 +4499,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      employee_work_items: {
+        Row: {
+          assigned_to_id: string | null
+          assigned_to_name: string | null
+          client_email: string | null
+          client_id: string | null
+          client_name: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          item_type: string
+          notes: string | null
+          priority: string
+          sla_breached_at: string | null
+          sla_deadline_at: string | null
+          sla_status: string
+          source_id: string
+          source_reference: string | null
+          status: string
+          team: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          item_type: string
+          notes?: string | null
+          priority?: string
+          sla_breached_at?: string | null
+          sla_deadline_at?: string | null
+          sla_status?: string
+          source_id: string
+          source_reference?: string | null
+          status?: string
+          team: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          client_email?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          item_type?: string
+          notes?: string | null
+          priority?: string
+          sla_breached_at?: string | null
+          sla_deadline_at?: string | null
+          sla_status?: string
+          source_id?: string
+          source_reference?: string | null
+          status?: string
+          team?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       employees: {
         Row: {
