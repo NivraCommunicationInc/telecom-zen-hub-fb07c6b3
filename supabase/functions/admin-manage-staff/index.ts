@@ -230,6 +230,10 @@ interface ListInvitationStatusesRequest {
   user_ids?: string[];
 }
 
+interface ListStaffRequest {
+  action: "list_staff";
+}
+
 type RequestBody =
   | CreateStaffRequest
   | DisableEnableRequest
@@ -256,7 +260,8 @@ type RequestBody =
   | SendInvitationRequest
   | ResendInvitationRequest
   | RevokeInvitationRequest
-  | ListInvitationStatusesRequest;
+  | ListInvitationStatusesRequest
+  | ListStaffRequest;
 
 // Generate cryptographically secure salt
 function generateSalt(): string {
@@ -1347,6 +1352,86 @@ serve(async (req: Request) => {
         });
       }
 
+      case "list_staff": {
+        const { data: roleRows, error: roleError } = await adminClient
+          .from("user_roles")
+          .select("id, user_id, role, status, is_active, created_at, can_access_core, can_access_employee, can_access_field, can_access_technician, mfa_required, mfa_enrolled_at, last_login_at")
+          .in("role", INTERNAL_STAFF_ROLES)
+          .order("created_at", { ascending: false });
+
+        if (roleError) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: roleError.message,
+          });
+        }
+
+        if (!roleRows?.length) {
+          return json(200, {
+            ok: true,
+            request_id: requestId,
+            staff: [],
+          });
+        }
+
+        const userIds = [...new Set(roleRows.map((row) => row.user_id))];
+
+        const [profilesResult, employeesResult] = await Promise.all([
+          adminClient
+            .from("profiles")
+            .select("user_id, first_name, last_name, full_name, email, phone, last_login_at, mfa_enabled, mfa_verified_at")
+            .in("user_id", userIds),
+          adminClient
+            .from("employees")
+            .select("user_id, phone, badge_number, job_title, pin_set_at")
+            .in("user_id", userIds),
+        ]);
+
+        if (profilesResult.error) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: profilesResult.error.message,
+          });
+        }
+
+        if (employeesResult.error) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: employeesResult.error.message,
+          });
+        }
+
+        const profileMap = new Map((profilesResult.data || []).map((profile: any) => [profile.user_id, profile]));
+        const employeeMap = new Map((employeesResult.data || []).map((employee: any) => [employee.user_id, employee]));
+
+        const staff = roleRows.map((row: any) => {
+          const profile = profileMap.get(row.user_id) || {};
+          const employee = employeeMap.get(row.user_id) || {};
+          const firstName = profile.first_name || "";
+          const lastName = profile.last_name || "";
+          const fallbackName = `${firstName} ${lastName}`.trim();
+
+          return {
+            ...row,
+            profile,
+            employee,
+            displayName: profile.full_name || fallbackName || profile.email || "—",
+            lastLoginAt: row.last_login_at || profile.last_login_at || null,
+            mfaRequired: row.mfa_required !== false,
+            mfaEnabled: Boolean(row.mfa_enrolled_at || profile.mfa_verified_at || profile.mfa_enabled),
+          };
+        });
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          staff,
+        });
+      }
+
       case "list_invitation_statuses": {
         const { user_ids } = body as ListInvitationStatusesRequest;
 
@@ -1498,8 +1583,17 @@ serve(async (req: Request) => {
 
         const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
 
-        await adminClient.from("user_roles").delete().eq("user_id", user_id);
-        await adminClient.from("user_roles").insert({ user_id, role: new_role });
+        const { error: roleUpsertError } = await adminClient
+          .from("user_roles")
+          .upsert({ user_id, role: new_role }, { onConflict: "user_id" });
+
+        if (roleUpsertError) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: roleUpsertError.message,
+          });
+        }
 
         if (new_role === "technician") {
           const { data: existingTech } = await adminClient.from("technicians").select("id").eq("user_id", user_id).maybeSingle();
