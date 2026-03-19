@@ -101,6 +101,10 @@ export default function CoreStaffPage() {
           role: data.role, phone: data.phone || undefined,
           badge_number: data.badge_number || undefined, job_title: data.job_title || undefined,
           send_invitation: data.send_invitation, is_active: data.is_active,
+          can_access_core: data.can_access_core,
+          can_access_employee: data.can_access_employee,
+          can_access_field: data.can_access_field,
+          can_access_technician: data.can_access_technician,
         },
       });
       if (response.error) throw new Error(response.error.message);
