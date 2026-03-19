@@ -230,6 +230,10 @@ interface ListInvitationStatusesRequest {
   user_ids?: string[];
 }
 
+interface ListStaffRequest {
+  action: "list_staff";
+}
+
 type RequestBody =
   | CreateStaffRequest
   | DisableEnableRequest
@@ -256,7 +260,8 @@ type RequestBody =
   | SendInvitationRequest
   | ResendInvitationRequest
   | RevokeInvitationRequest
-  | ListInvitationStatusesRequest;
+  | ListInvitationStatusesRequest
+  | ListStaffRequest;
 
 // Generate cryptographically secure salt
 function generateSalt(): string {
