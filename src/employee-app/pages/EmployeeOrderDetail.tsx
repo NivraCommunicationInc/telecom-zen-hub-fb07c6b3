@@ -98,7 +98,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         actor_name: profile?.full_name ?? session.user.email ?? "Employé",
         actor_role: "employee",
       });
-      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", entityType: "order", entityId: orderId });
+      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", targetType: "order", targetId: orderId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v2", orderId] });

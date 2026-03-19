@@ -103,7 +103,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         actor_name: profile?.full_name ?? session.user.email ?? "Employé",
         actor_role: "employee",
       });
-      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", entityType: "client", entityId: clientId });
+      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", targetType: "client", targetId: clientId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-client-360", clientId] });
