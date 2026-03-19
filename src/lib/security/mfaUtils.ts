@@ -57,10 +57,10 @@ export async function checkMfaStatus(): Promise<MfaStatus> {
  */
 export async function enrollMfa() {
   // First unenroll any unverified factors to prevent duplicates
-  const { data: factors } = await supabase.auth.mfa.listFactors();
-  if (factors?.totp) {
-    for (const f of factors.totp) {
-      if (f.status === "unverified") {
+  const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+  if (existingFactors?.totp) {
+    for (const f of existingFactors.totp) {
+      if (f.status !== "verified") {
         await supabase.auth.mfa.unenroll({ factorId: f.id });
       }
     }
