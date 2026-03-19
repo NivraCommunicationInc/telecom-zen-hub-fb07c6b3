@@ -169,16 +169,8 @@ export default function HubPage() {
     const hasAccess = accessFlags[portal.portalKey];
     if (!hasAccess) return;
 
-    // Log portal access
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      await supabase.from("hub_login_audit").insert({
-        user_id: session.user.id,
-        email: session.user.email,
-        event: "portal_entry",
-        portal_accessed: portal.id,
-      });
-    }
+    // Log portal access via audit trail
+    await auditAccess("portal_entry", portal.id);
 
     navigate(portal.href);
   };
