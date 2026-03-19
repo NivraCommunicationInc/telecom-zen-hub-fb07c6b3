@@ -1583,8 +1583,17 @@ serve(async (req: Request) => {
 
         const { data: targetUser } = await adminClient.auth.admin.getUserById(user_id);
 
-        await adminClient.from("user_roles").delete().eq("user_id", user_id);
-        await adminClient.from("user_roles").insert({ user_id, role: new_role });
+        const { error: roleUpsertError } = await adminClient
+          .from("user_roles")
+          .upsert({ user_id, role: new_role }, { onConflict: "user_id" });
+
+        if (roleUpsertError) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            message: roleUpsertError.message,
+          });
+        }
 
         if (new_role === "technician") {
           const { data: existingTech } = await adminClient.from("technicians").select("id").eq("user_id", user_id).maybeSingle();
