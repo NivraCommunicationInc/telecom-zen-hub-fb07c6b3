@@ -111,7 +111,7 @@ export default function CoreStaffPage() {
       toast.success("Membre du personnel créé");
       queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
       setCreateOpen(false);
-      setNewStaff({ email: "", full_name: "", role: "employee", phone: "", badge_number: "", job_title: "", send_invitation: true, is_active: true });
+      setNewStaff({ email: "", full_name: "", role: "employee", phone: "", badge_number: "", job_title: "", send_invitation: true, is_active: true, can_access_core: false, can_access_employee: true, can_access_field: false, can_access_technician: false });
     },
     onError: (e: any) => toast.error(e.message || "Erreur lors de la création"),
   });
