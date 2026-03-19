@@ -13,6 +13,20 @@ const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"
 // Employee Portal (lazy-loaded, fully isolated)
 const EmployeeAppLayout = lazy(() => import("@/employee-app/EmployeeAppLayout"));
 const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/EmployeeProtectedRoute"));
+
+// Field Portal (lazy-loaded, fully isolated)
+const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
+const FieldProtectedRoute = lazy(() => import("@/field-app/components/FieldProtectedRoute"));
+const FieldDashboard = lazy(() => import("@/field-app/pages/FieldDashboard"));
+const FieldLeads = lazy(() => import("@/field-app/pages/FieldLeads"));
+const FieldNewLead = lazy(() => import("@/field-app/pages/FieldNewLead"));
+const FieldLeadDetail = lazy(() => import("@/field-app/pages/FieldLeadDetail"));
+const FieldOffers = lazy(() => import("@/field-app/pages/FieldOffers"));
+const FieldSubmissions = lazy(() => import("@/field-app/pages/FieldSubmissions"));
+const FieldTracking = lazy(() => import("@/field-app/pages/FieldTracking"));
+const FieldCommissions = lazy(() => import("@/field-app/pages/FieldCommissions"));
+const FieldProfile = lazy(() => import("@/field-app/pages/FieldProfile"));
+const FieldSecurity = lazy(() => import("@/field-app/pages/FieldSecurity"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
@@ -500,9 +514,7 @@ const AppRoutes = () => {
         </>
       )}
       
-      {/* LEGACY STAFF ROUTES - Redirect to unified /staff portal */}
-      <Route path="/employee/*" element={<Navigate to="/staff" replace />} />
-      <Route path="/employee" element={<Navigate to="/staff" replace />} />
+      {/* LEGACY STAFF ROUTES */}
       <Route path="/technician/*" element={<Navigate to="/staff" replace />} />
       <Route path="/technician" element={<Navigate to="/staff" replace />} />
       <Route path="/portal/login" element={<Navigate to="/portal/auth" replace />} />
@@ -762,6 +774,25 @@ const AppRoutes = () => {
           <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><EmployeeSecurity /></Suspense>} />
+        </Route>
+      </Route>
+
+      {/* ============================================ */}
+      {/* FIELD PORTAL — Field Sales Workspace          */}
+      {/* ============================================ */}
+      <Route path="/field" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(225,20%,5%)]" />}><FieldProtectedRoute /></Suspense>}>
+        <Route element={<Suspense fallback={null}><FieldAppLayout /></Suspense>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={null}><FieldDashboard /></Suspense>} />
+          <Route path="leads" element={<Suspense fallback={null}><FieldLeads /></Suspense>} />
+          <Route path="leads/new" element={<Suspense fallback={null}><FieldNewLead /></Suspense>} />
+          <Route path="leads/:leadId" element={<Suspense fallback={null}><FieldLeadDetail /></Suspense>} />
+          <Route path="offers" element={<Suspense fallback={null}><FieldOffers /></Suspense>} />
+          <Route path="submissions" element={<Suspense fallback={null}><FieldSubmissions /></Suspense>} />
+          <Route path="tracking" element={<Suspense fallback={null}><FieldTracking /></Suspense>} />
+          <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={null}><FieldProfile /></Suspense>} />
+          <Route path="security" element={<Suspense fallback={null}><FieldSecurity /></Suspense>} />
         </Route>
       </Route>
 

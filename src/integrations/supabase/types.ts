@@ -4879,6 +4879,140 @@ export type Database = {
           },
         ]
       }
+      field_commissions: {
+        Row: {
+          agent_id: string
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          clawback_reason: string | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          notes: string | null
+          order_id: string | null
+          paid_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          clawback_reason?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          clawback_reason?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_commissions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "field_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_leads: {
+        Row: {
+          address: string | null
+          agent_id: string
+          agent_name: string | null
+          city: string | null
+          created_at: string
+          eligibility_notes: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          lost_at: string | null
+          lost_reason: string | null
+          notes: string | null
+          order_id: string | null
+          payment_method_intent: string | null
+          phone: string | null
+          postal_code: string | null
+          province: string | null
+          service_need: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          won_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          agent_id: string
+          agent_name?: string | null
+          city?: string | null
+          created_at?: string
+          eligibility_notes?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          lost_at?: string | null
+          lost_reason?: string | null
+          notes?: string | null
+          order_id?: string | null
+          payment_method_intent?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          service_need?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          won_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          agent_id?: string
+          agent_name?: string | null
+          city?: string | null
+          created_at?: string
+          eligibility_notes?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          lost_at?: string | null
+          lost_reason?: string | null
+          notes?: string | null
+          order_id?: string | null
+          payment_method_intent?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          service_need?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          won_at?: string | null
+        }
+        Relationships: []
+      }
       field_sales_cashout_requests: {
         Row: {
           admin_note: string | null
