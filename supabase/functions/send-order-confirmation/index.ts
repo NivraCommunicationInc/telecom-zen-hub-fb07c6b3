@@ -765,7 +765,9 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}] Queueing email via email_queue...`);
 
     const eventKeyBase = `order_confirmation_${order_id}`;
-    const eventKey = force ? `${eventKeyBase}_${Date.now()}` : eventKeyBase;
+    const eventKey = force
+      ? `manual_order_confirmation_${order_id}_${Date.now()}`
+      : eventKeyBase;
 
     const serviceType = services && services.length > 0
       ? services.map((s) => s.name).join(", ")
@@ -776,6 +778,7 @@ Deno.serve(async (req) => {
       to_email: client_email,
       template_key: "order_submitted",
       template_vars: {
+        manual_send: force,
         client_name: client_first_name || "Client",
         client_email,
         order_id,
