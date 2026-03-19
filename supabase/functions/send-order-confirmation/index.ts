@@ -39,9 +39,9 @@ interface OrderConfirmationRequest {
   subtotal?: number;
   tps_amount?: number;
   tvq_amount?: number;
-  monthly_total_tax_in: number;
+  monthly_total_tax_in?: number;
   one_time_fees?: OneTimeFee[];
-  one_time_total: number;
+  one_time_total?: number;
   delivery_method?: string;
   delivery_address?: DeliveryAddress;
   payment_reference?: string;
