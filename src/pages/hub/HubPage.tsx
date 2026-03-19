@@ -16,6 +16,7 @@ import { checkMfaStatus, type MfaStatus } from "@/lib/security/mfaUtils";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
+import { createHubSession, clearHubSession } from "@/lib/security/hubSession";
 
 interface PortalCard {
   id: string;
