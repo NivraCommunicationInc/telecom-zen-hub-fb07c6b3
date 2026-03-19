@@ -299,11 +299,11 @@ const ClientOrders = () => {
                   {format(new Date(selectedOrder.created_at), "d MMMM yyyy 'à' HH:mm", { locale: fr })}
                 </span>
               </div>
-              {selectedOrder.total_amount && (
+              {(selectedOrder.pricing_snapshot?.grand_total || selectedOrder.total_amount) && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Montant</span>
                   <span className="text-foreground font-bold">
-                    {Number(selectedOrder.total_amount).toLocaleString("fr-CA", {
+                    {Number(selectedOrder.pricing_snapshot?.grand_total ?? selectedOrder.total_amount).toLocaleString("fr-CA", {
                       style: "currency",
                       currency: "CAD",
                     })}
