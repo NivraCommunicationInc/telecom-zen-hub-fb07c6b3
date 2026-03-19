@@ -59,7 +59,7 @@ export default function CoreStaffPage() {
       // Get all staff roles
       const { data: rolesData, error } = await supabase
         .from("user_roles")
-        .select("id, user_id, role, status, created_at, updated_at, is_active")
+        .select("id, user_id, role, status, created_at, updated_at, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician")
         .order("created_at", { ascending: false });
       if (error) throw error;
       if (!rolesData || rolesData.length === 0) return [];
