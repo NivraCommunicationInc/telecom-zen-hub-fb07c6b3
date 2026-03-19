@@ -49,6 +49,7 @@ export default function CoreStaffPage() {
   const [newStaff, setNewStaff] = useState({
     email: "", full_name: "", role: "employee", phone: "", badge_number: "", job_title: "",
     send_invitation: true, is_active: true,
+    can_access_core: false, can_access_employee: true, can_access_field: false, can_access_technician: false,
   });
 
   // ═══ QUERIES ═══
