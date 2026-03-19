@@ -113,7 +113,7 @@ const MobileCoverage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background" data-testid="mobile-coverage-page">
+    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }} data-testid="mobile-coverage-page">
       <SEOHead 
         title={isFrench ? "Couverture Mobile | Vérifiez la disponibilité | Nivra" : "Mobile Coverage | Check Availability | Nivra"}
         description={isFrench 

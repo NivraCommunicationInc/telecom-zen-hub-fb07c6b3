@@ -116,7 +116,7 @@ const StatusPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
+    <div className="min-h-screen flex flex-col public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl">

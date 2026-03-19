@@ -1,5 +1,4 @@
 import { ReactNode } from "react";
-import AnnouncementBar from "@/components/layout/AnnouncementBar";
 
 interface PublicLayoutProps {
   children: ReactNode;
@@ -7,9 +6,7 @@ interface PublicLayoutProps {
 
 export const PublicLayout = ({ children }: PublicLayoutProps) => {
   return (
-    <div className="text-foreground">
-      {/* Promotional announcement bar */}
-      <AnnouncementBar />
+    <div className="public-dark text-foreground" style={{ background: 'hsl(230 60% 4%)' }}>
       {children}
     </div>
   );

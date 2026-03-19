@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, Search, ChevronDown } from "lucide-react";
+import { Menu, X, User, ChevronDown } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSelector from "./LanguageSelector";
 import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } from "@/config/navigation";
-import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 
 const Header = () => {
@@ -19,7 +18,6 @@ const Header = () => {
   const navigate = useNavigate();
   const { user } = useOptionalAuth();
   const { t, language } = useLanguage();
-  const { data: siteSettings } = useSiteSettings();
   const isFr = language === 'fr';
 
   const portalLink = user ? "/portal" : "/portal/auth";
@@ -53,7 +51,6 @@ const Header = () => {
     return () => { document.body.style.overflow = ''; };
   }, [isMenuOpen]);
 
-  // Close dropdown on route change
   useEffect(() => {
     setOpenDropdown(null);
     setMobileExpanded(null);
@@ -109,8 +106,8 @@ const Header = () => {
           <button
             className={`flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors rounded-md ${
               isActive
-                ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
-                : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+                ? 'text-blue-400'
+                : 'text-white/70 hover:text-white'
             }`}
             type="button"
             onClick={() => handleNavClick(target)}
@@ -121,7 +118,7 @@ const Header = () => {
 
           {openDropdown === target.id && (
             <div className="absolute top-full left-0 pt-1 z-50">
-              <div className="bg-white rounded-lg shadow-lg border border-slate-200 py-1.5 min-w-[200px]">
+              <div className="bg-[#0B1220] rounded-xl shadow-2xl border border-white/10 py-1.5 min-w-[200px]">
                 {target.children!.map((child) => {
                   const childActive = location.pathname === child.target;
                   return (
@@ -130,8 +127,8 @@ const Header = () => {
                       to={child.target}
                       className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
                         childActive
-                          ? 'text-[#003366] bg-blue-50'
-                          : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+                          ? 'text-blue-400 bg-blue-500/10'
+                          : 'text-white/70 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       {getLabel(child)}
@@ -145,15 +142,14 @@ const Header = () => {
       );
     }
 
-    // No children — simple link or scroll button
     return target.type === 'route' ? (
       <Link
         key={target.id}
         to={target.target}
         className={`px-4 py-2 text-sm font-medium transition-colors rounded-md ${
           isActive
-            ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
-            : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+            ? 'text-blue-400'
+            : 'text-white/70 hover:text-white'
         }`}
       >
         {getLabel(target)}
@@ -162,7 +158,7 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-[#003366] hover:bg-slate-50 transition-colors rounded-md"
+        className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors rounded-md"
         type="button"
       >
         {getLabel(target)}
@@ -179,7 +175,7 @@ const Header = () => {
         <div key={target.id}>
           <button
             onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
-            className="flex items-center justify-between w-full px-4 py-3.5 text-base font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl mb-1 min-h-[44px]"
+            className="flex items-center justify-between w-full px-4 py-3.5 text-base font-medium text-white/80 hover:text-white hover:bg-white/5 rounded-xl mb-1 min-h-[44px]"
             type="button"
           >
             {getLabel(target)}
@@ -194,8 +190,8 @@ const Header = () => {
                   onClick={() => setIsMenuOpen(false)}
                   className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl min-h-[44px] ${
                     location.pathname === child.target
-                      ? 'bg-blue-50 text-[#003366]'
-                      : 'text-slate-600 hover:bg-slate-50 active:bg-slate-100'
+                      ? 'bg-blue-500/10 text-blue-400'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   {getLabel(child)}
@@ -214,8 +210,8 @@ const Header = () => {
         onClick={() => setIsMenuOpen(false)}
         className={`flex items-center px-4 py-3.5 text-base font-medium rounded-xl mb-1 min-h-[44px] ${
           location.pathname === target.target
-            ? 'bg-blue-50 text-[#003366]'
-            : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'
+            ? 'bg-blue-500/10 text-blue-400'
+            : 'text-white/80 hover:text-white hover:bg-white/5'
         }`}
       >
         {getLabel(target)}
@@ -224,7 +220,7 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="flex items-center w-full text-left px-4 py-3.5 text-base font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl mb-1 min-h-[44px]"
+        className="flex items-center w-full text-left px-4 py-3.5 text-base font-medium text-white/80 hover:text-white hover:bg-white/5 rounded-xl mb-1 min-h-[44px]"
         type="button"
       >
         {getLabel(target)}
@@ -236,35 +232,13 @@ const Header = () => {
     <>
       <PublicSystemStatusBanner />
       
-      {/* Top utility bar — Bell-style */}
-      <div className="bg-slate-100 border-b border-slate-200 hidden lg:block">
-        <div className="container mx-auto px-6 max-w-[1320px] flex items-center justify-between h-9">
-          <div className="flex items-center gap-5 text-xs font-medium text-slate-700">
-            <Link to="/" className="hover:underline underline-offset-2">{isFr ? "Personnel" : "Personal"}</Link>
-            <Link to="/contact" className="text-slate-500 hover:underline underline-offset-2">{isFr ? "Entreprise" : "Business"}</Link>
-          </div>
-          <div className="flex items-center gap-5 text-xs text-slate-500">
-            <Link to="/aide" className="hover:text-slate-800 transition-colors">
-              {isFr ? "Trouver un point de vente" : "Find a store"}
-            </Link>
-            <Link to="/a-propos" className="hover:text-slate-800 transition-colors">
-              {isFr ? "À propos" : "About"}
-            </Link>
-            <Link to="/contact" className="hover:text-slate-800 transition-colors">
-              {isFr ? "Nous joindre" : "Contact Us"}
-            </Link>
-            <LanguageSelector />
-          </div>
-        </div>
-      </div>
-
-      {/* Main navigation */}
-      <header className={`sticky top-0 z-50 bg-white border-b border-slate-200 transition-shadow duration-200 ${isScrolled ? 'shadow-sm' : ''}`}>
+      {/* Main navigation — dark premium */}
+      <header className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-[#050816]/95 backdrop-blur-lg shadow-lg shadow-black/20' : 'bg-[#050816]/80 backdrop-blur-md'} border-b border-white/5`}>
         <div className="container mx-auto px-4 max-w-[1320px]">
-          {/* Mobile: strict 3-column grid 56 / 1fr / 56 */}
-          <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
+          {/* Mobile */}
+          <div className="grid grid-cols-[56px_1fr_56px] items-center h-16 lg:hidden">
             <button
-              className="w-14 h-14 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"
+              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white rounded-lg"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle menu"
               type="button"
@@ -272,95 +246,84 @@ const Header = () => {
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            <Link to="/" className="justify-self-center flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
+            <Link to="/" className="justify-self-center flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
-              <span className="font-bold text-xl text-[#003366] tracking-tight">Nivra</span>
+              <span className="font-bold text-xl text-white tracking-tight">Nivra</span>
             </Link>
 
             <Link
               to={portalLink}
-              className="w-14 h-14 flex items-center justify-center justify-self-end text-slate-600 hover:text-[#003366] hover:bg-slate-50 rounded-lg"
+              className="w-14 h-14 flex items-center justify-center justify-self-end text-white/70 hover:text-white rounded-lg"
               aria-label="Compte"
             >
               <User className="w-5 h-5" />
             </Link>
           </div>
 
-          {/* Desktop navigation */}
+          {/* Desktop */}
           <div className="hidden lg:flex items-center h-16">
-            <Link to="/" className="flex items-center gap-2 shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
+            <Link to="/" className="flex items-center gap-2.5 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
-              <span className="font-bold text-xl text-[#003366] tracking-tight">Nivra</span>
+              <span className="font-bold text-xl text-white tracking-tight">Nivra</span>
             </Link>
 
             <nav className="flex items-center gap-1 ml-10 flex-1">
               {NAV_TARGETS.map(renderDesktopNavItem)}
             </nav>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button className="p-2 text-slate-500 hover:text-[#003366] hover:bg-slate-50 rounded-lg transition-colors" aria-label="Recherche">
-                <Search className="w-5 h-5" />
-              </button>
-              <Link
-                to={portalLink}
-                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-[#003366] text-white rounded-full hover:bg-[#002244] transition-colors"
+            <div className="flex items-center gap-3 shrink-0">
+              <LanguageSelector />
+              <Button
+                className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6 h-10 text-sm font-semibold shadow-lg shadow-blue-500/25"
+                asChild
               >
-                {isFr ? "Connexion" : "Log in"}
-              </Link>
+                <Link to="/portal/auth">
+                  {isFr ? "Commander" : "Order"}
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Mobile Menu — full-height drawer from LEFT */}
+      {/* Mobile Menu — dark drawer */}
       {isMenuOpen && (
         <>
           <div 
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden" 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden" 
             onClick={() => setIsMenuOpen(false)} 
           />
-          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
-            {/* Drawer header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between h-14">
+          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-[#0B1220] z-50 shadow-2xl lg:hidden overflow-y-auto border-r border-white/5">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between h-16">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#003366] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
                   <span className="font-bold text-white text-sm">N</span>
                 </div>
-                <span className="font-bold text-[#003366] text-lg">Nivra</span>
+                <span className="font-bold text-white text-lg">Nivra</span>
               </Link>
-              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-white/40 hover:text-white rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Navigation links — large tap targets (min 44px) */}
             <nav className="p-3">
               {NAV_TARGETS.map(renderMobileNavItem)}
             </nav>
 
-            {/* Utility links */}
-            <div className="p-4 border-t border-slate-200 space-y-1">
-              <Link to="/aide" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
-                Support
-              </Link>
-              <Link to="/a-propos" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
-                {isFr ? "À propos" : "About"}
-              </Link>
+            <div className="p-4 border-t border-white/10 space-y-1">
               <div className="px-4 py-2">
                 <LanguageSelector />
               </div>
             </div>
 
-            {/* Login CTA — prominent at bottom */}
-            <div className="p-4 border-t border-slate-200">
-              <Button className="w-full bg-[#003366] hover:bg-[#002244] text-white h-12 text-base font-semibold rounded-xl" asChild>
+            <div className="p-4 border-t border-white/10">
+              <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white h-12 text-base font-semibold rounded-xl" asChild>
                 <Link to={portalLink} onClick={() => setIsMenuOpen(false)}>
-                  <User className="w-4 h-4 mr-2" />
-                  {isFr ? "Connexion" : "Log in"}
+                  {isFr ? "Commander" : "Order"}
                 </Link>
               </Button>
             </div>

@@ -141,6 +141,46 @@
     --sidebar-ring: 168 76% 42%;
   }
 
+  /* ═══════════════════════════════════════════════════════════
+     PUBLIC DARK PREMIUM THEME — Applied to public-facing pages
+     Dark bg with blue accent, Bell/Telus premium feel
+     ═══════════════════════════════════════════════════════════ */
+  .public-dark {
+    --background: 230 60% 4%;        /* #050816 */
+    --foreground: 0 0% 100%;         /* white */
+
+    --card: 222 50% 9%;              /* #0B1220 */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 222 50% 9%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 217 91% 60%;          /* #3B82F6 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 230 60% 6%;         /* slightly lighter than bg */
+    --secondary-foreground: 226 40% 82%;
+
+    --muted: 222 40% 14%;
+    --muted-foreground: 226 40% 82%; /* #CBD5F5 */
+
+    --accent: 217 91% 60%;           /* #3B82F6 */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 217 91% 60%;
+
+    color: hsl(0 0% 100%);
+  }
+
+  .public-dark .text-muted-foreground {
+    color: hsl(226 40% 82%);
+  }
+
   .dark {
     --background: 222 47% 8%;
     --foreground: 220 14% 96%;

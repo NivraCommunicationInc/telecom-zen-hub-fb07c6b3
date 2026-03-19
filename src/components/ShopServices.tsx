@@ -1,24 +1,25 @@
 import { Wifi, Smartphone, Tv, Monitor, Shield, Headphones, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-/**
- * Bell-style "Shop Nivra services" grid of category tiles
- */
 const ShopServices = () => {
+  const { language } = useLanguage();
+  const isFr = language === 'fr';
+
   const categories = [
-    { icon: Smartphone, label: "Forfaits mobile", link: "/mobile", color: "bg-blue-50 text-[#003366]" },
-    { icon: Wifi, label: "Internet", link: "/internet", color: "bg-teal-50 text-teal-700" },
-    { icon: Tv, label: "Télévision", link: "/tv", color: "bg-indigo-50 text-indigo-700" },
-    { icon: Monitor, label: "Streaming", link: "/streaming", color: "bg-purple-50 text-purple-700" },
-    { icon: Shield, label: "Sécurité", link: "/services", color: "bg-emerald-50 text-emerald-700" },
-    { icon: Headphones, label: "Support", link: "/aide", color: "bg-amber-50 text-amber-700" },
+    { icon: Smartphone, label: isFr ? "Forfaits mobile" : "Mobile plans", link: "/mobile" },
+    { icon: Wifi, label: "Internet", link: "/internet" },
+    { icon: Tv, label: isFr ? "Télévision" : "Television", link: "/tv" },
+    { icon: Monitor, label: "Streaming", link: "/streaming" },
+    { icon: Shield, label: isFr ? "Sécurité" : "Security", link: "/services" },
+    { icon: Headphones, label: "Support", link: "/aide" },
   ];
 
   return (
-    <section className="py-16 bg-white border-t border-slate-100">
+    <section className="py-20 border-t border-white/5">
       <div className="container mx-auto px-4 max-w-7xl">
-        <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-8">
-          Magasiner les services Nivra
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-10 text-center">
+          {isFr ? "Explorer les services Nivra" : "Explore Nivra services"}
         </h2>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -26,12 +27,12 @@ const ShopServices = () => {
             <Link
               key={cat.link}
               to={cat.link}
-              className="group flex flex-col items-center gap-3 p-6 bg-white rounded-2xl border border-slate-200 hover:border-[#003366] hover:shadow-md transition-all duration-300 text-center"
+              className="group flex flex-col items-center gap-4 p-6 bg-[#0B1220] rounded-2xl border border-white/8 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 text-center"
             >
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${cat.color}`}>
-                <cat.icon className="w-7 h-7" />
+              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/15 transition-colors">
+                <cat.icon className="w-6 h-6 text-blue-400" />
               </div>
-              <span className="text-sm font-medium text-slate-700 group-hover:text-[#003366] transition-colors">
+              <span className="text-sm font-medium text-white/60 group-hover:text-white transition-colors">
                 {cat.label}
               </span>
             </Link>
