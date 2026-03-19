@@ -764,67 +764,76 @@ Deno.serve(async (req) => {
 
     console.log(`[${requestId}] Queueing email via email_queue...`);
 
-    const eventKey = `order_confirmation_${order_id}`;
+    const eventKeyBase = `order_confirmation_${order_id}`;
+    const eventKey = force
+      ? `manual_order_confirmation_${order_id}_${Date.now()}`
+      : eventKeyBase;
 
     const serviceType = services && services.length > 0
-      ? services.map(s => s.name).join(", ")
+      ? services.map((s) => s.name).join(", ")
       : "Service Nivra";
 
-    const { data: queuedEmail, error: queueError } = await supabase
-      .from("email_queue")
-      .insert({
-        event_key: eventKey,
-        to_email: client_email,
-        template_key: "order_submitted",
-        template_vars: {
-          client_name: client_first_name || "Client",
-          client_email: client_email,
-          order_id: order_id,
-          order_number: order_number,
-          invoice_id: latestInvoice?.id || null,
-          invoice_number: latestInvoice?.invoice_number || null,
-          service_type: serviceType,
-          total_amount: canonicalAmountPaidToday,
-          subtotal: canonicalSubtotal,
-          tps_amount: canonicalTps,
-          tvq_amount: canonicalTvq,
-          taxes_total: toNum(canonicalTps + canonicalTvq),
-          one_time_total: canonicalOneTime,
-          one_time_charges: canonicalOneTime,
-          monthly_recurring_amount: canonicalRecurring,
-          discount_amount: canonicalDiscount,
-          total_payable: canonicalTotalPayable,
-          amount_paid_today: canonicalAmountPaidToday,
-          amount_paid_total: canonicalAmountPaidTotal,
-          amount_due_today: canonicalBalanceDue,
-          balance_due: canonicalBalanceDue,
-          delivery_method: getDeliveryMethodLabel(delivery_method),
-          delivery_address: delivery_address ?
-            `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}` : null,
-          payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
-          payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
-          portal_path: `/portal/orders/${order_id}`,
-        },
-        status: "queued",
-        attempts: 0,
-        max_attempts: 3,
-      })
-      .select("id")
-      .single();
+    const queuePayload = {
+      event_key: eventKey,
+      to_email: client_email,
+      template_key: "order_submitted",
+      template_vars: {
+        manual_send: force,
+        client_name: client_first_name || "Client",
+        client_email,
+        order_id,
+        order_number,
+        invoice_id: latestInvoice?.id || null,
+        invoice_number: latestInvoice?.invoice_number || null,
+        service_type: serviceType,
+        total_amount: canonicalAmountPaidToday,
+        subtotal: canonicalSubtotal,
+        tps_amount: canonicalTps,
+        tvq_amount: canonicalTvq,
+        taxes_total: toNum(canonicalTps + canonicalTvq),
+        one_time_total: canonicalOneTime,
+        one_time_charges: canonicalOneTime,
+        monthly_recurring_amount: canonicalRecurring,
+        discount_amount: canonicalDiscount,
+        total_payable: canonicalTotalPayable,
+        amount_paid_today: canonicalAmountPaidToday,
+        amount_paid_total: canonicalAmountPaidTotal,
+        amount_due_today: canonicalBalanceDue,
+        balance_due: canonicalBalanceDue,
+        delivery_method: getDeliveryMethodLabel(delivery_method),
+        delivery_address: delivery_address
+          ? `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}`
+          : null,
+        payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
+        payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
+        portal_path: `/portal/orders/${order_id}`,
+      },
+      status: "queued",
+      attempts: 0,
+      max_attempts: 3,
+    };
 
-    if (queueError) {
-      console.error(`[${requestId}] Failed to queue email:`, queueError);
+    const { data: queuedEmail, error: queueInsertError } = await supabase
+      .from("email_queue")
+      .insert(queuePayload)
+      .select("id")
+      .maybeSingle();
+
+    let queuedEmailId = queuedEmail?.id ?? null;
+
+    if (queueInsertError && queueInsertError.code !== "PGRST116") {
+      console.error(`[${requestId}] Failed to queue email:`, queueInsertError);
       logResult("error", {
         order_id,
         order_number,
         to_email: maskEmail(client_email),
-        error: queueError.message,
+        error: queueInsertError.message,
       });
       return new Response(JSON.stringify({
         success: false,
         status: "error",
         error: "Failed to queue email",
-        details: queueError.message,
+        details: queueInsertError.message,
         request_id: requestId,
       }), {
         status: 500,
@@ -832,7 +841,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[${requestId}] ✅ Email queued successfully: ${queuedEmail.id}`);
+    if (!queuedEmailId) {
+      const { data: existingQueuedEmail, error: lookupError } = await supabase
+        .from("email_queue")
+        .select("id")
+        .eq("event_key", eventKey)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lookupError || !existingQueuedEmail?.id) {
+        const details = lookupError?.message || "No queued email row returned after insert";
+        console.error(`[${requestId}] Failed to resolve queued email ID:`, lookupError || details);
+        logResult("error", {
+          order_id,
+          order_number,
+          to_email: maskEmail(client_email),
+          error: details,
+        });
+        return new Response(JSON.stringify({
+          success: false,
+          status: "error",
+          error: "Failed to resolve queued email",
+          details,
+          request_id: requestId,
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      queuedEmailId = existingQueuedEmail.id;
+    }
+
+    console.log(`[${requestId}] ✅ Email queued successfully: ${queuedEmailId}`);
 
     // Update order to mark confirmation as queued
     const { error: updateError } = await supabase
@@ -849,7 +891,7 @@ Deno.serve(async (req) => {
       order_number,
       to_email: maskEmail(client_email),
       method: "email_queue",
-      email_queue_id: queuedEmail.id,
+      email_queue_id: queuedEmailId,
       forced: force,
     });
 
@@ -865,7 +907,7 @@ Deno.serve(async (req) => {
         }),
         clientId: clientIdForSms,
         eventType: "order_confirmation",
-        eventKey: `order_confirmation_${order_id}`,
+        eventKey: eventKeyBase,
       });
       console.log(`[${requestId}] SMS result:`, JSON.stringify(smsResult));
     }
@@ -875,7 +917,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       status: "queued",
-      email_queue_id: queuedEmail.id,
+      email_queue_id: queuedEmailId,
       order_number,
       method: "email_queue",
     }), {
