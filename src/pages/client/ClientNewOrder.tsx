@@ -3587,6 +3587,11 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       toast.error("Veuillez accepter les termes et conditions");
       return;
     }
+    if (acceptPreauthorized && !recurringPaymentAccepted) {
+      submittingRef.current = false;
+      toast.error("Veuillez autoriser le prélèvement automatique pour continuer");
+      return;
+    }
 
     // Lock UI totals during submission to prevent any mid-flight live pricing refresh
     // from changing the displayed amounts (e.g., 109,23$ -> 183,96$).
