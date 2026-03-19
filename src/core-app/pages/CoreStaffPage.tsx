@@ -206,8 +206,16 @@ export default function CoreStaffPage() {
         can_access_technician: payload.can_access_technician,
       });
     },
-    onSuccess: () => {
-      toast.success("Employé créé avec succès");
+    onSuccess: (response: any) => {
+      const invitationError = typeof response?.invitation_error === "string" ? response.invitation_error : null;
+      const message = response?.message || "Employé créé avec succès";
+
+      if (invitationError) {
+        toast.warning(`${message} (${invitationError})`);
+      } else {
+        toast.success(message);
+      }
+
       setCreateOpen(false);
       setForm(defaultForm);
       invalidateStaffData();
