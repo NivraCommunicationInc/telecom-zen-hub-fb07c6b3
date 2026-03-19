@@ -47,7 +47,7 @@ const PORTALS: PortalCard[] = [
     label: "Nivra Employee",
     description: "Staff workspace — Client management, orders, tickets, appointments, POS.",
     icon: Briefcase,
-    href: "/staff/employee",
+    href: "/employee",
     color: "text-blue-400",
     bgColor: "bg-blue-600/10",
     borderColor: "border-blue-600/20 hover:border-blue-500/40",

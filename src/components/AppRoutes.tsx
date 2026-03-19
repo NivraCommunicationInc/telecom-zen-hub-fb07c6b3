@@ -10,6 +10,23 @@ const HubPage = lazy(() => import("@/pages/hub/HubPage"));
 const HubLoginPage = lazy(() => import("@/pages/hub/HubLoginPage"));
 const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"));
 
+// Employee Portal (lazy-loaded, fully isolated)
+const EmployeeAppLayout = lazy(() => import("@/employee-app/EmployeeAppLayout"));
+const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/EmployeeProtectedRoute"));
+const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
+const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
+const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
+const EmployeeOrderDetail = lazy(() => import("@/employee-app/pages/EmployeeOrderDetail"));
+const EmployeeClients = lazy(() => import("@/employee-app/pages/EmployeeClients"));
+const EmployeeClientDetail = lazy(() => import("@/employee-app/pages/EmployeeClientDetail"));
+const EmployeePayments = lazy(() => import("@/employee-app/pages/EmployeePayments"));
+const EmployeeKYC = lazy(() => import("@/employee-app/pages/EmployeeKYC"));
+const EmployeeActivations = lazy(() => import("@/employee-app/pages/EmployeeActivations"));
+const EmployeeSupport = lazy(() => import("@/employee-app/pages/EmployeeSupport"));
+const EmployeeAudit = lazy(() => import("@/employee-app/pages/EmployeeAudit"));
+const EmployeeProfile = lazy(() => import("@/employee-app/pages/EmployeeProfile"));
+const EmployeeSecurity = lazy(() => import("@/employee-app/pages/EmployeeSecurity"));
+
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
 const CoreProtectedRoute = lazy(() => import("@/core-app/components/CoreProtectedRoute"));
@@ -724,6 +741,28 @@ const AppRoutes = () => {
       <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubLoginPage /></Suspense>} />
       <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubProtectedRoute /></Suspense>}>
         <Route index element={<Suspense fallback={null}><HubPage /></Suspense>} />
+      </Route>
+
+      {/* ============================================ */}
+      {/* EMPLOYEE PORTAL — Operational Workspace       */}
+      {/* ============================================ */}
+      <Route path="/employee" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><EmployeeProtectedRoute /></Suspense>}>
+        <Route element={<Suspense fallback={null}><EmployeeAppLayout /></Suspense>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
+          <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
+          <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
+          <Route path="orders/:orderId" element={<Suspense fallback={null}><EmployeeOrderDetail /></Suspense>} />
+          <Route path="clients" element={<Suspense fallback={null}><EmployeeClients /></Suspense>} />
+          <Route path="clients/:clientId" element={<Suspense fallback={null}><EmployeeClientDetail /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={null}><EmployeePayments /></Suspense>} />
+          <Route path="kyc" element={<Suspense fallback={null}><EmployeeKYC /></Suspense>} />
+          <Route path="activations" element={<Suspense fallback={null}><EmployeeActivations /></Suspense>} />
+          <Route path="support" element={<Suspense fallback={null}><EmployeeSupport /></Suspense>} />
+          <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />
+          <Route path="security" element={<Suspense fallback={null}><EmployeeSecurity /></Suspense>} />
+        </Route>
       </Route>
 
       {/* Catch-all 404 */}
