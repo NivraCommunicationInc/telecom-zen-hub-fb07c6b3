@@ -713,11 +713,17 @@ serve(async (req: Request) => {
 
         const { error: profileError } = await adminClient
           .from("profiles")
-          .upsert({
-            user_id: userId,
-            email,
-            full_name,
-          }, { onConflict: "user_id" });
+          .upsert(
+            {
+              user_id: userId,
+              email: normalizedEmail,
+              full_name: resolvedFullName,
+              first_name: normalizedFirstName || null,
+              last_name: normalizedLastName || null,
+              phone: phone || null,
+            },
+            { onConflict: "user_id" }
+          );
 
         if (profileError) {
           console.error(`[admin-manage-staff] ${stepProfiles} error:`, profileError);
@@ -725,9 +731,9 @@ serve(async (req: Request) => {
             request_id: requestId,
             step: stepProfiles,
             message: profileError.message,
-            target_email: email,
+            target_email: normalizedEmail,
             supabase_error: { code: profileError.code, message: profileError.message, details: profileError.details },
-          }, { type: "user", id: userId, email });
+          }, { type: "user", id: userId, email: normalizedEmail });
 
           return json(500, {
             ok: false,
@@ -750,8 +756,9 @@ serve(async (req: Request) => {
           permissions: body.permissions || {},
           is_active: is_active,
           require_password_change: require_password_change || send_invitation,
+          mfa_required,
           can_access_core: body.can_access_core ?? (role === "admin"),
-          can_access_employee: body.can_access_employee ?? (role === "employee" || role === "admin"),
+          can_access_employee: body.can_access_employee ?? (role !== "admin"),
           can_access_field: body.can_access_field ?? (role === "field_sales"),
           can_access_technician: body.can_access_technician ?? (role === "technician"),
         });
