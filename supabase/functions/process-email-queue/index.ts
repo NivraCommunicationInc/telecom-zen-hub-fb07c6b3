@@ -57,6 +57,28 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
   try {
     switch (pdfType) {
       case 'invoice': {
+        const canonicalTotal = Number(
+          vars.total_payable ??
+          vars.canonical_total_payable ??
+          vars.total ??
+          vars.amount ??
+          0,
+        ) || 0;
+        const canonicalAmountDue = Number(
+          vars.amount_due_today ??
+          vars.balance_due ??
+          vars.canonical_balance_due ??
+          canonicalTotal,
+        ) || 0;
+        const canonicalSubtotal = Number(
+          vars.subtotal ??
+          vars.taxable_base ??
+          vars.canonical_subtotal ??
+          canonicalTotal,
+        ) || 0;
+        const canonicalTps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
+        const canonicalTvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
+
         const invoiceData: InvoiceData = {
           invoice_number: vars.invoice_number || vars.invoiceNumber || `NV-${Date.now()}`,
           invoice_date: vars.invoice_date || vars.created_at || new Date().toISOString(),
@@ -69,15 +91,15 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
           client_phone: vars.client_phone || vars.phone || '',
           client_address: vars.client_address || vars.address || '',
           services: vars.services || [
-            { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: vars.amount || 0 }
+            { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: canonicalTotal }
           ],
-          subtotal: vars.subtotal || vars.amount || 0,
-          tps: vars.tps || (vars.amount || 0) * 0.05,
-          tvq: vars.tvq || (vars.amount || 0) * 0.09975,
-          total: vars.total || (vars.amount || 0) * 1.14975,
+          subtotal: canonicalSubtotal,
+          tps: canonicalTps,
+          tvq: canonicalTvq,
+          total: canonicalTotal,
           previous_balance: vars.previous_balance || 0,
           payments: vars.payments || [],
-          balance_due: vars.balance_due || vars.amount || 0,
+          balance_due: canonicalAmountDue,
         };
         return generatePDFAttachment('invoice', invoiceData);
       }
@@ -104,6 +126,11 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
       }
       
       case 'summary': {
+        const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_amount ?? 0) || 0;
+        const totalPayable = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? paidToday) || 0;
+        const tps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
+        const tvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
+
         const summaryData: SummaryData = {
           order_number: vars.order_number || vars.order_id?.substring(0, 8) || "—",
           order_date: vars.order_date || vars.created_at || new Date().toISOString(),
@@ -113,13 +140,13 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
           client_phone: vars.client_phone || vars.phone || '',
           client_address: vars.client_address || vars.service_address || '',
           services: vars.services || [
-            { name: vars.service_type || 'Service Nivra', price: vars.total_amount || 0, is_recurring: true }
+            { name: vars.service_type || 'Service Nivra', price: paidToday || totalPayable, is_recurring: true }
           ],
-          subtotal_recurring: vars.subtotal_recurring || vars.monthly_amount || 0,
-          subtotal_one_time: vars.subtotal_one_time || vars.one_time_amount || 0,
-          tps: vars.tps || (vars.total_amount || 0) * 0.05,
-          tvq: vars.tvq || (vars.total_amount || 0) * 0.09975,
-          total: vars.total || vars.total_amount || 0,
+          subtotal_recurring: Number(vars.monthly_recurring_amount ?? vars.subtotal_recurring ?? vars.monthly_amount ?? 0) || 0,
+          subtotal_one_time: Number(vars.one_time_charges ?? vars.subtotal_one_time ?? vars.one_time_amount ?? 0) || 0,
+          tps,
+          tvq,
+          total: totalPayable,
           installation_date: vars.installation_date || vars.scheduled_at || '',
         };
         return generatePDFAttachment('summary', summaryData);
@@ -193,6 +220,208 @@ const joinUrl = (baseUrl: string, path: string): string => {
   
   return result;
 };
+
+const toMoney = (value: unknown): number | null => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+};
+
+const PAYMENT_AMOUNT_TEMPLATES = new Set([
+  "payment_confirmed",
+  "payment_received",
+  "payment_receipt",
+  "invoice_paid",
+]);
+
+const DUE_AMOUNT_TEMPLATES = new Set([
+  "invoice_created",
+  "invoice_overdue",
+  "payment_reminder_1day",
+  "payment_due_today",
+  "payment_overdue_1day",
+  "service_suspension_warning",
+  "renewal_invoice_created",
+]);
+
+async function resolveCanonicalFinancialVars(
+  supabase: ReturnType<typeof createClient>,
+  emailRow: Record<string, any>,
+  templateKey: string,
+  incomingVars: Record<string, any>,
+): Promise<Record<string, any>> {
+  const vars = { ...incomingVars };
+
+  try {
+    const invoiceIdFromEntity = emailRow.entity_type === "invoice" ? emailRow.entity_id : null;
+    const orderIdFromEntity = emailRow.entity_type === "order" ? emailRow.entity_id : null;
+
+    const requestedInvoiceId = String(vars.invoice_id || invoiceIdFromEntity || "").trim();
+    const requestedInvoiceNumber = String(vars.invoice_number || "").trim();
+    const requestedOrderId = String(vars.order_id || orderIdFromEntity || "").trim();
+    const requestedOrderNumber = String(vars.order_number || "").trim();
+    const paymentRef = String(vars.payment_reference || vars.reference || "").trim();
+
+    let invoice: Record<string, any> | null = null;
+    let order: Record<string, any> | null = null;
+    let payment: Record<string, any> | null = null;
+
+    if (requestedInvoiceId) {
+      const { data } = await supabase
+        .from("billing_invoices")
+        .select("id, order_id, invoice_number, subtotal, tps_amount, tvq_amount, total, amount_paid, balance_due, status, due_date")
+        .eq("id", requestedInvoiceId)
+        .maybeSingle();
+      invoice = data as Record<string, any> | null;
+    }
+
+    if (!invoice && requestedInvoiceNumber) {
+      const { data } = await supabase
+        .from("billing_invoices")
+        .select("id, order_id, invoice_number, subtotal, tps_amount, tvq_amount, total, amount_paid, balance_due, status, due_date")
+        .eq("invoice_number", requestedInvoiceNumber)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      invoice = data as Record<string, any> | null;
+    }
+
+    if (!invoice && requestedOrderId) {
+      const { data } = await supabase
+        .from("billing_invoices")
+        .select("id, order_id, invoice_number, subtotal, tps_amount, tvq_amount, total, amount_paid, balance_due, status, due_date")
+        .eq("order_id", requestedOrderId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      invoice = data as Record<string, any> | null;
+    }
+
+    const resolvedOrderId = requestedOrderId || String(invoice?.order_id || "").trim();
+
+    if (resolvedOrderId) {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot")
+        .eq("id", resolvedOrderId)
+        .maybeSingle();
+      order = data as Record<string, any> | null;
+    }
+
+    if (!order && requestedOrderNumber) {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot")
+        .eq("order_number", requestedOrderNumber)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      order = data as Record<string, any> | null;
+    }
+
+    const invoiceId = String(invoice?.id || "").trim();
+    if (invoiceId) {
+      const { data: payments } = await supabase
+        .from("billing_payments")
+        .select("amount, method, payment_number, reference, provider_payment_id, status, created_at")
+        .eq("invoice_id", invoiceId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const paymentRows = (payments || []) as Record<string, any>[];
+      payment = paymentRows.find((p) =>
+        paymentRef && (p.provider_payment_id === paymentRef || p.reference === paymentRef)
+      )
+        || paymentRows.find((p) => ["confirmed", "completed"].includes(String(p.status || "")))
+        || paymentRows[0]
+        || null;
+    }
+
+    const snapshot = (order?.pricing_snapshot || {}) as Record<string, any>;
+    const promoDiscount = toMoney(snapshot?.promo_discount) || 0;
+    const welcomeDiscount = toMoney(snapshot?.welcome_discount) || 0;
+
+    const canonicalSubtotal = toMoney(snapshot?.taxable_base ?? snapshot?.subtotal ?? invoice?.subtotal ?? vars.subtotal);
+    const canonicalTps = toMoney(snapshot?.tps_amount ?? invoice?.tps_amount ?? vars.tps_amount ?? vars.tps);
+    const canonicalTvq = toMoney(snapshot?.tvq_amount ?? invoice?.tvq_amount ?? vars.tvq_amount ?? vars.tvq);
+    const canonicalDiscount = toMoney(snapshot?.discount_total_combined ?? (promoDiscount + welcomeDiscount) ?? vars.discount_amount);
+    const canonicalRecurring = toMoney(snapshot?.recurring_subtotal ?? vars.monthly_recurring_amount);
+    const canonicalOneTime = toMoney(snapshot?.one_time_subtotal ?? vars.one_time_charges ?? vars.one_time_total);
+
+    const canonicalTotalPayable = toMoney(
+      invoice?.total ??
+      snapshot?.grand_total ??
+      order?.total_amount ??
+      vars.total_payable ??
+      vars.canonical_total_payable ??
+      vars.total ??
+      vars.amount,
+    );
+
+    const canonicalAmountPaidTotal = toMoney(
+      invoice?.amount_paid ?? vars.amount_paid_total ?? vars.canonical_amount_paid_total,
+    );
+
+    const canonicalAmountDue = toMoney(
+      invoice?.balance_due ??
+      vars.amount_due_today ??
+      vars.balance_due ??
+      ((canonicalTotalPayable || 0) - (canonicalAmountPaidTotal || 0)),
+    );
+
+    const canonicalAmountPaidToday = toMoney(
+      payment?.amount ??
+      vars.amount_paid_today ??
+      vars.amount_paid ??
+      (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)
+        ? (canonicalAmountPaidTotal ?? canonicalTotalPayable)
+        : null),
+    );
+
+    const merged: Record<string, any> = {
+      ...vars,
+      order_id: vars.order_id || order?.id || invoice?.order_id || undefined,
+      order_number: vars.order_number || order?.order_number || undefined,
+      invoice_id: vars.invoice_id || invoice?.id || undefined,
+      invoice_number: vars.invoice_number || invoice?.invoice_number || undefined,
+      payment_method: vars.payment_method || payment?.method || order?.payment_method || undefined,
+      payment_reference: vars.payment_reference || vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
+      reference: vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
+      subtotal: canonicalSubtotal ?? vars.subtotal,
+      tps_amount: canonicalTps ?? vars.tps_amount,
+      tvq_amount: canonicalTvq ?? vars.tvq_amount,
+      taxes_total: toMoney((canonicalTps || 0) + (canonicalTvq || 0)),
+      discount_amount: canonicalDiscount ?? vars.discount_amount,
+      monthly_recurring_amount: canonicalRecurring ?? vars.monthly_recurring_amount,
+      one_time_charges: canonicalOneTime ?? vars.one_time_charges ?? vars.one_time_total,
+      total_payable: canonicalTotalPayable ?? vars.total_payable,
+      canonical_total_payable: canonicalTotalPayable,
+      amount_paid_total: canonicalAmountPaidTotal ?? vars.amount_paid_total,
+      canonical_amount_paid_total: canonicalAmountPaidTotal,
+      amount_paid_today: canonicalAmountPaidToday ?? vars.amount_paid_today,
+      canonical_amount_paid_today: canonicalAmountPaidToday,
+      amount_due_today: canonicalAmountDue ?? vars.amount_due_today,
+      canonical_balance_due: canonicalAmountDue,
+      total_amount: (templateKey === "order_submitted" || templateKey === "order_confirmation")
+        ? (canonicalAmountPaidToday ?? canonicalTotalPayable ?? vars.total_amount)
+        : vars.total_amount,
+    };
+
+    if (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)) {
+      merged.amount = canonicalAmountPaidToday ?? canonicalAmountPaidTotal ?? canonicalTotalPayable ?? vars.amount;
+      merged.total = canonicalTotalPayable ?? vars.total;
+      merged.balance_due = canonicalAmountDue ?? vars.balance_due;
+    } else if (DUE_AMOUNT_TEMPLATES.has(templateKey)) {
+      merged.amount = canonicalAmountDue ?? canonicalTotalPayable ?? vars.amount;
+      merged.total = canonicalTotalPayable ?? vars.total;
+      merged.balance_due = canonicalAmountDue ?? vars.balance_due;
+    }
+
+    return merged;
+  } catch (error) {
+    console.error("[email-canonical-financial] Failed to enrich template vars:", error);
+    return vars;
+  }
+}
 
 // Professional email wrapper with header and footer
 const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string, supportEmail?: string) => {
@@ -498,7 +727,13 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: 'Nº commande / Order #', value: vars.order_number || vars.order_id?.substring(0, 8) || 'N/A' },
         { label: 'Service', value: vars.service_type || 'N/A' },
-        { label: 'Montant / Amount', value: formatCurrency(vars.total_amount) },
+        { label: 'Payé aujourd’hui / Paid today', value: formatCurrency(vars.amount_paid_today ?? vars.total_amount ?? vars.total_payable) },
+        ...(vars.total_payable !== undefined ? [{ label: 'Total payable / Total payable', value: formatCurrency(vars.total_payable) }] : []),
+        ...(vars.monthly_recurring_amount !== undefined ? [{ label: 'Mensuel récurrent / Recurring monthly', value: formatCurrency(vars.monthly_recurring_amount) }] : []),
+        ...(vars.one_time_charges !== undefined ? [{ label: 'Frais uniques / One-time', value: formatCurrency(vars.one_time_charges) }] : []),
+        ...(vars.discount_amount ? [{ label: 'Rabais total / Total discount', value: `-${formatCurrency(Math.abs(Number(vars.discount_amount) || 0))}` }] : []),
+        ...(vars.tps_amount !== undefined ? [{ label: 'TPS', value: formatCurrency(vars.tps_amount) }] : []),
+        ...(vars.tvq_amount !== undefined ? [{ label: 'TVQ', value: formatCurrency(vars.tvq_amount) }] : []),
         { label: 'Date', value: formatDate(new Date().toISOString()) },
       ])}
       <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
@@ -2392,7 +2627,13 @@ Deno.serve(async (req) => {
         const templateKey = templateKeyAliases[rawTemplateKey] || rawTemplateKey;
         
         // Support both template_vars and template_data (Billing V2 uses template_data)
-        const templateVars = email.template_vars || email.template_data || {};
+        const rawTemplateVars = email.template_vars || email.template_data || {};
+        const templateVars = await resolveCanonicalFinancialVars(
+          supabase,
+          email as Record<string, any>,
+          templateKey,
+          rawTemplateVars,
+        );
         
         const template = emailTemplates[templateKey];
         

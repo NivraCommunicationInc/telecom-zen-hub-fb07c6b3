@@ -111,4 +111,24 @@ describe("Billing Financial Invariants", () => {
       });
     }
   });
+  describe("Email financial canonical invariants", () => {
+    it("send-order-confirmation MUST NOT map total_amount from monthly_total_tax_in", () => {
+      const code = readFile("supabase/functions/send-order-confirmation/index.ts");
+      expect(code).not.toContain("total_amount: monthly_total_tax_in");
+      expect(code).toContain("amount_paid_today: canonicalAmountPaidToday");
+      expect(code).toContain("total_payable: canonicalTotalPayable");
+    });
+
+    it("process-email-queue MUST enforce canonical enrichment before rendering", () => {
+      const code = readFile("supabase/functions/process-email-queue/index.ts");
+      expect(code).toContain("resolveCanonicalFinancialVars(");
+      expect(code).toContain("const templateVars = await resolveCanonicalFinancialVars");
+    });
+
+    it("order_submitted template MUST show paid today, not legacy monthly-only total", () => {
+      const code = readFile("supabase/functions/process-email-queue/index.ts");
+      expect(code).toContain("Payé aujourd’hui / Paid today");
+      expect(code).toContain("formatCurrency(vars.amount_paid_today ?? vars.total_amount ?? vars.total_payable)");
+    });
+  });
 });

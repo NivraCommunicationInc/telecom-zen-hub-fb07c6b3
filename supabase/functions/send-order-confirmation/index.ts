@@ -679,7 +679,7 @@ Deno.serve(async (req) => {
 
     const { data: orderData, error: checkError } = await supabase
       .from("orders")
-      .select("confirmation_email_sent_at, client_phone, user_id, created_at")
+      .select("confirmation_email_sent_at, client_phone, user_id, created_at, payment_method, payment_reference, total_amount, pricing_snapshot")
       .eq("id", order_id)
       .single();
 
@@ -690,6 +690,26 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const { data: latestInvoice } = await supabase
+      .from("billing_invoices")
+      .select("id, invoice_number, total, amount_paid, balance_due")
+      .eq("order_id", order_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let latestPayment: { provider_payment_id?: string | null; reference?: string | null; method?: string | null } | null = null;
+    if (latestInvoice?.id) {
+      const { data } = await supabase
+        .from("billing_payments")
+        .select("provider_payment_id, reference, method")
+        .eq("invoice_id", latestInvoice.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      latestPayment = data;
     }
 
     const phoneForSms = client_phone || orderData?.client_phone;
@@ -715,25 +735,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Calculate taxes if not provided
-    const taxes = calculateTaxes(monthly_total_tax_in);
-    const finalSubtotal = providedSubtotal ?? taxes.subtotal;
-    const finalTps = providedTps ?? taxes.tps;
-    const finalTvq = providedTvq ?? taxes.tvq;
+    const toNum = (value: unknown): number => {
+      const n = Number(value);
+      return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+    };
+
+    const pricingSnapshot = (orderData?.pricing_snapshot || {}) as Record<string, any>;
+    const fallbackTaxes = calculateTaxes(Number(monthly_total_tax_in || 0));
+
+    const canonicalSubtotal = toNum(pricingSnapshot?.taxable_base ?? pricingSnapshot?.subtotal ?? providedSubtotal ?? fallbackTaxes.subtotal);
+    const canonicalTps = toNum(pricingSnapshot?.tps_amount ?? providedTps ?? fallbackTaxes.tps);
+    const canonicalTvq = toNum(pricingSnapshot?.tvq_amount ?? providedTvq ?? fallbackTaxes.tvq);
+    const canonicalTotalPayable = toNum(pricingSnapshot?.grand_total ?? latestInvoice?.total ?? orderData?.total_amount ?? monthly_total_tax_in);
+    const canonicalAmountPaidTotal = toNum(latestInvoice?.amount_paid);
+    const canonicalBalanceDue = toNum(latestInvoice?.balance_due ?? Math.max(canonicalTotalPayable - canonicalAmountPaidTotal, 0));
+    const canonicalAmountPaidToday = canonicalAmountPaidTotal > 0 ? canonicalAmountPaidTotal : canonicalTotalPayable;
+    const canonicalRecurring = toNum(pricingSnapshot?.recurring_subtotal);
+    const canonicalOneTime = toNum(pricingSnapshot?.one_time_subtotal ?? one_time_total ?? 0);
+    const canonicalDiscount = toNum(
+      pricingSnapshot?.discount_total_combined ??
+      ((Number(pricingSnapshot?.promo_discount || 0) + Number(pricingSnapshot?.welcome_discount || 0))),
+    );
 
     const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivra-telecom.ca";
 
     console.log(`[${requestId}] Queueing email via email_queue...`);
 
-    // Create unique event key for idempotency
     const eventKey = `order_confirmation_${order_id}`;
 
-    // Build service type string for template
-    const serviceType = services && services.length > 0 
+    const serviceType = services && services.length > 0
       ? services.map(s => s.name).join(", ")
       : "Service Nivra";
 
-    // Queue email for processing by process-email-queue with professional template
     const { data: queuedEmail, error: queueError } = await supabase
       .from("email_queue")
       .insert({
@@ -745,17 +778,28 @@ Deno.serve(async (req) => {
           client_email: client_email,
           order_id: order_id,
           order_number: order_number,
+          invoice_id: latestInvoice?.id || null,
+          invoice_number: latestInvoice?.invoice_number || null,
           service_type: serviceType,
-          total_amount: monthly_total_tax_in,
-          subtotal: finalSubtotal,
-          tps_amount: finalTps,
-          tvq_amount: finalTvq,
-          one_time_total: one_time_total || 0,
+          total_amount: canonicalAmountPaidToday,
+          subtotal: canonicalSubtotal,
+          tps_amount: canonicalTps,
+          tvq_amount: canonicalTvq,
+          taxes_total: toNum(canonicalTps + canonicalTvq),
+          one_time_total: canonicalOneTime,
+          one_time_charges: canonicalOneTime,
+          monthly_recurring_amount: canonicalRecurring,
+          discount_amount: canonicalDiscount,
+          total_payable: canonicalTotalPayable,
+          amount_paid_today: canonicalAmountPaidToday,
+          amount_paid_total: canonicalAmountPaidTotal,
+          amount_due_today: canonicalBalanceDue,
+          balance_due: canonicalBalanceDue,
           delivery_method: getDeliveryMethodLabel(delivery_method),
-          delivery_address: delivery_address ? 
+          delivery_address: delivery_address ?
             `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}` : null,
-          payment_reference: payment_reference,
-          payment_method: payment_method,
+          payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
+          payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
           portal_path: `/portal/orders/${order_id}`,
         },
         status: "queued",
