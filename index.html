@@ -37,32 +37,20 @@
 <meta name="twitter:site" content="@NivraQC" />
 
 <style>
-html,body{
-margin:0;
-padding:0;
-background:#0b1220;
-font-family:Inter, sans-serif;
-}
-
-#loader{
-height:100vh;
-display:flex;
-align-items:center;
-justify-content:center;
-color:white;
-background:#0b1220;
-flex-direction:column;
-}
-
-.loader-title{
-font-size:22px;
-margin-bottom:10px;
-}
-
-.loader-sub{
-font-size:14px;
-opacity:0.6;
-}
+html,body{margin:0;padding:0;background:#0b1220;font-family:Inter,sans-serif;color:#e2e8f0}
+.pre-header{background:#0b1220;border-bottom:1px solid rgba(255,255,255,.08);padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.pre-logo{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.5px}
+.pre-nav{display:flex;gap:24px}
+.pre-nav a{color:rgba(255,255,255,.7);text-decoration:none;font-size:14px}
+.pre-hero{max-width:800px;margin:80px auto 40px;padding:0 24px;text-align:center}
+.pre-hero h1{font-size:clamp(28px,5vw,48px);font-weight:700;color:#fff;line-height:1.2;margin:0 0 16px}
+.pre-hero p{font-size:18px;color:rgba(255,255,255,.65);line-height:1.6;margin:0 0 32px}
+.pre-services{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:960px;margin:0 auto 60px;padding:0 24px}
+.pre-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:28px 20px;text-align:center}
+.pre-card h3{font-size:18px;font-weight:600;color:#fff;margin:0 0 8px}
+.pre-card p{font-size:14px;color:rgba(255,255,255,.55);margin:0}
+.pre-footer{text-align:center;padding:40px 24px;border-top:1px solid rgba(255,255,255,.08);font-size:13px;color:rgba(255,255,255,.4)}
+@media(max-width:600px){.pre-nav{display:none}}
 </style>
 
 </head>
@@ -70,10 +58,27 @@ opacity:0.6;
 <body>
 
 <div id="root">
-<div id="loader">
-<div class="loader-title">Nivra Telecom</div>
-<div class="loader-sub">Chargement...</div>
+<div class="pre-header">
+<div class="pre-logo">Nivra Telecom</div>
+<nav class="pre-nav">
+<a href="/internet">Internet</a>
+<a href="/mobile">Mobile</a>
+<a href="/tv">Télévision</a>
+<a href="/services">Services</a>
+<a href="/contact">Contact</a>
+</nav>
 </div>
+<div class="pre-hero">
+<h1>Télécom prépayée au Québec, sans engagement</h1>
+<p>Internet haute vitesse, mobile 5G prépayé, télévision IPTV et sécurité résidentielle. Sans contrat, activation rapide, support 7j/7.</p>
+</div>
+<div class="pre-services">
+<div class="pre-card"><h3>Internet</h3><p>Haute vitesse illimitée dès 45$/mois</p></div>
+<div class="pre-card"><h3>Mobile</h3><p>Forfaits 5G prépayés dès 50$/mois</p></div>
+<div class="pre-card"><h3>Télévision</h3><p>200+ chaînes IPTV sans contrat</p></div>
+<div class="pre-card"><h3>Sécurité</h3><p>Protection résidentielle intelligente</p></div>
+</div>
+<div class="pre-footer">© 2025 Nivra Telecom inc. — Services télécom prépayés au Québec</div>
 </div>
 
 <script type="module" src="/src/main.tsx"></script>
