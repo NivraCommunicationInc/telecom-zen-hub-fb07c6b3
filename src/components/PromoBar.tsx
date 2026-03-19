@@ -6,16 +6,16 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const PromoBar = () => {
   const [dismissed, setDismissed] = useState(false);
   const { language } = useLanguage();
-  const isFr = language === 'fr';
+  const isFr = language === "fr";
 
   if (dismissed) return null;
 
   return (
-    <div className="w-full bg-black text-white py-3 px-4 relative">
+    <div className="relative w-full bg-foreground px-4 py-3 text-background">
       <div className="container mx-auto flex items-center justify-center gap-2 text-center">
         <span className="text-sm">
           {isFr ? "★ Livraison gratuite et " : "★ Free delivery and "}
-          <Link to="/compare" className="font-bold underline underline-offset-2 hover:text-amber-300 transition-colors">
+          <Link to="/compare" className="font-bold underline underline-offset-2 transition-colors hover:text-primary">
             {isFr ? "frais d'activation à 0$ en ligne." : "activation fees at $0 online."}
           </Link>
           {" ★"}
@@ -23,10 +23,10 @@ const PromoBar = () => {
       </div>
       <button
         onClick={() => setDismissed(true)}
-        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors"
+        className="absolute right-4 top-1/2 -translate-y-1/2 text-background/60 transition-colors hover:text-background"
         aria-label="Close"
       >
-        <X className="w-4 h-4" />
+        <X className="h-4 w-4" />
       </button>
     </div>
   );

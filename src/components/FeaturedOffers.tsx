@@ -1,182 +1,189 @@
 import { useMemo } from "react";
 import { usePublicServices, type PublicService } from "@/hooks/usePublicServices";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, Wifi, Smartphone } from "lucide-react";
+import { ArrowRight, Smartphone, Wifi } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const getServiceFeatures = (service: PublicService): string[] => {
-  if (service.features_json.length > 0) return service.features_json.slice(0, 3);
-  if (service.short_description) return service.short_description.split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 3);
-  return (service.description || "").split(/•|\||;/g).map((f) => f.trim()).filter(Boolean).slice(0, 3);
+  if (service.features_json.length > 0) return service.features_json.slice(0, 2);
+  if (service.short_description) {
+    return service.short_description
+      .split(/•|\||;/g)
+      .map((f) => f.trim())
+      .filter(Boolean)
+      .slice(0, 2);
+  }
+  return (service.description || "")
+    .split(/•|\||;/g)
+    .map((f) => f.trim())
+    .filter(Boolean)
+    .slice(0, 2);
 };
+
+const isPlaceholderService = (service: PublicService) => /\btest\b/i.test(service.name);
 
 export function FeaturedOffers() {
   const { data: services, isLoading } = usePublicServices({ surface: "website" });
   const { language } = useLanguage();
-  const isFr = language === 'fr';
+  const isFr = language === "fr";
 
   const { leftCard, rightCard } = useMemo(() => {
-    if (!services?.length) return { leftCard: null, rightCard: null };
+    const cleanServices = (services || []).filter((service) => !isPlaceholderService(service));
+    if (!cleanServices.length) return { leftCard: null, rightCard: null };
 
-    // Find best Internet plan for left card, best Mobile for right card
-    const internet = services
-      .filter(s => s.category === "Internet" && (s.is_featured || s.is_recommended))
-      .sort((a, b) => a.display_order - b.display_order)[0];
+    const byRank = (a: PublicService, b: PublicService) =>
+      (b.is_featured ? 2 : 0) +
+      (b.is_recommended ? 1 : 0) -
+      ((a.is_featured ? 2 : 0) + (a.is_recommended ? 1 : 0)) ||
+      a.display_order - b.display_order ||
+      Number(a.price) - Number(b.price);
 
-    const mobile = services
-      .filter(s => s.category === "Mobile" && (s.is_featured || s.is_recommended))
-      .sort((a, b) => a.display_order - b.display_order)[0];
+    const internet = cleanServices
+      .filter((s) => s.category === "Internet")
+      .sort(byRank)[0];
 
-    // Fallbacks
-    const fallbackLeft = internet || services.filter(s => s.category === "Internet").sort((a, b) => a.display_order - b.display_order)[0];
-    const fallbackRight = mobile || services.filter(s => s.category === "Mobile").sort((a, b) => a.display_order - b.display_order)[0];
+    const mobile = cleanServices
+      .filter((s) => s.category === "Mobile")
+      .sort(byRank)[0];
 
-    return { leftCard: fallbackLeft || null, rightCard: fallbackRight || null };
+    return { leftCard: internet || null, rightCard: mobile || null };
   }, [services]);
 
   if (isLoading) {
     return (
-      <section className="bg-white py-0">
-        <div className="container mx-auto px-4 max-w-[1320px]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Skeleton className="h-[420px] rounded-xl" />
-            <Skeleton className="h-[420px] rounded-xl" />
+      <section className="bg-background py-0">
+        <div className="container mx-auto max-w-[1320px] px-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Skeleton className="h-[420px] rounded-2xl" />
+            <Skeleton className="h-[420px] rounded-2xl" />
           </div>
         </div>
       </section>
     );
   }
 
+  if (!leftCard && !rightCard) return null;
+
+  const leftFeatures = leftCard ? getServiceFeatures(leftCard) : [];
+  const rightFeatures = rightCard ? getServiceFeatures(rightCard) : [];
+
   return (
-    <section className="bg-white pt-0 pb-6">
-      <div className="container mx-auto px-4 max-w-[1320px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <section className="bg-background pb-8 pt-1">
+      <div className="container mx-auto max-w-[1320px] px-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {leftCard && (
+            <Link
+              to="/internet"
+              className="group relative flex min-h-[430px] flex-col justify-between overflow-hidden rounded-2xl bg-foreground text-primary-foreground transition-transform duration-300 hover:scale-[1.01]"
+            >
+              <div className="absolute right-0 top-1/2 h-[320px] w-[320px] -translate-y-1/2 rounded-full bg-primary/20 blur-3xl" />
 
-          {/* LEFT CARD — Dark, product-focused (Videotron style) */}
-          <Link
-            to="/internet"
-            className="group relative overflow-hidden rounded-xl min-h-[400px] md:min-h-[440px] flex flex-col justify-between bg-[#1a1a2e] transition-transform duration-300 hover:scale-[1.01]"
-          >
-            {/* Badge */}
-            <div className="relative z-10 p-6 sm:p-8">
-              <span className="inline-block bg-amber-400 text-black text-xs font-extrabold uppercase tracking-wider px-3 py-1.5">
-                {isFr ? "OFFRE DE LANCEMENT" : "LAUNCH OFFER"}
-              </span>
-            </div>
-
-            {/* Decorative glow */}
-            <div className="absolute top-1/2 right-0 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
-
-            {/* Content */}
-            <div className="relative z-10 p-6 sm:p-8 flex-1 flex flex-col justify-center">
-              <h3 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
-                {leftCard?.name || (isFr ? "Internet haute vitesse" : "High-speed Internet")}
-              </h3>
-              <p className="text-white/60 text-base mb-6 max-w-xs">
-                {isFr
-                  ? "La vitesse et la fiabilité dont vous avez besoin."
-                  : "The speed and reliability you need."}
-              </p>
-
-              {/* Wifi icon as visual element */}
-              <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-10">
-                <Wifi className="w-48 h-48 text-blue-400" strokeWidth={1} />
-              </div>
-            </div>
-
-            {/* Price + CTA */}
-            <div className="relative z-10 p-6 sm:p-8 pt-0">
-              {leftCard && (
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-5xl sm:text-6xl font-black text-white leading-none">
-                    {Number(leftCard.price).toFixed(0)}
+              <div className="relative z-10 p-6 sm:p-8">
+                {leftCard.badges[0] && (
+                  <span className="inline-flex rounded-full bg-background px-3 py-1 text-xs font-black uppercase tracking-wider text-foreground">
+                    {leftCard.badges[0]}
                   </span>
+                )}
+              </div>
+
+              <div className="relative z-10 flex flex-1 flex-col justify-center p-6 sm:p-8">
+                <h3 className="mb-3 text-3xl font-black leading-tight sm:text-4xl">{leftCard.name}</h3>
+                {(leftCard.short_description || leftCard.description) && (
+                  <p className="mb-4 max-w-sm text-base text-primary-foreground/70">
+                    {leftCard.short_description || leftCard.description}
+                  </p>
+                )}
+
+                <div className="space-y-2">
+                  {leftFeatures.map((feature) => (
+                    <p key={feature} className="text-sm text-primary-foreground/75">
+                      • {feature}
+                    </p>
+                  ))}
+                </div>
+
+                <div className="pointer-events-none absolute right-6 top-1/2 -translate-y-1/2 opacity-15">
+                  <Wifi className="h-48 w-48" strokeWidth={1} />
+                </div>
+              </div>
+
+              <div className="relative z-10 p-6 pt-0 sm:p-8 sm:pt-0">
+                <div className="mb-4 flex items-baseline gap-2">
+                  <span className="text-5xl font-black leading-none sm:text-6xl">{Number(leftCard.price).toFixed(0)}</span>
                   <div className="flex flex-col">
-                    <span className="text-white/80 text-sm font-semibold">00 $</span>
-                    <span className="text-white/50 text-sm">/{isFr ? "mois" : "mo"}*</span>
+                    <span className="text-sm font-semibold">00 $</span>
+                    <span className="text-sm text-primary-foreground/60">/{isFr ? "mois" : "mo"}*</span>
                   </div>
                 </div>
-              )}
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider group-hover:gap-3 transition-all">
-                {isFr ? "Profitez de l'offre" : "Get the offer"}
-                <ArrowRight className="w-4 h-4" />
-                <ArrowRight className="w-4 h-4 -ml-2" />
-                <ArrowRight className="w-4 h-4 -ml-2" />
-              </div>
-            </div>
-          </Link>
 
-          {/* RIGHT CARD — Bright promotional (Videotron style) */}
-          <Link
-            to="/mobile"
-            className="group relative overflow-hidden rounded-xl min-h-[400px] md:min-h-[440px] flex flex-col justify-between bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 transition-transform duration-300 hover:scale-[1.01]"
-          >
-            {/* Badge */}
-            <div className="relative z-10 p-6 sm:p-8">
-              <span className="inline-block bg-amber-400 text-black text-xs font-extrabold uppercase tracking-wider px-3 py-1.5">
-                {isFr ? "PROMO EN LUMIÈRE" : "PROMO SPOTLIGHT"}
-              </span>
-            </div>
-
-            {/* Promotional burst element */}
-            <div className="absolute top-8 right-6 sm:right-10 z-10">
-              <div className="relative w-28 h-28 sm:w-36 sm:h-36">
-                <div className="absolute inset-0 bg-amber-400 rounded-full flex items-center justify-center rotate-12 shadow-lg shadow-amber-400/30">
-                  <div className="text-center text-black leading-tight">
-                    <span className="block text-xs font-bold uppercase">
-                      {isFr ? "1 MOIS" : "1 MONTH"}
-                    </span>
-                    <span className="block text-lg sm:text-xl font-black uppercase">
-                      {isFr ? "GRATUIT" : "FREE"}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-background transition-all group-hover:gap-3">
+                  {isFr ? "Profitez de l'offre" : "Get the offer"}
+                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="-ml-2 h-4 w-4" />
+                  <ArrowRight className="-ml-2 h-4 w-4" />
                 </div>
               </div>
-            </div>
+            </Link>
+          )}
 
-            {/* Content */}
-            <div className="relative z-10 p-6 sm:p-8 flex-1 flex flex-col justify-center">
-              <h3 className="text-3xl sm:text-4xl font-black text-white mb-3 leading-tight">
-                {rightCard?.name || (isFr ? "Forfait Mobile" : "Mobile Plan")}
-              </h3>
-              <p className="text-white/70 text-base max-w-xs">
-                {isFr
-                  ? "Tellement généreux qu'on en prend deux."
-                  : "So generous you'll want two."}
-              </p>
+          {rightCard && (
+            <Link
+              to="/mobile"
+              className="group relative flex min-h-[430px] flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-foreground text-primary-foreground transition-transform duration-300 hover:scale-[1.01]"
+            >
+              <div className="absolute -right-12 -top-10 h-52 w-52 rounded-full bg-background/20 blur-2xl" />
 
-              {/* Phone icon as visual */}
-              <div className="absolute right-6 bottom-24 opacity-10">
-                <Smartphone className="w-40 h-40 text-white" strokeWidth={1} />
-              </div>
-            </div>
-
-            {/* Price + CTA */}
-            <div className="relative z-10 p-6 sm:p-8 pt-0">
-              <p className="text-white/50 text-xs uppercase tracking-wider mb-1">
-                {isFr ? "À PARTIR DE" : "STARTING AT"}
-              </p>
-              {rightCard && (
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-5xl sm:text-6xl font-black text-white leading-none">
-                    {Number(rightCard.price).toFixed(0)}
+              <div className="relative z-10 flex items-start justify-between p-6 sm:p-8">
+                {rightCard.badges[0] ? (
+                  <span className="inline-flex rounded-full bg-background px-3 py-1 text-xs font-black uppercase tracking-wider text-foreground">
+                    {rightCard.badges[0]}
                   </span>
+                ) : (
+                  <span />
+                )}
+
+                {rightFeatures[0] && (
+                  <span className="rounded-full bg-background px-4 py-2 text-sm font-black uppercase text-foreground shadow-card">
+                    {rightFeatures[0]}
+                  </span>
+                )}
+              </div>
+
+              <div className="relative z-10 flex flex-1 flex-col justify-center p-6 sm:p-8">
+                <h3 className="mb-3 text-3xl font-black leading-tight sm:text-4xl">{rightCard.name}</h3>
+                {(rightCard.short_description || rightCard.description) && (
+                  <p className="max-w-sm text-base text-primary-foreground/80">
+                    {rightCard.short_description || rightCard.description}
+                  </p>
+                )}
+
+                <div className="pointer-events-none absolute bottom-20 right-6 opacity-15">
+                  <Smartphone className="h-44 w-44" strokeWidth={1} />
+                </div>
+              </div>
+
+              <div className="relative z-10 p-6 pt-0 sm:p-8 sm:pt-0">
+                <p className="mb-1 text-xs uppercase tracking-wider text-primary-foreground/70">
+                  {isFr ? "À PARTIR DE" : "STARTING AT"}
+                </p>
+                <div className="mb-4 flex items-baseline gap-2">
+                  <span className="text-5xl font-black leading-none sm:text-6xl">{Number(rightCard.price).toFixed(0)}</span>
                   <div className="flex flex-col">
-                    <span className="text-white/80 text-sm font-semibold">00 $</span>
-                    <span className="text-white/50 text-sm">/{isFr ? "mois" : "mo"}*</span>
+                    <span className="text-sm font-semibold">00 $</span>
+                    <span className="text-sm text-primary-foreground/60">/{isFr ? "mois" : "mo"}*</span>
                   </div>
                 </div>
-              )}
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm uppercase tracking-wider group-hover:gap-3 transition-all">
-                {isFr ? "Ajoutez le forfait" : "Add the plan"}
-                <ArrowRight className="w-4 h-4" />
-                <ArrowRight className="w-4 h-4 -ml-2" />
-                <ArrowRight className="w-4 h-4 -ml-2" />
-              </div>
-            </div>
-          </Link>
 
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-background transition-all group-hover:gap-3">
+                  {isFr ? "Ajoutez le forfait" : "Add the plan"}
+                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="-ml-2 h-4 w-4" />
+                  <ArrowRight className="-ml-2 h-4 w-4" />
+                </div>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
     </section>
