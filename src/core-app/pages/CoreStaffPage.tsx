@@ -49,6 +49,7 @@ export default function CoreStaffPage() {
   const [newStaff, setNewStaff] = useState({
     email: "", full_name: "", role: "employee", phone: "", badge_number: "", job_title: "",
     send_invitation: true, is_active: true,
+    can_access_core: false, can_access_employee: true, can_access_field: false, can_access_technician: false,
   });
 
   // ═══ QUERIES ═══
@@ -58,7 +59,7 @@ export default function CoreStaffPage() {
       // Get all staff roles
       const { data: rolesData, error } = await supabase
         .from("user_roles")
-        .select("id, user_id, role, status, created_at, updated_at, is_active")
+        .select("id, user_id, role, status, created_at, updated_at, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician")
         .order("created_at", { ascending: false });
       if (error) throw error;
       if (!rolesData || rolesData.length === 0) return [];
@@ -100,6 +101,10 @@ export default function CoreStaffPage() {
           role: data.role, phone: data.phone || undefined,
           badge_number: data.badge_number || undefined, job_title: data.job_title || undefined,
           send_invitation: data.send_invitation, is_active: data.is_active,
+          can_access_core: data.can_access_core,
+          can_access_employee: data.can_access_employee,
+          can_access_field: data.can_access_field,
+          can_access_technician: data.can_access_technician,
         },
       });
       if (response.error) throw new Error(response.error.message);
@@ -110,7 +115,7 @@ export default function CoreStaffPage() {
       toast.success("Membre du personnel créé");
       queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
       setCreateOpen(false);
-      setNewStaff({ email: "", full_name: "", role: "employee", phone: "", badge_number: "", job_title: "", send_invitation: true, is_active: true });
+      setNewStaff({ email: "", full_name: "", role: "employee", phone: "", badge_number: "", job_title: "", send_invitation: true, is_active: true, can_access_core: false, can_access_employee: true, can_access_field: false, can_access_technician: false });
     },
     onError: (e: any) => toast.error(e.message || "Erreur lors de la création"),
   });
@@ -151,6 +156,21 @@ export default function CoreStaffPage() {
     },
     onSuccess: () => {
       toast.success("Rôle modifié");
+      queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updatePortalAccessMutation = useMutation({
+    mutationFn: async ({ userId, key, value }: { userId: string; key: string; value: boolean }) => {
+      const response = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "update_portal_access", user_id: userId, [key]: value },
+      });
+      if (response.error) throw new Error(response.error.message);
+      if ((response.data as any)?.ok === false) throw new Error((response.data as any)?.message || "Erreur");
+    },
+    onSuccess: () => {
+      toast.success("Accès portail mis à jour");
       queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -296,6 +316,32 @@ export default function CoreStaffPage() {
                 ))}
               </div>
 
+              {/* Portal Access */}
+              <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 space-y-2">
+                <h3 className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Accès aux portails</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "can_access_core", label: "Core" },
+                    { key: "can_access_employee", label: "Employee" },
+                    { key: "can_access_field", label: "Field" },
+                    { key: "can_access_technician", label: "Technician" },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-[12px] text-[#CBD5E1] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!selected[key]}
+                        onChange={(e) => {
+                          updatePortalAccessMutation.mutate({ userId: selected.user_id, key, value: e.target.checked });
+                          setSelected({ ...selected, [key]: e.target.checked });
+                        }}
+                        className="rounded"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Actions */}
               <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3 space-y-2">
                 <h3 className="text-[11px] font-medium text-[#94A3B8] uppercase tracking-wider mb-2">Actions</h3>
@@ -378,6 +424,25 @@ export default function CoreStaffPage() {
                     className="w-full h-8 px-3 rounded-md border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,11%)] text-[13px] text-[#F8FAFC] placeholder:text-[#64748B] focus:outline-none" />
                 </div>
               </div>
+
+              {/* Portal Access */}
+              <div>
+                <label className="text-[11px] text-[#94A3B8] uppercase block mb-2">Accès aux portails</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "can_access_core", label: "Core" },
+                    { key: "can_access_employee", label: "Employee" },
+                    { key: "can_access_field", label: "Field" },
+                    { key: "can_access_technician", label: "Technician" },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-[12px] text-[#CBD5E1] cursor-pointer">
+                      <input type="checkbox" checked={(newStaff as any)[key]} onChange={(e) => setNewStaff({ ...newStaff, [key]: e.target.checked })} className="rounded" />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <label className="flex items-center gap-2 text-[12px] text-[#CBD5E1] cursor-pointer">
                 <input type="checkbox" checked={newStaff.send_invitation} onChange={(e) => setNewStaff({ ...newStaff, send_invitation: e.target.checked })} className="rounded" />
                 Envoyer une invitation par email

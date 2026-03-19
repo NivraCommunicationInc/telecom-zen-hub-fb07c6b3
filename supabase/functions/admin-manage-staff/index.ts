@@ -645,6 +645,10 @@ serve(async (req: Request) => {
           permissions: body.permissions || {},
           is_active: is_active,
           require_password_change: require_password_change || send_invitation,
+          can_access_core: body.can_access_core ?? (role === "admin"),
+          can_access_employee: body.can_access_employee ?? (role === "employee" || role === "admin"),
+          can_access_field: body.can_access_field ?? (role === "field_sales"),
+          can_access_technician: body.can_access_technician ?? (role === "technician"),
         });
 
         if (roleError) {
@@ -838,6 +842,36 @@ serve(async (req: Request) => {
           user: { id: userId, email },
           message: successMessage,
         });
+      }
+
+      case "update_portal_access": {
+        const { user_id, can_access_core, can_access_employee, can_access_field, can_access_technician } = body;
+        if (!user_id) {
+          return json(400, { ok: false, request_id: requestId, message: "user_id requis" });
+        }
+
+        const updates: Record<string, boolean> = {};
+        if (can_access_core !== undefined) updates.can_access_core = can_access_core;
+        if (can_access_employee !== undefined) updates.can_access_employee = can_access_employee;
+        if (can_access_field !== undefined) updates.can_access_field = can_access_field;
+        if (can_access_technician !== undefined) updates.can_access_technician = can_access_technician;
+
+        const { error: updateError } = await adminClient
+          .from("user_roles")
+          .update(updates)
+          .eq("user_id", user_id);
+
+        if (updateError) {
+          console.error("[admin-manage-staff] update_portal_access error:", updateError);
+          return json(500, { ok: false, request_id: requestId, message: updateError.message });
+        }
+
+        await logAction("portal_access_updated", {
+          request_id: requestId,
+          updates,
+        }, { type: "user", id: user_id });
+
+        return json(200, { ok: true, request_id: requestId, message: "Accès portail mis à jour" });
       }
 
       case "disable": {
