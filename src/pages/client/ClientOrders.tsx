@@ -117,7 +117,8 @@ const ClientOrders = () => {
   // Check if equipment order needs payment
   const needsPayment = (order: any) => {
     if (!isEquipmentOrder(order)) return false;
-    const balanceDue = (Number(order.total_amount) || 0) - (Number(order.amount_paid) || 0);
+    const canonicalTotal = Number(order.pricing_snapshot?.grand_total ?? order.total_amount) || 0;
+    const balanceDue = canonicalTotal - (Number(order.amount_paid) || 0);
     return balanceDue > 0 && 
       (order.status === "payment_pending" || order.status === "pending") &&
       order.payment_status !== "captured" && 
