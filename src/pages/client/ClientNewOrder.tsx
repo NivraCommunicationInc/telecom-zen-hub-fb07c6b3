@@ -2844,6 +2844,27 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       queryClient.invalidateQueries({ queryKey: ["client-appointments-all"] });
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       
+      // ★ LEGAL: Persist consent record for chargeback/dispute proof
+      try {
+        await supabase.from("checkout_consent_records" as any).insert({
+          order_id: orderData.id,
+          user_id: user.id,
+          account_id: resolvedAccountId,
+          terms_accepted: termsAccepted,
+          recurring_payment_accepted: recurringPaymentAccepted,
+          total_amount_displayed: todayTotal,
+          payment_method: paymentMethod,
+          services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
+          legal_versions: { terms: "2026-03-19", privacy: "2026-03-19", refund: "2026-03-19", payment: "2026-03-19" },
+          ip_address: null, // collected server-side if needed
+          user_agent: navigator.userAgent,
+          consent_timestamp: new Date().toISOString(),
+        });
+        console.log("[Consent] Legal consent record persisted for order:", orderData.order_number);
+      } catch (consentErr) {
+        console.error("[Consent] Failed to persist consent record (non-blocking):", consentErr);
+      }
+
       // Send confirmation email (non-blocking, wrapped in try-catch)
       try {
         const servicesForEmail = selectedServices.map(s => ({
