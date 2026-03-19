@@ -4,7 +4,30 @@ import { Resend } from "../_shared/ResendProxy.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
-type StaffRole = "admin" | "employee" | "technician";
+type StaffRole =
+  | "admin"
+  | "employee"
+  | "technician"
+  | "field_sales"
+  | "supervisor"
+  | "sales"
+  | "support"
+  | "billing_admin"
+  | "techops"
+  | "kyc_agent";
+
+const INTERNAL_STAFF_ROLES: StaffRole[] = [
+  "admin",
+  "employee",
+  "technician",
+  "field_sales",
+  "supervisor",
+  "sales",
+  "support",
+  "billing_admin",
+  "techops",
+  "kyc_agent",
+];
 
 interface PermissionSet {
   view_clients?: boolean;
@@ -28,7 +51,9 @@ interface PermissionSet {
 interface CreateStaffRequest {
   action: "create";
   email: string;
-  full_name: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
   role: StaffRole;
   require_password_change?: boolean;
   permissions?: PermissionSet;
@@ -40,6 +65,11 @@ interface CreateStaffRequest {
   is_active?: boolean;
   send_invitation?: boolean;
   internal_note?: string;
+  mfa_required?: boolean;
+  can_access_core?: boolean;
+  can_access_employee?: boolean;
+  can_access_field?: boolean;
+  can_access_technician?: boolean;
 }
 
 interface UpdatePermissionsRequest {
@@ -160,7 +190,73 @@ interface CreateFieldSalesRequest {
   commission_rate?: number;
 }
 
-type RequestBody = CreateStaffRequest | DisableEnableRequest | ChangeRoleRequest | SendResetRequest | UpdatePermissionsRequest | ApplyRolePackRequest | SetPinRequest | UpdateProfileRequest | ForcePasswordChangeRequest | UpdateStatusRequest | HardDeleteUserRequest | InviteSetPinRequest | VerifyAdminPinRequest | UpdateAuthCheckRequest | AdminRecoverRequest | SetStaffPasswordRequest | SendPasswordResetRequest | LinkAuthRequest | CreateFieldSalesRequest;
+interface UpdatePortalAccessRequest {
+  action: "update_portal_access";
+  user_id: string;
+  can_access_core?: boolean;
+  can_access_employee?: boolean;
+  can_access_field?: boolean;
+  can_access_technician?: boolean;
+}
+
+interface UpdateMfaRequirementRequest {
+  action: "update_mfa_requirement";
+  user_id: string;
+  mfa_required: boolean;
+}
+
+interface GenerateInvitationRequest {
+  action: "generate_invitation";
+  user_id: string;
+}
+
+interface SendInvitationRequest {
+  action: "send_invitation";
+  user_id: string;
+}
+
+interface ResendInvitationRequest {
+  action: "resend_invitation";
+  user_id: string;
+}
+
+interface RevokeInvitationRequest {
+  action: "revoke_invitation";
+  user_id: string;
+}
+
+interface ListInvitationStatusesRequest {
+  action: "list_invitation_statuses";
+  user_ids?: string[];
+}
+
+type RequestBody =
+  | CreateStaffRequest
+  | DisableEnableRequest
+  | ChangeRoleRequest
+  | SendResetRequest
+  | UpdatePermissionsRequest
+  | ApplyRolePackRequest
+  | SetPinRequest
+  | UpdateProfileRequest
+  | ForcePasswordChangeRequest
+  | UpdateStatusRequest
+  | HardDeleteUserRequest
+  | InviteSetPinRequest
+  | VerifyAdminPinRequest
+  | UpdateAuthCheckRequest
+  | AdminRecoverRequest
+  | SetStaffPasswordRequest
+  | SendPasswordResetRequest
+  | LinkAuthRequest
+  | CreateFieldSalesRequest
+  | UpdatePortalAccessRequest
+  | UpdateMfaRequirementRequest
+  | GenerateInvitationRequest
+  | SendInvitationRequest
+  | ResendInvitationRequest
+  | RevokeInvitationRequest
+  | ListInvitationStatusesRequest;
 
 // Generate cryptographically secure salt
 function generateSalt(): string {
