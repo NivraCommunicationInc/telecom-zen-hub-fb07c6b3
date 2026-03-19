@@ -68,7 +68,7 @@ export default function DynamicPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
         <Header />
         <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
           <Skeleton className="h-10 w-2/3 mb-6" />
@@ -83,7 +83,7 @@ export default function DynamicPage() {
 
   if (error || !page) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
         <Header />
         <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl text-center">
           <h1 className="text-2xl font-bold mb-4">Page non trouvée</h1>
@@ -97,7 +97,7 @@ export default function DynamicPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
       <Header />
       <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
         {metaDescription && (
