@@ -2845,24 +2845,43 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       queryClient.invalidateQueries({ queryKey: ["admin-appointments-full"] });
       
       // ★ LEGAL: Persist consent record for chargeback/dispute proof
+      // CRITICAL: This is BLOCKING — order confirmation MUST NOT complete without legal evidence
+      const consentPayload = {
+        order_id: orderData.id,
+        user_id: user.id,
+        account_id: null,
+        terms_accepted: termsAccepted,
+        recurring_payment_accepted: recurringPaymentAccepted,
+        total_amount_displayed: todayTotal,
+        payment_method: paymentMethod,
+        services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
+        legal_versions: { terms: "2026-03-19", privacy: "2026-03-19", refund: "2026-03-19", payment: "2026-03-19" },
+        ip_address: null,
+        user_agent: navigator.userAgent,
+        consent_timestamp: new Date().toISOString(),
+      };
+
+      const persistConsent = async () => {
+        const { error } = await supabase.from("checkout_consent_records" as any).insert(consentPayload);
+        if (error) throw error;
+      };
+
       try {
-        await supabase.from("checkout_consent_records" as any).insert({
-          order_id: orderData.id,
-          user_id: user.id,
-          account_id: null,
-          terms_accepted: termsAccepted,
-          recurring_payment_accepted: recurringPaymentAccepted,
-          total_amount_displayed: todayTotal,
-          payment_method: paymentMethod,
-          services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
-          legal_versions: { terms: "2026-03-19", privacy: "2026-03-19", refund: "2026-03-19", payment: "2026-03-19" },
-          ip_address: null, // collected server-side if needed
-          user_agent: navigator.userAgent,
-          consent_timestamp: new Date().toISOString(),
-        });
-        console.log("[Consent] Legal consent record persisted for order:", orderData.order_number);
-      } catch (consentErr) {
-        console.error("[Consent] Failed to persist consent record (non-blocking):", consentErr);
+        await persistConsent();
+        console.log("[Consent] ✅ Legal consent record persisted for order:", orderData.order_number);
+      } catch (firstErr) {
+        console.warn("[Consent] First attempt failed, retrying…", firstErr);
+        try {
+          await persistConsent();
+          console.log("[Consent] ✅ Legal consent record persisted on retry for order:", orderData.order_number);
+        } catch (retryErr) {
+          console.error("[Consent] ❌ CRITICAL: Consent record failed after retry:", retryErr);
+          // Order exists but legal proof is missing — flag as incomplete
+          throw new Error(
+            "Votre commande a été créée mais la preuve de consentement n'a pas pu être enregistrée. " +
+            "Veuillez contacter le support avec votre numéro de commande : " + (orderData.order_number || orderData.id)
+          );
+        }
       }
 
       // Send confirmation email (non-blocking, wrapped in try-catch)
