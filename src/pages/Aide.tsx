@@ -83,7 +83,7 @@ const Aide = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
       <Header />
       
       {/* Hero */}

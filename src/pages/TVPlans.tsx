@@ -72,7 +72,7 @@ const TVPlans = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background" data-testid="tv-plans-page">
+    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }} data-testid="tv-plans-page">
       <SEOHead {...SEO_DATA.tv} />
       <Header />
       
