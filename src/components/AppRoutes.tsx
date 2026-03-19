@@ -13,6 +13,20 @@ const HubProtectedRoute = lazy(() => import("@/components/hub/HubProtectedRoute"
 // Employee Portal (lazy-loaded, fully isolated)
 const EmployeeAppLayout = lazy(() => import("@/employee-app/EmployeeAppLayout"));
 const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/EmployeeProtectedRoute"));
+
+// Field Portal (lazy-loaded, fully isolated)
+const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
+const FieldProtectedRoute = lazy(() => import("@/field-app/components/FieldProtectedRoute"));
+const FieldDashboard = lazy(() => import("@/field-app/pages/FieldDashboard"));
+const FieldLeads = lazy(() => import("@/field-app/pages/FieldLeads"));
+const FieldNewLead = lazy(() => import("@/field-app/pages/FieldNewLead"));
+const FieldLeadDetail = lazy(() => import("@/field-app/pages/FieldLeadDetail"));
+const FieldOffers = lazy(() => import("@/field-app/pages/FieldOffers"));
+const FieldSubmissions = lazy(() => import("@/field-app/pages/FieldSubmissions"));
+const FieldTracking = lazy(() => import("@/field-app/pages/FieldTracking"));
+const FieldCommissions = lazy(() => import("@/field-app/pages/FieldCommissions"));
+const FieldProfile = lazy(() => import("@/field-app/pages/FieldProfile"));
+const FieldSecurity = lazy(() => import("@/field-app/pages/FieldSecurity"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
