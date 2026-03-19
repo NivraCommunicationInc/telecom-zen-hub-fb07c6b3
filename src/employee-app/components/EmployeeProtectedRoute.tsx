@@ -1,11 +1,13 @@
 /**
  * EmployeeProtectedRoute — Guards all /employee/* routes.
- * Requires: authenticated + active role + can_access_employee + MFA verified.
+ * Enforces: hub session → authenticated → active role → can_access_employee → MFA verified.
+ * Redirects to /hub if not entered through the hub.
  */
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
+import { hasValidHubSession } from "@/lib/security/hubSession";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
@@ -22,13 +24,18 @@ export default function EmployeeProtectedRoute() {
     let mounted = true;
 
     const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        navigate("/hub/login", { replace: true });
+      // CRITICAL: Must have entered through /hub
+      if (!hasValidHubSession()) {
+        navigate("/hub", { replace: true });
         return;
       }
 
-      // Check role + portal flag
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        navigate("/hub", { replace: true });
+        return;
+      }
+
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role, status, is_active, can_access_employee")
@@ -42,7 +49,6 @@ export default function EmployeeProtectedRoute() {
         return;
       }
 
-      // MFA check
       const mfa = await checkMfaStatus();
       if (!mfa.isEnrolled) {
         if (mounted) setState("mfa_enroll");
@@ -76,7 +82,7 @@ export default function EmployeeProtectedRoute() {
     return (
       <MfaEnrollmentDialog
         onComplete={() => window.location.reload()}
-        onCancel={async () => { await supabase.auth.signOut(); navigate("/hub/login", { replace: true }); }}
+        onCancel={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
       />
     );
   }
@@ -86,7 +92,7 @@ export default function EmployeeProtectedRoute() {
       <MfaVerificationGate
         factorId={factorId}
         onVerified={() => { setState("authorized"); auditAccess("portal_entry", "employee"); }}
-        onLogout={async () => { await supabase.auth.signOut(); navigate("/hub/login", { replace: true }); }}
+        onLogout={async () => { await supabase.auth.signOut(); navigate("/hub", { replace: true }); }}
       />
     );
   }
