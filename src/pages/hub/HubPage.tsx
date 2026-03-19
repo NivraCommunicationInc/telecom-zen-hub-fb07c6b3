@@ -125,14 +125,9 @@ export default function HubPage() {
           return;
         }
 
-        // Log hub access
-        await supabase.from("hub_login_audit").insert({
-          user_id: session.user.id,
-          email: session.user.email,
-          event: "hub_access",
-          portal_accessed: "hub",
-        });
-
+        // Check MFA status
+        const mfa = await checkMfaStatus();
+        
         if (mounted) {
           setUserRole(roleData.role);
           setAccessFlags({
@@ -141,7 +136,21 @@ export default function HubPage() {
             can_access_field: roleData.can_access_field ?? false,
             can_access_technician: roleData.can_access_technician ?? false,
           });
-          setLoading(false);
+          setMfaStatus(mfa);
+
+          if (!mfa.isEnrolled) {
+            // Force MFA enrollment
+            setShowMfaEnroll(true);
+            setLoading(false);
+          } else if (!mfa.isVerified) {
+            // Enrolled but not verified in this session
+            setShowMfaVerify(true);
+            setLoading(false);
+          } else {
+            // Fully authenticated + MFA verified
+            await auditAccess("hub_access", "hub");
+            setLoading(false);
+          }
         }
       } catch (err) {
         console.error("[Hub] Access check failed:", err);
