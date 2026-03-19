@@ -481,10 +481,12 @@ serve(async (req: Request) => {
 
     switch (body.action) {
       case "create": {
-        const { 
-          email, 
-          full_name, 
-          role, 
+        const {
+          email,
+          full_name,
+          first_name,
+          last_name,
+          role,
           require_password_change = true,
           phone,
           badge_number,
@@ -494,27 +496,54 @@ serve(async (req: Request) => {
           is_active = true,
           send_invitation = true,
           internal_note,
+          mfa_required = true,
         } = body;
         const createStep = "create";
-        console.log(`[admin-manage-staff] ${createStep}.start email=${email} role=${role} request_id=${requestId}`);
+        const normalizedEmail = email?.trim().toLowerCase();
+        const normalizedFirstName = first_name?.trim() || "";
+        const normalizedLastName = last_name?.trim() || "";
+        const resolvedFullName =
+          full_name?.trim() || `${normalizedFirstName} ${normalizedLastName}`.trim();
 
-        if (!email || !full_name || !role) {
+        console.log(`[admin-manage-staff] ${createStep}.start email=${normalizedEmail} role=${role} request_id=${requestId}`);
+
+        if (!normalizedEmail || !resolvedFullName || !role) {
           const step = `${createStep}.validate_input`;
           await logAction("staff_create_failed", {
             request_id: requestId,
             step,
-            message: "Email, nom complet et rôle requis",
-            target_email: email,
-          }, { type: "user", email });
+            message: "Email, prénom/nom et rôle requis",
+            target_email: normalizedEmail,
+          }, { type: "user", email: normalizedEmail });
 
           return json(400, {
             ok: false,
             request_id: requestId,
             step,
-            message: "Email, nom complet et rôle requis",
+            message: "Email, prénom/nom et rôle requis",
             http_status: 400,
             supabase_error: null,
-            details: { email, full_name, role },
+            details: { email: normalizedEmail, full_name: resolvedFullName, role },
+          });
+        }
+
+        if (!INTERNAL_STAFF_ROLES.includes(role)) {
+          const step = `${createStep}.validate_input`;
+          await logAction("staff_create_failed", {
+            request_id: requestId,
+            step,
+            message: "Rôle invalide",
+            target_email: normalizedEmail,
+          }, { type: "user", email: normalizedEmail });
+
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            step,
+            message: "Rôle invalide",
+            http_status: 400,
+            supabase_error: null,
+            details: { role },
           });
         }
 
@@ -524,7 +553,7 @@ serve(async (req: Request) => {
             .select("id")
             .eq("badge_number", badge_number)
             .maybeSingle();
-          
+
           if (existingBadge) {
             return json(400, {
               ok: false,
@@ -543,26 +572,6 @@ serve(async (req: Request) => {
             step: `${createStep}.validate_pin`,
             message: "Le PIN doit être exactement 4 chiffres",
             http_status: 400,
-          });
-        }
-
-        if (!(["admin", "employee", "technician"] as const).includes(role)) {
-          const step = `${createStep}.validate_input`;
-          await logAction("staff_create_failed", {
-            request_id: requestId,
-            step,
-            message: "Rôle invalide",
-            target_email: email,
-          }, { type: "user", email });
-
-          return json(400, {
-            ok: false,
-            request_id: requestId,
-            step,
-            message: "Rôle invalide",
-            http_status: 400,
-            supabase_error: null,
-            details: { role },
           });
         }
 
