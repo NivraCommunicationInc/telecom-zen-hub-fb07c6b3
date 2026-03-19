@@ -743,6 +743,28 @@ const AppRoutes = () => {
         <Route index element={<Suspense fallback={null}><HubPage /></Suspense>} />
       </Route>
 
+      {/* ============================================ */}
+      {/* EMPLOYEE PORTAL — Operational Workspace       */}
+      {/* ============================================ */}
+      <Route path="/employee" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><EmployeeProtectedRoute /></Suspense>}>
+        <Route element={<Suspense fallback={null}><EmployeeAppLayout /></Suspense>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
+          <Route path="work-queue" element={<Suspense fallback={null}><EmployeeWorkQueue /></Suspense>} />
+          <Route path="orders" element={<Suspense fallback={null}><EmployeeOrders /></Suspense>} />
+          <Route path="orders/:orderId" element={<Suspense fallback={null}><EmployeeOrderDetail /></Suspense>} />
+          <Route path="clients" element={<Suspense fallback={null}><EmployeeClients /></Suspense>} />
+          <Route path="clients/:clientId" element={<Suspense fallback={null}><EmployeeClientDetail /></Suspense>} />
+          <Route path="payments" element={<Suspense fallback={null}><EmployeePayments /></Suspense>} />
+          <Route path="kyc" element={<Suspense fallback={null}><EmployeeKYC /></Suspense>} />
+          <Route path="activations" element={<Suspense fallback={null}><EmployeeActivations /></Suspense>} />
+          <Route path="support" element={<Suspense fallback={null}><EmployeeSupport /></Suspense>} />
+          <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />
+          <Route path="security" element={<Suspense fallback={null}><EmployeeSecurity /></Suspense>} />
+        </Route>
+      </Route>
+
       {/* Catch-all 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
