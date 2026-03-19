@@ -709,21 +709,90 @@ serve(async (req: Request) => {
         }
 
         const stepProfiles = `${createStep}.db_upsert_profile`;
+        const stepProfileFetch = `${createStep}.db_fetch_profile`;
         console.log(`[admin-manage-staff] ${stepProfiles} user_id=${userId}`);
 
-        const { error: profileError } = await adminClient
+        const { data: existingProfile, error: existingProfileError } = await adminClient
           .from("profiles")
-          .upsert(
-            {
+          .select("user_id, email, first_name, last_name, identity_verified")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (existingProfileError) {
+          console.error(`[admin-manage-staff] ${stepProfileFetch} error:`, existingProfileError);
+          await logAction("staff_create_failed", {
+            request_id: requestId,
+            step: stepProfileFetch,
+            message: existingProfileError.message,
+            target_email: normalizedEmail,
+            supabase_error: {
+              code: existingProfileError.code,
+              message: existingProfileError.message,
+              details: existingProfileError.details,
+            },
+          }, { type: "user", id: userId, email: normalizedEmail });
+
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            step: stepProfileFetch,
+            message: `Erreur lecture profil: ${existingProfileError.message}`,
+            http_status: 500,
+            supabase_error: {
+              code: existingProfileError.code,
+              message: existingProfileError.message,
+              details: existingProfileError.details,
+            },
+            details: { user_id: userId },
+          });
+        }
+
+        const hasProvidedPhone = typeof phone === "string" && phone.trim().length > 0;
+        const normalizedPhone = hasProvidedPhone ? phone.trim() : null;
+        let profileError: any = null;
+
+        if (existingProfile) {
+          const profilePatch: Record<string, unknown> = {
+            full_name: resolvedFullName,
+          };
+
+          if (hasProvidedPhone) {
+            profilePatch.phone = normalizedPhone;
+          }
+
+          const canSetIdentityFields = existingProfile.identity_verified !== true;
+          if (canSetIdentityFields) {
+            if ((!existingProfile.email || existingProfile.email.trim() === "") && normalizedEmail) {
+              profilePatch.email = normalizedEmail;
+            }
+            if ((!existingProfile.first_name || existingProfile.first_name.trim() === "") && normalizedFirstName) {
+              profilePatch.first_name = normalizedFirstName;
+            }
+            if ((!existingProfile.last_name || existingProfile.last_name.trim() === "") && normalizedLastName) {
+              profilePatch.last_name = normalizedLastName;
+            }
+          }
+
+          const { error } = await adminClient
+            .from("profiles")
+            .update(profilePatch)
+            .eq("user_id", userId);
+
+          profileError = error;
+        } else {
+          const { error } = await adminClient
+            .from("profiles")
+            .insert({
               user_id: userId,
               email: normalizedEmail,
               full_name: resolvedFullName,
               first_name: normalizedFirstName || null,
               last_name: normalizedLastName || null,
-              phone: phone || null,
-            },
-            { onConflict: "user_id" }
-          );
+              phone: normalizedPhone,
+            });
+
+          profileError = error;
+        }
 
         if (profileError) {
           console.error(`[admin-manage-staff] ${stepProfiles} error:`, profileError);

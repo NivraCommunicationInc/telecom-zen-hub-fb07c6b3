@@ -12,84 +12,16 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Ban, CheckCircle2, Eye, Mail, Plus, Search, ShieldCheck, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
-
-type StaffFormData = {
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-  mfa_required: boolean;
-  send_invitation: boolean;
-  can_access_core: boolean;
-  can_access_employee: boolean;
-  can_access_field: boolean;
-  can_access_technician: boolean;
-};
-
-const ROLE_OPTIONS = [
-  { value: "admin", label: "Administrateur" },
-  { value: "employee", label: "Employé" },
-  { value: "supervisor", label: "Superviseur" },
-  { value: "sales", label: "Ventes" },
-  { value: "support", label: "Support" },
-  { value: "billing_admin", label: "Admin facturation" },
-  { value: "techops", label: "TechOps" },
-  { value: "kyc_agent", label: "Agent KYC" },
-  { value: "technician", label: "Technicien" },
-  { value: "field_sales", label: "Ventes terrain" },
-] as const;
-
-const ROLE_LABELS = Object.fromEntries(ROLE_OPTIONS.map((role) => [role.value, role.label]));
-
-const INVITATION_LABELS: Record<string, string> = {
-  generated: "Générée",
-  sent: "Envoyée",
-  accepted: "Acceptée",
-  revoked: "Révoquée",
-  expired: "Expirée",
-};
-
-const defaultForm: StaffFormData = {
-  first_name: "",
-  last_name: "",
-  email: "",
-  role: "employee",
-  is_active: true,
-  mfa_required: true,
-  send_invitation: true,
-  can_access_core: false,
-  can_access_employee: true,
-  can_access_field: false,
-  can_access_technician: false,
-};
-
-function getInvitationBadgeVariant(status?: string): "default" | "secondary" | "destructive" | "outline" {
-  if (status === "accepted") return "default";
-  if (status === "sent" || status === "generated") return "secondary";
-  if (status === "revoked" || status === "expired") return "destructive";
-  return "outline";
-}
-
-export default function CoreStaffPage() {
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [selected, setSelected] = useState<any>(null);
-  const [form, setForm] = useState<StaffFormData>(defaultForm);
-
-  const invalidateStaffData = () => {
-    queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
-    queryClient.invalidateQueries({ queryKey: ["core-staff-invitation-statuses"] });
-  };
-
+import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
+...
   const invokeAdminStaffAction = async (payload: Record<string, unknown>) => {
     const response = await supabase.functions.invoke("admin-manage-staff", { body: payload });
-    if (response.error) throw new Error(response.error.message);
+    if (response.error) {
+      const msg = await getInvokeErrorMessage(response.error);
+      throw new Error(msg || "Erreur edge function");
+    }
     if ((response.data as any)?.ok === false) {
-      throw new Error((response.data as any)?.message || "Erreur inattendue");
+      throw new Error((response.data as any)?.message || (response.data as any)?.error?.message || "Erreur inattendue");
     }
     return response.data as any;
   };
