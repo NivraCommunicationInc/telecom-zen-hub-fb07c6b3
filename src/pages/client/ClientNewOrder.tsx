@@ -6769,7 +6769,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                   </div>
 
                   <p className="text-xs text-muted-foreground text-center">
-                    En confirmant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité.
+                    La commande sera traitée par notre équipe après confirmation du paiement.
                   </p>
                 </CardContent>
               </Card>
