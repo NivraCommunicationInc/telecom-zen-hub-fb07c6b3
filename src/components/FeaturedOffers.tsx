@@ -2,33 +2,14 @@ import { useMemo } from "react";
 import { usePublicServices, type PublicService } from "@/hooks/usePublicServices";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Wifi, Tv, Smartphone, Check, ArrowRight } from "lucide-react";
+import { Check, ArrowRight, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-
-interface FeaturedService {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  description: string | null;
-  badge: string;
-  badgeColor: string;
-  icon: React.ReactNode;
-  features: string[];
-  link: string;
-  highlight?: boolean;
-}
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const LINK_BY_CATEGORY: Record<string, string> = {
   Internet: "/internet",
   Mobile: "/mobile",
   TV: "/tv",
-};
-
-const ICON_BY_CATEGORY: Record<string, React.ReactNode> = {
-  Internet: <Wifi className="w-6 h-6 text-[#003366]" />,
-  Mobile: <Smartphone className="w-6 h-6 text-slate-700" />,
-  TV: <Tv className="w-6 h-6 text-[#003366]" />,
 };
 
 const getServiceFeatures = (service: PublicService): string[] => {
@@ -39,52 +20,30 @@ const getServiceFeatures = (service: PublicService): string[] => {
 
 export function FeaturedOffers() {
   const { data: services, isLoading } = usePublicServices({ surface: "website" });
+  const { language } = useLanguage();
+  const isFr = language === 'fr';
 
-  const featuredOffers = useMemo((): FeaturedService[] => {
+  const featuredPlans = useMemo(() => {
     if (!services?.length) return [];
 
-    const pickByCategory = (category: string) => {
-      return services
-        .filter((service) => service.category === category)
-        .sort((a, b) => {
-          const aScore = (a.is_featured ? 2 : 0) + (a.is_recommended ? 1 : 0);
-          const bScore = (b.is_featured ? 2 : 0) + (b.is_recommended ? 1 : 0);
-          if (bScore !== aScore) return bScore - aScore;
-          if (a.display_order !== b.display_order) return a.display_order - b.display_order;
-          return a.price - b.price;
-        })[0];
-    };
-
-    const picks = [pickByCategory("Internet"), pickByCategory("Mobile"), pickByCategory("TV")].filter(Boolean) as PublicService[];
-
-    return picks.map((service) => {
-      const highlight = service.is_featured || service.is_recommended;
-      const fallbackBadge = highlight ? "VEDETTE" : "OFFRE";
-
-      return {
-        id: service.id,
-        name: service.name,
-        category: service.category,
-        price: Number(service.price),
-        description: service.short_description || service.description,
-        badge: (service.badges[0] || fallbackBadge).toUpperCase(),
-        badgeColor: highlight ? "bg-[#003366] text-white" : "bg-slate-700 text-white",
-        icon: ICON_BY_CATEGORY[service.category] || <Wifi className="w-6 h-6 text-slate-700" />,
-        features: getServiceFeatures(service),
-        link: LINK_BY_CATEGORY[service.category] || "/services",
-        highlight,
-      };
-    });
+    // Pick top 2-3 featured plans across categories
+    return services
+      .filter(s => s.is_featured || s.is_recommended)
+      .sort((a, b) => {
+        const aScore = (a.is_featured ? 2 : 0) + (a.is_recommended ? 1 : 0);
+        const bScore = (b.is_featured ? 2 : 0) + (b.is_recommended ? 1 : 0);
+        return bScore - aScore || a.display_order - b.display_order;
+      })
+      .slice(0, 3);
   }, [services]);
 
   if (isLoading) {
     return (
-      <section className="py-16 bg-white">
+      <section className="py-20">
         <div className="container mx-auto px-4 max-w-7xl">
-          <Skeleton className="h-8 w-48 mb-8" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-[380px] rounded-2xl" />
+              <Skeleton key={i} className="h-[420px] rounded-2xl bg-white/5" />
             ))}
           </div>
         </div>
@@ -92,68 +51,81 @@ export function FeaturedOffers() {
     );
   }
 
-  if (featuredOffers.length === 0) return null;
+  if (featuredPlans.length === 0) return null;
 
   return (
-    <section className="py-16 bg-white">
+    <section className="py-20 lg:py-28">
       <div className="container mx-auto px-4 max-w-7xl">
-        <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-8">Offres vedettes</h2>
+        <div className="text-center mb-14">
+          <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
+            {isFr ? "Plans populaires" : "Popular Plans"}
+          </h2>
+          <p className="text-white/50 text-lg">
+            {isFr ? "Nos forfaits les plus choisis par nos clients" : "Our most chosen plans by customers"}
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {featuredOffers.map((offer) => (
-            <div
-              key={offer.id}
-              className={`relative rounded-2xl border overflow-hidden transition-all duration-300 bg-white group hover:shadow-lg ${
-                offer.highlight ? "border-[#003366] shadow-md" : "border-slate-200 hover:border-slate-300"
-              }`}
-            >
-              <div className={`h-1.5 w-full ${offer.highlight ? "bg-[#003366]" : "bg-slate-200"}`} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+          {featuredPlans.map((plan, index) => {
+            const features = getServiceFeatures(plan);
+            const isHighlight = index === 1; // Middle card highlighted
 
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                    {offer.icon}
-                  </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full ${offer.badgeColor}`}>
-                    {offer.badge}
-                  </span>
-                </div>
+            return (
+              <div
+                key={plan.id}
+                className={`relative bg-[#0B1220] rounded-2xl border overflow-hidden transition-all duration-300 ${
+                  isHighlight
+                    ? "border-blue-500/50 shadow-xl shadow-blue-500/10 scale-[1.02]"
+                    : "border-white/8 hover:border-white/15"
+                }`}
+              >
+                {isHighlight && (
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
+                )}
 
-                <h3 className="text-lg font-bold text-slate-900 mb-4 leading-tight">{offer.name}</h3>
-
-                <div className="space-y-2.5 pb-5 border-b border-slate-100 mb-5">
-                  {offer.features.map((feature, index) => (
-                    <div key={index} className="flex items-start gap-2.5 text-sm">
-                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                      <span className="text-slate-600">{feature}</span>
+                <div className="p-8">
+                  {isHighlight && (
+                    <div className="flex items-center gap-1.5 mb-4">
+                      <Star className="w-4 h-4 text-blue-400 fill-blue-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
+                        {isFr ? "Populaire" : "Popular"}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                <div className="mb-5">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-slate-900">{offer.price.toFixed(0)}$</span>
-                    <span className="text-slate-500">/mois</span>
+                  <h3 className="text-lg font-bold text-white mb-2">{plan.name}</h3>
+                  
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-4xl font-bold text-white">{Number(plan.price).toFixed(0)}$</span>
+                    <span className="text-white/40">/{isFr ? "mois" : "mo"}</span>
                   </div>
-                </div>
 
-                <Button
-                  asChild
-                  className={`w-full rounded-full h-11 font-semibold ${
-                    offer.highlight
-                      ? "bg-[#003366] hover:bg-[#002244] text-white"
-                      : "bg-white border-2 border-[#003366] text-[#003366] hover:bg-[#003366] hover:text-white"
-                  }`}
-                  variant={offer.highlight ? "default" : "outline"}
-                >
-                  <Link to={offer.link}>
-                    Voir les détails
-                    <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </Link>
-                </Button>
+                  <div className="space-y-3 mb-8">
+                    {features.map((feature, i) => (
+                      <div key={i} className="flex items-start gap-3 text-sm">
+                        <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <span className="text-white/60">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    asChild
+                    className={`w-full rounded-xl h-12 font-semibold ${
+                      isHighlight
+                        ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/25"
+                        : "bg-white/5 border border-white/10 text-white hover:bg-white/10"
+                    }`}
+                  >
+                    <Link to={LINK_BY_CATEGORY[plan.category] || "/compare"}>
+                      {isFr ? "Choisir" : "Choose"}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
