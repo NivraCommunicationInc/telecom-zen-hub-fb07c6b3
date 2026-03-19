@@ -2627,7 +2627,13 @@ Deno.serve(async (req) => {
         const templateKey = templateKeyAliases[rawTemplateKey] || rawTemplateKey;
         
         // Support both template_vars and template_data (Billing V2 uses template_data)
-        const templateVars = email.template_vars || email.template_data || {};
+        const rawTemplateVars = email.template_vars || email.template_data || {};
+        const templateVars = await resolveCanonicalFinancialVars(
+          supabase,
+          email as Record<string, any>,
+          templateKey,
+          rawTemplateVars,
+        );
         
         const template = emailTemplates[templateKey];
         
