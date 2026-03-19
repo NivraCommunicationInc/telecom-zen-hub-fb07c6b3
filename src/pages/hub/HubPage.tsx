@@ -213,8 +213,10 @@ export default function HubPage() {
     return (
       <MfaVerificationGate
         factorId={mfaStatus.factorId}
-        onVerified={() => {
+        onVerified={async () => {
           setShowMfaVerify(false);
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) createHubSession(session.user.id);
           auditAccess("hub_access", "hub");
         }}
         onLogout={handleLogout}
