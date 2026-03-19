@@ -200,11 +200,11 @@ const ClientOrders = () => {
                                 {format(new Date(order.created_at), "d MMM yyyy", { locale: fr })}
                               </span>
                             </div>
-                            {order.total_amount && (
+                            {(order.pricing_snapshot?.grand_total || order.total_amount) && (
                               <div>
                                 <span className="text-slate-500">Montant: </span>
                                 <span className="text-slate-900 font-medium">
-                                  {Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
+                                  {Number(order.pricing_snapshot?.grand_total ?? order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}
                                 </span>
                               </div>
                             )}
