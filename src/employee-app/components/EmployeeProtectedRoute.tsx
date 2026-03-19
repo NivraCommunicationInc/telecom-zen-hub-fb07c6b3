@@ -49,18 +49,19 @@ export default function EmployeeProtectedRoute() {
         return;
       }
 
+      // MFA: For employees (non-admin), MFA enrollment is recommended but not blocking.
+      // Admin roles enforce mandatory TOTP elsewhere.
+      // Employees use their 4-digit NIP for customer-access security instead.
       const mfa = await checkMfaStatus();
-      if (!mfa.isEnrolled) {
-        if (mounted) setState("mfa_enroll");
-        return;
-      }
-      if (!mfa.isVerified) {
+      if (mfa.isEnrolled && !mfa.isVerified) {
+        // Already enrolled → must verify
         if (mounted) {
           setFactorId(mfa.factorId ?? null);
           setState("mfa_verify");
         }
         return;
       }
+      // If not enrolled, let employee through — NIP gate handles customer-data security
 
       await auditAccess("portal_entry", "employee");
       if (mounted) setState("authorized");

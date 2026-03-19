@@ -104,6 +104,7 @@ export default function CoreStaffPage() {
       const { data: roleRows, error: roleError } = await supabase
         .from("user_roles")
         .select("id, user_id, role, status, is_active, created_at, updated_at, can_access_core, can_access_employee, can_access_field, can_access_technician, mfa_required, mfa_enrolled_at, last_login_at")
+        .in("role", ["admin", "employee", "technician", "field_sales", "supervisor", "sales", "support", "billing_admin", "techops", "kyc_agent"])
         .order("created_at", { ascending: false });
 
       if (roleError) throw roleError;
