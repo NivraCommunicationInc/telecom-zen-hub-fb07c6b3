@@ -1358,7 +1358,7 @@ serve(async (req: Request) => {
       case "change_role": {
         const { user_id, new_role } = body;
 
-        if (!(["admin", "employee", "technician"] as const).includes(new_role)) {
+        if (!INTERNAL_STAFF_ROLES.includes(new_role as StaffRole)) {
           return json(400, {
             ok: false,
             request_id: requestId,
