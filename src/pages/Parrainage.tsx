@@ -65,7 +65,7 @@ const faq = [
 
 const Parrainage = () => {
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light" >
       <SEOHead
         title="Programme de parrainage | Nivra Telecom — Gagnez 25$ par parrainage"
         description="Parrainez vos proches chez Nivra Telecom et recevez une carte-cadeau Visa/Mastercard de 25$ pour chaque parrainage qualifié. Sans limite, transparent et simple."

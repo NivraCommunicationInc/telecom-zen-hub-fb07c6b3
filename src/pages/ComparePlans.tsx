@@ -196,7 +196,7 @@ const ComparePlans = () => {
   };
 
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light" >
       <SEOHead 
         title={isFrench ? "Comparer les forfaits | Nivra Telecom" : "Compare Plans | Nivra Telecom"}
         description={isFrench 

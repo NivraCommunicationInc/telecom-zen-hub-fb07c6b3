@@ -8,7 +8,7 @@ const RefundPolicy = () => {
   const isFrench = language === 'fr';
 
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light" >
       <Header />
       
       <main className="pt-24 pb-16">

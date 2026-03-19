@@ -247,7 +247,7 @@ const TVConfigurator = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen public-dark flex items-center justify-center" style={{ background: 'hsl(230 60% 4%)' }}>
+      <div className="min-h-screen public-light flex items-center justify-center" >
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 animate-spin text-[#003366] mx-auto" />
           <p className="text-slate-400 text-sm">{isFr ? "Chargement du simulateur..." : "Loading simulator..."}</p>
@@ -264,7 +264,7 @@ const TVConfigurator = () => {
   ];
 
   return (
-    <div className="min-h-screen public-dark flex flex-col" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light flex flex-col" >
       {/* ═══════════════════════════════════════════════════════ */}
       {/* HERO — Full-width immersive header */}
       {/* ═══════════════════════════════════════════════════════ */}
