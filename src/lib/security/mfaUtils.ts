@@ -26,7 +26,7 @@ export async function checkMfaStatus(): Promise<MfaStatus> {
     }
 
     // Check for verified factor
-    const verifiedFactor = totpFactors.find((f) => f.status === "verified");
+    const verifiedFactor = totpFactors.find((f) => f.factor_type === "totp" && f.status === "verified");
     if (verifiedFactor) {
       // Check AAL level — AAL2 means MFA was used in this session
       const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -40,7 +40,7 @@ export async function checkMfaStatus(): Promise<MfaStatus> {
     }
 
     // Has unverified factor (enrollment started but not completed)
-    const unverifiedFactor = totpFactors.find((f) => f.status === "unverified");
+    const unverifiedFactor = totpFactors.find((f) => f.factor_type === "totp" && f.status !== "verified");
     return {
       isEnrolled: false,
       isVerified: false,
