@@ -12,6 +12,10 @@ import {
   Lock, ChevronRight, AlertTriangle, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { checkMfaStatus, type MfaStatus } from "@/lib/security/mfaUtils";
+import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
+import MfaVerificationGate from "@/components/security/MfaVerificationGate";
+import { auditAccess } from "@/lib/security/internalAuditLogger";
 
 interface PortalCard {
   id: string;
@@ -79,6 +83,9 @@ export default function HubPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [accessFlags, setAccessFlags] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [mfaStatus, setMfaStatus] = useState<MfaStatus | null>(null);
+  const [showMfaEnroll, setShowMfaEnroll] = useState(false);
+  const [showMfaVerify, setShowMfaVerify] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -118,14 +125,9 @@ export default function HubPage() {
           return;
         }
 
-        // Log hub access
-        await supabase.from("hub_login_audit").insert({
-          user_id: session.user.id,
-          email: session.user.email,
-          event: "hub_access",
-          portal_accessed: "hub",
-        });
-
+        // Check MFA status
+        const mfa = await checkMfaStatus();
+        
         if (mounted) {
           setUserRole(roleData.role);
           setAccessFlags({
@@ -134,7 +136,21 @@ export default function HubPage() {
             can_access_field: roleData.can_access_field ?? false,
             can_access_technician: roleData.can_access_technician ?? false,
           });
-          setLoading(false);
+          setMfaStatus(mfa);
+
+          if (!mfa.isEnrolled) {
+            // Force MFA enrollment
+            setShowMfaEnroll(true);
+            setLoading(false);
+          } else if (!mfa.isVerified) {
+            // Enrolled but not verified in this session
+            setShowMfaVerify(true);
+            setLoading(false);
+          } else {
+            // Fully authenticated + MFA verified
+            await auditAccess("hub_access", "hub");
+            setLoading(false);
+          }
         }
       } catch (err) {
         console.error("[Hub] Access check failed:", err);
@@ -153,16 +169,8 @@ export default function HubPage() {
     const hasAccess = accessFlags[portal.portalKey];
     if (!hasAccess) return;
 
-    // Log portal access
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      await supabase.from("hub_login_audit").insert({
-        user_id: session.user.id,
-        email: session.user.email,
-        event: "portal_entry",
-        portal_accessed: portal.id,
-      });
-    }
+    // Log portal access via audit trail
+    await auditAccess("portal_entry", portal.id);
 
     navigate(portal.href);
   };
@@ -180,6 +188,34 @@ export default function HubPage() {
           <p className="text-sm text-[hsl(220,10%,45%)]">Vérification de l'accès…</p>
         </div>
       </div>
+    );
+  }
+
+  // MFA enrollment gate — user has no TOTP factor
+  if (showMfaEnroll) {
+    return (
+      <MfaEnrollmentDialog
+        onComplete={() => {
+          setShowMfaEnroll(false);
+          // Re-check MFA status after enrollment
+          window.location.reload();
+        }}
+        onCancel={handleLogout}
+      />
+    );
+  }
+
+  // MFA verification gate — user is enrolled but hasn't verified this session
+  if (showMfaVerify && mfaStatus?.factorId) {
+    return (
+      <MfaVerificationGate
+        factorId={mfaStatus.factorId}
+        onVerified={() => {
+          setShowMfaVerify(false);
+          auditAccess("hub_access", "hub");
+        }}
+        onLogout={handleLogout}
+      />
     );
   }
 

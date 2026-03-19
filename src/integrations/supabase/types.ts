@@ -5831,6 +5831,54 @@ export type Database = {
           },
         ]
       }
+      internal_audit_log: {
+        Row: {
+          action: string
+          category: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          portal: string | null
+          target_id: string | null
+          target_type: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string
+          user_role: string | null
+        }
+        Insert: {
+          action: string
+          category: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          portal?: string | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id: string
+          user_role?: string | null
+        }
+        Update: {
+          action?: string
+          category?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          portal?: string | null
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string
+          user_role?: string | null
+        }
+        Relationships: []
+      }
       internal_ticket_replies: {
         Row: {
           author_email: string | null
@@ -10816,6 +10864,33 @@ export type Database = {
         }
         Relationships: []
       }
+      step_up_sessions: {
+        Row: {
+          expires_at: string
+          id: string
+          method: string
+          revoked_at: string | null
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          expires_at?: string
+          id?: string
+          method?: string
+          revoked_at?: string | null
+          user_id: string
+          verified_at?: string
+        }
+        Update: {
+          expires_at?: string
+          id?: string
+          method?: string
+          revoked_at?: string | null
+          user_id?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
       streaming_activation_tokens: {
         Row: {
           activated_at: string | null
@@ -12024,6 +12099,8 @@ export type Database = {
           is_active: boolean | null
           last_auth_check_at: string | null
           last_login_at: string | null
+          mfa_enrolled_at: string | null
+          mfa_required: boolean
           onboarding_completed_at: string | null
           otp_required: boolean | null
           otp_verified_at: string | null
@@ -12054,6 +12131,8 @@ export type Database = {
           is_active?: boolean | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
+          mfa_enrolled_at?: string | null
+          mfa_required?: boolean
           onboarding_completed_at?: string | null
           otp_required?: boolean | null
           otp_verified_at?: string | null
@@ -12084,6 +12163,8 @@ export type Database = {
           is_active?: boolean | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
+          mfa_enrolled_at?: string | null
+          mfa_required?: boolean
           onboarding_completed_at?: string | null
           otp_required?: boolean | null
           otp_verified_at?: string | null
