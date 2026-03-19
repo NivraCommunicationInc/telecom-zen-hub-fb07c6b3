@@ -5059,6 +5059,39 @@ export type Database = {
           },
         ]
       }
+      hub_login_audit: {
+        Row: {
+          created_at: string
+          email: string | null
+          event: string
+          id: string
+          ip_address: string | null
+          portal_accessed: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          event?: string
+          id?: string
+          ip_address?: string | null
+          portal_accessed?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          event?: string
+          id?: string
+          ip_address?: string | null
+          portal_accessed?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       identity_documents: {
         Row: {
           checksum: string | null
@@ -11982,6 +12015,10 @@ export type Database = {
       user_roles: {
         Row: {
           admin_pin_hash: string | null
+          can_access_core: boolean
+          can_access_employee: boolean
+          can_access_field: boolean
+          can_access_technician: boolean
           created_at: string
           id: string
           is_active: boolean | null
@@ -12008,6 +12045,10 @@ export type Database = {
         }
         Insert: {
           admin_pin_hash?: string | null
+          can_access_core?: boolean
+          can_access_employee?: boolean
+          can_access_field?: boolean
+          can_access_technician?: boolean
           created_at?: string
           id?: string
           is_active?: boolean | null
@@ -12034,6 +12075,10 @@ export type Database = {
         }
         Update: {
           admin_pin_hash?: string | null
+          can_access_core?: boolean
+          can_access_employee?: boolean
+          can_access_field?: boolean
+          can_access_technician?: boolean
           created_at?: string
           id?: string
           is_active?: boolean | null
@@ -13176,6 +13221,10 @@ export type Database = {
       check_and_queue_payment_reminders: { Args: never; Returns: undefined }
       check_lockdown_status: { Args: never; Returns: Json }
       check_overdue_invoices: { Args: never; Returns: undefined }
+      check_portal_access: {
+        Args: { _portal: string; _user_id: string }
+        Returns: boolean
+      }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
       cleanup_old_logs: { Args: never; Returns: undefined }

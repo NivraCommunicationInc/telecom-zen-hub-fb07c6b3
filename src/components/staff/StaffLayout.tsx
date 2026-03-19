@@ -53,11 +53,11 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
           return;
         }
 
-        // For employee/technician, check onboarding completion
+        // For employee/technician, check onboarding + portal access flags
         if (requiredRole === "employee" || requiredRole === "technician") {
           const { data: roleData, error } = await supabase
             .from("user_roles")
-            .select("onboarding_completed_at, terms_accepted_at, staff_pin_hash, is_active, status")
+            .select("onboarding_completed_at, terms_accepted_at, staff_pin_hash, is_active, status, can_access_employee, can_access_technician, can_access_field")
             .eq("user_id", session.user.id)
             .eq("role", requiredRole)
             .maybeSingle();
@@ -72,6 +72,14 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
           if (!roleData.is_active || roleData.status !== "active") {
             console.warn("[StaffLayout] Account not active");
             if (mounted) navigate("/staff", { replace: true });
+            return;
+          }
+
+          // Hard enforcement: check portal access flag
+          const portalFlag = requiredRole === "employee" ? roleData.can_access_employee : roleData.can_access_technician;
+          if (!portalFlag) {
+            console.warn("[StaffLayout] User lacks portal access flag for", requiredRole);
+            if (mounted) navigate("/hub", { replace: true });
             return;
           }
 

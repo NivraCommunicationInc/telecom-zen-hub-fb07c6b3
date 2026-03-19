@@ -28,10 +28,10 @@ export default function CoreProtectedRoute() {
           return;
         }
 
-        // Verify the user holds an internal role
+        // Verify the user holds an internal role AND has can_access_core flag
         const { data: roleData, error } = await supabase
           .from("user_roles")
-          .select("role, status")
+          .select("role, status, can_access_core")
           .eq("user_id", session.user.id)
           .eq("status", "active")
           .in("role", ALLOWED_ROLES)
@@ -39,6 +39,13 @@ export default function CoreProtectedRoute() {
 
         if (error || !roleData) {
           console.warn("[CoreGuard] No valid internal role found");
+          if (mounted) setState("unauthorized");
+          return;
+        }
+
+        // Hard enforcement: must have can_access_core flag
+        if (!roleData.can_access_core) {
+          console.warn("[CoreGuard] User lacks can_access_core flag");
           if (mounted) setState("unauthorized");
           return;
         }
