@@ -35,11 +35,53 @@ export const ANNEXE_A: AnnexeSection = {
     },
     {
       number: "3",
+      title: "Nature des services",
+      paragraphs: [
+        "Les services offerts par Nivra Telecom sont prépayés. Aucun crédit n'est accordé. Le service est activé uniquement après réception du paiement.",
+        "Aucun remboursement ne sera effectué pour une période de service déjà entamée, sauf indication contraire explicite.",
+      ],
+    },
+    {
+      number: "4",
       title: "Facturation et paiement",
       paragraphs: [
         "Les Services sont offerts sur une base prépayée uniquement. Le paiement doit être effectué avant l'activation ou le renouvellement des Services.",
         "Les méthodes de paiement acceptées sont: Virement Interac et PayPal.",
         "Aucun crédit n'est accordé. Le service est activé uniquement après confirmation du paiement.",
+        "Les factures sont générées électroniquement et accessibles via le portail client.",
+        "Le client est responsable de vérifier ses factures et de signaler toute erreur dans un délai raisonnable.",
+      ],
+    },
+    {
+      number: "5",
+      title: "Contestation de paiement",
+      paragraphs: [
+        "Le client s'engage à contacter Nivra Telecom avant toute contestation ou rétrofacturation auprès de son institution financière.",
+        "Toute contestation abusive ou frauduleuse pourra entraîner la suspension immédiate des services ainsi que des recours administratifs ou légaux.",
+      ],
+    },
+    {
+      number: "6",
+      title: "Activation des services",
+      paragraphs: [
+        "Les services sont généralement activés rapidement après confirmation du paiement. Des délais peuvent survenir selon la nature du service ou des vérifications requises.",
+        "Nivra Telecom ne garantit pas un délai d'activation exact.",
+      ],
+    },
+    {
+      number: "7",
+      title: "Prévention de la fraude",
+      paragraphs: [
+        "Nivra Telecom se réserve le droit de suspendre, retarder ou annuler toute commande en cas de suspicion de fraude ou d'activité anormale.",
+        "Des vérifications supplémentaires peuvent être demandées avant l'activation du service.",
+      ],
+    },
+    {
+      number: "8",
+      title: "Limitation de responsabilité",
+      paragraphs: [
+        "Nivra Telecom ne pourra être tenu responsable des pertes indirectes, incluant perte de revenus, perte de données ou interruption de service.",
+        "La responsabilité totale de Nivra Telecom, le cas échéant, est limitée au montant payé par le client pour le service concerné.",
       ],
     },
   ],

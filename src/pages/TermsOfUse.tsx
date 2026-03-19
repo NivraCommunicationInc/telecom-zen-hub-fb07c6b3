@@ -88,7 +88,75 @@ const TermsOfUse = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">8. Modification des conditions</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">8. Contestation de paiement</h2>
+              <p>
+                Le client s'engage à contacter {COMPANY_CONTACT.companyName} avant toute contestation ou rétrofacturation 
+                auprès de son institution financière.
+              </p>
+              <p>
+                Toute contestation abusive ou frauduleuse pourra entraîner la suspension immédiate des services 
+                ainsi que des recours administratifs ou légaux.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">9. Nature des services</h2>
+              <p>
+                Les services offerts par {COMPANY_CONTACT.companyName} sont prépayés. Aucun crédit n'est accordé. 
+                Le service est activé uniquement après réception du paiement.
+              </p>
+              <p>
+                Aucun remboursement ne sera effectué pour une période de service déjà entamée, 
+                sauf indication contraire explicite.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">10. Activation des services</h2>
+              <p>
+                Les services sont généralement activés rapidement après confirmation du paiement. 
+                Des délais peuvent survenir selon la nature du service ou des vérifications requises.
+              </p>
+              <p>
+                {COMPANY_CONTACT.companyName} ne garantit pas un délai d'activation exact.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">11. Prévention de la fraude</h2>
+              <p>
+                {COMPANY_CONTACT.companyName} se réserve le droit de suspendre, retarder ou annuler toute commande 
+                en cas de suspicion de fraude ou d'activité anormale.
+              </p>
+              <p>
+                Des vérifications supplémentaires peuvent être demandées avant l'activation du service.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">12. Limitation de responsabilité</h2>
+              <p>
+                {COMPANY_CONTACT.companyName} ne pourra être tenu responsable des pertes indirectes, incluant 
+                perte de revenus, perte de données ou interruption de service.
+              </p>
+              <p>
+                La responsabilité totale de {COMPANY_CONTACT.companyName}, le cas échéant, est limitée au montant 
+                payé par le client pour le service concerné.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">13. Facturation</h2>
+              <p>
+                Les factures sont générées électroniquement et accessibles via le portail client.
+              </p>
+              <p>
+                Le client est responsable de vérifier ses factures et de signaler toute erreur dans un délai raisonnable.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">14. Modification des conditions</h2>
               <p>
                 {COMPANY_CONTACT.companyName} se réserve le droit de modifier ces conditions d'utilisation à tout moment. Les modifications 
                 entreront en vigueur dès leur publication sur ce site. Nous vous encourageons à consulter 
@@ -97,7 +165,7 @@ const TermsOfUse = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">9. Droit applicable</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">15. Droit applicable</h2>
               <p>
                 Ces conditions d'utilisation sont régies par les lois de la province de Québec et les lois 
                 fédérales du Canada applicables. Tout litige sera soumis à la compétence exclusive des tribunaux 
@@ -106,7 +174,7 @@ const TermsOfUse = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">10. Contact</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">16. Contact</h2>
               <p>
                 Pour toute question concernant ces conditions d'utilisation, veuillez nous contacter :
               </p>
