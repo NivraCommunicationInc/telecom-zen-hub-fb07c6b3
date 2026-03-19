@@ -16,6 +16,7 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { CustomerPinGate } from "@/employee-app/components/CustomerPinGate";
 
 function useClientDetail(clientId: string) {
   return useQuery({

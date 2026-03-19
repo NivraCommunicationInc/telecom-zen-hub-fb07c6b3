@@ -233,3 +233,6 @@ verify_jwt = false
 
 [functions.employee-work-engine]
 verify_jwt = false
+
+[functions.employee-verify-customer-pin]
+verify_jwt = true
