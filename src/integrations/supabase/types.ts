@@ -11115,7 +11115,10 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          revoked_at: string | null
+          revoked_by_admin_id: string | null
           role: string
+          sent_at: string | null
           token_hash: string
           used_at: string | null
           user_id: string
@@ -11126,7 +11129,10 @@ export type Database = {
           email: string
           expires_at: string
           id?: string
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
           role: string
+          sent_at?: string | null
           token_hash: string
           used_at?: string | null
           user_id: string
@@ -11137,7 +11143,10 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
+          revoked_at?: string | null
+          revoked_by_admin_id?: string | null
           role?: string
+          sent_at?: string | null
           token_hash?: string
           used_at?: string | null
           user_id?: string
