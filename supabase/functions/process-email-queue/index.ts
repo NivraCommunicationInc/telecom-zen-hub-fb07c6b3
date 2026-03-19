@@ -315,14 +315,16 @@ async function resolveCanonicalFinancialVars(
       ((canonicalTotalPayable || 0) - (canonicalAmountPaidTotal || 0)),
     );
 
-    const canonicalAmountPaidToday = toMoney(
-      payment?.amount ??
-      vars.amount_paid_today ??
-      vars.amount_paid ??
-      (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)
-        ? (canonicalAmountPaidTotal ?? canonicalTotalPayable)
-        : null),
-    );
+    const canonicalAmountPaidToday = ORDER_CONFIRMATION_TEMPLATES.has(templateKey)
+      ? toMoney(payment?.amount ?? canonicalAmountPaidTotal ?? canonicalTotalPayable ?? vars.amount_paid_today ?? vars.amount_paid)
+      : toMoney(
+        payment?.amount ??
+        vars.amount_paid_today ??
+        vars.amount_paid ??
+        (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)
+          ? (canonicalAmountPaidTotal ?? canonicalTotalPayable)
+          : null),
+      );
 
     const merged: Record<string, any> = {
       ...vars,
@@ -348,7 +350,7 @@ async function resolveCanonicalFinancialVars(
       canonical_amount_paid_today: canonicalAmountPaidToday,
       amount_due_today: canonicalAmountDue ?? vars.amount_due_today,
       canonical_balance_due: canonicalAmountDue,
-      total_amount: (templateKey === "order_submitted" || templateKey === "order_confirmation")
+      total_amount: ORDER_CONFIRMATION_TEMPLATES.has(templateKey)
         ? (canonicalAmountPaidToday ?? canonicalTotalPayable ?? vars.total_amount)
         : vars.total_amount,
     };
