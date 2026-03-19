@@ -74,7 +74,7 @@ const APropos = () => {
   ];
 
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light" >
       <Header />
       
       {/* Hero Section */}
@@ -88,10 +88,10 @@ const APropos = () => {
               <Shield className="w-4 h-4 text-accent" />
               <span className="text-sm font-medium text-accent">Fournisseur télécom québécois</span>
             </div>
-            <h1 className="text-white mb-4">
+            <h1 className="text-slate-900 mb-4">
               À propos de <span className="text-accent">{COMPANY_CONTACT.companyName}</span>
             </h1>
-            <p className="text-lg text-white/70 mb-6 leading-relaxed max-w-2xl mx-auto">
+            <p className="text-lg text-slate-500 mb-6 leading-relaxed max-w-2xl mx-auto">
               <strong>{COMPANY_CONTACT.companyName}</strong> ({COMPANY_CONTACT.legalName}) — Services télécommunications prépayés au Québec. 
               Simplicité, transparence et contrôle sur vos services.
             </p>
@@ -135,11 +135,11 @@ const APropos = () => {
               <div className="aspect-square rounded-2xl bg-primary border border-border p-8 flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-20 h-20 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-4">
-                    <span className="font-bold text-white text-4xl">N</span>
+                    <span className="font-bold text-slate-900 text-4xl">N</span>
                   </div>
                   <p className="text-white font-semibold mb-1">{COMPANY_CONTACT.companyName}</p>
-                  <p className="text-white/50 text-xs">{COMPANY_CONTACT.legalName}</p>
-                  <p className="text-white/60 text-sm mt-1">Services prépayés au Québec</p>
+                  <p className="text-slate-400 text-xs">{COMPANY_CONTACT.legalName}</p>
+                  <p className="text-slate-500 text-sm mt-1">Services prépayés au Québec</p>
                 </div>
               </div>
             </div>
@@ -200,7 +200,7 @@ const APropos = () => {
               <div className="aspect-video rounded-2xl bg-primary border border-border overflow-hidden flex items-center justify-center">
                 <div className="text-center p-8">
                   <MapPin className="w-12 h-12 text-accent/30 mx-auto mb-3" />
-                  <p className="text-white/60 text-sm">Service partout au Québec</p>
+                  <p className="text-slate-500 text-sm">Service partout au Québec</p>
                 </div>
               </div>
             </div>

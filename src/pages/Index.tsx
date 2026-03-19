@@ -13,7 +13,7 @@ import HomeStatusBanner from "@/components/HomeStatusBanner";
 
 const Index = () => {
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light bg-white">
       <SEOHead {...SEO_DATA.home} />
       <LocalBusinessSchema />
       <Header />

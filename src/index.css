@@ -142,43 +142,43 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     PUBLIC DARK PREMIUM THEME — Applied to public-facing pages
-     Dark bg with blue accent, Bell/Telus premium feel
+     PUBLIC LIGHT PREMIUM THEME — Apple / Telus / Stripe style
+     Clean white bg with blue accent, professional feel
      ═══════════════════════════════════════════════════════════ */
-  .public-dark {
-    --background: 230 60% 4%;        /* #050816 */
-    --foreground: 0 0% 100%;         /* white */
+  .public-light {
+    --background: 0 0% 100%;            /* #FFFFFF */
+    --foreground: 222 47% 11%;          /* #0F172A */
 
-    --card: 222 50% 9%;              /* #0B1220 */
-    --card-foreground: 0 0% 100%;
+    --card: 0 0% 100%;                  /* #FFFFFF */
+    --card-foreground: 222 47% 11%;
 
-    --popover: 222 50% 9%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 60%;          /* #3B82F6 */
+    --primary: 217 91% 53%;             /* #2563EB */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 230 60% 6%;         /* slightly lighter than bg */
-    --secondary-foreground: 226 40% 82%;
+    --secondary: 210 40% 98%;           /* #F8FAFC */
+    --secondary-foreground: 215 25% 27%;
 
-    --muted: 222 40% 14%;
-    --muted-foreground: 226 40% 82%; /* #CBD5F5 */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;    /* #475569 */
 
-    --accent: 217 91% 60%;           /* #3B82F6 */
+    --accent: 217 91% 53%;              /* #2563EB */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 30% 18%;
-    --input: 222 30% 18%;
-    --ring: 217 91% 60%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 53%;
 
-    color: hsl(0 0% 100%);
+    color: hsl(222 47% 11%);
   }
 
-  .public-dark .text-muted-foreground {
-    color: hsl(226 40% 82%);
+  .public-light .text-muted-foreground {
+    color: hsl(215 16% 47%);
   }
 
   .dark {

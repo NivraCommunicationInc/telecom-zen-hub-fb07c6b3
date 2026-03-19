@@ -198,7 +198,7 @@ const ServicesDetail = () => {
   };
 
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light" >
       <SEOHead {...SEO_DATA.services} />
       <Header />
       

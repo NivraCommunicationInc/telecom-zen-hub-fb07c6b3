@@ -72,7 +72,7 @@ const TVPlans = () => {
   };
 
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }} data-testid="tv-plans-page">
+    <div className="min-h-screen public-light"  data-testid="tv-plans-page">
       <SEOHead {...SEO_DATA.tv} />
       <Header />
       
@@ -207,7 +207,7 @@ const TVPlans = () => {
                 }`}
               >
                 <div className={`absolute -top-3 left-1/2 -translate-x-1/2`}>
-                  <Badge className={`${plan.badgeColor} text-white px-4 py-1`}>
+                  <Badge className={`${plan.badgeColor} text-slate-900 px-4 py-1`}>
                     {plan.badge}
                   </Badge>
                 </div>
@@ -276,7 +276,7 @@ const TVPlans = () => {
         {/* GIGA Internet + TV Bundles Section */}
         <section className="container mx-auto px-4 mb-16 relative">
           <div className="text-center mb-12">
-            <Badge className="mb-6 bg-gradient-to-r from-orange-500 to-red-500 text-white border-0 px-4 py-1.5">
+            <Badge className="mb-6 bg-gradient-to-r from-orange-500 to-red-500 text-slate-900 border-0 px-4 py-1.5">
               <Zap className="w-3.5 h-3.5 mr-1.5" />
               {isFrench ? "GIGA Vitesse" : "GIGA Speed"}
             </Badge>
@@ -299,7 +299,7 @@ const TVPlans = () => {
                 }`}
               >
                 <div className={`absolute -top-3 left-1/2 -translate-x-1/2`}>
-                  <Badge className={`${plan.badgeColor} text-white px-4 py-1`}>
+                  <Badge className={`${plan.badgeColor} text-slate-900 px-4 py-1`}>
                     {plan.badge}
                   </Badge>
                 </div>

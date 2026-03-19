@@ -247,7 +247,7 @@ const TVConfigurator = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen public-dark flex items-center justify-center" style={{ background: 'hsl(230 60% 4%)' }}>
+      <div className="min-h-screen public-light flex items-center justify-center" >
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 animate-spin text-[#003366] mx-auto" />
           <p className="text-slate-400 text-sm">{isFr ? "Chargement du simulateur..." : "Loading simulator..."}</p>
@@ -264,7 +264,7 @@ const TVConfigurator = () => {
   ];
 
   return (
-    <div className="min-h-screen public-dark flex flex-col" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="min-h-screen public-light flex flex-col" >
       {/* ═══════════════════════════════════════════════════════ */}
       {/* HERO — Full-width immersive header */}
       {/* ═══════════════════════════════════════════════════════ */}
@@ -275,7 +275,7 @@ const TVConfigurator = () => {
             <Tv className="w-3.5 h-3.5 mr-1.5" />
             {isFr ? "Simulateur Nivra" : "Nivra Simulator"}
           </Badge>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-[1.08] mb-3">
+          <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.08] mb-3">
             {isFr ? "Composez votre forfait TV" : "Build your TV package"}
           </h1>
           <p className="text-sm md:text-base text-blue-200/50 max-w-lg mx-auto">
@@ -691,7 +691,7 @@ function SimulatorSectionHeader({ step, title, subtitle, optional }: { step: num
   return (
     <div className="text-center mb-8 md:mb-10">
       <div className="inline-flex items-center gap-2 bg-slate-100 rounded-full px-3 py-1 mb-3">
-        <span className="w-5 h-5 rounded-full bg-[#003366] text-white flex items-center justify-center text-[10px] font-bold">{step}</span>
+        <span className="w-5 h-5 rounded-full bg-[#003366] text-slate-900 flex items-center justify-center text-[10px] font-bold">{step}</span>
         {optional && <Badge variant="outline" className="text-[10px] border-slate-300 text-slate-400">Optionnel</Badge>}
       </div>
       <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 mb-1">{title}</h2>

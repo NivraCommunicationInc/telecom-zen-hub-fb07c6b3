@@ -6,7 +6,7 @@ interface PublicLayoutProps {
 
 export const PublicLayout = ({ children }: PublicLayoutProps) => {
   return (
-    <div className="public-dark text-foreground" style={{ background: 'hsl(230 60% 4%)' }}>
+    <div className="public-light text-foreground bg-white">
       {children}
     </div>
   );

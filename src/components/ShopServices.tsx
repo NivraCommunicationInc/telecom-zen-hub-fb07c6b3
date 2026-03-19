@@ -1,4 +1,4 @@
-import { Wifi, Smartphone, Tv, Monitor, Shield, Headphones, ArrowRight } from "lucide-react";
+import { Wifi, Smartphone, Tv, Monitor, Shield, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -16,9 +16,9 @@ const ShopServices = () => {
   ];
 
   return (
-    <section className="py-20 border-t border-white/5">
+    <section className="py-20 border-t border-slate-100">
       <div className="container mx-auto px-4 max-w-7xl">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-10 text-center">
+        <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-10 text-center">
           {isFr ? "Explorer les services Nivra" : "Explore Nivra services"}
         </h2>
 
@@ -27,12 +27,12 @@ const ShopServices = () => {
             <Link
               key={cat.link}
               to={cat.link}
-              className="group flex flex-col items-center gap-4 p-6 bg-[#0B1220] rounded-2xl border border-white/8 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 text-center"
+              className="group flex flex-col items-center gap-4 p-6 bg-white rounded-2xl border border-slate-200/80 hover:border-blue-200 hover:shadow-md transition-all duration-300 text-center"
             >
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/15 transition-colors">
-                <cat.icon className="w-6 h-6 text-blue-400" />
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                <cat.icon className="w-6 h-6 text-blue-600" />
               </div>
-              <span className="text-sm font-medium text-white/60 group-hover:text-white transition-colors">
+              <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
                 {cat.label}
               </span>
             </Link>

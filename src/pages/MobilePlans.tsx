@@ -50,7 +50,7 @@ const MobilePlans = () => {
   };
 
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }} data-testid="mobile-plans-page">
+    <div className="min-h-screen public-light"  data-testid="mobile-plans-page">
       <SEOHead {...SEO_DATA.mobile} />
       <ProductSchema products={productSchemaItems} isService={true} />
       <BreadcrumbSchema items={[

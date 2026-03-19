@@ -71,7 +71,7 @@ const InternetPlans = () => {
   };
 
   return (
-    <div className="min-h-screen public-dark" style={{ background: 'hsl(230 60% 4%)' }} data-testid="internet-plans-page">
+    <div className="min-h-screen public-light"  data-testid="internet-plans-page">
       <SEOHead {...SEO_DATA.internet} />
       <Header />
       <main className="pt-24 pb-20 relative">
