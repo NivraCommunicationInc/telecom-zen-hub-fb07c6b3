@@ -727,7 +727,13 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: 'Nº commande / Order #', value: vars.order_number || vars.order_id?.substring(0, 8) || 'N/A' },
         { label: 'Service', value: vars.service_type || 'N/A' },
-        { label: 'Montant / Amount', value: formatCurrency(vars.total_amount) },
+        { label: 'Payé aujourd’hui / Paid today', value: formatCurrency(vars.amount_paid_today ?? vars.total_amount ?? vars.total_payable) },
+        ...(vars.total_payable !== undefined ? [{ label: 'Total payable / Total payable', value: formatCurrency(vars.total_payable) }] : []),
+        ...(vars.monthly_recurring_amount !== undefined ? [{ label: 'Mensuel récurrent / Recurring monthly', value: formatCurrency(vars.monthly_recurring_amount) }] : []),
+        ...(vars.one_time_charges !== undefined ? [{ label: 'Frais uniques / One-time', value: formatCurrency(vars.one_time_charges) }] : []),
+        ...(vars.discount_amount ? [{ label: 'Rabais total / Total discount', value: `-${formatCurrency(Math.abs(Number(vars.discount_amount) || 0))}` }] : []),
+        ...(vars.tps_amount !== undefined ? [{ label: 'TPS', value: formatCurrency(vars.tps_amount) }] : []),
+        ...(vars.tvq_amount !== undefined ? [{ label: 'TVQ', value: formatCurrency(vars.tvq_amount) }] : []),
         { label: 'Date', value: formatDate(new Date().toISOString()) },
       ])}
       <p style="margin:20px 0 0; font-size:14px; color:${emailStyles.textSecondary};">
