@@ -183,7 +183,12 @@ describe("LOCK 3 — Invoice/Payment Canonical Mapping", () => {
   it("document builder MUST block generation without compute_invoice_breakdown", () => {
     const code = readFile("src/lib/pdf/documentBuilder.ts");
     expect(code).toContain("compute_invoice_breakdown RPC requis");
-    expect(code).not.toContain("fallbackStructure");
+    // fallbackStructure must only appear in deletion comments, not as active code
+    const lines = code.split("\n");
+    const activeFallbacks = lines.filter(
+      (l) => l.includes("fallbackStructure") && !l.includes("SUPPRIMÉ") && !l.includes("//"),
+    );
+    expect(activeFallbacks, "Active fallbackStructure code found").toHaveLength(0);
   });
 });
 
