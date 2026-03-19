@@ -39,9 +39,10 @@ const LockdownGuard = ({ children }: LockdownGuardProps) => {
     }
   }, []);
 
-  // Show loading state briefly
+  // While loading, render children optimistically (prevents blank screen)
+  // Lockdown is rare; if active it will kick in once the query resolves
   if (isLoading) {
-    return null;
+    return <>{children}</>;
   }
 
   // If lockdown is active and user hasn't unlocked

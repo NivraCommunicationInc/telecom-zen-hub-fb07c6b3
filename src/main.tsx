@@ -21,8 +21,14 @@ if (import.meta.env.DEV && "serviceWorker" in navigator) {
     });
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const root = ReactDOM.createRoot(document.getElementById("root")!);
+root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
+
+// Signal that React has painted — hide pre-rendered HTML
+requestAnimationFrame(() => {
+  document.documentElement.classList.add("app-hydrated");
+});
