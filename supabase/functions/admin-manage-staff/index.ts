@@ -645,6 +645,10 @@ serve(async (req: Request) => {
           permissions: body.permissions || {},
           is_active: is_active,
           require_password_change: require_password_change || send_invitation,
+          can_access_core: body.can_access_core ?? (role === "admin"),
+          can_access_employee: body.can_access_employee ?? (role === "employee" || role === "admin"),
+          can_access_field: body.can_access_field ?? (role === "field_sales"),
+          can_access_technician: body.can_access_technician ?? (role === "technician"),
         });
 
         if (roleError) {
