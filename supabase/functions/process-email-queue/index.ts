@@ -126,7 +126,7 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
       }
       
       case 'summary': {
-        const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_amount ?? 0) || 0;
+        const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_payable ?? vars.total_amount ?? 0) || 0;
         const totalPayable = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? paidToday) || 0;
         const tps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
         const tvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
@@ -167,70 +167,17 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
 
 // PROFESSIONAL BLUE DESIGN SYSTEM - #0066CC Primary
 const emailStyles = {
-  fontFamily: "Arial, Helvetica, 'Segoe UI', sans-serif",
-  bgColor: "#F8FAFB",
-  cardBg: "#ffffff",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#4A4A4A",
-  textMuted: "#6B7280",
-  // Professional Blue Primary
-  accent: "#0066CC",
-  accentDark: "#004C99",
-  accentLight: "#E6F0FA",
-  // Status Colors
-  success: "#059669",
-  successBg: "#ECFDF5",
-  successBorder: "#A7F3D0",
-  warning: "#D97706",
-  warningBg: "#FFFBEB",
-  warningBorder: "#FCD34D",
-  error: "#DC2626",
-  errorBg: "#FEF2F2",
-  errorBorder: "#FECACA",
-  info: "#2563EB",
-  infoBg: "#EFF6FF",
-  infoBorder: "#BFDBFE",
-  border: "#E5E7EB",
-  footerBg: "#1F2937",
-  footerText: "#D1D5DB",
-};
-
-const formatCurrency = (amount: number) => 
-  new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
-
-const formatDate = (dateStr: string, includeTime = false) => {
-  if (!dateStr) return 'N/A';
-  const date = new Date(dateStr);
-  if (includeTime) {
-    return date.toLocaleString('fr-CA', { dateStyle: 'long', timeStyle: 'short' });
-  }
-  return date.toLocaleDateString('fr-CA', { dateStyle: 'long' });
-};
-
-// URL joining helper - guarantees exactly one slash between base and path
-const joinUrl = (baseUrl: string, path: string): string => {
-  const base = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
-  const cleanPath = path.replace(/^\/+/, ''); // Remove leading slashes
-  const result = `${base}/${cleanPath}`;
-  
-  // Validation: check for common URL joining errors
-  if (result.includes('.appclient') || result.includes('.caclient') || result.includes('.app/client') === false && result.includes('.app') && result.includes('client')) {
-    console.error(`[URL ERROR] Invalid URL detected: ${result}`);
-  }
-  
-  return result;
-};
-
-const toMoney = (value: unknown): number | null => {
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
-};
-
+...
 const PAYMENT_AMOUNT_TEMPLATES = new Set([
   "payment_confirmed",
   "payment_received",
   "payment_receipt",
   "invoice_paid",
+]);
+
+const ORDER_CONFIRMATION_TEMPLATES = new Set([
+  "order_submitted",
+  "order_confirmation",
 ]);
 
 const DUE_AMOUNT_TEMPLATES = new Set([
