@@ -412,66 +412,70 @@ serve(async (req) => {
           
           if (sub) {
             // Find pending/unpaid invoice for this subscription
-            const { data: invoice } = await supabase
-              .from("billing_invoices")
-              .select("id")
-              .eq("subscription_id", sub.id)
-              .in("status", ["pending", "partially_paid"])
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .single();
-            
-            if (invoice) {
-              // ★ USE THE TRANSACTIONAL DB FUNCTION ★
-              const { data: rpcResult, error: rpcError } = await supabase.rpc(
-                "apply_payment_to_invoice",
-                {
-                  p_invoice_id: invoice.id,
-                  p_amount: amount,
-                  p_method: "paypal",
-                  p_provider: "paypal",
-                  p_provider_payment_id: paymentId,
-                  p_source: "webhook_subscription",
-                  p_created_by_name: "PayPal Webhook",
-                  p_created_by_role: "system",
-                  p_customer_id: sub.customer_id,
-                }
-              );
+              const { data: invoice } = await supabase
+                .from("billing_invoices")
+                .select("id, order_id, invoice_number, total")
+                .eq("subscription_id", sub.id)
+                .in("status", ["pending", "partially_paid"])
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single();
+              
+              if (invoice) {
+                // ★ USE THE TRANSACTIONAL DB FUNCTION ★
+                const { data: rpcResult, error: rpcError } = await supabase.rpc(
+                  "apply_payment_to_invoice",
+                  {
+                    p_invoice_id: invoice.id,
+                    p_amount: amount,
+                    p_method: "paypal",
+                    p_provider: "paypal",
+                    p_provider_payment_id: paymentId,
+                    p_source: "webhook_subscription",
+                    p_created_by_name: "PayPal Webhook",
+                    p_created_by_role: "system",
+                    p_customer_id: sub.customer_id,
+                  }
+                );
 
-              if (rpcError) {
-                console.error("[PayPal Webhook] apply_payment_to_invoice error:", rpcError);
-              } else {
-                console.log(`[PayPal Webhook] Subscription payment applied via RPC:`, rpcResult);
+                if (rpcError) {
+                  console.error("[PayPal Webhook] apply_payment_to_invoice error:", rpcError);
+                } else {
+                  console.log(`[PayPal Webhook] Subscription payment applied via RPC:`, rpcResult);
 
-                // If fully paid, update subscription cycle
-                if (rpcResult?.is_fully_paid) {
-                  const newCycleStart = new Date(sub.cycle_end_date);
-                  const newCycleEnd = new Date(sub.cycle_end_date);
-                  newCycleEnd.setDate(newCycleEnd.getDate() + 30);
-                  
-                  await supabase
-                    .from("billing_subscriptions")
-                    .update({
-                      cycle_start_date: newCycleStart.toISOString().split('T')[0],
-                      cycle_end_date: newCycleEnd.toISOString().split('T')[0],
-                      last_invoice_id: invoice.id,
-                    })
-                    .eq("id", sub.id);
-                }
+                  // If fully paid, update subscription cycle
+                  if (rpcResult?.is_fully_paid) {
+                    const newCycleStart = new Date(sub.cycle_end_date);
+                    const newCycleEnd = new Date(sub.cycle_end_date);
+                    newCycleEnd.setDate(newCycleEnd.getDate() + 30);
+                    
+                    await supabase
+                      .from("billing_subscriptions")
+                      .update({
+                        cycle_start_date: newCycleStart.toISOString().split('T')[0],
+                        cycle_end_date: newCycleEnd.toISOString().split('T')[0],
+                        last_invoice_id: invoice.id,
+                      })
+                      .eq("id", sub.id);
+                  }
 
-                // Queue confirmation email
-                if (sub.customer && !rpcResult?.already_processed) {
-                  await supabase.from("email_queue").insert({
-                    event_key: `paypal_payment_${paymentId}`,
-                    to_email: sub.customer.email,
-                    template_key: "payment_confirmed",
-                    template_vars: {
-                      client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
-                      amount: amount.toFixed(2),
-                      invoice_number: rpcResult?.invoice_number || "N/A",
-                      payment_method: "PayPal (Paiement automatique)",
-                      reference: paymentId,
-                    },
+                  // Queue confirmation email
+                  if (sub.customer && !rpcResult?.already_processed) {
+                    await supabase.from("email_queue").insert({
+                      event_key: `paypal_payment_${paymentId}`,
+                      to_email: sub.customer.email,
+                      template_key: "payment_confirmed",
+                      template_vars: {
+                        client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
+                        amount: amount.toFixed(2),
+                        amount_paid_today: amount.toFixed(2),
+                        total_payable: Number(invoice.total || amount).toFixed(2),
+                        invoice_id: invoice.id,
+                        order_id: invoice.order_id || undefined,
+                        invoice_number: rpcResult?.invoice_number || invoice.invoice_number || "N/A",
+                        payment_method: "PayPal (Paiement automatique)",
+                        reference: paymentId,
+                      },
                     status: "queued",
                     attempts: 0,
                     max_attempts: 5,
