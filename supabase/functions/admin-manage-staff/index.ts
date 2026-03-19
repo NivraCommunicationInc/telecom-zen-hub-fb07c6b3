@@ -818,19 +818,18 @@ serve(async (req: Request) => {
         const stepRoles = `${createStep}.db_upsert_role`;
         console.log(`[admin-manage-staff] ${stepRoles} user_id=${userId} role=${role}`);
 
-        await adminClient.from("user_roles").delete().eq("user_id", userId);
-        const { error: roleError } = await adminClient.from("user_roles").insert({
+        const { error: roleError } = await adminClient.from("user_roles").upsert({
           user_id: userId,
-          role: role,
+          role,
           permissions: body.permissions || {},
-          is_active: is_active,
+          is_active,
           require_password_change: require_password_change || send_invitation,
           mfa_required,
           can_access_core: body.can_access_core ?? (role === "admin"),
           can_access_employee: body.can_access_employee ?? (role !== "admin"),
           can_access_field: body.can_access_field ?? (role === "field_sales"),
           can_access_technician: body.can_access_technician ?? (role === "technician"),
-        });
+        }, { onConflict: "user_id" });
 
         if (roleError) {
           console.error(`[admin-manage-staff] ${stepRoles} error:`, roleError);
@@ -869,20 +868,19 @@ serve(async (req: Request) => {
 
         if (role === "employee" || role === "technician") {
           const stepEmp = `${createStep}.db_upsert_employee`;
-          // Generate per-user salt and hash PIN with PBKDF2
           const pinSalt = generateSalt();
-          const effectivePin = pin || "312026"; // Default 6-digit PIN
+          const effectivePin = pin || "312026";
           const pinHash = await hashPinPBKDF2(effectivePin, pinSalt);
-          
+
           const { error: empError } = await adminClient.from("employees").upsert({
-            user_id: userId, // CRITICAL: Store user_id for server-side validation
+            user_id: userId,
             email,
             full_name,
             phone: phone || null,
             role,
             is_active,
             pin_hash: pinHash,
-            pin_salt: pinSalt, // Store per-user salt
+            pin_salt: pinSalt,
             pin_set_at: pin ? new Date().toISOString() : null,
             require_pin_change: require_pin_change || !pin,
             badge_number: badge_number || null,
@@ -911,108 +909,138 @@ serve(async (req: Request) => {
           { type: "user", id: userId, email }
         );
 
-        // CHANGED: Only send password reset for admins, send PIN invite for employee/technician
-        if (send_invitation && mode === "new_user_created") {
+        let invitationSent = false;
+        let invitationError: string | null = null;
+
+        if (send_invitation) {
           const appBaseUrl = getAppBaseUrl();
-          
-          if (role === "admin") {
-            // Admin gets password reset link
-            const resetUrl = `${appBaseUrl}/admin/reset-password`;
-            console.log(`[admin-manage-staff] Sending password reset email to admin ${email} with redirect: ${resetUrl}`);
-            await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
-          } else {
-            // Employee/Technician: send profile setup invite (password + PIN + terms)
-            console.log(`[admin-manage-staff] Sending profile setup invite to ${role} ${email}`);
-            
-            // Generate one-time token for onboarding
-            const tokenBytes = new Uint8Array(32);
-            crypto.getRandomValues(tokenBytes);
-            const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-            const tokenHash = await hashToken(token);
-            
-            // Store token in staff_onboarding_tokens table
-            const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 48); // 48 hours to complete setup
-            
-            await adminClient.from("staff_onboarding_tokens").insert({
-              user_id: userId,
-              email,
-              role,
-              token_hash: tokenHash,
-              expires_at: expiresAt.toISOString(),
-              created_by_admin_id: callingUser.id,
-            });
-            
-            // Build setup link to the new onboarding page
-            const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
-            const staffLoginLink = `${appBaseUrl}/staff`;
-            
-            // Send professional onboarding email
-            const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-            await resend.emails.send({
-              from: "Nivra Telecom <support@nivra-telecom.ca>",
-              reply_to: "support@nivra-telecom.ca",
-              to: [email],
-              subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
-              html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
-                    <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
-                    <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Bienvenue dans l'équipe!</p>
-                  </div>
-                  <div style="padding: 30px; background: #f8fafc;">
-                    <h2 style="color: #1e293b; margin-bottom: 16px;">Bonjour ${full_name},</h2>
-                    <p style="color: #374151; line-height: 1.6;">Votre compte <strong>${role === "employee" ? "employé" : "technicien"}</strong> a été créé avec succès.</p>
-                    
-                    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-                      <p style="color: #92400e; margin: 0; font-weight: 600;">Configuration requise</p>
-                      <p style="color: #78350f; margin: 8px 0 0; font-size: 14px;">
-                        Avant d'accéder au portail, vous devez configurer votre profil: mot de passe, NIP de sécurité et accepter les conditions d'utilisation.
+
+          try {
+            if (role === "admin") {
+              const resetUrl = `${appBaseUrl}/admin/reset-password`;
+              console.log(`[admin-manage-staff] Sending password reset email to admin ${email} with redirect: ${resetUrl}`);
+              await adminClient.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
+              invitationSent = true;
+            } else {
+              console.log(`[admin-manage-staff] Sending profile setup invite to ${role} ${email} (${mode})`);
+
+              const tokenBytes = new Uint8Array(32);
+              crypto.getRandomValues(tokenBytes);
+              const token = Array.from(tokenBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+              const tokenHash = await hashToken(token);
+
+              const expiresAt = new Date();
+              expiresAt.setHours(expiresAt.getHours() + 48);
+
+              await adminClient
+                .from("staff_onboarding_tokens")
+                .update({ revoked_at: new Date().toISOString(), revoked_by_admin_id: callingUser.id })
+                .eq("user_id", userId)
+                .is("used_at", null)
+                .is("revoked_at", null);
+
+              const { error: tokenError } = await adminClient.from("staff_onboarding_tokens").insert({
+                user_id: userId,
+                email,
+                role,
+                token_hash: tokenHash,
+                expires_at: expiresAt.toISOString(),
+                created_by_admin_id: callingUser.id,
+                sent_at: new Date().toISOString(),
+              });
+
+              if (tokenError) {
+                throw new Error(`Token invitation: ${tokenError.message}`);
+              }
+
+              const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
+              const staffLoginLink = `${appBaseUrl}/staff`;
+              const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+              if (!resendApiKey) {
+                throw new Error("RESEND_API_KEY manquant");
+              }
+
+              const resend = new Resend(resendApiKey);
+              await resend.emails.send({
+                from: "Nivra Telecom <support@nivra-telecom.ca>",
+                reply_to: "support@nivra-telecom.ca",
+                to: [email],
+                subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
+                      <h1 style="color: white; margin: 0;">Nivra Telecom</h1>
+                      <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0;">Bienvenue dans l'équipe!</p>
+                    </div>
+                    <div style="padding: 30px; background: #f8fafc;">
+                      <h2 style="color: #1e293b; margin-bottom: 16px;">Bonjour ${resolvedFullName},</h2>
+                      <p style="color: #374151; line-height: 1.6;">Votre compte <strong>${role === "employee" ? "employé" : "technicien"}</strong> a été créé avec succès.</p>
+
+                      <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+                        <p style="color: #92400e; margin: 0; font-weight: 600;">Configuration requise</p>
+                        <p style="color: #78350f; margin: 8px 0 0; font-size: 14px;">
+                          Avant d'accéder au portail, vous devez configurer votre profil: mot de passe, NIP de sécurité et accepter les conditions d'utilisation.
+                        </p>
+                      </div>
+
+                      <p style="margin: 25px 0; text-align: center;">
+                        <a href="${setupLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                          Configurer mon profil
+                        </a>
+                      </p>
+                      <p style="font-size: 13px; color: #64748b; text-align: center;">Ce lien expire dans 48 heures.</p>
+
+                      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
+
+                      <p style="color: #374151; font-weight: 600; margin-bottom: 12px;">Étapes de configuration:</p>
+                      <ol style="color: #374151; line-height: 2; padding-left: 20px;">
+                        <li>Créez votre mot de passe sécurisé</li>
+                        <li>Choisissez un NIP à 4 chiffres (requis pour accéder aux profils clients)</li>
+                        <li>Acceptez les conditions de confidentialité</li>
+                      </ol>
+
+                      <p style="margin-top: 24px; color: #64748b; font-size: 13px;">
+                        Une fois configuré, connectez-vous à <a href="${staffLoginLink}" style="color: #0d9488;">${staffLoginLink}</a>
                       </p>
                     </div>
-                    
-                    <p style="margin: 25px 0; text-align: center;">
-                      <a href="${setupLink}" style="display: inline-block; background: linear-gradient(135deg, #0891b2, #06b6d4); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                        Configurer mon profil
-                      </a>
-                    </p>
-                    <p style="font-size: 13px; color: #64748b; text-align: center;">Ce lien expire dans 48 heures.</p>
-                    
-                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
-                    
-                    <p style="color: #374151; font-weight: 600; margin-bottom: 12px;">Étapes de configuration:</p>
-                    <ol style="color: #374151; line-height: 2; padding-left: 20px;">
-                      <li>Créez votre mot de passe sécurisé</li>
-                      <li>Choisissez un NIP à 4 chiffres (requis pour accéder aux profils clients)</li>
-                      <li>Acceptez les conditions de confidentialité</li>
-                    </ol>
-                    
-                    <p style="margin-top: 24px; color: #64748b; font-size: 13px;">
-                      Une fois configuré, connectez-vous à <a href="${staffLoginLink}" style="color: #0d9488;">${staffLoginLink}</a>
-                    </p>
+                    <div style="padding: 24px 30px; background: #f1f5f9; border-top: 1px solid #e2e8f0; text-align: center;">
+                      <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
+                      <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">1799 Av. Pierre-Péladeau, Laval, QC</p>
+                      <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
+                        <a href="mailto:support@nivra-telecom.ca" style="color: #0d9488; text-decoration: none;">support@nivra-telecom.ca</a> |
+                        <a href="tel:4385442233" style="color: #0d9488; text-decoration: none; white-space: nowrap;">438-544-2233</a>
+                      </p>
+                    </div>
                   </div>
-                  <div style="padding: 24px 30px; background: #f1f5f9; border-top: 1px solid #e2e8f0; text-align: center;">
-                    <p style="margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #18181b;">Nivra Telecom</p>
-                    <p style="margin: 0 0 6px; font-size: 12px; color: #71717a;">1799 Av. Pierre-Péladeau, Laval, QC</p>
-                    <p style="margin: 0 0 12px; font-size: 13px; color: #52525b;">
-                      <a href="mailto:support@nivra-telecom.ca" style="color: #0d9488; text-decoration: none;">support@nivra-telecom.ca</a> | 
-                      <a href="tel:4385442233" style="color: #0d9488; text-decoration: none; white-space: nowrap;">438-544-2233</a>
-                    </p>
-                  </div>
-                </div>
-              `,
-            });
-            
-            await logAction("staff_onboarding_invite_sent", { request_id: requestId, role }, { type: "user", id: userId, email });
+                `,
+              });
+
+              invitationSent = true;
+              await logAction("staff_onboarding_invite_sent", { request_id: requestId, role, mode }, { type: "user", id: userId, email });
+            }
+          } catch (inviteError) {
+            const message = inviteError instanceof Error ? inviteError.message : "Erreur invitation inconnue";
+            invitationError = message;
+            console.error(`[admin-manage-staff] ${createStep}.send_invitation error:`, inviteError);
+            await logAction("staff_invitation_send_failed", {
+              request_id: requestId,
+              role,
+              mode,
+              message,
+              target_email: email,
+            }, { type: "user", id: userId, email });
           }
         }
 
         const successMessage = mode === "existing_user_promoted"
-          ? "Compte existant trouvé — rôle mis à jour avec succès."
-          : send_invitation 
-            ? role === "admin" 
-              ? "Utilisateur créé. Un email de configuration du mot de passe a été envoyé."
-              : "Utilisateur créé. Un email de configuration du profil a été envoyé."
+          ? (invitationSent ? "Compte existant trouvé — rôle mis à jour et invitation envoyée." : "Compte existant trouvé — rôle mis à jour avec succès.")
+          : send_invitation
+            ? (invitationSent
+              ? (role === "admin"
+                ? "Utilisateur créé. Un email de configuration du mot de passe a été envoyé."
+                : "Utilisateur créé. Un email de configuration du profil a été envoyé.")
+              : "Utilisateur créé, mais l'invitation email n'a pas pu être envoyée.")
             : "Utilisateur créé avec succès.";
 
         return json(200, {
@@ -1021,6 +1049,8 @@ serve(async (req: Request) => {
           success: true,
           mode,
           user: { id: userId, email },
+          invitation_sent: invitationSent,
+          invitation_error: invitationError,
           message: successMessage,
         });
       }
