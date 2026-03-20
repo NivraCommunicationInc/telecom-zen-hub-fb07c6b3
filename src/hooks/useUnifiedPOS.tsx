@@ -274,10 +274,11 @@ export function calculateUnifiedPOSTotals(
   const recurringSubtotal = monthlySubtotal;
   const taxableAmount = recurringSubtotal + oneTimeSubtotal;
   
-  const { tps, tvq } = estimateTaxes(taxableAmount);
-  
-  const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-  const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
+  // ⛔ NO LOCAL TAX MATH
+  const tps = 0;
+  const tvq = 0;
+  const firstMonthTotal = taxableAmount;
+  const recurringMonthly = monthlySubtotal;
   
   return {
     monthlySubtotal,
