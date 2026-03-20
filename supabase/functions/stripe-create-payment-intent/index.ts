@@ -17,6 +17,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const extractPublishableKey = (raw?: string | null): string => {
+  if (!raw) return "";
+  const unquoted = raw.trim().replace(/^['\"]+|['\"]+$/g, "");
+  if (!unquoted) return "";
+
+  const extracted = unquoted.match(/pk_(?:live|test)_[A-Za-z0-9_]+/);
+  return extracted?.[0] ?? unquoted;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -31,6 +40,13 @@ serve(async (req) => {
     }
     const isLiveMode = stripeKey.startsWith("sk_live_");
     console.log(`[stripe-create-payment-intent] Mode: ${isLiveMode ? "LIVE" : "TEST"}`);
+
+    const publishableKey = extractPublishableKey(
+      Deno.env.get(isLiveMode ? "VITE_STRIPE_PUBLISHABLE_KEY_LIVE" : "VITE_STRIPE_PUBLISHABLE_KEY_TEST") ||
+      Deno.env.get("VITE_STRIPE_PUBLISHABLE_KEY") ||
+      Deno.env.get("VITE_STRIPE_PUBLISHABLE_KEY_LIVE") ||
+      Deno.env.get("VITE_STRIPE_PUBLISHABLE_KEY_TEST")
+    );
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -137,6 +153,7 @@ serve(async (req) => {
         client_secret: paymentIntent.client_secret,
         payment_intent_id: paymentIntent.id,
         livemode: paymentIntent.livemode,
+        publishable_key: publishableKey || undefined,
         payment_intent_status: paymentIntent.status,
         capture_method: paymentIntent.capture_method,
       }),
