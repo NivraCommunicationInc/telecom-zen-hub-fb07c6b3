@@ -45,7 +45,7 @@ interface POSPaymentFormAdminProps {
 }
 
 export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, renderStripePayment }: POSPaymentFormAdminProps) {
-  const [method, setMethod] = useState<AdminPaymentMethod>("interac");
+  const [method, setMethod] = useState<AdminPaymentMethod>("card");
   const [reference, setReference] = useState("");
   const [paypalTransactionId, setPaypalTransactionId] = useState("");
   const [paypalPayerEmail, setPaypalPayerEmail] = useState("");
@@ -79,10 +79,10 @@ export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, rende
 
   const paymentMethods: { value: AdminPaymentMethod; label: string; icon: React.ReactNode; color: string; badge?: string }[] = [
     { 
-      value: "interac", 
-      label: "Interac e-Transfer", 
-      icon: <Banknote className="h-5 w-5" />, 
-      color: "text-emerald-400",
+      value: "card", 
+      label: "Carte de crédit", 
+      icon: <CreditCard className="h-5 w-5" />, 
+      color: "text-cyan-400",
       badge: "Recommandé"
     },
     { 
@@ -98,10 +98,10 @@ export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, rende
       color: "text-blue-400"
     },
     { 
-      value: "card", 
-      label: "Carte de crédit", 
-      icon: <CreditCard className="h-5 w-5" />, 
-      color: "text-cyan-400"
+      value: "interac", 
+      label: "Interac e-Transfer", 
+      icon: <Banknote className="h-5 w-5" />, 
+      color: "text-emerald-400"
     },
     { 
       value: "cash", 
