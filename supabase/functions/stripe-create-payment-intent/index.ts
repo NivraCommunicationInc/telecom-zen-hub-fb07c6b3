@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "npm:stripe@18";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { createNivraPaymentIntent } from "../_shared/nivraPaymentIntentFactory.ts";
 
 /**
- * STRIPE — CREATE PAYMENT INTENT (V2 — Full Business Context)
+ * STRIPE — CREATE PAYMENT INTENT (V3 — Centralized Factory)
  *
- * Creates a PaymentIntent with complete customer identity, order/invoice
- * metadata, pricing breakdown, and billing address for Stripe Dashboard.
+ * Uses the shared NivraPaymentIntentFactory for ALL PaymentIntent creation.
+ * No local PI creation logic — everything flows through the factory with hard validation.
  *
  * Used by: public checkout, client portal, admin POS, Core admin, staff POS
  */
@@ -110,20 +111,33 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const stripeAccount = await stripe.accounts.retrieve();
-    console.log(`[stripe-create-payment-intent] Stripe account: ${stripeAccount.id} (${isLiveMode ? "LIVE" : "TEST"})`);
 
-    // ═══ RESOLVE CUSTOMER IDENTITY ═══
+    // ═══ RESOLVE CONTEXT ═══
     const customerObj = invoice?.customer;
     const email = customer_email || customerObj?.email;
     const customerName = customerObj ? `${customerObj.first_name || ""} ${customerObj.last_name || ""}`.trim() : undefined;
-    const customerPhone = customerObj?.phone || undefined;
-    const amountCents = Math.round(amount * 100);
+    const pricingSnapshot = order?.pricing_snapshot;
+    const isInvoicePayment = Boolean(invoice_id || intent_context === "invoice_payment");
 
-    // ═══ RESOLVE BILLING ADDRESS ═══
-    const billingAddress: Stripe.AddressParam | undefined = (() => {
-      // Prefer account billing address, fallback to order service address
-      const addr = account || order;
+    // Service name
+    const serviceName = order?.plan_name ||
+      pricingSnapshot?.plan_name ||
+      invoiceLines.find((l: any) => l.line_type === "service" || l.line_type === "recurring")?.description ||
+      "Nivra Telecom";
+
+    // Pricing breakdown from invoice lines
+    const monthlyAmount = invoiceLines
+      .filter((l: any) => l.line_type === "service" || l.line_type === "recurring")
+      .reduce((s: number, l: any) => s + (l.line_total || 0), 0);
+    const oneTimeAmount = invoiceLines
+      .filter((l: any) => ["equipment", "fee", "activation", "installation", "delivery"].includes(l.line_type))
+      .reduce((s: number, l: any) => s + (l.line_total || 0), 0);
+    const discountAmount = invoiceLines
+      .filter((l: any) => l.line_type === "discount" || l.line_type === "promo")
+      .reduce((s: number, l: any) => s + Math.abs(l.line_total || 0), 0);
+
+    // Billing address
+    const billingAddress = (() => {
       const line1 = account?.billing_address || order?.service_address;
       if (!line1) return undefined;
       return {
@@ -135,127 +149,52 @@ serve(async (req) => {
       };
     })();
 
-    // ═══ FIND OR CREATE STRIPE CUSTOMER (with full identity) ═══
-    let stripeCustomerId: string | undefined = customerObj?.stripe_customer_id || undefined;
-
-    if (!stripeCustomerId && email) {
-      const customers = await stripe.customers.list({ email, limit: 1 });
-      if (customers.data.length > 0) {
-        stripeCustomerId = customers.data[0].id;
-        // Update existing customer with latest info
-        await stripe.customers.update(stripeCustomerId, {
-          ...(customerName ? { name: customerName } : {}),
-          ...(customerPhone ? { phone: customerPhone } : {}),
-          ...(billingAddress ? { address: billingAddress } : {}),
-        });
-      } else {
-        const newCustomer = await stripe.customers.create({
-          email,
-          ...(customerName ? { name: customerName } : {}),
-          ...(customerPhone ? { phone: customerPhone } : {}),
-          ...(billingAddress ? { address: billingAddress } : {}),
-        });
-        stripeCustomerId = newCustomer.id;
-      }
-
-      // Persist stripe_customer_id back to billing_customers if we have one
-      if (stripeCustomerId && customerObj?.id && !customerObj.stripe_customer_id) {
-        await db
-          .from("billing_customers")
-          .update({ stripe_customer_id: stripeCustomerId })
-          .eq("id", customerObj.id);
-        console.log(`[stripe-create-payment-intent] Linked Stripe customer ${stripeCustomerId} to billing_customer ${customerObj.id}`);
-      }
-    }
-
-    // ═══ BUILD RICH METADATA ═══
-    const isInvoicePayment = Boolean(invoice_id || intent_context === "invoice_payment");
-    const pricingSnapshot = order?.pricing_snapshot;
-
-    // Compute pricing breakdown from invoice lines
-    const monthlyAmount = invoiceLines
-      .filter((l: any) => l.line_type === "service" || l.line_type === "recurring")
-      .reduce((s: number, l: any) => s + (l.line_total || 0), 0);
-    const oneTimeAmount = invoiceLines
-      .filter((l: any) => ["equipment", "fee", "activation", "installation", "delivery"].includes(l.line_type))
-      .reduce((s: number, l: any) => s + (l.line_total || 0), 0);
-    const discountAmount = invoiceLines
-      .filter((l: any) => l.line_type === "discount" || l.line_type === "promo")
-      .reduce((s: number, l: any) => s + Math.abs(l.line_total || 0), 0);
-
-    // Service name from order or invoice lines
-    const serviceName = order?.plan_name ||
-      pricingSnapshot?.plan_name ||
-      invoiceLines.find((l: any) => l.line_type === "service" || l.line_type === "recurring")?.description ||
-      "Nivra Telecom";
-
-    const metadata: Record<string, string> = {
+    // ═══ CALL CENTRALIZED FACTORY ═══
+    const result = await createNivraPaymentIntent({
+      stripe,
+      customer_email: email,
+      invoice_id: invoice_id || "",
+      invoice_number: invoice?.invoice_number || "",
+      service_name: serviceName,
+      total_amount: amount,
+      order_id: order?.id,
+      order_number: order?.order_number ? String(order.order_number) : undefined,
+      subscription_id: invoice?.subscription_id || undefined,
+      customer_name: customerName,
+      customer_phone: customerObj?.phone || undefined,
+      customer_id: customer_id || invoice?.customer_id || undefined,
+      account_id: account?.id || undefined,
+      account_number: account?.account_number ? String(account.account_number) : undefined,
+      existing_stripe_customer_id: customerObj?.stripe_customer_id || undefined,
+      billing_address: billingAddress,
+      subtotal: invoice?.subtotal,
+      tax_tps: invoice?.tps_amount,
+      tax_tvq: invoice?.tvq_amount,
+      monthly_amount: monthlyAmount > 0 ? monthlyAmount : undefined,
+      one_time_amount: oneTimeAmount > 0 ? oneTimeAmount : undefined,
+      discount_amount: discountAmount > 0 ? discountAmount : undefined,
+      plan_type: order?.plan_type || pricingSnapshot?.plan_type || undefined,
+      capture_method: isInvoicePayment ? "automatic" : "manual",
       source: isInvoicePayment ? "portal_invoice_payment" : "portal_checkout_preconfirm",
       intent_context: isInvoicePayment ? "invoice_payment" : "checkout_preconfirm",
-    };
-
-    // Order context
-    if (invoice_id) metadata.invoice_id = invoice_id;
-    if (invoice?.invoice_number) metadata.invoice_number = invoice.invoice_number;
-    if (order?.id) metadata.order_id = order.id;
-    if (order?.order_number) metadata.order_number = String(order.order_number);
-    if (account?.id) metadata.account_id = account.id;
-    if (account?.account_number) metadata.account_number = String(account.account_number);
-    const resolvedCustomerId = customer_id || invoice?.customer_id;
-    if (resolvedCustomerId) metadata.customer_id = resolvedCustomerId;
-    if (invoice?.subscription_id) metadata.subscription_id = invoice.subscription_id;
-
-    // Service context
-    metadata.service_name = serviceName;
-    if (order?.plan_type || pricingSnapshot?.plan_type) {
-      metadata.plan_type = order?.plan_type || pricingSnapshot?.plan_type;
-    }
-    metadata.billing_cycle = "monthly";
-
-    // Pricing breakdown (from canonical invoice data)
-    if (invoice) {
-      metadata.subtotal = String(invoice.subtotal || 0);
-      metadata.tax_tps = String(invoice.tps_amount || 0);
-      metadata.tax_tvq = String(invoice.tvq_amount || 0);
-      metadata.total_amount = String(invoice.total || amount);
-    }
-    if (monthlyAmount > 0) metadata.monthly_amount = String(monthlyAmount);
-    if (oneTimeAmount > 0) metadata.one_time_amount = String(oneTimeAmount);
-    if (discountAmount > 0) metadata.discount_amount = String(discountAmount);
-
-    // ═══ BUILD DESCRIPTION ═══
-    const richDescription = order?.order_number
-      ? `Nivra Telecom — Commande ${order.order_number} — ${serviceName}`
-      : invoice?.invoice_number
-        ? `Nivra Telecom — Facture ${invoice.invoice_number} — ${serviceName}`
-        : description || "Nivra Telecom — Paiement";
-
-    // Checkout preconfirm stays manual authorization; invoice payments are immediate capture.
-    const captureMethod: "manual" | "automatic" = isInvoicePayment ? "automatic" : "manual";
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: "cad",
-      customer: stripeCustomerId,
-      capture_method: captureMethod,
-      metadata,
-      description: richDescription,
-      receipt_email: email || undefined,
-      automatic_payment_methods: { enabled: true },
     });
 
-    console.log(
-      `[stripe-create-payment-intent] PI created: ${paymentIntent.id} | ${richDescription} | metadata keys: ${Object.keys(metadata).join(", ")}`
-    );
+    // Persist stripe_customer_id back to billing_customers if new
+    if (result.stripe_customer_id && customerObj?.id && !customerObj.stripe_customer_id) {
+      await db
+        .from("billing_customers")
+        .update({ stripe_customer_id: result.stripe_customer_id })
+        .eq("id", customerObj.id);
+    }
 
     return new Response(
       JSON.stringify({
-        client_secret: paymentIntent.client_secret,
-        payment_intent_id: paymentIntent.id,
-        livemode: paymentIntent.livemode,
+        client_secret: result.client_secret,
+        payment_intent_id: result.payment_intent_id,
+        livemode: result.livemode,
         publishable_key: publishableKey || undefined,
-        payment_intent_status: paymentIntent.status,
-        capture_method: paymentIntent.capture_method,
+        payment_intent_status: result.status,
+        capture_method: result.capture_method,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
