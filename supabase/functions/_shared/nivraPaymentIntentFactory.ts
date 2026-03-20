@@ -71,8 +71,13 @@ export interface NivraPaymentIntentParams {
 
   // Capture & flow context
   capture_method: "manual" | "automatic";
-  source: string;           // e.g. "portal_checkout_preconfirm", "autopay_renewal", "field_sale"
-  intent_context: string;   // e.g. "checkout_preconfirm", "invoice_payment", "autopay_renewal"
+  source: string;
+  intent_context: string;
+
+  // Off-session autopay (optional — for renewal auto-charges)
+  off_session?: boolean;
+  confirm?: boolean;
+  payment_method?: string;  // Stripe payment method ID for off-session
 }
 
 export interface NivraPaymentIntentResult {
