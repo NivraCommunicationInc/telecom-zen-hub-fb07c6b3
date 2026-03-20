@@ -3,22 +3,46 @@ import { useEffect, useMemo, useState } from "react";
 export type InternalTheme = "light" | "dark";
 
 const STORAGE_KEY = "nivra_internal_theme";
+const THEME_EVENT = "nivra_internal_theme_change";
+
+const readStoredTheme = (): InternalTheme => {
+  if (typeof window === "undefined") return "light";
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  return stored === "dark" ? "dark" : "light";
+};
 
 export function useInternalTheme() {
-  const [theme, setTheme] = useState<InternalTheme>("light");
+  const [theme, setTheme] = useState<InternalTheme>(() => readStoredTheme());
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "dark" || stored === "light") {
-      setTheme(stored);
-    }
+    if (typeof window === "undefined") return undefined;
+
+    const syncFromStorage = () => setTheme(readStoredTheme());
+
+    const onThemeEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<InternalTheme>;
+      if (customEvent.detail === "dark" || customEvent.detail === "light") {
+        setTheme(customEvent.detail);
+      } else {
+        syncFromStorage();
+      }
+    };
+
+    window.addEventListener("storage", syncFromStorage);
+    window.addEventListener(THEME_EVENT, onThemeEvent);
+    syncFromStorage();
+
+    return () => {
+      window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener(THEME_EVENT, onThemeEvent);
+    };
   }, []);
 
   const applyTheme = (next: InternalTheme) => {
     setTheme(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, next);
+      window.dispatchEvent(new CustomEvent<InternalTheme>(THEME_EVENT, { detail: next }));
     }
   };
 
