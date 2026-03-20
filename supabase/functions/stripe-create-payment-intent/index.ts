@@ -79,7 +79,7 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const stripeAccount = await stripe.accounts.retrieve();
-    console.log(`[stripe-create-payment-intent] Stripe account: ${stripeAccount.id} (test-only)`);
+    console.log(`[stripe-create-payment-intent] Stripe account: ${stripeAccount.id} (${isLiveMode ? "LIVE" : "TEST"})`);
 
     const email = customer_email || invoice?.customer?.email;
     const amountCents = Math.round(amount * 100);
