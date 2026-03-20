@@ -1,4 +1,7 @@
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+/**
+ * ⛔ LOCAL TAX MATH REMOVED — All financial values must come from the data parameter
+ * which is populated from canonical DB records (pricing_snapshot / billing_invoices).
+ */
 /**
  * Nivra Contract Summary PDF Generator
  * Design exactement comme le PDF fourni "Resume_Contrat_CTR-QC-ORD-2026-1108.pdf"
