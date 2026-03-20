@@ -1,13 +1,11 @@
 /**
- * field-sale-payment — Handles field sales payment operations:
+ * field-sale-payment — V3: Uses centralized NivraPaymentIntentFactory
  * - action: "create_payment_link" → Creates Stripe Checkout session & sends link via email
- * - action: "create_payment_intent" → Creates PaymentIntent for in-person card payment
- *
- * V2: Full business context (customer identity, metadata, description)
+ * - action: "create_payment_intent" → Creates PaymentIntent via shared factory
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "npm:stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createNivraPaymentIntent } from "../_shared/nivraPaymentIntentFactory.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,8 +28,9 @@ serve(async (req) => {
       action, amount, customer_email, customer_name, customer_phone,
       description, lead_id,
       order_id, order_number, invoice_id, invoice_number,
-      service_name, plan_type, account_number,
+      service_name, plan_type, account_id, account_number,
       billing_address, billing_city, billing_province, billing_postal_code,
+      customer_id, subscription_id,
     } = body;
 
     if (!action) throw new Error("Missing action parameter");
@@ -40,65 +39,47 @@ serve(async (req) => {
     const amountCents = Math.round(amount * 100);
     const origin = req.headers.get("origin") || "https://telecom-zen-hub.lovable.app";
 
-    // ═══ FIND OR CREATE STRIPE CUSTOMER ═══
-    let stripeCustomerId: string | undefined;
-    if (customer_email) {
-      const customers = await stripe.customers.list({ email: customer_email, limit: 1 });
-      if (customers.data.length > 0) {
-        stripeCustomerId = customers.data[0].id;
-        await stripe.customers.update(stripeCustomerId, {
-          ...(customer_name ? { name: customer_name } : {}),
-          ...(customer_phone ? { phone: customer_phone } : {}),
-          ...(billing_address ? {
-            address: {
-              line1: billing_address,
-              city: billing_city || undefined,
-              state: billing_province || "QC",
-              postal_code: billing_postal_code || undefined,
-              country: "CA",
-            }
-          } : {}),
-        });
-      } else {
-        const newCust = await stripe.customers.create({
-          email: customer_email,
-          ...(customer_name ? { name: customer_name } : {}),
-          ...(customer_phone ? { phone: customer_phone } : {}),
-          ...(billing_address ? {
-            address: {
-              line1: billing_address,
-              city: billing_city || undefined,
-              state: billing_province || "QC",
-              postal_code: billing_postal_code || undefined,
-              country: "CA",
-            }
-          } : {}),
-        });
-        stripeCustomerId = newCust.id;
-      }
-    }
-
-    // ═══ RICH METADATA ═══
-    const richMetadata: Record<string, string> = {
+    // ═══ RICH METADATA for Checkout Sessions ═══
+    const sessionMetadata: Record<string, string> = {
       source: "field_sale",
       lead_id: lead_id || "",
       agent_context: "field_portal",
     };
-    if (order_id) richMetadata.order_id = order_id;
-    if (order_number) richMetadata.order_number = String(order_number);
-    if (invoice_id) richMetadata.invoice_id = invoice_id;
-    if (invoice_number) richMetadata.invoice_number = String(invoice_number);
-    if (service_name) richMetadata.service_name = service_name;
-    if (plan_type) richMetadata.plan_type = plan_type;
-    if (account_number) richMetadata.account_number = String(account_number);
-    richMetadata.total_amount = String(amount);
-    richMetadata.billing_cycle = "monthly";
-
-    const richDescription = order_number
-      ? `Nivra Telecom — Commande ${order_number} — ${service_name || "Vente terrain"}`
-      : description || "Nivra Telecom — Paiement terrain";
+    if (order_id) sessionMetadata.order_id = order_id;
+    if (order_number) sessionMetadata.order_number = String(order_number);
+    if (invoice_id) sessionMetadata.invoice_id = invoice_id;
+    if (invoice_number) sessionMetadata.invoice_number = String(invoice_number);
+    if (service_name) sessionMetadata.service_name = service_name;
+    if (plan_type) sessionMetadata.plan_type = plan_type;
+    if (account_number) sessionMetadata.account_number = String(account_number);
+    sessionMetadata.total_amount = String(amount);
 
     if (action === "create_payment_link") {
+      // Find or create Stripe customer for checkout session
+      let stripeCustomerId: string | undefined;
+      if (customer_email) {
+        const customers = await stripe.customers.list({ email: customer_email, limit: 1 });
+        if (customers.data.length > 0) {
+          stripeCustomerId = customers.data[0].id;
+        } else {
+          const newCust = await stripe.customers.create({
+            email: customer_email,
+            ...(customer_name ? { name: customer_name } : {}),
+            ...(customer_phone ? { phone: customer_phone } : {}),
+            ...(billing_address ? {
+              address: {
+                line1: billing_address,
+                city: billing_city || undefined,
+                state: billing_province || "QC",
+                postal_code: billing_postal_code || undefined,
+                country: "CA",
+              }
+            } : {}),
+          });
+          stripeCustomerId = newCust.id;
+        }
+      }
+
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
         payment_method_types: ["card"],
@@ -119,7 +100,7 @@ serve(async (req) => {
         customer_email: stripeCustomerId ? undefined : (customer_email || undefined),
         success_url: `${origin}/field/sale/success?payment=completed&leadId=${lead_id || ""}`,
         cancel_url: `${origin}/field/sale/success?payment=cancelled&leadId=${lead_id || ""}`,
-        metadata: richMetadata,
+        metadata: sessionMetadata,
       };
 
       const session = await stripe.checkout.sessions.create(sessionParams);
@@ -169,34 +150,47 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({
-          success: true,
-          checkout_url: session.url,
-          session_id: session.id,
-        }),
+        JSON.stringify({ success: true, checkout_url: session.url, session_id: session.id }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
     if (action === "create_payment_intent") {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: "cad",
-        customer: stripeCustomerId,
+      // ═══ USE CENTRALIZED FACTORY ═══
+      const result = await createNivraPaymentIntent({
+        stripe,
+        customer_email: customer_email || "",
+        invoice_id: invoice_id || "",
+        invoice_number: invoice_number || "",
+        service_name: service_name || "Nivra — Vente terrain",
+        total_amount: amount,
+        order_id,
+        order_number: order_number ? String(order_number) : undefined,
+        subscription_id,
+        customer_name,
+        customer_phone,
+        customer_id,
+        account_id,
+        account_number: account_number ? String(account_number) : undefined,
+        billing_address: billing_address ? {
+          line1: billing_address,
+          city: billing_city || undefined,
+          state: billing_province || "QC",
+          postal_code: billing_postal_code || undefined,
+          country: "CA",
+        } : undefined,
+        plan_type,
         capture_method: "automatic",
-        description: richDescription,
-        receipt_email: customer_email || undefined,
-        metadata: richMetadata,
+        source: "field_sale",
+        intent_context: "field_sale",
       });
-
-      console.log(`[field-sale-payment] PI created: ${paymentIntent.id} | ${richDescription}`);
 
       return new Response(
         JSON.stringify({
           success: true,
-          client_secret: paymentIntent.client_secret,
-          payment_intent_id: paymentIntent.id,
-          livemode: paymentIntent.livemode,
+          client_secret: result.client_secret,
+          payment_intent_id: result.payment_intent_id,
+          livemode: result.livemode,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );

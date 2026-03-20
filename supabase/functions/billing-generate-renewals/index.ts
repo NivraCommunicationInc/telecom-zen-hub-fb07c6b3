@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
+import { createNivraPaymentIntent } from "../_shared/nivraPaymentIntentFactory.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -244,43 +245,39 @@ serve(async (req) => {
               const Stripe = (await import("npm:stripe@18")).default;
               const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
               
-              const pi = await stripe.paymentIntents.create({
-                amount: Math.round(total * 100),
-                currency: "cad",
-                customer: customerData.stripe_customer_id,
-                payment_method: customerData.default_payment_method_id,
+              const piResult = await createNivraPaymentIntent({
+                stripe,
+                customer_email: customerData.email || "",
+                invoice_id: invoice.id,
+                invoice_number: invoiceNumber,
+                service_name: sub.plan_name || "Nivra Telecom",
+                total_amount: total,
+                subscription_id: sub.id,
+                customer_id: sub.customer_id,
+                existing_stripe_customer_id: customerData.stripe_customer_id,
+                subtotal,
+                tax_tps: tpsAmount,
+                tax_tvq: tvqAmount,
+                monthly_amount: sub.plan_price,
+                discount_amount: promoDiscount > 0 ? promoDiscount : undefined,
+                capture_method: "automatic",
+                source: "autopay_renewal",
+                intent_context: "autopay_renewal",
                 off_session: true,
                 confirm: true,
-                receipt_email: customerData.email || undefined,
-                metadata: {
-                  invoice_id: invoice.id,
-                  invoice_number: invoiceNumber,
-                  customer_id: sub.customer_id,
-                  subscription_id: sub.id,
-                  source: "autopay_renewal",
-                  intent_context: "autopay_renewal",
-                  service_name: sub.plan_name || "Nivra Telecom",
-                  billing_cycle: "monthly",
-                  subtotal: String(subtotal),
-                  tax_tps: String(tpsAmount),
-                  tax_tvq: String(tvqAmount),
-                  total_amount: String(total),
-                  monthly_amount: String(sub.plan_price),
-                  ...(promoDiscount > 0 ? { discount_amount: String(promoDiscount) } : {}),
-                },
-                description: `Nivra Telecom — Renouvellement automatique — ${sub.plan_name} — Facture ${invoiceNumber}`,
+                payment_method: customerData.default_payment_method_id,
               });
               
-              console.log(`[billing-generate-renewals] ✓ Stripe autopay PI ${pi.id} status: ${pi.status}`);
+              console.log(`[billing-generate-renewals] ✓ Stripe autopay PI ${piResult.payment_intent_id} status: ${piResult.status}`);
               
               // If succeeded immediately, apply payment
-              if (pi.status === "succeeded") {
+              if (piResult.status === "succeeded") {
                 await supabase.rpc("apply_payment_to_invoice", {
                   p_invoice_id: invoice.id,
                   p_amount: total,
                   p_method: "card",
                   p_provider: "stripe",
-                  p_provider_payment_id: pi.id,
+                  p_provider_payment_id: piResult.payment_intent_id,
                   p_source: "live",
                   p_created_by_name: "autopay_renewal",
                   p_created_by_role: "system",
