@@ -2966,6 +2966,48 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_withdrawal_requests: {
+        Row: {
+          admin_notes: string | null
+          agent_id: string
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          agent_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_requests: {
         Row: {
           address_apartment: string | null
@@ -5306,6 +5348,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      field_sales_promotions: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_monthly: number | null
+          discount_onetime: number | null
+          discount_percentage: number | null
+          duration_months: number | null
+          id: string
+          is_active: boolean
+          name: string
+          promo_type: string
+          requires_approval: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_monthly?: number | null
+          discount_onetime?: number | null
+          discount_percentage?: number | null
+          duration_months?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          promo_type: string
+          requires_approval?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_monthly?: number | null
+          discount_onetime?: number | null
+          discount_percentage?: number | null
+          duration_months?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          promo_type?: string
+          requires_approval?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       fulfillment_snapshots: {
         Row: {
