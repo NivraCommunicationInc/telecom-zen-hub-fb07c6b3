@@ -6,7 +6,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "../_shared/ResendProxy.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { withSafeErrorHandling } from "../_shared/errorUtils.ts";

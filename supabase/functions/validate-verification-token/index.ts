@@ -3,7 +3,7 @@
  * Public endpoint for mobile /verify-id page to validate a token WITHOUT direct DB access.
  * SECURITY: Hashes token, looks up by hash. No anon SELECT on sessions table.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

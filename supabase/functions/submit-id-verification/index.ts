@@ -5,7 +5,7 @@
  * Validates token, checks expiration, uploads docs to PRIVATE bucket, marks session as submitted.
  * Includes: rate limiting, selfie support, IP/UA logging, atomic identity_documents persistence.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
