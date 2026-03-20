@@ -5,7 +5,8 @@ import { CreditCard, RotateCcw, Check, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FieldSaleBilling, FieldSaleService, FieldSaleEquipment } from "@/field-app/lib/fieldSaleTypes";
 import type { FieldSalePromo } from "@/field-app/components/sale/StepPromo";
-import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
+const TAX_DISPLAY = { TPS_LABEL: "TPS (5%)", TVQ_LABEL: "TVQ (9.975%)" };
 
 interface Props {
   services: FieldSaleService[];
