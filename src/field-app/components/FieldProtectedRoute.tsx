@@ -71,8 +71,8 @@ export default function FieldProtectedRoute() {
 
   if (state === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(225,20%,5%)]">
-        <Loader2 className="h-7 w-7 animate-spin text-amber-500" />
+      <div className="internal-ui min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
       </div>
     );
   }
@@ -98,12 +98,12 @@ export default function FieldProtectedRoute() {
 
   if (state === "unauthorized") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="internal-ui min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-red-500" />
-          <h2 className="text-lg font-semibold text-black mb-1">Accès refusé</h2>
-          <p className="text-sm text-[#374151] mb-4">Vous n'avez pas accès au portail Field.</p>
-          <button onClick={() => navigate("/hub")} className="text-sm text-green-600 hover:underline">
+          <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-destructive" />
+          <h2 className="text-lg font-semibold text-foreground mb-1">Accès refusé</h2>
+          <p className="text-sm text-muted-foreground mb-4">Vous n'avez pas accès au portail Field.</p>
+          <button onClick={() => navigate("/hub")} className="text-sm text-primary hover:opacity-80">
             Retour au Hub
           </button>
         </div>
