@@ -106,9 +106,9 @@ export function SetPinDialog({
             <Input
               type={showPin ? "text" : "password"}
               value={pinConfirm}
-              onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              maxLength={4}
-              placeholder="****"
+              onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              maxLength={6}
+              placeholder="******"
               inputMode="numeric"
             />
           </div>
