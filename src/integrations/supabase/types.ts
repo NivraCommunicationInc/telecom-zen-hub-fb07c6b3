@@ -11584,6 +11584,7 @@ export type Database = {
       }
       stripe_plan_mapping: {
         Row: {
+          billing_usage: string
           created_at: string
           currency: string
           id: string
@@ -11597,6 +11598,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_usage?: string
           created_at?: string
           currency?: string
           id?: string
@@ -11610,6 +11612,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_usage?: string
           created_at?: string
           currency?: string
           id?: string
