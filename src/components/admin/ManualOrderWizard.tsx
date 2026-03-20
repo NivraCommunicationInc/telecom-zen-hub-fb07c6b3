@@ -278,7 +278,10 @@ export default function ManualOrderWizard({
     const subtotalOneTime = terminalFee + routerFee + simFee + deliveryFee + activationFee + installationFee;
     const discountAmount = orderState.discountAmount;
     const taxableAmount = subtotalOneTime - discountAmount;
-    const { tps, tvq, total: totalOneTime } = estimateTaxes(taxableAmount);
+    // ⛔ NO LOCAL TAX MATH — server computes taxes at order orchestration
+    const tps = 0;
+    const tvq = 0;
+    const totalOneTime = taxableAmount; // Subtotal only; server adds taxes
 
     return {
       planMonthly,

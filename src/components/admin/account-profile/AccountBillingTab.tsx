@@ -276,13 +276,9 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
       // handles tax recalculation automatically when subtotal changes.
       const newSubtotal = (adjustInvoice.subtotal || 0) + lineTotal;
 
+      // Update subtotal only — DB trigger computes tps, tvq, total, balance_due
       await supabase.from("billing_invoices").update({
         subtotal: newSubtotal,
-        tps_amount: tps,
-        tvq_amount: tvq,
-        total: newTotal,
-        balance_due: Math.max(0, newBalance),
-        status: newBalance <= 0 ? "paid" : adjustInvoice.status,
       }).eq("id", adjustInvoice.id);
 
       toast.success(`${adjustType === "credit" ? "Crédit" : "Charge"} de ${amount.toFixed(2)} $ appliqué(e)`);
