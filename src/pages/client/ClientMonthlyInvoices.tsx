@@ -42,7 +42,7 @@ const ClientMonthlyInvoices = () => {
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "interac" | "card">("paypal");
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "interac" | "card">("card");
 
   // Fetch client's invoices from canonical billing_invoices
   const { data: invoices, isLoading } = useQuery({
@@ -387,7 +387,16 @@ const ClientMonthlyInvoices = () => {
                 {/* Payment method selection */}
                 <div className="space-y-3">
                   <p className="text-sm font-medium">Mode de paiement</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === "card" ? "default" : "outline"}
+                      className="flex items-center justify-center gap-2 h-14"
+                      onClick={() => setPaymentMethod("card")}
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      <span>Carte</span>
+                    </Button>
                     <Button
                       type="button"
                       variant={paymentMethod === "paypal" ? "default" : "outline"}
@@ -411,12 +420,32 @@ const ClientMonthlyInvoices = () => {
                       <span>Interac</span>
                     </Button>
                   </div>
-                  {/* Card maintenance notice */}
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-muted-foreground">
-                    <CreditCard className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Les paiements par carte sont temporairement indisponibles pour maintenance. Veuillez utiliser PayPal.</span>
-                  </div>
                 </div>
+
+                {paymentMethod === "card" && (
+                  <div className="space-y-3">
+                    <StripeInlinePayment
+                      invoiceId={selectedInvoice.id}
+                      intentContext="invoice_payment"
+                      amount={Number(selectedInvoice.total)}
+                      description={`Facture ${selectedInvoice.invoice_number}`}
+                      customerEmail={user?.email || undefined}
+                      onSuccess={() => {
+                        toast({ title: "Paiement carte réussi", description: "Votre facture a été payée." });
+                        setPaymentDialogOpen(false);
+                        setSelectedInvoice(null);
+                        queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
+                        queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
+                        queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
+                        queryClient.invalidateQueries({ queryKey: ["client-balance"] });
+                        queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
+                      }}
+                      onError={(error) => {
+                        toast({ title: "Erreur carte", description: error, variant: "destructive" });
+                      }}
+                    />
+                  </div>
+                )}
 
                 {/* PayPal Button */}
                 {paymentMethod === "paypal" && (
