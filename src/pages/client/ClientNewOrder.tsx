@@ -6359,7 +6359,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         intentContext="checkout_preconfirm"
                         amount={uiTodayTotal}
                         description="Commande Nivra Telecom"
-                        customerEmail={checkoutEmail || user?.email || undefined}
+                        customerEmail={profile?.email || user?.email || undefined}
                         onSuccess={({ paymentIntentId }) => {
                           setPaymentConfirmationNumber(paymentIntentId);
                           setPaymentComplete(true);
