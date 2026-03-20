@@ -8,7 +8,7 @@ import FieldSidebar from "./components/FieldSidebar";
 
 export default function FieldAppLayout() {
   return (
-    <div className="admin-light min-h-screen flex w-full bg-[#FAFAFA] text-black">
+    <div className="internal-ui min-h-screen flex w-full bg-background text-foreground">
       <FieldSidebar />
       <main className="flex-1 overflow-auto pb-20 md:pb-0">
         <div className="max-w-[1000px] mx-auto p-4 md:p-6">
