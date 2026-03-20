@@ -1,18 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "npm:stripe@18";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { createNivraSubscription } from "../_shared/nivraSubscriptionFactory.ts";
+import { activateSubscriptionForOrder } from "../_shared/activateSubscriptionForOrder.ts";
 
 /**
  * ============================================================================
  * STRIPE — ADMIN ACTIONS (CAPTURE / CANCEL / REFUND)
  * ============================================================================
  *
- * Provides admin controls for manual-capture payment flow:
- * - capture: Capture an authorized PaymentIntent → auto-creates Stripe subscription
- * - cancel: Cancel/void an authorization
- * - refund: Refund a captured payment
- * - status: Get PaymentIntent details
+ * Provides admin controls for manual-capture payment flow.
+ * After capture, subscription creation is triggered via the shared
+ * activateSubscriptionForOrder function (same as webhook path).
  *
  * All actions require admin authentication.
  */
@@ -26,9 +24,9 @@ const corsHeaders = {
 interface AdminActionRequest {
   action: "capture" | "cancel" | "refund" | "status";
   payment_intent_id: string;
-  payment_id?: string;    // billing_payments.id
+  payment_id?: string;
   invoice_id?: string;
-  amount?: number;        // For partial capture/refund (in dollars)
+  amount?: number;
   reason?: string;
   admin_name?: string;
 }
@@ -46,7 +44,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify admin auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization required");
 
@@ -54,7 +51,6 @@ serve(async (req) => {
     const { data: userData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !userData?.user) throw new Error("Authentication failed");
 
-    // Check admin role
     const { data: adminCheck } = await supabase
       .from("admin_users")
       .select("id")
@@ -147,15 +143,11 @@ serve(async (req) => {
       // Update order authorization status
       if (payment_id) {
         const { data: paymentData } = await supabase.from("billing_payments")
-          .select("invoice_id")
-          .eq("id", payment_id)
-          .single();
+          .select("invoice_id").eq("id", payment_id).single();
 
         if (paymentData?.invoice_id) {
           const { data: invData } = await supabase.from("billing_invoices")
-            .select("order_id")
-            .eq("id", paymentData.invoice_id)
-            .single();
+            .select("order_id").eq("id", paymentData.invoice_id).single();
 
           if (invData?.order_id) {
             await supabase.from("orders").update({
@@ -165,123 +157,41 @@ serve(async (req) => {
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      // AUTO-CREATE STRIPE SUBSCRIPTION (post-capture)
-      //
-      // CONDITIONS (all must be true):
-      //   1. Order exists (via invoice→order chain)
-      //   2. Invoice is fully paid
-      //   3. Stripe customer exists (billing_customers.stripe_customer_id)
-      //   4. Payment method is attached (from captured PI)
-      //   5. No Stripe subscription already exists for this order
-      //   6. Plan code is resolvable
-      //
-      // ANTI-DUPLICATION: nivraSubscriptionFactory checks
-      //   billing_subscriptions.stripe_subscription_id before creating.
-      //   Race conditions safe via the factory's idempotent lookup.
-      // ═══════════════════════════════════════════════════════════════
+      // ═══ ACTIVATE STRIPE SUBSCRIPTION (shared canonical function) ═══
+      // Note: The webhook (payment_intent.succeeded) ALSO triggers this.
+      // The activateSubscriptionForOrder function is idempotent — safe for both.
       let subscriptionResult: any = null;
-      try {
-        let resolvedInvoiceId = invoice_id;
-        if (payment_id && !resolvedInvoiceId) {
-          const { data: pd } = await supabase.from("billing_payments")
-            .select("invoice_id").eq("id", payment_id).single();
-          resolvedInvoiceId = pd?.invoice_id;
+      const resolvedInvoiceId = invoice_id || (payment_id ? (await supabase.from("billing_payments")
+        .select("invoice_id").eq("id", payment_id).single()).data?.invoice_id : null);
+
+      if (resolvedInvoiceId) {
+        try {
+          const pmId = typeof captured.payment_method === "string"
+            ? captured.payment_method
+            : (captured.payment_method as any)?.id || undefined;
+
+          const stripeCustomerId = typeof captured.customer === "string"
+            ? captured.customer
+            : (captured.customer as any)?.id || undefined;
+
+          subscriptionResult = await activateSubscriptionForOrder({
+            stripe,
+            supabase,
+            invoice_id: resolvedInvoiceId,
+            payment_method_id: pmId,
+            stripe_customer_id: stripeCustomerId,
+            trigger_source: "admin_capture",
+          });
+
+          console.log(`[stripe-admin-actions] Subscription activation: ${JSON.stringify({
+            activated: subscriptionResult.activated,
+            stripe_setup_status: subscriptionResult.stripe_setup_status,
+            stripe_subscription_id: subscriptionResult.stripe_subscription_id || null,
+          })}`);
+        } catch (subErr: any) {
+          console.error(`[stripe-admin-actions] Subscription activation error: ${subErr.message}`);
+          subscriptionResult = { activated: false, error: subErr.message, stripe_setup_status: "failed" };
         }
-
-        if (resolvedInvoiceId) {
-          const { data: invOrder } = await supabase.from("billing_invoices")
-            .select("order_id, customer_id, status")
-            .eq("id", resolvedInvoiceId).single();
-
-          if (invOrder?.order_id && invOrder.status === "paid") {
-            const orderId = invOrder.order_id;
-
-            // GATE 5: Check if Stripe subscription already exists
-            const { data: existingSub } = await supabase.from("billing_subscriptions")
-              .select("id, stripe_subscription_id, plan_code")
-              .eq("order_id", orderId).maybeSingle();
-
-            if (!existingSub?.stripe_subscription_id) {
-              const { data: order } = await supabase.from("orders")
-                .select("id, order_number, account_id, service_type, pricing_snapshot")
-                .eq("id", orderId).single();
-
-              if (order?.account_id) {
-                // GATE 3: Stripe customer must exist
-                const { data: billingCustomer } = await supabase.from("billing_customers")
-                  .select("id, email, stripe_customer_id, default_payment_method_id")
-                  .eq("id", invOrder.customer_id).single();
-
-                // GATE 6: Resolve plan_code
-                let planCode = (order.pricing_snapshot as any)?.plan_code
-                  || existingSub?.plan_code || null;
-
-                if (!planCode && order.service_type) {
-                  const { data: mapping } = await supabase.from("stripe_plan_mapping")
-                    .select("plan_code")
-                    .ilike("plan_name", `%${order.service_type}%`)
-                    .eq("is_active", true).limit(1).maybeSingle();
-                  planCode = mapping?.plan_code;
-                }
-
-                // GATE 4: Payment method from captured PI
-                const paymentMethodId = typeof captured.payment_method === "string"
-                  ? captured.payment_method
-                  : (captured.payment_method as any)?.id
-                  || billingCustomer?.default_payment_method_id;
-
-                // ALL GATES PASSED → CREATE SUBSCRIPTION
-                if (billingCustomer?.stripe_customer_id && paymentMethodId && planCode) {
-                  console.log(`[stripe-admin-actions] ✓ All gates passed. Creating Stripe subscription: order=${order.order_number}, plan=${planCode}`);
-
-                  // Resolve additional items from subscription services
-                  const { data: subServices } = await supabase.from("billing_subscription_services")
-                    .select("service_code")
-                    .eq("subscription_id", existingSub?.id || "")
-                    .eq("is_active", true);
-
-                  const additionalCodes = (subServices || [])
-                    .map((s: any) => s.service_code)
-                    .filter((c: string) => c !== planCode);
-
-                  subscriptionResult = await createNivraSubscription({
-                    stripe,
-                    supabase,
-                    stripe_customer_id: billingCustomer.stripe_customer_id,
-                    customer_email: billingCustomer.email,
-                    order_id: orderId,
-                    order_number: String(order.order_number),
-                    account_id: order.account_id,
-                    customer_id: billingCustomer.id,
-                    plan_code: planCode,
-                    invoice_id: resolvedInvoiceId!,
-                    default_payment_method_id: paymentMethodId,
-                    nivra_subscription_id: existingSub?.id || undefined,
-                    additional_plan_codes: additionalCodes.length > 0 ? additionalCodes : undefined,
-                    // Trial end = 30 days (first invoice already paid at checkout)
-                    trial_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-                  });
-
-                  console.log(`[stripe-admin-actions] ✓ Stripe subscription created: ${subscriptionResult.stripe_subscription_id} | items: ${subscriptionResult.items?.length || 0}`);
-                } else {
-                  const missing = [
-                    !billingCustomer?.stripe_customer_id && "stripe_customer_id",
-                    !paymentMethodId && "payment_method",
-                    !planCode && "plan_code",
-                  ].filter(Boolean).join(", ");
-                  console.log(`[stripe-admin-actions] Subscription skipped — missing: ${missing}`);
-                }
-              }
-            } else {
-              console.log(`[stripe-admin-actions] Stripe subscription already exists: ${existingSub!.stripe_subscription_id} — anti-duplication gate`);
-            }
-          }
-        }
-      } catch (subErr: any) {
-        // Non-blocking: capture succeeded, subscription is best-effort with full logging
-        console.error(`[stripe-admin-actions] Subscription creation failed (non-blocking): ${subErr.message}`);
-        subscriptionResult = { error: subErr.message };
       }
 
       // Audit log
@@ -295,8 +205,11 @@ serve(async (req) => {
           payment_intent_id,
           amount_captured: capturedAmountDollars,
           invoice_id,
-          subscription_created: subscriptionResult?.stripe_subscription_id || null,
-          subscription_items: subscriptionResult?.items || null,
+          subscription_result: subscriptionResult ? {
+            activated: subscriptionResult.activated,
+            stripe_setup_status: subscriptionResult.stripe_setup_status,
+            stripe_subscription_id: subscriptionResult.stripe_subscription_id || null,
+          } : null,
         },
       });
 
@@ -311,7 +224,10 @@ serve(async (req) => {
           subscription: subscriptionResult?.stripe_subscription_id ? {
             stripe_subscription_id: subscriptionResult.stripe_subscription_id,
             items: subscriptionResult.items,
-            status: subscriptionResult.stripe_status,
+            status: subscriptionResult.stripe_setup_status,
+          } : subscriptionResult?.stripe_setup_status ? {
+            stripe_setup_status: subscriptionResult.stripe_setup_status,
+            error: subscriptionResult.error,
           } : null,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -330,7 +246,6 @@ serve(async (req) => {
         cancellation_reason: "requested_by_customer",
       });
 
-      // Update billing_payments
       if (payment_id) {
         await supabase.from("billing_payments").update({
           status: "cancelled" as any,
@@ -339,25 +254,19 @@ serve(async (req) => {
         }).eq("id", payment_id);
       }
 
-      // Revert invoice to unpaid
       if (invoice_id) {
         await supabase.from("billing_invoices").update({
           status: "unpaid" as any,
         }).eq("id", invoice_id);
       }
 
-      // Update order
       if (payment_id) {
         const { data: paymentData } = await supabase.from("billing_payments")
-          .select("invoice_id")
-          .eq("id", payment_id)
-          .single();
+          .select("invoice_id").eq("id", payment_id).single();
 
         if (paymentData?.invoice_id) {
           const { data: invData } = await supabase.from("billing_invoices")
-            .select("order_id")
-            .eq("id", paymentData.invoice_id)
-            .single();
+            .select("order_id").eq("id", paymentData.invoice_id).single();
 
           if (invData?.order_id) {
             await supabase.from("orders").update({
@@ -367,7 +276,6 @@ serve(async (req) => {
         }
       }
 
-      // Audit log
       await supabase.from("admin_audit_log").insert({
         admin_user_id: adminId,
         admin_email: userData.user.email,
@@ -377,14 +285,8 @@ serve(async (req) => {
         details: { payment_intent_id, reason, invoice_id },
       });
 
-      console.log(`[stripe-admin-actions] ✓ Authorization cancelled for PI ${payment_intent_id}`);
-
       return new Response(
-        JSON.stringify({
-          success: true,
-          action: "cancelled",
-          payment_intent_status: cancelled.status,
-        }),
+        JSON.stringify({ success: true, action: "cancelled", payment_intent_status: cancelled.status }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -401,7 +303,6 @@ serve(async (req) => {
 
       const refundedAmountDollars = refund.amount / 100;
 
-      // Update billing_payments
       if (payment_id) {
         await supabase.from("billing_payments").update({
           status: "refunded" as any,
@@ -409,38 +310,23 @@ serve(async (req) => {
         }).eq("id", payment_id);
       }
 
-      // Update invoice
       if (invoice_id) {
         await supabase.from("billing_invoices").update({
           status: "refunded" as any,
         }).eq("id", invoice_id);
       }
 
-      // Audit log
       await supabase.from("admin_audit_log").insert({
         admin_user_id: adminId,
         admin_email: userData.user.email,
         action: "stripe_refund",
         target_type: "payment",
         target_id: payment_id || payment_intent_id,
-        details: {
-          payment_intent_id,
-          refund_id: refund.id,
-          amount_refunded: refundedAmountDollars,
-          reason,
-          invoice_id,
-        },
+        details: { payment_intent_id, refund_id: refund.id, amount_refunded: refundedAmountDollars, reason, invoice_id },
       });
 
-      console.log(`[stripe-admin-actions] ✓ Refunded ${refundedAmountDollars} CAD from PI ${payment_intent_id}`);
-
       return new Response(
-        JSON.stringify({
-          success: true,
-          action: "refunded",
-          refund_id: refund.id,
-          amount_refunded: refundedAmountDollars,
-        }),
+        JSON.stringify({ success: true, action: "refunded", refund_id: refund.id, amount_refunded: refundedAmountDollars }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
