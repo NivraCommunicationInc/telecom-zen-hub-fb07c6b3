@@ -1,6 +1,6 @@
 /**
  * CoreAppLayout — Nivra Core internal operations console shell.
- * Dark ops-grade layout with grouped sidebar navigation matching old admin structure.
+ * Light modal-style layout with grouped sidebar navigation.
  */
 import { useState, useEffect, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
@@ -233,21 +233,21 @@ const CoreAppLayout = () => {
   };
 
   return (
-    <div className="core-console min-h-screen flex bg-[hsl(220,20%,8%)] text-[hsl(var(--core-text-primary))]">
+    <div className="internal-ui core-console min-h-screen flex bg-background text-foreground">
       {/* ═══ SIDEBAR ═══ */}
-      <aside
-        className={cn(
-          "flex flex-col shrink-0 border-r border-[hsl(220,15%,16%)] bg-[hsl(220,20%,10%)] transition-all duration-200",
-          collapsed ? "w-14" : "w-[220px]"
-        )}
-      >
+        <aside
+          className={cn(
+            "flex flex-col shrink-0 border-r border-border bg-sidebar transition-all duration-200",
+            collapsed ? "w-14" : "w-[220px]"
+          )}
+        >
         {/* Brand */}
-        <div className="h-12 flex items-center gap-2 px-3 border-b border-[hsl(220,15%,16%)]">
-          <div className="h-7 w-7 rounded-md bg-emerald-600 flex items-center justify-center shrink-0">
-            <Terminal className="h-3.5 w-3.5 text-white" />
+          <div className="h-12 flex items-center gap-2 px-3 border-b border-border">
+            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center shrink-0">
+              <Terminal className="h-3.5 w-3.5 text-primary-foreground" />
           </div>
           {!collapsed && (
-            <span className="font-semibold text-sm tracking-tight text-white whitespace-nowrap">
+              <span className="font-semibold text-sm tracking-tight text-foreground whitespace-nowrap">
               Nivra Core
             </span>
           )}
@@ -263,12 +263,12 @@ const CoreAppLayout = () => {
                 placeholder="Filtrer…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-7 text-xs bg-[hsl(220,15%,14%)] border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))] placeholder:text-[hsl(var(--core-text-label))]"
+                className="pl-8 h-7 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[hsl(var(--core-text-label))] hover:text-[hsl(var(--core-text-primary))]"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -292,8 +292,8 @@ const CoreAppLayout = () => {
                 className={cn(
                   "w-full flex items-center justify-center py-2 rounded-md transition-colors",
                   isGroupActive(group)
-                    ? "bg-emerald-600/15 text-emerald-400"
-                    : "text-[hsl(var(--core-text-secondary))] hover:bg-[hsl(220,15%,14%)] hover:text-[hsl(var(--core-text-primary))]"
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
                 <group.icon className="h-4 w-4" />
@@ -315,8 +315,8 @@ const CoreAppLayout = () => {
                       className={cn(
                         "flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-[11px] font-semibold uppercase tracking-wider transition-colors",
                         hasActive
-                          ? "text-emerald-400"
-                          : "text-[hsl(var(--core-text-label))] hover:text-[hsl(var(--core-text-primary))] hover:bg-[hsl(220,15%,14%)]"
+                          ? "text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -331,7 +331,7 @@ const CoreAppLayout = () => {
                       />
                     </button>
                     {isOpen && (
-                      <div className="ml-3.5 pl-2.5 border-l border-[hsl(220,15%,18%)] space-y-0.5 py-0.5">
+                      <div className="ml-3.5 pl-2.5 border-l border-border space-y-0.5 py-0.5">
                         {group.items.map((item) => {
                           const active = isActive(item.href);
                           return (
@@ -341,8 +341,8 @@ const CoreAppLayout = () => {
                               className={cn(
                                 "flex items-center gap-2 px-2.5 py-[5px] rounded-md text-[12px] transition-colors",
                                 active
-                                  ? "bg-emerald-600/20 text-emerald-400 font-medium"
-                                  : "text-[hsl(var(--core-text-secondary))] hover:text-[hsl(var(--core-text-primary))] hover:bg-[hsl(220,15%,14%)]"
+                                  ? "bg-primary/15 text-primary font-medium"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                               )}
                             >
                               <item.icon className="w-3.5 h-3.5 shrink-0" />
@@ -360,10 +360,10 @@ const CoreAppLayout = () => {
         </nav>
 
         {/* Collapse toggle */}
-        <div className="border-t border-[hsl(220,15%,16%)] p-1.5">
+        <div className="border-t border-border p-1.5">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center py-1.5 rounded-md text-[hsl(var(--core-text-label))] hover:text-[hsl(var(--core-text-primary))] hover:bg-[hsl(220,15%,14%)] transition-colors"
+            className="w-full flex items-center justify-center py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
@@ -373,20 +373,20 @@ const CoreAppLayout = () => {
       {/* ═══ MAIN AREA ═══ */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="sticky top-0 z-40 h-12 flex items-center justify-between px-4 border-b border-[hsl(220,15%,16%)] bg-[hsl(220,20%,9%)]/95 backdrop-blur">
-          <span className="text-xs font-medium text-[hsl(var(--core-text-label))] uppercase tracking-wider">
+        <header className="sticky top-0 z-40 h-12 flex items-center justify-between px-4 border-b border-border bg-background/95 backdrop-blur">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Internal Operations Console
           </span>
           <div className="flex items-center gap-3">
             <CoreGlobalSearch />
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-600/10 px-2 py-0.5 rounded-full">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               Core Online
             </span>
             <button
               onClick={handleLogout}
               title="Déconnexion"
-              className="p-1.5 rounded-md text-[hsl(var(--core-text-label))] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
               <LogOut className="h-4 w-4" />
             </button>
