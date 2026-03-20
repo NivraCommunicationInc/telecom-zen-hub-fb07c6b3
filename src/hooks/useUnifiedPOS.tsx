@@ -1,12 +1,12 @@
 /**
- * useUnifiedPOS - Unified hook for POS calculations across all portals
- * Uses centralized server tax engine — no local tax constants.
+ * useUnifiedPOS - Unified hook for POS cart management.
+ * ⛔ NO LOCAL TAX MATH — taxes/totals must come from server RPC at submission time.
+ * Cart subtotals (item sums) are kept for display purposes only.
  */
 import { useMemo, useCallback, useState } from "react";
 import { EquipmentItem } from "@/components/pos/POSEquipmentSelector";
 import { AdjustmentItem } from "@/components/pos/POSAdjustments";
 import { SelectedService } from "@/hooks/useFieldSalesOffers";
-import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
 
 export interface POSCartTotals {
   // Services
