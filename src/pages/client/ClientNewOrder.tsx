@@ -95,6 +95,7 @@ interface Service {
   description: string;
   price: number;
   category: string;
+  plan_code?: string;
 }
 
 interface CreatedOrder {
@@ -144,6 +145,16 @@ const categoryIcons: Record<string, any> = {
   Streaming: MonitorPlay,
   Sécurité: Shield,
   Extras: Package,
+};
+
+// Canonical streaming name → plan_code mapping (matches stripe_plan_mapping exactly)
+const STREAMING_PLAN_CODE_MAP: Record<string, string> = {
+  "Netflix Premium": "streaming_netflix",
+  "Disney+ Standard": "streaming_disney",
+  "Amazon Prime Video": "streaming_prime",
+  "Crave + HBO": "streaming_crave",
+  "Apple TV+": "streaming_apple",
+  "Spotify Premium": "streaming_spotify",
 };
 
 // Terminal equipment configuration — price now loaded from canonical operational_fees
@@ -1112,7 +1123,7 @@ const ClientNewOrder = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services_public")
-        .select("id, name, category, price, short_description, description, visible_checkout, status, display_order")
+        .select("id, name, category, price, short_description, description, visible_checkout, status, display_order, plan_code")
         .eq("visible_checkout", true)
         .eq("status", "active")
         .order("category", { ascending: true })
@@ -1134,6 +1145,7 @@ const ClientNewOrder = () => {
           description: s.short_description || s.description || "",
           price: Number(s.price) || 0,
           category: s.category || "",
+          plan_code: (s as any).plan_code || undefined,
         }));
     },
     staleTime: 0,
@@ -2149,6 +2161,12 @@ const ClientNewOrder = () => {
       });
 
       // serverPricing snapshot — canonical references filled after Nivra Core responds
+      // Resolve primary plan_code for recurring billing
+      const primaryService = selectedServices.find(s => 
+        ["Internet", "TV", "Mobile"].includes(s.category)
+      );
+      const primaryPlanCode = primaryService?.plan_code || undefined;
+
       const serverPricing = {
         ...canonicalPricing,
         welcome_applied: rpcPricing?.welcome_applied ?? false,
@@ -2160,6 +2178,20 @@ const ClientNewOrder = () => {
         nivra_invoice_number: '',
         nivra_order_id: '',
         billing_cycle_day: new Date().getDate(),
+        // Canonical plan_code for Stripe subscription creation
+        plan_code: primaryPlanCode,
+        service_category: primaryService?.category?.toLowerCase() || undefined,
+        // All service plan_codes for multi-item subscriptions
+        all_plan_codes: [
+          ...selectedServices
+            .filter(s => s.plan_code)
+            .map(s => ({ plan_code: s.plan_code!, category: s.category, name: s.name })),
+          ...selectedStreamingServices.map(s => ({
+            plan_code: STREAMING_PLAN_CODE_MAP[s.name] || `streaming_${s.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+            category: 'Streaming',
+            name: s.name,
+          })),
+        ],
       };
 
       // Resolve account_id for order linkage — BLOCKING: orders MUST have account_id
@@ -2279,7 +2311,7 @@ const ClientNewOrder = () => {
         services: selectedServices.map(s => ({
           sku: s.sku || findSkuByName(allNivraProducts, s.name) || s.id,
           name: s.name || 'Service Nivra',
-          plan_code: s.id || s.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
+          plan_code: s.plan_code || s.name?.toLowerCase().replace(/\s+/g, '_') || 'UNKNOWN',
           plan_price: toMoney(s.price),
           category: s.category || 'Other',
           quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,

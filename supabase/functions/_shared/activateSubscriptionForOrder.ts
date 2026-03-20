@@ -203,6 +203,22 @@ export async function activateSubscriptionForOrder(
     return { activated: false, skipped: false, stripe_setup_status: "failed", error: "plan_code_unresolvable" };
   }
 
+  // ═══ STEP 7b: HARD VALIDATE plan_code EXISTS IN stripe_plan_mapping ═══
+  const { data: planMapping } = await supabase
+    .from("stripe_plan_mapping")
+    .select("plan_code, billing_usage")
+    .eq("plan_code", planCode)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!planMapping) {
+    log(`plan_code "${planCode}" NOT FOUND in stripe_plan_mapping — FAILED (unmapped plan)`);
+    await setSetupFailed(supabase, existingSub?.id, orderId, `plan_code_unmapped: ${planCode}`, trigger_source);
+    return { activated: false, skipped: false, stripe_setup_status: "failed", error: `plan_code_unmapped: ${planCode}` };
+  }
+
+  log(`✓ plan_code "${planCode}" validated against stripe_plan_mapping (billing_usage=${planMapping.billing_usage})`);
+
   // ═══ STEP 8: SET PENDING STATUS ═══
   if (existingSub?.id) {
     await supabase.from("billing_subscriptions")
@@ -213,15 +229,24 @@ export async function activateSubscriptionForOrder(
   log(`✓ All gates passed — creating subscription: order=${order.order_number}, plan=${planCode}, customer=${stripeCustomerId}`);
 
   // ═══ STEP 9: RESOLVE ADDITIONAL ITEMS ═══
+  // First, check pricing_snapshot.all_plan_codes for additional services
+  const snapshotPlanCodes: string[] = ((order.pricing_snapshot as any)?.all_plan_codes || [])
+    .map((item: any) => item.plan_code)
+    .filter((c: string) => c && c !== planCode);
+
+  // Also check billing_subscription_services for pre-existing items
   const { data: subServices } = await supabase
     .from("billing_subscription_services")
     .select("service_code")
     .eq("subscription_id", existingSub?.id || "")
     .eq("is_active", true);
 
-  const additionalCodes = (subServices || [])
+  const dbCodes = (subServices || [])
     .map((s: any) => s.service_code)
     .filter((c: string) => c !== planCode);
+
+  // Merge both sources, deduplicate
+  const additionalCodes = [...new Set([...snapshotPlanCodes, ...dbCodes])];
 
   // ═══ STEP 10: CREATE STRIPE SUBSCRIPTION (BLOCKING) ═══
   try {

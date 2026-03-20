@@ -10722,6 +10722,7 @@ export type Database = {
           is_featured: boolean | null
           is_recommended: boolean | null
           name: string
+          plan_code: string | null
           price: number | null
           promo_eligible: boolean | null
           shipping_fee_rule: string | null
@@ -10752,6 +10753,7 @@ export type Database = {
           is_featured?: boolean | null
           is_recommended?: boolean | null
           name: string
+          plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
           shipping_fee_rule?: string | null
@@ -10782,6 +10784,7 @@ export type Database = {
           is_featured?: boolean | null
           is_recommended?: boolean | null
           name?: string
+          plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
           shipping_fee_rule?: string | null
@@ -13389,6 +13392,7 @@ export type Database = {
           is_featured: boolean | null
           is_recommended: boolean | null
           name: string | null
+          plan_code: string | null
           price: number | null
           promo_eligible: boolean | null
           shipping_fee_rule: string | null
@@ -13414,6 +13418,7 @@ export type Database = {
           is_featured?: boolean | null
           is_recommended?: boolean | null
           name?: string | null
+          plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
           shipping_fee_rule?: string | null
@@ -13439,6 +13444,7 @@ export type Database = {
           is_featured?: boolean | null
           is_recommended?: boolean | null
           name?: string | null
+          plan_code?: string | null
           price?: number | null
           promo_eligible?: boolean | null
           shipping_fee_rule?: string | null
