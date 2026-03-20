@@ -95,6 +95,7 @@ interface Service {
   description: string;
   price: number;
   category: string;
+  plan_code?: string;
 }
 
 interface CreatedOrder {
