@@ -2151,6 +2151,12 @@ const ClientNewOrder = () => {
       });
 
       // serverPricing snapshot — canonical references filled after Nivra Core responds
+      // Resolve primary plan_code for recurring billing
+      const primaryService = selectedServices.find(s => 
+        ["Internet", "TV", "Mobile"].includes(s.category)
+      );
+      const primaryPlanCode = primaryService?.plan_code || undefined;
+
       const serverPricing = {
         ...canonicalPricing,
         welcome_applied: rpcPricing?.welcome_applied ?? false,
@@ -2162,6 +2168,13 @@ const ClientNewOrder = () => {
         nivra_invoice_number: '',
         nivra_order_id: '',
         billing_cycle_day: new Date().getDate(),
+        // Canonical plan_code for Stripe subscription creation
+        plan_code: primaryPlanCode,
+        service_category: primaryService?.category?.toLowerCase() || undefined,
+        // All service plan_codes for multi-item subscriptions
+        all_plan_codes: selectedServices
+          .filter(s => s.plan_code)
+          .map(s => ({ plan_code: s.plan_code!, category: s.category, name: s.name })),
       };
 
       // Resolve account_id for order linkage — BLOCKING: orders MUST have account_id
