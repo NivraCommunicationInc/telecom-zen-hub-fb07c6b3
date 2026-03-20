@@ -9,7 +9,7 @@ const normalizePublishableKey = (value: string | undefined): string => {
   const unquoted = value.trim().replace(/^['\"]+|['\"]+$/g, "");
   if (!unquoted) return "";
 
-  const extracted = unquoted.match(/pk_(?:live|test)_[A-Za-z0-9]+/);
+  const extracted = unquoted.match(/pk_(?:live|test)_[A-Za-z0-9_]+/);
   return extracted?.[0] ?? unquoted;
 };
 
