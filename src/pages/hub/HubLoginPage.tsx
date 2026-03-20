@@ -102,7 +102,7 @@ export default function HubLoginPage() {
     }
 
     // Check MFA — Admin roles MUST enroll and verify TOTP.
-    // Non-admin roles use their 4-digit PIN for security; TOTP is optional.
+    // Non-admin roles use their 6-digit PIN for security; TOTP is optional.
     const isAdminRole = roleData.role === "admin";
     const mfa = await checkMfaStatus();
 
