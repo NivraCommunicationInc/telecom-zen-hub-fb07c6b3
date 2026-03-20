@@ -69,8 +69,8 @@ serve(async (req: Request) => {
 
     const { pin, client_user_id, reason } = await req.json();
 
-    if (!pin || !/^\d{4}$/.test(pin)) {
-      return json(400, { ok: false, message: "NIP invalide (4 chiffres requis)" });
+    if (!pin || !/^\d{4,6}$/.test(pin)) {
+      return json(400, { ok: false, message: "NIP invalide (6 chiffres requis)" });
     }
 
     if (!client_user_id) {

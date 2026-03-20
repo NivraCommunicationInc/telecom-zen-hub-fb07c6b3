@@ -2329,11 +2329,11 @@ serve(async (req: Request) => {
           });
         }
 
-        if (!/^\d{4}$/.test(pin)) {
+        if (!/^\d{6}$/.test(pin)) {
           return json(400, {
             ok: false,
             request_id: requestId,
-            error: { code: "VALIDATION", message: "Le PIN doit être exactement 4 chiffres", step: `${stepBase}.validate_format` } satisfies ApiError,
+            error: { code: "VALIDATION", message: "Le PIN doit être exactement 6 chiffres", step: `${stepBase}.validate_format` } satisfies ApiError,
           });
         }
 

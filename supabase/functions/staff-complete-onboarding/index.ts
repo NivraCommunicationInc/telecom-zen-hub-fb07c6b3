@@ -70,8 +70,8 @@ serve(async (req: Request) => {
       return json(400, { ok: false, message: "NIP requis" });
     }
 
-    if (!/^\d{4}$/.test(pin)) {
-      return json(400, { ok: false, message: "Le NIP doit être exactement 4 chiffres" });
+    if (!/^\d{6}$/.test(pin)) {
+      return json(400, { ok: false, message: "Le NIP doit être exactement 6 chiffres" });
     }
 
     if (!terms_accepted) {
