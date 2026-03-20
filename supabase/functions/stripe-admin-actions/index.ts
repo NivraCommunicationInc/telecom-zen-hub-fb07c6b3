@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "npm:stripe@18";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { createNivraSubscription } from "../_shared/nivraSubscriptionFactory.ts";
 
 /**
  * ============================================================================
