@@ -124,13 +124,13 @@ export default function StepBilling({ services, equipment, billing, promos = [],
             <span className="text-[#D1D5DB]">Frais uniques</span><span>{oneTimeSubtotal.toFixed(2)} $</span>
           </div>
           <div className="flex justify-between text-xs text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>{taxes.tps.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-xs text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>{taxes.tvq.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
-            <span>Total</span><span className="text-[#22C55E]">{taxes.total.toFixed(2)} $</span>
+            <span>Sous-total</span><span className="text-[#22C55E]">{totalDueToday.toFixed(2)} $ (+ taxes)</span>
           </div>
         </div>
       </div>

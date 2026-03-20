@@ -163,8 +163,8 @@ export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmi
           </div>
         </div>
         <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
-          <span>Total aujourd'hui</span>
-          <span className="text-[#22C55E]">{taxes.total.toFixed(2)} $</span>
+          <span>Sous-total aujourd'hui</span>
+          <span className="text-[#22C55E]">{totalDueToday.toFixed(2)} $ (+ taxes)</span>
         </div>
       </div>
 

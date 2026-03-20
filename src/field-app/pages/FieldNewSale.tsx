@@ -92,7 +92,8 @@ export default function FieldNewSale() {
   const effectiveMonthly = Math.max(0, monthlySubtotal - promoMonthlyDiscount);
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
   const totalDueToday = effectiveMonthly + equipmentTotal + effectiveActivation;
-  const taxes = estimateTaxes(totalDueToday);
+  // ⛔ NO LOCAL TAX MATH — display subtotal only; server computes taxes at sync
+  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
 
   const handleSubmit = async () => {
     if (!user?.id || isSubmitting) return;
