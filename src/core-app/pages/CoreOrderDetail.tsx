@@ -22,9 +22,9 @@ const CoreOrderDetail = () => {
   if (!orderId) {
     return (
       <div className="py-20 text-center">
-        <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,30%)]" />
-        <p className="text-[hsl(220,10%,40%)] text-xs">Commande introuvable</p>
-        <Link to={corePath("/orders")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">
+        <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-muted-foreground text-xs">Commande introuvable</p>
+        <Link to={corePath("/orders")} className="text-primary text-xs mt-2 inline-block hover:opacity-80">
           ← Retour aux commandes
         </Link>
       </div>
@@ -40,8 +40,8 @@ function OrderConsole({ orderId }: { orderId: string }) {
   if (proc.isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-6 w-6 animate-spin text-[hsl(220,10%,40%)]" />
-        <span className="ml-3 text-xs text-[hsl(220,10%,50%)]">Chargement du dossier…</span>
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <span className="ml-3 text-xs text-muted-foreground">Chargement du dossier…</span>
       </div>
     );
   }
@@ -49,11 +49,11 @@ function OrderConsole({ orderId }: { orderId: string }) {
   if (proc.error || !proc.order) {
     return (
       <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-8 text-center">
-        <p className="text-red-400 font-medium text-sm">Erreur de chargement</p>
-        <p className="text-xs text-[hsl(220,10%,45%)] mt-1">
+        <p className="text-destructive font-medium text-sm">Erreur de chargement</p>
+        <p className="text-xs text-muted-foreground mt-1">
           {proc.error instanceof Error ? proc.error.message : "Commande introuvable"}
         </p>
-        <Link to={corePath("/orders")} className="text-blue-400 text-xs mt-3 inline-block hover:underline">
+        <Link to={corePath("/orders")} className="text-primary text-xs mt-3 inline-block hover:opacity-80">
           ← Retour aux commandes
         </Link>
       </div>
@@ -65,7 +65,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
       {/* ═══ BACK NAV ═══ */}
       <Link
         to={corePath("/orders")}
-        className="inline-flex items-center gap-1.5 text-[11px] text-[hsl(220,10%,45%)] hover:text-white transition-colors"
+        className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Commandes
       </Link>
@@ -94,8 +94,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
           onStepClick={(id: WorkflowStepId) => proc.setActiveStep(id)}
         />
 
-        {/* CENTER: Active Step Content — native dark */}
-        <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-5 min-h-[520px]">
+        <div className="rounded-lg border border-border bg-card p-5 min-h-[520px]">
           <StepContent proc={proc} />
         </div>
 
