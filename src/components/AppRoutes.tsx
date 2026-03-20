@@ -750,8 +750,8 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* INTERNAL HUB — Secure Staff Gateway          */}
       {/* ============================================ */}
-      <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubPage /></Suspense>} />
-      <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubLoginPage /></Suspense>} />
+      <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
+      <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
 
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}
