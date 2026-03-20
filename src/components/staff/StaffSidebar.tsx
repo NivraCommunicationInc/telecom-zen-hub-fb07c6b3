@@ -1,6 +1,5 @@
 /**
  * StaffSidebar - Sidebar navigation for employee portal
- * Completely isolated from admin - all links point to /staff routes
  */
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -15,7 +14,6 @@ import {
   FileText,
   Settings,
   ChevronDown,
-  User,
   Eye,
   PenTool,
   Play,
@@ -35,51 +33,13 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  {
-    label: "Tableau de bord",
-    href: "/staff/dashboard",
-    icon: <LayoutDashboard className="h-4 w-4" />,
-  },
-  {
-    label: "Point de Vente (POS)",
-    href: "/staff/pos",
-    icon: <ShoppingCart className="h-4 w-4" />,
-  },
-  {
-    label: "Clients",
-    icon: <Users className="h-4 w-4" />,
-    children: [
-      { label: "Voir clients", href: "/staff/clients", icon: <Eye className="h-4 w-4" /> },
-    ],
-  },
-  {
-    label: "Commandes",
-    icon: <ShoppingCart className="h-4 w-4" />,
-    children: [
-      { label: "Voir commandes", href: "/staff/orders", icon: <Eye className="h-4 w-4" /> },
-    ],
-  },
-  {
-    label: "Facturation",
-    icon: <DollarSign className="h-4 w-4" />,
-    children: [
-      { label: "Voir facturation", href: "/staff/billing", icon: <Eye className="h-4 w-4" /> },
-    ],
-  },
-  {
-    label: "Rendez-vous",
-    icon: <Calendar className="h-4 w-4" />,
-    children: [
-      { label: "Voir rendez-vous", href: "/staff/appointments", icon: <Eye className="h-4 w-4" /> },
-    ],
-  },
-  {
-    label: "Support",
-    icon: <Ticket className="h-4 w-4" />,
-    children: [
-      { label: "Voir tickets", href: "/staff/tickets", icon: <Eye className="h-4 w-4" /> },
-    ],
-  },
+  { label: "Tableau de bord", href: "/staff/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+  { label: "Point de Vente (POS)", href: "/staff/pos", icon: <ShoppingCart className="h-4 w-4" /> },
+  { label: "Clients", icon: <Users className="h-4 w-4" />, children: [{ label: "Voir clients", href: "/staff/clients", icon: <Eye className="h-4 w-4" /> }] },
+  { label: "Commandes", icon: <ShoppingCart className="h-4 w-4" />, children: [{ label: "Voir commandes", href: "/staff/orders", icon: <Eye className="h-4 w-4" /> }] },
+  { label: "Facturation", icon: <DollarSign className="h-4 w-4" />, children: [{ label: "Voir facturation", href: "/staff/billing", icon: <Eye className="h-4 w-4" /> }] },
+  { label: "Rendez-vous", icon: <Calendar className="h-4 w-4" />, children: [{ label: "Voir rendez-vous", href: "/staff/appointments", icon: <Eye className="h-4 w-4" /> }] },
+  { label: "Support", icon: <Ticket className="h-4 w-4" />, children: [{ label: "Voir tickets", href: "/staff/tickets", icon: <Eye className="h-4 w-4" /> }] },
   {
     label: "TV / Streaming",
     icon: <Tv className="h-4 w-4" />,
@@ -88,16 +48,8 @@ const navItems: NavItem[] = [
       { label: "Gérer streaming", href: "/staff/streaming", icon: <Play className="h-4 w-4" /> },
     ],
   },
-  {
-    label: "Notes internes",
-    href: "/staff/notes",
-    icon: <FileText className="h-4 w-4" />,
-  },
-  {
-    label: "Mon compte",
-    href: "/staff/account",
-    icon: <Settings className="h-4 w-4" />,
-  },
+  { label: "Notes internes", href: "/staff/notes", icon: <FileText className="h-4 w-4" /> },
+  { label: "Mon compte", href: "/staff/account", icon: <Settings className="h-4 w-4" /> },
 ];
 
 interface StaffSidebarProps {
@@ -111,34 +63,23 @@ export function StaffSidebar({ onSignOut, userEmail, userName }: StaffSidebarPro
   const [openSections, setOpenSections] = useState<string[]>([]);
 
   const toggleSection = (label: string) => {
-    setOpenSections(prev => 
-      prev.includes(label) 
-        ? prev.filter(s => s !== label) 
-        : [...prev, label]
-    );
+    setOpenSections((prev) => (prev.includes(label) ? prev.filter((s) => s !== label) : [...prev, label]));
   };
 
   const isActive = (href: string) => location.pathname === href;
-  const isParentActive = (item: NavItem) => {
-    if (item.children) {
-      return item.children.some(child => location.pathname.startsWith(child.href));
-    }
-    return false;
-  };
+  const isParentActive = (item: NavItem) => item.children?.some((child) => location.pathname.startsWith(child.href)) ?? false;
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-slate-900/80 backdrop-blur-xl border-r border-slate-700/50">
-      {/* Logo */}
-      <div className="p-6 border-b border-slate-700/50">
+    <aside className="hidden lg:flex flex-col w-64 bg-sidebar border-r border-sidebar-border">
+      <div className="p-6 border-b border-sidebar-border">
         <Link to="/staff/dashboard" className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-400 shadow-lg shadow-teal-500/20">
-            <Shield className="h-5 w-5 text-slate-900" />
+          <div className="p-2 rounded-lg bg-primary">
+            <Shield className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-lg text-white">Nivra Staff</span>
+          <span className="font-bold text-lg text-foreground">Nivra Staff</span>
         </Link>
       </div>
 
-      {/* Navigation */}
       <ScrollArea className="flex-1 py-4">
         <nav className="px-3 space-y-1">
           {navItems.map((item) => {
@@ -150,15 +91,10 @@ export function StaffSidebar({ onSignOut, userEmail, userName }: StaffSidebarPro
                     <button
                       className={cn(
                         "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                        isParentActive(item)
-                          ? "bg-teal-500/10 text-teal-400"
-                          : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                        isParentActive(item) ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                       )}
                     >
-                      <span className="flex items-center gap-3">
-                        {item.icon}
-                        {item.label}
-                      </span>
+                      <span className="flex items-center gap-3">{item.icon}{item.label}</span>
                       <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
                     </button>
                   </CollapsibleTrigger>
@@ -169,9 +105,7 @@ export function StaffSidebar({ onSignOut, userEmail, userName }: StaffSidebarPro
                         to={child.href}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-                          isActive(child.href)
-                            ? "bg-teal-500/20 text-teal-400 font-medium"
-                            : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                          isActive(child.href) ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                         )}
                       >
                         {child.icon}
@@ -189,9 +123,7 @@ export function StaffSidebar({ onSignOut, userEmail, userName }: StaffSidebarPro
                 to={item.href!}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive(item.href!)
-                    ? "bg-teal-500/20 text-teal-400"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  isActive(item.href!) ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 )}
               >
                 {item.icon}
@@ -202,17 +134,12 @@ export function StaffSidebar({ onSignOut, userEmail, userName }: StaffSidebarPro
         </nav>
       </ScrollArea>
 
-      {/* User info & Logout */}
-      <div className="p-4 border-t border-slate-700/50 space-y-3">
+      <div className="p-4 border-t border-sidebar-border space-y-3">
         <div className="px-3">
-          <p className="text-xs text-slate-500">Connecté en tant que</p>
-          <p className="text-sm font-medium text-white truncate">{userName || userEmail}</p>
+          <p className="text-xs text-muted-foreground">Connecté en tant que</p>
+          <p className="text-sm font-medium text-foreground truncate">{userName || userEmail}</p>
         </div>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-slate-800/50"
-          onClick={onSignOut}
-        >
+        <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={onSignOut}>
           <LogOut className="h-4 w-4" />
           Déconnexion
         </Button>
