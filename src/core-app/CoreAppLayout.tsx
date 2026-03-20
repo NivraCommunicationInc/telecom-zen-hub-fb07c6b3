@@ -171,6 +171,7 @@ const CoreAppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { themeClass } = useInternalTheme();
+  const isDarkTheme = themeClass === "theme-dark";
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -236,7 +237,7 @@ const CoreAppLayout = () => {
   };
 
   return (
-    <div className={cn("internal-ui core-console min-h-screen flex bg-background text-foreground", themeClass)}>
+    <div className={cn("internal-ui min-h-screen flex bg-background text-foreground", themeClass, isDarkTheme && "core-console")}>
       {/* ═══ SIDEBAR ═══ */}
         <aside
           className={cn(
