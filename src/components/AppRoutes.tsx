@@ -756,7 +756,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}
       {/* ============================================ */}
-      <Route path="/employee" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><EmployeeProtectedRoute /></Suspense>}>
+      <Route path="/employee" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><EmployeeProtectedRoute /></Suspense>}>
         <Route element={<Suspense fallback={null}><EmployeeAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
