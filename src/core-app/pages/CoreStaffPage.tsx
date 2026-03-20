@@ -4,15 +4,52 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Ban, CheckCircle2, Eye, Mail, Plus, Search, ShieldCheck, ShieldAlert, Users } from "lucide-react";
+import {
+  Ban,
+  CheckCircle2,
+  DollarSign,
+  Eye,
+  KeyRound,
+  Loader2,
+  Mail,
+  Plus,
+  Search,
+  ShieldCheck,
+  ShieldAlert,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
-import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
 
 type StaffFormData = {
   first_name: string;
@@ -41,7 +78,7 @@ const ROLE_OPTIONS = [
   { value: "field_sales", label: "Ventes terrain" },
 ] as const;
 
-const ROLE_LABELS = Object.fromEntries(ROLE_OPTIONS.map((role) => [role.value, role.label]));
+const ROLE_LABELS = Object.fromEntries(ROLE_OPTIONS.map((r) => [r.value, r.label]));
 
 const INVITATION_LABELS: Record<string, string> = {
   generated: "Générée",
@@ -72,6 +109,32 @@ function getInvitationBadgeVariant(status?: string): "default" | "secondary" | "
   return "outline";
 }
 
+async function invokeStaffAction(payload: Record<string, unknown>) {
+  console.log("[CoreStaffPage] invoking admin-manage-staff:", payload.action);
+  const { data, error } = await supabase.functions.invoke("admin-manage-staff", { body: payload });
+
+  if (error) {
+    console.error("[CoreStaffPage] invoke error:", error);
+    // Try to extract message from the error context (FunctionsHttpError)
+    let msg = error.message || "Erreur edge function";
+    try {
+      const ctx = (error as any)?.context;
+      if (ctx && typeof ctx.json === "function") {
+        const body = await ctx.json();
+        msg = body?.message || body?.error?.message || msg;
+      }
+    } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+
+  if (data?.ok === false) {
+    throw new Error(data?.message || data?.error?.message || "Erreur inattendue");
+  }
+
+  console.log("[CoreStaffPage] response ok:", payload.action, "staff count:", data?.staff?.length);
+  return data;
+}
+
 export default function CoreStaffPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -81,77 +144,78 @@ export default function CoreStaffPage() {
   const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState<StaffFormData>(defaultForm);
 
-  const invalidateStaffData = () => {
+  // Delete dialog
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
+
+  // PIN reset dialog
+  const [pinResetTarget, setPinResetTarget] = useState<any>(null);
+  const [newPin, setNewPin] = useState("");
+
+  // Commission dialog
+  const [commissionTarget, setCommissionTarget] = useState<any>(null);
+  const [commissionRate, setCommissionRate] = useState("");
+
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
-    queryClient.invalidateQueries({ queryKey: ["core-staff-invitation-statuses"] });
+    queryClient.invalidateQueries({ queryKey: ["core-staff-invitations"] });
   };
 
-  const invokeAdminStaffAction = async (payload: Record<string, unknown>) => {
-    const response = await supabase.functions.invoke("admin-manage-staff", { body: payload });
-    if (response.error) {
-      const msg = await getInvokeErrorMessage(response.error);
-      throw new Error(msg || "Erreur edge function");
-    }
-    if ((response.data as any)?.ok === false) {
-      throw new Error((response.data as any)?.message || (response.data as any)?.error?.message || "Erreur inattendue");
-    }
-    return response.data as any;
-  };
-
-  const { data: staffList = [], isLoading } = useQuery({
+  // ─── Staff list query ───
+  const { data: staffList = [], isLoading, error: listError } = useQuery({
     queryKey: ["core-staff-list"],
     queryFn: async () => {
-      const response = await invokeAdminStaffAction({ action: "list_staff" });
-      return response.staff || [];
+      const res = await invokeStaffAction({ action: "list_staff" });
+      return res?.staff || [];
     },
+    retry: 2,
+    refetchOnWindowFocus: true,
   });
 
-  const staffUserIdsKey = useMemo(
-    () => staffList.map((staff: any) => staff.user_id).sort().join(","),
+  // ─── Invitation statuses ───
+  const staffUserIds = useMemo(
+    () => staffList.map((s: any) => s.user_id).sort().join(","),
     [staffList]
   );
 
   const { data: invitationStatuses = [] } = useQuery({
-    queryKey: ["core-staff-invitation-statuses", staffUserIdsKey],
+    queryKey: ["core-staff-invitations", staffUserIds],
     enabled: staffList.length > 0,
     queryFn: async () => {
-      const userIds = staffList.map((staff: any) => staff.user_id);
-      const response = await invokeAdminStaffAction({
-        action: "list_invitation_statuses",
-        user_ids: userIds,
-      });
-      return response.invitations || [];
+      const userIds = staffList.map((s: any) => s.user_id);
+      const res = await invokeStaffAction({ action: "list_invitation_statuses", user_ids: userIds });
+      return res?.invitations || [];
     },
   });
 
   const invitationByUser = useMemo(
-    () => new Map((invitationStatuses as any[]).map((invitation) => [invitation.user_id, invitation])),
+    () => new Map((invitationStatuses as any[]).map((inv) => [inv.user_id, inv])),
     [invitationStatuses]
   );
 
+  // ─── Filtered list ───
   const filteredStaff = useMemo(() => {
-    return staffList.filter((staff: any) => {
-      if (roleFilter !== "all" && staff.role !== roleFilter) return false;
-
+    return staffList.filter((s: any) => {
+      if (roleFilter !== "all" && s.role !== roleFilter) return false;
       if (statusFilter !== "all") {
-        const computedStatus = staff.status || (staff.is_active === false ? "disabled" : "active");
-        if (computedStatus !== statusFilter) return false;
+        const computed = s.status || (s.is_active === false ? "disabled" : "active");
+        if (computed !== statusFilter) return false;
       }
-
       if (!search.trim()) return true;
-      const query = search.toLowerCase();
+      const q = search.toLowerCase();
       return (
-        staff.displayName?.toLowerCase().includes(query) ||
-        staff.profile?.email?.toLowerCase().includes(query) ||
-        staff.role?.toLowerCase().includes(query)
+        s.displayName?.toLowerCase().includes(q) ||
+        s.profile?.email?.toLowerCase().includes(q) ||
+        s.role?.toLowerCase().includes(q)
       );
     });
   }, [staffList, roleFilter, statusFilter, search]);
 
-  const createStaffMutation = useMutation({
-    mutationFn: async (payload: StaffFormData) => {
+  // ─── Mutations ───
+  const createMutation = useMutation({
+    mutationFn: (payload: StaffFormData) => {
       const full_name = `${payload.first_name} ${payload.last_name}`.trim();
-      return invokeAdminStaffAction({
+      return invokeStaffAction({
         action: "create",
         email: payload.email.trim().toLowerCase(),
         first_name: payload.first_name.trim(),
@@ -167,176 +231,162 @@ export default function CoreStaffPage() {
         can_access_technician: payload.can_access_technician,
       });
     },
-    onSuccess: (response: any) => {
-      const invitationError = typeof response?.invitation_error === "string" ? response.invitation_error : null;
-      const message = response?.message || "Employé créé avec succès";
-
-      if (invitationError) {
-        toast.warning(`${message} (${invitationError})`);
-      } else {
-        toast.success(message);
-      }
-
+    onSuccess: (res: any) => {
+      toast.success(res?.message || "Employé créé");
       setCreateOpen(false);
       setForm(defaultForm);
-      invalidateStaffData();
+      invalidate();
     },
-    onError: (error: any) => toast.error(error.message || "Erreur lors de la création"),
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      return invokeAdminStaffAction({
-        action: "update_status",
-        user_id: userId,
-        status: isActive ? "active" : "disabled",
-      });
-    },
-    onSuccess: () => {
-      toast.success("Statut mis à jour");
-      invalidateStaffData();
-    },
-    onError: (error: any) => toast.error(error.message || "Erreur statut"),
+  const statusMutation = useMutation({
+    mutationFn: ({ userId, status }: { userId: string; status: string }) =>
+      invokeStaffAction({ action: "update_status", user_id: userId, status }),
+    onSuccess: () => { toast.success("Statut mis à jour"); invalidate(); },
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const changeRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      return invokeAdminStaffAction({ action: "change_role", user_id: userId, new_role: role });
-    },
-    onSuccess: () => {
-      toast.success("Rôle mis à jour");
-      invalidateStaffData();
-    },
-    onError: (error: any) => toast.error(error.message || "Erreur rôle"),
+  const roleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      invokeStaffAction({ action: "change_role", user_id: userId, new_role: role }),
+    onSuccess: () => { toast.success("Rôle mis à jour"); invalidate(); },
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const updatePortalMutation = useMutation({
-    mutationFn: async ({ userId, key, value }: { userId: string; key: string; value: boolean }) => {
-      return invokeAdminStaffAction({ action: "update_portal_access", user_id: userId, [key]: value });
-    },
-    onSuccess: () => {
-      toast.success("Accès portail mis à jour");
-      invalidateStaffData();
-    },
-    onError: (error: any) => toast.error(error.message || "Erreur accès"),
+  const portalMutation = useMutation({
+    mutationFn: ({ userId, key, value }: { userId: string; key: string; value: boolean }) =>
+      invokeStaffAction({ action: "update_portal_access", user_id: userId, [key]: value }),
+    onSuccess: () => { toast.success("Accès portail mis à jour"); invalidate(); },
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const updateMfaMutation = useMutation({
-    mutationFn: async ({ userId, required }: { userId: string; required: boolean }) => {
-      return invokeAdminStaffAction({ action: "update_mfa_requirement", user_id: userId, mfa_required: required });
-    },
-    onSuccess: () => {
-      toast.success("Exigence MFA mise à jour");
-      invalidateStaffData();
-    },
-    onError: (error: any) => toast.error(error.message || "Erreur MFA"),
+  const mfaMutation = useMutation({
+    mutationFn: ({ userId, required }: { userId: string; required: boolean }) =>
+      invokeStaffAction({ action: "update_mfa_requirement", user_id: userId, mfa_required: required }),
+    onSuccess: () => { toast.success("MFA mis à jour"); invalidate(); },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const invitationMutation = useMutation({
-    mutationFn: async ({ action, userId }: { action: "generate_invitation" | "send_invitation" | "resend_invitation" | "revoke_invitation"; userId: string }) => {
-      return invokeAdminStaffAction({ action, user_id: userId });
-    },
-    onSuccess: (_, variables) => {
+    mutationFn: ({ action, userId }: { action: string; userId: string }) =>
+      invokeStaffAction({ action, user_id: userId }),
+    onSuccess: (_, v) => {
       const labels: Record<string, string> = {
         generate_invitation: "Invitation générée",
         send_invitation: "Invitation envoyée",
         resend_invitation: "Invitation renvoyée",
         revoke_invitation: "Invitation révoquée",
       };
-      toast.success(labels[variables.action] || "Invitation mise à jour");
-      invalidateStaffData();
+      toast.success(labels[v.action] || "OK");
+      invalidate();
     },
-    onError: (error: any) => toast.error(error.message || "Erreur invitation"),
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const resetPasswordMutation = useMutation({
-    mutationFn: async (email: string) => {
-      return invokeAdminStaffAction({ action: "send_password_reset", email });
-    },
+  const resetPwMutation = useMutation({
+    mutationFn: (email: string) => invokeStaffAction({ action: "send_password_reset", email }),
     onSuccess: () => toast.success("Email de réinitialisation envoyé"),
-    onError: (error: any) => toast.error(error.message || "Erreur réinitialisation"),
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const activeCount = staffList.filter((staff: any) => (staff.status || "active") === "active").length;
+  const deleteMutation = useMutation({
+    mutationFn: ({ email, confirmEmail }: { email: string; confirmEmail: string }) =>
+      invokeStaffAction({ action: "hard_delete_user", email, confirm_email: confirmEmail }),
+    onSuccess: (res: any) => {
+      toast.success(res?.message || "Utilisateur supprimé");
+      setDeleteTarget(null);
+      setDeleteConfirmEmail("");
+      setSelected(null);
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const pinResetMutation = useMutation({
+    mutationFn: ({ userId, pin }: { userId: string; pin: string }) =>
+      invokeStaffAction({ action: "reset_pin", user_id: userId, pin }),
+    onSuccess: () => {
+      toast.success("PIN réinitialisé avec succès");
+      setPinResetTarget(null);
+      setNewPin("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const commissionMutation = useMutation({
+    mutationFn: async ({ userId, rate }: { userId: string; rate: number }) => {
+      const { error } = await supabase
+        .from("field_sales_commission_rules" as any)
+        .upsert(
+          { salesperson_id: userId, rule_type: "base_percentage", value: rate, is_active: true },
+          { onConflict: "salesperson_id,rule_type" }
+        );
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Commission mise à jour");
+      setCommissionTarget(null);
+      setCommissionRate("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const activeCount = staffList.filter((s: any) => (s.status || "active") === "active").length;
 
   return (
     <div className="space-y-4">
+      {/* ─── Header ─── */}
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-semibold text-foreground">Gestion du personnel interne</h1>
           </div>
-          <p className="text-xs text-muted-foreground">Créez et gérez les employés, accès portails, MFA et invitations.</p>
+          <p className="text-xs text-muted-foreground">
+            Créez et gérez les employés, accès portails, MFA et invitations.
+          </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" /> Ajouter un employé
         </Button>
       </div>
 
+      {/* ─── Stats ─── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="text-xl font-semibold text-foreground">{staffList.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Actifs</p>
-            <p className="text-xl font-semibold text-foreground">{activeCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">MFA requis</p>
-            <p className="text-xl font-semibold text-foreground">{staffList.filter((staff: any) => staff.mfaRequired).length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Invitations en attente</p>
-            <p className="text-xl font-semibold text-foreground">
-              {staffList.filter((staff: any) => {
-                const invitation = invitationByUser.get(staff.user_id);
-                return invitation?.status === "generated" || invitation?.status === "sent";
-              }).length}
-            </p>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Total</p><p className="text-xl font-semibold text-foreground">{staffList.length}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Actifs</p><p className="text-xl font-semibold text-foreground">{activeCount}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">MFA requis</p><p className="text-xl font-semibold text-foreground">{staffList.filter((s: any) => s.mfaRequired).length}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Invitations en attente</p><p className="text-xl font-semibold text-foreground">
+          {staffList.filter((s: any) => { const inv = invitationByUser.get(s.user_id); return inv?.status === "generated" || inv?.status === "sent"; }).length}
+        </p></CardContent></Card>
       </div>
 
+      {/* ─── Error banner ─── */}
+      {listError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          Erreur chargement : {(listError as Error).message}
+          <Button variant="ghost" size="sm" className="ml-2" onClick={() => invalidate()}>Réessayer</Button>
+        </div>
+      )}
+
+      {/* ─── Filters ─── */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            placeholder="Rechercher nom, email, rôle…"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+          <Input className="pl-8" placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-[170px]">
-            <SelectValue placeholder="Rôle" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[170px]"><SelectValue placeholder="Rôle" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les rôles</SelectItem>
-            {ROLE_OPTIONS.map((role) => (
-              <SelectItem key={role.value} value={role.value}>
-                {role.label}
-              </SelectItem>
-            ))}
+            {ROLE_OPTIONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
           </SelectContent>
         </Select>
-
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Statut" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
+            <SelectItem value="all">Tous</SelectItem>
             <SelectItem value="active">Actif</SelectItem>
             <SelectItem value="disabled">Désactivé</SelectItem>
             <SelectItem value="hold">En attente</SelectItem>
@@ -344,6 +394,7 @@ export default function CoreStaffPage() {
         </Select>
       </div>
 
+      {/* ─── Table ─── */}
       <div className="overflow-hidden rounded-lg border border-border">
         <table className="w-full text-xs">
           <thead className="bg-muted/40">
@@ -361,16 +412,16 @@ export default function CoreStaffPage() {
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading ? (
-              <tr>
-                <td className="px-3 py-8 text-center text-muted-foreground" colSpan={9}>Chargement…</td>
-              </tr>
+              <tr><td className="px-3 py-8 text-center text-muted-foreground" colSpan={9}>
+                <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+              </td></tr>
             ) : filteredStaff.length === 0 ? (
-              <tr>
-                <td className="px-3 py-8 text-center text-muted-foreground" colSpan={9}>Aucun employé</td>
-              </tr>
+              <tr><td className="px-3 py-8 text-center text-muted-foreground" colSpan={9}>
+                {staffList.length === 0 ? "Aucun employé trouvé — vérifiez la connexion" : "Aucun résultat pour ces filtres"}
+              </td></tr>
             ) : (
               filteredStaff.map((staff: any) => {
-                const invitation = invitationByUser.get(staff.user_id);
+                const inv = invitationByUser.get(staff.user_id);
                 const isActive = (staff.status || "active") === "active";
                 const portals = [
                   staff.can_access_core && "Core",
@@ -383,37 +434,44 @@ export default function CoreStaffPage() {
                   <tr key={staff.id} className="hover:bg-muted/30">
                     <td className="px-3 py-2.5 font-medium text-foreground">{staff.displayName}</td>
                     <td className="px-3 py-2.5 text-muted-foreground">{staff.profile?.email || "—"}</td>
-                    <td className="px-3 py-2.5">
-                      <Badge variant="outline">{ROLE_LABELS[staff.role] || staff.role}</Badge>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Badge variant={isActive ? "default" : "destructive"}>{isActive ? "Actif" : "Désactivé"}</Badge>
-                    </td>
+                    <td className="px-3 py-2.5"><Badge variant="outline">{ROLE_LABELS[staff.role] || staff.role}</Badge></td>
+                    <td className="px-3 py-2.5"><Badge variant={isActive ? "default" : "destructive"}>{isActive ? "Actif" : "Désactivé"}</Badge></td>
                     <td className="px-3 py-2.5">
                       <div className="flex flex-wrap gap-1">
-                        {portals.length ? portals.map((portal) => (
-                          <Badge key={portal} variant="secondary" className="text-[10px]">{portal}</Badge>
-                        )) : <span className="text-muted-foreground">—</span>}
+                        {portals.length ? portals.map((p) => <Badge key={p} variant="secondary" className="text-[10px]">{p}</Badge>) : <span className="text-muted-foreground">—</span>}
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5">
-                        <Badge variant={staff.mfaEnabled ? "default" : "secondary"}>{staff.mfaEnabled ? "Enrôlé" : "Non enrôlé"}</Badge>
+                        <Badge variant={staff.mfaEnabled ? "default" : "secondary"}>{staff.mfaEnabled ? "Enrôlé" : "Non"}</Badge>
                         {staff.mfaRequired ? <ShieldCheck className="h-3.5 w-3.5 text-primary" /> : <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />}
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
-                      <Badge variant={getInvitationBadgeVariant(invitation?.status)}>
-                        {invitation ? INVITATION_LABELS[invitation.status] || invitation.status : "Aucune"}
+                      <Badge variant={getInvitationBadgeVariant(inv?.status)}>
+                        {inv ? INVITATION_LABELS[inv.status] || inv.status : "Aucune"}
                       </Badge>
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
                       {staff.lastLoginAt ? format(new Date(staff.lastLoginAt), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Button size="icon" variant="ghost" onClick={() => setSelected(staff)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => setSelected(staff)} title="Détails">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => { setPinResetTarget(staff); setNewPin(""); }} title="Reset PIN">
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        {(staff.role === "field_sales" || staff.role === "sales") && (
+                          <Button size="icon" variant="ghost" onClick={() => { setCommissionTarget(staff); setCommissionRate(""); }} title="Commission">
+                            <DollarSign className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => { setDeleteTarget(staff); setDeleteConfirmEmail(""); }} title="Supprimer">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -423,210 +481,166 @@ export default function CoreStaffPage() {
         </table>
       </div>
 
+      {/* ─── Detail Sheet ─── */}
       <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Dossier employé</SheetTitle>
-          </SheetHeader>
-
+          <SheetHeader><SheetTitle>Dossier employé</SheetTitle></SheetHeader>
           {selected && (
             <div className="mt-4 space-y-4">
-              <Card>
-                <CardContent className="space-y-2 p-4 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Nom</span><span>{selected.displayName}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span>{selected.profile?.email || "—"}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Rôle</span><span>{ROLE_LABELS[selected.role] || selected.role}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Dernière connexion</span><span>{selected.lastLoginAt ? format(new Date(selected.lastLoginAt), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}</span></div>
-                </CardContent>
-              </Card>
+              <Card><CardContent className="space-y-2 p-4 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Nom</span><span className="text-foreground">{selected.displayName}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="text-foreground">{selected.profile?.email || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Rôle</span><span className="text-foreground">{ROLE_LABELS[selected.role] || selected.role}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Dernière connexion</span><span className="text-foreground">{selected.lastLoginAt ? format(new Date(selected.lastLoginAt), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}</span></div>
+              </CardContent></Card>
 
-              <Card>
-                <CardContent className="space-y-3 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Accès portails</p>
-                  {[
-                    { key: "can_access_core", label: "Nivra Core" },
-                    { key: "can_access_employee", label: "Nivra Employee" },
-                    { key: "can_access_field", label: "Nivra Field" },
-                    { key: "can_access_technician", label: "Nivra Technician" },
-                  ].map((portal) => (
-                    <label key={portal.key} className="flex items-center justify-between gap-3 text-sm">
-                      <span>{portal.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(selected[portal.key])}
-                        onChange={(event) => {
-                          const value = event.target.checked;
-                          setSelected((current: any) => ({ ...current, [portal.key]: value }));
-                          updatePortalMutation.mutate({ userId: selected.user_id, key: portal.key, value });
-                        }}
-                      />
-                    </label>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="space-y-3 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sécurité & statut</p>
-                  <label className="flex items-center justify-between gap-3 text-sm">
-                    <span>MFA obligatoire</span>
+              <Card><CardContent className="space-y-3 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Accès portails</p>
+                {[
+                  { key: "can_access_core", label: "Nivra Core" },
+                  { key: "can_access_employee", label: "Nivra Employee" },
+                  { key: "can_access_field", label: "Nivra Field" },
+                  { key: "can_access_technician", label: "Nivra Technician" },
+                ].map((portal) => (
+                  <label key={portal.key} className="flex items-center justify-between gap-3 text-sm text-foreground">
+                    <span>{portal.label}</span>
                     <input
                       type="checkbox"
-                      checked={Boolean(selected.mfaRequired)}
-                      onChange={(event) => {
-                        const required = event.target.checked;
-                        setSelected((current: any) => ({ ...current, mfaRequired: required }));
-                        updateMfaMutation.mutate({ userId: selected.user_id, required });
+                      checked={Boolean(selected[portal.key])}
+                      onChange={(e) => {
+                        const value = e.target.checked;
+                        setSelected((c: any) => ({ ...c, [portal.key]: value }));
+                        portalMutation.mutate({ userId: selected.user_id, key: portal.key, value });
                       }}
                     />
                   </label>
+                ))}
+              </CardContent></Card>
 
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Changer le rôle</p>
-                    <Select
-                      value={selected.role}
-                      onValueChange={(value) => {
-                        setSelected((current: any) => ({ ...current, role: value }));
-                        changeRoleMutation.mutate({ userId: selected.user_id, role: value });
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ROLE_OPTIONS.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <Card><CardContent className="space-y-3 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sécurité & statut</p>
+                <label className="flex items-center justify-between gap-3 text-sm text-foreground">
+                  <span>MFA obligatoire</span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selected.mfaRequired)}
+                    onChange={(e) => {
+                      const required = e.target.checked;
+                      setSelected((c: any) => ({ ...c, mfaRequired: required }));
+                      mfaMutation.mutate({ userId: selected.user_id, required });
+                    }}
+                  />
+                </label>
 
-                  <div className="flex gap-2">
-                    <Button
-                      className="flex-1"
-                      variant={(selected.status || "active") === "active" ? "destructive" : "default"}
-                      onClick={() => {
-                        const nextActive = (selected.status || "active") !== "active";
-                        updateStatusMutation.mutate({ userId: selected.user_id, isActive: nextActive });
-                        setSelected((current: any) => ({ ...current, status: nextActive ? "active" : "disabled" }));
-                      }}
-                    >
-                      {(selected.status || "active") === "active" ? <Ban className="mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                      {(selected.status || "active") === "active" ? "Désactiver" : "Activer"}
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      variant="outline"
-                      onClick={() => selected.profile?.email && resetPasswordMutation.mutate(selected.profile.email)}
-                      disabled={!selected.profile?.email || resetPasswordMutation.isPending}
-                    >
-                      <Mail className="mr-2 h-4 w-4" /> Réinit. mot de passe
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Changer le rôle</p>
+                  <Select
+                    value={selected.role}
+                    onValueChange={(v) => {
+                      setSelected((c: any) => ({ ...c, role: v }));
+                      roleMutation.mutate({ userId: selected.user_id, role: v });
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <Card>
-                <CardContent className="space-y-3 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Invitation</p>
-                  {(() => {
-                    const invitation = invitationByUser.get(selected.user_id);
-                    return (
-                      <>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="rounded border border-border p-2">
-                            <p className="text-muted-foreground">Statut</p>
-                            <p className="font-medium">{invitation ? INVITATION_LABELS[invitation.status] || invitation.status : "Aucune"}</p>
-                          </div>
-                          <div className="rounded border border-border p-2">
-                            <p className="text-muted-foreground">Expiration</p>
-                            <p className="font-medium">
-                              {invitation?.expires_at ? format(new Date(invitation.expires_at), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}
-                            </p>
-                          </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={(selected.status || "active") === "active" ? "destructive" : "default"}
+                    onClick={() => {
+                      const next = (selected.status || "active") !== "active";
+                      statusMutation.mutate({ userId: selected.user_id, status: next ? "active" : "disabled" });
+                      setSelected((c: any) => ({ ...c, status: next ? "active" : "disabled" }));
+                    }}
+                  >
+                    {(selected.status || "active") === "active" ? <><Ban className="mr-1 h-3.5 w-3.5" /> Désactiver</> : <><CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Activer</>}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => selected.profile?.email && resetPwMutation.mutate(selected.profile.email)} disabled={!selected.profile?.email}>
+                    <Mail className="mr-1 h-3.5 w-3.5" /> Réinit. mot de passe
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setPinResetTarget(selected); setNewPin(""); }}>
+                    <KeyRound className="mr-1 h-3.5 w-3.5" /> Réinit. PIN
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => { setDeleteTarget(selected); setDeleteConfirmEmail(""); }}>
+                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Supprimer
+                  </Button>
+                </div>
+              </CardContent></Card>
+
+              <Card><CardContent className="space-y-3 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Invitation</p>
+                {(() => {
+                  const inv = invitationByUser.get(selected.user_id);
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded border border-border p-2">
+                          <p className="text-muted-foreground">Statut</p>
+                          <p className="font-medium text-foreground">{inv ? INVITATION_LABELS[inv.status] || inv.status : "Aucune"}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => invitationMutation.mutate({ action: "generate_invitation", userId: selected.user_id })}
-                            disabled={invitationMutation.isPending}
-                          >
-                            Générer invitation
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => invitationMutation.mutate({ action: "send_invitation", userId: selected.user_id })}
-                            disabled={invitationMutation.isPending}
-                          >
-                            Envoyer invitation
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => invitationMutation.mutate({ action: "resend_invitation", userId: selected.user_id })}
-                            disabled={invitationMutation.isPending}
-                          >
-                            Renvoyer invitation
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() => invitationMutation.mutate({ action: "revoke_invitation", userId: selected.user_id })}
-                            disabled={invitationMutation.isPending}
-                          >
-                            Révoquer invitation
-                          </Button>
+                        <div className="rounded border border-border p-2">
+                          <p className="text-muted-foreground">Expiration</p>
+                          <p className="font-medium text-foreground">{inv?.expires_at ? format(new Date(inv.expires_at), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}</p>
                         </div>
-                      </>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" size="sm" onClick={() => invitationMutation.mutate({ action: "generate_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Générer</Button>
+                        <Button variant="outline" size="sm" onClick={() => invitationMutation.mutate({ action: "send_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Envoyer</Button>
+                        <Button variant="outline" size="sm" onClick={() => invitationMutation.mutate({ action: "resend_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Renvoyer</Button>
+                        <Button variant="destructive" size="sm" onClick={() => invitationMutation.mutate({ action: "revoke_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Révoquer</Button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </CardContent></Card>
+
+              {/* Commission section for applicable roles */}
+              {(selected.role === "field_sales" || selected.role === "sales") && (
+                <Card><CardContent className="space-y-3 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Commission</p>
+                  <Button variant="outline" size="sm" onClick={() => { setCommissionTarget(selected); setCommissionRate(""); }}>
+                    <DollarSign className="mr-1 h-3.5 w-3.5" /> Gérer la commission
+                  </Button>
+                </CardContent></Card>
+              )}
             </div>
           )}
         </SheetContent>
       </Sheet>
 
+      {/* ─── Create Dialog ─── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Créer un employé interne</DialogTitle>
-            <DialogDescription>
-              Créez le profil, assignez le rôle, configurez les accès portail et envoyez l'invitation.
-            </DialogDescription>
+            <DialogDescription>Remplissez les informations, assignez le rôle et les accès portail.</DialogDescription>
           </DialogHeader>
-
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Prénom *</label>
-              <Input value={form.first_name} onChange={(event) => setForm((prev) => ({ ...prev, first_name: event.target.value }))} />
+              <Label className="text-xs">Prénom *</Label>
+              <Input value={form.first_name} onChange={(e) => setForm((p) => ({ ...p, first_name: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Nom *</label>
-              <Input value={form.last_name} onChange={(event) => setForm((prev) => ({ ...prev, last_name: event.target.value }))} />
+              <Label className="text-xs">Nom *</Label>
+              <Input value={form.last_name} onChange={(e) => setForm((p) => ({ ...p, last_name: e.target.value }))} />
             </div>
             <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs text-muted-foreground">Email *</label>
-              <Input
-                type="email"
-                placeholder="prenom.nom@nivra-telecom.ca"
-                value={form.email}
-                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-              />
+              <Label className="text-xs">Email *</Label>
+              <Input type="email" placeholder="prenom.nom@nivra-telecom.ca" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
             </div>
             <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs text-muted-foreground">Rôle *</label>
-              <Select value={form.role} onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_OPTIONS.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                  ))}
-                </SelectContent>
+              <Label className="text-xs">Rôle *</Label>
+              <Select value={form.role} onValueChange={(v) => setForm((p) => ({ ...p, role: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{ROLE_OPTIONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
-
           <div className="space-y-2 rounded border border-border p-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Accès aux portails</p>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -636,55 +650,164 @@ export default function CoreStaffPage() {
                 { key: "can_access_field", label: "Nivra Field" },
                 { key: "can_access_technician", label: "Nivra Technician" },
               ].map((portal) => (
-                <label key={portal.key} className="flex items-center justify-between text-sm">
+                <label key={portal.key} className="flex items-center justify-between text-sm text-foreground">
                   <span>{portal.label}</span>
-                  <input
-                    type="checkbox"
-                    checked={(form as any)[portal.key]}
-                    onChange={(event) => setForm((prev: any) => ({ ...prev, [portal.key]: event.target.checked }))}
-                  />
+                  <input type="checkbox" checked={(form as any)[portal.key]} onChange={(e) => setForm((p: any) => ({ ...p, [portal.key]: e.target.checked }))} />
                 </label>
               ))}
             </div>
           </div>
-
           <div className="space-y-2 rounded border border-border p-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sécurité et activation</p>
-            <label className="flex items-center justify-between text-sm">
-              <span>Compte actif à la création</span>
-              <input
-                type="checkbox"
-                checked={form.is_active}
-                onChange={(event) => setForm((prev) => ({ ...prev, is_active: event.target.checked }))}
-              />
-            </label>
-            <label className="flex items-center justify-between text-sm">
-              <span>MFA obligatoire</span>
-              <input
-                type="checkbox"
-                checked={form.mfa_required}
-                onChange={(event) => setForm((prev) => ({ ...prev, mfa_required: event.target.checked }))}
-              />
-            </label>
-            <label className="flex items-center justify-between text-sm">
-              <span>Envoyer invitation par email</span>
-              <input
-                type="checkbox"
-                checked={form.send_invitation}
-                onChange={(event) => setForm((prev) => ({ ...prev, send_invitation: event.target.checked }))}
-              />
-            </label>
+            {[
+              { key: "is_active", label: "Compte actif à la création" },
+              { key: "mfa_required", label: "MFA obligatoire" },
+              { key: "send_invitation", label: "Envoyer invitation par email" },
+            ].map((opt) => (
+              <label key={opt.key} className="flex items-center justify-between text-sm text-foreground">
+                <span>{opt.label}</span>
+                <input type="checkbox" checked={(form as any)[opt.key]} onChange={(e) => setForm((p: any) => ({ ...p, [opt.key]: e.target.checked }))} />
+              </label>
+            ))}
           </div>
-
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
-            <Button
-              onClick={() => createStaffMutation.mutate(form)}
-              disabled={!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || createStaffMutation.isPending}
-            >
+            <Button onClick={() => createMutation.mutate(form)} disabled={!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Créer l'employé
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Delete Confirmation ─── */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Supprimer définitivement</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera <strong>{deleteTarget?.displayName}</strong> ({deleteTarget?.profile?.email}) de façon permanente :
+              login, rôle, accès portail, invitations, MFA, PIN — tout sera supprimé.
+              <br /><br />
+              Pour confirmer, tapez l'email de l'employé ci-dessous :
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            placeholder={deleteTarget?.profile?.email || "email@example.com"}
+            value={deleteConfirmEmail}
+            onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+            className="mt-2"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteConfirmEmail.trim().toLowerCase() !== (deleteTarget?.profile?.email || "").trim().toLowerCase() || deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget?.profile?.email) {
+                  deleteMutation.mutate({ email: deleteTarget.profile.email, confirmEmail: deleteConfirmEmail });
+                }
+              }}
+            >
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── PIN Reset Dialog ─── */}
+      <Dialog open={!!pinResetTarget} onOpenChange={(open) => !open && setPinResetTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" /> Réinitialiser le PIN
+            </DialogTitle>
+            <DialogDescription>
+              Nouveau PIN à 6 chiffres pour <strong>{pinResetTarget?.displayName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Nouveau PIN (6 chiffres)</Label>
+              <Input
+                type="text"
+                maxLength={6}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className="text-center text-xl tracking-[0.5em]"
+              />
+            </div>
+            {newPin.length > 0 && newPin.length < 6 && (
+              <p className="text-xs text-destructive">{6 - newPin.length} chiffres restants</p>
+            )}
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPinResetTarget(null)}>Annuler</Button>
+            <Button
+              onClick={() => pinResetTarget && pinResetMutation.mutate({ userId: pinResetTarget.user_id, pin: newPin })}
+              disabled={newPin.length !== 6 || pinResetMutation.isPending}
+            >
+              {pinResetMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Réinitialiser
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Commission Dialog ─── */}
+      <Dialog open={!!commissionTarget} onOpenChange={(open) => !open && setCommissionTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" /> Gestion commission
+            </DialogTitle>
+            <DialogDescription>
+              Assignez le taux de commission pour <strong>{commissionTarget?.displayName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Type de commission</Label>
+              <Select defaultValue="base_percentage">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="base_percentage">Pourcentage de base</SelectItem>
+                  <SelectItem value="flat_bonus">Bonus fixe</SelectItem>
+                  <SelectItem value="tiered">Par palier</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Taux / Montant (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={commissionRate}
+                onChange={(e) => setCommissionRate(e.target.value)}
+                placeholder="10"
+              />
+              <p className="text-xs text-muted-foreground">Ex: 10 = 10% par vente activée</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCommissionTarget(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                const rate = parseFloat(commissionRate);
+                if (isNaN(rate) || rate < 0) { toast.error("Taux invalide"); return; }
+                commissionTarget && commissionMutation.mutate({ userId: commissionTarget.user_id, rate: rate / 100 });
+              }}
+              disabled={!commissionRate || commissionMutation.isPending}
+            >
+              {commissionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
