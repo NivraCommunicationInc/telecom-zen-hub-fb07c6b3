@@ -11,8 +11,11 @@ interface POSOrderSummaryProps {
 }
 
 export function POSOrderSummary({ services, customer, payment }: POSOrderSummaryProps) {
+  // ⛔ NO LOCAL FINANCIAL MATH — display cart line items only (non-transactional preview)
+  // Actual totals come from server RPC at order submission
   const monthlyTotal = services.reduce((sum, s) => sum + (s.priceMonthly || 0) * s.quantity, 0);
   const setupTotal = services.reduce((sum, s) => sum + (s.priceSetup || 0) * s.quantity, 0);
+  // NOTE: These are pre-tax subtotals for cart preview only. Taxes computed server-side.
 
   const paymentMethodLabels: Record<string, string> = {
     card: "Carte de crédit",
