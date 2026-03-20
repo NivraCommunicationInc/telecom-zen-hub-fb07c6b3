@@ -278,11 +278,6 @@ export const AddAccountCredit = ({
               Procéder au paiement via PayPal
             </Button>
 
-            {/* Card maintenance notice */}
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-muted-foreground">
-              <Wrench className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>Les paiements par carte sont temporairement indisponibles. Veuillez utiliser PayPal.</span>
-            </div>
           </CardContent>
         </Card>
       )}

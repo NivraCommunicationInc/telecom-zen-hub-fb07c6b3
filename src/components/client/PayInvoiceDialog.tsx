@@ -186,8 +186,8 @@ const PayInvoiceDialog = ({
 
         {/* ============ Payment Form Based on Selection ============ */}
 
-        {/* Credit/Debit Card via Stripe Elements (inline) — only if not in maintenance */}
-        {paymentMethod === "card" && !CARD_PAYMENTS_DISABLED && (
+        {/* Credit/Debit Card via Stripe Elements (inline) */}
+        {paymentMethod === "card" && (
           <div className="mt-2">
             <StripeInlinePayment
               invoiceId={invoice.id}

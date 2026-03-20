@@ -94,9 +94,6 @@ export const CheckoutPaymentSection = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Credit card is in maintenance mode — use central config
-  const isCreditCardMaintenance = CARD_PAYMENTS_DISABLED;
-
   return (
     <Card className="bg-card border-border">
       <CardHeader>
@@ -113,92 +110,60 @@ export const CheckoutPaymentSection = ({
       <CardContent className="space-y-6">
         <RadioGroup 
           value={selectedPaymentMethod} 
-          onValueChange={(v) => {
-            if (isCreditCardMaintenance && (v === "saved" || v === "new")) {
-              return;
-            }
-            onPaymentMethodChange(v as "saved" | "new" | "etransfer" | "paypal");
-          }}
+          onValueChange={(v) => onPaymentMethodChange(v as "saved" | "new" | "etransfer" | "paypal")}
         >
           {/* ── 1. Credit Card (Stripe) — PRIMARY ── */}
-          {isCreditCardMaintenance ? (
-            <div className="p-4 rounded-lg border-2 border-border bg-muted/50 cursor-not-allowed opacity-60">
+          {/* New Card */}
+          <div 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+              selectedPaymentMethod === "new" 
+                ? "border-primary bg-primary/5" 
+                : "border-border hover:border-primary/50"
+            }`}
+            onClick={() => onPaymentMethodChange("new")}
+          >
+            <div className="flex items-start gap-3">
+              <RadioGroupItem value="new" id="payment-new" className="mt-1" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="payment-new" className="text-base font-medium cursor-pointer flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    {isFrench ? "Carte de crédit" : "Credit Card"}
+                  </Label>
+                  <Badge className="bg-emerald-500/20 text-emerald-600 border-0">
+                    {isFrench ? "Recommandé" : "Recommended"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isFrench 
+                    ? "Visa, Mastercard, Amex — paiement sécurisé via Stripe"
+                    : "Visa, Mastercard, Amex — secure payment via Stripe"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Saved Card */}
+          {hasSavedCards && (
+            <div 
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                selectedPaymentMethod === "saved" 
+                  ? "border-primary bg-primary/5" 
+                  : "border-border hover:border-primary/50"
+              }`}
+              onClick={() => onPaymentMethodChange("saved")}
+            >
               <div className="flex items-start gap-3">
-                <RadioGroupItem value="new" id="payment-new" className="mt-1" disabled />
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="payment-new" className="text-base font-medium cursor-not-allowed flex items-center gap-2 text-muted-foreground">
-                      <CreditCard className="w-5 h-5" />
-                      {isFrench ? "Carte de crédit" : "Credit Card"}
-                    </Label>
-                    <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10">
-                      <Wrench className="w-3 h-3" />
-                      {isFrench ? "Maintenance" : "Maintenance"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {isFrench 
-                      ? "Le paiement par carte directe est temporairement indisponible."
-                      : "Direct card payment is temporarily unavailable."}
-                  </p>
+                <RadioGroupItem value="saved" id="payment-saved" className="mt-1" />
+                <div className="flex-1">
+                  <Label htmlFor="payment-saved" className="text-base font-medium cursor-pointer flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    {isFrench ? "Carte enregistrée" : "Saved Card"}
+                    <span className="text-xs text-muted-foreground">({savedCards.length})</span>
+                  </Label>
                 </div>
               </div>
             </div>
-          ) : (
-            <>
-              {/* New Card */}
-              <div 
-                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  selectedPaymentMethod === "new" 
-                    ? "border-primary bg-primary/5" 
-                    : "border-border hover:border-primary/50"
-                }`}
-                onClick={() => onPaymentMethodChange("new")}
-              >
-                <div className="flex items-start gap-3">
-                  <RadioGroupItem value="new" id="payment-new" className="mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="payment-new" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                        <CreditCard className="w-5 h-5 text-primary" />
-                        {isFrench ? "Carte de crédit" : "Credit Card"}
-                      </Label>
-                      <Badge className="bg-emerald-500/20 text-emerald-600 border-0">
-                        {isFrench ? "Recommandé" : "Recommended"}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {isFrench 
-                        ? "Visa, Mastercard, Amex — paiement sécurisé via Stripe"
-                        : "Visa, Mastercard, Amex — secure payment via Stripe"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Saved Card */}
-              {hasSavedCards && (
-                <div 
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedPaymentMethod === "saved" 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border hover:border-primary/50"
-                  }`}
-                  onClick={() => onPaymentMethodChange("saved")}
-                >
-                  <div className="flex items-start gap-3">
-                    <RadioGroupItem value="saved" id="payment-saved" className="mt-1" />
-                    <div className="flex-1">
-                      <Label htmlFor="payment-saved" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                        <CreditCard className="w-5 h-5 text-primary" />
-                        {isFrench ? "Carte enregistrée" : "Saved Card"}
-                        <span className="text-xs text-muted-foreground">({savedCards.length})</span>
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
           )}
 
           {/* ── 2. PayPal ── */}
