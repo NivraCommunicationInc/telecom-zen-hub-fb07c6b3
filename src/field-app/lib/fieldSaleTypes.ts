@@ -1,6 +1,8 @@
 /**
  * Types for the Field Sales guided workflow.
  */
+import type { FieldSalePromo } from "@/field-app/components/sale/StepPromo";
+
 export interface FieldSaleCustomer {
   first_name: string;
   last_name: string;
@@ -27,7 +29,7 @@ export interface FieldSaleEquipment {
   id: string;
   name: string;
   price: number;
-  category: string; // router, terminal, sim, etc.
+  category: string;
   quantity: number;
 }
 
@@ -51,6 +53,7 @@ export interface FieldSalePayment {
 export type FieldSaleStep = 
   | "customer"
   | "services"
+  | "promo"
   | "equipment"
   | "installation"
   | "billing"
@@ -63,6 +66,7 @@ export interface FieldSaleDraft {
   step: FieldSaleStep;
   customer: FieldSaleCustomer;
   services: FieldSaleService[];
+  promos: FieldSalePromo[];
   equipment: FieldSaleEquipment[];
   installation: FieldSaleInstallation;
   billing: FieldSaleBilling;
@@ -86,6 +90,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     serviceability_status: "unknown",
   },
   services: [],
+  promos: [],
   equipment: [],
   installation: {
     type: "self_install",
@@ -106,6 +111,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
 export const STEP_ORDER: FieldSaleStep[] = [
   "customer",
   "services",
+  "promo",
   "equipment",
   "installation",
   "billing",
@@ -116,6 +122,7 @@ export const STEP_ORDER: FieldSaleStep[] = [
 export const STEP_LABELS: Record<FieldSaleStep, string> = {
   customer: "Client",
   services: "Services",
+  promo: "Promos",
   equipment: "Équipement",
   installation: "Installation",
   billing: "Facturation",

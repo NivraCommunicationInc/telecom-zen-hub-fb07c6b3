@@ -1,7 +1,7 @@
 /**
- * FieldNewSale — Guided 7-step sales workflow.
- * Customer → Services → Equipment → Installation → Billing → Payment → Review → Submit
- * Now with real commission auto-creation on submit.
+ * FieldNewSale — Guided 8-step sales workflow.
+ * Customer → Services → Promo → Equipment → Installation → Billing → Payment → Review → Submit
+ * With real catalog, customer lookup, promo selection, and commission auto-creation.
  */
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,7 @@ import {
 import SaleStepIndicator from "@/field-app/components/sale/SaleStepIndicator";
 import StepCustomer from "@/field-app/components/sale/StepCustomer";
 import StepServices from "@/field-app/components/sale/StepServices";
+import StepPromo from "@/field-app/components/sale/StepPromo";
 import StepEquipment from "@/field-app/components/sale/StepEquipment";
 import StepInstallation from "@/field-app/components/sale/StepInstallation";
 import StepBilling from "@/field-app/components/sale/StepBilling";
@@ -71,11 +72,26 @@ export default function FieldNewSale() {
     }
   }, []);
 
-  // Compute total for payment step
+  // Compute promo discounts
   const monthlySubtotal = draft.services.reduce((s, sv) => s + sv.monthlyPrice, 0);
   const equipmentTotal = draft.equipment.reduce((s, e) => s + e.price * e.quantity, 0);
   const activationFee = draft.services.length === 0 ? 0 : draft.services.length === 1 ? 25 : 45;
-  const totalDueToday = monthlySubtotal + equipmentTotal + activationFee;
+
+  // Calculate promo impact
+  const promoMonthlyDiscount = draft.promos.reduce((sum, p) => {
+    if (p.promo_type === "monthly_discount") return sum + p.discount_monthly;
+    if (p.promo_type === "percentage_off") return sum + (monthlySubtotal * p.discount_percentage / 100);
+    return sum;
+  }, 0);
+  const promoOnetimeDiscount = draft.promos.reduce((sum, p) => {
+    if (p.promo_type === "activation_credit") return sum + Math.min(p.discount_onetime, activationFee);
+    if (p.promo_type === "free_installation") return sum + p.discount_onetime;
+    return sum;
+  }, 0);
+
+  const effectiveMonthly = Math.max(0, monthlySubtotal - promoMonthlyDiscount);
+  const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
+  const totalDueToday = effectiveMonthly + equipmentTotal + effectiveActivation;
   const taxes = estimateTaxes(totalDueToday);
 
   const handleSubmit = async () => {
@@ -83,7 +99,8 @@ export default function FieldNewSale() {
     setIsSubmitting(true);
 
     try {
-      // 1. Create field lead
+      const promoNames = draft.promos.map(p => p.name).join(", ");
+      
       const { data: lead, error } = await supabase.from("field_leads").insert({
         agent_id: user.id,
         agent_name: profile?.full_name || "Agent",
@@ -97,16 +114,22 @@ export default function FieldNewSale() {
         service_need: draft.services.map((s) => s.name).join(", "),
         payment_method_intent: draft.payment.method === "send_link" ? "Lien de paiement" : "Carte sur place",
         eligibility_notes: `Installation: ${draft.installation.type}${draft.installation.scheduledDate ? ` le ${draft.installation.scheduledDate}` : ""}`,
-        notes: `Services: ${draft.services.map((s) => s.name).join(", ")}. Équipement: ${draft.equipment.map((e) => `${e.name} x${e.quantity}`).join(", ") || "Aucun"}. Total: ${taxes.total.toFixed(2)} $. Pré-auth: ${draft.billing.preauthorizedPayment ? "Oui" : "Non"}. ${draft.customer.notes}`.trim(),
+        notes: [
+          `Services: ${draft.services.map((s) => s.name).join(", ")}`,
+          `Équipement: ${draft.equipment.map((e) => `${e.name} x${e.quantity}`).join(", ") || "Aucun"}`,
+          promoNames ? `Promos: ${promoNames}` : "",
+          `Total: ${taxes.total.toFixed(2)} $`,
+          `Pré-auth: ${draft.billing.preauthorizedPayment ? "Oui" : "Non"}`,
+          draft.customer.notes,
+        ].filter(Boolean).join(". ").trim(),
         status: "submitted",
         submitted_at: new Date().toISOString(),
       }).select("id").single();
 
       if (error) throw error;
 
-      // 2. Auto-create commission record
+      // Auto-create commission record
       try {
-        // Look up agent's commission rules
         const { data: rules } = await supabase
           .from("field_sales_commission_rules")
           .select("*")
@@ -119,17 +142,12 @@ export default function FieldNewSale() {
         if (rule) {
           if (rule.rule_type === "percentage" && rule.bonus_percentage) {
             commissionAmount = Math.round((taxes.total * rule.bonus_percentage / 100) * 100) / 100;
-          } else if (rule.rule_type === "fixed" && rule.bonus_amount) {
-            commissionAmount = rule.bonus_amount;
           } else if (rule.bonus_amount) {
             commissionAmount = rule.bonus_amount;
           }
         }
 
-        // Default fallback: flat $10 commission if no rule found
-        if (commissionAmount <= 0) {
-          commissionAmount = 10;
-        }
+        if (commissionAmount <= 0) commissionAmount = 10;
 
         await supabase.from("field_commissions").insert({
           agent_id: user.id,
@@ -138,13 +156,10 @@ export default function FieldNewSale() {
           status: "pending",
           notes: `Auto-commission: ${draft.services.map((s) => s.name).join(", ")} — ${taxes.total.toFixed(2)} $`,
         });
-
-        console.log("[FieldNewSale] Commission created:", commissionAmount);
       } catch (commErr) {
         console.error("[FieldNewSale] Commission creation failed (non-blocking):", commErr);
       }
 
-      // 3. Audit log
       await logInternalAudit({
         action: "field_sale_submitted",
         category: "operations",
@@ -154,6 +169,7 @@ export default function FieldNewSale() {
         details: {
           customer: `${draft.customer.first_name} ${draft.customer.last_name}`,
           services: draft.services.map((s) => s.name),
+          promos: draft.promos.map((p) => p.name),
           total: taxes.total,
           payment_method: draft.payment.method,
         },
@@ -196,6 +212,17 @@ export default function FieldNewSale() {
           onChange={(services) => setDraft((d) => ({ ...d, services }))}
           onNext={() => advance("services")}
           onBack={() => goBack("services")}
+        />
+      )}
+
+      {draft.step === "promo" && (
+        <StepPromo
+          selectedPromos={draft.promos}
+          monthlySubtotal={monthlySubtotal}
+          activationFee={activationFee}
+          onChange={(promos) => setDraft((d) => ({ ...d, promos }))}
+          onNext={() => advance("promo")}
+          onBack={() => goBack("promo")}
         />
       )}
 
