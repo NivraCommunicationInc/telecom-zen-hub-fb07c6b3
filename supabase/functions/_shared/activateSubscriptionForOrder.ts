@@ -203,6 +203,22 @@ export async function activateSubscriptionForOrder(
     return { activated: false, skipped: false, stripe_setup_status: "failed", error: "plan_code_unresolvable" };
   }
 
+  // ═══ STEP 7b: HARD VALIDATE plan_code EXISTS IN stripe_plan_mapping ═══
+  const { data: planMapping } = await supabase
+    .from("stripe_plan_mapping")
+    .select("plan_code, billing_usage")
+    .eq("plan_code", planCode)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!planMapping) {
+    log(`plan_code "${planCode}" NOT FOUND in stripe_plan_mapping — FAILED (unmapped plan)`);
+    await setSetupFailed(supabase, existingSub?.id, orderId, `plan_code_unmapped: ${planCode}`, trigger_source);
+    return { activated: false, skipped: false, stripe_setup_status: "failed", error: `plan_code_unmapped: ${planCode}` };
+  }
+
+  log(`✓ plan_code "${planCode}" validated against stripe_plan_mapping (billing_usage=${planMapping.billing_usage})`);
+
   // ═══ STEP 8: SET PENDING STATUS ═══
   if (existingSub?.id) {
     await supabase.from("billing_subscriptions")
