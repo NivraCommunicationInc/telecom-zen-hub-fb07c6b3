@@ -399,6 +399,210 @@ serve(async (req) => {
       );
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // EVENT: customer.subscription.created
+    // Stripe Subscription was created — sync to Nivra DB
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
+      const subscription = event.data.object as Stripe.Subscription;
+      const metadata = subscription.metadata || {};
+      const orderId = metadata.order_id;
+
+      console.log(`[stripe-webhook] ${event.type}: sub=${subscription.id}, status=${subscription.status}, order=${orderId}`);
+
+      // Find Nivra subscription by stripe_subscription_id
+      const { data: nivraSub } = await supabase
+        .from("billing_subscriptions")
+        .select("id, customer_id")
+        .eq("stripe_subscription_id", subscription.id)
+        .maybeSingle();
+
+      if (nivraSub) {
+        const periodStart = new Date(subscription.current_period_start * 1000).toISOString();
+        const periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+
+        await supabase.from("billing_subscriptions").update({
+          stripe_status: subscription.status,
+          stripe_current_period_start: periodStart,
+          stripe_current_period_end: periodEnd,
+          next_renewal_at: periodEnd,
+          stripe_cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
+          stripe_canceled_at: subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : null,
+          updated_at: new Date().toISOString(),
+          // Map Stripe status to Nivra status
+          ...(subscription.status === "active" ? { status: "active" } : {}),
+          ...(subscription.status === "past_due" ? { status: "past_due" } : {}),
+          ...(subscription.status === "canceled" ? { status: "expired" } : {}),
+          ...(subscription.status === "unpaid" ? { status: "suspended" } : {}),
+        }).eq("id", nivraSub.id);
+
+        // Audit trail
+        await supabase.from("billing_subscription_trace_audit").insert({
+          subscription_id: nivraSub.id,
+          customer_id: nivraSub.customer_id,
+          action: `stripe_${event.type.replace("customer.subscription.", "")}`,
+          details: {
+            stripe_subscription_id: subscription.id,
+            status: subscription.status,
+            current_period_start: periodStart,
+            current_period_end: periodEnd,
+          },
+          reason: `Stripe webhook: ${event.type}`,
+        });
+
+        console.log(`[stripe-webhook] ✓ Subscription ${subscription.id} synced: ${subscription.status}`);
+      } else {
+        console.warn(`[stripe-webhook] No Nivra subscription found for stripe_subscription_id=${subscription.id}`);
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, subscription_synced: !!nivraSub }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // EVENT: customer.subscription.deleted
+    // Stripe Subscription cancelled/deleted — expire in Nivra
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object as Stripe.Subscription;
+      console.log(`[stripe-webhook] customer.subscription.deleted: sub=${subscription.id}`);
+
+      const { data: nivraSub } = await supabase
+        .from("billing_subscriptions")
+        .select("id, customer_id")
+        .eq("stripe_subscription_id", subscription.id)
+        .maybeSingle();
+
+      if (nivraSub) {
+        await supabase.from("billing_subscriptions").update({
+          stripe_status: "canceled",
+          status: "expired",
+          stripe_canceled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", nivraSub.id);
+
+        await supabase.from("billing_subscription_trace_audit").insert({
+          subscription_id: nivraSub.id,
+          customer_id: nivraSub.customer_id,
+          action: "stripe_deleted",
+          details: { stripe_subscription_id: subscription.id },
+          reason: "Stripe webhook: customer.subscription.deleted",
+        });
+
+        console.log(`[stripe-webhook] ✓ Subscription ${subscription.id} expired in Nivra`);
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, subscription_expired: !!nivraSub }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // EVENT: invoice.paid (Stripe Subscription invoice)
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "invoice.paid") {
+      const stripeInvoice = event.data.object as Stripe.Invoice;
+      const subscriptionId = typeof stripeInvoice.subscription === "string"
+        ? stripeInvoice.subscription
+        : stripeInvoice.subscription?.id;
+
+      console.log(`[stripe-webhook] invoice.paid: inv=${stripeInvoice.id}, sub=${subscriptionId}, amount=${(stripeInvoice.amount_paid || 0) / 100}`);
+
+      if (subscriptionId) {
+        const { data: nivraSub } = await supabase
+          .from("billing_subscriptions")
+          .select("id, customer_id, order_id")
+          .eq("stripe_subscription_id", subscriptionId)
+          .maybeSingle();
+
+        if (nivraSub) {
+          await supabase.from("billing_subscription_trace_audit").insert({
+            subscription_id: nivraSub.id,
+            customer_id: nivraSub.customer_id,
+            action: "stripe_invoice_paid",
+            source_type: "stripe_invoice",
+            source_id: stripeInvoice.id,
+            details: {
+              stripe_invoice_id: stripeInvoice.id,
+              amount_paid: (stripeInvoice.amount_paid || 0) / 100,
+              billing_reason: stripeInvoice.billing_reason,
+              period_start: stripeInvoice.period_start ? new Date(stripeInvoice.period_start * 1000).toISOString() : null,
+              period_end: stripeInvoice.period_end ? new Date(stripeInvoice.period_end * 1000).toISOString() : null,
+            },
+            reason: `Stripe invoice paid: ${stripeInvoice.id}`,
+          });
+          console.log(`[stripe-webhook] ✓ Subscription invoice payment recorded for ${subscriptionId}`);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, invoice_recorded: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // EVENT: invoice.payment_failed (Stripe Subscription renewal failed)
+    // ─────────────────────────────────────────────────────────────
+    if (event.type === "invoice.payment_failed") {
+      const stripeInvoice = event.data.object as Stripe.Invoice;
+      const subscriptionId = typeof stripeInvoice.subscription === "string"
+        ? stripeInvoice.subscription
+        : stripeInvoice.subscription?.id;
+
+      console.log(`[stripe-webhook] invoice.payment_failed: inv=${stripeInvoice.id}, sub=${subscriptionId}`);
+
+      if (subscriptionId) {
+        const { data: nivraSub } = await supabase
+          .from("billing_subscriptions")
+          .select("id, customer_id")
+          .eq("stripe_subscription_id", subscriptionId)
+          .maybeSingle();
+
+        if (nivraSub) {
+          // Create billing system alert
+          await supabase.from("billing_system_alerts").insert({
+            alert_type: "subscription_payment_failed",
+            entity_type: "subscription",
+            entity_id: nivraSub.id,
+            entity_reference: subscriptionId,
+            details: {
+              stripe_invoice_id: stripeInvoice.id,
+              amount_due: (stripeInvoice.amount_due || 0) / 100,
+              attempt_count: stripeInvoice.attempt_count,
+              next_payment_attempt: stripeInvoice.next_payment_attempt
+                ? new Date(stripeInvoice.next_payment_attempt * 1000).toISOString()
+                : null,
+            },
+          });
+
+          await supabase.from("billing_subscription_trace_audit").insert({
+            subscription_id: nivraSub.id,
+            customer_id: nivraSub.customer_id,
+            action: "stripe_payment_failed",
+            source_type: "stripe_invoice",
+            source_id: stripeInvoice.id,
+            details: {
+              stripe_invoice_id: stripeInvoice.id,
+              amount_due: (stripeInvoice.amount_due || 0) / 100,
+              attempt_count: stripeInvoice.attempt_count,
+            },
+            reason: `Stripe invoice payment failed: attempt ${stripeInvoice.attempt_count}`,
+          });
+
+          console.log(`[stripe-webhook] ✓ Payment failure recorded for subscription ${subscriptionId}`);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ received: true, failure_recorded: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Unhandled event type — acknowledge receipt
     console.log(`[stripe-webhook] Unhandled event type: ${event.type}`);
     return new Response(JSON.stringify({ received: true }), {
