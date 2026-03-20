@@ -187,10 +187,10 @@ export default function HubLoginPage() {
   // No portal selected — redirect to hub
   if (!portal) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)] px-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#050816] px-4">
         <div className="text-center">
-          <p className="text-sm text-[hsl(220,10%,50%)] mb-4">Aucun espace sélectionné.</p>
-          <Button asChild variant="outline" className="border-[hsl(220,15%,18%)] text-[hsl(220,10%,60%)]">
+          <p className="text-sm text-[#A1A1AA] mb-4">Aucun espace sélectionné.</p>
+          <Button asChild variant="outline" className="border-white/[0.08] text-[#A1A1AA] hover:text-white">
             <Link to="/hub">Retour au Hub</Link>
           </Button>
         </div>
@@ -201,10 +201,10 @@ export default function HubLoginPage() {
   // Checking existing session
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)]">
+      <div className="min-h-screen flex items-center justify-center bg-[#050816]">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-          <p className="text-sm text-[hsl(220,10%,45%)]">Vérification de la session…</p>
+          <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+          <p className="text-sm text-[#A1A1AA]">Vérification de la session…</p>
         </div>
       </div>
     );
@@ -244,10 +244,10 @@ export default function HubLoginPage() {
   // Redirecting
   if (stage === "redirecting") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)]">
+      <div className="min-h-screen flex items-center justify-center bg-[#050816]">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-          <p className="text-sm text-[hsl(220,10%,45%)]">Redirection vers {portal.label}…</p>
+          <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+          <p className="text-sm text-[#A1A1AA]">Redirection vers {portal.label}…</p>
         </div>
       </div>
     );
@@ -256,11 +256,11 @@ export default function HubLoginPage() {
   const PortalIcon = portal.icon;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#050816] px-4">
       <div className="w-full max-w-sm">
         {/* Back to hub */}
         <div className="mb-6">
-          <Link to="/hub" className="inline-flex items-center gap-1.5 text-xs text-[hsl(220,10%,40%)] hover:text-[hsl(220,10%,60%)] transition-colors">
+          <Link to="/hub" className="inline-flex items-center gap-1.5 text-xs text-[#6B7280] hover:text-[#A1A1AA] transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             Retour à la sélection
           </Link>
@@ -268,13 +268,13 @@ export default function HubLoginPage() {
 
         {/* Branding */}
         <div className="text-center mb-8">
-          <div className="h-12 w-12 mx-auto rounded-xl bg-emerald-600 flex items-center justify-center mb-4">
+          <div className="h-12 w-12 mx-auto rounded-xl bg-green-500 flex items-center justify-center mb-4">
             <Shield className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">Nivra Internal</h1>
-          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[hsl(220,20%,10%)] border border-[hsl(220,15%,18%)]">
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0B1220] border border-white/[0.08]">
             <PortalIcon className={`h-4 w-4 ${portal.color}`} />
-            <span className="text-xs font-medium text-[hsl(220,10%,60%)]">{portal.label}</span>
+            <span className="text-xs font-medium text-[#A1A1AA]">{portal.label}</span>
           </div>
         </div>
 
@@ -288,7 +288,7 @@ export default function HubLoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="h-11 bg-[hsl(220,20%,10%)] border-[hsl(220,15%,18%)] text-white placeholder:text-[hsl(220,10%,35%)] focus:border-emerald-500/50 focus:ring-emerald-500/20"
+              className="h-11 bg-[#0B1220] border-white/[0.08] text-white placeholder:text-[#6B7280] focus:border-green-500/50 focus:ring-green-500/20"
             />
           </div>
           <div>
@@ -299,7 +299,7 @@ export default function HubLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="h-11 bg-[hsl(220,20%,10%)] border-[hsl(220,15%,18%)] text-white placeholder:text-[hsl(220,10%,35%)] focus:border-emerald-500/50 focus:ring-emerald-500/20"
+              className="h-11 bg-[#0B1220] border-white/[0.08] text-white placeholder:text-[#6B7280] focus:border-green-500/50 focus:ring-green-500/20"
             />
           </div>
 
@@ -313,7 +313,7 @@ export default function HubLoginPage() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+            className="w-full h-11 bg-green-500 hover:bg-green-600 text-white font-medium"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -325,7 +325,7 @@ export default function HubLoginPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-[10px] text-[hsl(220,10%,25%)] uppercase tracking-widest">
+          <p className="text-[10px] text-[#6B7280] uppercase tracking-widest">
             Réservé au personnel autorisé
           </p>
         </div>

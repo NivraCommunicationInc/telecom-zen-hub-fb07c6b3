@@ -8,11 +8,11 @@ import EmployeeNotificationBell from "./components/EmployeeNotificationBell";
 
 export default function EmployeeAppLayout() {
   return (
-    <div className="min-h-screen flex w-full bg-[hsl(220,20%,6%)] text-white">
+    <div className="min-h-screen flex w-full bg-[#050816] text-white">
       <EmployeeSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar with notifications */}
-        <header className="h-12 flex items-center justify-end px-6 border-b border-[hsl(220,15%,10%)] bg-[hsl(220,20%,7%)] shrink-0">
+        <header className="h-12 flex items-center justify-end px-6 border-b border-white/[0.06] bg-[#0B1220] shrink-0">
           <EmployeeNotificationBell />
         </header>
         <main className="flex-1 overflow-auto">

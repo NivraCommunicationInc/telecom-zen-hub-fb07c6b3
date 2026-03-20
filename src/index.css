@@ -193,64 +193,63 @@
      High-contrast, readable, AA-compliant
      ═══════════════════════════════════════════════════════════ */
   .admin-dark {
-    /* Surfaces */
-    --background: 222 47% 8%;
-    --foreground: 220 20% 93%;
+    /* Surfaces — Nivra dark bg */
+    --background: 228 60% 3%;   /* #050816 */
+    --foreground: 0 0% 100%;    /* pure white */
 
-    --card: 222 40% 12%;
-    --card-foreground: 220 20% 93%;
+    --card: 220 40% 7%;         /* #0B1220 */
+    --card-foreground: 0 0% 100%;
 
-    --popover: 222 40% 13%;
-    --popover-foreground: 220 20% 93%;
+    --popover: 220 40% 8%;
+    --popover-foreground: 0 0% 100%;
 
-    /* Primary = Teal accent */
-    --primary: 168 76% 42%;
-    --primary-foreground: 222 47% 8%;
+    /* Primary = Nivra Green #22C55E */
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary = elevated surface */
-    --secondary: 222 35% 16%;
-    --secondary-foreground: 220 20% 90%;
+    --secondary: 220 30% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    /* Muted — AA contrast on dark bg (min 4.5:1) */
-    --muted: 222 35% 16%;
-    --muted-foreground: 220 12% 64%;
+    /* Muted — #A1A1AA for descriptions */
+    --muted: 220 30% 10%;
+    --muted-foreground: 240 4% 65%;  /* #A1A1AA */
 
-    /* Accent */
-    --accent: 168 76% 42%;
+    /* Accent = blue for secondary actions */
+    --accent: 217 91% 60%;  /* #3B82F6 */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders — visible but not harsh */
-    --border: 222 25% 20%;
-    --input: 222 25% 22%;
-    --ring: 168 76% 42%;
+    /* Borders — subtle white */
+    --border: 220 20% 14%;
+    --input: 220 20% 14%;
+    --ring: 142 71% 45%;
 
     /* Sidebar */
-    --sidebar-background: 222 42% 10%;
-    --sidebar-foreground: 220 20% 90%;
-    --sidebar-primary: 168 76% 42%;
-    --sidebar-primary-foreground: 222 47% 8%;
-    --sidebar-accent: 222 30% 16%;
-    --sidebar-accent-foreground: 220 20% 90%;
-    --sidebar-border: 222 25% 17%;
-    --sidebar-ring: 168 76% 42%;
+    --sidebar-background: 220 40% 7%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 30% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 20% 12%;
+    --sidebar-ring: 142 71% 45%;
 
     /* Admin-specific extended tokens */
-    --admin-surface-raised: 222 38% 14%;
-    --admin-text-primary: 220 20% 93%;
-    --admin-text-secondary: 220 12% 72%;
-    --admin-text-muted: 220 12% 54%;
-    --admin-accent-hover: 168 76% 36%;
-    --admin-accent-subtle: 168 40% 18%;
+    --admin-surface-raised: 220 35% 10%;
+    --admin-text-primary: 0 0% 100%;
+    --admin-text-secondary: 240 4% 65%;   /* #A1A1AA */
+    --admin-text-muted: 220 9% 42%;       /* #6B7280 */
+    --admin-accent-hover: 142 71% 40%;
+    --admin-accent-subtle: 142 40% 15%;
 
     /* ── Core Console Text Tokens ── */
-    /* Strict 4-tier hierarchy for dark-bg readability */
-    --core-text-primary: 210 40% 98%;       /* #F8FAFC — headings, values, key data */
-    --core-text-secondary: 213 27% 84%;     /* #CBD5E1 — body text, descriptions, dates */
-    --core-text-label: 215 16% 65%;         /* #94A3B8 — labels, metadata, column headers */
-    --core-text-disabled: 215 16% 47%;      /* #64748B — placeholders, disabled, low-priority */
+    --core-text-primary: 0 0% 100%;       /* pure white */
+    --core-text-secondary: 240 4% 65%;    /* #A1A1AA */
+    --core-text-label: 220 9% 42%;        /* #6B7280 */
+    --core-text-disabled: 215 16% 35%;
 
     color: hsl(var(--foreground));
     font-size: 14px;
@@ -307,21 +306,21 @@
     color: hsl(var(--foreground));
   }
 
-  /* Contrast hardening: low-emphasis text stays readable per portal theme */
+  /* Contrast hardening: readable text on dark portals */
   .admin-dark .text-muted-foreground {
-    color: hsl(220 12% 64%);
+    color: hsl(240 4% 65%); /* #A1A1AA */
   }
 
   .admin-dark .text-slate-400 {
-    color: hsl(220 12% 72%);
+    color: hsl(240 4% 65%);
   }
 
   .admin-dark .text-slate-500 {
-    color: hsl(220 10% 62%);
+    color: hsl(240 4% 65%);
   }
 
   .admin-dark .text-slate-300 {
-    color: hsl(220 14% 80%);
+    color: hsl(0 0% 100%);
   }
 
   .client-portal-dark .text-muted-foreground,
@@ -838,7 +837,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: hsl(var(--admin-text-secondary));
+  color: hsl(240 4% 65%);  /* #A1A1AA — secondary */
   border-bottom: 2px solid hsl(var(--border));
   text-align: left;
   white-space: nowrap;
@@ -847,7 +846,7 @@
 .admin-dark table td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid hsl(var(--border) / 0.4);
-  color: hsl(var(--foreground));
+  color: hsl(0 0% 100%);  /* pure white — always readable */
   vertical-align: middle;
 }
 
