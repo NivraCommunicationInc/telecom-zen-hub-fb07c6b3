@@ -38,8 +38,9 @@ export default function StepBilling({ services, equipment, billing, promos = [],
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
   const oneTimeSubtotal = equipmentTotal + effectiveActivation;
   const totalDueToday = effectiveMonthly + oneTimeSubtotal;
-  const taxes = estimateTaxes(totalDueToday);
-  const monthlyTaxes = estimateTaxes(effectiveMonthly);
+  // ⛔ NO LOCAL TAX MATH — display subtotals only
+  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
+  const monthlyTaxes = { tps: 0, tvq: 0, total: effectiveMonthly, taxableAmount: effectiveMonthly };
 
   return (
     <div className="space-y-6">
