@@ -10,8 +10,14 @@ export async function hashPin(pin: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** Customer PIN: 4 digits */
 export function isValidPin(pin: string): boolean {
   return /^\d{4}$/.test(pin);
+}
+
+/** Staff/Employee PIN: 6 digits */
+export function isValidStaffPin(pin: string): boolean {
+  return /^\d{6}$/.test(pin);
 }
 
 export function isValidAdminPin(pin: string): boolean {

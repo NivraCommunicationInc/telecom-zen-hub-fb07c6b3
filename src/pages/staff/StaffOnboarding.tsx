@@ -193,15 +193,15 @@ export default function StaffOnboarding() {
   };
 
   const validatePin = () => {
-    if (!/^\d{4}$/.test(pin)) {
-      toast.error("Le NIP doit être exactement 4 chiffres");
+    if (!/^\d{6}$/.test(pin)) {
+      toast.error("Le NIP doit être exactement 6 chiffres");
       return false;
     }
     if (pin !== confirmPin) {
       toast.error("Les NIP ne correspondent pas");
       return false;
     }
-    if (pin === "0000" || pin === "1234" || pin === "1111") {
+    if (pin === "000000" || pin === "123456" || pin === "111111") {
       toast.error("Ce NIP est trop simple. Choisissez un NIP plus sécuritaire.");
       return false;
     }
@@ -437,14 +437,14 @@ export default function StaffOnboarding() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-300">NIP (4 chiffres)</Label>
+                  <Label className="text-slate-300">NIP (6 chiffres)</Label>
                   <div className="relative">
                     <Input
                       type={showPin ? "text" : "password"}
                       value={pin}
-                      onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                      placeholder="••••"
-                      maxLength={4}
+                      onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="••••••"
+                      maxLength={6}
                       className="bg-slate-800/50 border-slate-700 text-white text-center text-2xl tracking-widest pr-10"
                     />
                     <button
@@ -462,9 +462,9 @@ export default function StaffOnboarding() {
                   <Input
                     type={showPin ? "text" : "password"}
                     value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                    placeholder="••••"
-                    maxLength={4}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="••••••"
+                    maxLength={6}
                     className="bg-slate-800/50 border-slate-700 text-white text-center text-2xl tracking-widest"
                   />
                 </div>

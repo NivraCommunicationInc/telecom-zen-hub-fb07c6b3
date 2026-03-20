@@ -39,8 +39,8 @@ export function SetPinDialog({
   const handleSubmit = () => {
     setError("");
     
-    if (!/^\d{4}$/.test(pin)) {
-      setError("Le PIN doit être exactement 4 chiffres");
+    if (!/^\d{6}$/.test(pin)) {
+      setError("Le PIN doit être exactement 6 chiffres");
       return;
     }
     
@@ -79,14 +79,14 @@ export function SetPinDialog({
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Nouveau PIN (4 chiffres)</Label>
+            <Label>Nouveau PIN (6 chiffres)</Label>
             <div className="relative">
               <Input
                 type={showPin ? "text" : "password"}
                 value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                maxLength={4}
-                placeholder="****"
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                maxLength={6}
+                placeholder="******"
                 inputMode="numeric"
               />
               <Button
@@ -106,9 +106,9 @@ export function SetPinDialog({
             <Input
               type={showPin ? "text" : "password"}
               value={pinConfirm}
-              onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              maxLength={4}
-              placeholder="****"
+              onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              maxLength={6}
+              placeholder="******"
               inputMode="numeric"
             />
           </div>
