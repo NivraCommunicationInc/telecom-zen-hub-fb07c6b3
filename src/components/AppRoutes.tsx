@@ -722,6 +722,8 @@ const AppRoutes = () => {
           <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />
           <Route path="communication-email" element={<Suspense fallback={null}><CoreCommunicationEmailPage /></Suspense>} />
           <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
+          {/* Field Management */}
+          <Route path="commission-withdrawals" element={<Suspense fallback={null}><CoreCommissionWithdrawalsPage /></Suspense>} />
           {/* Partners */}
           <Route path="referrals" element={<Suspense fallback={null}><CoreReferralsPage /></Suspense>} />
           <Route path="referral-rewards" element={<Suspense fallback={null}><CoreReferralRewardsPage /></Suspense>} />
