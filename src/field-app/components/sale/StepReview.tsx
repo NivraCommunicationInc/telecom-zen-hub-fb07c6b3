@@ -4,7 +4,7 @@
  */
 import { User, Package, Wrench, CreditCard, CalendarDays, Check, MapPin, Tag } from "lucide-react";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
-import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
 
 interface Props {
   draft: FieldSaleDraft;
