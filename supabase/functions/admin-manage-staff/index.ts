@@ -2667,6 +2667,9 @@ serve(async (req: Request) => {
         // Delete pin_invite_tokens
         await adminClient.from("pin_invite_tokens").delete().eq("user_id", userId);
 
+        // Delete staff_onboarding_tokens
+        await adminClient.from("staff_onboarding_tokens").delete().eq("user_id", userId);
+
         const { error: rolesDeleteError } = await adminClient
           .from("user_roles")
           .delete()
