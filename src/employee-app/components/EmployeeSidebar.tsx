@@ -1,6 +1,6 @@
 /**
  * EmployeeSidebar — Operational sidebar for Employee Portal.
- * Nivra design system: green active state, white text, proper contrast.
+ * LIGHT THEME — white sidebar, black text, green active state.
  */
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -48,18 +48,18 @@ export default function EmployeeSidebar() {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col border-r border-white/[0.06] bg-[#0B1220] transition-all duration-200",
+        "hidden lg:flex flex-col border-r border-[#E5E7EB] bg-white transition-all duration-200",
         collapsed ? "w-16" : "w-60"
       )}
     >
       {/* Header */}
-      <div className="h-14 flex items-center justify-between px-3 border-b border-white/[0.06]">
+      <div className="h-14 flex items-center justify-between px-3 border-b border-[#E5E7EB]">
         {!collapsed && (
           <Link to="/employee/dashboard" className="flex items-center gap-2.5">
             <div className="h-7 w-7 rounded-md bg-green-500 flex items-center justify-center">
               <Briefcase className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="font-semibold text-sm text-white tracking-tight">Nivra Employee</span>
+            <span className="font-semibold text-sm text-black tracking-tight">Nivra Employee</span>
           </Link>
         )}
         {collapsed && (
@@ -69,7 +69,7 @@ export default function EmployeeSidebar() {
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded text-[#6B7280] hover:text-white hover:bg-white/[0.06] transition-colors"
+          className="p-1 rounded text-[#9CA3AF] hover:text-black hover:bg-gray-100 transition-colors"
         >
           {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
         </button>
@@ -86,8 +86,8 @@ export default function EmployeeSidebar() {
               className={cn(
                 "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
                 isActive(item.href)
-                  ? "bg-green-500/15 text-green-400"
-                  : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.06]"
+                  ? "bg-green-50 text-green-700"
+                  : "text-[#374151] hover:text-black hover:bg-gray-100"
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
@@ -98,7 +98,7 @@ export default function EmployeeSidebar() {
       </ScrollArea>
 
       {/* Bottom */}
-      <div className="border-t border-white/[0.06] py-2 px-2 space-y-0.5">
+      <div className="border-t border-[#E5E7EB] py-2 px-2 space-y-0.5">
         {bottomItems.map((item) => (
           <Link
             key={item.href}
@@ -107,8 +107,8 @@ export default function EmployeeSidebar() {
             className={cn(
               "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
               isActive(item.href)
-                ? "bg-green-500/15 text-green-400"
-                : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.06]"
+                ? "bg-green-50 text-green-700"
+                : "text-[#374151] hover:text-black hover:bg-gray-100"
             )}
           >
             <item.icon className="h-4 w-4 shrink-0" />
@@ -117,7 +117,7 @@ export default function EmployeeSidebar() {
         ))}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-[#A1A1AA] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-[#374151] hover:text-red-600 hover:bg-red-50 transition-colors"
         >
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Déconnexion</span>}

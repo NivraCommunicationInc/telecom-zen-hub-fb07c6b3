@@ -778,7 +778,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* FIELD PORTAL — Field Sales Workspace          */}
       {/* ============================================ */}
-      <Route path="/field" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(225,20%,5%)]" />}><FieldProtectedRoute /></Suspense>}>
+      <Route path="/field" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><FieldProtectedRoute /></Suspense>}>
         <Route element={<Suspense fallback={null}><FieldAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><FieldDashboard /></Suspense>} />

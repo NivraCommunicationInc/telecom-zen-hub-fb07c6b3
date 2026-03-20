@@ -1,6 +1,6 @@
 /**
  * FieldSidebar — Mobile-first navigation for Field Sales portal.
- * Nivra design system: green active state, white text, proper contrast.
+ * LIGHT THEME — white sidebar, black text, green active state.
  */
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -42,13 +42,13 @@ export default function FieldSidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 border-r border-white/[0.06] bg-[#0B1220]">
-        <div className="h-14 flex items-center px-4 border-b border-white/[0.06]">
+      <aside className="hidden md:flex flex-col w-56 border-r border-[#E5E7EB] bg-white">
+        <div className="h-14 flex items-center px-4 border-b border-[#E5E7EB]">
           <Link to={`${FIELD_BASE}/dashboard`} className="flex items-center gap-2.5">
             <div className="h-7 w-7 rounded-md bg-green-500 flex items-center justify-center">
               <MapPin className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="font-semibold text-sm text-white tracking-tight">Nivra Field</span>
+            <span className="font-semibold text-sm text-black tracking-tight">Nivra Field</span>
           </Link>
         </div>
 
@@ -61,8 +61,8 @@ export default function FieldSidebar() {
                 className={cn(
                   "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
                   isActive(item.href)
-                    ? "bg-green-500/15 text-green-400"
-                    : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.06]"
+                    ? "bg-green-50 text-green-700"
+                    : "text-[#374151] hover:text-black hover:bg-gray-100"
                 )}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
@@ -72,7 +72,7 @@ export default function FieldSidebar() {
           </nav>
         </ScrollArea>
 
-        <div className="border-t border-white/[0.06] py-2 px-2 space-y-0.5">
+        <div className="border-t border-[#E5E7EB] py-2 px-2 space-y-0.5">
           {bottomItems.map((item) => (
             <Link
               key={item.href}
@@ -80,8 +80,8 @@ export default function FieldSidebar() {
               className={cn(
                 "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
                 isActive(item.href)
-                  ? "bg-green-500/15 text-green-400"
-                  : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.06]"
+                  ? "bg-green-50 text-green-700"
+                  : "text-[#374151] hover:text-black hover:bg-gray-100"
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
@@ -90,7 +90,7 @@ export default function FieldSidebar() {
           ))}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-[#A1A1AA] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-[#374151] hover:text-red-600 hover:bg-red-50 transition-colors"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>Déconnexion</span>
@@ -99,7 +99,7 @@ export default function FieldSidebar() {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0B1220] px-1 py-1 safe-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[#E5E7EB] bg-white px-1 py-1 safe-bottom">
         <div className="flex items-center justify-around">
           {navItems.slice(0, 5).map((item) => (
             <Link
@@ -108,8 +108,8 @@ export default function FieldSidebar() {
               className={cn(
                 "flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-lg text-[10px] font-medium transition-colors",
                 isActive(item.href)
-                  ? "text-green-400"
-                  : "text-[#6B7280]"
+                  ? "text-green-600"
+                  : "text-[#9CA3AF]"
               )}
             >
               <item.icon className="h-4.5 w-4.5" />
