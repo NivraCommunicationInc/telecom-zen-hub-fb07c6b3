@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CreditCard, Banknote, Clock, Loader2 } from "lucide-react";
-import { CARD_PAYMENTS_DISABLED } from "@/config/paymentMaintenance";
 
 export interface PaymentData {
   payment_method: "card" | "interac" | "deferred";
@@ -24,13 +23,13 @@ interface POSPaymentFormProps {
 }
 
 export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStripePayment }: POSPaymentFormProps) {
-  const [method, setMethod] = useState<PaymentData["payment_method"]>(CARD_PAYMENTS_DISABLED ? "interac" : "card");
+  const [method, setMethod] = useState<PaymentData["payment_method"]>("card");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (method === "card" && renderStripePayment && !CARD_PAYMENTS_DISABLED) return;
+    if (method === "card" && renderStripePayment) return;
     onSubmit({ payment_method: method, payment_reference: reference || undefined, notes: notes || undefined });
   };
 
@@ -44,24 +43,21 @@ export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStri
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <RadioGroup value={method} onValueChange={(v) => {
-            if (CARD_PAYMENTS_DISABLED && v === "card") return;
-            setMethod(v as any);
-          }} className="space-y-3">
+          <RadioGroup value={method} onValueChange={(v) => setMethod(v as any)} className="space-y-3">
             {/* 1. Card — PRIMARY */}
-            <div className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+            <div className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
               method === "card" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-            } ${CARD_PAYMENTS_DISABLED ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
-              <RadioGroupItem value="card" id="card" disabled={CARD_PAYMENTS_DISABLED} />
+            }`}>
+              <RadioGroupItem value="card" id="card" />
               <Label htmlFor="card" className="flex items-center gap-2 text-foreground cursor-pointer">
                 <CreditCard className="h-5 w-5 text-primary" />
                 Carte de crédit (Stripe)
               </Label>
             </div>
             {/* 2. Interac */}
-            <div className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+            <div className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
               method === "interac" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-            } cursor-pointer`}>
+            }`}>
               <RadioGroupItem value="interac" id="interac" />
               <Label htmlFor="interac" className="flex items-center gap-2 text-foreground cursor-pointer">
                 <Banknote className="h-5 w-5 text-primary" />
@@ -69,9 +65,9 @@ export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStri
               </Label>
             </div>
             {/* 3. Deferred */}
-            <div className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+            <div className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
               method === "deferred" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
-            } cursor-pointer`}>
+            }`}>
               <RadioGroupItem value="deferred" id="deferred" />
               <Label htmlFor="deferred" className="flex items-center gap-2 text-foreground cursor-pointer">
                 <Clock className="h-5 w-5 text-primary" />
@@ -81,7 +77,7 @@ export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStri
           </RadioGroup>
 
           {/* Stripe Elements inline form for card */}
-          {method === "card" && renderStripePayment && !CARD_PAYMENTS_DISABLED && (
+          {method === "card" && renderStripePayment && (
             <div className="rounded-xl border border-primary/30 bg-muted/30 p-4">
               {renderStripePayment()}
             </div>
@@ -98,7 +94,7 @@ export function POSPaymentForm({ onSubmit, isSubmitting, totalAmount, renderStri
             <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes optionnelles..." />
           </div>
 
-          {(method !== "card" || CARD_PAYMENTS_DISABLED) && (
+          {method !== "card" && (
             <Button type="submit" disabled={isSubmitting} className="w-full">
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirmer la commande

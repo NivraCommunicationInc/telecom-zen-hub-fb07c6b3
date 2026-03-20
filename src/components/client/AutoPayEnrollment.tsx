@@ -195,17 +195,15 @@ const AutoPayEnrollment = () => {
                     <ExternalLink className="w-3.5 h-3.5" />
                   </Button>
 
-                  {/* Credit card auto-pay — maintenance */}
+                  {/* Credit card auto-pay */}
                   <Button
                     variant="outline"
-                    className="w-full gap-2 opacity-50 cursor-not-allowed"
-                    disabled
+                    className="w-full gap-2"
                   >
                     <CreditCard className="w-4 h-4" />
                     Carte de crédit
-                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 gap-1 ml-auto">
-                      <Wrench className="w-3 h-3" />
-                      Maintenance
+                    <Badge variant="outline" className="text-xs text-primary border-primary/30 gap-1 ml-auto">
+                      Bientôt
                     </Badge>
                   </Button>
                 </div>
