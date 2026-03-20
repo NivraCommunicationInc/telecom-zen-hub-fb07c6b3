@@ -4,8 +4,10 @@
  */
 import { jsPDF } from "jspdf";
 
-// Tax calculation — centralized server tax engine
-import { estimateTaxes, COMBINED_TAX_MULTIPLIER } from "@/lib/pricing/serverTaxEngine";
+/**
+ * ⛔ LOCAL TAX MATH REMOVED — All financial values must come from the data parameter
+ * which is populated from canonical DB records (pricing_snapshot / billing_invoices).
+ */
 
 interface FieldSalesInvoiceData {
   invoiceNumber: string;
