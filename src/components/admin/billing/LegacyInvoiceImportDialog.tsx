@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Download, CheckCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — legacy import uses original DB values
 
 interface LegacyInvoice {
   id: string;
