@@ -72,13 +72,13 @@ export default function StepBilling({ services, equipment, billing, promos = [],
             <span>Sous-total</span><span>{effectiveMonthly.toFixed(2)} $</span>
           </div>
           <div className="flex justify-between text-xs text-[#6B7280]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>{monthlyTaxes.tps.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-xs text-[#6B7280]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>{monthlyTaxes.tvq.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-sm font-bold text-[#000000] pt-1">
-            <span>Total mensuel</span><span>{monthlyTaxes.total.toFixed(2)} $/mois</span>
+            <span>Sous-total mensuel</span><span>{effectiveMonthly.toFixed(2)} $/mois (+ taxes)</span>
           </div>
         </div>
       </div>
