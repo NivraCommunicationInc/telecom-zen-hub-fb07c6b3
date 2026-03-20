@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 
 function useEmployeeName() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   return useQuery({
     queryKey: ["employee-name", user?.id],
     queryFn: async () => {

@@ -3,7 +3,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { User, Mail, Shield, Loader2 } from "lucide-react";
 
 export default function FieldProfile() {

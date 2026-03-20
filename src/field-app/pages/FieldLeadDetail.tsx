@@ -3,7 +3,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Phone, Mail, MapPin, Package, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";

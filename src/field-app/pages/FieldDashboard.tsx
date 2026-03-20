@@ -17,7 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 function useFieldDashboard() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   return useQuery({
     queryKey: ["field-dashboard", user?.id],
     queryFn: async () => {
