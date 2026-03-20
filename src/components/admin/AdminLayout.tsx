@@ -41,7 +41,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   };
 
   return (
-    <div className="admin-light min-h-screen flex flex-col bg-background text-foreground">
+    <div className="internal-ui min-h-screen flex flex-col bg-background text-foreground">
       <SystemStatusBanner userType="admin" />
 
       {/* ═══ TOP HEADER — sticky, full width ═══ */}
