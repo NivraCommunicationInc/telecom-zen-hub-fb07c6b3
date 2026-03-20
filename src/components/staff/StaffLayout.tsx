@@ -2,6 +2,9 @@ import { useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useInternalTheme } from "@/hooks/useInternalTheme";
+import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 
 interface StaffLayoutProps {
   children: ReactNode;
@@ -13,6 +16,7 @@ interface StaffLayoutProps {
  */
 export default function StaffLayout({ children, requiredRole }: StaffLayoutProps) {
   const navigate = useNavigate();
+  const { themeClass } = useInternalTheme();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -92,7 +96,7 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
 
   if (isLoading) {
     return (
-      <div className="internal-ui min-h-screen flex items-center justify-center bg-background">
+      <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background", themeClass)}>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Vérification de l'accès...</p>
@@ -103,5 +107,12 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
 
   if (!isAuthorized) return null;
 
-  return <div className="internal-ui min-h-screen bg-background text-foreground">{children}</div>;
+  return (
+    <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
+      <div className="fixed right-3 top-3 z-40">
+        <InternalThemeToggle />
+      </div>
+      {children}
+    </div>
+  );
 }
