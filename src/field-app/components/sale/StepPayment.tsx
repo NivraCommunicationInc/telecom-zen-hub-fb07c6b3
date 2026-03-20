@@ -1,11 +1,20 @@
 /**
  * Step 6 — Payment Options
- * Option A: Send payment link
- * Option B: Take card payment directly
+ * Option A: Send real payment link via Stripe Checkout + email
+ * Option B: Take real card payment via Stripe Elements inline
  */
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link2, CreditCard, Send, Mail, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { supabase } from "@/integrations/supabase/client";
+import { getStripePublishableKey } from "@/config/stripe";
 import type { FieldSalePayment, FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
 import { toast } from "sonner";
 
@@ -13,34 +22,161 @@ interface Props {
   payment: FieldSalePayment;
   customer: FieldSaleCustomer;
   totalAmount: number;
+  leadId?: string;
   onChange: (p: FieldSalePayment) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export default function StepPayment({ payment, customer, totalAmount, onChange, onNext, onBack }: Props) {
+/* ─── Card Form (inner Stripe Elements) ─── */
+function CardForm({ amount, onSuccess }: { amount: number; onSuccess: (piId: string) => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setProcessing(true);
+    setError(null);
+
+    const { error: submitError } = await elements.submit();
+    if (submitError) {
+      setError(submitError.message || "Erreur de validation");
+      setProcessing(false);
+      return;
+    }
+
+    const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: window.location.href },
+      redirect: "if_required",
+    });
+
+    if (confirmError) {
+      setError(confirmError.message || "Paiement refusé");
+      setProcessing(false);
+      return;
+    }
+
+    if (paymentIntent && (paymentIntent.status === "succeeded" || paymentIntent.status === "requires_capture")) {
+      onSuccess(paymentIntent.id);
+    } else {
+      setError("Le paiement n'a pas été complété");
+    }
+    setProcessing(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement options={{ layout: "tabs" }} />
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+      )}
+      <button
+        type="submit"
+        disabled={!stripe || processing}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] disabled:opacity-50 transition-colors"
+      >
+        {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+        {processing ? "Traitement…" : `Payer ${amount.toFixed(2)} $`}
+      </button>
+    </form>
+  );
+}
+
+export default function StepPayment({ payment, customer, totalAmount, leadId, onChange, onNext, onBack }: Props) {
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSent, setLinkSent] = useState(payment.status === "sent");
 
+  // Card payment state
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [loadingIntent, setLoadingIntent] = useState(false);
+  const [intentError, setIntentError] = useState<string | null>(null);
+
+  const stripePromise = useMemo(() => {
+    try {
+      return loadStripe(getStripePublishableKey());
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // ── Option A: Send real payment link ──
   const handleSendLink = async () => {
     if (!customer.email.trim()) {
       toast.error("Le client doit avoir un courriel pour recevoir le lien de paiement.");
       return;
     }
     setSendingLink(true);
-    // In production: generate Stripe payment link and send via email
-    await new Promise((r) => setTimeout(r, 1500));
-    onChange({ ...payment, method: "send_link", status: "sent", linkSentTo: customer.email });
-    setLinkSent(true);
-    setSendingLink(false);
-    toast.success(`Lien de paiement envoyé à ${customer.email}`);
+    try {
+      const { data, error } = await supabase.functions.invoke("field-sale-payment", {
+        body: {
+          action: "create_payment_link",
+          amount: totalAmount,
+          customer_email: customer.email,
+          customer_name: `${customer.first_name} ${customer.last_name}`,
+          description: `Nivra — Commande terrain`,
+          lead_id: leadId || null,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      onChange({ ...payment, method: "send_link", status: "sent", linkSentTo: customer.email });
+      setLinkSent(true);
+      toast.success(`Lien de paiement envoyé à ${customer.email}`);
+    } catch (err) {
+      console.error("[StepPayment] send link error:", err);
+      toast.error("Erreur lors de l'envoi du lien de paiement");
+    } finally {
+      setSendingLink(false);
+    }
   };
 
-  const handleCardPayment = () => {
-    // In production: open Stripe terminal or inline card form
-    onChange({ ...payment, method: "card_present", status: "completed" });
-    toast.success("Paiement traité avec succès");
+  // ── Option B: Create PaymentIntent for inline card ──
+  const initCardPayment = async () => {
+    if (clientSecret) return; // already initialized
+    setLoadingIntent(true);
+    setIntentError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("field-sale-payment", {
+        body: {
+          action: "create_payment_intent",
+          amount: totalAmount,
+          customer_email: customer.email || undefined,
+          description: `Nivra — Paiement terrain`,
+          lead_id: leadId || null,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.client_secret) throw new Error("Aucun client_secret retourné");
+
+      setClientSecret(data.client_secret);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur Stripe";
+      setIntentError(msg);
+      console.error("[StepPayment] card init error:", err);
+    } finally {
+      setLoadingIntent(false);
+    }
   };
+
+  const handleCardSuccess = (piId: string) => {
+    onChange({ ...payment, method: "card_present", status: "completed", linkSentTo: null });
+    toast.success("Paiement traité avec succès !");
+  };
+
+  // Auto-init card intent when card_present is selected
+  useEffect(() => {
+    if (payment.method === "card_present" && payment.status !== "completed") {
+      initCardPayment();
+    }
+  }, [payment.method]);
 
   return (
     <div className="space-y-6">
@@ -70,7 +206,7 @@ export default function StepPayment({ payment, customer, totalAmount, onChange, 
             </div>
             <div>
               <p className="text-sm font-semibold text-[#000000]">Envoyer un lien de paiement</p>
-              <p className="text-xs text-[#6B7280] mt-0.5">Le client paiera en ligne via un lien sécurisé</p>
+              <p className="text-xs text-[#6B7280] mt-0.5">Le client paiera en ligne via un lien sécurisé Stripe</p>
             </div>
           </div>
         </button>
@@ -98,7 +234,7 @@ export default function StepPayment({ payment, customer, totalAmount, onChange, 
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#3B82F6] text-white text-sm font-medium hover:bg-[#2563EB] disabled:opacity-40 transition-colors"
               >
                 {sendingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Envoyer le lien de paiement
+                {sendingLink ? "Envoi en cours…" : "Envoyer le lien de paiement"}
               </button>
             )}
           </div>
@@ -124,7 +260,7 @@ export default function StepPayment({ payment, customer, totalAmount, onChange, 
             </div>
             <div>
               <p className="text-sm font-semibold text-[#000000]">Prendre le paiement maintenant</p>
-              <p className="text-xs text-[#6B7280] mt-0.5">Le client paie par carte sur place</p>
+              <p className="text-xs text-[#6B7280] mt-0.5">Le client paie par carte sur place via Stripe</p>
             </div>
           </div>
         </button>
@@ -136,20 +272,40 @@ export default function StepPayment({ payment, customer, totalAmount, onChange, 
                 <CheckCircle2 className="h-4 w-4" />
                 Paiement complété — {totalAmount.toFixed(2)} $
               </div>
-            ) : (
-              <>
-                <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-lg p-3 text-xs text-[#92400E]">
-                  ⚠️ Le paiement sera traité de manière sécurisée via le processeur de paiement.
-                </div>
+            ) : loadingIntent ? (
+              <div className="flex items-center justify-center gap-2 py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" />
+                <span className="text-sm text-[#6B7280]">Chargement du formulaire de paiement…</span>
+              </div>
+            ) : intentError ? (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                {intentError}
                 <button
                   type="button"
-                  onClick={handleCardPayment}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors"
+                  onClick={() => { setClientSecret(null); setIntentError(null); initCardPayment(); }}
+                  className="ml-2 underline text-red-800"
                 >
-                  <CreditCard className="h-4 w-4" />
-                  Traiter le paiement — {totalAmount.toFixed(2)} $
+                  Réessayer
                 </button>
-              </>
+              </div>
+            ) : clientSecret && stripePromise ? (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret,
+                  appearance: {
+                    theme: "stripe",
+                    variables: { colorPrimary: "#22C55E", borderRadius: "8px" },
+                  },
+                  locale: "fr",
+                }}
+              >
+                <CardForm amount={totalAmount} onSuccess={handleCardSuccess} />
+              </Elements>
+            ) : (
+              <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-lg p-3 text-xs text-[#92400E]">
+                ⚠️ Initialisation du paiement en cours…
+              </div>
             )}
           </div>
         )}

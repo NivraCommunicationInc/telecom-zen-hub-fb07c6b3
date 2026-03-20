@@ -1,6 +1,7 @@
 /**
  * FieldNewSale — Guided 7-step sales workflow.
  * Customer → Services → Equipment → Installation → Billing → Payment → Review → Submit
+ * Now with real commission auto-creation on submit.
  */
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -82,7 +83,7 @@ export default function FieldNewSale() {
     setIsSubmitting(true);
 
     try {
-      // Create field lead with full qualification
+      // 1. Create field lead
       const { data: lead, error } = await supabase.from("field_leads").insert({
         agent_id: user.id,
         agent_name: profile?.full_name || "Agent",
@@ -103,6 +104,47 @@ export default function FieldNewSale() {
 
       if (error) throw error;
 
+      // 2. Auto-create commission record
+      try {
+        // Look up agent's commission rules
+        const { data: rules } = await supabase
+          .from("field_sales_commission_rules")
+          .select("*")
+          .eq("is_active", true)
+          .limit(1);
+
+        const rule = rules?.[0];
+        let commissionAmount = 0;
+
+        if (rule) {
+          if (rule.rule_type === "percentage" && rule.bonus_percentage) {
+            commissionAmount = Math.round((taxes.total * rule.bonus_percentage / 100) * 100) / 100;
+          } else if (rule.rule_type === "fixed" && rule.bonus_amount) {
+            commissionAmount = rule.bonus_amount;
+          } else if (rule.bonus_amount) {
+            commissionAmount = rule.bonus_amount;
+          }
+        }
+
+        // Default fallback: flat $10 commission if no rule found
+        if (commissionAmount <= 0) {
+          commissionAmount = 10;
+        }
+
+        await supabase.from("field_commissions").insert({
+          agent_id: user.id,
+          lead_id: lead.id,
+          amount: commissionAmount,
+          status: "pending",
+          notes: `Auto-commission: ${draft.services.map((s) => s.name).join(", ")} — ${taxes.total.toFixed(2)} $`,
+        });
+
+        console.log("[FieldNewSale] Commission created:", commissionAmount);
+      } catch (commErr) {
+        console.error("[FieldNewSale] Commission creation failed (non-blocking):", commErr);
+      }
+
+      // 3. Audit log
       await logInternalAudit({
         action: "field_sale_submitted",
         category: "operations",
