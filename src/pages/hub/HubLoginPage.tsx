@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Shield, Loader2, AlertCircle, ArrowLeft, Terminal, Briefcase, MapPin, Wrench } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
+import { useInternalTheme } from "@/hooks/useInternalTheme";
 import { checkMfaStatus } from "@/lib/security/mfaUtils";
 import MfaEnrollmentDialog from "@/components/security/MfaEnrollmentDialog";
 import MfaVerificationGate from "@/components/security/MfaVerificationGate";
@@ -30,6 +33,7 @@ type Stage = "login" | "mfa_enroll" | "mfa_verify" | "redirecting";
 export default function HubLoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { themeClass } = useInternalTheme();
   const portalId = searchParams.get("portal");
   const portal = portalId ? PORTAL_CONFIG[portalId] : null;
 
@@ -168,7 +172,7 @@ export default function HubLoginPage() {
 
   if (!portal) {
     return (
-      <div className="internal-ui min-h-screen flex items-center justify-center bg-background px-4">
+      <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background px-4", themeClass)}>
         <div className="text-center">
           <p className="text-sm text-muted-foreground mb-4">Aucun espace sélectionné.</p>
           <Button asChild variant="outline">
@@ -181,7 +185,7 @@ export default function HubLoginPage() {
 
   if (checkingSession) {
     return (
-      <div className="internal-ui min-h-screen flex items-center justify-center bg-background">
+      <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background", themeClass)}>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Vérification de la session…</p>
@@ -191,30 +195,42 @@ export default function HubLoginPage() {
   }
 
   if (stage === "mfa_enroll") {
-    return <MfaEnrollmentDialog onComplete={() => window.location.reload()} onCancel={handleLogout} />;
+    return (
+      <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
+        <div className="fixed right-3 top-3 z-40">
+          <InternalThemeToggle />
+        </div>
+        <MfaEnrollmentDialog onComplete={() => window.location.reload()} onCancel={handleLogout} />
+      </div>
+    );
   }
 
   if (stage === "mfa_verify" && mfaFactorId) {
     return (
-      <MfaVerificationGate
-        factorId={mfaFactorId}
-        onVerified={async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            createHubSession(session.user.id);
-            await auditAccess("hub_access", portalId!);
-            await auditAccess("portal_entry", portalId!);
-            navigate(portal.href, { replace: true });
-          }
-        }}
-        onLogout={handleLogout}
-      />
+      <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
+        <div className="fixed right-3 top-3 z-40">
+          <InternalThemeToggle />
+        </div>
+        <MfaVerificationGate
+          factorId={mfaFactorId}
+          onVerified={async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+              createHubSession(session.user.id);
+              await auditAccess("hub_access", portalId!);
+              await auditAccess("portal_entry", portalId!);
+              navigate(portal.href, { replace: true });
+            }
+          }}
+          onLogout={handleLogout}
+        />
+      </div>
     );
   }
 
   if (stage === "redirecting") {
     return (
-      <div className="internal-ui min-h-screen flex items-center justify-center bg-background">
+      <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background", themeClass)}>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Redirection vers {portal.label}…</p>
@@ -226,7 +242,10 @@ export default function HubLoginPage() {
   const PortalIcon = portal.icon;
 
   return (
-    <div className="internal-ui min-h-screen flex items-center justify-center bg-background px-4">
+    <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background px-4", themeClass)}>
+      <div className="fixed right-3 top-3 z-40">
+        <InternalThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-6">
           <Link to="/hub" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">

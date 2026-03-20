@@ -308,7 +308,7 @@
   }
 
   .internal-ui .text-muted-foreground {
-    color: hsl(var(--muted-foreground));
+    color: hsl(var(--muted-foreground)) !important;
   }
 
   .internal-ui .text-foreground,
@@ -840,7 +840,12 @@
   color: hsl(var(--foreground)) !important;
 }
 
-.internal-ui [class*="text-gray-"],
+.internal-ui [class*="text-gray-1"],
+.internal-ui [class*="text-gray-2"],
+.internal-ui [class*="text-gray-3"],
+.internal-ui [class*="text-gray-4"],
+.internal-ui [class*="text-gray-5"],
+.internal-ui [class*="text-gray-6"],
 .internal-ui [class*="text-muted"] {
   color: hsl(var(--muted-foreground)) !important;
 }
