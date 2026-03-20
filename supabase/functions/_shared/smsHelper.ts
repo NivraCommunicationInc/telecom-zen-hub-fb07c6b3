@@ -4,7 +4,7 @@
  * Messages will appear in the Admin Telephony section
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 export interface SmsNotification {
   to: string; // E.164 format phone number

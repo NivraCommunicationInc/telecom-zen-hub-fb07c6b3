@@ -3,7 +3,7 @@
  * Processes queued notifications and sends emails via Resend.
  * Called by pg_cron or manually.
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {

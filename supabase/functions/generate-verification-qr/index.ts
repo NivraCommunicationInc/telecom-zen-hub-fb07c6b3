@@ -3,7 +3,7 @@
  * Creates an identity_verification_session + returns QR code PNG data URL
  * SECURITY: public token is hashed (SHA-256) before persistence
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS = [
   "https://nivra-telecom.ca",

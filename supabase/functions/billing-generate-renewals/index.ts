@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
 
 const corsHeaders = {
@@ -241,7 +241,7 @@ serve(async (req) => {
           try {
             const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
             if (stripeKey) {
-              const Stripe = (await import("https://esm.sh/stripe@18.5.0")).default;
+              const Stripe = (await import("npm:stripe@18")).default;
               const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
               
               const pi = await stripe.paymentIntents.create({
