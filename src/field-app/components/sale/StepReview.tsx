@@ -154,12 +154,12 @@ export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmi
         )}
         <div className="text-xs space-y-1 pt-1">
           <div className="flex justify-between text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span>
-            <span>{taxes.tps.toFixed(2)} $</span>
+            <span>TPS (5%)</span>
+            <span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span>
-            <span>{taxes.tvq.toFixed(2)} $</span>
+            <span>TVQ (9.975%)</span>
+            <span>Calculé au traitement</span>
           </div>
         </div>
         <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
