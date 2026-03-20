@@ -1135,6 +1135,7 @@ const ClientNewOrder = () => {
           description: s.short_description || s.description || "",
           price: Number(s.price) || 0,
           category: s.category || "",
+          plan_code: (s as any).plan_code || undefined,
         }));
     },
     staleTime: 0,
