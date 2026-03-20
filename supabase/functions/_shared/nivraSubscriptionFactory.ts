@@ -4,13 +4,20 @@
  * Single source of truth for ALL Stripe Subscription creation.
  * Every flow (checkout confirmation, admin activation, POS) MUST use this factory.
  * 
+ * ITEM-BASED ARCHITECTURE:
+ *   - Subscriptions always use multiple items (base + addons)
+ *   - Combo plan_codes are decomposed into individual items
+ *   - Each item maps to its own Stripe Price via stripe_plan_mapping
+ *   - Customers can add/remove items without recreating the subscription
+ * 
  * HARD VALIDATION: A Subscription will NOT be created if required fields are missing.
  * ANTI-DUPLICATION: Same order cannot create duplicate Stripe subscriptions.
  * NO FALLBACK. NO PARTIAL. NO BYPASS.
  */
 
 import Stripe from "npm:stripe@18";
-import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { isCombo, resolveSubscriptionItems } from "./comboDecomposition.ts";
 
 // ============================================================================
 // TYPES
@@ -27,8 +34,12 @@ export interface NivraSubscriptionParams {
   order_number: string;
   account_id: string;
   customer_id: string; // billing_customers.id
-  plan_code: string;   // must exist in stripe_plan_mapping
+  plan_code: string;   // can be a combo or atomic plan_code
   invoice_id: string;  // linked initial invoice
+
+  // Additional items to add alongside the primary plan
+  // (e.g. streaming, extra TV packs selected in POS)
+  additional_plan_codes?: string[];
 
   // Payment method — REQUIRED for future charges
   default_payment_method_id: string; // Stripe PaymentMethod ID
@@ -47,8 +58,11 @@ export interface NivraSubscriptionResult {
   current_period_start: string;
   current_period_end: string;
   nivra_subscription_id: string;
-  stripe_price_id: string;
-  stripe_product_id: string;
+  items: Array<{
+    plan_code: string;
+    stripe_price_id: string;
+    stripe_product_id: string;
+  }>;
 }
 
 // ============================================================================
@@ -66,7 +80,7 @@ function validateRequired(params: NivraSubscriptionParams): void {
   if (!params.customer_id) errors.push("customer_id is required");
   if (!params.plan_code) errors.push("plan_code is required");
   if (!params.invoice_id) errors.push("invoice_id is required");
-  if (!params.default_payment_method_id) errors.push("default_payment_method_id is required (saved payment method for future charges)");
+  if (!params.default_payment_method_id) errors.push("default_payment_method_id is required");
 
   if (errors.length > 0) {
     const msg = `[NivraSub] BLOCKED — Subscription creation rejected. Missing required fields:\n${errors.map(e => `  • ${e}`).join("\n")}`;
@@ -76,7 +90,61 @@ function validateRequired(params: NivraSubscriptionParams): void {
 }
 
 // ============================================================================
-// FACTORY — Creates Stripe Subscription with full Nivra context
+// PLAN RESOLUTION — Resolves plan_codes to Stripe prices
+// ============================================================================
+
+interface ResolvedPlanItem {
+  plan_code: string;
+  plan_name: string;
+  stripe_price_id: string;
+  stripe_product_id: string;
+  monthly_amount: number;
+  service_category: string;
+}
+
+async function resolvePlanItems(
+  supabase: SupabaseClient,
+  planCode: string,
+  additionalCodes: string[] = []
+): Promise<ResolvedPlanItem[]> {
+  // Decompose combo if needed, then merge with additional items
+  const primaryCodes = resolveSubscriptionItems(planCode);
+  const allCodes = [...new Set([...primaryCodes, ...additionalCodes])];
+
+  if (allCodes.length === 0) {
+    throw new Error("[NivraSub] BLOCKED — No plan codes resolved for subscription");
+  }
+
+  const { data: mappings, error } = await supabase
+    .from("stripe_plan_mapping")
+    .select("plan_code, plan_name, stripe_price_id, stripe_product_id, monthly_amount, service_category")
+    .in("plan_code", allCodes)
+    .eq("is_active", true);
+
+  if (error || !mappings || mappings.length === 0) {
+    throw new Error(`[NivraSub] BLOCKED — No active stripe_plan_mapping found for codes: ${allCodes.join(", ")}`);
+  }
+
+  // Verify all codes were found
+  const foundCodes = new Set(mappings.map((m: any) => m.plan_code));
+  const missingCodes = allCodes.filter(c => !foundCodes.has(c));
+  if (missingCodes.length > 0) {
+    throw new Error(`[NivraSub] BLOCKED — Missing stripe_plan_mapping for: ${missingCodes.join(", ")}`);
+  }
+
+  // Warn if a combo plan_code was passed but not decomposed (shouldn't happen)
+  for (const m of mappings) {
+    if (m.service_category === "tv_combo") {
+      console.warn(`[NivraSub] WARNING — tv_combo "${m.plan_code}" should not be used as a Stripe item. It should be decomposed.`);
+    }
+  }
+
+  console.log(`[NivraSub] Resolved ${mappings.length} subscription items: ${mappings.map((m: any) => m.plan_code).join(", ")}`);
+  return mappings as ResolvedPlanItem[];
+}
+
+// ============================================================================
+// FACTORY — Creates Stripe Subscription with multiple items
 // ============================================================================
 
 export async function createNivraSubscription(
@@ -87,9 +155,9 @@ export async function createNivraSubscription(
   validateRequired(params);
 
   const { stripe, supabase } = params;
+  const wasCombo = isCombo(params.plan_code);
 
   // ═══ STEP 2: ANTI-DUPLICATION CHECK ═══
-  // Check if a Stripe subscription already exists for this order
   const { data: existingSub } = await supabase
     .from("billing_subscriptions")
     .select("id, stripe_subscription_id, stripe_status")
@@ -98,9 +166,7 @@ export async function createNivraSubscription(
     .maybeSingle();
 
   if (existingSub?.stripe_subscription_id) {
-    console.log(`[NivraSub] Subscription already exists for order ${params.order_id}: ${existingSub.stripe_subscription_id} (status: ${existingSub.stripe_status})`);
-    
-    // Return existing — idempotent
+    console.log(`[NivraSub] Subscription already exists for order ${params.order_id}: ${existingSub.stripe_subscription_id}`);
     const stripeSub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id);
     return {
       stripe_subscription_id: existingSub.stripe_subscription_id,
@@ -108,78 +174,77 @@ export async function createNivraSubscription(
       current_period_start: new Date(stripeSub.current_period_start * 1000).toISOString(),
       current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
       nivra_subscription_id: existingSub.id,
-      stripe_price_id: "",
-      stripe_product_id: "",
+      items: [],
     };
   }
 
-  // ═══ STEP 3: RESOLVE PLAN MAPPING ═══
-  const { data: planMapping, error: planError } = await supabase
-    .from("stripe_plan_mapping")
-    .select("*")
-    .eq("plan_code", params.plan_code)
-    .eq("is_active", true)
-    .single();
+  // ═══ STEP 3: RESOLVE ALL PLAN ITEMS ═══
+  const planItems = await resolvePlanItems(supabase, params.plan_code, params.additional_plan_codes);
 
-  if (planError || !planMapping) {
-    throw new Error(`[NivraSub] BLOCKED — No active Stripe plan mapping found for plan_code="${params.plan_code}". Register it in stripe_plan_mapping first.`);
-  }
-
-  // ═══ STEP 4: ENSURE PAYMENT METHOD IS ATTACHED TO CUSTOMER ═══
+  // ═══ STEP 4: ENSURE PAYMENT METHOD IS ATTACHED ═══
   try {
     await stripe.paymentMethods.attach(params.default_payment_method_id, {
       customer: params.stripe_customer_id,
     });
   } catch (attachErr: any) {
-    // Already attached is fine
     if (!attachErr.message?.includes("already been attached")) {
       console.warn(`[NivraSub] PaymentMethod attach warning: ${attachErr.message}`);
     }
   }
 
-  // Set as default for invoices
   await stripe.customers.update(params.stripe_customer_id, {
     invoice_settings: { default_payment_method: params.default_payment_method_id },
   });
 
   // ═══ STEP 5: BUILD METADATA ═══
+  const totalMonthly = planItems.reduce((sum, item) => sum + Number(item.monthly_amount), 0);
+  const planSummary = planItems.map(p => p.plan_name).join(" + ");
+
   const metadata: Record<string, string> = {
     source: "nivra_subscription_factory",
+    architecture: "item_based",
     order_id: params.order_id,
     order_number: params.order_number,
     account_id: params.account_id,
     customer_id: params.customer_id,
     invoice_id: params.invoice_id,
-    plan_code: params.plan_code,
-    plan_name: planMapping.plan_name,
-    monthly_amount: String(planMapping.monthly_amount),
+    original_plan_code: params.plan_code,
+    was_combo_decomposed: String(wasCombo),
+    item_count: String(planItems.length),
+    item_codes: planItems.map(p => p.plan_code).join(","),
+    total_monthly: String(totalMonthly),
     ...(params.metadata_extra || {}),
   };
 
-  // ═══ STEP 6: CREATE STRIPE SUBSCRIPTION ═══
+  // ═══ STEP 6: CREATE MULTI-ITEM STRIPE SUBSCRIPTION ═══
+  const stripeItems: Stripe.SubscriptionCreateParams.Item[] = planItems.map(item => ({
+    price: item.stripe_price_id,
+    metadata: {
+      plan_code: item.plan_code,
+      service_category: item.service_category,
+    },
+  }));
+
   const subParams: Stripe.SubscriptionCreateParams = {
     customer: params.stripe_customer_id,
-    items: [{ price: planMapping.stripe_price_id }],
+    items: stripeItems,
     default_payment_method: params.default_payment_method_id,
     metadata,
-    description: `Nivra Telecom — ${planMapping.plan_name} — Commande ${params.order_number}`,
+    description: `Nivra Telecom — ${planSummary} — Commande ${params.order_number}`,
     collection_method: "charge_automatically",
     payment_behavior: "default_incomplete",
     expand: ["latest_invoice"],
   };
 
-  // Anchor billing cycle if specified
   if (params.billing_cycle_anchor) {
     subParams.billing_cycle_anchor = Math.floor(params.billing_cycle_anchor.getTime() / 1000);
     subParams.proration_behavior = "none";
   }
 
-  // Trial end (skip first charge if initial invoice already paid)
   if (params.trial_end) {
     subParams.trial_end = params.trial_end;
   }
 
-  // Apply Stripe promo/coupon
   if (params.promo_code_stripe_id) {
     subParams.coupon = params.promo_code_stripe_id;
   }
@@ -187,23 +252,27 @@ export async function createNivraSubscription(
   const stripeSubscription = await stripe.subscriptions.create(subParams);
 
   console.log(
-    `[NivraSub] ✓ Created Stripe Subscription ${stripeSubscription.id} | ${planMapping.plan_name} | status: ${stripeSubscription.status}`
+    `[NivraSub] ✓ Created ${stripeSubscription.id} | ${planItems.length} items: ${planSummary} | status: ${stripeSubscription.status}`
   );
 
   // ═══ STEP 7: SYNC TO NIVRA DATABASE ═══
   const periodStart = new Date(stripeSubscription.current_period_start * 1000).toISOString();
   const periodEnd = new Date(stripeSubscription.current_period_end * 1000).toISOString();
+  const primaryItem = planItems.find(p => p.service_category === "internet" || p.service_category === "mobile") || planItems[0];
 
   const updateData = {
     stripe_subscription_id: stripeSubscription.id,
-    stripe_price_id: planMapping.stripe_price_id,
-    stripe_product_id: planMapping.stripe_product_id,
+    stripe_price_id: primaryItem.stripe_price_id,
+    stripe_product_id: primaryItem.stripe_product_id,
     stripe_status: stripeSubscription.status,
     stripe_current_period_start: periodStart,
     stripe_current_period_end: periodEnd,
     stripe_default_payment_method: params.default_payment_method_id,
     next_renewal_at: periodEnd,
     billing_cycle_anchor: params.billing_cycle_anchor?.toISOString() || periodStart,
+    plan_code: primaryItem.plan_code,
+    plan_name: planSummary,
+    plan_price: totalMonthly,
     status: "active",
     updated_at: new Date().toISOString(),
   };
@@ -211,13 +280,11 @@ export async function createNivraSubscription(
   let nivraSubscriptionId = params.nivra_subscription_id;
 
   if (nivraSubscriptionId) {
-    // Update existing Nivra subscription
     await supabase
       .from("billing_subscriptions")
       .update(updateData)
       .eq("id", nivraSubscriptionId);
   } else {
-    // Find by order_id
     const { data: existingNivra } = await supabase
       .from("billing_subscriptions")
       .select("id")
@@ -231,15 +298,11 @@ export async function createNivraSubscription(
         .update(updateData)
         .eq("id", nivraSubscriptionId);
     } else {
-      // Create new Nivra subscription record
       const { data: newSub, error: insertErr } = await supabase
         .from("billing_subscriptions")
         .insert({
           customer_id: params.customer_id,
           order_id: params.order_id,
-          plan_code: params.plan_code,
-          plan_name: planMapping.plan_name,
-          plan_price: planMapping.monthly_amount,
           cycle_start_date: periodStart.split("T")[0],
           cycle_end_date: periodEnd.split("T")[0],
           environment: "production",
@@ -253,6 +316,21 @@ export async function createNivraSubscription(
     }
   }
 
+  // ═══ STEP 7b: SYNC INDIVIDUAL SERVICE ITEMS ═══
+  // Each item gets its own row in billing_subscription_services
+  for (const item of planItems) {
+    await supabase.from("billing_subscription_services").upsert({
+      subscription_id: nivraSubscriptionId!,
+      service_code: item.plan_code,
+      service_name: item.plan_name,
+      service_type: item.service_category,
+      unit_price: item.monthly_amount,
+      quantity: 1,
+      is_active: true,
+      added_at: new Date().toISOString(),
+    }, { onConflict: "subscription_id,service_code" });
+  }
+
   // ═══ STEP 8: LOG TRACE ═══
   await supabase.from("billing_subscription_trace_audit").insert({
     subscription_id: nivraSubscriptionId!,
@@ -262,14 +340,21 @@ export async function createNivraSubscription(
     source_id: params.order_id,
     details: {
       stripe_subscription_id: stripeSubscription.id,
-      stripe_price_id: planMapping.stripe_price_id,
-      plan_code: params.plan_code,
-      plan_name: planMapping.plan_name,
+      architecture: "item_based",
+      was_combo_decomposed: wasCombo,
+      original_plan_code: params.plan_code,
+      items: planItems.map(p => ({
+        plan_code: p.plan_code,
+        stripe_price_id: p.stripe_price_id,
+        monthly_amount: p.monthly_amount,
+        category: p.service_category,
+      })),
+      total_monthly: totalMonthly,
       status: stripeSubscription.status,
       period_start: periodStart,
       period_end: periodEnd,
     },
-    reason: `Stripe Subscription created for order ${params.order_number}`,
+    reason: `Stripe Subscription created with ${planItems.length} items for order ${params.order_number}`,
   });
 
   return {
@@ -278,7 +363,10 @@ export async function createNivraSubscription(
     current_period_start: periodStart,
     current_period_end: periodEnd,
     nivra_subscription_id: nivraSubscriptionId!,
-    stripe_price_id: planMapping.stripe_price_id,
-    stripe_product_id: planMapping.stripe_product_id,
+    items: planItems.map(p => ({
+      plan_code: p.plan_code,
+      stripe_price_id: p.stripe_price_id,
+      stripe_product_id: p.stripe_product_id,
+    })),
   };
 }
