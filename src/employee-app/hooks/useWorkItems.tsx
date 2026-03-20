@@ -4,7 +4,7 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useEffect } from "react";
 
 export interface WorkItem {
@@ -30,7 +30,7 @@ export interface WorkItem {
 }
 
 export function useWorkItems(filter?: string) {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const queryClient = useQueryClient();
 
   const query = useQuery<WorkItem[]>({
@@ -91,7 +91,7 @@ export function useWorkItems(filter?: string) {
 }
 
 export function useWorkItemCounts() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
 
   return useQuery({
     queryKey: ["employee-work-item-counts", user?.id],

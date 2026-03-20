@@ -4,7 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import {
@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 };
 
 function useFieldLeads() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   return useQuery({
     queryKey: ["field-leads", user?.id],
     queryFn: async () => {

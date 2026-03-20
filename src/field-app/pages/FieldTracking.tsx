@@ -4,7 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { TrendingUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +18,7 @@ const PIPELINE = [
 ];
 
 export default function FieldTracking() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
 
   const { data, isLoading } = useQuery({
     queryKey: ["field-tracking", user?.id],

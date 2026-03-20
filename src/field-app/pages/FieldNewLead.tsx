@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { ArrowLeft, Loader2, Check } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,7 @@ const PAYMENT_INTENTS = [
 
 export default function FieldNewLead() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     first_name: "",

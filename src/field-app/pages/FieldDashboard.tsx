@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import {
   TrendingUp, DollarSign, UserPlus, Send, Search,
   Package, Loader2, ArrowUpRight, Clock,
@@ -17,7 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 function useFieldDashboard() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   return useQuery({
     queryKey: ["field-dashboard", user?.id],
     queryFn: async () => {

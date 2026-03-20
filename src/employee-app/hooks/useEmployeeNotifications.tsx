@@ -4,7 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ export interface EmployeeNotification {
 }
 
 export function useEmployeeNotifications() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const queryClient = useQueryClient();
 
   const { data: notifications, isLoading } = useQuery({

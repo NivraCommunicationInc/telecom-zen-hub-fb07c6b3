@@ -4,7 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { DollarSign, Loader2, Clock, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 
 export default function FieldCommissions() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
 
   const { data, isLoading } = useQuery({
     queryKey: ["field-commissions", user?.id],

@@ -4,7 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { Send, Loader2, ChevronRight, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
@@ -23,7 +23,7 @@ const ORDER_STATUS: Record<string, { label: string; color: string; bg: string }>
 };
 
 export default function FieldSubmissions() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const navigate = useNavigate();
 
   const { data: leads = [], isLoading } = useQuery({
