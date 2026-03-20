@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreditCard, Shield, Lock, AlertCircle, Info, Banknote, Wrench, Mail, Copy, Check as CheckIcon, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
-import { CARD_PAYMENTS_DISABLED } from "@/config/paymentMaintenance";
+
 import PayPalButton from "@/components/payment/PayPalButton";
 import PayPalSubscriptionButton from "@/components/payment/PayPalSubscriptionButton";
 
