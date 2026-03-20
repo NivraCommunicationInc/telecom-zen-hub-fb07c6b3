@@ -147,6 +147,16 @@ const categoryIcons: Record<string, any> = {
   Extras: Package,
 };
 
+// Canonical streaming name → plan_code mapping (matches stripe_plan_mapping exactly)
+const STREAMING_PLAN_CODE_MAP: Record<string, string> = {
+  "Netflix Premium": "streaming_netflix",
+  "Disney+ Standard": "streaming_disney",
+  "Amazon Prime Video": "streaming_prime",
+  "Crave + HBO": "streaming_crave",
+  "Apple TV+": "streaming_apple",
+  "Spotify Premium": "streaming_spotify",
+};
+
 // Terminal equipment configuration — price now loaded from canonical operational_fees
 const TERMINAL_CONFIG = {
   name: "Nivra 4K Smart Terminal",
