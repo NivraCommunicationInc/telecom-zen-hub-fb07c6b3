@@ -39,8 +39,8 @@ export function SetPinDialog({
   const handleSubmit = () => {
     setError("");
     
-    if (!/^\d{4}$/.test(pin)) {
-      setError("Le PIN doit être exactement 4 chiffres");
+    if (!/^\d{6}$/.test(pin)) {
+      setError("Le PIN doit être exactement 6 chiffres");
       return;
     }
     
