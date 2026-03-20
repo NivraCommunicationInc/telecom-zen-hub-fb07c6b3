@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { portalClient as supabase } from "@/integrations/backend/portalClient";
 import { getInvokeErrorMessage } from "@/lib/functionsInvokeError";
-import { CARD_PAYMENTS_DISABLED, CARD_MAINTENANCE_MESSAGE_FR } from "@/config/paymentMaintenance";
+
 
 interface PayInvoiceDialogProps {
   open: boolean;
