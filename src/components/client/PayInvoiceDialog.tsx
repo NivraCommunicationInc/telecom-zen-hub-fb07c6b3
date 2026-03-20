@@ -128,44 +128,7 @@ const PayInvoiceDialog = ({
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Choisir un mode de paiement</p>
 
-          {/* PayPal — PRIMARY */}
-          <button
-            onClick={() => setPaymentMethod("paypal")}
-            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-              paymentMethod === "paypal"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-muted-foreground/30 bg-background"
-            }`}
-          >
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Wallet className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">PayPal</p>
-              <p className="text-xs text-muted-foreground">Payez avec votre compte PayPal ou carte via PayPal</p>
-            </div>
-            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
-          </button>
-
-          {/* Interac */}
-          <button
-            onClick={() => setPaymentMethod("interac")}
-            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-              paymentMethod === "interac"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-muted-foreground/30 bg-background"
-            }`}
-          >
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Banknote className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">Virement Interac</p>
-              <p className="text-xs text-muted-foreground">Envoyez et soumettez votre référence directement ici</p>
-            </div>
-          </button>
-
-          {/* Credit Card — DISABLED / MAINTENANCE */}
+          {/* Credit Card — PRIMARY */}
           {CARD_PAYMENTS_DISABLED ? (
             <div className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border bg-muted/50 opacity-60 cursor-not-allowed">
               <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -196,8 +159,45 @@ const PayInvoiceDialog = ({
                 <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
                 <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé via Stripe</p>
               </div>
+              <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
             </button>
           )}
+
+          {/* PayPal */}
+          <button
+            onClick={() => setPaymentMethod("paypal")}
+            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+              paymentMethod === "paypal"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/30 bg-background"
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Wallet className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">PayPal</p>
+              <p className="text-xs text-muted-foreground">Payez avec votre compte PayPal ou carte via PayPal</p>
+            </div>
+          </button>
+
+          {/* Interac */}
+          <button
+            onClick={() => setPaymentMethod("interac")}
+            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+              paymentMethod === "interac"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/30 bg-background"
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Banknote className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Virement Interac</p>
+              <p className="text-xs text-muted-foreground">Envoyez et soumettez votre référence directement ici</p>
+            </div>
+          </button>
         </div>
 
         {/* ============ Payment Form Based on Selection ============ */}
