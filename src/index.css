@@ -306,21 +306,21 @@
     color: hsl(var(--foreground));
   }
 
-  /* Contrast hardening: low-emphasis text stays readable per portal theme */
+  /* Contrast hardening: readable text on dark portals */
   .admin-dark .text-muted-foreground {
-    color: hsl(220 12% 64%);
+    color: hsl(240 4% 65%); /* #A1A1AA */
   }
 
   .admin-dark .text-slate-400 {
-    color: hsl(220 12% 72%);
+    color: hsl(240 4% 65%);
   }
 
   .admin-dark .text-slate-500 {
-    color: hsl(220 10% 62%);
+    color: hsl(240 4% 65%);
   }
 
   .admin-dark .text-slate-300 {
-    color: hsl(220 14% 80%);
+    color: hsl(0 0% 100%);
   }
 
   .client-portal-dark .text-muted-foreground,
