@@ -1,0 +1,2 @@
+ALTER TABLE public.billing_subscriptions ADD COLUMN IF NOT EXISTS stripe_setup_status text DEFAULT NULL;
+COMMENT ON COLUMN public.billing_subscriptions.stripe_setup_status IS 'Tracks Stripe subscription setup: pending, active, failed, skipped, no_stripe';
