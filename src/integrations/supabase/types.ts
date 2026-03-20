@@ -1675,6 +1675,7 @@ export type Database = {
         Row: {
           address_id: string | null
           auto_billing_enabled: boolean | null
+          billing_cycle_anchor: string | null
           created_at: string | null
           customer_id: string
           cycle_end_date: string
@@ -1682,6 +1683,7 @@ export type Database = {
           environment: string
           id: string
           last_invoice_id: string | null
+          next_renewal_at: string | null
           order_id: string | null
           paypal_plan_id: string | null
           paypal_subscription_id: string | null
@@ -1694,11 +1696,21 @@ export type Database = {
           status:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          stripe_cancel_at: string | null
+          stripe_canceled_at: string | null
+          stripe_current_period_end: string | null
+          stripe_current_period_start: string | null
+          stripe_default_payment_method: string | null
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          stripe_status: string | null
+          stripe_subscription_id: string | null
           updated_at: string | null
         }
         Insert: {
           address_id?: string | null
           auto_billing_enabled?: boolean | null
+          billing_cycle_anchor?: string | null
           created_at?: string | null
           customer_id: string
           cycle_end_date: string
@@ -1706,6 +1718,7 @@ export type Database = {
           environment?: string
           id?: string
           last_invoice_id?: string | null
+          next_renewal_at?: string | null
           order_id?: string | null
           paypal_plan_id?: string | null
           paypal_subscription_id?: string | null
@@ -1718,11 +1731,21 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          stripe_cancel_at?: string | null
+          stripe_canceled_at?: string | null
+          stripe_current_period_end?: string | null
+          stripe_current_period_start?: string | null
+          stripe_default_payment_method?: string | null
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Update: {
           address_id?: string | null
           auto_billing_enabled?: boolean | null
+          billing_cycle_anchor?: string | null
           created_at?: string | null
           customer_id?: string
           cycle_end_date?: string
@@ -1730,6 +1753,7 @@ export type Database = {
           environment?: string
           id?: string
           last_invoice_id?: string | null
+          next_renewal_at?: string | null
           order_id?: string | null
           paypal_plan_id?: string | null
           paypal_subscription_id?: string | null
@@ -1742,6 +1766,15 @@ export type Database = {
           status?:
             | Database["public"]["Enums"]["billing_subscription_status"]
             | null
+          stripe_cancel_at?: string | null
+          stripe_canceled_at?: string | null
+          stripe_current_period_end?: string | null
+          stripe_current_period_start?: string | null
+          stripe_default_payment_method?: string | null
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -11545,6 +11578,48 @@ export type Database = {
           monthly_price?: number
           name?: string
           private_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stripe_plan_mapping: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean
+          monthly_amount: number
+          plan_code: string
+          plan_name: string
+          service_category: string | null
+          stripe_price_id: string
+          stripe_product_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          monthly_amount: number
+          plan_code: string
+          plan_name: string
+          service_category?: string | null
+          stripe_price_id: string
+          stripe_product_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          monthly_amount?: number
+          plan_code?: string
+          plan_name?: string
+          service_category?: string | null
+          stripe_price_id?: string
+          stripe_product_id?: string
           updated_at?: string
         }
         Relationships: []
