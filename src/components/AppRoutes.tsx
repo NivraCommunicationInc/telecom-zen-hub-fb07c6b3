@@ -784,6 +784,8 @@ const AppRoutes = () => {
         <Route element={<Suspense fallback={null}><FieldAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><FieldDashboard /></Suspense>} />
+          <Route path="sale/new" element={<Suspense fallback={null}><FieldNewSale /></Suspense>} />
+          <Route path="sale/success" element={<Suspense fallback={null}><FieldSaleSuccess /></Suspense>} />
           <Route path="leads" element={<Suspense fallback={null}><FieldLeads /></Suspense>} />
           <Route path="leads/new" element={<Suspense fallback={null}><FieldNewLead /></Suspense>} />
           <Route path="leads/:leadId" element={<Suspense fallback={null}><FieldLeadDetail /></Suspense>} />
@@ -793,6 +795,7 @@ const AppRoutes = () => {
           <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><FieldProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><FieldSecurity /></Suspense>} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
 
