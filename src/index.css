@@ -956,32 +956,104 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* --- Force old bg-white / bg-gray classes to dark --- */
-.admin-dark .bg-white {
+/* ═══════════════════════════════════════════════════════════
+   NUCLEAR CONTRAST OVERRIDE — admin-dark
+   Forces ALL hardcoded Tailwind color classes to dark-safe values.
+   This is the single source of truth for text/bg/border on dark.
+   ═══════════════════════════════════════════════════════════ */
+
+/* --- Backgrounds: light → dark surface --- */
+.admin-dark .bg-white,
+.admin-dark .bg-gray-50,
+.admin-dark .bg-gray-100,
+.admin-dark .bg-slate-50,
+.admin-dark .bg-slate-100,
+.admin-dark .bg-zinc-50,
+.admin-dark .bg-zinc-100,
+.admin-dark .bg-neutral-50,
+.admin-dark .bg-neutral-100 {
   background: hsl(var(--card)) !important;
 }
 
-.admin-dark .bg-gray-50,
-.admin-dark .bg-gray-100 {
+.admin-dark .bg-gray-200,
+.admin-dark .bg-slate-200,
+.admin-dark .bg-zinc-200 {
   background: hsl(var(--secondary)) !important;
 }
 
-.admin-dark .text-gray-500,
-.admin-dark .text-gray-600 {
-  color: hsl(var(--admin-text-secondary)) !important;
-}
-
+/* --- Primary text: dark grays → pure white --- */
 .admin-dark .text-gray-700,
 .admin-dark .text-gray-800,
-.admin-dark .text-gray-900 {
-  color: hsl(var(--foreground)) !important;
-}
-
+.admin-dark .text-gray-900,
+.admin-dark .text-slate-700,
+.admin-dark .text-slate-800,
+.admin-dark .text-slate-900,
+.admin-dark .text-zinc-700,
+.admin-dark .text-zinc-800,
+.admin-dark .text-zinc-900,
+.admin-dark .text-neutral-700,
+.admin-dark .text-neutral-800,
+.admin-dark .text-neutral-900,
 .admin-dark .text-black {
-  color: hsl(var(--foreground)) !important;
+  color: hsl(0 0% 100%) !important;
 }
 
+/* --- Secondary text: mid grays → #A1A1AA --- */
+.admin-dark .text-gray-400,
+.admin-dark .text-gray-500,
+.admin-dark .text-gray-600,
+.admin-dark .text-slate-400,
+.admin-dark .text-slate-500,
+.admin-dark .text-slate-600,
+.admin-dark .text-zinc-400,
+.admin-dark .text-zinc-500,
+.admin-dark .text-zinc-600,
+.admin-dark .text-neutral-400,
+.admin-dark .text-neutral-500,
+.admin-dark .text-neutral-600 {
+  color: hsl(240 4% 65%) !important;
+}
+
+/* --- Light text that's fine already — just ensure minimum --- */
+.admin-dark .text-gray-300,
+.admin-dark .text-slate-300,
+.admin-dark .text-zinc-300,
+.admin-dark .text-neutral-300 {
+  color: hsl(0 0% 100%) !important;
+}
+
+/* --- Borders: light borders → dark border --- */
+.admin-dark .border-gray-100,
 .admin-dark .border-gray-200,
-.admin-dark .border-gray-300 {
+.admin-dark .border-gray-300,
+.admin-dark .border-slate-100,
+.admin-dark .border-slate-200,
+.admin-dark .border-slate-300,
+.admin-dark .border-zinc-100,
+.admin-dark .border-zinc-200,
+.admin-dark .border-zinc-300,
+.admin-dark .border-neutral-100,
+.admin-dark .border-neutral-200,
+.admin-dark .border-neutral-300 {
   border-color: hsl(var(--border)) !important;
+}
+
+/* --- Placeholder text --- */
+.admin-dark .placeholder\\:text-gray-400::placeholder,
+.admin-dark .placeholder\\:text-gray-500::placeholder,
+.admin-dark .placeholder\\:text-slate-400::placeholder,
+.admin-dark .placeholder\\:text-slate-500::placeholder {
+  color: hsl(var(--admin-text-muted)) !important;
+}
+
+/* --- Divide colors --- */
+.admin-dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+.admin-dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* --- Ring colors --- */
+.admin-dark .ring-gray-200,
+.admin-dark .ring-slate-200 {
+  --tw-ring-color: hsl(var(--border)) !important;
 }
