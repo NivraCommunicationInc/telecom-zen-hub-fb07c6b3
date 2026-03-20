@@ -271,13 +271,13 @@ serve(async (req) => {
               console.log(`[billing-generate-renewals] ✓ Stripe autopay PI ${piResult.payment_intent_id} status: ${piResult.status}`);
               
               // If succeeded immediately, apply payment
-              if (pi.status === "succeeded") {
+              if (piResult.status === "succeeded") {
                 await supabase.rpc("apply_payment_to_invoice", {
                   p_invoice_id: invoice.id,
                   p_amount: total,
                   p_method: "card",
                   p_provider: "stripe",
-                  p_provider_payment_id: pi.id,
+                  p_provider_payment_id: piResult.payment_intent_id,
                   p_source: "live",
                   p_created_by_name: "autopay_renewal",
                   p_created_by_role: "system",
