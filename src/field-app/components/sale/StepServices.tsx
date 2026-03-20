@@ -1,11 +1,10 @@
 /**
  * Step 2 — Service / Plan Selection
- * Read-only pricing from approved catalog.
+ * Uses the REAL approved catalog via useFieldSalesOffers hook.
  */
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Wifi, Smartphone, Tv, Package, Loader2, Check } from "lucide-react";
+import { Wifi, Smartphone, Tv, Package, Loader2, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFieldSalesOffers, type FieldSalesOffer } from "@/hooks/useFieldSalesOffers";
 import type { FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
 
 interface Props {
@@ -27,44 +26,42 @@ const CATEGORY_LABELS: Record<string, string> = {
   tv: "Télévision",
 };
 
-export default function StepServices({ selected, onChange, onNext, onBack }: Props) {
-  const { data: services = [], isLoading } = useQuery({
-    queryKey: ["field-catalog-services"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name, description, monthly_price, category, speed_mbps, is_active")
-        .eq("is_active", true)
-        .order("category")
-        .order("monthly_price", { ascending: true });
-      if (error) throw error;
-      return (data || []) as any[];
-    },
-    staleTime: 1000 * 60 * 10,
-  });
+const CATEGORY_ORDER = ["internet", "mobile", "tv"];
 
-  const grouped = services.reduce((acc: Record<string, any[]>, s) => {
-    const cat = s.category || "other";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(s);
-    return acc;
-  }, {});
+export default function StepServices({ selected, onChange, onNext, onBack }: Props) {
+  const { data: offers = [], isLoading, error } = useFieldSalesOffers();
+
+  // Group by category
+  const grouped: Record<string, FieldSalesOffer[]> = {};
+  for (const o of offers) {
+    const cat = o.category || "other";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(o);
+  }
+
+  // Sort categories
+  const sortedCategories = Object.keys(grouped).sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a);
+    const bi = CATEGORY_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
 
   const isSelected = (id: string) => selected.some((s) => s.id === id);
 
-  const toggleService = (service: any) => {
-    if (isSelected(service.id)) {
-      onChange(selected.filter((s) => s.id !== service.id));
+  const toggleService = (offer: FieldSalesOffer) => {
+    if (isSelected(offer.id)) {
+      onChange(selected.filter((s) => s.id !== offer.id));
     } else {
+      const speed = offer.features_json?.speed;
       onChange([
         ...selected,
         {
-          id: service.id,
-          name: service.name,
-          category: service.category,
-          monthlyPrice: Number(service.monthly_price),
-          description: service.description,
-          speed: service.speed_mbps ? `${service.speed_mbps} Mbps` : undefined,
+          id: offer.id,
+          name: offer.name_fr,
+          category: offer.category,
+          monthlyPrice: Number(offer.price_monthly) || 0,
+          description: offer.description_fr,
+          speed: speed || undefined,
         },
       ]);
     }
@@ -83,8 +80,22 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
         <div className="flex justify-center py-12">
           <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" />
         </div>
+      ) : error ? (
+        <div className="p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#DC2626]">
+          <AlertTriangle className="h-4 w-4 inline mr-2" />
+          Erreur de chargement du catalogue. Veuillez réessayer.
+        </div>
+      ) : offers.length === 0 ? (
+        <div className="p-6 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] text-center">
+          <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-[#D97706]" />
+          <p className="text-sm font-medium text-[#92400E]">Aucun forfait approuvé disponible</p>
+          <p className="text-xs text-[#A16207] mt-1">
+            Contactez un administrateur pour activer des forfaits dans le catalogue.
+          </p>
+        </div>
       ) : (
-        Object.entries(grouped).map(([category, items]) => {
+        sortedCategories.map((category) => {
+          const items = grouped[category];
           const Icon = CATEGORY_ICONS[category] || Package;
           return (
             <div key={category} className="space-y-2">
@@ -93,15 +104,23 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
                 <h3 className="text-sm font-semibold text-[#000000]">
                   {CATEGORY_LABELS[category] || category}
                 </h3>
+                <span className="text-[10px] text-[#9CA3AF] font-medium">
+                  {items.length} forfait{items.length > 1 ? "s" : ""}
+                </span>
               </div>
               <div className="space-y-2">
-                {(items as any[]).map((s) => {
-                  const active = isSelected(s.id);
+                {items.map((offer) => {
+                  const active = isSelected(offer.id);
+                  const speed = offer.features_json?.speed;
+                  const features = offer.features_json?.features || [];
+                  const badge = offer.features_json?.badge;
+                  const price = Number(offer.price_monthly) || 0;
+
                   return (
                     <button
-                      key={s.id}
+                      key={offer.id}
                       type="button"
-                      onClick={() => toggleService(s)}
+                      onClick={() => toggleService(offer)}
                       className={cn(
                         "w-full text-left p-4 rounded-xl border-2 transition-all",
                         active
@@ -111,27 +130,42 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[#000000]">{s.name}</span>
-                            {s.speed_mbps && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-[#000000]">{offer.name_fr}</span>
+                            {speed && (
                               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#3B82F6]">
-                                {s.speed_mbps} Mbps
+                                {speed}
+                              </span>
+                            )}
+                            {badge && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#D97706]">
+                                {badge}
+                              </span>
+                            )}
+                            {offer.is_featured && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#16A34A]">
+                                Populaire
                               </span>
                             )}
                           </div>
-                          {s.description && (
-                            <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-1">{s.description}</p>
+                          {features.length > 0 && (
+                            <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-1">
+                              {features.slice(0, 3).join(" · ")}
+                            </p>
+                          )}
+                          {!features.length && offer.description_fr && (
+                            <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-1">{offer.description_fr}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-3 ml-3">
                           <div className="text-right">
                             <p className="text-lg font-bold text-[#000000]">
-                              {Number(s.monthly_price).toFixed(2)} $
+                              {price.toFixed(2)} $
                             </p>
                             <p className="text-[10px] text-[#6B7280]">/mois</p>
                           </div>
                           <div className={cn(
-                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors",
+                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
                             active ? "bg-[#22C55E] border-[#22C55E]" : "border-[#D1D5DB]"
                           )}>
                             {active && <Check className="h-3.5 w-3.5 text-white" />}
