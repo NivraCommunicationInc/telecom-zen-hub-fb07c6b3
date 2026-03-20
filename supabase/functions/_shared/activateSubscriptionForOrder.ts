@@ -229,15 +229,24 @@ export async function activateSubscriptionForOrder(
   log(`✓ All gates passed — creating subscription: order=${order.order_number}, plan=${planCode}, customer=${stripeCustomerId}`);
 
   // ═══ STEP 9: RESOLVE ADDITIONAL ITEMS ═══
+  // First, check pricing_snapshot.all_plan_codes for additional services
+  const snapshotPlanCodes: string[] = ((order.pricing_snapshot as any)?.all_plan_codes || [])
+    .map((item: any) => item.plan_code)
+    .filter((c: string) => c && c !== planCode);
+
+  // Also check billing_subscription_services for pre-existing items
   const { data: subServices } = await supabase
     .from("billing_subscription_services")
     .select("service_code")
     .eq("subscription_id", existingSub?.id || "")
     .eq("is_active", true);
 
-  const additionalCodes = (subServices || [])
+  const dbCodes = (subServices || [])
     .map((s: any) => s.service_code)
     .filter((c: string) => c !== planCode);
+
+  // Merge both sources, deduplicate
+  const additionalCodes = [...new Set([...snapshotPlanCodes, ...dbCodes])];
 
   // ═══ STEP 10: CREATE STRIPE SUBSCRIPTION (BLOCKING) ═══
   try {
