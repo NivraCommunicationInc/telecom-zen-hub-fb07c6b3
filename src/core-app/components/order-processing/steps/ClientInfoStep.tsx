@@ -36,18 +36,18 @@ export function ClientInfoStep({ proc }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-gray-900">Information client</h3>
+        <h3 className="text-base font-bold text-foreground">Information client</h3>
         <div className="flex gap-2">
           {!editing ? (
-            <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="text-xs h-7 border-gray-300 text-gray-700">
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="text-xs h-7 border-border text-foreground">
               <Edit2 className="w-3 h-3 mr-1" /> Modifier
             </Button>
           ) : (
             <>
-              <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="text-xs h-7 border-gray-300 text-gray-700">
+              <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="text-xs h-7 border-border text-foreground">
                 <X className="w-3 h-3 mr-1" /> Annuler
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={proc.isUpdating} className="text-xs h-7 bg-gray-900 text-white hover:bg-gray-800">
+              <Button size="sm" onClick={handleSave} disabled={proc.isUpdating} className="text-xs h-7 bg-primary text-primary-foreground hover:bg-primary/90">
                 <Save className="w-3 h-3 mr-1" /> Sauvegarder
               </Button>
             </>
@@ -68,23 +68,23 @@ export function ClientInfoStep({ proc }: Props) {
 
       {/* Account info from profile */}
       {profile && (
-        <div className="mt-6 p-3 bg-gray-50 rounded-lg border border-gray-100">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Profil lié</h4>
+        <div className="mt-6 p-3 bg-secondary rounded-lg border border-border">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Profil lié</h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div><span className="text-gray-500">Nom complet:</span> <span className="text-gray-900 font-medium">{profile.full_name || "—"}</span></div>
-            <div><span className="text-gray-500">Courriel:</span> <span className="text-gray-900">{profile.email || "—"}</span></div>
-            <div><span className="text-gray-500">Téléphone:</span> <span className="text-gray-900">{profile.phone || "—"}</span></div>
-            <div><span className="text-gray-500">Numéro compte:</span> <span className="text-gray-900 font-mono">{proc.account?.account_number || "—"}</span></div>
+            <div><span className="text-muted-foreground">Nom complet:</span> <span className="text-foreground font-medium">{profile.full_name || "—"}</span></div>
+            <div><span className="text-muted-foreground">Courriel:</span> <span className="text-foreground">{profile.email || "—"}</span></div>
+            <div><span className="text-muted-foreground">Téléphone:</span> <span className="text-foreground">{profile.phone || "—"}</span></div>
+            <div><span className="text-muted-foreground">Numéro compte:</span> <span className="text-foreground font-mono">{proc.account?.account_number || "—"}</span></div>
           </div>
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-2 mt-6 pt-4 border-t border-gray-100">
-        <Button size="sm" variant="outline" onClick={() => { proc.setActiveStep("order_review"); }} className="text-xs h-8 border-gray-300 text-gray-700">
+      <div className="flex gap-2 mt-6 pt-4 border-t border-border">
+        <Button size="sm" variant="outline" onClick={() => { proc.setActiveStep("order_review"); }} className="text-xs h-8 border-border text-foreground">
           <CheckCircle2 className="w-3 h-3 mr-1" /> Valider et continuer
         </Button>
-        <Button size="sm" variant="outline" onClick={handleFlagFraud} className="text-xs h-8 border-red-300 text-red-600 hover:bg-red-50">
+        <Button size="sm" variant="outline" onClick={handleFlagFraud} className="text-xs h-8 border-destructive/30 text-destructive hover:bg-destructive/10">
           <AlertTriangle className="w-3 h-3 mr-1" /> Signaler fraude
         </Button>
       </div>
@@ -97,11 +97,11 @@ function FieldBlock({ label, value, editing, onChange, type = "text" }: {
 }) {
   return (
     <div>
-      <Label className="text-xs text-gray-500 mb-1">{label}</Label>
+      <Label className="text-xs text-muted-foreground mb-1">{label}</Label>
       {editing ? (
-        <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-9 text-sm border-gray-300 text-gray-900" />
+        <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-9 text-sm border-input text-foreground bg-background" />
       ) : (
-        <p className="text-sm font-medium text-gray-900 py-1">{value || "—"}</p>
+        <p className="text-sm font-medium text-foreground py-1">{value || "—"}</p>
       )}
     </div>
   );

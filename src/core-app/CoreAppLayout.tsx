@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
+import { useInternalTheme } from "@/hooks/useInternalTheme";
 
 interface NavItem {
   icon: LucideIcon;
@@ -168,6 +170,7 @@ const STORAGE_KEY = "core_sidebar_groups_state";
 const CoreAppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { themeClass } = useInternalTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -233,7 +236,7 @@ const CoreAppLayout = () => {
   };
 
   return (
-    <div className="internal-ui core-console min-h-screen flex bg-background text-foreground">
+    <div className={cn("internal-ui core-console min-h-screen flex bg-background text-foreground", themeClass)}>
       {/* ═══ SIDEBAR ═══ */}
         <aside
           className={cn(
@@ -379,6 +382,7 @@ const CoreAppLayout = () => {
           </span>
           <div className="flex items-center gap-3">
             <CoreGlobalSearch />
+            <InternalThemeToggle />
             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
               <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               Core Online

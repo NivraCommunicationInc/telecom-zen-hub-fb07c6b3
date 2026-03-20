@@ -6,13 +6,19 @@
 import { Outlet } from "react-router-dom";
 import EmployeeSidebar from "./components/EmployeeSidebar";
 import EmployeeNotificationBell from "./components/EmployeeNotificationBell";
+import { cn } from "@/lib/utils";
+import { useInternalTheme } from "@/hooks/useInternalTheme";
+import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 
 export default function EmployeeAppLayout() {
+  const { themeClass } = useInternalTheme();
+
   return (
-    <div className="internal-ui min-h-screen flex w-full bg-background text-foreground">
+    <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
       <EmployeeSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-12 flex items-center justify-end px-6 border-b border-border bg-card shrink-0">
+        <header className="h-12 flex items-center justify-end gap-2 px-6 border-b border-border bg-card shrink-0">
+          <InternalThemeToggle />
           <EmployeeNotificationBell />
         </header>
         <main className="flex-1 overflow-auto">
