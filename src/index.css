@@ -189,157 +189,71 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     INTERNAL LIGHT THEME — Clean, professional, carrier-grade
-     White backgrounds, black text, green accent
+     INTERNAL MODAL UI SYSTEM (FULL REPLACEMENT)
+     Single source of truth for all internal portals
      ═══════════════════════════════════════════════════════════ */
-  .admin-light {
-    --background: 0 0% 98%;        /* #FAFAFA */
-    --foreground: 0 0% 0%;         /* #000000 */
+  .internal-ui {
+    /* Base palette */
+    --background: 0 0% 100%;           /* #FFFFFF */
+    --foreground: 0 0% 0%;             /* #000000 */
 
-    --card: 0 0% 100%;             /* #FFFFFF */
+    --card: 0 0% 100%;                 /* #FFFFFF */
     --card-foreground: 0 0% 0%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
 
-    /* Primary = Nivra Green #22C55E */
-    --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 142 71% 45%;            /* #22C55E */
+    --primary-foreground: 0 0% 0%;
 
-    /* Secondary = light gray surface */
-    --secondary: 220 14% 96%;      /* #F4F4F5 */
+    --secondary: 220 14% 96%;          /* light surface */
     --secondary-foreground: 0 0% 0%;
 
-    /* Muted */
     --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%; /* #6B7280 */
+    --muted-foreground: 215 14% 34%;   /* #374151 */
 
-    /* Accent = Nivra Green */
     --accent: 142 71% 45%;
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 0 0% 0%;
 
-    --destructive: 0 72% 51%;      /* #DC2626 */
+    --destructive: 0 72% 51%;          /* #DC2626 */
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders = #E5E7EB */
-    --border: 220 13% 91%;
+    --border: 220 13% 91%;             /* #E5E7EB */
     --input: 220 13% 91%;
     --ring: 142 71% 45%;
 
-    /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 0%;
     --sidebar-primary: 142 71% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 0%;
     --sidebar-accent: 220 14% 96%;
     --sidebar-accent-foreground: 0 0% 0%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 142 71% 45%;
 
-    /* Core Console Text Tokens */
     --core-text-primary: 0 0% 0%;
-    --core-text-secondary: 215 14% 34%;  /* #374151 */
-    --core-text-label: 220 9% 46%;
-    --core-text-disabled: 220 9% 70%;
-
-    /* Admin extended tokens (light) */
-    --admin-surface-raised: 220 14% 96%;
-    --admin-text-primary: 0 0% 0%;
-    --admin-text-secondary: 215 14% 34%;
-    --admin-text-muted: 220 9% 46%;
-    --admin-accent-hover: 142 71% 40%;
-    --admin-accent-subtle: 142 71% 95%;
-
-    color: hsl(var(--foreground));
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  /* Client Portal Light Theme - Professional Clean ISP */
-  .client-portal-dark {
-    /* Pure white background */
-    --background: 0 0% 100%;
-    --foreground: 220 30% 12%;
-
-    /* Cards - white with clean borders */
-    --card: 0 0% 100%;
-    --card-foreground: 220 30% 12%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 12%;
-
-    /* Primary - Professional Teal */
-    --primary: 168 76% 32%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary - Very light gray */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 30% 12%;
-
-    /* Muted */
-    --muted: 220 14% 95%;
-    --muted-foreground: 220 10% 38%;
-
-    /* Accent */
-    --accent: 168 76% 32%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Borders */
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 168 76% 32%;
-    
-    /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 30% 12%;
-    --sidebar-primary: 168 76% 32%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 220 30% 12%;
-    --sidebar-border: 220 13% 90%;
-    --sidebar-ring: 168 76% 32%;
+    --core-text-secondary: 215 14% 34%;
+    --core-text-label: 215 14% 34%;
+    --core-text-disabled: 220 9% 60%;
 
     color: hsl(var(--foreground));
   }
 
-  .client-portal-dark .text-muted-foreground,
-  .client-portal-dark .text-slate-400,
-  .client-portal-dark .text-slate-500 {
-    color: hsl(220 10% 38%);
+  .internal-ui .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
   }
 
-  .client-portal-dark .text-slate-300,
-  .client-portal-dark .text-slate-600 {
-    color: hsl(220 12% 28%);
-  }
-
-  /* Force dark text on all client portal text elements */
-  .client-portal-dark .text-foreground,
-  .client-portal-dark h1,
-  .client-portal-dark h2,
-  .client-portal-dark h3,
-  .client-portal-dark h4 {
-    color: hsl(220 30% 12%);
-  }
-
-  /* Fix cyan text to teal for better contrast on white */
-  .client-portal-dark .text-cyan-400,
-  .client-portal-dark .text-cyan-500 {
-    color: hsl(168 76% 28%);
-  }
-
-  /* Dark hero surfaces should default to light text when no explicit class is set */
-  .bg-hero {
-    color: hsl(0 0% 100%);
-  }
-
-  .bg-hero .text-muted-foreground {
-    color: hsl(220 14% 82%);
+  .internal-ui .text-foreground,
+  .internal-ui h1,
+  .internal-ui h2,
+  .internal-ui h3,
+  .internal-ui h4,
+  .internal-ui h5,
+  .internal-ui h6 {
+    color: hsl(var(--foreground));
   }
 }
+
 
 @layer base {
   /* Global overflow prevention */
