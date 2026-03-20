@@ -118,10 +118,10 @@
     --success-foreground: 0 0% 100%;
 
     /* Core Console Text Tokens (global fallback) */
-    --core-text-primary: 210 40% 98%;
-    --core-text-secondary: 213 27% 84%;
-    --core-text-label: 215 16% 65%;
-    --core-text-disabled: 215 16% 47%;
+    --core-text-primary: 0 0% 0%;
+    --core-text-secondary: 220 19% 27%;
+    --core-text-label: 220 19% 27%;
+    --core-text-disabled: 220 9% 46%;
     
     /* Premium Shadows */
     --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
@@ -210,7 +210,7 @@
     --secondary-foreground: 0 0% 0%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 215 14% 34%;   /* #374151 */
+    --muted-foreground: 220 19% 27%;   /* #374151 */
 
     --accent: 142 71% 45%;
     --accent-foreground: 0 0% 0%;
@@ -232,8 +232,8 @@
     --sidebar-ring: 142 71% 45%;
 
     --core-text-primary: 0 0% 0%;
-    --core-text-secondary: 215 14% 34%;
-    --core-text-label: 215 14% 34%;
+    --core-text-secondary: 220 19% 27%;
+    --core-text-label: 220 19% 27%;
     --core-text-disabled: 220 9% 60%;
 
     color: hsl(var(--foreground));
