@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_services_unique ON public.billing_subscription_services (subscription_id, service_code);
