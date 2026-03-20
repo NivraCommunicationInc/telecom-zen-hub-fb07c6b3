@@ -100,12 +100,12 @@ export default function EmployeeProtectedRoute() {
 
   if (state === "unauthorized") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,6%)]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-red-400" />
-          <h2 className="text-lg font-semibold text-white mb-1">Accès refusé</h2>
-          <p className="text-sm text-[hsl(220,10%,45%)] mb-4">Vous n'avez pas accès au portail Employé.</p>
-          <button onClick={() => navigate("/hub")} className="text-sm text-blue-400 hover:underline">
+          <ShieldAlert className="h-10 w-10 mx-auto mb-3 text-red-500" />
+          <h2 className="text-lg font-semibold text-black mb-1">Accès refusé</h2>
+          <p className="text-sm text-[#374151] mb-4">Vous n'avez pas accès au portail Employé.</p>
+          <button onClick={() => navigate("/hub")} className="text-sm text-green-600 hover:underline">
             Retour au Hub
           </button>
         </div>

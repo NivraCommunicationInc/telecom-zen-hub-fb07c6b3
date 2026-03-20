@@ -16,10 +16,10 @@ import { createHubSession, clearHubSession } from "@/lib/security/hubSession";
 import { auditAccess } from "@/lib/security/internalAuditLogger";
 
 const PORTAL_CONFIG: Record<string, { label: string; icon: typeof Terminal; color: string; accessKey: string; href: string }> = {
-  core: { label: "Nivra Core", icon: Terminal, color: "text-emerald-400", accessKey: "can_access_core", href: "/core" },
-  employee: { label: "Nivra Employee", icon: Briefcase, color: "text-blue-400", accessKey: "can_access_employee", href: "/employee" },
-  field: { label: "Nivra Field", icon: MapPin, color: "text-amber-400", accessKey: "can_access_field", href: "/field" },
-  technician: { label: "Nivra Technician", icon: Wrench, color: "text-purple-400", accessKey: "can_access_technician", href: "/staff/technician" },
+  core: { label: "Nivra Core", icon: Terminal, color: "text-green-600", accessKey: "can_access_core", href: "/core" },
+  employee: { label: "Nivra Employee", icon: Briefcase, color: "text-blue-600", accessKey: "can_access_employee", href: "/employee" },
+  field: { label: "Nivra Field", icon: MapPin, color: "text-amber-600", accessKey: "can_access_field", href: "/field" },
+  technician: { label: "Nivra Technician", icon: Wrench, color: "text-purple-600", accessKey: "can_access_technician", href: "/staff/technician" },
 };
 
 const INTERNAL_ROLES = [
@@ -57,7 +57,6 @@ export default function HubLoginPage() {
           setCheckingSession(false);
           return;
         }
-        // Already logged in — verify role + portal access + MFA
         await verifyAndProceed(session.user.id);
       } catch {
         setCheckingSession(false);
@@ -69,7 +68,6 @@ export default function HubLoginPage() {
   const verifyAndProceed = async (userId: string) => {
     if (!portal || !portalId) return;
 
-    // Check role + portal access
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
       .select("role, status, is_active, can_access_core, can_access_employee, can_access_field, can_access_technician")
@@ -101,13 +99,10 @@ export default function HubLoginPage() {
       return;
     }
 
-    // Check MFA — Admin roles MUST enroll and verify TOTP.
-    // Non-admin roles use their 6-digit PIN for security; TOTP is optional.
     const isAdminRole = roleData.role === "admin";
     const mfa = await checkMfaStatus();
 
     if (isAdminRole) {
-      // Admin: mandatory TOTP enrollment + verification
       if (!mfa.isEnrolled) {
         setStage("mfa_enroll");
         setCheckingSession(false);
@@ -122,7 +117,6 @@ export default function HubLoginPage() {
         return;
       }
     } else {
-      // Non-admin: if already enrolled in TOTP, must verify. Otherwise skip (PIN-based security).
       if (mfa.isEnrolled && !mfa.isVerified) {
         setMfaFactorId(mfa.factorId ?? null);
         setStage("mfa_verify");
@@ -132,12 +126,10 @@ export default function HubLoginPage() {
       }
     }
 
-    // All clear — create hub session and redirect
     createHubSession(userId);
     await auditAccess("hub_access", portalId);
     await auditAccess("portal_entry", portalId);
 
-    // Log the login
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user?.email) {
       await supabase.from("hub_login_audit").insert({
@@ -184,13 +176,12 @@ export default function HubLoginPage() {
     navigate("/hub", { replace: true });
   };
 
-  // No portal selected — redirect to hub
   if (!portal) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050816] px-4">
+      <div className="min-h-screen flex items-center justify-center bg-white px-4">
         <div className="text-center">
-          <p className="text-sm text-[#A1A1AA] mb-4">Aucun espace sélectionné.</p>
-          <Button asChild variant="outline" className="border-white/[0.08] text-[#A1A1AA] hover:text-white">
+          <p className="text-sm text-[#374151] mb-4">Aucun espace sélectionné.</p>
+          <Button asChild variant="outline" className="border-[#E5E7EB] text-[#374151] hover:text-black">
             <Link to="/hub">Retour au Hub</Link>
           </Button>
         </div>
@@ -198,31 +189,26 @@ export default function HubLoginPage() {
     );
   }
 
-  // Checking existing session
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050816]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-green-500" />
-          <p className="text-sm text-[#A1A1AA]">Vérification de la session…</p>
+          <p className="text-sm text-[#374151]">Vérification de la session…</p>
         </div>
       </div>
     );
   }
 
-  // MFA enrollment
   if (stage === "mfa_enroll") {
     return (
       <MfaEnrollmentDialog
-        onComplete={() => {
-          window.location.reload();
-        }}
+        onComplete={() => { window.location.reload(); }}
         onCancel={handleLogout}
       />
     );
   }
 
-  // MFA verification
   if (stage === "mfa_verify" && mfaFactorId) {
     return (
       <MfaVerificationGate
@@ -241,13 +227,12 @@ export default function HubLoginPage() {
     );
   }
 
-  // Redirecting
   if (stage === "redirecting") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050816]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-green-500" />
-          <p className="text-sm text-[#A1A1AA]">Redirection vers {portal.label}…</p>
+          <p className="text-sm text-[#374151]">Redirection vers {portal.label}…</p>
         </div>
       </div>
     );
@@ -256,76 +241,79 @@ export default function HubLoginPage() {
   const PortalIcon = portal.icon;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#050816] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm">
         {/* Back to hub */}
         <div className="mb-6">
-          <Link to="/hub" className="inline-flex items-center gap-1.5 text-xs text-[#6B7280] hover:text-[#A1A1AA] transition-colors">
+          <Link to="/hub" className="inline-flex items-center gap-1.5 text-xs text-[#6B7280] hover:text-black transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             Retour à la sélection
           </Link>
         </div>
 
-        {/* Branding */}
-        <div className="text-center mb-8">
-          <div className="h-12 w-12 mx-auto rounded-xl bg-green-500 flex items-center justify-center mb-4">
-            <Shield className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Nivra Internal</h1>
-          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0B1220] border border-white/[0.08]">
-            <PortalIcon className={`h-4 w-4 ${portal.color}`} />
-            <span className="text-xs font-medium text-[#A1A1AA]">{portal.label}</span>
-          </div>
-        </div>
-
-        {/* Login form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <Input
-              type="email"
-              placeholder="Courriel professionnel"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="h-11 bg-[#0B1220] border-white/[0.08] text-white placeholder:text-[#6B7280] focus:border-green-500/50 focus:ring-green-500/20"
-            />
-          </div>
-          <div>
-            <Input
-              type="password"
-              placeholder="Mot de passe"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="h-11 bg-[#0B1220] border-white/[0.08] text-white placeholder:text-[#6B7280] focus:border-green-500/50 focus:ring-green-500/20"
-            />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-              <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-              <p className="text-xs text-red-400">{error}</p>
+        {/* Card */}
+        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-8">
+          {/* Branding */}
+          <div className="text-center mb-8">
+            <div className="h-12 w-12 mx-auto rounded-xl bg-green-500 flex items-center justify-center mb-4">
+              <Shield className="h-6 w-6 text-white" />
             </div>
-          )}
+            <h1 className="text-xl font-bold text-black tracking-tight">Nivra Internal</h1>
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-[#E5E7EB]">
+              <PortalIcon className={`h-4 w-4 ${portal.color}`} />
+              <span className="text-xs font-medium text-[#374151]">{portal.label}</span>
+            </div>
+          </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full h-11 bg-green-500 hover:bg-green-600 text-white font-medium"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Connexion"
+          {/* Login form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <Input
+                type="email"
+                placeholder="Courriel professionnel"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="h-11 bg-white border-[#E5E7EB] text-black placeholder:text-[#9CA3AF] focus:border-green-500 focus:ring-green-500/20"
+              />
+            </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="h-11 bg-white border-[#E5E7EB] text-black placeholder:text-[#9CA3AF] focus:border-green-500 focus:ring-green-500/20"
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                <p className="text-xs text-red-600">{error}</p>
+              </div>
             )}
-          </Button>
-        </form>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 bg-green-500 hover:bg-green-600 text-white font-medium"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Connexion"
+              )}
+            </Button>
+          </form>
+        </div>
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-[10px] text-[#6B7280] uppercase tracking-widest">
+          <p className="text-[10px] text-[#9CA3AF] uppercase tracking-widest">
             Réservé au personnel autorisé
           </p>
         </div>

@@ -750,13 +750,13 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* INTERNAL HUB — Secure Staff Gateway          */}
       {/* ============================================ */}
-      <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubPage /></Suspense>} />
-      <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><HubLoginPage /></Suspense>} />
+      <Route path="/hub" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubPage /></Suspense>} />
+      <Route path="/hub/login" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><HubLoginPage /></Suspense>} />
 
       {/* ============================================ */}
       {/* EMPLOYEE PORTAL — Operational Workspace       */}
       {/* ============================================ */}
-      <Route path="/employee" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,6%)]" />}><EmployeeProtectedRoute /></Suspense>}>
+      <Route path="/employee" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><EmployeeProtectedRoute /></Suspense>}>
         <Route element={<Suspense fallback={null}><EmployeeAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><EmployeeDashboard /></Suspense>} />
@@ -778,7 +778,7 @@ const AppRoutes = () => {
       {/* ============================================ */}
       {/* FIELD PORTAL — Field Sales Workspace          */}
       {/* ============================================ */}
-      <Route path="/field" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(225,20%,5%)]" />}><FieldProtectedRoute /></Suspense>}>
+      <Route path="/field" element={<Suspense fallback={<div className="min-h-screen bg-white" />}><FieldProtectedRoute /></Suspense>}>
         <Route element={<Suspense fallback={null}><FieldAppLayout /></Suspense>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Suspense fallback={null}><FieldDashboard /></Suspense>} />

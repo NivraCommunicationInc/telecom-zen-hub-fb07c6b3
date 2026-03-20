@@ -77,7 +77,7 @@ export function NotificationBell({ basePath }: NotificationBellProps) {
 
       <DropdownMenuContent
         align="end"
-        className="w-96 bg-slate-900 border-slate-700 text-slate-100"
+        className="w-96 bg-white border-gray-200 text-gray-900 shadow-lg"
       >
         <DropdownMenuLabel className="flex items-center justify-between py-3">
           <span className="text-base font-semibold">Notifications</span>

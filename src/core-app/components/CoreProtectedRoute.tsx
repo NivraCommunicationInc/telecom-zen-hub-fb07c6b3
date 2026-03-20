@@ -69,12 +69,12 @@ export default function CoreProtectedRoute() {
 
   if (state === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,8%)]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 rounded-lg bg-emerald-600 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-lg bg-green-500 flex items-center justify-center">
             <Terminal className="h-5 w-5 text-white animate-pulse" />
           </div>
-          <p className="text-sm text-[hsl(220,10%,50%)]">Vérification de la session…</p>
+          <p className="text-sm text-[#374151]">Vérification de la session…</p>
         </div>
       </div>
     );
