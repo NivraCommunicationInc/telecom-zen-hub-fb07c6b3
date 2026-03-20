@@ -476,25 +476,26 @@ export function StripeInlinePayment({
         if (data?.error) throw new Error(data.error);
         if (!data?.client_secret) throw new Error("Aucun client_secret Stripe retourné");
 
-        const checkoutMode: StripeMode = "test";
-
-        if (data?.livemode) {
-          throw new Error(
-            "Incohérence Stripe détectée: PaymentIntent live reçu, mais le checkout public est forcé en mode test."
-          );
-        }
-
         const resolvedPublishableKey = getStripePublishableKey();
         const resolvedKeyMode = getStripePublishableKeyMode(resolvedPublishableKey);
 
-        if (resolvedKeyMode !== "test") {
+        if (resolvedKeyMode === "invalid") {
+          throw new Error("Configuration Stripe invalide: clé publique non reconnue.");
+        }
+
+        // Enforce mode alignment: frontend key mode must match backend PaymentIntent mode
+        const isLivePI = !!data?.livemode;
+        const isLiveKey = resolvedKeyMode === "live";
+        if (isLivePI !== isLiveKey) {
           throw new Error(
-            `Configuration Stripe invalide: la clé publique du checkout doit être pk_test_, reçu ${resolvedKeyMode}.`
+            `Incohérence Stripe: PaymentIntent ${isLivePI ? "live" : "test"} reçu avec clé publique ${resolvedKeyMode}. Les modes doivent correspondre.`
           );
         }
 
+        const checkoutMode: StripeMode = resolvedKeyMode;
+
         console.info("[StripeInlinePayment] Stripe mode alignment", {
-          paymentIntentMode: checkoutMode,
+          mode: checkoutMode,
           publishablePrefix: resolvedPublishableKey.slice(0, 8),
         });
 
