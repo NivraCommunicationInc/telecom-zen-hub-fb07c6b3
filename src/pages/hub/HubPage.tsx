@@ -4,7 +4,7 @@
  * User picks a workspace → redirected to /hub/login?portal=xxx → auth + MFA → portal.
  */
 import { useNavigate } from "react-router-dom";
-import { Terminal, Briefcase, MapPin, Wrench, Shield, ChevronRight } from "lucide-react";
+import { Terminal, Briefcase, MapPin, Shield, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PortalOption {
@@ -44,15 +44,6 @@ const PORTALS: PortalOption[] = [
     color: "text-amber-400",
     bgColor: "bg-amber-600/10",
     borderColor: "border-amber-600/20 hover:border-amber-500/40",
-  },
-  {
-    id: "technician",
-    label: "Nivra Technician",
-    description: "Espace technicien — Installations, équipements, interventions terrain.",
-    icon: Wrench,
-    color: "text-purple-400",
-    bgColor: "bg-purple-600/10",
-    borderColor: "border-purple-600/20 hover:border-purple-500/40",
   },
 ];
 
