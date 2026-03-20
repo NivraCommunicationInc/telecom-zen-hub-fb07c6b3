@@ -1,724 +1,265 @@
 /**
- * Nivra Invoice Template V3.0 — TELUS-Grade
+ * Nivra Invoice Template V4.0 — LOCKED PRODUCTION (2026-03-20)
  * 
- * Unified template for both MONTHLY and ONETIME invoices.
- * Matches Canadian telecom operator standards (TELUS/Bell/Rogers style).
- * 
- * Layout:
+ * Approved canonical layout:
  * ┌─────────────────────────────────────────────┐
- * │ NAVY HEADER: NIVRA COMMUNICATIONS INC.      │
- * │ Teal accent bar                              │
+ * │ BLUE HEADER: NIVRA TELECOM   No XXXXXXX    │
+ * │ FACTURE                                     │
  * ├─────────────────────────────────────────────┤
- * │ [FACTURÉ À]          [DÉTAILS FACTURE]      │
- * │  Client info           Account#, Invoice#   │
- * │  Billing addr          Order#, Dates        │
- * │  Service addr          Status               │
+ * │ Client info          Adresse de service     │
+ * │ Compte / Commande                           │
+ * │ Date facturation     Date echeance          │
+ * │ Periode                                     │
  * ├─────────────────────────────────────────────┤
- * │ DÉTAIL DES SERVICES                         │
- * │ ┌──────┬──────────┬────┬──────┬──────┐     │
- * │ │Desc  │ Période  │Qté │P.U.  │Total │     │
- * │ ├──────┼──────────┼────┼──────┼──────┤     │
- * │ │...   │          │    │      │      │     │
- * │ └──────┴──────────┴────┴──────┴──────┘     │
+ * │ Description | Type | Montant (table)        │
  * ├─────────────────────────────────────────────┤
- * │                    Sous-total    XXX.XX $   │
- * │                    TPS (5%)       XX.XX $   │
- * │                    TVQ (9.975%)   XX.XX $   │
- * │                    ████████████████████████ │
- * │                    █ TOTAL DÛ    XXX.XX $ █ │
- * │                    ████████████████████████ │
+ * │ Sous-total / TPS / TVQ / TOTAL              │
+ * │ Montant paye / Solde / STATUT               │
  * ├─────────────────────────────────────────────┤
- * │ REÇU DE PAIEMENT / INSTRUCTIONS PAIEMENT   │
- * ├─────────────────────────────────────────────┤
- * │ NAVY FOOTER: Legal, NEQ, TPS, TVQ          │
+ * │ Footer: Nivra Telecom Inc. | TPS | TVQ      │
  * └─────────────────────────────────────────────┘
  */
 
 import jsPDF from "jspdf";
 import type { InvoiceDataV2, PDFGenerationResult } from "./types";
-import { NIVRA, TAX, PDF_THEME } from "./companyInfo";
-import {
-  assertPrintableText,
-  sanitizeCustomerData,
-  sanitizePaymentData,
-  sanitizeDescription,
-} from "./pdfTextSanitizer";
+import { NIVRA, TAX } from "./companyInfo";
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-const C = PDF_THEME;
-
-const fmt = (amount: number): string => {
-  return new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
-};
-
-/** For critical fields that MUST be present on the document */
-const critical = (value: string | undefined | null, fieldName: string): string => {
-  if (!value || value === "—" || value === "N/A" || value.trim() === "") {
-    console.warn(`[InvoiceV3] Champ critique manquant: ${fieldName}`);
-    return "Non fourni par le client";
-  }
-  return value;
-};
+const fmt = (amount: number): string =>
+  new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 2 }).format(amount || 0);
 
 const fmtDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return "—";
   if (dateStr.includes("DATE_") || dateStr.includes("PERIODE")) return dateStr;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" });
-};
-
-const fmtShortDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("fr-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const ymd = String(dateStr).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
+    return `${d.getDate()} ${d.toLocaleString("fr-CA", { month: "long" })} ${d.getFullYear()}`;
+  }
+  return "—";
 };
 
 const fmtStatus = (status: string): string => {
   const map: Record<string, string> = {
-    paid: "Payée", Paid: "Payée",
-    paid_by_promo: "Payée (promo)", 
-    pending: "En attente", Pending: "En attente",
-    unpaid: "Non payée", Unpaid: "Non payée",
-    partially_paid: "Partiellement payée",
-    Issued: "Émise", cancelled: "Annulée", Cancelled: "Annulée",
-    expired: "Expirée", Expired: "Expirée", void: "Annulée",
-    overdue: "Renouvellement requis", not_renewed: "Non renouvelée",
+    paid: "PAYEE", Paid: "PAYEE", pending: "EN ATTENTE", overdue: "EN RETARD",
+    cancelled: "ANNULEE", void: "ANNULEE",
   };
-  return map[status] || status;
+  return map[status] || status.toUpperCase();
 };
 
-const fmtPayMethod = (m: string): string => {
+const typeLabel = (cat: string): string => {
   const map: Record<string, string> = {
-    PayPal: "PayPal", paypal: "PayPal", Interac: "Virement Interac",
-    interac: "Virement Interac", e_transfer: "Virement Interac",
-    "Credit Card": "Carte de crédit", card: "Carte de crédit",
-    cash: "Comptant", Manual: "Manuel",
+    Internet: "Service", Mobile: "Service", TV: "Service", Security: "Service",
+    Equipment: "Equipement", Fees: "Frais",
   };
-  return map[m] || m;
+  return map[cat] || cat;
 };
 
 // ============================================================================
-// PAGE HELPERS
+// CANONICAL HEADER — Nivra Green/Blue header with document number
 // ============================================================================
 
-function drawNivraHeader(doc: jsPDF, docType: string) {
+function drawCanonicalHeader(doc: jsPDF, title: string, docNumber: string, color: [number, number, number]) {
   const pw = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...color);
+  doc.rect(0, 0, pw, 40, "F");
 
-  // Navy header
-  doc.setFillColor(...C.navy);
-  doc.rect(0, 0, pw, 32, "F");
-
-  // Teal accent line
-  doc.setFillColor(...C.teal);
-  doc.rect(0, 32, pw, 2, "F");
-
-  // Company name
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...C.white);
-  doc.text(NIVRA.legalName, 15, 12);
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text("NIVRA TELECOM", 15, 16);
 
-  // Division
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(180, 190, 210);
-  doc.text(NIVRA.division, 15, 18);
-  doc.text(NIVRA.tagline, 15, 23);
-  doc.text(`${NIVRA.address} | ${NIVRA.email}`, 15, 28);
+  doc.setFontSize(11);
+  doc.text(title, 15, 28);
 
-  // Document type badge
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(...C.teal);
-  doc.text(docType, pw - 15, 14, { align: "right" });
-
-  // NEQ line
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(160, 170, 190);
-  doc.text(`NEQ: ${NIVRA.neq} | ${NIVRA.tpsLabel} | ${NIVRA.tvqLabel}`, pw - 15, 22, { align: "right" });
+  doc.setFontSize(12);
+  doc.text(`No ${docNumber}`, pw - 15, 18, { align: "right" });
 }
 
-function drawNivraFooter(doc: jsPDF, pageNum: number, totalPages: number) {
+function drawCanonicalFooter(doc: jsPDF) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const footerH = 38;
-  const footerY = ph - footerH;
-
-  // Navy footer bar
-  doc.setFillColor(...C.navy);
-  doc.rect(0, footerY, pw, footerH, "F");
-
-  // Teal accent on top
-  doc.setFillColor(...C.teal);
-  doc.rect(0, footerY, pw, 1.5, "F");
-
-  doc.setTextColor(...C.white);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.text("POLITIQUE DE FACTURATION PRÉPAYÉE", 15, footerY + 6);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
-
-  const lines = [
-    "Le cycle de facturation commence à la date de confirmation du paiement (Interac/PayPal/Carte). Les services sont facturés à l'avance.",
-    "Le paiement doit être confirmé AVANT la date de cycle (J0). Si non payé à J0, le service n'est pas renouvelé (Expiré).",
-    "Aucun intérêt ni frais de réactivation pour non-renouvellement normal. Après 90 jours, le numéro peut devenir irrécupérable.",
-    "Intérêt (5%/mois) + 15$ frais de réactivation s'appliquent UNIQUEMENT pour litiges bancaires/rétrofacturations.",
-    "Garantie équipement: 12 mois fabricant dès activation. Perte/vol/dommages client exclus sauf approbation interne.",
-  ];
-
-  let ly = footerY + 11;
-  lines.forEach(l => { doc.text(l, 15, ly); ly += 3.2; });
-
-  // Page number
   doc.setFontSize(7);
-  doc.text(`${NIVRA.legalName} — Page ${pageNum}/${totalPages}`, pw - 15, ph - 4, { align: "right" });
+  doc.setTextColor(120, 120, 120);
+  doc.text(
+    `${NIVRA.tradeName} Inc. | ${NIVRA.email} | ${NIVRA.website}`,
+    pw / 2, ph - 18, { align: "center" }
+  );
+  doc.text(
+    `${NIVRA.tpsLabel} | ${NIVRA.tvqLabel}`,
+    pw / 2, ph - 13, { align: "center" }
+  );
+}
+
+function drawClientBlock(doc: jsPDF, data: {
+  name: string; email: string; phone?: string; address?: string;
+  city?: string; province?: string; postal?: string;
+  account: string; orderNum?: string;
+}, y: number): number {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Client", 15, y);
+  doc.text("Adresse de service", 110, y);
+  y += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(data.name, 15, y);
+  if (data.address) doc.text(data.address, 110, y);
+  y += 5;
+  doc.text(data.email, 15, y);
+  if (data.city) {
+    doc.text(`${data.city}, ${data.province || "QC"} ${data.postal || ""}`, 110, y);
+  }
+  y += 5;
+  if (data.phone) { doc.text(data.phone, 15, y); y += 5; }
+
+  doc.setFontSize(8);
+  let idLine = `Compte: ${data.account}`;
+  if (data.orderNum) idLine += `  |  Commande: ${data.orderNum}`;
+  doc.text(idLine, 15, y);
+  y += 8;
+  return y;
 }
 
 // ============================================================================
-// MAIN GENERATOR V3
+// MAIN GENERATOR — Canonical Invoice PDF
 // ============================================================================
 
 export function generateInvoiceV3PDF(data: InvoiceDataV2): PDFGenerationResult {
   try {
-    // Validate
-    if (!data.invoice_number) return { success: false, error: "Numéro de facture manquant" };
-    if (!data.customer?.full_name || !data.customer?.email) return { success: false, error: "Informations client incomplètes" };
-    if (!data.items || data.items.length === 0) return { success: false, error: "Aucun item à facturer" };
-
-    const customer = sanitizeCustomerData(data.customer);
-    const isMonthly = data.invoice_type === "MONTHLY";
+    if (!data.invoice_number) return { success: false, error: "Numero de facture manquant" };
+    if (!data.customer?.full_name || !data.customer?.email) return { success: false, error: "Informations client incompletes" };
+    if (!data.items || data.items.length === 0) return { success: false, error: "Aucun item a facturer" };
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const pw = doc.internal.pageSize.getWidth();
-    const ph = doc.internal.pageSize.getHeight();
-    const m = 15;
-    const cw = pw - m * 2;
-    const footerH = 38;
-    const maxY = ph - footerH - 5;
 
-    // ========================================================================
-    // PAGE 1: HEADER
-    // ========================================================================
-    drawNivraHeader(doc, "FACTURE");
+    // Header — Blue
+    drawCanonicalHeader(doc, "FACTURE", data.invoice_number, [30, 64, 120]);
 
-    let y = 40;
+    // Client block
+    let y = drawClientBlock(doc, {
+      name: data.customer.full_name,
+      email: data.customer.email,
+      phone: data.customer.phone,
+      address: data.customer.address_line1,
+      city: data.customer.city,
+      province: data.customer.province,
+      postal: data.customer.postal_code,
+      account: data.account_number,
+      orderNum: undefined,
+    }, 50);
 
-    // ========================================================================
-    // TWO-COLUMN: CLIENT INFO + INVOICE DETAILS
-    // ========================================================================
-    const colW = (cw - 8) / 2;
-    const boxH = 65;
-
-    // --- LEFT: Client Info ---
-    doc.setFillColor(...C.lightBg);
-    doc.roundedRect(m, y, colW, boxH, 2, 2, "F");
-    doc.setFillColor(...C.teal);
-    doc.rect(m, y, 3, boxH, "F");
-
-    let ly = y + 8;
-    doc.setFont("helvetica", "bold");
+    // Dates
     doc.setFontSize(9);
-    doc.setTextColor(...C.navy);
-    doc.text("FACTURÉ À", m + 7, ly);
-    ly += 7;
-
-    const drawField = (label: string, value: string, isCritical = false) => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(...C.textMuted);
-      doc.text(label, m + 7, ly);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.text);
-      const displayVal = isCritical ? critical(value, label) : assertPrintableText(value || "—", label);
-      doc.text(displayVal.substring(0, 35), m + 35, ly);
-      ly += 5.5;
-    };
-
-    drawField("Nom", customer.full_name, true);
-    drawField("Courriel", customer.email, true);
-    drawField("Téléphone", customer.phone, true);
-
-    // Billing address
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(...C.textMuted);
-    doc.text("Adresse fact.", m + 7, ly);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.text);
-    const addr1 = critical(customer.address_line1, "address_line1");
-    doc.text(addr1.substring(0, 35), m + 35, ly);
-    ly += 4.5;
-    const cityLine = `${critical(customer.city, "city")}, ${customer.province || "QC"} ${customer.postal_code || ""}`.trim();
-    doc.text(cityLine.substring(0, 35), m + 35, ly);
-    ly += 6;
-
-    // Service address (if different)
-    const serviceAddr = data.items[0]?.service_address;
-    if (serviceAddr && serviceAddr !== addr1) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(...C.textMuted);
-      doc.text("Adresse service", m + 7, ly);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(...C.text);
-      doc.text(assertPrintableText(serviceAddr, "service_address").substring(0, 35), m + 35, ly);
+    doc.text(`Date de facturation: ${fmtDate(data.invoice_date)}`, 15, y);
+    doc.text(`Date d'echeance: ${fmtDate(data.due_date)}`, 110, y);
+    y += 6;
+    if (data.billing_period_start && data.billing_period_end) {
+      doc.text(`Periode: ${fmtDate(data.billing_period_start)} au ${fmtDate(data.billing_period_end)}`, 15, y);
+      y += 6;
     }
-
-    // --- RIGHT: Invoice Details ---
-    const rx = m + colW + 8;
-    doc.setFillColor(...C.lightBg);
-    doc.roundedRect(rx, y, colW, boxH, 2, 2, "F");
-    doc.setFillColor(...C.blue);
-    doc.rect(rx, y, 3, boxH, "F");
-
-    let ry = y + 8;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...C.navy);
-    doc.text("DÉTAILS FACTURE", rx + 7, ry);
-    ry += 7;
-
-    const drawRightField = (label: string, value: string, highlight = false) => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.setTextColor(...C.textMuted);
-      doc.text(label, rx + 7, ry);
-      doc.setFont("helvetica", highlight ? "bold" : "normal");
-      doc.setFontSize(highlight ? 9 : 8);
-      doc.setTextColor(...(highlight ? C.blue : C.text));
-      doc.text(assertPrintableText(value || "—", label).substring(0, 25), rx + 42, ry);
-      ry += 5.5;
-    };
-
-    drawRightField("N° compte", critical(data.account_number, "account_number"));
-    drawRightField("N° facture", critical(data.invoice_number, "invoice_number"));
-
-    // Order number (if available in items reference or data)
-    const orderNum = (data as any).order_number || data.items[0]?.reference || "";
-    if (orderNum) {
-      drawRightField("N° commande", orderNum);
-    }
-
-    drawRightField("Émission", fmtDate(data.invoice_date));
-    drawRightField("Échéance", fmtDate(data.due_date));
-
-    if (isMonthly && data.billing_period_start && data.billing_period_end) {
-      drawRightField("Période", `${fmtShortDate(data.billing_period_start)} → ${fmtShortDate(data.billing_period_end)}`);
-    }
-
-    // Status badge
-    const statusLabel = fmtStatus(data.status);
-    const isPaidStatus = data.status?.toLowerCase() === "paid" || String(data.status) === "paid_by_promo";
-    const isPartial = data.status?.toLowerCase() === "partially_paid";
-    const badgeColor: [number, number, number] = isPaidStatus ? C.success : isPartial ? C.warning : C.error;
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(...C.textMuted);
-    doc.text("Statut", rx + 7, ry);
-    // Draw status badge
-    const badgeW = doc.getTextWidth(statusLabel) + 6;
-    doc.setFillColor(...badgeColor);
-    doc.roundedRect(rx + 42, ry - 3.5, badgeW, 5, 1, 1, "F");
-    doc.setTextColor(...C.white);
-    doc.setFontSize(7);
-    doc.text(statusLabel, rx + 45, ry);
-    ry += 5.5;
-
-    drawRightField("Total dû", fmt(data.balance_due), true);
-
-    y = y + boxH + 8;
-
-    // ========================================================================
-    // STRUCTURED SECTIONS — separate recurring, one-time, discounts
-    // ========================================================================
-
-    // Categorize items from canonical data (NO recalculation)
-    const recurringItems = data.items.filter(i => i.is_recurring);
-    const onetimeItems = data.items.filter(i => !i.is_recurring);
-
-    // Helper: draw a section header with teal accent
-    const drawSectionHeader = (title: string) => {
-      if (y > maxY - 30) {
-        drawNivraFooter(doc, 1, 2);
-        doc.addPage();
-        drawNivraHeader(doc, "FACTURE (suite)");
-        y = 40;
-      }
-      doc.setFillColor(...C.lightBg);
-      doc.rect(m, y, cw, 7, "F");
-      doc.setFillColor(...C.teal);
-      doc.rect(m, y, 3, 7, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...C.navy);
-      doc.text(title, m + 7, y + 5);
-      y += 10;
-    };
-
-    // Helper: draw table header row
-    const drawTableHeader = (periodLabel: string) => {
-      doc.setFillColor(...C.navy);
-      doc.rect(m, y, cw, 7, "F");
-      doc.setTextColor(...C.white);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      const colDef = [
-        { label: "Description", x: m + 3 },
-        { label: periodLabel, x: m + 78 },
-        { label: "Qté", x: m + 115 },
-        { label: "P.U.", x: m + 129 },
-        { label: "Montant", x: m + 153 },
-      ];
-      colDef.forEach(c => doc.text(c.label, c.x, y + 5));
-      y += 9;
-    };
-
-    // Helper: draw an item row
-    const drawItemRow = (item: typeof data.items[0], rowIndex: number, periodField: string) => {
-      if (y > maxY - 20) {
-        drawNivraFooter(doc, 1, 2);
-        doc.addPage();
-        drawNivraHeader(doc, "FACTURE (suite)");
-        y = 40;
-      }
-      const rowH = item.reference ? 11 : 8;
-      if (rowIndex % 2 === 0) {
-        doc.setFillColor(250, 250, 252);
-        doc.rect(m, y - 1, cw, rowH, "F");
-      }
-      const desc = sanitizeDescription(item.description);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.text);
-      doc.text(desc.substring(0, 48), m + 3, y + 4);
-      if (item.category) {
-        doc.setFontSize(6);
-        doc.setTextColor(...C.teal);
-        doc.text(`[${item.category}]`, m + 3 + doc.getTextWidth(desc.substring(0, 48)) + 2, y + 4);
-      }
-      doc.setFontSize(7);
-      doc.setTextColor(...C.textMuted);
-      doc.text((periodField || "—").substring(0, 22), m + 78, y + 4);
-      doc.setTextColor(...C.text);
-      doc.setFontSize(8);
-      doc.text(String(item.qty), m + 115, y + 4);
-      doc.text(fmt(item.unit_price), m + 129, y + 4);
-      doc.setFont("helvetica", "bold");
-      doc.text(fmt(item.amount), m + 153, y + 4);
-      if (item.reference && isMonthly) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(...C.textMuted);
-        doc.text(`Réf.: ${assertPrintableText(item.reference, "ref")}`, m + 3, y + 8.5);
-      }
-      y += rowH;
-    };
-
-    // Helper: draw section subtotal line
-    const drawSectionSubtotal = (label: string, amount: number) => {
-      doc.setDrawColor(...C.border);
-      doc.line(m, y, m + cw, y);
-      y += 2;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.navy);
-      doc.text(label, m + cw - 85, y + 4);
-      doc.text(fmt(amount), m + cw - 2, y + 4, { align: "right" });
-      y += 8;
-    };
-
-    // ────────────────────────────────────────────────────────────
-    // SECTION 1: MONTHLY / RECURRING SERVICES
-    // ────────────────────────────────────────────────────────────
-    if (recurringItems.length > 0) {
-      drawSectionHeader("SECTION A — SERVICES MENSUELS RÉCURRENTS");
-      drawTableHeader("Période");
-      recurringItems.forEach((item, i) => {
-        const period = item.period || (data.billing_period_start && data.billing_period_end
-          ? `${fmtShortDate(data.billing_period_start)} → ${fmtShortDate(data.billing_period_end)}`
-          : "—");
-        drawItemRow(item, i, period);
-      });
-      if (data.subtotal_monthly !== undefined) {
-        drawSectionSubtotal("Sous-total services mensuels", data.subtotal_monthly);
-      }
-    }
-
-    // ────────────────────────────────────────────────────────────
-    // SECTION 2: ONE-TIME FEES (equipment, activation, delivery…)
-    // ────────────────────────────────────────────────────────────
-    if (onetimeItems.length > 0) {
-      drawSectionHeader("SECTION B — FRAIS UNIQUES");
-      drawTableHeader("Réf.");
-      onetimeItems.forEach((item, i) => {
-        drawItemRow(item, i, item.reference || "—");
-      });
-      if (data.subtotal_onetime !== undefined) {
-        drawSectionSubtotal("Sous-total frais uniques", data.subtotal_onetime);
-      }
-    }
-
-    // If no items at all (shouldn't happen but safety)
-    if (recurringItems.length === 0 && onetimeItems.length === 0) {
-      drawSectionHeader("DÉTAIL DES SERVICES ET FRAIS");
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(8);
-      doc.setTextColor(...C.textMuted);
-      doc.text("Aucun item à facturer.", m + 7, y + 4);
-      y += 10;
-    }
-
-    // ────────────────────────────────────────────────────────────
-    // SECTION 3: PROMOTIONS / DISCOUNTS
-    // ────────────────────────────────────────────────────────────
-    if (data.discounts && data.discounts.length > 0) {
-      drawSectionHeader("SECTION C — PROMOTIONS ET RABAIS");
-      data.discounts.forEach((d, i) => {
-        if (y > maxY - 15) {
-          drawNivraFooter(doc, 1, 2);
-          doc.addPage();
-          drawNivraHeader(doc, "FACTURE (suite)");
-          y = 40;
-        }
-        if (i % 2 === 0) {
-          doc.setFillColor(250, 250, 252);
-          doc.rect(m, y - 1, cw, 8, "F");
-        }
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(...C.text);
-        doc.text(assertPrintableText(d.label, "discount"), m + 3, y + 4);
-        if (d.applies_to) {
-          doc.setFontSize(6);
-          doc.setTextColor(...C.textMuted);
-          doc.text(`(sur ${d.applies_to})`, m + 3 + doc.getTextWidth(d.label) + 3, y + 4);
-        }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.setTextColor(...C.success);
-        doc.text(`- ${fmt(d.amount)}`, m + cw - 2, y + 4, { align: "right" });
-        y += 8;
-      });
-      y += 3;
-    }
-
-    // ────────────────────────────────────────────────────────────
-    // END OF PAGE 1 — Note + minimal footer
-    // ────────────────────────────────────────────────────────────
-    // Page 1 note: "Suite en page 2"
     y += 4;
-    doc.setDrawColor(...C.border);
-    doc.line(m, y, m + cw, y);
-    y += 5;
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.textMuted);
-    doc.text("Suite en page 2 — Sommaire financier et informations de paiement", pw / 2, y + 3, { align: "center" });
 
-    // Page 1 minimal footer (no billing policy — just branding)
-    const footerY1 = ph - 12;
-    doc.setFillColor(...C.navy);
-    doc.rect(0, footerY1, pw, 12, "F");
-    doc.setFillColor(...C.teal);
-    doc.rect(0, footerY1, pw, 1, "F");
-    doc.setTextColor(...C.white);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.text(`${NIVRA.legalName} — ${NIVRA.address}`, 15, footerY1 + 7);
-    doc.text("Page 1/2", pw - 15, footerY1 + 7, { align: "right" });
-
-    // ════════════════════════════════════════════════════════════
-    // PAGE 2: Financial summary + Payment + Policy
-    // ════════════════════════════════════════════════════════════
-    doc.addPage();
-    drawNivraHeader(doc, "FACTURE");
-    y = 40;
-
-    // Page 2 subtitle
+    // Items table
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...C.navy);
-    doc.text("SOMMAIRE FINANCIER", m, y + 4);
+    doc.setFontSize(9);
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, 170, 7, "F");
+    doc.setTextColor(0, 0, 0);
+    doc.text("Description", 17, y + 5);
+    doc.text("Type", 130, y + 5);
+    doc.text("Montant", 180, y + 5, { align: "right" });
+    y += 8;
+
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...C.textMuted);
-    doc.text(`Facture N° ${critical(data.invoice_number, "invoice_number")} — Compte ${critical(data.account_number, "account_number")}`, m, y + 11);
-    y += 18;
+    doc.setFontSize(9);
 
-    // ── Financial summary box ──
-    const summaryBoxH = 82;
-    doc.setFillColor(...C.lightBg);
-    doc.roundedRect(m, y, cw, summaryBoxH, 3, 3, "F");
-    doc.setFillColor(...C.teal);
-    doc.rect(m, y, 3, summaryBoxH, "F");
-
-    let sy = y + 8;
-    const lx = m + 10;
-    const vx = m + cw - 12;
-
-    const drawSummaryLine = (label: string, value: string, opts: { bold?: boolean; color?: [number, number, number]; size?: number } = {}) => {
-      doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-      doc.setFontSize(opts.size || 9);
-      doc.setTextColor(...(opts.color || C.text));
-      doc.text(label, lx, sy);
-      doc.text(value, vx, sy, { align: "right" });
-      sy += 7;
-    };
-
-    // Structured subtotals
-    if (data.subtotal_monthly !== undefined && data.subtotal_monthly > 0) {
-      drawSummaryLine("Services mensuels récurrents", fmt(data.subtotal_monthly));
-    }
-    if (data.subtotal_onetime !== undefined && data.subtotal_onetime > 0) {
-      drawSummaryLine("Frais uniques (équipement + activation)", fmt(data.subtotal_onetime));
+    // Render items
+    for (const item of data.items) {
+      doc.setTextColor(0, 0, 0);
+      doc.text(item.description, 17, y + 4);
+      doc.text(typeLabel(item.category), 130, y + 4);
+      doc.text(fmt(item.amount), 180, y + 4, { align: "right" });
+      doc.setDrawColor(230, 230, 230);
+      doc.line(15, y + 6, 185, y + 6);
+      y += 7;
     }
 
     // Discounts
     if (data.discounts && data.discounts.length > 0) {
-      const totalDiscount = data.discounts.reduce((sum, d) => sum + d.amount, 0);
-      drawSummaryLine(
-        data.discounts.length === 1 ? data.discounts[0].label : "Rabais / promotions",
-        `- ${fmt(totalDiscount)}`,
-        { color: C.success }
-      );
-    }
-
-    // Separator
-    sy += 1;
-    doc.setDrawColor(...C.border);
-    doc.line(lx, sy, vx, sy);
-    sy += 5;
-
-    drawSummaryLine("Sous-total avant taxes", fmt(data.subtotal), { bold: true });
-    drawSummaryLine(`TPS (${(data.taxes.gst_rate * 100).toFixed(0)}%)`, fmt(data.taxes.gst_amount));
-    drawSummaryLine(`TVQ (${(data.taxes.qst_rate * 100).toFixed(3).replace(".", ",")}%)`, fmt(data.taxes.qst_amount));
-
-    // Separator
-    sy += 1;
-    doc.setDrawColor(...C.border);
-    doc.line(lx, sy, vx, sy);
-    sy += 5;
-
-    drawSummaryLine("Total de la facture", fmt(data.total), { bold: true, size: 10 });
-
-    y = y + summaryBoxH + 10;
-
-    // ── Payment information box ──
-    if (data.payments && data.payments.length > 0) {
-      const confirmedPayments = data.payments.filter(p =>
-        ["Confirmed", "confirmed", "Captured", "captured", "completed"].includes(p.status)
-      );
-      if (confirmedPayments.length > 0) {
-        const payBoxH = 8 + confirmedPayments.length * 24 + 4;
-        doc.setFillColor(240, 253, 244);
-        doc.setDrawColor(187, 247, 208);
-        doc.setLineWidth(0.5);
-        doc.roundedRect(m, y, cw, payBoxH, 3, 3, "FD");
-        doc.setLineWidth(0.2);
-        doc.setFillColor(...C.success);
-        doc.rect(m, y, 3, payBoxH, "F");
-
-        let py2 = y + 8;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(...C.navy);
-        doc.text("INFORMATIONS DE PAIEMENT", m + 10, py2);
-        py2 += 8;
-
-        for (const p of confirmedPayments) {
-          const pData = sanitizePaymentData(p);
-          const drawPayField = (label: string, value: string) => {
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(7.5);
-            doc.setTextColor(...C.textMuted);
-            doc.text(label, m + 10, py2);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(8.5);
-            doc.setTextColor(...C.text);
-            doc.text(value, m + 55, py2);
-            py2 += 6;
-          };
-          drawPayField("Montant payé", fmt(pData.paid_amount));
-          drawPayField("Méthode", fmtPayMethod(pData.method));
-          drawPayField("Date", fmtDate(pData.paid_at));
-          if (pData.payment_reference && pData.payment_reference !== "—") {
-            drawPayField("Référence", assertPrintableText(pData.payment_reference, "ref"));
-          }
-        }
-        y += payBoxH + 8;
+      for (const d of data.discounts) {
+        doc.setTextColor(0, 128, 0);
+        doc.text(d.label, 17, y + 4);
+        doc.text("Rabais", 130, y + 4);
+        doc.text(fmt(-d.amount), 180, y + 4, { align: "right" });
+        doc.setDrawColor(230, 230, 230);
+        doc.line(15, y + 6, 185, y + 6);
+        y += 7;
       }
-    } else if (data.payments_total && data.payments_total > 0) {
-      const payBoxH = 36;
-      doc.setFillColor(240, 253, 244);
-      doc.setDrawColor(187, 247, 208);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(m, y, cw, payBoxH, 3, 3, "FD");
-      doc.setLineWidth(0.2);
-      doc.setFillColor(...C.success);
-      doc.rect(m, y, 3, payBoxH, "F");
-
-      let py2 = y + 8;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...C.navy);
-      doc.text("INFORMATIONS DE PAIEMENT", m + 10, py2);
-      py2 += 8;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(...C.text);
-      doc.text(`Paiements reçus: ${fmt(data.payments_total)}`, m + 10, py2);
-      y += payBoxH + 8;
     }
 
-    // ── Balance box ──
-    doc.setFillColor(...C.navy);
-    doc.roundedRect(m, y, cw, 14, 3, 3, "F");
-    doc.setTextColor(...C.white);
+    doc.setTextColor(0, 0, 0);
+    y += 6;
+
+    // Totals block (right-aligned)
+    const tx = 120;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Sous-total", tx, y); doc.text(fmt(data.subtotal), 180, y, { align: "right" }); y += 6;
+    doc.text(`TPS (5%)`, tx, y); doc.text(fmt(data.taxes.gst_amount), 180, y, { align: "right" }); y += 6;
+    doc.text(`TVQ (9,975%)`, tx, y); doc.text(fmt(data.taxes.qst_amount), 180, y, { align: "right" }); y += 8;
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("SOLDE À PAYER", m + 10, y + 9.5);
-    doc.text(fmt(data.balance_due), m + cw - 12, y + 9.5, { align: "right" });
-    y += 22;
+    doc.text("TOTAL", tx, y); doc.text(fmt(data.total), 180, y, { align: "right" }); y += 10;
 
-    // ── Thank you note ──
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...C.textMuted);
-    const footerNote = data.balance_due === 0
-      ? "Merci de votre confiance. Un reçu de paiement distinct a été émis pour vos dossiers."
-      : `Pour effectuer votre paiement : ${NIVRA.email} — Réf. facture: ${data.invoice_number}`;
-    doc.text(footerNote, m, y + 3);
+    // Payment status
+    const totalPaid = data.payments_total ?? data.payments?.reduce((s, p) => s + p.paid_amount, 0) ?? 0;
+    if (totalPaid > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 128, 0);
+      doc.text("Montant paye", tx, y); doc.text(fmt(totalPaid), 180, y, { align: "right" }); y += 7;
+      doc.text("Solde", tx, y); doc.text(fmt(data.balance_due), 180, y, { align: "right" }); y += 8;
 
-    // ========================================================================
-    // PAGE 2 FOOTER — with billing policy
-    // ========================================================================
-    drawNivraFooter(doc, 2, 2);
+      // Status badge
+      doc.setFontSize(8);
+      doc.setFillColor(220, 255, 220);
+      doc.rect(tx, y, 65, 6, "F");
+      doc.setTextColor(0, 100, 0);
+      doc.text(`STATUT: ${fmtStatus(data.status)}`, tx + 32.5, y + 4.5, { align: "center" });
+    }
 
-    // Generate
+    doc.setTextColor(0, 0, 0);
+
+    // Footer
+    drawCanonicalFooter(doc);
+
     const blob = doc.output("blob");
-    const dateStr = data.invoice_date?.replace(/-/g, "") || "unknown";
-    const filename = `Facture_${data.invoice_number}_${dateStr}.pdf`;
-
-    return { success: true, blob, filename };
-  } catch (error) {
-    console.error("[InvoiceV3] Generation error:", error);
-    return { success: false, error: error instanceof Error ? error.message : "Erreur inconnue" };
+    return {
+      success: true,
+      blob,
+      filename: `Facture_${data.invoice_number}_Nivra.pdf`,
+    };
+  } catch (error: any) {
+    console.error("[InvoiceV4] Generation error:", error);
+    return { success: false, error: error?.message || "Erreur de generation" };
   }
 }
 
-// Backward-compatible wrappers
+// ============================================================================
+// CONVENIENCE EXPORTS (keep backward compat)
+// ============================================================================
+
 export function generateInvoiceMonthlyV3PDF(data: InvoiceDataV2): PDFGenerationResult {
   return generateInvoiceV3PDF({ ...data, invoice_type: "MONTHLY" });
 }
