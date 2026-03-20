@@ -837,7 +837,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: hsl(var(--admin-text-secondary));
+  color: hsl(240 4% 65%);  /* #A1A1AA — secondary */
   border-bottom: 2px solid hsl(var(--border));
   text-align: left;
   white-space: nowrap;
@@ -846,7 +846,7 @@
 .admin-dark table td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid hsl(var(--border) / 0.4);
-  color: hsl(var(--foreground));
+  color: hsl(0 0% 100%);  /* pure white — always readable */
   vertical-align: middle;
 }
 
