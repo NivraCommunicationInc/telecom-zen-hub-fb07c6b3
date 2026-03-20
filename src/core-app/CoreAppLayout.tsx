@@ -170,7 +170,7 @@ const STORAGE_KEY = "core_sidebar_groups_state";
 const CoreAppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { themeClass } = useInternalTheme();
+  const { theme, themeClass, toggleTheme } = useInternalTheme();
   const isDarkTheme = themeClass === "theme-dark";
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -383,7 +383,7 @@ const CoreAppLayout = () => {
           </span>
           <div className="flex items-center gap-3">
             <CoreGlobalSearch />
-            <InternalThemeToggle />
+            <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
               <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               Core Online
