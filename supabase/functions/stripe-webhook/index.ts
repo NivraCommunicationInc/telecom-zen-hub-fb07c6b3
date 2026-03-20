@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "npm:stripe@18";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { activateSubscriptionForOrder } from "../_shared/activateSubscriptionForOrder.ts";
 
 /**
  * ============================================================================
@@ -12,6 +13,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
  * MANUAL CAPTURE FLOW:
  * - payment_intent.amount_capturable_updated → Card authorized (hold placed)
  * - payment_intent.succeeded → Card captured (admin captured, or autopay)
+ *   ★ THIS IS THE CANONICAL TRIGGER FOR STRIPE SUBSCRIPTION CREATION
  * - checkout.session.completed → Checkout page completed
  *
  * Uses apply_payment_to_invoice RPC only for CAPTURED payments.
@@ -181,8 +183,7 @@ serve(async (req) => {
 
     // ─────────────────────────────────────────────────────────────
     // EVENT: payment_intent.amount_capturable_updated
-    // ★ NEW: Card authorized (hold placed), NOT yet captured
-    // This fires when capture_method=manual and card is authorized
+    // ★ Card authorized (hold placed), NOT yet captured
     // ─────────────────────────────────────────────────────────────
     if (event.type === "payment_intent.amount_capturable_updated") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
@@ -197,7 +198,6 @@ serve(async (req) => {
 
       console.log(`[stripe-webhook] payment_intent.amount_capturable_updated: PI=${paymentIntentId}, amount=${authorizedAmount}`);
 
-      // HARD LOCK: pre-confirmation checkout intents must NEVER create billable records.
       if (isCheckoutPreconfirm) {
         console.log(`[stripe-webhook] preconfirm authorization ignored for PI ${paymentIntentId}`);
         return new Response(
@@ -222,7 +222,6 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!existingPayment) {
-        // Create a pending/authorized payment record — NOT confirmed yet
         const { data: invoiceNumberData } = await supabase.rpc("generate_payment_number");
         const paymentNumber = invoiceNumberData || `PAY-${Date.now()}`;
 
@@ -246,7 +245,6 @@ serve(async (req) => {
 
         console.log(`[stripe-webhook] ✓ Authorization recorded for PI ${paymentIntentId}`);
       } else {
-        // Update existing record to authorized status
         await supabase.from("billing_payments").update({
           authorization_status: "authorized",
           authorized_amount: authorizedAmount,
@@ -275,7 +273,6 @@ serve(async (req) => {
 
     // ─────────────────────────────────────────────────────────────
     // EVENT: checkout.session.completed
-    // For Checkout Sessions — check if payment is captured or only authorized
     // ─────────────────────────────────────────────────────────────
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -319,8 +316,11 @@ serve(async (req) => {
 
     // ─────────────────────────────────────────────────────────────
     // EVENT: payment_intent.succeeded
-    // ★ Only fires when payment is CAPTURED (either admin capture or auto)
-    // In manual capture mode, this fires AFTER admin captures.
+    // ★ CANONICAL TRIGGER FOR STRIPE SUBSCRIPTION CREATION
+    // Fires when payment is CAPTURED:
+    //   - Admin manual capture → payment_intent.succeeded
+    //   - Portal auto-capture → payment_intent.succeeded
+    //   - Any other Stripe capture → payment_intent.succeeded
     // ─────────────────────────────────────────────────────────────
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
@@ -350,17 +350,55 @@ serve(async (req) => {
 
       console.log(`[stripe-webhook] payment_intent.succeeded: invoice=${invoiceId}, amount=${amountPaid}, pi=${paymentIntentId}`);
 
-      const result = await applyPayment(invoiceId, amountPaid, paymentIntentId, customerId, "payment_intent.succeeded");
+      // Step A: Apply payment (marks invoice as paid)
+      const paymentResult = await applyPayment(invoiceId, amountPaid, paymentIntentId, customerId, "payment_intent.succeeded");
+
+      // Step B: ★ ACTIVATE STRIPE SUBSCRIPTION (blocking for recurring orders)
+      // Extract payment method from the succeeded PI
+      const pmId = typeof paymentIntent.payment_method === "string"
+        ? paymentIntent.payment_method
+        : (paymentIntent.payment_method as any)?.id || undefined;
+
+      // Extract Stripe customer ID from PI
+      const stripeCustomerId = typeof paymentIntent.customer === "string"
+        ? paymentIntent.customer
+        : (paymentIntent.customer as any)?.id || undefined;
+
+      let subscriptionActivation: any = null;
+      try {
+        subscriptionActivation = await activateSubscriptionForOrder({
+          stripe,
+          supabase,
+          invoice_id: invoiceId,
+          payment_method_id: pmId,
+          stripe_customer_id: stripeCustomerId,
+          trigger_source: "stripe_webhook_pi_succeeded",
+        });
+
+        console.log(`[stripe-webhook] Subscription activation result: ${JSON.stringify({
+          activated: subscriptionActivation.activated,
+          skipped: subscriptionActivation.skipped,
+          stripe_setup_status: subscriptionActivation.stripe_setup_status,
+          stripe_subscription_id: subscriptionActivation.stripe_subscription_id || null,
+        })}`);
+      } catch (subErr: any) {
+        console.error(`[stripe-webhook] Subscription activation error: ${subErr.message}`);
+        subscriptionActivation = { activated: false, error: subErr.message, stripe_setup_status: "failed" };
+      }
 
       return new Response(
-        JSON.stringify({ received: true, invoice_id: invoiceId, ...result }),
+        JSON.stringify({
+          received: true,
+          invoice_id: invoiceId,
+          ...paymentResult,
+          subscription: subscriptionActivation,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // ─────────────────────────────────────────────────────────────
     // EVENT: payment_intent.canceled
-    // Authorization was cancelled (expired or admin cancelled)
     // ─────────────────────────────────────────────────────────────
     if (event.type === "payment_intent.canceled") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
@@ -400,8 +438,7 @@ serve(async (req) => {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // EVENT: customer.subscription.created
-    // Stripe Subscription was created — sync to Nivra DB
+    // EVENT: customer.subscription.created / updated
     // ─────────────────────────────────────────────────────────────
     if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated") {
       const subscription = event.data.object as Stripe.Subscription;
@@ -410,7 +447,6 @@ serve(async (req) => {
 
       console.log(`[stripe-webhook] ${event.type}: sub=${subscription.id}, status=${subscription.status}, order=${orderId}`);
 
-      // Find Nivra subscription by stripe_subscription_id
       const { data: nivraSub } = await supabase
         .from("billing_subscriptions")
         .select("id, customer_id")
@@ -429,14 +465,12 @@ serve(async (req) => {
           stripe_cancel_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
           stripe_canceled_at: subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : null,
           updated_at: new Date().toISOString(),
-          // Map Stripe status to Nivra status
           ...(subscription.status === "active" ? { status: "active" } : {}),
           ...(subscription.status === "past_due" ? { status: "past_due" } : {}),
           ...(subscription.status === "canceled" ? { status: "expired" } : {}),
           ...(subscription.status === "unpaid" ? { status: "suspended" } : {}),
         }).eq("id", nivraSub.id);
 
-        // Audit trail
         await supabase.from("billing_subscription_trace_audit").insert({
           subscription_id: nivraSub.id,
           customer_id: nivraSub.customer_id,
@@ -463,7 +497,6 @@ serve(async (req) => {
 
     // ─────────────────────────────────────────────────────────────
     // EVENT: customer.subscription.deleted
-    // Stripe Subscription cancelled/deleted — expire in Nivra
     // ─────────────────────────────────────────────────────────────
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as Stripe.Subscription;
@@ -545,7 +578,7 @@ serve(async (req) => {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // EVENT: invoice.payment_failed (Stripe Subscription renewal failed)
+    // EVENT: invoice.payment_failed
     // ─────────────────────────────────────────────────────────────
     if (event.type === "invoice.payment_failed") {
       const stripeInvoice = event.data.object as Stripe.Invoice;
@@ -563,7 +596,6 @@ serve(async (req) => {
           .maybeSingle();
 
         if (nivraSub) {
-          // Create billing system alert
           await supabase.from("billing_system_alerts").insert({
             alert_type: "subscription_payment_failed",
             entity_type: "subscription",
