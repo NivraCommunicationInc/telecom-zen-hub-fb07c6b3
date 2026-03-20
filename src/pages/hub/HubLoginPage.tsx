@@ -33,7 +33,7 @@ type Stage = "login" | "mfa_enroll" | "mfa_verify" | "redirecting";
 export default function HubLoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { themeClass } = useInternalTheme();
+  const { theme, themeClass, toggleTheme } = useInternalTheme();
   const portalId = searchParams.get("portal");
   const portal = portalId ? PORTAL_CONFIG[portalId] : null;
 
@@ -198,7 +198,7 @@ export default function HubLoginPage() {
     return (
       <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
         <div className="fixed right-3 top-3 z-40">
-          <InternalThemeToggle />
+          <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
         <MfaEnrollmentDialog onComplete={() => window.location.reload()} onCancel={handleLogout} />
       </div>
@@ -209,7 +209,7 @@ export default function HubLoginPage() {
     return (
       <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
         <div className="fixed right-3 top-3 z-40">
-          <InternalThemeToggle />
+          <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
         <MfaVerificationGate
           factorId={mfaFactorId}
@@ -244,7 +244,7 @@ export default function HubLoginPage() {
   return (
     <div className={cn("internal-ui min-h-screen flex items-center justify-center bg-background px-4", themeClass)}>
       <div className="fixed right-3 top-3 z-40">
-        <InternalThemeToggle />
+        <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
       <div className="w-full max-w-sm">
         <div className="mb-6">

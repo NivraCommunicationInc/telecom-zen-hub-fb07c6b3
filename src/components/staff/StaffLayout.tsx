@@ -16,7 +16,7 @@ interface StaffLayoutProps {
  */
 export default function StaffLayout({ children, requiredRole }: StaffLayoutProps) {
   const navigate = useNavigate();
-  const { themeClass } = useInternalTheme();
+  const { theme, themeClass, toggleTheme } = useInternalTheme();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -110,7 +110,7 @@ export default function StaffLayout({ children, requiredRole }: StaffLayoutProps
   return (
     <div className={cn("internal-ui min-h-screen bg-background text-foreground", themeClass)}>
       <div className="fixed right-3 top-3 z-40">
-        <InternalThemeToggle />
+        <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
       {children}
     </div>

@@ -5,6 +5,12 @@ export type InternalTheme = "light" | "dark";
 const STORAGE_KEY = "nivra_internal_theme";
 const THEME_EVENT = "nivra_internal_theme_change";
 
+const applyDocumentTheme = (theme: InternalTheme) => {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.remove("theme-light", "theme-dark");
+  document.documentElement.classList.add(theme === "dark" ? "theme-dark" : "theme-light");
+};
+
 const readStoredTheme = (): InternalTheme => {
   if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -17,12 +23,17 @@ export function useInternalTheme() {
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
-    const syncFromStorage = () => setTheme(readStoredTheme());
+    const syncFromStorage = () => {
+      const next = readStoredTheme();
+      setTheme(next);
+      applyDocumentTheme(next);
+    };
 
     const onThemeEvent = (event: Event) => {
       const customEvent = event as CustomEvent<InternalTheme>;
       if (customEvent.detail === "dark" || customEvent.detail === "light") {
         setTheme(customEvent.detail);
+        applyDocumentTheme(customEvent.detail);
       } else {
         syncFromStorage();
       }
@@ -42,6 +53,7 @@ export function useInternalTheme() {
     setTheme(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, next);
+      applyDocumentTheme(next);
       window.dispatchEvent(new CustomEvent<InternalTheme>(THEME_EVENT, { detail: next }));
     }
   };

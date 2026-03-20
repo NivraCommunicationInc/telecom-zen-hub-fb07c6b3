@@ -45,7 +45,7 @@ const PORTALS: PortalOption[] = [
 
 export default function HubPage() {
   const navigate = useNavigate();
-  const { themeClass } = useInternalTheme();
+  const { theme, themeClass, toggleTheme } = useInternalTheme();
 
   return (
     <div className={cn("internal-ui min-h-screen bg-background text-foreground flex flex-col", themeClass)}>
@@ -61,7 +61,7 @@ export default function HubPage() {
             </div>
           </div>
           <div className="ml-auto">
-            <InternalThemeToggle />
+            <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
         </div>
       </header>

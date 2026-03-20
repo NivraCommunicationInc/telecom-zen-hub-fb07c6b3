@@ -10,12 +10,12 @@ import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 
 export default function FieldAppLayout() {
-  const { themeClass } = useInternalTheme();
+  const { theme, themeClass, toggleTheme } = useInternalTheme();
 
   return (
     <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
       <div className="fixed right-3 top-3 z-40">
-        <InternalThemeToggle />
+        <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
       <FieldSidebar />
       <main className="flex-1 overflow-auto pb-20 md:pb-0">
