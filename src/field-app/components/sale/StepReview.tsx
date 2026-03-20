@@ -58,7 +58,8 @@ export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmi
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
   const oneTimeSubtotal = equipmentTotal + effectiveActivation;
   const totalDueToday = effectiveMonthly + oneTimeSubtotal;
-  const taxes = estimateTaxes(totalDueToday);
+  // ⛔ NO LOCAL TAX MATH — display subtotal only
+  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
 
   return (
     <div className="space-y-5">
