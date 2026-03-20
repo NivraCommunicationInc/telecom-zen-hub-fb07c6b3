@@ -1,7 +1,6 @@
 /**
  * EmployeeSidebar — Operational sidebar for Employee Portal.
- * Exact order: Dashboard, Work Queue, Orders, Clients, Payments,
- * KYC, Activations, Support, Audit. Bottom: Profile, Security, Logout.
+ * Nivra design system: green active state, white text, proper contrast.
  */
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -49,28 +48,28 @@ export default function EmployeeSidebar() {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col border-r border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7%)] transition-all duration-200",
+        "hidden lg:flex flex-col border-r border-white/[0.06] bg-[#0B1220] transition-all duration-200",
         collapsed ? "w-16" : "w-60"
       )}
     >
       {/* Header */}
-      <div className="h-14 flex items-center justify-between px-3 border-b border-[hsl(220,15%,12%)]">
+      <div className="h-14 flex items-center justify-between px-3 border-b border-white/[0.06]">
         {!collapsed && (
           <Link to="/employee/dashboard" className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-blue-600 flex items-center justify-center">
+            <div className="h-7 w-7 rounded-md bg-green-500 flex items-center justify-center">
               <Briefcase className="h-3.5 w-3.5 text-white" />
             </div>
             <span className="font-semibold text-sm text-white tracking-tight">Nivra Employee</span>
           </Link>
         )}
         {collapsed && (
-          <div className="mx-auto h-7 w-7 rounded-md bg-blue-600 flex items-center justify-center">
+          <div className="mx-auto h-7 w-7 rounded-md bg-green-500 flex items-center justify-center">
             <Briefcase className="h-3.5 w-3.5 text-white" />
           </div>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded text-[hsl(220,10%,40%)] hover:text-white hover:bg-[hsl(220,15%,15%)] transition-colors"
+          className="p-1 rounded text-[#6B7280] hover:text-white hover:bg-white/[0.06] transition-colors"
         >
           {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
         </button>
@@ -87,8 +86,8 @@ export default function EmployeeSidebar() {
               className={cn(
                 "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
                 isActive(item.href)
-                  ? "bg-blue-600/15 text-blue-400"
-                  : "text-[hsl(220,10%,50%)] hover:text-white hover:bg-[hsl(220,15%,12%)]"
+                  ? "bg-green-500/15 text-green-400"
+                  : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.06]"
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
@@ -99,7 +98,7 @@ export default function EmployeeSidebar() {
       </ScrollArea>
 
       {/* Bottom */}
-      <div className="border-t border-[hsl(220,15%,12%)] py-2 px-2 space-y-0.5">
+      <div className="border-t border-white/[0.06] py-2 px-2 space-y-0.5">
         {bottomItems.map((item) => (
           <Link
             key={item.href}
@@ -108,8 +107,8 @@ export default function EmployeeSidebar() {
             className={cn(
               "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
               isActive(item.href)
-                ? "bg-blue-600/15 text-blue-400"
-                : "text-[hsl(220,10%,50%)] hover:text-white hover:bg-[hsl(220,15%,12%)]"
+                ? "bg-green-500/15 text-green-400"
+                : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.06]"
             )}
           >
             <item.icon className="h-4 w-4 shrink-0" />
@@ -118,7 +117,7 @@ export default function EmployeeSidebar() {
         ))}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-[hsl(220,10%,50%)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-[#A1A1AA] hover:text-red-400 hover:bg-red-500/10 transition-colors"
         >
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Déconnexion</span>}
