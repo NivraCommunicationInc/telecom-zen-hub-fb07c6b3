@@ -129,39 +129,23 @@ const PayInvoiceDialog = ({
           <p className="text-sm font-medium text-foreground">Choisir un mode de paiement</p>
 
           {/* Credit Card — PRIMARY */}
-          {CARD_PAYMENTS_DISABLED ? (
-            <div className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border bg-muted/50 opacity-60 cursor-not-allowed">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <CreditCard className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-muted-foreground">Carte de crédit ou débit</p>
-                <p className="text-xs text-muted-foreground">{CARD_MAINTENANCE_MESSAGE_FR}</p>
-              </div>
-              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600/50 bg-amber-500/10 text-xs shrink-0">
-                <Wrench className="w-3 h-3" />
-                Maintenance
-              </Badge>
+          <button
+            onClick={() => setPaymentMethod("card")}
+            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+              paymentMethod === "card"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/30 bg-background"
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5 text-primary" />
             </div>
-          ) : (
-            <button
-              onClick={() => setPaymentMethod("card")}
-              className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-                paymentMethod === "card"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-muted-foreground/30 bg-background"
-              }`}
-            >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <CreditCard className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
-                <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé via Stripe</p>
-              </div>
-              <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
-            </button>
-          )}
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
+              <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé via Stripe</p>
+            </div>
+            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
+          </button>
 
           {/* PayPal */}
           <button
