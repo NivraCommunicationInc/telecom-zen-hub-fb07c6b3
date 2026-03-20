@@ -1,0 +1,156 @@
+/**
+ * Step 7 — Final Review before submission.
+ */
+import { User, Package, Wrench, CreditCard, CalendarDays, Check, MapPin } from "lucide-react";
+import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
+import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
+
+interface Props {
+  draft: FieldSaleDraft;
+  agentName: string;
+  onSubmit: () => void;
+  onBack: () => void;
+  isSubmitting: boolean;
+}
+
+function Section({ icon: Icon, title, children }: { icon: typeof User; title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-[#22C55E]" />
+        <h3 className="text-sm font-semibold text-[#000000]">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-[#6B7280]">{label}</span>
+      <span className={bold ? "font-bold text-[#000000]" : "text-[#000000]"}>{value}</span>
+    </div>
+  );
+}
+
+export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmitting }: Props) {
+  const { customer, services, equipment, installation, billing, payment } = draft;
+
+  const monthlySubtotal = services.reduce((s, sv) => s + sv.monthlyPrice, 0);
+  const equipmentTotal = equipment.reduce((s, e) => s + e.price * e.quantity, 0);
+  const activationFee = services.length === 0 ? 0 : services.length === 1 ? 25 : 45;
+  const oneTimeSubtotal = equipmentTotal + activationFee;
+  const totalDueToday = monthlySubtotal + oneTimeSubtotal;
+  const taxes = estimateTaxes(totalDueToday);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-bold text-[#000000]">Confirmation finale</h2>
+        <p className="text-sm text-[#6B7280] mt-0.5">Vérifiez tous les détails avant de soumettre la commande.</p>
+      </div>
+
+      {/* Customer */}
+      <Section icon={User} title="Client">
+        <Row label="Nom" value={`${customer.first_name} ${customer.last_name}`} />
+        <Row label="Téléphone" value={customer.phone} />
+        {customer.email && <Row label="Courriel" value={customer.email} />}
+        <Row label="Adresse" value={`${customer.address}, ${customer.city} ${customer.postal_code}`} />
+      </Section>
+
+      {/* Services */}
+      <Section icon={Package} title="Services">
+        {services.map((s) => (
+          <Row key={s.id} label={s.name} value={`${s.monthlyPrice.toFixed(2)} $/mois`} />
+        ))}
+        <div className="border-t border-[#E5E7EB] pt-2">
+          <Row label="Total mensuel" value={`${monthlySubtotal.toFixed(2)} $/mois`} bold />
+        </div>
+      </Section>
+
+      {/* Equipment */}
+      {equipment.length > 0 && (
+        <Section icon={Package} title="Équipement">
+          {equipment.map((e) => (
+            <Row key={e.id} label={`${e.name} x${e.quantity}`} value={`${(e.price * e.quantity).toFixed(2)} $`} />
+          ))}
+        </Section>
+      )}
+
+      {/* Installation */}
+      <Section icon={Wrench} title="Installation">
+        <Row
+          label="Type"
+          value={installation.type === "technician" ? "Installation technicien" : "Auto-installation / Expédition"}
+        />
+        {installation.scheduledDate && (
+          <Row
+            label="Date"
+            value={new Date(installation.scheduledDate + "T12:00:00").toLocaleDateString("fr-CA", {
+              weekday: "long", day: "numeric", month: "long",
+            })}
+          />
+        )}
+        {installation.timeWindow && <Row label="Plage horaire" value={installation.timeWindow} />}
+      </Section>
+
+      {/* Payment */}
+      <Section icon={CreditCard} title="Paiement">
+        <Row
+          label="Méthode"
+          value={payment.method === "send_link" ? "Lien de paiement" : "Carte sur place"}
+        />
+        <Row
+          label="Statut"
+          value={
+            payment.status === "completed" ? "✅ Payé" :
+            payment.status === "sent" ? "📧 Lien envoyé" : "⏳ En attente"
+          }
+        />
+        {payment.linkSentTo && <Row label="Envoyé à" value={payment.linkSentTo} />}
+        <Row label="Paiement pré-autorisé" value={billing.preauthorizedPayment ? "Oui" : "Non"} />
+      </Section>
+
+      {/* Financial summary */}
+      <div className="bg-[#000000] text-white rounded-xl p-5 space-y-2">
+        <h3 className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">Résumé financier</h3>
+        <Row label="Premier mois" value={`${monthlySubtotal.toFixed(2)} $`} />
+        <Row label="Frais uniques" value={`${oneTimeSubtotal.toFixed(2)} $`} />
+        <div className="text-xs space-y-1 pt-1">
+          <div className="flex justify-between text-[#9CA3AF]">
+            <span>{TAX_DISPLAY.TPS_LABEL}</span>
+            <span>{taxes.tps.toFixed(2)} $</span>
+          </div>
+          <div className="flex justify-between text-[#9CA3AF]">
+            <span>{TAX_DISPLAY.TVQ_LABEL}</span>
+            <span>{taxes.tvq.toFixed(2)} $</span>
+          </div>
+        </div>
+        <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
+          <span>Total aujourd'hui</span>
+          <span className="text-[#22C55E]">{taxes.total.toFixed(2)} $</span>
+        </div>
+      </div>
+
+      {/* Agent */}
+      <div className="bg-[#F3F4F6] rounded-xl p-4 text-xs text-[#6B7280]">
+        <span className="font-medium text-[#374151]">Agent :</span> {agentName}
+      </div>
+
+      <div className="flex gap-3">
+        <button type="button" onClick={onBack} className="flex-1 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] transition-colors">
+          ← Modifier
+        </button>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={isSubmitting}
+          className="flex-1 py-3 rounded-lg bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] disabled:opacity-50 transition-colors"
+        >
+          {isSubmitting ? "Soumission…" : "✓ Soumettre la commande"}
+        </button>
+      </div>
+    </div>
+  );
+}

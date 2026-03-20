@@ -1,24 +1,22 @@
 /**
- * FieldOffers — Read-only approved catalog.
- * No custom pricing, no promo overrides.
+ * FieldOffers — Read-only approved catalog. Clean light UI.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Package, Wifi, Smartphone, Tv, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const CATEGORY_CONFIG: Record<string, { icon: typeof Package; color: string; bg: string }> = {
-  internet: { icon: Wifi, color: "text-blue-400", bg: "bg-blue-500/10" },
-  mobile: { icon: Smartphone, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  tv: { icon: Tv, color: "text-purple-400", bg: "bg-purple-500/10" },
-  combo: { icon: Package, color: "text-amber-400", bg: "bg-amber-500/10" },
+const CATEGORY_CONFIG: Record<string, { icon: typeof Package; color: string; bg: string; label: string }> = {
+  internet: { icon: Wifi, color: "text-[#3B82F6]", bg: "bg-[#DBEAFE]", label: "Internet" },
+  mobile: { icon: Smartphone, color: "text-[#22C55E]", bg: "bg-[#DCFCE7]", label: "Mobile" },
+  tv: { icon: Tv, color: "text-[#8B5CF6]", bg: "bg-[#EDE9FE]", label: "Télévision" },
+  combo: { icon: Package, color: "text-[#F59E0B]", bg: "bg-[#FEF3C7]", label: "Combos" },
 };
 
 export default function FieldOffers() {
   const { data: services, isLoading } = useQuery({
     queryKey: ["field-offers-catalog"],
     queryFn: async () => {
-      // Try services_public view first, fallback to services table
       const { data, error } = await supabase
         .from("services")
         .select("id, name, description, monthly_price, category, speed_mbps, is_active")
@@ -31,7 +29,6 @@ export default function FieldOffers() {
     staleTime: 1000 * 60 * 10,
   });
 
-  // Group by category
   const grouped = (services || []).reduce((acc: Record<string, any[]>, s: any) => {
     const cat = s.category || "other";
     if (!acc[cat]) acc[cat] = [];
@@ -40,18 +37,18 @@ export default function FieldOffers() {
   }, {});
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Offres approuvées</h1>
-        <p className="text-sm text-[hsl(220,10%,45%)] mt-0.5">Catalogue officiel — Tarification fixe, aucune modification permise.</p>
+        <h1 className="text-xl font-bold text-[#000000]">Offres approuvées</h1>
+        <p className="text-sm text-[#6B7280] mt-0.5">Catalogue officiel — Tarification fixe, aucune modification permise.</p>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
+          <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" />
         </div>
       ) : Object.keys(grouped).length === 0 ? (
-        <p className="text-sm text-[hsl(220,10%,35%)] text-center py-12">Aucune offre disponible.</p>
+        <p className="text-sm text-[#9CA3AF] text-center py-12">Aucune offre disponible.</p>
       ) : (
         Object.entries(grouped).map(([category, items]) => {
           const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.combo;
@@ -59,29 +56,31 @@ export default function FieldOffers() {
           return (
             <div key={category} className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className={cn("h-6 w-6 rounded flex items-center justify-center", config.bg)}>
+                <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center", config.bg)}>
                   <Icon className={cn("h-3.5 w-3.5", config.color)} />
                 </div>
-                <h2 className="text-sm font-semibold text-white capitalize">{category}</h2>
+                <h2 className="text-sm font-semibold text-[#000000]">{config.label}</h2>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {(items as any[]).map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between p-3.5 rounded-xl border border-[hsl(225,15%,12%)] bg-[hsl(225,20%,7%)]"
+                    className="flex items-center justify-between p-4 rounded-xl border border-[#E5E7EB] bg-white hover:border-[#D1D5DB] transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{s.name}</p>
+                      <p className="text-sm font-semibold text-[#000000]">{s.name}</p>
                       {s.description && (
-                        <p className="text-[11px] text-[hsl(220,10%,40%)] truncate mt-0.5">{s.description}</p>
+                        <p className="text-xs text-[#6B7280] truncate mt-0.5">{s.description}</p>
                       )}
                       {s.speed_mbps && (
-                        <span className="text-[10px] text-blue-400 font-medium">{s.speed_mbps} Mbps</span>
+                        <span className="text-[10px] font-medium text-[#3B82F6] bg-[#DBEAFE] px-1.5 py-0.5 rounded mt-1 inline-block">
+                          {s.speed_mbps} Mbps
+                        </span>
                       )}
                     </div>
                     <div className="text-right ml-3">
-                      <p className="text-lg font-bold text-white">{Number(s.monthly_price).toFixed(2)} $</p>
-                      <p className="text-[10px] text-[hsl(220,10%,40%)]">/mois</p>
+                      <p className="text-lg font-bold text-[#000000]">{Number(s.monthly_price).toFixed(2)} $</p>
+                      <p className="text-[10px] text-[#6B7280]">/mois</p>
                     </div>
                   </div>
                 ))}
@@ -91,8 +90,7 @@ export default function FieldOffers() {
         })
       )}
 
-      {/* Fixed pricing notice */}
-      <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs text-amber-400/80">
+      <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs text-[#92400E]">
         ⚠️ Tarification officielle uniquement. Aucune remise personnalisée ni code promo n'est applicable sur le terrain.
       </div>
     </div>

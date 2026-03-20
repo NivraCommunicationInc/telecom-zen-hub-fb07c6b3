@@ -1,35 +1,33 @@
 /**
- * FieldLeads — Lead management for field sales agents.
- * List + New lead + Detail views.
+ * FieldLeads — Lead management. Clean light UI.
  */
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import {
-  UserPlus, ArrowLeft, Loader2, Phone, Mail, MapPin,
-  ChevronRight, Plus, Search,
-} from "lucide-react";
+import { UserPlus, Loader2, Phone, ChevronRight, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { logInternalAudit } from "@/lib/security/internalAuditLogger";
-import { toast } from "sonner";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  new: { label: "Nouveau", color: "text-blue-400", bg: "bg-blue-500/10" },
-  contacted: { label: "Contacté", color: "text-cyan-400", bg: "bg-cyan-500/10" },
-  qualified: { label: "Qualifié", color: "text-amber-400", bg: "bg-amber-500/10" },
-  submitted: { label: "Soumis", color: "text-purple-400", bg: "bg-purple-500/10" },
-  won: { label: "Gagné", color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  lost: { label: "Perdu", color: "text-red-400", bg: "bg-red-500/10" },
+const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
+  new: { label: "Nouveau", classes: "bg-[#FEF3C7] text-[#D97706]" },
+  contacted: { label: "Contacté", classes: "bg-[#E0E7FF] text-[#4338CA]" },
+  qualified: { label: "Qualifié", classes: "bg-[#FEF3C7] text-[#D97706]" },
+  submitted: { label: "Soumis", classes: "bg-[#DBEAFE] text-[#1D4ED8]" },
+  won: { label: "Gagné", classes: "bg-[#DCFCE7] text-[#16A34A]" },
+  lost: { label: "Perdu", classes: "bg-[#FEE2E2] text-[#DC2626]" },
 };
 
-function useFieldLeads() {
+export default function FieldLeads() {
+  const navigate = useNavigate();
   const { user } = useStaffUser();
-  return useQuery({
+  const [filter, setFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+
+  const { data: leads = [], isLoading } = useQuery({
     queryKey: ["field-leads", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -43,73 +41,56 @@ function useFieldLeads() {
     },
     enabled: !!user?.id,
   });
-}
-
-// ── LIST VIEW ──────────────────────────────────────
-export default function FieldLeads() {
-  const navigate = useNavigate();
-  const { data: leads = [], isLoading } = useFieldLeads();
-  const [filter, setFilter] = useState<string>("all");
-  const [search, setSearch] = useState("");
 
   const filtered = leads.filter((l: any) => {
     if (filter !== "all" && l.status !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
-      return (
-        l.first_name?.toLowerCase().includes(q) ||
-        l.last_name?.toLowerCase().includes(q) ||
-        l.email?.toLowerCase().includes(q) ||
-        l.phone?.includes(q)
-      );
+      return l.first_name?.toLowerCase().includes(q) || l.last_name?.toLowerCase().includes(q) || l.phone?.includes(q);
     }
     return true;
   });
 
-  const filters = [
-    { key: "all", label: "Tous" },
-    { key: "new", label: "Nouveaux" },
-    { key: "contacted", label: "Contactés" },
-    { key: "qualified", label: "Qualifiés" },
-    { key: "submitted", label: "Soumis" },
-  ];
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">Mes leads</h1>
+        <h1 className="text-xl font-bold text-[#000000]">Mes leads</h1>
         <button
-          onClick={() => navigate(fieldPath("/leads/new"))}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-500 transition-colors"
+          onClick={() => navigate(fieldPath("/sale/new"))}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-medium hover:bg-[#16A34A] transition-colors"
         >
           <Plus className="h-4 w-4" />
-          Nouveau lead
+          Nouvelle vente
         </button>
       </div>
 
-      {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(220,10%,35%)]" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9CA3AF]" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher…"
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[hsl(225,15%,14%)] bg-[hsl(225,20%,8%)] text-sm text-white placeholder:text-[hsl(220,10%,35%)] focus:outline-none focus:border-amber-500/50"
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-sm text-[#000000] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E]"
         />
       </div>
 
-      {/* Filters */}
       <div className="flex gap-1 flex-wrap">
-        {filters.map((f) => (
+        {[
+          { key: "all", label: "Tous" },
+          { key: "new", label: "Nouveaux" },
+          { key: "contacted", label: "Contactés" },
+          { key: "qualified", label: "Qualifiés" },
+          { key: "submitted", label: "Soumis" },
+        ].map((f) => (
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={cn(
-              "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors",
+              "px-2.5 py-1 rounded-md text-xs font-medium transition-colors border",
               filter === f.key
-                ? "bg-amber-600/20 text-amber-400 border border-amber-500/30"
-                : "text-[hsl(220,10%,42%)] hover:text-white border border-transparent"
+                ? "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]"
+                : "text-[#6B7280] border-transparent hover:bg-[#F3F4F6]"
             )}
           >
             {f.label}
@@ -117,15 +98,12 @@ export default function FieldLeads() {
         ))}
       </div>
 
-      {/* List */}
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
-        </div>
+        <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" /></div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">
-          <UserPlus className="h-8 w-8 mx-auto mb-2 text-[hsl(220,10%,20%)]" />
-          <p className="text-sm text-[hsl(220,10%,35%)]">Aucun lead trouvé</p>
+          <UserPlus className="h-8 w-8 mx-auto mb-2 text-[#D1D5DB]" />
+          <p className="text-sm text-[#9CA3AF]">Aucun lead trouvé</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -135,30 +113,24 @@ export default function FieldLeads() {
               <button
                 key={lead.id}
                 onClick={() => navigate(fieldPath(`/leads/${lead.id}`))}
-                className="w-full text-left p-4 rounded-xl border border-[hsl(225,15%,12%)] bg-[hsl(225,20%,7%)] hover:bg-[hsl(225,20%,9%)] transition-colors"
+                className="w-full text-left p-4 rounded-xl border border-[#E5E7EB] bg-white hover:border-[#D1D5DB] transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white">
-                        {lead.first_name} {lead.last_name}
-                      </span>
-                      <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded", sc.color, sc.bg)}>
-                        {sc.label}
-                      </span>
+                      <span className="text-sm font-semibold text-[#000000]">{lead.first_name} {lead.last_name}</span>
+                      <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded", sc.classes)}>{sc.label}</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-[11px] text-[hsl(220,10%,40%)]">
-                      {lead.phone && (
-                        <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</span>
-                      )}
+                    <div className="flex items-center gap-3 mt-1 text-xs text-[#6B7280]">
+                      {lead.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</span>}
                       {lead.service_need && <span>{lead.service_need}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[hsl(220,10%,30%)]">
+                    <span className="text-[10px] text-[#9CA3AF]">
                       {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}
                     </span>
-                    <ChevronRight className="h-4 w-4 text-[hsl(220,10%,25%)]" />
+                    <ChevronRight className="h-4 w-4 text-[#D1D5DB]" />
                   </div>
                 </div>
               </button>

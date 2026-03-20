@@ -1,16 +1,15 @@
 /**
  * FieldDashboard — Mobile-first field sales command center.
- * Shows today's sales, month total, pending commissions, leads, orders.
+ * Clean light UI. Professional sales tool.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import {
-  TrendingUp, DollarSign, UserPlus, Send, Search,
-  Package, Loader2, ArrowUpRight, Clock,
+  TrendingUp, DollarSign, UserPlus, Send,
+  Package, Loader2, ArrowUpRight, Plus, BarChart3, Clock,
 } from "lucide-react";
-import { useState } from "react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -43,17 +42,16 @@ function useFieldDashboard() {
       const pendingCommissions = commissions
         .filter((c: any) => c.status === "pending")
         .reduce((sum: number, c: any) => sum + Number(c.amount), 0);
-      const totalEarned = commissions
-        .filter((c: any) => c.status === "approved" || c.status === "paid")
+      const totalPaid = commissions
+        .filter((c: any) => c.status === "paid")
         .reduce((sum: number, c: any) => sum + Number(c.amount), 0);
 
       return {
         salesToday: leadsToday.count ?? 0,
         salesMonth: leadsMonth.count ?? 0,
         pendingCommissions,
-        totalEarned,
+        totalPaid,
         openLeads: leadsAll.count ?? 0,
-        submittedOrders: (leadsAll.data || []).filter((l: any) => l.status === "submitted").length,
         userName: profileRes.data?.full_name ?? null,
         recentLeads: (recentLeads.data || []) as any[],
       };
@@ -62,6 +60,15 @@ function useFieldDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 }
+
+const STATUS_COLORS: Record<string, string> = {
+  submitted: "bg-[#DBEAFE] text-[#1D4ED8]",
+  won: "bg-[#DCFCE7] text-[#16A34A]",
+  lost: "bg-[#FEE2E2] text-[#DC2626]",
+  new: "bg-[#FEF3C7] text-[#D97706]",
+  contacted: "bg-[#E0E7FF] text-[#4338CA]",
+  qualified: "bg-[#FEF3C7] text-[#D97706]",
+};
 
 export default function FieldDashboard() {
   const navigate = useNavigate();
@@ -74,126 +81,122 @@ export default function FieldDashboard() {
     return "Bonsoir";
   };
 
-  const widgets = [
-    { label: "Ventes aujourd'hui", value: data?.salesToday ?? 0, icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "Ventes ce mois", value: data?.salesMonth ?? 0, icon: Send, color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "Commissions en attente", value: `${(data?.pendingCommissions ?? 0).toFixed(2)} $`, icon: DollarSign, color: "text-amber-400", bg: "bg-amber-500/10" },
-    { label: "Leads ouverts", value: data?.openLeads ?? 0, icon: UserPlus, color: "text-purple-400", bg: "bg-purple-500/10" },
-  ];
-
-  const quickActions = [
-    { label: "Nouveau lead", icon: UserPlus, action: () => navigate(fieldPath("/leads/new")), primary: true },
-    { label: "Mes leads", icon: Search, action: () => navigate(fieldPath("/leads")) },
-    { label: "Offres", icon: Package, action: () => navigate(fieldPath("/offers")) },
-    { label: "Suivi", icon: TrendingUp, action: () => navigate(fieldPath("/tracking")) },
-  ];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-[#22C55E]" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">
-          {greeting()}{data?.userName ? `, ${data.userName.split(" ")[0]}` : ""}
-        </h1>
-        <p className="text-sm text-[hsl(220,10%,45%)] mt-0.5">
-          {new Date().toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long" })}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-[#000000]">
+            {greeting()}{data?.userName ? `, ${data.userName.split(" ")[0]}` : ""}
+          </h1>
+          <p className="text-sm text-[#6B7280] mt-0.5">
+            {new Date().toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+        </div>
+        <button
+          onClick={() => navigate(fieldPath("/sale/new"))}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors shadow-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Nouvelle vente
+        </button>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-amber-500" />
-        </div>
-      ) : (
-        <>
-          {/* Quick actions — mobile-first large tap targets */}
-          <div className="grid grid-cols-2 gap-2">
-            {quickActions.map((a) => (
-              <button
-                key={a.label}
-                onClick={a.action}
-                className={cn(
-                  "flex items-center gap-2.5 p-3.5 rounded-xl border transition-colors text-left",
-                  a.primary
-                    ? "bg-amber-600/15 border-amber-500/30 text-amber-400 hover:bg-amber-600/25"
-                    : "bg-[hsl(225,20%,8%)] border-[hsl(225,15%,14%)] text-[hsl(220,10%,55%)] hover:text-white hover:border-[hsl(225,15%,20%)]"
-                )}
-              >
-                <a.icon className="h-5 w-5 shrink-0" />
-                <span className="text-sm font-medium">{a.label}</span>
-              </button>
-            ))}
+      {/* KPI widgets */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: "Ventes aujourd'hui", value: data?.salesToday ?? 0, icon: TrendingUp, iconColor: "text-[#22C55E]", iconBg: "bg-[#DCFCE7]" },
+          { label: "Ventes ce mois", value: data?.salesMonth ?? 0, icon: BarChart3, iconColor: "text-[#3B82F6]", iconBg: "bg-[#DBEAFE]" },
+          { label: "Commissions en attente", value: `${(data?.pendingCommissions ?? 0).toFixed(2)} $`, icon: Clock, iconColor: "text-[#F59E0B]", iconBg: "bg-[#FEF3C7]" },
+          { label: "Leads ouverts", value: data?.openLeads ?? 0, icon: UserPlus, iconColor: "text-[#8B5CF6]", iconBg: "bg-[#EDE9FE]" },
+        ].map((w) => (
+          <div key={w.label} className="bg-white border border-[#E5E7EB] rounded-xl p-4">
+            <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-3", w.iconBg)}>
+              <w.icon className={cn("h-4.5 w-4.5", w.iconColor)} />
+            </div>
+            <p className="text-2xl font-bold text-[#000000]">{w.value}</p>
+            <p className="text-[11px] text-[#6B7280] font-medium mt-0.5">{w.label}</p>
           </div>
+        ))}
+      </div>
 
-          {/* Widgets */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {widgets.map((w) => (
-              <div
-                key={w.label}
-                className="p-4 rounded-xl border border-[hsl(225,15%,12%)] bg-[hsl(225,20%,7%)]"
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { label: "Nouvelle vente", icon: Plus, path: "/sale/new", primary: true },
+          { label: "Mes leads", icon: UserPlus, path: "/leads" },
+          { label: "Offres", icon: Package, path: "/offers" },
+          { label: "Commissions", icon: DollarSign, path: "/commissions" },
+        ].map((a) => (
+          <button
+            key={a.label}
+            onClick={() => navigate(fieldPath(a.path))}
+            className={cn(
+              "flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition-colors",
+              a.primary
+                ? "bg-[#F0FDF4] border-[#BBF7D0] text-[#16A34A] hover:bg-[#DCFCE7]"
+                : "bg-white border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB]"
+            )}
+          >
+            <a.icon className="h-5 w-5 shrink-0" />
+            <span className="text-sm font-medium">{a.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Recent leads */}
+      <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">Dernières ventes</h3>
+          <button onClick={() => navigate(fieldPath("/leads"))} className="text-xs text-[#22C55E] hover:text-[#16A34A] font-medium">
+            Voir tout
+          </button>
+        </div>
+        {(data?.recentLeads?.length ?? 0) === 0 ? (
+          <p className="text-sm text-[#9CA3AF] p-4 text-center">Aucune vente encore.</p>
+        ) : (
+          <div className="divide-y divide-[#F3F4F6]">
+            {data!.recentLeads.map((lead: any) => (
+              <button
+                key={lead.id}
+                onClick={() => navigate(fieldPath(`/leads/${lead.id}`))}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F9FAFB] transition-colors text-left"
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", w.bg)}>
-                    <w.icon className={cn("h-4 w-4", w.color)} />
+                <div>
+                  <span className="text-sm text-[#000000] font-medium">
+                    {lead.first_name} {lead.last_name}
+                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                      STATUS_COLORS[lead.status] || "bg-[#F3F4F6] text-[#6B7280]"
+                    )}>
+                      {lead.status}
+                    </span>
+                    {lead.service_need && (
+                      <span className="text-[10px] text-[#9CA3AF]">{lead.service_need}</span>
+                    )}
                   </div>
                 </div>
-                <p className="text-xl font-bold text-white">{w.value}</p>
-                <p className="text-[10px] text-[hsl(220,10%,42%)] font-medium mt-0.5">{w.label}</p>
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-[#9CA3AF]">
+                    {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}
+                  </span>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-[#D1D5DB]" />
+                </div>
+              </button>
             ))}
           </div>
-
-          {/* Recent leads */}
-          <div className="rounded-xl border border-[hsl(225,15%,12%)] bg-[hsl(225,20%,7%)]">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(225,15%,11%)]">
-              <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">Derniers leads</h3>
-              <button onClick={() => navigate(fieldPath("/leads"))} className="text-[10px] text-amber-400 hover:text-amber-300">
-                Voir tout
-              </button>
-            </div>
-            {(data?.recentLeads?.length ?? 0) === 0 ? (
-              <p className="text-xs text-[hsl(220,10%,30%)] p-4">Aucun lead encore.</p>
-            ) : (
-              <div className="divide-y divide-[hsl(225,15%,10%)]">
-                {data!.recentLeads.map((lead: any) => (
-                  <button
-                    key={lead.id}
-                    onClick={() => navigate(fieldPath(`/leads/${lead.id}`))}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-[hsl(225,20%,9%)] transition-colors text-left"
-                  >
-                    <div>
-                      <span className="text-sm text-white font-medium">
-                        {lead.first_name} {lead.last_name}
-                      </span>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={cn(
-                          "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                          lead.status === "submitted" || lead.status === "won"
-                            ? "text-emerald-400 bg-emerald-500/10"
-                            : lead.status === "lost"
-                            ? "text-red-400 bg-red-500/10"
-                            : "text-amber-400 bg-amber-500/10"
-                        )}>
-                          {lead.status}
-                        </span>
-                        {lead.service_need && (
-                          <span className="text-[10px] text-[hsl(220,10%,40%)]">{lead.service_need}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-[hsl(220,10%,35%)]">
-                        {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}
-                      </span>
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[hsl(220,10%,25%)]" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }
