@@ -476,15 +476,25 @@ export function StripeInlinePayment({
         if (data?.error) throw new Error(data.error);
         if (!data?.client_secret) throw new Error("Aucun client_secret Stripe retourné");
 
-        const resolvedPublishableKey = getStripePublishableKey();
+        const paymentIntentMode: StripeMode = data?.livemode ? "live" : "test";
+        const candidateKeys = [
+          typeof data?.publishable_key === "string" ? data.publishable_key : "",
+          getStripePublishableKey(),
+        ].filter(Boolean);
+
+        const resolvedPublishableKey = candidateKeys.find(
+          (key) => getStripePublishableKeyMode(key) === paymentIntentMode
+        ) || "";
         const resolvedKeyMode = getStripePublishableKeyMode(resolvedPublishableKey);
 
         if (resolvedKeyMode === "invalid") {
-          throw new Error("Configuration Stripe invalide: clé publique non reconnue.");
+          throw new Error(
+            `Configuration Stripe invalide: aucune clé publique ${paymentIntentMode.toUpperCase()} reconnue.`
+          );
         }
 
         // Enforce mode alignment: frontend key mode must match backend PaymentIntent mode
-        const isLivePI = !!data?.livemode;
+        const isLivePI = paymentIntentMode === "live";
         const isLiveKey = resolvedKeyMode === "live";
         if (isLivePI !== isLiveKey) {
           throw new Error(
