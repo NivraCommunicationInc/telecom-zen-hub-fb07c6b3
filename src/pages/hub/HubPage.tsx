@@ -4,7 +4,7 @@
  * User picks a workspace → redirected to /hub/login?portal=xxx → auth + MFA → portal.
  */
 import { useNavigate } from "react-router-dom";
-import { Terminal, Briefcase, MapPin, Wrench, Shield, ChevronRight } from "lucide-react";
+import { Terminal, Briefcase, MapPin, Shield, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PortalOption {
