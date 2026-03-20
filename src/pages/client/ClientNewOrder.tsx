@@ -2172,9 +2172,16 @@ const ClientNewOrder = () => {
         plan_code: primaryPlanCode,
         service_category: primaryService?.category?.toLowerCase() || undefined,
         // All service plan_codes for multi-item subscriptions
-        all_plan_codes: selectedServices
-          .filter(s => s.plan_code)
-          .map(s => ({ plan_code: s.plan_code!, category: s.category, name: s.name })),
+        all_plan_codes: [
+          ...selectedServices
+            .filter(s => s.plan_code)
+            .map(s => ({ plan_code: s.plan_code!, category: s.category, name: s.name })),
+          ...selectedStreamingServices.map(s => ({
+            plan_code: STREAMING_PLAN_CODE_MAP[s.name] || `streaming_${s.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+            category: 'Streaming',
+            name: s.name,
+          })),
+        ],
       };
 
       // Resolve account_id for order linkage — BLOCKING: orders MUST have account_id
