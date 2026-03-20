@@ -30,7 +30,7 @@ export interface WorkItem {
 }
 
 export function useWorkItems(filter?: string) {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const queryClient = useQueryClient();
 
   const query = useQuery<WorkItem[]>({
