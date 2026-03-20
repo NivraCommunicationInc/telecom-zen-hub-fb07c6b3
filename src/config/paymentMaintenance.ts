@@ -8,7 +8,7 @@
  * This only affects UI entry points.
  */
 
-export const CARD_PAYMENTS_DISABLED = true;
+export const CARD_PAYMENTS_DISABLED = false;
 
 export const CARD_MAINTENANCE_MESSAGE_FR = 
   "Les paiements par carte sont temporairement indisponibles pour maintenance. Veuillez utiliser PayPal.";
