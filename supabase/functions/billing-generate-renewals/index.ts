@@ -251,13 +251,24 @@ serve(async (req) => {
                 payment_method: customerData.default_payment_method_id,
                 off_session: true,
                 confirm: true,
+                receipt_email: customerData.email || undefined,
                 metadata: {
                   invoice_id: invoice.id,
                   invoice_number: invoiceNumber,
                   customer_id: sub.customer_id,
+                  subscription_id: sub.id,
                   source: "autopay_renewal",
+                  intent_context: "autopay_renewal",
+                  service_name: sub.plan_name || "Nivra Telecom",
+                  billing_cycle: "monthly",
+                  subtotal: String(subtotal),
+                  tax_tps: String(tpsAmount),
+                  tax_tvq: String(tvqAmount),
+                  total_amount: String(total),
+                  monthly_amount: String(sub.plan_price),
+                  ...(promoDiscount > 0 ? { discount_amount: String(promoDiscount) } : {}),
                 },
-                description: `Renouvellement automatique — ${sub.plan_name} — Nivra Telecom`,
+                description: `Nivra Telecom — Renouvellement automatique — ${sub.plan_name} — Facture ${invoiceNumber}`,
               });
               
               console.log(`[billing-generate-renewals] ✓ Stripe autopay PI ${pi.id} status: ${pi.status}`);
