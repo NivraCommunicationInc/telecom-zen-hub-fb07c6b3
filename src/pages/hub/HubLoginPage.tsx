@@ -101,20 +101,35 @@ export default function HubLoginPage() {
       return;
     }
 
-    // Check MFA
+    // Check MFA — Admin roles MUST enroll and verify TOTP.
+    // Non-admin roles use their 4-digit PIN for security; TOTP is optional.
+    const isAdminRole = roleData.role === "admin";
     const mfa = await checkMfaStatus();
-    if (!mfa.isEnrolled) {
-      setStage("mfa_enroll");
-      setCheckingSession(false);
-      setLoading(false);
-      return;
-    }
-    if (!mfa.isVerified) {
-      setMfaFactorId(mfa.factorId);
-      setStage("mfa_verify");
-      setCheckingSession(false);
-      setLoading(false);
-      return;
+
+    if (isAdminRole) {
+      // Admin: mandatory TOTP enrollment + verification
+      if (!mfa.isEnrolled) {
+        setStage("mfa_enroll");
+        setCheckingSession(false);
+        setLoading(false);
+        return;
+      }
+      if (!mfa.isVerified) {
+        setMfaFactorId(mfa.factorId ?? null);
+        setStage("mfa_verify");
+        setCheckingSession(false);
+        setLoading(false);
+        return;
+      }
+    } else {
+      // Non-admin: if already enrolled in TOTP, must verify. Otherwise skip (PIN-based security).
+      if (mfa.isEnrolled && !mfa.isVerified) {
+        setMfaFactorId(mfa.factorId ?? null);
+        setStage("mfa_verify");
+        setCheckingSession(false);
+        setLoading(false);
+        return;
+      }
     }
 
     // All clear — create hub session and redirect

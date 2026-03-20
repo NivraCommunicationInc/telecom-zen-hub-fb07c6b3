@@ -45,15 +45,6 @@ const PORTALS: PortalOption[] = [
     bgColor: "bg-amber-600/10",
     borderColor: "border-amber-600/20 hover:border-amber-500/40",
   },
-  {
-    id: "technician",
-    label: "Nivra Technician",
-    description: "Espace technicien — Installations, équipements, interventions terrain.",
-    icon: Wrench,
-    color: "text-purple-400",
-    bgColor: "bg-purple-600/10",
-    borderColor: "border-purple-600/20 hover:border-purple-500/40",
-  },
 ];
 
 export default function HubPage() {
