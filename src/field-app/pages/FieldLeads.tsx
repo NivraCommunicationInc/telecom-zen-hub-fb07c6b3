@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 };
 
 function useFieldLeads() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   return useQuery({
     queryKey: ["field-leads", user?.id],
     queryFn: async () => {

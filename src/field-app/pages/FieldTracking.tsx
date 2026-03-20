@@ -18,7 +18,7 @@ const PIPELINE = [
 ];
 
 export default function FieldTracking() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
 
   const { data, isLoading } = useQuery({
     queryKey: ["field-tracking", user?.id],

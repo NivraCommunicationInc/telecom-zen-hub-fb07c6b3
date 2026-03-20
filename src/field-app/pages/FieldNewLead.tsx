@@ -31,7 +31,7 @@ const PAYMENT_INTENTS = [
 
 export default function FieldNewLead() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     first_name: "",

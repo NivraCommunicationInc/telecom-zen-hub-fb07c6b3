@@ -24,7 +24,7 @@ const STATUS_LABELS: Record<string, string> = {
 export default function FieldLeadDetail() {
   const { leadId } = useParams<{ leadId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const queryClient = useQueryClient();
 
   const { data: lead, isLoading } = useQuery({

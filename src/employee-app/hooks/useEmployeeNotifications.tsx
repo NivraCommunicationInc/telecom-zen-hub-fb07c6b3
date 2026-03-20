@@ -21,7 +21,7 @@ export interface EmployeeNotification {
 }
 
 export function useEmployeeNotifications() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const queryClient = useQueryClient();
 
   const { data: notifications, isLoading } = useQuery({

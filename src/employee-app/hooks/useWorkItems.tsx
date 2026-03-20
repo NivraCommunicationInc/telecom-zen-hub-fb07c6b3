@@ -91,7 +91,7 @@ export function useWorkItems(filter?: string) {
 }
 
 export function useWorkItemCounts() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
 
   return useQuery({
     queryKey: ["employee-work-item-counts", user?.id],

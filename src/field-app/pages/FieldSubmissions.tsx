@@ -23,7 +23,7 @@ const ORDER_STATUS: Record<string, { label: string; color: string; bg: string }>
 };
 
 export default function FieldSubmissions() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
   const navigate = useNavigate();
 
   const { data: leads = [], isLoading } = useQuery({

@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 
 export default function FieldCommissions() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
 
   const { data, isLoading } = useQuery({
     queryKey: ["field-commissions", user?.id],

@@ -7,7 +7,7 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { User, Mail, Shield, Loader2 } from "lucide-react";
 
 export default function FieldProfile() {
-  const { user } = useAuth();
+  const { user } = useStaffUser();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["field-profile", user?.id],
