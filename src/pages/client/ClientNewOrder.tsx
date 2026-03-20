@@ -1113,7 +1113,7 @@ const ClientNewOrder = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("services_public")
-        .select("id, name, category, price, short_description, description, visible_checkout, status, display_order")
+        .select("id, name, category, price, short_description, description, visible_checkout, status, display_order, plan_code")
         .eq("visible_checkout", true)
         .eq("status", "active")
         .order("category", { ascending: true })
