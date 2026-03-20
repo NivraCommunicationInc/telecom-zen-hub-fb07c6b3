@@ -16,7 +16,7 @@ import { fr } from "date-fns/locale";
 import { useWorkItemCounts } from "@/employee-app/hooks/useWorkItems";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useStaffUser } from "@/lib/hooks/useStaffUser";
 
 function useEmployeeName() {
   const { user } = useAuth();
