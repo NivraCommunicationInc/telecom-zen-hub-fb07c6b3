@@ -2281,7 +2281,7 @@ const ClientNewOrder = () => {
         services: selectedServices.map(s => ({
           sku: s.sku || findSkuByName(allNivraProducts, s.name) || s.id,
           name: s.name || 'Service Nivra',
-          plan_code: s.id || s.name?.toUpperCase().replace(/\s+/g, '_') || 'UNKNOWN',
+          plan_code: s.plan_code || s.name?.toLowerCase().replace(/\s+/g, '_') || 'UNKNOWN',
           plan_price: toMoney(s.price),
           category: s.category || 'Other',
           quantity: s.category === "Mobile" ? (mobileLineQuantities[s.id] || 1) : 1,
