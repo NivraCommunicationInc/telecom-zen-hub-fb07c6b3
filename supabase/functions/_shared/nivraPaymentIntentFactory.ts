@@ -212,8 +212,16 @@ export async function createNivraPaymentIntent(
     metadata,
     description,
     receipt_email: params.customer_email,
-    automatic_payment_methods: { enabled: true },
   };
+
+  // Off-session autopay mode
+  if (params.off_session && params.payment_method) {
+    piParams.off_session = true;
+    piParams.confirm = true;
+    piParams.payment_method = params.payment_method;
+  } else {
+    piParams.automatic_payment_methods = { enabled: true };
+  }
 
   const paymentIntent = await stripe.paymentIntents.create(piParams);
 
