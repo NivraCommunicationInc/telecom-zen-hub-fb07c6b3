@@ -251,6 +251,7 @@ export default function FieldNewSale() {
           services={draft.services}
           equipment={draft.equipment}
           billing={draft.billing}
+          promos={draft.promos}
           onChange={(billing) => setDraft((d) => ({ ...d, billing }))}
           onNext={() => advance("billing")}
           onBack={() => goBack("billing")}
