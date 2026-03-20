@@ -11,14 +11,14 @@ import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 
 export default function EmployeeAppLayout() {
-  const { themeClass } = useInternalTheme();
+  const { theme, themeClass, toggleTheme } = useInternalTheme();
 
   return (
     <div className={cn("internal-ui min-h-screen flex w-full bg-background text-foreground", themeClass)}>
       <EmployeeSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-12 flex items-center justify-end gap-2 px-6 border-b border-border bg-card shrink-0">
-          <InternalThemeToggle />
+          <InternalThemeToggle theme={theme} onToggle={toggleTheme} />
           <EmployeeNotificationBell />
         </header>
         <main className="flex-1 overflow-auto">
