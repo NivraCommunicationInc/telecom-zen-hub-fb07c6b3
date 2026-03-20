@@ -4,6 +4,8 @@
 import { useNavigate } from "react-router-dom";
 import { Terminal, Briefcase, MapPin, Shield, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useInternalTheme } from "@/hooks/useInternalTheme";
+import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 
 interface PortalOption {
   id: string;
@@ -43,9 +45,10 @@ const PORTALS: PortalOption[] = [
 
 export default function HubPage() {
   const navigate = useNavigate();
+  const { themeClass } = useInternalTheme();
 
   return (
-    <div className="internal-ui min-h-screen bg-background text-foreground flex flex-col">
+    <div className={cn("internal-ui min-h-screen bg-background text-foreground flex flex-col", themeClass)}>
       <header className="border-b border-border bg-card">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center">
           <div className="flex items-center gap-3">
@@ -56,6 +59,9 @@ export default function HubPage() {
               <span className="font-semibold text-sm tracking-tight text-foreground">Nivra Internal</span>
               <span className="ml-2 text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Secure Hub</span>
             </div>
+          </div>
+          <div className="ml-auto">
+            <InternalThemeToggle />
           </div>
         </div>
       </header>
