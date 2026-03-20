@@ -76,12 +76,14 @@ export function useUnifiedPOS(initialState?: Partial<UnifiedPOSState>) {
     // First month taxable: monthly + one-time
     const taxableAmount = recurringSubtotal + oneTimeSubtotal;
     
-    // Quebec taxes — centralized server tax engine
-    const { tps, tvq } = estimateTaxes(taxableAmount);
+    // ⛔ NO LOCAL TAX MATH — taxes set to 0 as placeholders.
+    // Real taxes computed server-side at order submission via compute_checkout_pricing RPC.
+    const tps = 0;
+    const tvq = 0;
     
-    // Final totals
-    const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-    const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
+    // Display-only estimates (NOT authoritative)
+    const firstMonthTotal = taxableAmount; // Without taxes — server will compute final
+    const recurringMonthly = monthlySubtotal; // Without taxes — server will compute final
     
     return {
       monthlySubtotal,
