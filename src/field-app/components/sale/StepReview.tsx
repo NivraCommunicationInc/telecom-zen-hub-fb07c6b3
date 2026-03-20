@@ -4,7 +4,7 @@
  */
 import { User, Package, Wrench, CreditCard, CalendarDays, Check, MapPin, Tag } from "lucide-react";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
-import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
 
 interface Props {
   draft: FieldSaleDraft;
@@ -58,7 +58,8 @@ export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmi
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
   const oneTimeSubtotal = equipmentTotal + effectiveActivation;
   const totalDueToday = effectiveMonthly + oneTimeSubtotal;
-  const taxes = estimateTaxes(totalDueToday);
+  // ⛔ NO LOCAL TAX MATH — display subtotal only
+  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
 
   return (
     <div className="space-y-5">
@@ -153,17 +154,17 @@ export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmi
         )}
         <div className="text-xs space-y-1 pt-1">
           <div className="flex justify-between text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span>
-            <span>{taxes.tps.toFixed(2)} $</span>
+            <span>TPS (5%)</span>
+            <span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span>
-            <span>{taxes.tvq.toFixed(2)} $</span>
+            <span>TVQ (9.975%)</span>
+            <span>Calculé au traitement</span>
           </div>
         </div>
         <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
-          <span>Total aujourd'hui</span>
-          <span className="text-[#22C55E]">{taxes.total.toFixed(2)} $</span>
+          <span>Sous-total aujourd'hui</span>
+          <span className="text-[#22C55E]">{totalDueToday.toFixed(2)} $ (+ taxes)</span>
         </div>
       </div>
 

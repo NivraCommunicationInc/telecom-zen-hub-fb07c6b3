@@ -1,4 +1,7 @@
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+/**
+ * ⛔ LOCAL TAX MATH REMOVED — All financial values must come from the data parameter
+ * which is populated from canonical DB records (pricing_snapshot / billing_invoices).
+ */
 /**
  * Nivra Contract Summary PDF Generator
  * Design exactement comme le PDF fourni "Resume_Contrat_CTR-QC-ORD-2026-1108.pdf"
@@ -306,9 +309,12 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
     oneTimeFeeTotal += fees.installationFee;
   }
   
-  // Totals
-  const { tps: oneTimeTps, tvq: oneTimeTvq } = estimateTaxes(oneTimeFeeTotal);
-  const oneTimeTotalWithTax = oneTimeFeeTotal + oneTimeTps + oneTimeTvq;
+  // Totals — NO LOCAL TAX MATH. Display subtotal only; taxes come from canonical invoice.
+  const canonicalTps = (data as any).canonicalTps;
+  const canonicalTvq = (data as any).canonicalTvq;
+  const oneTimeTotalWithTax = (canonicalTps != null && canonicalTvq != null)
+    ? oneTimeFeeTotal + canonicalTps + canonicalTvq
+    : null;
   
   doc.setDrawColor(...COLORS.border);
   doc.line(PAGE.marginLeft, y, PAGE.width - PAGE.marginRight, y);
@@ -317,13 +323,17 @@ export async function generateContractSummaryPDF(data: ContractSummaryData): Pro
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6);
   doc.setTextColor(...COLORS.textMuted);
-  doc.text(`Sous-total unique: ${formatCurrency(oneTimeFeeTotal)} | TPS: ${formatCurrency(oneTimeTps)} | TVQ: ${formatCurrency(oneTimeTvq)}`, PAGE.marginLeft + 3, y);
+  if (canonicalTps != null && canonicalTvq != null) {
+    doc.text(`Sous-total unique: ${formatCurrency(oneTimeFeeTotal)} | TPS: ${formatCurrency(canonicalTps)} | TVQ: ${formatCurrency(canonicalTvq)}`, PAGE.marginLeft + 3, y);
+  } else {
+    doc.text(`Sous-total unique: ${formatCurrency(oneTimeFeeTotal)} | Taxes: voir facture officielle`, PAGE.marginLeft + 3, y);
+  }
   y += 4;
   
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.text);
-  doc.text(`Total frais uniques avec taxes: ${formatCurrency(oneTimeTotalWithTax)}`, PAGE.marginLeft + 3, y);
+  doc.text(`Total frais uniques${oneTimeTotalWithTax != null ? ` avec taxes: ${formatCurrency(oneTimeTotalWithTax)}` : `: ${formatCurrency(oneTimeFeeTotal)} (hors taxes)`}`, PAGE.marginLeft + 3, y);
   y += 5;
   
   doc.setFont("helvetica", "normal");

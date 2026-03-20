@@ -1,12 +1,12 @@
 /**
- * useUnifiedPOS - Unified hook for POS calculations across all portals
- * Uses centralized server tax engine — no local tax constants.
+ * useUnifiedPOS - Unified hook for POS cart management.
+ * ⛔ NO LOCAL TAX MATH — taxes/totals must come from server RPC at submission time.
+ * Cart subtotals (item sums) are kept for display purposes only.
  */
 import { useMemo, useCallback, useState } from "react";
 import { EquipmentItem } from "@/components/pos/POSEquipmentSelector";
 import { AdjustmentItem } from "@/components/pos/POSAdjustments";
 import { SelectedService } from "@/hooks/useFieldSalesOffers";
-import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
 
 export interface POSCartTotals {
   // Services
@@ -76,12 +76,14 @@ export function useUnifiedPOS(initialState?: Partial<UnifiedPOSState>) {
     // First month taxable: monthly + one-time
     const taxableAmount = recurringSubtotal + oneTimeSubtotal;
     
-    // Quebec taxes — centralized server tax engine
-    const { tps, tvq } = estimateTaxes(taxableAmount);
+    // ⛔ NO LOCAL TAX MATH — taxes set to 0 as placeholders.
+    // Real taxes computed server-side at order submission via compute_checkout_pricing RPC.
+    const tps = 0;
+    const tvq = 0;
     
-    // Final totals
-    const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-    const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
+    // Display-only estimates (NOT authoritative)
+    const firstMonthTotal = taxableAmount; // Without taxes — server will compute final
+    const recurringMonthly = monthlySubtotal; // Without taxes — server will compute final
     
     return {
       monthlySubtotal,
@@ -272,10 +274,11 @@ export function calculateUnifiedPOSTotals(
   const recurringSubtotal = monthlySubtotal;
   const taxableAmount = recurringSubtotal + oneTimeSubtotal;
   
-  const { tps, tvq } = estimateTaxes(taxableAmount);
-  
-  const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-  const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
+  // ⛔ NO LOCAL TAX MATH
+  const tps = 0;
+  const tvq = 0;
+  const firstMonthTotal = taxableAmount;
+  const recurringMonthly = monthlySubtotal;
   
   return {
     monthlySubtotal,

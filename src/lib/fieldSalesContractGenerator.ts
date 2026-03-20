@@ -5,8 +5,10 @@
 import { jsPDF } from "jspdf";
 import { ACTIVE_CONTRACT_TEMPLATE, getContractEngineFooterLine } from "./contractTemplate";
 
-// Tax calculation — centralized server tax engine
-import { estimateTaxes, COMBINED_TAX_MULTIPLIER } from "@/lib/pricing/serverTaxEngine";
+/**
+ * ⛔ LOCAL TAX MATH REMOVED — All financial values must come from the data parameter
+ * which is populated from canonical DB records (pricing_snapshot / billing_invoices).
+ */
 
 interface FieldSalesContractData {
   orderNumber: string;
@@ -149,11 +151,13 @@ export async function generateFieldSalesContractPDF(data: FieldSalesContractData
   addText(`${data.service.monthlyPrice.toFixed(2)} $`, marginLeft + 130, currentY + 6);
   currentY += 15;
 
-  // ========== BILLING SECTION ==========
-  const subtotal = data.payment.totalAmount / COMBINED_TAX_MULTIPLIER;
-  const taxResult = estimateTaxes(subtotal);
-  const tps = taxResult.tps;
-  const tvq = taxResult.tvq;
+  // ========== BILLING SECTION — FROM CANONICAL DATA ONLY ==========
+  const canonicalSubtotal = (data as any).subtotal;
+  const canonicalTps = (data as any).tps_amount;
+  const canonicalTvq = (data as any).tvq_amount;
+  const subtotal = canonicalSubtotal ?? 0;
+  const tps = canonicalTps ?? 0;
+  const tvq = canonicalTvq ?? 0;
 
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(marginLeft + 90, currentY, 80, 40, 3, 3, 'F');

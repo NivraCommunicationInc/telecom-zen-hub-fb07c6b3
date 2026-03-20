@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { backendClient } from "@/integrations/backend/client";
 import { useFieldSalesOffers, FieldSalesOffer, SelectedService } from "@/hooks/useFieldSalesOffers";
-import { estimateTaxes, estimateMonthlyWithTax } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -292,9 +292,11 @@ export default function CorePOSPage() {
     const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 25 : 45;
     const oneTimeSubtotal = setupSubtotal + equipmentTotal + activationFee + adjustmentsTotal;
     const taxableAmount = monthlySubtotal + oneTimeSubtotal;
-    const { tps, tvq } = estimateTaxes(taxableAmount);
-    const firstMonthTotal = Math.round((taxableAmount + tps + tvq) * 100) / 100;
-    const recurringMonthly = estimateMonthlyWithTax(monthlySubtotal);
+    // ⛔ NO LOCAL TAX MATH — taxes will be computed server-side at order orchestration
+    const tps = 0;
+    const tvq = 0;
+    const firstMonthTotal = taxableAmount; // Display subtotal only; server computes final
+    const recurringMonthly = monthlySubtotal; // Display subtotal only
 
     return {
       monthlySubtotal, setupSubtotal, equipmentTotal, adjustmentsTotal,

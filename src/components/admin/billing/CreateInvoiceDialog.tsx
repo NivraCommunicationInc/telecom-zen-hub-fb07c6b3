@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, UserPlus, User } from "lucide-react";
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed by DB trigger trg_05_invoice_math_from_subtotal
 import type { BillingCustomer, BillingInvoiceType, BillingInvoiceStatus, BillingPaymentMethod } from "@/lib/billing/types";
 
 interface InvoiceLine {
@@ -102,11 +102,13 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
     enabled: open,
   });
 
-  // Calculate totals inline (preview only — canonical totals come from RPC after insert)
+  // ⛔ NO LOCAL TAX MATH — preview shows subtotal only; DB trigger computes taxes on insert
   const linesSubtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   const activationFee = includeActivationFee ? activationFeeAmount : 0;
   const subtotal = linesSubtotal + activationFee;
-  const { tps, tvq, total } = estimateTaxes(subtotal);
+  const tps = 0; // Computed by DB trigger
+  const tvq = 0; // Computed by DB trigger
+  const total = subtotal; // DB trigger will set real total
   const totals = { subtotal, tps, tvq, total };
 
   // Add line

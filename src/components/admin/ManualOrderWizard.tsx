@@ -29,8 +29,7 @@ import { CreateClientDialog } from "./CreateClientDialog";
 import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/validation/dob";
 import { AddressAutocomplete, AddressValue } from "@/components/shared/AddressAutocomplete";
 
-// Constants — taxes from centralized engine
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only via order orchestration
 const DELIVERY_FEES = { standard: 30, uber: 45, shipHome: 15 };
 const ACTIVATION_FEE = 25;
 const INSTALLATION_FEE = 75;
@@ -279,7 +278,10 @@ export default function ManualOrderWizard({
     const subtotalOneTime = terminalFee + routerFee + simFee + deliveryFee + activationFee + installationFee;
     const discountAmount = orderState.discountAmount;
     const taxableAmount = subtotalOneTime - discountAmount;
-    const { tps, tvq, total: totalOneTime } = estimateTaxes(taxableAmount);
+    // ⛔ NO LOCAL TAX MATH — server computes taxes at order orchestration
+    const tps = 0;
+    const tvq = 0;
+    const totalOneTime = taxableAmount; // Subtotal only; server adds taxes
 
     return {
       planMonthly,

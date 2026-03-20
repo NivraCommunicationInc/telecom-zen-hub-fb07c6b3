@@ -11,8 +11,11 @@ interface POSOrderSummaryProps {
 }
 
 export function POSOrderSummary({ services, customer, payment }: POSOrderSummaryProps) {
+  // ⛔ NO LOCAL FINANCIAL MATH — display cart line items only (non-transactional preview)
+  // Actual totals come from server RPC at order submission
   const monthlyTotal = services.reduce((sum, s) => sum + (s.priceMonthly || 0) * s.quantity, 0);
   const setupTotal = services.reduce((sum, s) => sum + (s.priceSetup || 0) * s.quantity, 0);
+  // NOTE: These are pre-tax subtotals for cart preview only. Taxes computed server-side.
 
   const paymentMethodLabels: Record<string, string> = {
     card: "Carte de crédit",
@@ -47,7 +50,7 @@ export function POSOrderSummary({ services, customer, payment }: POSOrderSummary
         <div className="pt-4 border-t border-slate-700 space-y-2">
           <div className="flex justify-between"><span className="text-slate-300">Mensuel</span><span className="text-white">{monthlyTotal.toFixed(2)} $</span></div>
           {setupTotal > 0 && <div className="flex justify-between"><span className="text-slate-300">Frais activation</span><span className="text-white">{setupTotal.toFixed(2)} $</span></div>}
-          <div className="flex justify-between text-lg font-bold"><span className="text-white">Total 1er mois</span><span className="text-orange-400">{(monthlyTotal + setupTotal).toFixed(2)} $</span></div>
+          <div className="flex justify-between text-lg font-bold"><span className="text-white">Sous-total 1er mois</span><span className="text-orange-400">{(monthlyTotal + setupTotal).toFixed(2)} $ (+ taxes)</span></div>
         </div>
       </CardContent>
     </Card>

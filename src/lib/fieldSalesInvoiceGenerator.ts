@@ -4,8 +4,10 @@
  */
 import { jsPDF } from "jspdf";
 
-// Tax calculation — centralized server tax engine
-import { estimateTaxes, COMBINED_TAX_MULTIPLIER } from "@/lib/pricing/serverTaxEngine";
+/**
+ * ⛔ LOCAL TAX MATH REMOVED — All financial values must come from the data parameter
+ * which is populated from canonical DB records (pricing_snapshot / billing_invoices).
+ */
 
 interface FieldSalesInvoiceData {
   invoiceNumber: string;
@@ -141,11 +143,15 @@ export async function generateFieldSalesInvoicePDF(data: FieldSalesInvoiceData):
   
   currentY += 20;
 
-  // ========== TOTALS ==========
-  const subtotal = data.payment.totalAmount / COMBINED_TAX_MULTIPLIER;
-  const taxResult = estimateTaxes(subtotal);
-  const tps = taxResult.tps;
-  const tvq = taxResult.tvq;
+  // ========== TOTALS — FROM CANONICAL DATA ONLY ==========
+  // totalAmount is the grand total from DB. We display it as-is.
+  // subtotal/tps/tvq must come from canonical fields if available.
+  const canonicalSubtotal = (data as any).subtotal;
+  const canonicalTps = (data as any).tps_amount;
+  const canonicalTvq = (data as any).tvq_amount;
+  const subtotal = canonicalSubtotal ?? 0;
+  const tps = canonicalTps ?? 0;
+  const tvq = canonicalTvq ?? 0;
 
   doc.setFillColor(245, 245, 245);
   doc.roundedRect(marginLeft + 80, currentY, 90, 55, 3, 3, 'F');

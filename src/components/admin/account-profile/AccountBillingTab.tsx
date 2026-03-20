@@ -272,19 +272,13 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
         line_type: adjustType === "credit" ? "credit" : "charge",
       });
 
-      // Recalculate invoice totals — centralized tax engine
-      const { estimateTaxes: estTax } = await import("@/lib/pricing/serverTaxEngine");
+      // ⛔ NO LOCAL TAX RECALCULATION — DB trigger trg_05_invoice_math_from_subtotal
+      // handles tax recalculation automatically when subtotal changes.
       const newSubtotal = (adjustInvoice.subtotal || 0) + lineTotal;
-      const { tps, tvq, total: newTotal } = estTax(newSubtotal);
-      const newBalance = Math.round((newTotal - (adjustInvoice.amount_paid || 0)) * 100) / 100;
 
+      // Update subtotal only — DB trigger computes tps, tvq, total, balance_due
       await supabase.from("billing_invoices").update({
         subtotal: newSubtotal,
-        tps_amount: tps,
-        tvq_amount: tvq,
-        total: newTotal,
-        balance_due: Math.max(0, newBalance),
-        status: newBalance <= 0 ? "paid" : adjustInvoice.status,
       }).eq("id", adjustInvoice.id);
 
       toast.success(`${adjustType === "credit" ? "Crédit" : "Charge"} de ${amount.toFixed(2)} $ appliqué(e)`);

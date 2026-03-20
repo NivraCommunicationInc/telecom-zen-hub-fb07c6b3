@@ -5,7 +5,8 @@ import { CreditCard, RotateCcw, Check, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FieldSaleBilling, FieldSaleService, FieldSaleEquipment } from "@/field-app/lib/fieldSaleTypes";
 import type { FieldSalePromo } from "@/field-app/components/sale/StepPromo";
-import { estimateTaxes, TAX_DISPLAY } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
+const TAX_DISPLAY = { TPS_LABEL: "TPS (5%)", TVQ_LABEL: "TVQ (9.975%)" };
 
 interface Props {
   services: FieldSaleService[];
@@ -37,8 +38,9 @@ export default function StepBilling({ services, equipment, billing, promos = [],
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
   const oneTimeSubtotal = equipmentTotal + effectiveActivation;
   const totalDueToday = effectiveMonthly + oneTimeSubtotal;
-  const taxes = estimateTaxes(totalDueToday);
-  const monthlyTaxes = estimateTaxes(effectiveMonthly);
+  // ⛔ NO LOCAL TAX MATH — display subtotals only
+  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
+  const monthlyTaxes = { tps: 0, tvq: 0, total: effectiveMonthly, taxableAmount: effectiveMonthly };
 
   return (
     <div className="space-y-6">
@@ -70,13 +72,13 @@ export default function StepBilling({ services, equipment, billing, promos = [],
             <span>Sous-total</span><span>{effectiveMonthly.toFixed(2)} $</span>
           </div>
           <div className="flex justify-between text-xs text-[#6B7280]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>{monthlyTaxes.tps.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-xs text-[#6B7280]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>{monthlyTaxes.tvq.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-sm font-bold text-[#000000] pt-1">
-            <span>Total mensuel</span><span>{monthlyTaxes.total.toFixed(2)} $/mois</span>
+            <span>Sous-total mensuel</span><span>{effectiveMonthly.toFixed(2)} $/mois (+ taxes)</span>
           </div>
         </div>
       </div>
@@ -122,13 +124,13 @@ export default function StepBilling({ services, equipment, billing, promos = [],
             <span className="text-[#D1D5DB]">Frais uniques</span><span>{oneTimeSubtotal.toFixed(2)} $</span>
           </div>
           <div className="flex justify-between text-xs text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>{taxes.tps.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-xs text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>{taxes.tvq.toFixed(2)} $</span>
+            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>Calculé au traitement</span>
           </div>
           <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
-            <span>Total</span><span className="text-[#22C55E]">{taxes.total.toFixed(2)} $</span>
+            <span>Sous-total</span><span className="text-[#22C55E]">{totalDueToday.toFixed(2)} $ (+ taxes)</span>
           </div>
         </div>
       </div>

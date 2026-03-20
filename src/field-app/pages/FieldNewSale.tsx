@@ -11,7 +11,7 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { toast } from "sonner";
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
 import {
   EMPTY_DRAFT, STEP_ORDER,
   type FieldSaleDraft, type FieldSaleStep,
@@ -92,7 +92,8 @@ export default function FieldNewSale() {
   const effectiveMonthly = Math.max(0, monthlySubtotal - promoMonthlyDiscount);
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
   const totalDueToday = effectiveMonthly + equipmentTotal + effectiveActivation;
-  const taxes = estimateTaxes(totalDueToday);
+  // ⛔ NO LOCAL TAX MATH — display subtotal only; server computes taxes at sync
+  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
 
   const handleSubmit = async () => {
     if (!user?.id || isSubmitting) return;

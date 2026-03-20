@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Download, CheckCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — legacy import uses original DB values
 
 interface LegacyInvoice {
   id: string;
@@ -184,10 +184,12 @@ export function LegacyInvoiceImportDialog({ open, onOpenChange }: Props) {
           customerId = newCustomer.id;
         }
 
-        // 2. Calculate amounts (preview only — canonical totals come from RPC)
-        const subtotal = inv.subtotal || inv.amount / 1.14975;
-        const taxResult = estimateTaxes(subtotal);
-        const totals = { subtotal, tps: taxResult.tps, tvq: taxResult.tvq, total: taxResult.total };
+        // 2. Use original DB values — NO LOCAL TAX RECALCULATION
+        const subtotal = inv.subtotal || 0;
+        const tpsVal = inv.tps_amount || 0;
+        const tvqVal = inv.tvq_amount || 0;
+        const totalVal = inv.amount || (subtotal + tpsVal + tvqVal);
+        const totals = { subtotal, tps: tpsVal, tvq: tvqVal, total: totalVal };
 
         // 3. Map status
         let v2Status: "draft" | "pending" | "paid" | "failed" | "cancelled" | "refunded" = "pending";
