@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, UserPlus, User } from "lucide-react";
-import { estimateTaxes } from "@/lib/pricing/serverTaxEngine";
+// ⛔ LOCAL TAX MATH REMOVED — taxes computed by DB trigger trg_05_invoice_math_from_subtotal
 import type { BillingCustomer, BillingInvoiceType, BillingInvoiceStatus, BillingPaymentMethod } from "@/lib/billing/types";
 
 interface InvoiceLine {
