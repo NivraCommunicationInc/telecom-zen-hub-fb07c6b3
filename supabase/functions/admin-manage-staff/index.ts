@@ -570,12 +570,12 @@ serve(async (req: Request) => {
           }
         }
 
-        if (role !== "admin" && pin && !/^\d{4}$/.test(pin)) {
+        if (role !== "admin" && pin && !/^\d{6}$/.test(pin)) {
           return json(400, {
             ok: false,
             request_id: requestId,
             step: `${createStep}.validate_pin`,
-            message: "Le PIN doit être exactement 4 chiffres",
+            message: "Le PIN doit être exactement 6 chiffres",
             http_status: 400,
           });
         }
