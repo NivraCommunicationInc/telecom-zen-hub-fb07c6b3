@@ -307,6 +307,146 @@ Deno.serve(async (req) => {
 
         console.log(`[field-sales-sync] Created order ${newOrder.order_number} for sale ${sale.id}`);
 
+        // ═══ CANONICAL INVOICE + PAYMENT CREATION ═══
+        // Field orders must enter the same billing pipeline as website orders
+        let invoiceId: string | null = null;
+        let paymentId: string | null = null;
+
+        try {
+          // Generate invoice number from DB sequence
+          const { data: invoiceNum, error: invNumErr } = await supabaseAdmin.rpc("generate_invoice_number");
+          if (invNumErr || !invoiceNum) throw new Error(`generate_invoice_number failed: ${invNumErr?.message}`);
+
+          // Get or create billing customer
+          let billingCustomerId: string | null = null;
+          const { data: existingBillingCustomer } = await supabaseAdmin
+            .from("billing_customers")
+            .select("id")
+            .ilike("email", customerEmail)
+            .maybeSingle();
+
+          if (existingBillingCustomer) {
+            billingCustomerId = existingBillingCustomer.id;
+            // Link user_id if missing
+            if (clientUserId) {
+              await supabaseAdmin.from("billing_customers")
+                .update({ user_id: clientUserId })
+                .eq("id", billingCustomerId)
+                .is("user_id", null);
+            }
+          } else {
+            const { firstName: fn, lastName: ln } = splitName(sale.customer_name);
+            const { data: newBillingCust, error: bcErr } = await supabaseAdmin
+              .from("billing_customers")
+              .insert({
+                user_id: clientUserId,
+                first_name: fn || "Client",
+                last_name: ln || "Terrain",
+                email: customerEmail,
+                phone: sale.customer_phone || "",
+                status: "active",
+              })
+              .select("id")
+              .single();
+            if (bcErr) throw bcErr;
+            billingCustomerId = newBillingCust.id;
+          }
+
+          // Determine payment state based on field sale status
+          const isConfirmedPayment = sale.payment_status === "confirmed";
+          const invoiceStatus = isConfirmedPayment ? "paid" : "pending";
+
+          const now = new Date();
+          const cycleStart = now.toISOString().split("T")[0];
+          const cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString().split("T")[0];
+          const dueDate = new Date(now.getTime() + 15 * 86400000).toISOString().split("T")[0];
+
+          // Create canonical invoice
+          const { data: newInvoice, error: invErr } = await supabaseAdmin
+            .from("billing_invoices")
+            .insert({
+              customer_id: billingCustomerId,
+              invoice_number: String(invoiceNum),
+              order_id: newOrder.id,
+              type: "one_time",
+              status: invoiceStatus,
+              subtotal: subtotal + activationFee,
+              tps_amount: tpsAmount,
+              tvq_amount: tvqAmount,
+              total: totalAmount,
+              amount_paid: isConfirmedPayment ? totalAmount : 0,
+              balance_due: isConfirmedPayment ? 0 : totalAmount,
+              cycle_start_date: cycleStart,
+              cycle_end_date: cycleEnd,
+              due_date: dueDate,
+              paid_at: isConfirmedPayment ? now.toISOString() : null,
+              environment: "production",
+              billing_snapshot_client: {
+                first_name: firstName || null,
+                last_name: lastName || null,
+                email: customerEmail,
+                phone: sale.customer_phone || null,
+              },
+            })
+            .select("id")
+            .single();
+
+          if (invErr) {
+            console.error("[field-sales-sync] Invoice creation error:", invErr);
+          } else {
+            invoiceId = newInvoice.id;
+            console.log(`[field-sales-sync] Created invoice ${invoiceNum} for order ${newOrder.order_number}`);
+
+            // Create invoice lines
+            for (const li of lineItems) {
+              await supabaseAdmin.from("billing_invoice_lines").insert({
+                invoice_id: invoiceId,
+                description: li.name,
+                unit_price: li.unit_price,
+                quantity: li.qty,
+                line_total: li.unit_price * li.qty,
+                line_type: li.category === "fee" ? "fee" : "service",
+              });
+            }
+
+            // Generate payment number
+            const { data: payNum, error: payNumErr } = await supabaseAdmin.rpc("generate_payment_number");
+            const paymentNumber = payNumErr || !payNum ? `PAY-FS-${Date.now().toString(36).toUpperCase()}` : String(payNum);
+
+            // Determine payment method for billing_payments enum
+            const billingPaymentMethod = sale.payment_method === "paypal" ? "paypal"
+              : sale.payment_method === "interac" ? "interac"
+              : sale.payment_method === "card" ? "card"
+              : "interac"; // default for deferred
+
+            // Create canonical payment record
+            const { data: newPayment, error: payErr } = await supabaseAdmin
+              .from("billing_payments")
+              .insert({
+                invoice_id: invoiceId,
+                customer_id: billingCustomerId,
+                amount: totalAmount,
+                method: billingPaymentMethod,
+                provider: sale.payment_method || "manual",
+                reference: sale.payment_reference || null,
+                payment_number: paymentNumber,
+                status: isConfirmedPayment ? "confirmed" : "pending",
+                source: "field_sales",
+              })
+              .select("id")
+              .single();
+
+            if (payErr) {
+              console.error("[field-sales-sync] Payment creation error:", payErr);
+            } else {
+              paymentId = newPayment.id;
+              console.log(`[field-sales-sync] Created payment ${paymentNumber} for invoice ${invoiceNum}`);
+            }
+          }
+        } catch (billingErr: any) {
+          console.error("[field-sales-sync] Billing pipeline error (non-blocking):", billingErr);
+        }
+
         // Update field_sales_orders with converted_order_id and sync status
         const { error: updateError } = await supabaseAdmin
           .from('field_sales_orders')
@@ -344,7 +484,13 @@ Deno.serve(async (req) => {
             });
         }
 
-        return { success: true, orderId: newOrder.id, order_number: newOrder.order_number };
+        return { 
+          success: true, 
+          orderId: newOrder.id, 
+          order_number: newOrder.order_number,
+          invoice_id: invoiceId,
+          payment_id: paymentId,
+        };
 
       } catch (error: any) {
         console.error(`[field-sales-sync] Error syncing sale ${sale.id}:`, error);
