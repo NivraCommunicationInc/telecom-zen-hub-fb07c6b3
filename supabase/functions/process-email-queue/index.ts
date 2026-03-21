@@ -47,117 +47,178 @@ function validatePDFClientData(vars: Record<string, any>): { valid: boolean; mis
   return { valid: missing.length === 0, missing };
 }
 
-// Generate PDF attachment from template vars
+// Build invoice data from template vars
+function buildInvoiceData(vars: Record<string, any>): InvoiceData {
+  const canonicalTotal = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? vars.amount ?? 0) || 0;
+  const canonicalAmountDue = Number(vars.amount_due_today ?? vars.balance_due ?? vars.canonical_balance_due ?? canonicalTotal) || 0;
+  const canonicalSubtotal = Number(vars.subtotal ?? vars.taxable_base ?? vars.canonical_subtotal ?? canonicalTotal) || 0;
+  const canonicalTps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
+  const canonicalTvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
+
+  return {
+    invoice_number: vars.invoice_number || vars.invoiceNumber || `NV-${Date.now()}`,
+    invoice_date: vars.invoice_date || vars.created_at || new Date().toISOString(),
+    due_date: vars.due_date || vars.dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+    account_number: vars.account_number || vars.client_number || '',
+    period_start: vars.period_start || '',
+    period_end: vars.period_end || '',
+    client_name: vars.client_name || vars.name || 'Client',
+    client_email: vars.client_email || vars.email || '',
+    client_phone: vars.client_phone || vars.phone || '',
+    client_address: vars.client_address || vars.address || '',
+    services: vars.services || [
+      { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: canonicalTotal }
+    ],
+    subtotal: canonicalSubtotal,
+    discount_label: vars.discount_label || (vars.discount_amount ? 'Rabais' : undefined),
+    discount_amount: Number(vars.discount_amount ?? 0) || undefined,
+    tps: canonicalTps,
+    tvq: canonicalTvq,
+    total: canonicalTotal,
+    previous_balance: vars.previous_balance || 0,
+    payments: vars.payments || [],
+    balance_due: canonicalAmountDue,
+  };
+}
+
+// Build receipt data from template vars
+function buildReceiptData(vars: Record<string, any>): ReceiptData {
+  const amountPaid = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.amount_paid ?? vars.amount ?? vars.total_payable ?? 0) || 0;
+  const subtotal = Number(vars.subtotal ?? vars.taxable_base ?? 0) || 0;
+  const tps = Number(vars.tps_amount ?? vars.tps ?? 0) || 0;
+  const tvq = Number(vars.tvq_amount ?? vars.tvq ?? 0) || 0;
+  const total = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? amountPaid) || 0;
+
+  return {
+    receipt_number: vars.payment_number || vars.receipt_number || `REC-${Date.now()}`,
+    receipt_date: vars.paid_at || vars.payment_date || new Date().toISOString(),
+    invoice_number: vars.invoice_number || '',
+    account_number: vars.account_number || vars.client_number || '',
+    client_name: vars.client_name || vars.name || 'Client',
+    client_email: vars.client_email || vars.email || '',
+    client_phone: vars.client_phone || vars.phone || '',
+    client_address: vars.client_address || vars.address || '',
+    payment_method: vars.payment_method || 'paypal',
+    payment_reference: vars.payment_reference || vars.reference || '',
+    amount_paid: amountPaid,
+    subtotal,
+    discount_label: vars.discount_label || (vars.discount_amount ? 'Rabais' : undefined),
+    discount_amount: Number(vars.discount_amount ?? 0) || undefined,
+    tps,
+    tvq,
+    total,
+    services: vars.services,
+  };
+}
+
+// Build contract data from template vars
+function buildContractData(vars: Record<string, any>): ContractData {
+  return {
+    contract_number: vars.contract_number || `CTR-${Date.now()}`,
+    effective_date: vars.effective_date || vars.created_at || new Date().toISOString(),
+    client_name: vars.client_name || vars.name || 'Client',
+    client_email: vars.client_email || vars.email || '',
+    client_phone: vars.client_phone || vars.phone || '',
+    client_address: vars.client_address || vars.address || '',
+    client_dob: vars.client_dob || '',
+    services: vars.services || [
+      { name: vars.service_type || 'Service Nivra', description: '', monthly_price: vars.monthly_amount || 0 }
+    ],
+    equipment: vars.equipment || [],
+    total_monthly: vars.total_monthly || vars.monthly_amount || 0,
+    total_one_time: vars.total_one_time || 0,
+    agent_name: vars.agent_name || '',
+    agent_code: vars.agent_code || '',
+  };
+}
+
+// Build summary data from template vars
+function buildSummaryData(vars: Record<string, any>): SummaryData {
+  const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_payable ?? vars.total_amount ?? 0) || 0;
+  const totalPayable = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? paidToday) || 0;
+  const tps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
+  const tvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
+
+  return {
+    order_number: vars.order_number || vars.order_id?.substring(0, 8) || "—",
+    order_date: vars.order_date || vars.created_at || new Date().toISOString(),
+    status: vars.status || 'En traitement',
+    client_name: vars.client_name || vars.name || 'Client',
+    client_email: vars.client_email || vars.email || '',
+    client_phone: vars.client_phone || vars.phone || '',
+    client_address: vars.client_address || vars.service_address || '',
+    services: vars.services || [
+      { name: vars.service_type || 'Service Nivra', price: paidToday || totalPayable, is_recurring: true }
+    ],
+    subtotal_recurring: Number(vars.monthly_recurring_amount ?? vars.subtotal_recurring ?? vars.monthly_amount ?? 0) || 0,
+    subtotal_one_time: Number(vars.one_time_charges ?? vars.subtotal_one_time ?? vars.one_time_amount ?? 0) || 0,
+    tps,
+    tvq,
+    total: totalPayable,
+    installation_date: vars.installation_date || vars.scheduled_at || '',
+  };
+}
+
+// Generate ALL 4 PDFs for full document set (order/payment confirmation)
+function generateFullDocumentSet(vars: Record<string, any>): Array<{ filename: string; content: string }> {
+  const validation = validatePDFClientData(vars);
+  if (!validation.valid) {
+    console.warn(`[PDF Safety] Missing client fields for full doc set: ${validation.missing.join(', ')}. Skipping PDF attachments.`);
+    return [];
+  }
+
+  const attachments: Array<{ filename: string; content: string }> = [];
+
+  // 1. Invoice PDF
+  try {
+    const invoiceData = buildInvoiceData(vars);
+    const invoicePdf = generatePDFAttachment('invoice', invoiceData);
+    if (invoicePdf) attachments.push({ filename: invoicePdf.filename, content: invoicePdf.content });
+  } catch (e) { console.error('[PDF] Invoice generation failed:', e); }
+
+  // 2. Receipt PDF
+  try {
+    const receiptData = buildReceiptData(vars);
+    const receiptPdf = generatePDFAttachment('receipt', receiptData);
+    if (receiptPdf) attachments.push({ filename: receiptPdf.filename, content: receiptPdf.content });
+  } catch (e) { console.error('[PDF] Receipt generation failed:', e); }
+
+  // 3. Contract PDF
+  try {
+    const contractData = buildContractData(vars);
+    const contractPdf = generatePDFAttachment('contract', contractData);
+    if (contractPdf) attachments.push({ filename: contractPdf.filename, content: contractPdf.content });
+  } catch (e) { console.error('[PDF] Contract generation failed:', e); }
+
+  // 4. Order Summary PDF
+  try {
+    const summaryData = buildSummaryData(vars);
+    const summaryPdf = generatePDFAttachment('summary', summaryData);
+    if (summaryPdf) attachments.push({ filename: summaryPdf.filename, content: summaryPdf.content });
+  } catch (e) { console.error('[PDF] Summary generation failed:', e); }
+
+  return attachments;
+}
+
+// Generate single PDF attachment from template vars (for non-full-set templates)
 function generateEmailPDFAttachment(templateKey: string, vars: Record<string, any>): PDFAttachment | null {
   const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
   if (!pdfType) return null;
 
-  // EMAIL SAFETY: Validate required client data before generating PDF
   const validation = validatePDFClientData(vars);
   if (!validation.valid) {
     console.warn(`[PDF Safety] Missing client fields for ${templateKey}: ${validation.missing.join(', ')}. Skipping PDF attachment.`);
-    // Return null = no PDF attached, but email still sends (without attachment)
     return null;
   }
 
   try {
     switch (pdfType) {
-      case 'invoice': {
-        const canonicalTotal = Number(
-          vars.total_payable ??
-          vars.canonical_total_payable ??
-          vars.total ??
-          vars.amount ??
-          0,
-        ) || 0;
-        const canonicalAmountDue = Number(
-          vars.amount_due_today ??
-          vars.balance_due ??
-          vars.canonical_balance_due ??
-          canonicalTotal,
-        ) || 0;
-        const canonicalSubtotal = Number(
-          vars.subtotal ??
-          vars.taxable_base ??
-          vars.canonical_subtotal ??
-          canonicalTotal,
-        ) || 0;
-        const canonicalTps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
-        const canonicalTvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
-
-        const invoiceData: InvoiceData = {
-          invoice_number: vars.invoice_number || vars.invoiceNumber || `NV-${Date.now()}`,
-          invoice_date: vars.invoice_date || vars.created_at || new Date().toISOString(),
-          due_date: vars.due_date || vars.dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-          account_number: vars.account_number || vars.client_number || '',
-          period_start: vars.period_start || '',
-          period_end: vars.period_end || '',
-          client_name: vars.client_name || vars.name || 'Client',
-          client_email: vars.client_email || vars.email || '',
-          client_phone: vars.client_phone || vars.phone || '',
-          client_address: vars.client_address || vars.address || '',
-          services: vars.services || [
-            { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: canonicalTotal }
-          ],
-          subtotal: canonicalSubtotal,
-          tps: canonicalTps,
-          tvq: canonicalTvq,
-          total: canonicalTotal,
-          previous_balance: vars.previous_balance || 0,
-          payments: vars.payments || [],
-          balance_due: canonicalAmountDue,
-        };
-        return generatePDFAttachment('invoice', invoiceData);
-      }
-      
-      case 'contract': {
-        const contractData: ContractData = {
-          contract_number: vars.contract_number || `CTR-${Date.now()}`,
-          effective_date: vars.effective_date || vars.created_at || new Date().toISOString(),
-          client_name: vars.client_name || vars.name || 'Client',
-          client_email: vars.client_email || vars.email || '',
-          client_phone: vars.client_phone || vars.phone || '',
-          client_address: vars.client_address || vars.address || '',
-          client_dob: vars.client_dob || '',
-          services: vars.services || [
-            { name: vars.service_type || 'Service Nivra', description: '', monthly_price: vars.monthly_amount || 0 }
-          ],
-          equipment: vars.equipment || [],
-          total_monthly: vars.total_monthly || vars.monthly_amount || 0,
-          total_one_time: vars.total_one_time || 0,
-          agent_name: vars.agent_name || '',
-          agent_code: vars.agent_code || '',
-        };
-        return generatePDFAttachment('contract', contractData);
-      }
-      
-      case 'summary': {
-        const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_payable ?? vars.total_amount ?? 0) || 0;
-        const totalPayable = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? paidToday) || 0;
-        const tps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
-        const tvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
-
-        const summaryData: SummaryData = {
-          order_number: vars.order_number || vars.order_id?.substring(0, 8) || "—",
-          order_date: vars.order_date || vars.created_at || new Date().toISOString(),
-          status: vars.status || 'En traitement',
-          client_name: vars.client_name || vars.name || 'Client',
-          client_email: vars.client_email || vars.email || '',
-          client_phone: vars.client_phone || vars.phone || '',
-          client_address: vars.client_address || vars.service_address || '',
-          services: vars.services || [
-            { name: vars.service_type || 'Service Nivra', price: paidToday || totalPayable, is_recurring: true }
-          ],
-          subtotal_recurring: Number(vars.monthly_recurring_amount ?? vars.subtotal_recurring ?? vars.monthly_amount ?? 0) || 0,
-          subtotal_one_time: Number(vars.one_time_charges ?? vars.subtotal_one_time ?? vars.one_time_amount ?? 0) || 0,
-          tps,
-          tvq,
-          total: totalPayable,
-          installation_date: vars.installation_date || vars.scheduled_at || '',
-        };
-        return generatePDFAttachment('summary', summaryData);
-      }
-      
+      case 'invoice':
+        return generatePDFAttachment('invoice', buildInvoiceData(vars));
+      case 'contract':
+        return generatePDFAttachment('contract', buildContractData(vars));
+      case 'summary':
+        return generatePDFAttachment('summary', buildSummaryData(vars));
       default:
         return null;
     }
