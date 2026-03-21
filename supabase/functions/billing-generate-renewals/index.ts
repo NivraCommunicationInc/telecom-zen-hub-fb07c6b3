@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
-import { createNivraPaymentIntent } from "../_shared/nivraPaymentIntentFactory.ts";
+// STRIPE DISABLED — import removed: createNivraPaymentIntent
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -236,61 +236,10 @@ serve(async (req) => {
             created_by_role: 'system',
           });
         
-        // ═══ AUTOPAY: Auto-charge via Stripe ═══
+        // ═══ STRIPE AUTOPAY: DISABLED — 2026-03-21 ═══
+        // Stripe autopay is permanently disabled. PayPal handles recurring billing.
         if (isAutopayEligible && customerData?.stripe_customer_id && customerData?.default_payment_method_id) {
-          console.log(`[billing-generate-renewals] Triggering Stripe autopay for customer ${sub.customer_id}`);
-          try {
-            const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-            if (stripeKey) {
-              const Stripe = (await import("npm:stripe@18")).default;
-              const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-              
-              const piResult = await createNivraPaymentIntent({
-                stripe,
-                customer_email: customerData.email || "",
-                invoice_id: invoice.id,
-                invoice_number: invoiceNumber,
-                service_name: sub.plan_name || "Nivra Telecom",
-                total_amount: total,
-                subscription_id: sub.id,
-                customer_id: sub.customer_id,
-                existing_stripe_customer_id: customerData.stripe_customer_id,
-                subtotal,
-                tax_tps: tpsAmount,
-                tax_tvq: tvqAmount,
-                monthly_amount: sub.plan_price,
-                discount_amount: promoDiscount > 0 ? promoDiscount : undefined,
-                capture_method: "automatic",
-                source: "autopay_renewal",
-                intent_context: "autopay_renewal",
-                off_session: true,
-                confirm: true,
-                payment_method: customerData.default_payment_method_id,
-              });
-              
-              console.log(`[billing-generate-renewals] ✓ Stripe autopay PI ${piResult.payment_intent_id} status: ${piResult.status}`);
-              
-              // If succeeded immediately, apply payment
-              if (piResult.status === "succeeded") {
-                await supabase.rpc("apply_payment_to_invoice", {
-                  p_invoice_id: invoice.id,
-                  p_amount: total,
-                  p_method: "card",
-                  p_provider: "stripe",
-                  p_provider_payment_id: piResult.payment_intent_id,
-                  p_source: "live",
-                  p_created_by_name: "autopay_renewal",
-                  p_created_by_role: "system",
-                  p_customer_id: sub.customer_id,
-                });
-                console.log(`[billing-generate-renewals] ✓ Autopay payment applied for invoice ${invoiceNumber}`);
-              }
-              // If requires_action, the webhook will handle it
-            }
-          } catch (chargeErr) {
-            console.error(`[billing-generate-renewals] Stripe autopay error:`, chargeErr);
-            // Continue - invoice remains pending for manual payment
-          }
+          console.log(`[billing-generate-renewals] SKIPPED Stripe autopay (disabled) for customer ${sub.customer_id}`);
         }
         // If PayPal subscription, trigger automatic charge
         else if (hasPayPalSubscription) {

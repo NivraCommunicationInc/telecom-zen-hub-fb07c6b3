@@ -27,6 +27,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ═══ STRIPE KILL-SWITCH — 2026-03-21 ═══
+  console.warn("[stripe-setup-autopay] BLOCKED — Stripe disabled in production");
+  return new Response(
+    JSON.stringify({ error: "Stripe autopay setup is disabled. Use PayPal instead." }),
+    { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");

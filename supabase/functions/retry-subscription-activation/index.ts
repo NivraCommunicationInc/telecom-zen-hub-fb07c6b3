@@ -23,6 +23,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ═══ STRIPE KILL-SWITCH — 2026-03-21 ═══
+  console.warn("[retry-subscription-activation] BLOCKED — Stripe disabled in production");
+  return new Response(
+    JSON.stringify({ error: "Stripe subscription activation is disabled. Use PayPal instead." }),
+    { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

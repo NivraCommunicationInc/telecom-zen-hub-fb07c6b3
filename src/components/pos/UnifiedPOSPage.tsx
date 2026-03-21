@@ -32,8 +32,9 @@ import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
-import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
+// STRIPE DISABLED — imports removed
+// import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
+// import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
 
 /** Resolve or create account for a client (used by non-card POS flow) */
 async function resolveAccountForOrder(clientId: string, serviceAddress: string, serviceCity: string, servicePostalCode: string): Promise<string> {
@@ -113,7 +114,7 @@ export default function UnifiedPOSPage({
   const [paymentData, setPaymentData] = useState<PaymentData | AdminPaymentData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  const [stripePending, setStripePending] = useState<POSDraftInvoiceResult | null>(null);
+  // STRIPE DISABLED — stripePending removed
   
   // Is this the admin portal with full features?
   const isAdminPortal = portalType === "admin";
@@ -233,49 +234,9 @@ export default function UnifiedPOSPage({
 
     const isCardPayment = paymentData.payment_method === "card";
 
-    // ── CARD PAYMENT: Create draft order+invoice, then mount Stripe ──
-    if (isCardPayment && !stripePending) {
-      setIsSubmitting(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          toast.error("Session expirée");
-          navigate(backPath);
-          return;
-        }
-
-        const custInfo = buildCustomerInfo();
-        if (!custInfo) return;
-
-        const payload = pos.getOrderPayload();
-        const result = await createPOSDraftInvoice({
-          customer: custInfo,
-          services: pos.services,
-          equipment: pos.equipment,
-          adjustments: pos.adjustments,
-          totals: pos.totals,
-          portalType,
-          notes: paymentData.notes,
-          orderPayload: {
-            customer: custInfo,
-            services: payload.services,
-            equipment: payload.equipment,
-            adjustments: payload.adjustments,
-            ...((customerData as AdminCustomerData).is_new_client !== undefined && {
-              is_new_client: (customerData as AdminCustomerData).is_new_client,
-              client_id: (customerData as AdminCustomerData).client_id,
-            }),
-          },
-        });
-
-        setStripePending(result);
-        toast.info("Formulaire de paiement prêt — entrez les informations de carte.");
-      } catch (error: any) {
-        console.error("Draft invoice error:", error);
-        toast.error("Erreur", { description: error?.message || "Erreur inconnue" });
-      } finally {
-        setIsSubmitting(false);
-      }
+    // ── CARD PAYMENT: DISABLED — Stripe is no longer available ──
+    if (isCardPayment) {
+      toast.error("Les paiements par carte sont désactivés. Veuillez utiliser un autre mode de paiement.");
       return;
     }
 
@@ -393,7 +354,7 @@ export default function UnifiedPOSPage({
       pos.clearCart();
       setCustomerData(null);
       setPaymentData(null);
-      setStripePending(null);
+      // STRIPE DISABLED — stripePending removed
       setStep("catalog");
 
     } catch (error: any) {
@@ -405,29 +366,8 @@ export default function UnifiedPOSPage({
     }
   };
 
-  // ── Stripe success handler (card payments) ──
-  const handleStripeSuccess = async () => {
-    if (!stripePending) return;
-    try {
-      await finalizePOSCardPayment(stripePending.orderId, portalType);
-
-      // Client account already created by createPOSDraftInvoice
-
-      onOrderComplete?.(stripePending.orderId);
-
-      toast.success("🎉 Paiement par carte confirmé — commande créée!", {
-        description: `Commande ${stripePending.orderNumber} — ${stripePending.totalAmount.toFixed(2)} $`,
-      });
-
-      pos.clearCart();
-      setCustomerData(null);
-      setPaymentData(null);
-      setStripePending(null);
-      setStep("catalog");
-    } catch (err: any) {
-      toast.error("Erreur de finalisation", { description: err?.message });
-    }
-  };
+  // ── Stripe success handler — DISABLED ──
+  // const handleStripeSuccess = async () => { ... }
 
   const goBack = () => {
     if (step === "customer") setStep("catalog");
