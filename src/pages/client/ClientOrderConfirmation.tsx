@@ -336,6 +336,27 @@ END:VCALENDAR`;
   const simFee = toNonNegativeMoney(equipment.find(e => e.type === "sim")?.fee || 0);
   const preauthDiscount = toNonNegativeMoney(order.preauth_discount);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ★ PRODUCTION-LOCKED PRICING DISPLAY RULES — DO NOT MODIFY WITHOUT TESTS ★
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // RULE 1: "Total mensuel estimé" uses ONLY recurring items + recurring discounts.
+  //         One-time/equipment promos (e.g. EQUIP26) must NEVER reduce this block.
+  //
+  // RULE 2: "Paiement aujourd'hui" shows one-time fees + first-month services.
+  //         One-time discounts MUST appear here as visible negative line items.
+  //
+  // RULE 3: A one-time discount must NEVER zero out the monthly recurring display.
+  //         Only promos with duration='recurring'|'month' or applies_to.services
+  //         may reduce the monthly block.
+  //
+  // RULE 4: These two pricing domains must NEVER be merged. Any future edit that
+  //         mixes them will fail the regression suite:
+  //         src/__tests__/confirmation-pricing-lock.test.ts
+  //
+  // See also: memory/ux/checkout/confirmation-monthly-estimate-standard
+  // ═══════════════════════════════════════════════════════════════════════════
+
   // ===== All totals from pricing_snapshot — normalized canonical numbers =====
   const monthlyRecurringGross = normalizedSnapshot
     ? normalizedSnapshot.recurring_subtotal
@@ -353,7 +374,7 @@ END:VCALENDAR`;
   const recurringPromoDiscount = normalizedSnapshot
     ? toNonNegativeMoney((isPromoRecurring ? normalizedSnapshot.promo_discount : 0) + normalizedSnapshot.welcome_discount)
     : toNonNegativeMoney(order.promo_discount_amount);
-  // One-time promo discount (equipment/activation credits) — affects today's payment only
+  // One-time promo discount (equipment/activation credits) — affects today's payment ONLY
   const oneTimePromoDiscount = normalizedSnapshot && !isPromoRecurring
     ? toNonNegativeMoney(normalizedSnapshot.promo_discount)
     : 0;
