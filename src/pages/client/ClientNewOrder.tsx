@@ -5448,7 +5448,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                                 // Reuse: restore the session from DB — only if docs exist
                                 supabase
                                   .from("identity_verification_sessions")
-                                  .select("id, status, document_front_path")
+.select("id, status, case_number, reviewed_at, created_at, document_front_path")
                                   .eq("user_id", user?.id || "")
                                   .in("status", ["submitted", "manual_review", "approved"])
                                   .order("created_at", { ascending: false })
