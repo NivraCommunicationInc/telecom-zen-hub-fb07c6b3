@@ -366,29 +366,8 @@ export default function UnifiedPOSPage({
     }
   };
 
-  // ── Stripe success handler (card payments) ──
-  const handleStripeSuccess = async () => {
-    if (!stripePending) return;
-    try {
-      await finalizePOSCardPayment(stripePending.orderId, portalType);
-
-      // Client account already created by createPOSDraftInvoice
-
-      onOrderComplete?.(stripePending.orderId);
-
-      toast.success("🎉 Paiement par carte confirmé — commande créée!", {
-        description: `Commande ${stripePending.orderNumber} — ${stripePending.totalAmount.toFixed(2)} $`,
-      });
-
-      pos.clearCart();
-      setCustomerData(null);
-      setPaymentData(null);
-      setStripePending(null);
-      setStep("catalog");
-    } catch (err: any) {
-      toast.error("Erreur de finalisation", { description: err?.message });
-    }
-  };
+  // ── Stripe success handler — DISABLED ──
+  // const handleStripeSuccess = async () => { ... }
 
   const goBack = () => {
     if (step === "customer") setStep("catalog");
