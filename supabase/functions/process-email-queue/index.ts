@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { generatePDFAttachment, type PDFAttachment, type InvoiceData, type ContractData, type SummaryData } from "../_shared/pdfGenerator.ts";
+import { generatePDFAttachment, type PDFAttachment, type InvoiceData, type ContractData, type SummaryData, type ReceiptData } from "../_shared/pdfGenerator.ts";
 
 interface EmailQueueItem {
   id: string;
