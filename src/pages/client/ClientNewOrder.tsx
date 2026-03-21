@@ -5206,7 +5206,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     setSelectedTime(time);
                   }}
                   appointmentConfirmed={appointmentConfirmed}
-                  onAppointmentConfirmedChange={(confirmed) => setAppointmentConfirmed(confirmed)}
+                  onAppointmentConfirmedChange={(confirmed) => {
+                    setAppointmentConfirmed(confirmed);
+                    setAppointmentLockedAt(confirmed ? new Date().toISOString() : null);
+                  }}
                   onDecisionMade={(decision) => {
                     console.log("[Checkout] Installation decision:", decision);
                   }}
