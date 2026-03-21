@@ -1185,7 +1185,8 @@ export function generateReceiptPDF(data: ReceiptData): string {
   doc.setFontSize(9);
   lines.forEach((item) => {
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(item.highlight ? ...COLORS.success : ...COLORS.text);
+    const color = item.highlight ? COLORS.success : COLORS.text;
+    doc.setTextColor(color[0], color[1], color[2]);
     doc.text(item.label, pageWidth / 2 + 10, y);
     doc.text(item.value, pageWidth - margin - 5, y, { align: "right" });
     y += 6;
