@@ -835,7 +835,38 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Assign technician ── */
   const assignTechnician = async (technicianId: string) => {
     await updateOrder.mutateAsync({ technician_id: technicianId });
+
+    // Also update the linked appointment if one exists
+    if (data?.appointment?.id) {
+      await supabase
+        .from("appointments")
+        .update({
+          technician_id: technicianId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.appointment.id);
+    }
+
     await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
+
+    // P3: Send client notification for technician assignment
+    const email = getClientEmail();
+    if (email) {
+      await queueClientEmail({
+        to_email: email,
+        template_key: "technician_assigned",
+        event_key: `technician_assigned_${orderId}_${Date.now()}`,
+        subject: "Un technicien a été assigné à votre commande — Nivra",
+        entity_id: orderId,
+        template_vars: {
+          client_name: getClientName(),
+          order_id: orderId,
+          order_number: data?.order?.order_number || "",
+          technician_id: technicianId,
+        },
+      });
+    }
+
     toast.success("Technicien assigné");
   };
 
