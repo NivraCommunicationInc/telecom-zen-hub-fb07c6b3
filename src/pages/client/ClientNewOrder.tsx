@@ -1060,7 +1060,7 @@ const ClientNewOrder = () => {
         
         const { data: activeSession } = await supabase
           .from("identity_verification_sessions")
-          .select("id, status, case_number, reviewed_at, document_front_path")
+          .select("id, status, case_number, reviewed_at, created_at, document_front_path")
           .eq("user_id", user.id)
           .in("status", activeStatuses)
           .order("created_at", { ascending: false })
