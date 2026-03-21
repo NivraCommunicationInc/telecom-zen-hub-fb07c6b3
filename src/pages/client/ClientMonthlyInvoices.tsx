@@ -387,16 +387,7 @@ const ClientMonthlyInvoices = () => {
                 {/* Payment method selection */}
                 <div className="space-y-3">
                   <p className="text-sm font-medium">Mode de paiement</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <Button
-                      type="button"
-                      variant={paymentMethod === "card" ? "default" : "outline"}
-                      className="flex items-center justify-center gap-2 h-14"
-                      onClick={() => setPaymentMethod("card")}
-                    >
-                      <CreditCard className="w-5 h-5" />
-                      <span>Carte</span>
-                    </Button>
+                  <div className="grid grid-cols-2 gap-3">
                     <Button
                       type="button"
                       variant={paymentMethod === "paypal" ? "default" : "outline"}
@@ -421,31 +412,6 @@ const ClientMonthlyInvoices = () => {
                     </Button>
                   </div>
                 </div>
-
-                {paymentMethod === "card" && (
-                  <div className="space-y-3">
-                    <StripeInlinePayment
-                      invoiceId={selectedInvoice.id}
-                      intentContext="invoice_payment"
-                      amount={Number(selectedInvoice.total)}
-                      description={`Facture ${selectedInvoice.invoice_number}`}
-                      customerEmail={user?.email || undefined}
-                      onSuccess={() => {
-                        toast({ title: "Paiement carte réussi", description: "Votre facture a été payée." });
-                        setPaymentDialogOpen(false);
-                        setSelectedInvoice(null);
-                        queryClient.invalidateQueries({ queryKey: ["client-monthly-invoices"] });
-                        queryClient.invalidateQueries({ queryKey: ["billing-invoices"] });
-                        queryClient.invalidateQueries({ queryKey: ["billing-payments"] });
-                        queryClient.invalidateQueries({ queryKey: ["client-balance"] });
-                        queryClient.invalidateQueries({ queryKey: ["client-ledger"] });
-                      }}
-                      onError={(error) => {
-                        toast({ title: "Erreur carte", description: error, variant: "destructive" });
-                      }}
-                    />
-                  </div>
-                )}
 
                 {/* PayPal Button */}
                 {paymentMethod === "paypal" && (
