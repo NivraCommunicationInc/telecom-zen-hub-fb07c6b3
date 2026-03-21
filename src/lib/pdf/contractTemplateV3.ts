@@ -384,8 +384,8 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y += 3;
 
     y = sectionTitle(doc, 9, "SUSPENSION POUR NON-PAIEMENT", y);
-    y = bulletClause(doc, "En cas de non-paiement de trente (30) jours ou plus, Nivra se reserve le droit de suspendre le service sans preavis.", y);
-    y = bulletClause(doc, "La reactivation est conditionnelle au paiement integral du solde impaye.", y);
+    y = bulletClause(doc, "En cas de non-paiement a la date d'echeance (jour de cycle), la facture devient en souffrance (J0). Apres cinq (5) jours (J+5), le service est automatiquement suspendu.", y);
+    y = bulletClause(doc, "Entre J+5 et J+10, le client peut reactiver son service en reglant la facture en souffrance. Apres J+10, la facture est annulee et la reactivation necessite un nouveau paiement complet.", y);
     y = bulletClause(doc, "Des frais de reactivation de 15,00 $ peuvent s'appliquer.", y);
     y += 3;
 

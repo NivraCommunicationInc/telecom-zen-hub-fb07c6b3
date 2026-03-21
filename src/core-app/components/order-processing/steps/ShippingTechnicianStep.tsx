@@ -67,6 +67,15 @@ export function ShippingTechnicianStep({ proc }: Props) {
     setLoading("delivered");
     try {
       await proc.changeStatus("delivered");
+      // P4: Notify client on delivery
+      await proc.sendClientNotification(
+        "order_completed",
+        "Votre commande a été livrée — Nivra",
+        {
+          carrier: shippingFields.carrier || order.carrier || "",
+          tracking_number: shippingFields.tracking_number || order.tracking_number || "",
+        }
+      );
     } finally {
       setLoading(null);
     }

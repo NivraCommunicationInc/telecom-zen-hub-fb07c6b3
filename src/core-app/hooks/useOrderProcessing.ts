@@ -511,7 +511,9 @@ export function useOrderProcessing(orderId: string | undefined) {
         installed: "order_completed",
         cancelled: "order_cancelled",
         technician_en_route: "technician_en_route",
-        installation_completed: "order_completed",
+        installation_in_progress: "installation_in_progress",
+        installation_completed: "installation_completed",
+        installation_failed: "installation_failed",
       };
       const templateKey = statusTemplateMap[newStatus] || "order_submitted";
 
