@@ -6285,39 +6285,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 <CardContent className="space-y-4">
                   {/* Payment method selection */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* 1. Carte - PRIMARY */}
-                    <div
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
-                        paymentMethod === "credit_card"
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                      onClick={() => {
-                        setPaymentMethod("credit_card");
-                        setPaymentComplete(false);
-                        setPaymentConfirmationNumber("");
-                        setPaypalCaptureId("");
-                      }}
-                    >
-                      <div className="absolute top-2 right-2">
-                        <Badge className="bg-primary text-primary-foreground text-xs">
-                          Recommandé
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          paymentMethod === "credit_card" ? "bg-primary" : "bg-muted"
-                        }`}>
-                          <CreditCard className={`w-5 h-5 ${paymentMethod === "credit_card" ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">Carte de crédit</p>
-                          <p className="text-xs text-muted-foreground">Paiement sécurisé via Stripe</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 2. PayPal */}
+                    {/* 1. PayPal - PRIMARY */}
                     <div
                       className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
                         paymentMethod === "paypal"
@@ -6348,12 +6316,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         </div>
                         <div>
                           <p className="font-medium text-foreground">PayPal</p>
-                          <p className="text-xs text-muted-foreground">Carte ou compte</p>
+                          <p className="text-xs text-muted-foreground">Carte ou compte PayPal</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* 3. Interac E-Transfer */}
+                    {/* 2. Interac E-Transfer */}
                     <div
                       className={`p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
                         paymentMethod === "etransfer"
@@ -6381,29 +6349,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  {/* Stripe Card Form */}
-                  {paymentMethod === "credit_card" && !paymentComplete && (
-                    <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/30">
-                      <p className="text-sm text-muted-foreground">
-                        Entrez vos informations de carte pour autoriser le paiement.
-                      </p>
-                      <StripeInlinePayment
-                        intentContext="checkout_preconfirm"
-                        amount={uiTodayTotal}
-                        description="Commande Nivra Telecom"
-                        customerEmail={profile?.email || user?.email || undefined}
-                        onSuccess={({ paymentIntentId }) => {
-                          setPaymentConfirmationNumber(paymentIntentId);
-                          setPaymentComplete(true);
-                          setPaypalCaptureId("");
-                          toast.success(`Paiement carte autorisé! Réf: ${paymentIntentId}`);
-                        }}
-                        onError={(error) => {
-                          toast.error(error || "Erreur de paiement par carte");
-                        }}
-                      />
-                    </div>
-                  )}
+                  {/* Card payments disabled — PayPal handles cards */}
 
                   {/* E-Transfer Form */}
                   {paymentMethod === "etransfer" && !paymentComplete && (

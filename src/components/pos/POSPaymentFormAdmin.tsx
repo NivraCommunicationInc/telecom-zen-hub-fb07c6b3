@@ -236,11 +236,11 @@ export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, rende
             </div>
           )}
 
-          {/* Stripe Elements inline for card */}
-          {method === "card" && renderStripePayment && (
-            <div className="rounded-xl border border-cyan-500/30 bg-slate-900/50 p-4">
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-3">Paiement par carte via Stripe</p>
-              {renderStripePayment()}
+          {/* Card (Stripe) disabled — show message */}
+          {method === "card" && (
+            <div className="rounded-xl border border-muted bg-muted/30 p-4">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Carte indisponible</p>
+              <p className="text-xs text-muted-foreground">Les paiements par carte ne sont pas disponibles. Utilisez PayPal ou un autre mode.</p>
             </div>
           )}
 

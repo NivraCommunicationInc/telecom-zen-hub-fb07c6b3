@@ -162,38 +162,27 @@ const ClientPayments = () => {
           </CardContent>
         </Card>
 
-        {/* Credit Card Section - Active via Stripe */}
-        <Card className="bg-card border-primary/30 border-2">
+        {/* Credit Card Section - DISABLED (Stripe under review) */}
+        <Card className="bg-card border-border opacity-60">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-primary" />
+                <CreditCard className="w-5 h-5 text-muted-foreground" />
                 Cartes de crédit / débit
               </CardTitle>
-              <Badge className="bg-primary/20 text-primary border-0">
-                Actif
+              <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">
+                Indisponible
               </Badge>
             </div>
             <CardDescription>
-              Payez vos factures directement par carte de crédit ou débit via Stripe.
+              Les paiements par carte ne sont pas disponibles pour le moment. Utilisez PayPal pour payer par carte.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-              <p className="text-sm font-medium text-foreground mb-3">
-                Paiement sécurisé par carte
-              </p>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>• Visa, Mastercard, Amex acceptés</p>
-                <p>• Paiement instantané et sécurisé via Stripe</p>
-                <p>• Vos données de carte ne transitent jamais par nos serveurs</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-              <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+          <CardContent>
+            <div className="flex items-start gap-2 p-3 bg-muted/30 border border-border rounded-lg">
+              <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                L'option carte apparaît automatiquement lors du paiement de vos factures.
+                Vous pouvez payer par carte de crédit ou débit directement via PayPal sans avoir de compte PayPal.
               </p>
             </div>
           </CardContent>
