@@ -209,11 +209,17 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
 
     y += 3;
 
-    // TOTALS
+    // TOTALS — use CANONICAL values from compute_invoice_breakdown (zero local math)
     const tx = 120;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("Sous-total", tx, y); doc.text(fmt(d.total_due / 1.14975), 185, y, { align: "right" }); y += 6;
+    const canonicalSubtotal = (d.subtotal_monthly || 0) + (d.subtotal_onetime || 0);
+    doc.text("Sous-total", tx, y); doc.text(fmt(canonicalSubtotal), 185, y, { align: "right" }); y += 6;
+    if (d.discount_amount > 0) {
+      doc.setTextColor(0, 128, 0);
+      doc.text(d.discount_label || "Promotion", tx, y); doc.text(fmt(-d.discount_amount), 185, y, { align: "right" }); y += 6;
+      doc.setTextColor(0, 0, 0);
+    }
     doc.text("TPS (5%)", tx, y); doc.text(fmt(d.tax_gst), 185, y, { align: "right" }); y += 6;
     doc.text("TVQ (9,975%)", tx, y); doc.text(fmt(d.tax_qst), 185, y, { align: "right" }); y += 8;
     doc.setFont("helvetica", "bold");
