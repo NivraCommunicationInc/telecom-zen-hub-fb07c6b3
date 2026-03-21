@@ -2415,6 +2415,82 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       </p>
     `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
   },
+
+  // =============================================
+  // PAYPAL RECURRING TEMPLATES
+  // =============================================
+
+  paypal_recurring_approval: {
+    subject: "Nivra — Activez votre paiement automatique / Activate automatic payments",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('info', '🔄', 'Paiement automatique', 'Automatic payments',
+        'Votre commande a été payée avec succès. Pour activer la facturation automatique mensuelle, veuillez approuver votre abonnement PayPal.',
+        'Your order has been paid successfully. To activate automatic monthly billing, please approve your PayPal subscription.'
+      )}
+      ${detailsCard([
+        ...(vars.order_number ? [{ label: 'Nº commande / Order #', value: vars.order_number }] : []),
+        { label: 'Plan', value: vars.plan_name || 'N/A' },
+        { label: 'Montant mensuel / Monthly amount', value: formatCurrency(vars.monthly_amount) },
+      ])}
+      <div style="text-align:center; margin:28px 0;">
+        <a href="${vars.approval_url}" target="_blank" style="display:inline-block; background:${emailStyles.primary}; color:#fff; padding:14px 36px; border-radius:8px; text-decoration:none; font-weight:600; font-size:16px;">
+          Approuver sur PayPal / Approve on PayPal
+        </a>
+      </div>
+      <p style="margin:20px 0; font-size:13px; color:${emailStyles.textMuted};">
+        Ce lien vous redirige vers PayPal pour autoriser les prélèvements automatiques mensuels. Aucun paiement supplémentaire ne sera prélevé aujourd'hui.<br>
+        <em>This link redirects you to PayPal to authorize automatic monthly payments. No additional payment will be charged today.</em>
+      </p>
+    `, vars.approval_url || joinUrl(config.baseUrl, "/portal"), "Approuver sur PayPal / Approve on PayPal", config.supportEmail),
+  },
+
+  paypal_subscription_activated: {
+    subject: "Nivra — Paiement automatique activé ✅ / Automatic payments activated",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('success', '✅', 'Paiement automatique activé', 'Automatic payments activated',
+        'Votre abonnement PayPal est maintenant actif. Vos prochaines factures seront payées automatiquement.',
+        'Your PayPal subscription is now active. Your future invoices will be paid automatically.'
+      )}
+      ${detailsCard([
+        ...(vars.order_number ? [{ label: 'Nº commande / Order #', value: vars.order_number }] : []),
+        { label: 'Plan', value: vars.plan_name || 'N/A' },
+        { label: 'Montant mensuel / Monthly amount', value: formatCurrency(vars.monthly_amount) },
+        ...(vars.next_billing_date ? [{ label: 'Prochain prélèvement / Next charge', value: formatDate(vars.next_billing_date) }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, "/portal/subscriptions"), "Voir mes abonnements / View subscriptions", config.supportEmail),
+  },
+
+  paypal_subscription_cancelled: {
+    subject: "Nivra — Paiement automatique annulé / Automatic payments cancelled",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('warning', '⚠️', 'Paiement automatique annulé', 'Automatic payments cancelled',
+        'Votre abonnement PayPal a été annulé. Vos prochaines factures devront être payées manuellement.',
+        'Your PayPal subscription has been cancelled. Future invoices must be paid manually.'
+      )}
+      ${detailsCard([
+        { label: 'Plan', value: vars.plan_name || 'N/A' },
+        ...(vars.reason ? [{ label: 'Raison / Reason', value: vars.reason }] : []),
+      ])}
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Voir mes factures / View invoices", config.supportEmail),
+  },
+
+  paypal_recurring_payment_failed: {
+    subject: "Nivra — Échec du paiement automatique / Automatic payment failed",
+    getHtml: (vars, config) => wrapEmail(`
+      ${greeting(vars.client_name)}
+      ${statusBadge('error', '❌', 'Échec du paiement', 'Payment failed',
+        'Votre paiement automatique PayPal a échoué. Veuillez vérifier votre compte PayPal ou payer manuellement.',
+        'Your automatic PayPal payment has failed. Please check your PayPal account or pay manually.'
+      )}
+      ${detailsCard([
+        { label: 'Plan', value: vars.plan_name || 'N/A' },
+        { label: 'Montant / Amount', value: formatCurrency(vars.amount) },
+      ])}
+    `, joinUrl(config.baseUrl, "/portal/invoices"), "Payer maintenant / Pay now", config.supportEmail),
+  },
 };
 
 // =============================================
