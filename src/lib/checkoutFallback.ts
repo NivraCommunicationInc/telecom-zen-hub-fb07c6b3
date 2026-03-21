@@ -379,11 +379,12 @@ export async function fallbackCheckout(
   const rawMethod = String(payload.payment.method || "").toLowerCase();
   const paymentReferenceRaw = String(payload.payment.reference || "");
   const inferredCardByReference = paymentReferenceRaw.toLowerCase().startsWith("pi_");
-  const cardCaptured =
-    (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) &&
-    (payload.payment.status === "captured" || inferredCardByReference);
+  // ★ CRITICAL: A PI reference (pi_xxx) does NOT mean captured.
+  // Manual-capture PIs start as "requires_capture" — only "captured"/"succeeded" means funds received.
+  const isCardMethod = rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference;
+  const cardCaptured = isCardMethod && payload.payment.status === "captured";
   // ★ Card payments are AUTHORIZED ONLY (manual capture) — NOT considered "paid" until admin captures
-  const isCardAuthorizedOnly = (rawMethod === "credit_card" || rawMethod === "card" || inferredCardByReference) && !cardCaptured;
+  const isCardAuthorizedOnly = isCardMethod && !cardCaptured;
   const isPaid = (rawMethod === "paypal" && !!payload.payment.paypal_capture_id) || cardCaptured;
   const isFree = rawMethod === "promo_free";
   const paymentStatus = (isPaid || isFree) ? "paid" : "pending";
