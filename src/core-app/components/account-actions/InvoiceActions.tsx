@@ -2,7 +2,7 @@
  * Invoice & Payment visible action bar for the Account 360 console.
  * All financial mutations go through canonical RPCs / DB operations.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
