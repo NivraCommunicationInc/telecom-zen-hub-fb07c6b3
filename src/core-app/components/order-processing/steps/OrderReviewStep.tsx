@@ -9,12 +9,34 @@ import { toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Props { proc: any; }
 
+/**
+ * LOCKED PRICING DOMAIN RULE:
+ * - Recurring monthly block = recurring items + recurring-only discounts
+ * - One-time block = equipment + fees + one-time discounts
+ * - One-time/equipment promos must NOT reduce the recurring monthly total
+ * - One-time discounts must remain visible as negative line items in one-time block
+ */
+
 /** Classify an invoice line by its type/description */
-function classifyLine(line: any): "recurring" | "equipment" | "fee" | "discount" {
-  if (line.line_type === "discount" || line.line_type === "credit") return "discount";
+function classifyLine(line: any): "recurring" | "equipment" | "fee" | "discount_recurring" | "discount_onetime" {
   const desc = (line.description || "").toLowerCase();
-  if (line.line_type === "equipment" || desc.includes("routeur") || desc.includes("router") || desc.includes("terminal") || desc.includes("modem") || desc.includes("sim") || desc.includes("décodeur")) return "equipment";
-  if (line.line_type === "fee" || desc.includes("activation") || desc.includes("livraison") || desc.includes("installation") || desc.includes("shipping") || desc.includes("delivery")) return "fee";
+  const lineType = (line.line_type || "").toLowerCase();
+
+  // Discounts need sub-classification: one-time vs recurring
+  if (lineType === "discount" || lineType === "credit") {
+    // One-time/equipment discounts: equipment promos, EQUIP codes, installation discounts
+    if (desc.includes("equip") || desc.includes("équip") || desc.includes("installation") ||
+        desc.includes("activation") || desc.includes("livraison") || desc.includes("router") ||
+        desc.includes("routeur") || desc.includes("terminal") || desc.includes("sim") ||
+        desc.includes("modem") || desc.includes("décodeur") || desc.includes("frais")) {
+      return "discount_onetime";
+    }
+    // Recurring discounts: monthly promos, new client discounts, welcome discounts
+    return "discount_recurring";
+  }
+
+  if (lineType === "equipment" || desc.includes("routeur") || desc.includes("router") || desc.includes("terminal") || desc.includes("modem") || desc.includes("sim") || desc.includes("décodeur")) return "equipment";
+  if (lineType === "fee" || desc.includes("activation") || desc.includes("livraison") || desc.includes("installation") || desc.includes("shipping") || desc.includes("delivery")) return "fee";
   return "recurring";
 }
 
@@ -22,11 +44,12 @@ export function OrderReviewStep({ proc }: Props) {
   const { order, invoice, invoiceLines } = proc;
   const hasInvoiceLines = invoiceLines && invoiceLines.length > 0;
 
-  // Categorize invoice lines
+  // Categorize invoice lines with domain-separated discounts
   const recurringLines: any[] = [];
   const equipmentLines: any[] = [];
   const feeLines: any[] = [];
-  const discountLines: any[] = [];
+  const discountRecurringLines: any[] = [];
+  const discountOnetimeLines: any[] = [];
 
   if (hasInvoiceLines) {
     for (const line of invoiceLines) {
@@ -34,22 +57,29 @@ export function OrderReviewStep({ proc }: Props) {
       if (cat === "recurring") recurringLines.push(line);
       else if (cat === "equipment") equipmentLines.push(line);
       else if (cat === "fee") feeLines.push(line);
-      else if (cat === "discount") discountLines.push(line);
+      else if (cat === "discount_recurring") discountRecurringLines.push(line);
+      else if (cat === "discount_onetime") discountOnetimeLines.push(line);
     }
   }
 
-  // Financial totals — from canonical invoice lines ONLY
+  // DOMAIN-SEPARATED TOTALS
+  // Recurring: recurring items - recurring-only discounts
   const recurringSubtotal = toNonNegativeMoney(
     hasInvoiceLines ? recurringLines.reduce((s, l) => s + Number(l.line_total || 0), 0) : 0
   );
-  const discountTotal = toNonNegativeMoney(
-    hasInvoiceLines ? discountLines.reduce((s, l) => s + Math.abs(Number(l.line_total || 0)), 0) : 0
+  const recurringDiscountTotal = toNonNegativeMoney(
+    hasInvoiceLines ? discountRecurringLines.reduce((s, l) => s + Math.abs(Number(l.line_total || 0)), 0) : 0
   );
-  const recurringNet = Math.max(0, recurringSubtotal - discountTotal);
+  const recurringNet = Math.max(0, recurringSubtotal - recurringDiscountTotal);
 
-  const oneTimeSubtotal = toNonNegativeMoney(
+  // One-time: equipment + fees - one-time discounts
+  const onetimeGross = toNonNegativeMoney(
     hasInvoiceLines ? [...equipmentLines, ...feeLines].reduce((s, l) => s + Number(l.line_total || 0), 0) : 0
   );
+  const onetimeDiscountTotal = toNonNegativeMoney(
+    hasInvoiceLines ? discountOnetimeLines.reduce((s, l) => s + Math.abs(Number(l.line_total || 0)), 0) : 0
+  );
+  const onetimeNet = Math.max(0, onetimeGross - onetimeDiscountTotal);
 
   // Taxes and total from invoice (canonical source of truth)
   const tpsAmount = toNonNegativeMoney(invoice?.tps_amount ?? 0);
