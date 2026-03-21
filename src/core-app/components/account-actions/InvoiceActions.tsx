@@ -2,7 +2,7 @@
  * Invoice & Payment visible action bar for the Account 360 console.
  * All financial mutations go through canonical RPCs / DB operations.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -614,46 +614,89 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [selectedPaymentId, setSelectedPaymentId] = useState("");
 
   const inv = paidInvoices.find((i: any) => i.id === selectedInvoice);
 
+  // Load payments for selected invoice
+  useEffect(() => {
+    if (!selectedInvoice) return;
+    (async () => {
+      const { data } = await supabase
+        .from("billing_payments")
+        .select("id, amount, status, method, provider_payment_id, payment_number, provider")
+        .eq("invoice_id", selectedInvoice)
+        .in("status", ["confirmed", "completed", "captured"] as any[])
+        .order("created_at", { ascending: false });
+      setPayments(data || []);
+      if (data?.length) setSelectedPaymentId(data[0].id);
+    })();
+  }, [selectedInvoice]);
+
+  const selectedPayment = payments.find(p => p.id === selectedPaymentId);
+  const isPayPalPayment = selectedPayment?.provider_payment_id && 
+    (selectedPayment?.method === "paypal" || selectedPayment?.provider === "paypal");
+
   const handleRefund = async () => {
     const parsedAmount = Number.parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0 || !inv || !reason.trim()) {
+    if (!parsedAmount || parsedAmount <= 0 || !reason.trim()) {
       toast.error("Veuillez remplir tous les champs");
       return;
     }
-    if (parsedAmount > Number(inv.amount_paid ?? 0)) {
-      toast.error("Le montant dépasse le total payé");
+    if (!selectedPayment) {
+      toast.error("Veuillez sélectionner un paiement");
       return;
     }
-    if (!customerId) {
-      toast.error("Client introuvable pour le remboursement");
+    if (parsedAmount > Number(selectedPayment.amount ?? 0)) {
+      toast.error("Le montant dépasse le total du paiement");
       return;
     }
 
     setLoading(true);
     try {
-      const paymentNumber = `REF-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from("billing_payments").insert({
-        invoice_id: inv.id,
-        customer_id: customerId,
-        amount: -parsedAmount,
-        method: "manual" as const,
-        status: "confirmed" as const,
-        payment_number: paymentNumber,
-        reference: `Remboursement: ${reason}`,
-        source: "admin" as any,
-        provider: "manual",
-        received_at: new Date().toISOString(),
-        created_by_name: "Admin",
-        created_by_role: "admin",
-      });
-      if (error) throw error;
+      if (isPayPalPayment) {
+        // ── PayPal refund via edge function ──
+        const { data, error } = await supabase.functions.invoke("paypal-refund", {
+          body: {
+            payment_id: selectedPaymentId,
+            amount: parsedAmount < selectedPayment.amount ? parsedAmount : undefined,
+            reason: reason.trim(),
+            invoice_id: selectedInvoice,
+          },
+        });
 
-      await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
+        if (error) throw new Error(error.message || "Erreur PayPal refund");
+        if (!data?.success) throw new Error(data?.error || "Refund failed");
 
-      toast.success(`Remboursement de ${parsedAmount.toFixed(2)} $ appliqué`);
+        toast.success(`Remboursement PayPal de ${parsedAmount.toFixed(2)} $ effectué (${data.paypal_refund_id})`);
+      } else {
+        // ── Manual refund (non-PayPal) ──
+        if (!customerId) {
+          toast.error("Client introuvable");
+          return;
+        }
+        const paymentNumber = `REF-${Date.now().toString(36).toUpperCase()}`;
+        const { error } = await supabase.from("billing_payments").insert({
+          invoice_id: inv.id,
+          customer_id: customerId,
+          amount: -parsedAmount,
+          method: "manual" as const,
+          status: "confirmed" as const,
+          payment_number: paymentNumber,
+          reference: `Remboursement: ${reason}`,
+          source: "admin" as any,
+          provider: "manual",
+          received_at: new Date().toISOString(),
+          created_by_name: "Admin",
+          created_by_role: "admin",
+        });
+        if (error) throw error;
+
+        await supabase.rpc("reconcile_invoice_from_payments" as any, { p_invoice_id: inv.id });
+        toast.success(`Remboursement manuel de ${parsedAmount.toFixed(2)} $ appliqué`);
+      }
+
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -681,9 +724,30 @@ function RefundModal({ invoices, customerId, onClose, onRefresh }: { invoices: a
                 ))}
               </select>
             </div>
+            {payments.length > 0 && (
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Paiement à rembourser</label>
+                <select value={selectedPaymentId} onChange={e => setSelectedPaymentId(e.target.value)} className={inputCls}>
+                  {payments.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.payment_number} — {Number(p.amount).toFixed(2)} $ ({p.method}{p.provider_payment_id ? " · PayPal" : ""})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {selectedPayment && (
+              <div className="text-[10px] text-muted-foreground">
+                {isPayPalPayment ? (
+                  <span className="text-blue-400">⚡ Remboursement PayPal automatique via API</span>
+                ) : (
+                  <span className="text-amber-400">📝 Remboursement manuel (non-PayPal)</span>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Montant à rembourser ($)</label>
-              <input type="number" step="0.01" min="0" max={inv?.amount_paid ?? 0} value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className={inputCls} />
+              <input type="number" step="0.01" min="0" max={selectedPayment?.amount ?? inv?.amount_paid ?? 0} value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className={inputCls} />
             </div>
             <div>
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Raison</label>

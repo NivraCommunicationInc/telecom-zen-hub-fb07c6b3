@@ -312,6 +312,8 @@ interface OrderDraft {
   } | null;
   // Referral code details (persisted to survive PayPal redirect)
   appliedReferral: AppliedReferral | null;
+  // Welcome discount dismissal (persisted to prevent default promo override)
+  welcomeDiscountDismissed?: boolean;
   // Payment state (persisted to avoid double-charging after redirect)
   paypalCaptureId: string;
   paymentComplete: boolean;
@@ -610,6 +612,7 @@ const ClientNewOrder = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [recurringPaymentAccepted, setRecurringPaymentAccepted] = useState(false);
   // Welcome discount dismissal — client can remove the auto-applied welcome discount
+  // CRITICAL: initialized as false, but hydrated from draft on mount to survive refresh
   const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
   
   
@@ -827,6 +830,11 @@ const ClientNewOrder = () => {
           setAppliedReferral(draft.appliedReferral);
           console.log("[OrderWizard] Restored appliedReferral:", draft.appliedReferral.code, "type:", draft.appliedReferral.type);
         }
+        // Welcome discount dismissal (CRITICAL: must restore BEFORE payment to prevent default promo override)
+        if (typeof draft.welcomeDiscountDismissed === "boolean") {
+          setWelcomeDiscountDismissed(draft.welcomeDiscountDismissed);
+          console.log("[OrderWizard] Restored welcomeDiscountDismissed:", draft.welcomeDiscountDismissed);
+        }
         // Payment state (critical — must restore ALL payment fields)
         if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
         if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
@@ -959,6 +967,8 @@ const ClientNewOrder = () => {
       // Promo/referral code details (persisted to survive PayPal redirect)
       appliedPromo,
       appliedReferral,
+      // Welcome discount dismissal (CRITICAL: persisted to prevent default promo override on refresh)
+      welcomeDiscountDismissed,
       // Payment state (all methods)
       paypalCaptureId,
       paymentComplete,
@@ -966,7 +976,7 @@ const ClientNewOrder = () => {
       paymentMethod,
     };
     
-    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "promo:", appliedPromo?.code || "none", "referral:", appliedReferral?.code || "none", "paymentComplete:", paymentComplete);
+    console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "promo:", appliedPromo?.code || "none", "referral:", appliedReferral?.code || "none", "welcomeDiscountDismissed:", welcomeDiscountDismissed, "paymentComplete:", paymentComplete);
     sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
   }, [
     isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
@@ -977,7 +987,7 @@ const ClientNewOrder = () => {
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
     verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
-    appliedPromo, appliedReferral, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
+    appliedPromo, appliedReferral, welcomeDiscountDismissed, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
   ]);
 
   // Persist KYC session ID to localStorage whenever it changes (independent of order)
