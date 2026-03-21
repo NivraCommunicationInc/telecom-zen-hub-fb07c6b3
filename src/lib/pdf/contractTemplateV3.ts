@@ -1,10 +1,11 @@
 /**
- * Nivra Contract Template V4.0 — LOCKED PRODUCTION (2026-03-20)
+ * Nivra Contract Template V5.0 — Telecom-Grade Professional Standard
  * 
- * Approved canonical layout — 3 pages:
- * Page 1: Header + Client + Sections 1-3
- * Page 2: Sections 4-7
- * Page 3: Sections 8-9 + Signatures + Footer
+ * 4-page contract with integrated modalités:
+ * Page 1: Header + Client ID + Financial Summary
+ * Page 2: Services & Equipment + Conditions 1-5
+ * Page 3: Conditions 6-12 (Modalités intégrées)
+ * Page 4: Signatures + Legal Notice
  */
 
 import jsPDF from "jspdf";
@@ -65,7 +66,6 @@ export interface ContractDataV3 {
   admin_signature_name?: string;
   admin_signature_date?: string;
 
-  // Promo info
   discount_label?: string;
 }
 
@@ -86,57 +86,76 @@ const fmtDate = (dateStr: string | undefined | null): string => {
   return "—";
 };
 
-function drawContractHeader(doc: jsPDF, contractNum: string) {
+const NAVY = [30, 64, 120] as const;
+const GREEN_ACCENT = [34, 139, 34] as const;
+
+function drawHeader(doc: jsPDF, contractNum: string, pageLabel: string) {
   const pw = doc.internal.pageSize.getWidth();
-  doc.setFillColor(30, 64, 120);
-  doc.rect(0, 0, pw, 40, "F");
+  doc.setFillColor(...NAVY);
+  doc.rect(0, 0, pw, 32, "F");
+  // Green accent line
+  doc.setFillColor(...GREEN_ACCENT);
+  doc.rect(0, 32, pw, 1.5, "F");
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(16);
   doc.setTextColor(255, 255, 255);
-  doc.text("NIVRA TELECOM", 15, 16);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text("CONTRAT DE SERVICE", 15, 28);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text(`No ${contractNum}`, pw - 15, 18, { align: "right" });
-}
+  doc.text("NIVRA TELECOM", 15, 14);
 
-function drawFooter(doc: jsPDF) {
-  const pw = doc.internal.pageSize.getWidth();
-  const ph = doc.internal.pageSize.getHeight();
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text(
-    `${NIVRA.tradeName} Inc. | ${NIVRA.email} | ${NIVRA.website}`,
-    pw / 2, ph - 10, { align: "center" }
-  );
-}
-
-function sectionTitle(doc: jsPDF, num: number, title: string, y: number): number {
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`${num}. ${title}`, 15, y);
-  return y + 9;
-}
-
-function bulletPoints(doc: jsPDF, items: string[], y: number): number {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  for (const item of items) {
-    // Handle long text wrapping
-    const lines = doc.splitTextToSize(`- ${item}`, 165);
-    for (const line of lines) {
-      if (y > 275) { doc.addPage(); y = 20; }
-      doc.text(line, 20, y);
-      y += 5;
-    }
-    y += 1;
+  doc.setTextColor(180, 200, 230);
+  doc.text("CONTRAT DE SERVICE DE TELECOMMUNICATIONS", 15, 22);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text(`No ${contractNum}`, pw - 15, 14, { align: "right" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(180, 200, 230);
+  doc.text(pageLabel, pw - 15, 22, { align: "right" });
+}
+
+function drawFooter(doc: jsPDF, pageNum: number, totalPages: number) {
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(200, 200, 200);
+  doc.line(15, ph - 14, pw - 15, ph - 14);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(130, 130, 130);
+  doc.text(`${NIVRA.legalName} | ${NIVRA.email} | ${NIVRA.website}`, 15, ph - 9);
+  doc.text(`Page ${pageNum} de ${totalPages}`, pw - 15, ph - 9, { align: "right" });
+  doc.text("Ce document constitue un contrat legalement contraignant.", pw / 2, ph - 5, { align: "center" });
+}
+
+function sectionTitle(doc: jsPDF, num: number | string, title: string, y: number): number {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(30, 64, 120);
+  doc.text(`${num}. ${title}`, 15, y);
+  doc.setDrawColor(30, 64, 120);
+  doc.line(15, y + 1.5, 190, y + 1.5);
+  return y + 7;
+}
+
+function clause(doc: jsPDF, text: string, y: number, indent: number = 17): number {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(40, 40, 40);
+  const lines = doc.splitTextToSize(text, 190 - indent);
+  for (const line of lines) {
+    if (y > 275) { doc.addPage(); y = 20; }
+    doc.text(line, indent, y);
+    y += 3.8;
   }
-  return y;
+  return y + 1.5;
+}
+
+function bulletClause(doc: jsPDF, text: string, y: number): number {
+  return clause(doc, `\u2022 ${text}`, y, 20);
 }
 
 // ============================================================================
@@ -148,177 +167,347 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     if (!data.contract_number) return { success: false, error: "Numero de contrat manquant" };
 
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pw = doc.internal.pageSize.getWidth();
+    const totalPages = 4;
 
-    // ===== PAGE 1 =====
-    drawContractHeader(doc, data.contract_number);
+    // ===================================================================
+    // PAGE 1 — IDENTIFICATION & SOMMAIRE FINANCIER
+    // ===================================================================
+    drawHeader(doc, data.contract_number, "Identification");
 
-    // Client block
-    let y = 50;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("Titulaire du compte", 15, y);
-    doc.text("Adresse de service", 110, y);
-    y += 6;
+    let y = 42;
+
+    // Contract date line
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Date du contrat: ${fmtDate(data.contract_date)}  |  Version des modalites: ${data.terms_version}`, 15, y);
+    y += 8;
+
+    // IDENTIFICATION DU CLIENT
+    y = sectionTitle(doc, "A", "IDENTIFICATION DU TITULAIRE", y);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(data.client_name, 15, y);
-    const addrParts = (data.service_address || "").split(",").map(s => s.trim());
-    doc.text(addrParts[0] || "", 110, y);
-    y += 5;
-    doc.text(data.client_email, 15, y);
-    if (addrParts.length > 1) doc.text(addrParts.slice(1).join(", "), 110, y);
-    y += 5;
-    if (data.client_phone) { doc.text(data.client_phone, 15, y); y += 5; }
+    doc.setTextColor(0, 0, 0);
+
+    const col1 = 15;
+    const col2 = 105;
+    const labelStyle = () => { doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(100, 100, 100); };
+    const valueStyle = () => { doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(0, 0, 0); };
+
+    labelStyle(); doc.text("Nom complet", col1, y);
+    labelStyle(); doc.text("No de compte", col2, y); y += 4;
+    valueStyle(); doc.text(data.client_name, col1, y);
+    valueStyle(); doc.text(data.account_number, col2, y); y += 6;
+
+    labelStyle(); doc.text("Courriel", col1, y);
+    labelStyle(); doc.text("No de commande", col2, y); y += 4;
+    valueStyle(); doc.text(data.client_email, col1, y);
+    valueStyle(); doc.text(data.order_number, col2, y); y += 6;
+
+    labelStyle(); doc.text("Telephone", col1, y);
+    labelStyle(); doc.text("Methode de paiement", col2, y); y += 4;
+    valueStyle(); doc.text(data.client_phone || "—", col1, y);
+    valueStyle(); doc.text(data.payment_method === "card" ? "Carte de credit" : data.payment_method === "paypal" ? "PayPal" : data.payment_method || "—", col2, y); y += 6;
+
+    labelStyle(); doc.text("Adresse de facturation", col1, y);
+    labelStyle(); doc.text("Adresse de service", col2, y); y += 4;
+    valueStyle();
+    const billParts = doc.splitTextToSize(data.billing_address || "—", 85);
+    doc.text(billParts, col1, y);
+    const svcParts = doc.splitTextToSize(data.service_address || "—", 85);
+    doc.text(svcParts, col2, y);
+    y += Math.max(billParts.length, svcParts.length) * 4 + 6;
+
+    // SOMMAIRE FINANCIER
+    y = sectionTitle(doc, "B", "SOMMAIRE FINANCIER", y);
+
+    // Services mensuels recurrents
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.text(`Compte: ${data.account_number}  |  Commande: ${data.order_number}`, 15, y);
-    y += 12;
-
-    // Section 1: SERVICE ET TARIFICATION
-    y = sectionTitle(doc, 1, "SERVICE ET TARIFICATION", y);
-    const svcItems: string[] = [];
-    for (const svc of data.services) {
-      svcItems.push(`Service: ${svc.name}`);
-      svcItems.push(`Tarif mensuel recurrent: ${fmt(svc.monthly_price)}/mois (avant taxes)`);
-    }
-    svcItems.push(`Date de debut du service: ${fmtDate(data.contract_date)}`);
-    svcItems.push("Cycle de facturation: Mensuel");
-    y = bulletPoints(doc, svcItems, y);
+    doc.setTextColor(30, 64, 120);
+    doc.text("Services mensuels recurrents", 17, y);
+    doc.text("Tarif/mois", 170, y, { align: "right" });
     y += 5;
 
-    // Section 2: FRAIS INITIAUX ET PROMOTION
-    y = sectionTitle(doc, 2, "FRAIS INITIAUX ET PROMOTION", y);
-    const feeItems: string[] = [];
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    for (const svc of data.services) {
+      doc.text(svc.name, 20, y);
+      doc.text(fmt(svc.monthly_price), 170, y, { align: "right" });
+      y += 5;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.text("Sous-total mensuel recurrent", 20, y);
+    doc.text(fmt(data.subtotal_monthly), 170, y, { align: "right" });
+    y += 7;
+
+    // Equipment & Fees
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(30, 64, 120);
+    doc.text("Frais uniques (equipement, activation, livraison)", 17, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
     for (const eq of data.equipment) {
-      feeItems.push(`Equipement (${eq.name}): ${fmt(eq.unit_price * eq.quantity)}`);
+      doc.text(`${eq.name} (x${eq.quantity})`, 20, y);
+      doc.text(fmt(eq.unit_price * eq.quantity), 170, y, { align: "right" });
+      y += 5;
     }
     for (const fee of data.one_time_fees) {
-      feeItems.push(`${fee.label}: ${fmt(fee.amount)}`);
+      doc.text(fee.label, 20, y);
+      doc.text(fmt(fee.amount), 170, y, { align: "right" });
+      y += 5;
     }
-    feeItems.push(`Total frais uniques: ${fmt(data.subtotal_one_time)}`);
+    doc.setFont("helvetica", "bold");
+    doc.text("Sous-total frais uniques", 20, y);
+    doc.text(fmt(data.subtotal_one_time), 170, y, { align: "right" });
+    y += 7;
+
+    // Promotion
     if (data.discount_amount > 0) {
-      feeItems.push(`${data.discount_label || "Promotion"}: ${fmt(-data.discount_amount)}`);
+      doc.setTextColor(0, 128, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(data.discount_label || "Promotion appliquee", 20, y);
+      doc.text(fmt(-data.discount_amount), 170, y, { align: "right" });
+      doc.setTextColor(0, 0, 0);
+      y += 7;
     }
+
+    // Tax & Total box
+    doc.setDrawColor(200, 200, 200);
+    doc.line(100, y, 190, y);
+    y += 5;
     const taxableBase = data.total_due_today - data.tax_gst - data.tax_qst;
-    feeItems.push(`Sous-total apres promotion: ${fmt(taxableBase)}`);
-    feeItems.push(`TPS (5%): ${fmt(data.tax_gst)} | TVQ (9,975%): ${fmt(data.tax_qst)}`);
-    feeItems.push(`Total paye aujourd'hui: ${fmt(data.total_due_today)}`);
-    y = bulletPoints(doc, feeItems, y);
-    y += 5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+    doc.text("Sous-total taxable", 105, y); doc.text(fmt(taxableBase), 170, y, { align: "right" }); y += 5;
+    doc.text("TPS (5%)", 105, y); doc.text(fmt(data.tax_gst), 170, y, { align: "right" }); y += 5;
+    doc.text("TVQ (9,975%)", 105, y); doc.text(fmt(data.tax_qst), 170, y, { align: "right" }); y += 6;
 
-    // Section 3: CONDITIONS DE PAIEMENT
+    doc.setFillColor(30, 64, 120);
+    doc.rect(100, y, 90, 8, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text("TOTAL PAYE AUJOURD'HUI", 105, y + 5.5);
+    doc.text(fmt(data.total_due_today), 186, y + 5.5, { align: "right" });
+    y += 12;
+
+    // Monthly recurring reminder
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.text(`Votre tarif mensuel recurrent sera de ${fmt(data.subtotal_monthly)} (avant taxes) a compter du prochain cycle.`, 15, y);
+
+    drawFooter(doc, 1, totalPages);
+
+    // ===================================================================
+    // PAGE 2 — CONDITIONS GENERALES (1-5)
+    // ===================================================================
+    doc.addPage();
+    drawHeader(doc, data.contract_number, "Conditions generales");
+    y = 42;
+
+    y = sectionTitle(doc, 1, "NATURE DU SERVICE ET ACTIVATION", y);
+    y = bulletClause(doc, "Nivra Telecom est un fournisseur de services de telecommunications prepaye a renouvellement mensuel.", y);
+    y = bulletClause(doc, "Aucune verification de credit externe n'est effectuee lors de la souscription.", y);
+    y = bulletClause(doc, `Le service debute a la date de livraison et d'installation de l'equipement, soit a compter du ${fmtDate(data.contract_date)} ou de la date effective d'activation.`, y);
+    y = bulletClause(doc, "Nivra se reserve le droit de refuser, suspendre ou retarder toute commande si une fraude est suspectee, sans obligation de motiver sa decision.", y);
+    y += 3;
+
+    y = sectionTitle(doc, 2, "FACTURATION ET CYCLE DE PAIEMENT", y);
+    y = bulletClause(doc, "Le cycle de facturation est mensuel (30 jours), ancre a la date d'activation du service.", y);
+    y = bulletClause(doc, "Une facture est generee et rendue disponible sur le portail client trois (3) jours avant la date de renouvellement.", y);
+    y = bulletClause(doc, "La facture est un document informatif; aucun service n'est fourni sans paiement confirme pour le cycle correspondant.", y);
+    y = bulletClause(doc, "Taxes applicables: TPS (5%) et TVQ (9,975%), calculees conformement aux lois fiscales du Quebec.", y);
+    y = bulletClause(doc, "Le client est responsable de consulter ses factures via le portail. Toute contestation doit etre soumise dans les trente (30) jours suivant l'emission.", y);
+    y += 3;
+
     y = sectionTitle(doc, 3, "CONDITIONS DE PAIEMENT", y);
-    y = bulletPoints(doc, [
-      "Le paiement mensuel est exigible selon le cycle de facturation.",
-      "Les methodes de paiement acceptees sont: carte de credit, PayPal, virement Interac.",
-      "Tout paiement en retard peut entrainer des frais de retard de 5.00 $.",
-      "En cas de non-paiement apres 30 jours, le service pourra etre suspendu.",
-    ], y);
+    y = bulletClause(doc, "Methodes de paiement acceptees: carte de credit, PayPal, virement Interac (e-Transfer).", y);
+    y = bulletClause(doc, "Le paiement doit etre confirme AVANT la date de cycle pour renouveler le service.", y);
+    y = bulletClause(doc, "La confirmation est automatique pour carte de credit et PayPal. Pour Interac, la confirmation est effectuee manuellement dans un delai de vingt-quatre (24) heures ouvrables.", y);
+    y = bulletClause(doc, "Aucun paiement en especes, cheque ou mandat-poste n'est accepte.", y);
+    y = bulletClause(doc, "Tout paiement en retard de plus de quinze (15) jours peut entrainer des frais de retard de 5,00 $.", y);
+    y += 3;
 
-    // ===== PAGE 2 =====
-    doc.addPage();
-    y = 20;
-
-    // Section 4
     y = sectionTitle(doc, 4, "PRELEVEMENTS AUTOMATIQUES (AUTOPAY)", y);
-    y = bulletPoints(doc, [
-      "L'activation du prelevement automatique accorde un rabais de 5.00 $/mois.",
-      "Le client peut activer ou desactiver l'autopay a tout moment via son portail.",
-      "La desactivation de l'autopay entraine le retrait immediat du rabais mensuel.",
-      "Le prelevement est effectue automatiquement a la date d'echeance de la facture.",
-    ], y);
-    y += 5;
+    y = bulletClause(doc, "L'activation du prelevement automatique accorde un rabais de 5,00 $/mois sur le tarif mensuel recurrent.", y);
+    y = bulletClause(doc, "Le client peut activer ou desactiver l'autopay a tout moment via son portail client.", y);
+    y = bulletClause(doc, "La desactivation de l'autopay entraine le retrait immediat du rabais, effectif des la prochaine facture.", y);
+    y = bulletClause(doc, "Le prelevement est effectue automatiquement a la date d'echeance de la facture.", y);
+    y += 3;
 
-    // Section 5
-    y = sectionTitle(doc, 5, "RESILIATION ET ANNULATION", y);
-    y = bulletPoints(doc, [
-      "Le client peut resilier son service a tout moment sans penalite.",
-      "Nivra est un service prepaye: il n'y a aucun engagement contractuel a long terme.",
-      "La resiliation prend effet a la fin de la periode de facturation en cours.",
-      "Aucun remboursement n'est accorde pour la periode en cours deja payee.",
-      "L'equipement loue doit etre retourne dans les 14 jours suivant la resiliation.",
-    ], y);
-    y += 5;
+    y = sectionTitle(doc, 5, "PROMOTION ET RABAIS APPLICABLE", y);
+    if (data.discount_amount > 0) {
+      y = bulletClause(doc, `Promotion appliquee: ${data.discount_label || "Rabais promotionnel"} pour un montant de ${fmt(data.discount_amount)}.`, y);
+      y = bulletClause(doc, "Cette promotion s'applique uniquement a la premiere facture ou aux elements specifies dans l'offre.", y);
+    } else {
+      y = bulletClause(doc, "Aucune promotion n'est appliquee a cette commande.", y);
+    }
+    y = bulletClause(doc, "Les promotions sont non cumulables sauf indication contraire expresse.", y);
+    y = bulletClause(doc, "Nivra se reserve le droit de modifier ou retirer toute offre promotionnelle a tout moment.", y);
 
-    // Section 6
-    y = sectionTitle(doc, 6, "SUSPENSION POUR NON-PAIEMENT", y);
-    y = bulletPoints(doc, [
-      "En cas de non-paiement de 30 jours ou plus, Nivra se reserve le droit de suspendre le service.",
-      "La reactivation est conditionnelle au paiement integral du solde impaye.",
-      "Des frais de reactivation de 15.00 $ peuvent s'appliquer.",
-    ], y);
-    y += 5;
+    drawFooter(doc, 2, totalPages);
 
-    // Section 7
-    y = sectionTitle(doc, 7, "MODIFICATION DES TARIFS", y);
-    y = bulletPoints(doc, [
-      "Nivra se reserve le droit de modifier ses tarifs avec un preavis ecrit de 30 jours.",
-      "Le client peut resilier sans penalite dans les 30 jours suivant un avis de modification.",
-    ], y);
-
-    // ===== PAGE 3 =====
+    // ===================================================================
+    // PAGE 3 — MODALITES (6-12)
+    // ===================================================================
     doc.addPage();
-    y = 20;
+    drawHeader(doc, data.contract_number, "Modalites de service");
+    y = 42;
 
-    // Section 8
-    y = sectionTitle(doc, 8, "LIMITATION DE RESPONSABILITE", y);
-    y = bulletPoints(doc, [
-      "Nivra ne peut etre tenue responsable des interruptions de service liees a des facteurs externes (pannes reseau, catastrophes naturelles, interventions de tiers).",
-      "La responsabilite maximale de Nivra est limitee au montant des frais mensuels du client pour le mois en cours.",
-      "Nivra ne garantit pas une disponibilite de service de 100% et n'est pas responsable des pertes indirectes ou consequentielles.",
-    ], y);
-    y += 5;
+    y = sectionTitle(doc, 6, "NON-RENOUVELLEMENT ET CONSEQUENCES", y);
+    y = bulletClause(doc, "En cas de non-paiement confirme a la date de cycle, le service n'est pas renouvele.", y);
+    y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours.", y);
+    y = bulletClause(doc, "Apres 90 jours sans renouvellement, le numero peut devenir irrecuperable.", y);
+    y = bulletClause(doc, "Exception — Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
+    y += 3;
 
-    // Section 9
-    y = sectionTitle(doc, 9, "LOI APPLICABLE", y);
-    y = bulletPoints(doc, [
-      "Ce contrat est regi par les lois de la province de Quebec, Canada.",
-      "Tout litige sera soumis aux tribunaux competents du district judiciaire de Montreal.",
-      "Les dispositions de la Loi sur la protection du consommateur (Quebec) s'appliquent.",
-    ], y);
-    y += 15;
+    y = sectionTitle(doc, 7, "RESILIATION", y);
+    y = bulletClause(doc, "Le client peut resilier son service a tout moment sans penalite, avec un preavis de trente (30) jours.", y);
+    y = bulletClause(doc, "La resiliation prend effet a la fin de la periode de facturation en cours deja payee.", y);
+    y = bulletClause(doc, "Aucun remboursement n'est accorde pour la periode prepayee en cours ou pour les frais uniques deja acquittes.", y);
+    y = bulletClause(doc, "La portabilite du numero est disponible conformement aux directives du CRTC.", y);
+    y = bulletClause(doc, "Nivra se reserve le droit de resilier immediatement le service en cas d'utilisation abusive, frauduleuse ou contraire aux presentes conditions.", y);
+    y += 3;
+
+    y = sectionTitle(doc, 8, "EQUIPEMENT", y);
+    y = bulletClause(doc, "L'equipement fourni par Nivra (routeur, terminal TV, etc.) est vendu au client comme frais unique; il devient sa propriete apres paiement.", y);
+    y = bulletClause(doc, "Le client est responsable de l'utilisation et de l'entretien de l'equipement.", y);
+    y = bulletClause(doc, "Garantie fabricant: douze (12) mois a compter de la date d'activation. Perte, vol et dommages causes par le client sont exclus.", y);
+    y = bulletClause(doc, "En cas de resiliation, l'equipement n'a pas a etre retourne sauf s'il a ete fourni en pret (indique explicitement sur la commande).", y);
+    y += 3;
+
+    y = sectionTitle(doc, 9, "SUSPENSION POUR NON-PAIEMENT", y);
+    y = bulletClause(doc, "En cas de non-paiement de trente (30) jours ou plus, Nivra se reserve le droit de suspendre le service sans preavis.", y);
+    y = bulletClause(doc, "La reactivation est conditionnelle au paiement integral du solde impaye.", y);
+    y = bulletClause(doc, "Des frais de reactivation de 15,00 $ peuvent s'appliquer.", y);
+    y += 3;
+
+    y = sectionTitle(doc, 10, "LIMITATION DE RESPONSABILITE", y);
+    y = bulletClause(doc, "Nivra n'est pas responsable des dommages indirects, consequentiels, speciaux ou punitifs resultant de l'utilisation ou de l'impossibilite d'utiliser les services.", y);
+    y = bulletClause(doc, "La responsabilite totale de Nivra est limitee au montant paye par le client pour le service specifique concerne, au cours des trois (3) derniers mois.", y);
+    y = bulletClause(doc, "Nivra ne garantit pas une disponibilite de 100% et n'est pas responsable des interruptions causees par des pannes reseau, catastrophes naturelles ou interventions de tiers.", y);
+    y += 3;
+
+    y = sectionTitle(doc, 11, "PROTECTION DES RENSEIGNEMENTS PERSONNELS", y);
+    y = bulletClause(doc, "Nivra protege les renseignements personnels conformement a la Loi 25 du Quebec et a la LPRPDE federale.", y);
+    y = bulletClause(doc, "Les donnees sont collectees uniquement pour la fourniture des services, la facturation, le support et la prevention de la fraude. Aucune donnee n'est vendue a des tiers.", y);
+    y += 3;
+
+    y = sectionTitle(doc, 12, "LOI APPLICABLE ET RESOLUTION DES DIFFERENDS", y);
+    y = bulletClause(doc, "Ce contrat est regi par les lois de la province de Quebec et les lois federales du Canada applicables.", y);
+    y = bulletClause(doc, "Tout litige sera soumis aux tribunaux competents du district judiciaire de Montreal.", y);
+    y = bulletClause(doc, "Les dispositions de la Loi sur la protection du consommateur (Quebec) s'appliquent.", y);
+    y = bulletClause(doc, "Pour toute plainte: contacter support@nivra-telecom.ca. Delai de reponse: quarante-huit (48) heures ouvrables. En dernier recours: Commission des plaintes relatives aux services de telecom-television (CPRST).", y);
+
+    drawFooter(doc, 3, totalPages);
+
+    // ===================================================================
+    // PAGE 4 — SIGNATURES & AVIS LEGAL
+    // ===================================================================
+    doc.addPage();
+    drawHeader(doc, data.contract_number, "Signatures");
+    y = 42;
+
+    // Acceptance clause
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 64, 120);
+    doc.text("DECLARATION ET ACCEPTATION", 15, y);
+    doc.line(15, y + 1.5, 190, y + 1.5);
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(40, 40, 40);
+    const acceptText = [
+      "En signant ce contrat, le client declare et confirme:",
+      "",
+      "  (a) Avoir lu et compris l'integralite des conditions generales et des modalites de service ci-dessus;",
+      "  (b) Avoir verifie l'exactitude des informations personnelles, de l'adresse de service et du sommaire financier;",
+      "  (c) Accepter les tarifs mensuels recurrents et les frais uniques indiques au sommaire financier;",
+      "  (d) Comprendre que les services Nivra sont prepaye a renouvellement mensuel et qu'aucun service n'est fourni sans paiement confirme;",
+      "  (e) Accepter que les factures sont exclusivement numeriques et accessibles via le portail client;",
+      "  (f) Comprendre la politique de resiliation, de remboursement et de retour d'equipement;",
+      "  (g) Accepter les conditions de prelevement automatique et de promotion, le cas echeant.",
+    ];
+    for (const line of acceptText) {
+      doc.text(line, 17, y);
+      y += 4.5;
+    }
+    y += 8;
 
     // SIGNATURES
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
+    doc.setTextColor(30, 64, 120);
     doc.text("SIGNATURES", 15, y);
-    doc.setDrawColor(0, 0, 0);
-    doc.line(15, y + 1.5, 185, y + 1.5);
+    doc.setDrawColor(30, 64, 120);
+    doc.line(15, y + 1.5, 190, y + 1.5);
     y += 12;
+
+    // Client signature
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text("TITULAIRE DU COMPTE", 15, y);
+    doc.text("NIVRA TELECOM INC.", 110, y);
+    y += 18;
+
+    doc.setDrawColor(0, 0, 0);
+    doc.line(15, y, 95, y);
+    doc.line(110, y, 190, y);
+    y += 5;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("Client:", 15, y);
-    doc.text("Nivra Telecom Inc.:", 110, y);
-    y += 15;
-    doc.line(15, y, 90, y);
-    doc.line(110, y, 185, y);
-    y += 5;
+    doc.setTextColor(0, 0, 0);
     doc.text(data.client_name, 15, y);
     doc.text(data.admin_signature_name || "Representant autorise", 110, y);
     y += 5;
-    doc.setFontSize(8);
-    doc.text(data.is_signed ? `Date: ${fmtDate(data.signature_date)}` : "Date: En attente de signature", 15, y);
-    doc.text(`Date: ${fmtDate(data.contract_date)}`, 110, y);
-    y += 10;
 
-    // Contract generation note
-    doc.setFont("helvetica", "italic");
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
-    const note = `Ce contrat a ete genere automatiquement le ${fmtDate(data.contract_date)}. Contrat No ${data.contract_number}. En signant ce document, le client confirme avoir lu et accepte les termes et conditions ci-dessus.`;
-    const noteLines = doc.splitTextToSize(note, 170);
-    for (const nl of noteLines) {
-      doc.text(nl, 15, y);
-      y += 4;
+    if (data.is_signed) {
+      doc.text(`Signe le: ${fmtDate(data.signature_date)}`, 15, y);
+      if (data.signature_ip) {
+        doc.text(`IP: ${data.signature_ip}`, 15, y + 4);
+      }
+    } else {
+      doc.text("Date: En attente de signature", 15, y);
     }
+    doc.text(`Date: ${fmtDate(data.contract_date)}`, 110, y);
+    y += 15;
 
-    // Footer on all pages
-    const totalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      drawFooter(doc);
-    }
+    // Legal notice box
+    doc.setFillColor(245, 247, 250);
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(15, y, 175, 35, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text("AVIS LEGAL", 20, y + 5);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    const legalLines = doc.splitTextToSize(
+      `Ce contrat a ete genere electroniquement le ${fmtDate(data.contract_date)} par les systemes de Nivra Telecom. ` +
+      `Contrat No ${data.contract_number}, Commande No ${data.order_number}, Compte No ${data.account_number}. ` +
+      `En signant ce document, le client confirme avoir lu et accepte l'integralite des termes, conditions et modalites ci-dessus. ` +
+      `Toute modification aux presentes conditions sera communiquee par courriel ou via le portail client avec un preavis de trente (30) jours. ` +
+      `Si une disposition du present contrat est jugee invalide par un tribunal competent, les autres dispositions demeurent en vigueur. ` +
+      `Le present contrat constitue l'integralite de l'accord entre le client et Nivra Telecom concernant les services souscrits.`,
+      165
+    );
+    doc.text(legalLines, 20, y + 10);
+
+    drawFooter(doc, 4, totalPages);
 
     const blob = doc.output("blob");
     return {
@@ -327,7 +516,7 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
       filename: `Contrat_${data.contract_number}_Nivra.pdf`,
     };
   } catch (error: any) {
-    console.error("[ContractV4] Generation error:", error);
+    console.error("[ContractV5] Generation error:", error);
     return { success: false, error: error?.message || "Erreur de generation" };
   }
 }
