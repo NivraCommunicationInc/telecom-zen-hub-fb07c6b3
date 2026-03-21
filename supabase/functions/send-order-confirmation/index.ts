@@ -839,7 +839,8 @@ Deno.serve(async (req) => {
         payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
         payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
         portal_path: `/portal/orders/${order_id}`,
-        // PDF attachment data: services list for contract/summary
+        // PDF attachment data
+        account_number: accountNumber,
         services: services || [],
       },
       status: "queued",
