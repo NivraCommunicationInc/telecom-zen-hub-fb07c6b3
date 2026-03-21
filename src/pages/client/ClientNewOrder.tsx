@@ -1023,14 +1023,15 @@ const ClientNewOrder = () => {
     console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "promo:", appliedPromo?.code || "none", "referral:", appliedReferral?.code || "none", "welcomeDiscountDismissed:", welcomeDiscountDismissed, "paymentComplete:", paymentComplete);
     sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
   }, [
-    isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
+    isHydrated, checkoutTransactionId, transactionStartedAt, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
     terminalQuantity, mobileLineQuantities, mobileTransferChoice, transferPhoneNumber, transferCarrier,
     transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
-    selectedTime, appointmentConfirmed, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
+    selectedTime, appointmentConfirmed, appointmentLockedAt, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
-    verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
+    verificationSessionId, verificationReferenceId, verificationSubmittedAt, verificationSubmissionState,
+    idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
     appliedPromo, appliedReferral, welcomeDiscountDismissed, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
   ]);
 
