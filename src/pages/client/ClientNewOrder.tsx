@@ -237,6 +237,7 @@ const generateQuebecPhoneNumber = (): string => {
 };
 
 const ORDER_DRAFT_KEY = "nivra_order_draft";
+const ORDER_DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24h controlled expiry
 const INSTALLATION_APPOINTMENT_ENABLED = true;
 const DEFAULT_INSTALLATION_CHOICE: "auto" | "technician" = "auto";
 const PROMO_ALREADY_APPLIED_MESSAGE = "Ce rabais est déjà appliqué à votre commande";
