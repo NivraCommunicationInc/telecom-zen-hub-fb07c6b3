@@ -153,10 +153,22 @@ serve(async (req: Request): Promise<Response> => {
     if (codeRecord?.code_hash) {
       expectedHash = codeRecord.code_hash;
     } else {
-      // No code set, use default
-      expectedHash = await hashCode(DEFAULT_CODE);
-      usingDefaultCode = true;
-      console.log(`[${requestId}] No code set, using default code`);
+      // No code set — reject verification; admin must set a code first
+      console.error(`[${requestId}] No security code configured for admin ${admin_user_id}`);
+      
+      await supabase.from("admin_secret_audit_log").insert({
+        request_id: requestId,
+        admin_user_id,
+        event: "verify_rejected_no_code",
+        ip_address: ip,
+        user_agent: userAgent,
+        meta: { reason: "no_security_code_configured" }
+      });
+
+      return new Response(
+        JSON.stringify({ ok: false, request_id: requestId, error: "No security code configured. Please set one first.", needs_setup: true }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     // Hash the provided code and compare
