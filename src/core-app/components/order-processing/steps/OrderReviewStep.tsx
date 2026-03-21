@@ -172,9 +172,9 @@ export function OrderReviewStep({ proc }: Props) {
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
         <div className="space-y-1 text-sm">
           <div className="flex justify-between"><span className="text-gray-500">Sous-total mensuel</span><span className="text-gray-900 font-medium tabular-nums">{recurringSubtotal.toFixed(2)} $/mois</span></div>
-          {discountTotal > 0 && (
+          {recurringDiscountTotal > 0 && (
             <>
-              {discountLines.map((dl: any, i: number) => (
+              {discountRecurringLines.map((dl: any, i: number) => (
                 <div key={`d-${i}`} className="flex justify-between">
                   <span className="text-gray-500">{dl.description}</span>
                   <span className="text-emerald-600 tabular-nums">-{Math.abs(Number(dl.line_total || 0)).toFixed(2)} $</span>
@@ -187,7 +187,7 @@ export function OrderReviewStep({ proc }: Props) {
       </div>
 
       {/* ═══ SECTION B: One-time Fees & Equipment ═══ */}
-      {(equipmentLines.length > 0 || feeLines.length > 0) && (
+      {(equipmentLines.length > 0 || feeLines.length > 0 || discountOnetimeLines.length > 0) && (
         <>
           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Frais uniques & Équipement</h4>
           <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
@@ -204,9 +204,15 @@ export function OrderReviewStep({ proc }: Props) {
                   <span className="text-gray-700 tabular-nums">{Number(line.line_total || 0).toFixed(2)} $</span>
                 </div>
               ))}
+              {discountOnetimeLines.map((dl: any, i: number) => (
+                <div key={`dot-${i}`} className="flex justify-between">
+                  <span className="text-gray-500">{dl.description}</span>
+                  <span className="text-emerald-600 tabular-nums">-{Math.abs(Number(dl.line_total || 0)).toFixed(2)} $</span>
+                </div>
+              ))}
               <div className="flex justify-between border-t border-gray-200 pt-1 font-medium">
                 <span className="text-gray-900">Total frais uniques</span>
-                <span className="text-gray-900 tabular-nums">{oneTimeSubtotal.toFixed(2)} $</span>
+                <span className="text-gray-900 tabular-nums">{onetimeNet.toFixed(2)} $</span>
               </div>
             </div>
           </div>
@@ -218,11 +224,14 @@ export function OrderReviewStep({ proc }: Props) {
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
         <div className="space-y-1 text-sm">
           <div className="flex justify-between"><span className="text-gray-500">Services 1er mois</span><span className="text-gray-700 tabular-nums">{recurringSubtotal.toFixed(2)} $</span></div>
-          {oneTimeSubtotal > 0 && (
-            <div className="flex justify-between"><span className="text-gray-500">Frais uniques</span><span className="text-gray-700 tabular-nums">{oneTimeSubtotal.toFixed(2)} $</span></div>
+          {onetimeGross > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Frais uniques</span><span className="text-gray-700 tabular-nums">{onetimeGross.toFixed(2)} $</span></div>
           )}
-          {discountTotal > 0 && (
-            <div className="flex justify-between"><span className="text-gray-500">Rabais</span><span className="text-emerald-600 tabular-nums">-{discountTotal.toFixed(2)} $</span></div>
+          {recurringDiscountTotal > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Rabais récurrents</span><span className="text-emerald-600 tabular-nums">-{recurringDiscountTotal.toFixed(2)} $</span></div>
+          )}
+          {onetimeDiscountTotal > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Rabais uniques</span><span className="text-emerald-600 tabular-nums">-{onetimeDiscountTotal.toFixed(2)} $</span></div>
           )}
           <div className="flex justify-between"><span className="text-gray-500">TPS (5%)</span><span className="text-gray-700 tabular-nums">{tpsAmount.toFixed(2)} $</span></div>
           <div className="flex justify-between"><span className="text-gray-500">TVQ (9.975%)</span><span className="text-gray-700 tabular-nums">{tvqAmount.toFixed(2)} $</span></div>
