@@ -6751,7 +6751,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => setStep(3)}
+                      onClick={() => {
+                        // Go back to the verification step (dynamic based on services)
+                        if (hasTVService && hasMobileService) setStep(4);
+                        else if (hasTVService || hasMobileService) setStep(3);
+                        else setStep(2);
+                      }}
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Retour
