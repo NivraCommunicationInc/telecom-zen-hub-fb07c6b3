@@ -154,8 +154,8 @@ serve(async (req) => {
     const result = await createNivraPaymentIntent({
       stripe,
       customer_email: email,
-      invoice_id: invoice_id || "",
-      invoice_number: invoice?.invoice_number || "",
+      invoice_id: invoice_id || undefined,
+      invoice_number: invoice?.invoice_number || undefined,
       service_name: serviceName,
       total_amount: amount,
       order_id: order?.id,
