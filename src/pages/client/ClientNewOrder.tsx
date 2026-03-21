@@ -665,10 +665,11 @@ const ClientNewOrder = () => {
   // Delivery choice state (for delivery-only orders: Mobile, Streaming, Accessories, Equipment)
   const [deliveryChoice, setDeliveryChoice] = useState<"standard" | "uber" | "shipHome" | null>(null);
   
-  // Appointment scheduling state
+  // Appointment scheduling state (locked to active checkout transaction once confirmed)
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+  const [appointmentLockedAt, setAppointmentLockedAt] = useState<string | null>(null);
 
   // Initialize installation choice for installable services (only on first selection, not on every change)
   useEffect(() => {
