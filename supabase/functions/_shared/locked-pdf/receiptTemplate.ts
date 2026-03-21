@@ -18,8 +18,8 @@
  */
 
 import jsPDF from "npm:jspdf@2";
-import type { PDFGenerationResult } from "./types";
-import { NIVRA } from "./companyInfo";
+import type { PDFGenerationResult } from "./types.ts";
+import { NIVRA } from "./companyInfo.ts";
 
 // ============================================================================
 // DATA INTERFACE

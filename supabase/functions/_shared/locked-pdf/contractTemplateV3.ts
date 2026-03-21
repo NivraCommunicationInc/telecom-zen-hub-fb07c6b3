@@ -8,9 +8,9 @@
  * Page 4: Signatures + Legal Notice
  */
 
-import jsPDF from "jspdf";
-import type { PDFGenerationResult } from "./types";
-import { NIVRA } from "./companyInfo";
+import jsPDF from "npm:jspdf@2";
+import type { PDFGenerationResult } from "./types.ts";
+import { NIVRA } from "./companyInfo.ts";
 
 // ============================================================================
 // CONTRACT DATA INTERFACE
