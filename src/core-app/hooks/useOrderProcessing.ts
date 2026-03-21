@@ -881,6 +881,36 @@ export function useOrderProcessing(orderId: string | undefined) {
     toast.success("Contrat signé (admin)");
   };
 
+  /* ── Transition order through operational states safely ── */
+  const ensureOperationalState = async (targetStatus: string) => {
+    const current = data?.order?.status || "";
+    const intakeStates = ["submitted", "pending_admin_review", "received"];
+    const completionStates = ["completed", "activated", "fulfilled", "delivered", "installation_completed"];
+
+    // If we're in an intake state and targeting a completion state,
+    // we must step through operational states first to satisfy the DB trigger
+    if (intakeStates.includes(current) && completionStates.includes(targetStatus)) {
+      // Step 1: Move to "confirmed"
+      if (intakeStates.includes(current)) {
+        await updateOrder.mutateAsync({ status: "confirmed" });
+        await logActivity("status_change", "order", orderId, {
+          old_status: current, new_status: "confirmed", reason: "Auto-transition vers état opérationnel"
+        });
+      }
+      // Step 2: Move to "processing"
+      await updateOrder.mutateAsync({ status: "processing" });
+      await logActivity("status_change", "order", orderId, {
+        old_status: "confirmed", new_status: "processing", reason: "Auto-transition vers état opérationnel"
+      });
+      // Step 3: Now we can safely set the target
+      await updateOrder.mutateAsync({ status: targetStatus });
+      return;
+    }
+
+    // If already in an operational state, just set directly
+    await updateOrder.mutateAsync({ status: targetStatus });
+  };
+
   /* ── Activate service — provisions subscription + marks order completed ── */
   const activateService = async (opts?: {
     providerRef?: string;
@@ -936,17 +966,20 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
 
     // Step 3: Save provider ref and activation notes on order
-    const orderUpdates: Record<string, any> = {
-      status: "activated",
-      processed_at: new Date().toISOString(),
-      processed_by: user?.id,
-    };
-    if (opts?.providerRef) orderUpdates.confirmation_number = opts.providerRef;
+    // Use ensureOperationalState to safely transition through required states
+    if (opts?.providerRef) {
+      await updateOrder.mutateAsync({ confirmation_number: opts.providerRef });
+    }
     if (opts?.activationNotes) {
       const existing = data?.order?.internal_notes || "";
-      orderUpdates.internal_notes = existing + `\n[Activation] ${opts.activationNotes}`;
+      await updateOrder.mutateAsync({ internal_notes: existing + `\n[Activation] ${opts.activationNotes}` });
     }
-    await updateOrder.mutateAsync(orderUpdates);
+
+    await ensureOperationalState("activated");
+    await updateOrder.mutateAsync({
+      processed_at: new Date().toISOString(),
+      processed_by: user?.id,
+    });
 
     // Step 4: Log activity
     await logActivity("service_activated", "order", orderId, {
