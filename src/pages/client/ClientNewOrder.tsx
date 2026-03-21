@@ -777,83 +777,105 @@ const ClientNewOrder = () => {
       const savedDraft = sessionStorage.getItem(ORDER_DRAFT_KEY);
       if (savedDraft) {
         const draft: OrderDraft = JSON.parse(savedDraft);
-        console.log("[OrderWizard] Hydrating from sessionStorage:", draft.step, "services:", draft.selectedServices?.length);
-        
-        if (draft.step) setStep(draft.step);
-        if (draft.selectedServices?.length) setSelectedServices(draft.selectedServices);
-        if (draft.selectedFreeChannels?.length) setSelectedFreeChannels(draft.selectedFreeChannels);
-        if (draft.selectedPaidChannels?.length) setSelectedPaidChannels(draft.selectedPaidChannels);
-        if (draft.selectedStreamingServices?.length) setSelectedStreamingServices(draft.selectedStreamingServices);
-        if (draft.terminalQuantity) setTerminalQuantity(draft.terminalQuantity);
-        if (draft.mobileLineQuantities) setMobileLineQuantities(draft.mobileLineQuantities);
-        if (draft.mobileTransferChoice) setMobileTransferChoice(draft.mobileTransferChoice);
-        if (draft.transferPhoneNumber) setTransferPhoneNumber(draft.transferPhoneNumber);
-        if (draft.transferCarrier) setTransferCarrier(draft.transferCarrier);
-        if (draft.transferAccountNumber) setTransferAccountNumber(draft.transferAccountNumber);
-        if (draft.transferServiceAccount) setTransferServiceAccount(draft.transferServiceAccount);
-        if (draft.transferImei) setTransferImei(draft.transferImei);
-        if (draft.transferValidationResult) setTransferValidationResult(draft.transferValidationResult);
-        if (draft.assignedPhoneNumber) setAssignedPhoneNumber(draft.assignedPhoneNumber);
-        setSimType("physical"); // enforced: no SIM choice in client checkout
-        if (INSTALLATION_APPOINTMENT_ENABLED && draft.installationChoice) {
-          setInstallationChoice(draft.installationChoice);
+        const draftTimestamp = draft.draftUpdatedAt || draft.transactionStartedAt;
+        const isDraftExpired = !draftTimestamp || (Date.now() - new Date(draftTimestamp).getTime()) > ORDER_DRAFT_TTL_MS;
+
+        if (isDraftExpired) {
+          console.warn("[OrderWizard] Draft expired, clearing transaction-locked checkout state");
+          sessionStorage.removeItem(ORDER_DRAFT_KEY);
+          localStorage.removeItem('nivra_kyc_session_id');
+          localStorage.removeItem('nivra_kyc_choice');
+          import("@/lib/appointmentHold").then(m => m.clearAppointmentHold());
         } else {
-          setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
+          console.log("[OrderWizard] Hydrating from sessionStorage:", draft.step, "services:", draft.selectedServices?.length, "txn:", draft.transactionId);
+
+          if (draft.transactionId) setCheckoutTransactionId(draft.transactionId);
+          if (draft.transactionStartedAt) setTransactionStartedAt(draft.transactionStartedAt);
+
+          if (draft.step) setStep(draft.step);
+          if (draft.selectedServices?.length) setSelectedServices(draft.selectedServices);
+          if (draft.selectedFreeChannels?.length) setSelectedFreeChannels(draft.selectedFreeChannels);
+          if (draft.selectedPaidChannels?.length) setSelectedPaidChannels(draft.selectedPaidChannels);
+          if (draft.selectedStreamingServices?.length) setSelectedStreamingServices(draft.selectedStreamingServices);
+          if (draft.terminalQuantity) setTerminalQuantity(draft.terminalQuantity);
+          if (draft.mobileLineQuantities) setMobileLineQuantities(draft.mobileLineQuantities);
+          if (draft.mobileTransferChoice) setMobileTransferChoice(draft.mobileTransferChoice);
+          if (draft.transferPhoneNumber) setTransferPhoneNumber(draft.transferPhoneNumber);
+          if (draft.transferCarrier) setTransferCarrier(draft.transferCarrier);
+          if (draft.transferAccountNumber) setTransferAccountNumber(draft.transferAccountNumber);
+          if (draft.transferServiceAccount) setTransferServiceAccount(draft.transferServiceAccount);
+          if (draft.transferImei) setTransferImei(draft.transferImei);
+          if (draft.transferValidationResult) setTransferValidationResult(draft.transferValidationResult);
+          if (draft.assignedPhoneNumber) setAssignedPhoneNumber(draft.assignedPhoneNumber);
+          setSimType("physical"); // enforced: no SIM choice in client checkout
+          if (INSTALLATION_APPOINTMENT_ENABLED && draft.installationChoice) {
+            setInstallationChoice(draft.installationChoice);
+          } else {
+            setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
+          }
+          if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
+          if (draft.selectedDate) setSelectedDate(draft.selectedDate);
+          if (draft.selectedTime) setSelectedTime(draft.selectedTime);
+          if (typeof draft.appointmentConfirmed === "boolean") {
+            setAppointmentConfirmed(draft.appointmentConfirmed);
+          } else if (draft.selectedDate && draft.selectedTime) {
+            // Backward compatibility for drafts saved before appointmentConfirmed existed
+            setAppointmentConfirmed(true);
+          }
+          if (draft.appointmentLockedAt) {
+            setAppointmentLockedAt(draft.appointmentLockedAt);
+          } else if (draft.selectedDate && draft.selectedTime && draft.appointmentConfirmed) {
+            setAppointmentLockedAt(new Date().toISOString());
+          }
+          if (draft.notes) setNotes(draft.notes);
+          if (draft.discountCode) setDiscountCode(draft.discountCode);
+          if (draft.installationCredit) setInstallationCredit(draft.installationCredit);
+          if (draft.idType) setIdType(draft.idType);
+          if (draft.idNumber) setIdNumber(draft.idNumber);
+          if (draft.idExpiration) setIdExpiration(draft.idExpiration);
+          if (draft.idProvince) setIdProvince(draft.idProvince);
+          // Customer info fields
+          if (draft.firstName) setFirstName(draft.firstName);
+          if (draft.lastName) setLastName(draft.lastName);
+          if (draft.dateOfBirth) setDateOfBirth(draft.dateOfBirth);
+          if (draft.checkoutPhone) setCheckoutPhone(draft.checkoutPhone);
+          if (draft.serviceAddressStreet) setServiceAddressStreet(draft.serviceAddressStreet);
+          if (draft.serviceAddressApartment) setServiceAddressApartment(draft.serviceAddressApartment);
+          if (draft.serviceAddressCity) setServiceAddressCity(draft.serviceAddressCity);
+          if (draft.serviceAddressProvince) setServiceAddressProvince(draft.serviceAddressProvince);
+          if (draft.serviceAddressPostalCode) setServiceAddressPostalCode(draft.serviceAddressPostalCode);
+          // KYC session persistence (transaction-locked)
+          if (draft.verificationSessionId) {
+            setVerificationSessionId(draft.verificationSessionId);
+            localStorage.setItem('nivra_kyc_session_id', draft.verificationSessionId);
+          }
+          if (typeof draft.idVerificationApproved === "boolean") setIdVerificationApproved(draft.idVerificationApproved);
+          if (draft.verificationReferenceId) setVerificationReferenceId(draft.verificationReferenceId);
+          if (draft.verificationSubmittedAt) setVerificationSubmittedAt(draft.verificationSubmittedAt);
+          if (draft.verificationSubmissionState) setVerificationSubmissionState(draft.verificationSubmissionState);
+          if (draft.kycChoice) setKycChoice(draft.kycChoice);
+          if (draft.existingKycStatus) setExistingKycStatus(draft.existingKycStatus);
+          if (draft.existingKycCaseNumber) setExistingKycCaseNumber(draft.existingKycCaseNumber);
+          // Promo/referral code details
+          if (draft.appliedPromo) {
+            setAppliedPromo(draft.appliedPromo);
+            console.log("[OrderWizard] Restored appliedPromo:", draft.appliedPromo.code, "discount:", draft.appliedPromo.discount_amount);
+          }
+          if (draft.appliedReferral) {
+            setAppliedReferral(draft.appliedReferral);
+            console.log("[OrderWizard] Restored appliedReferral:", draft.appliedReferral.code, "type:", draft.appliedReferral.type);
+          }
+          // Welcome discount dismissal (CRITICAL: must restore BEFORE payment to prevent default promo override)
+          if (typeof draft.welcomeDiscountDismissed === "boolean") {
+            setWelcomeDiscountDismissed(draft.welcomeDiscountDismissed);
+            console.log("[OrderWizard] Restored welcomeDiscountDismissed:", draft.welcomeDiscountDismissed);
+          }
+          // Payment state (critical — must restore ALL payment fields)
+          if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
+          if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
+          if (draft.paymentConfirmationNumber) setPaymentConfirmationNumber(draft.paymentConfirmationNumber);
+          if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
         }
-        if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
-        if (draft.selectedDate) setSelectedDate(draft.selectedDate);
-        if (draft.selectedTime) setSelectedTime(draft.selectedTime);
-        if (typeof draft.appointmentConfirmed === "boolean") {
-          setAppointmentConfirmed(draft.appointmentConfirmed);
-        } else if (draft.selectedDate && draft.selectedTime) {
-          // Backward compatibility for drafts saved before appointmentConfirmed existed
-          setAppointmentConfirmed(true);
-        }
-        if (draft.notes) setNotes(draft.notes);
-        if (draft.discountCode) setDiscountCode(draft.discountCode);
-        if (draft.installationCredit) setInstallationCredit(draft.installationCredit);
-        if (draft.idType) setIdType(draft.idType);
-        if (draft.idNumber) setIdNumber(draft.idNumber);
-        if (draft.idExpiration) setIdExpiration(draft.idExpiration);
-        if (draft.idProvince) setIdProvince(draft.idProvince);
-        // Customer info fields
-        if (draft.firstName) setFirstName(draft.firstName);
-        if (draft.lastName) setLastName(draft.lastName);
-        if (draft.dateOfBirth) setDateOfBirth(draft.dateOfBirth);
-        if (draft.checkoutPhone) setCheckoutPhone(draft.checkoutPhone);
-        if (draft.serviceAddressStreet) setServiceAddressStreet(draft.serviceAddressStreet);
-        if (draft.serviceAddressApartment) setServiceAddressApartment(draft.serviceAddressApartment);
-        if (draft.serviceAddressCity) setServiceAddressCity(draft.serviceAddressCity);
-        if (draft.serviceAddressProvince) setServiceAddressProvince(draft.serviceAddressProvince);
-        if (draft.serviceAddressPostalCode) setServiceAddressPostalCode(draft.serviceAddressPostalCode);
-        // KYC session persistence (independent of order)
-        if (draft.verificationSessionId) {
-          setVerificationSessionId(draft.verificationSessionId);
-          localStorage.setItem('nivra_kyc_session_id', draft.verificationSessionId);
-        }
-        if (draft.idVerificationApproved) setIdVerificationApproved(draft.idVerificationApproved);
-        if (draft.kycChoice) setKycChoice(draft.kycChoice);
-        if (draft.existingKycStatus) setExistingKycStatus(draft.existingKycStatus);
-        if (draft.existingKycCaseNumber) setExistingKycCaseNumber(draft.existingKycCaseNumber);
-        // Promo/referral code details
-        if (draft.appliedPromo) {
-          setAppliedPromo(draft.appliedPromo);
-          console.log("[OrderWizard] Restored appliedPromo:", draft.appliedPromo.code, "discount:", draft.appliedPromo.discount_amount);
-        }
-        if (draft.appliedReferral) {
-          setAppliedReferral(draft.appliedReferral);
-          console.log("[OrderWizard] Restored appliedReferral:", draft.appliedReferral.code, "type:", draft.appliedReferral.type);
-        }
-        // Welcome discount dismissal (CRITICAL: must restore BEFORE payment to prevent default promo override)
-        if (typeof draft.welcomeDiscountDismissed === "boolean") {
-          setWelcomeDiscountDismissed(draft.welcomeDiscountDismissed);
-          console.log("[OrderWizard] Restored welcomeDiscountDismissed:", draft.welcomeDiscountDismissed);
-        }
-        // Payment state (critical — must restore ALL payment fields)
-        if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
-        if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
-        if (draft.paymentConfirmationNumber) setPaymentConfirmationNumber(draft.paymentConfirmationNumber);
-        if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
       }
     } catch (e) {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
