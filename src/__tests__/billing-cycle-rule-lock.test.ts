@@ -48,10 +48,13 @@ describe("Canonical Billing Cycle Rule Lock", () => {
       expect(part2).not.toContain('"expired"');
     });
 
-    it("must void invoice at suspension (prepaid, no debt)", () => {
+    it("must void invoice only at J+10 (not at J+5 suspension)", () => {
       const code = readFile("supabase/functions/billing-check-overdue/index.ts");
-      expect(code).toContain('status: "void"');
-      expect(code).toContain("prépayé");
+      // Must have J+10 void logic
+      expect(code).toContain("daysPastDue >= 10");
+      // At J+5, invoice must stay overdue for reactivation
+      expect(code).toContain("stays overdue for reactivation");
+      expect(code).toContain("reactivation window");
     });
   });
 

@@ -102,10 +102,16 @@ J+1 à J+4: rappels quotidiens envoyés
             Grâce active — service toujours actif
     ↓
 J+5 (due_date + 5 jours): subscription.status = 'suspended'
-                           invoice.status = 'void'
+                           invoice RESTE 'overdue' (payable pour réactivation)
                            Email service suspendu
                            Alerte système créée
-                           AUCUNE dette — modèle 100% prépayé
+    ↓
+J+6 à J+9: fenêtre de réactivation
+            Client peut payer la facture overdue pour réactiver
+    ↓
+J+10 (due_date + 10 jours): invoice.status = 'void'
+                             Fenêtre de réactivation fermée
+                             AUCUNE dette — modèle 100% prépayé
 ```
 
 ## Protections SQL
