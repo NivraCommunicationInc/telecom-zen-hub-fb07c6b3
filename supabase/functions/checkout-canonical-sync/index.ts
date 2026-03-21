@@ -843,6 +843,10 @@ serve(async (req) => {
         const subscriptionId = existingSub?.id || response.subscription_id || crypto.randomUUID();
         const planPrice = toMoney((payload.services || []).reduce((sum, s) => sum + toMoney(s.plan_price), 0));
 
+        // Determine recurring_provider from payment context
+        const hasPayPal = !!(payload.payment?.paypal_subscription_id || payload.payment?.provider === "paypal");
+        const recurringProvider = hasPayPal ? "paypal" : "internal";
+
         const { error: subError } = await admin.from("billing_subscriptions").upsert(
           {
             id: subscriptionId,
@@ -856,6 +860,7 @@ serve(async (req) => {
             cycle_start_date: cycleDate,
             cycle_end_date: cycleEndStr,
             next_renewal_at: nextRenewalStr,
+            recurring_provider: recurringProvider,
             service_category: firstService?.category?.toLowerCase() || null,
             auto_billing_enabled: payload.payment?.preauth_opt_in || false,
             environment: "live",
