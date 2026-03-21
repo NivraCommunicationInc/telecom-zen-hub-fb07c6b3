@@ -2932,14 +2932,14 @@ Deno.serve(async (req) => {
           console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
         } else if (FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) {
           // Order/payment confirmation → attach ALL 4 PDFs
-          const fullSet = generateFullDocumentSet(templateVars);
+          const fullSet = await generateFullDocumentSet(templateVars);
           if (fullSet.length > 0) {
             attachments = fullSet;
             console.log(`[FULL DOC SET] email_id=${email.id} files=${fullSet.map(f => f.filename).join(', ')}`);
           }
         } else {
           // Other templates → single PDF based on type
-          const pdfAttachment = generateEmailPDFAttachment(templateKey, templateVars);
+          const pdfAttachment = await generateEmailPDFAttachment(templateKey, templateVars);
           if (pdfAttachment) {
             attachments = [{
               filename: pdfAttachment.filename,
