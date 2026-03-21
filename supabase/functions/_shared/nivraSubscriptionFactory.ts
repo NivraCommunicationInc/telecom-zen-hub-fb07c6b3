@@ -257,11 +257,11 @@ export async function createNivraSubscription(
   const subParams: Stripe.SubscriptionCreateParams = {
     customer: params.stripe_customer_id,
     items: stripeItems,
-    default_payment_method: params.default_payment_method_id,
+    ...(pmAttached ? { default_payment_method: params.default_payment_method_id } : {}),
     metadata,
     description: `Nivra Telecom — ${planSummary} — Commande ${params.order_number}`,
     collection_method: "charge_automatically",
-    payment_behavior: "default_incomplete",
+    payment_behavior: hasTrial && !pmAttached ? "allow_incomplete" : "default_incomplete",
     expand: ["latest_invoice"],
   };
 
