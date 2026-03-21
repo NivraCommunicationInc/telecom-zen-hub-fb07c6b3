@@ -578,6 +578,69 @@ async function cleanupOverdueInvoices(
 }
 
 // ========================================
+// STEP 4 — Advance referral qualifying_cycles_paid when a renewal invoice is paid
+// ========================================
+async function advanceReferralCycles(
+  supabase: ReturnType<typeof createClient>,
+  stats: RunStats,
+) {
+  try {
+    // Find client_referrals that are not yet qualified (qualifying_cycles_paid < required_cycles)
+    const { data: pendingReferrals, error } = await supabase
+      .from("client_referrals")
+      .select("id, referred_user_id, referred_billing_customer_id, qualifying_cycles_paid, required_cycles, reward_status, status")
+      .in("reward_status", ["not_eligible", "pending"])
+      .lt("qualifying_cycles_paid", 3);
+
+    if (error || !pendingReferrals?.length) return;
+
+    for (const ref of pendingReferrals) {
+      try {
+        // Count total paid renewal invoices for this referred customer
+        const customerId = ref.referred_billing_customer_id;
+        if (!customerId) continue;
+
+        const { count: paidRenewals } = await supabase
+          .from("billing_invoices")
+          .select("id", { count: "exact", head: true })
+          .eq("customer_id", customerId)
+          .eq("type", "renewal")
+          .eq("status", "paid");
+
+        const actualCycles = Math.min(paidRenewals || 0, ref.required_cycles || 3);
+        if (actualCycles <= (ref.qualifying_cycles_paid || 0)) continue;
+
+        const isQualified = actualCycles >= (ref.required_cycles || 3);
+        const updatePayload: Record<string, any> = {
+          qualifying_cycles_paid: actualCycles,
+          updated_at: new Date().toISOString(),
+        };
+        if (isQualified) {
+          updatePayload.reward_status = "qualified";
+          updatePayload.qualified_at = new Date().toISOString();
+          updatePayload.status = "qualified";
+        }
+
+        await supabase
+          .from("client_referrals")
+          .update(updatePayload)
+          .eq("id", ref.id);
+
+        console.log(`[lifecycle] Referral ${ref.id}: cycles ${ref.qualifying_cycles_paid} → ${actualCycles}${isQualified ? " (QUALIFIED)" : ""}`);
+      } catch (refErr: unknown) {
+        const msg = `Referral cycle error ${ref.id}: ${refErr instanceof Error ? refErr.message : String(refErr)}`;
+        stats.errors.push(msg);
+        stats.errors_count++;
+      }
+    }
+  } catch (err: unknown) {
+    const msg = `Referral cycle step error: ${err instanceof Error ? err.message : String(err)}`;
+    stats.errors.push(msg);
+    stats.errors_count++;
+  }
+}
+
+// ========================================
 // Main handler
 // ========================================
 serve(async (req) => {
