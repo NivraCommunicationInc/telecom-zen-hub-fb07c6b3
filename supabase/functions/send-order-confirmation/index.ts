@@ -692,6 +692,34 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fetch profile + account for PDF attachment data (phone, address)
+    const userId = client_id || orderData?.user_id;
+    let profilePhone = "";
+    let profileAddress = "";
+    let accountNumber = "";
+    if (userId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("user_id", userId)
+        .maybeSingle();
+      profilePhone = profile?.phone || "";
+
+      const { data: account } = await supabase
+        .from("accounts")
+        .select("account_number, primary_service_address, primary_service_city, primary_service_province, primary_service_postal_code, billing_address, billing_city, billing_province, billing_postal_code")
+        .eq("client_id", userId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (account) {
+        accountNumber = account.account_number || "";
+        const addr = account.primary_service_address || account.billing_address || "";
+        const city = account.primary_service_city || account.billing_city || "";
+        const prov = account.primary_service_province || account.billing_province || "QC";
+        const postal = account.primary_service_postal_code || account.billing_postal_code || "";
+        profileAddress = [addr, city, prov, postal].filter(Boolean).join(", ");
+      }
+    }
     const { data: latestInvoice } = await supabase
       .from("billing_invoices")
       .select("id, invoice_number, total, amount_paid, balance_due")
@@ -781,6 +809,10 @@ Deno.serve(async (req) => {
         manual_send: force,
         client_name: client_first_name || "Client",
         client_email,
+        client_phone: client_phone || orderData?.client_phone || profilePhone || "",
+        client_address: delivery_address
+          ? `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}`
+          : profileAddress || "",
         order_id,
         order_number,
         invoice_id: latestInvoice?.id || null,
@@ -807,6 +839,9 @@ Deno.serve(async (req) => {
         payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
         payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
         portal_path: `/portal/orders/${order_id}`,
+        // PDF attachment data
+        account_number: accountNumber,
+        services: services || [],
       },
       status: "queued",
       attempts: 0,

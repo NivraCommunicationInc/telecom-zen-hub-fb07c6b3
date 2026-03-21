@@ -26,6 +26,7 @@ const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'contract' | 'summary
 const FULL_DOCUMENT_SET_TEMPLATES = new Set([
   'order_submitted',
   'order_confirmation',
+  'order_completed',
   'payment_confirmed',
   'payment_received',
   'payment_receipt',
