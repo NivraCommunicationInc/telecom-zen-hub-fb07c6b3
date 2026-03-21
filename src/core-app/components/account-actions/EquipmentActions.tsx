@@ -184,7 +184,7 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
   const [inventoryLoading, setInventoryLoading] = useState(true);
 
   // Load available inventory items (in_stock only)
-  useState(() => {
+  useEffect(() => {
     supabase
       .from("equipment_inventory")
       .select("id, catalog_name, serial_number, imei, mac_address, sku, status")
@@ -194,7 +194,7 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
         setInventoryItems(data || []);
         setInventoryLoading(false);
       });
-  });
+  }, []);
 
   const selectedItem = inventoryItems.find(i => i.id === selectedInventoryId);
   const serialDisplay = selectedItem
