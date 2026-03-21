@@ -327,11 +327,11 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y += 3;
 
     y = sectionTitle(doc, 3, "CONDITIONS DE PAIEMENT", y);
-    y = bulletClause(doc, "Methodes de paiement acceptees: carte de credit, PayPal, virement Interac (e-Transfer).", y);
+    y = bulletClause(doc, "Methodes de paiement acceptees: PayPal (methode principale recommandee) et virement Interac (e-Transfer).", y);
     y = bulletClause(doc, "Le paiement doit etre confirme AVANT la date de cycle pour renouveler le service.", y);
-    y = bulletClause(doc, "La confirmation est automatique pour carte de credit et PayPal. Pour Interac, la confirmation est effectuee manuellement dans un delai de vingt-quatre (24) heures ouvrables.", y);
+    y = bulletClause(doc, "La confirmation est automatique pour PayPal. Pour Interac, la confirmation est effectuee manuellement dans un delai de vingt-quatre (24) heures ouvrables.", y);
     y = bulletClause(doc, "Aucun paiement en especes, cheque ou mandat-poste n'est accepte.", y);
-    y = bulletClause(doc, "Tout paiement en retard de plus de quinze (15) jours peut entrainer des frais de retard de 5,00 $.", y);
+    y = bulletClause(doc, "Tout paiement en retard de plus de cinq (5) jours apres la date d'echeance peut entrainer des frais de retard de 5,00 $.", y);
     y += 3;
 
     y = sectionTitle(doc, 4, "PRELEVEMENTS AUTOMATIQUES (AUTOPAY)", y);
