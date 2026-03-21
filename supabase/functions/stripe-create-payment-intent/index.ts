@@ -118,7 +118,7 @@ serve(async (req) => {
     const email = customer_email || customerObj?.email;
     const customerName = customerObj ? `${customerObj.first_name || ""} ${customerObj.last_name || ""}`.trim() : undefined;
     const pricingSnapshot = order?.pricing_snapshot;
-    const isInvoicePayment = Boolean(invoice_id || intent_context === "invoice_payment");
+    const isInvoicePayment = !isCheckoutPreconfirm && Boolean(invoice_id || intent_context === "invoice_payment");
 
     // Service name
     const serviceName = order?.plan_name ||
