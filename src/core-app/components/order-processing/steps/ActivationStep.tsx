@@ -2,16 +2,25 @@
  * ActivationStep — Step 7: Activation / Provisioning
  * Calls canonical provision_services_for_order RPC, creates subscription,
  * updates account billing cycle, and marks order as activated.
+ * 
+ * GATED: Only shows "Activer" when order is in a valid pre-activation state
+ * and invoice is paid.
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Zap, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Zap, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props { proc: any; }
+
+/** Canonical order lifecycle states */
+const INTAKE_STATES = ["submitted", "pending_admin_review", "received"];
+const OPERATIONAL_STATES = ["confirmed", "processing", "in_progress", "provisioning", "shipping", "installing",
+  "shipped", "delivered", "technician_en_route", "installation_completed"];
+const TERMINAL_STATES = ["active", "activated", "completed"];
 
 export function ActivationStep({ proc }: Props) {
   const { order, account, invoice } = proc;
@@ -20,8 +29,14 @@ export function ActivationStep({ proc }: Props) {
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
 
-  const isActivated = ["active", "activated", "completed"].includes(order.status || "");
+  const currentStatus = order.status || "";
+  const isActivated = TERMINAL_STATES.includes(currentStatus);
+  const isInIntake = INTAKE_STATES.includes(currentStatus);
+  const isInOperational = OPERATIONAL_STATES.includes(currentStatus);
   const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoice?.status || "");
+
+  // Can activate if invoice is paid AND order is not already terminal
+  // The hook handles safe state transitions internally
   const canActivate = invoicePaid && !isActivated;
 
   const handleActivate = async () => {
@@ -43,16 +58,29 @@ export function ActivationStep({ proc }: Props) {
     }
   };
 
-  const handleRetry = async () => {
-    await proc.updateOrder({ status: "provisioning_in_progress" });
-    toast.info("Réessai d'activation en cours…");
+  // Move to "confirmed" operational state (first step from intake)
+  const handleConfirmOrder = async () => {
+    try {
+      await proc.changeStatus("confirmed", "Passage en état opérationnel confirmé");
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur");
+    }
+  };
+
+  // Move to "processing" operational state
+  const handleStartProcessing = async () => {
+    try {
+      await proc.changeStatus("processing", "Début du traitement");
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur");
+    }
   };
 
   return (
     <div>
       <h3 className="text-base font-bold text-foreground mb-4">Activation / Provisionnement</h3>
 
-      {/* Activation status */}
+      {/* Already activated */}
       {isActivated && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-4">
           <p className="text-sm text-emerald-800 flex items-center gap-1">
@@ -67,6 +95,23 @@ export function ActivationStep({ proc }: Props) {
           <p className="text-sm text-amber-800 flex items-center gap-1">
             <AlertTriangle className="w-4 h-4" /> La facture doit être payée avant l'activation du service.
           </p>
+        </div>
+      )}
+
+      {/* Guide: show current state and required transitions */}
+      {!isActivated && invoicePaid && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p className="text-xs text-blue-800 font-medium mb-1">État actuel: <span className="font-bold">{currentStatus}</span></p>
+          {isInIntake && (
+            <p className="text-xs text-blue-700">
+              La commande est en état d'intake. L'activation va automatiquement transiter par les états opérationnels requis (confirmé → traitement → activé).
+            </p>
+          )}
+          {isInOperational && (
+            <p className="text-xs text-blue-700">
+              La commande est en traitement. Vous pouvez procéder à l'activation.
+            </p>
+          )}
         </div>
       )}
 
@@ -99,7 +144,7 @@ export function ActivationStep({ proc }: Props) {
         </div>
       </div>
 
-      {/* Provider reference */}
+      {/* Provider reference + notes */}
       {!isActivated && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -113,8 +158,6 @@ export function ActivationStep({ proc }: Props) {
               />
             </div>
           </div>
-
-          {/* Activation notes */}
           <div className="mb-4">
             <Label className="text-xs text-muted-foreground">Notes d'activation</Label>
             <Textarea
@@ -143,6 +186,21 @@ export function ActivationStep({ proc }: Props) {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
+        {/* Manual intermediate transitions (optional but available) */}
+        {isInIntake && invoicePaid && (
+          <>
+            <Button size="sm" variant="outline" onClick={handleConfirmOrder} disabled={proc.isUpdating} className="text-xs h-8">
+              <ArrowRight className="w-3 h-3 mr-1" /> Confirmer la commande
+            </Button>
+          </>
+        )}
+        {currentStatus === "confirmed" && (
+          <Button size="sm" variant="outline" onClick={handleStartProcessing} disabled={proc.isUpdating} className="text-xs h-8">
+            <ArrowRight className="w-3 h-3 mr-1" /> Démarrer le traitement
+          </Button>
+        )}
+
+        {/* Main activation button */}
         <Button
           size="sm"
           onClick={handleActivate}
@@ -153,7 +211,7 @@ export function ActivationStep({ proc }: Props) {
           {isActivating ? "Activation en cours…" : "Activer le service"}
         </Button>
         {!isActivated && (
-          <Button size="sm" variant="outline" onClick={handleRetry} disabled={proc.isUpdating} className="text-xs h-8">
+          <Button size="sm" variant="outline" onClick={() => proc.changeStatus("provisioning", "Réessai")} disabled={proc.isUpdating} className="text-xs h-8">
             <RefreshCw className="w-3 h-3 mr-1" /> Réessayer
           </Button>
         )}
