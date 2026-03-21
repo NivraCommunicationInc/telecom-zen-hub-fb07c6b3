@@ -2,7 +2,7 @@
  * Equipment management visible action bar for Account 360.
  * All actions are direct and operational.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
