@@ -47,8 +47,7 @@ serve(async (req) => {
       console.log("[retry-sub] Authenticated as admin user");
     }
 
-    const body = await req.json();
-    const { invoice_id, stripe_customer_id, payment_method_id } = body;
+    // body already parsed above
 
     if (!invoice_id) throw new Error("invoice_id is required");
 
