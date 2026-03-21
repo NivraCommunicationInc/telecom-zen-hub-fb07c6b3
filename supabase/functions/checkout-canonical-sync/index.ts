@@ -563,6 +563,13 @@ serve(async (req) => {
     // CANONICAL INVARIANT: order.total_amount MUST equal invoice.total
     // Use pricing_snapshot.grand_total as the single source of truth (server-computed)
     const canonicalGrandTotal = toMoney(payload.pricing_snapshot?.grand_total ?? response.pricing?.grand_total);
+
+    // ★ Promo propagation: extract from pricing_snapshot.promo_applied (canonical source)
+    const snapshotPromoCode = (payload.pricing_snapshot as any)?.promo_applied?.code || payload.promo?.code || null;
+    const snapshotPromoDiscount = toMoney(
+      payload.pricing_snapshot?.promo_discount ?? payload.promo?.discount_value ?? 0
+    );
+
     if (accountId) {
       try {
         const { error: orderError } = await admin.from("orders").upsert(
@@ -601,6 +608,9 @@ serve(async (req) => {
                 : billingMethod === "card"
                   ? (payload.payment?.reference || null)
                   : null,
+            // ★ FIX GAP 1: Promo fields propagated from pricing_snapshot
+            promo_code: snapshotPromoCode,
+            promo_discount_amount: snapshotPromoDiscount,
           },
           { onConflict: "id" },
         );
@@ -799,6 +809,15 @@ serve(async (req) => {
       try {
         const firstService = (payload.services || [])[0];
         const cycleDate = toDateOnly(nowIso);
+        // ★ FIX GAP 3: Compute proper cycle_end_date (1 month) and next_renewal_at
+        const cycleStartDate = new Date(cycleDate + "T00:00:00Z");
+        const cycleEndDate = new Date(cycleStartDate);
+        cycleEndDate.setUTCMonth(cycleEndDate.getUTCMonth() + 1);
+        const cycleEndStr = cycleEndDate.toISOString().split("T")[0];
+        // next_renewal_at = 3 days before cycle end (for billing automation J-3)
+        const renewalDate = new Date(cycleEndDate);
+        renewalDate.setUTCDate(renewalDate.getUTCDate() - 3);
+        const nextRenewalStr = renewalDate.toISOString();
 
         const { data: existingSub } = await admin
           .from("billing_subscriptions")
@@ -818,9 +837,10 @@ serve(async (req) => {
             plan_code: firstService?.plan_code || "UNKNOWN",
             plan_name: (payload.services || []).map((s) => s.name).join(", "),
             plan_price: planPrice,
-            status: "pending", // INVARIANT: checkout NEVER auto-activates subscriptions — operational processing only
+            status: "pending",
             cycle_start_date: cycleDate,
-            cycle_end_date: cycleDate,
+            cycle_end_date: cycleEndStr,
+            next_renewal_at: nextRenewalStr,
             service_category: firstService?.category?.toLowerCase() || null,
             auto_billing_enabled: payload.payment?.preauth_opt_in || false,
             environment: "live",
@@ -830,16 +850,60 @@ serve(async (req) => {
 
         if (subError) throw subError;
 
-        // BLOCKER 2 FIX: Link subscription to invoice (required for trigger-based activation)
-        // AND force-activate subscription if invoice is already paid
+        // ★ FIX GAP 2: Populate billing_subscription_services with recurring line items
+        const { count: existingServiceCount } = await admin
+          .from("billing_subscription_services")
+          .select("id", { count: "exact", head: true })
+          .eq("subscription_id", subscriptionId);
+
+        if (!existingServiceCount || existingServiceCount === 0) {
+          const serviceItems: Array<Record<string, unknown>> = [];
+          for (const svc of payload.services || []) {
+            serviceItems.push({
+              subscription_id: subscriptionId,
+              service_code: svc.plan_code || svc.name.toLowerCase().replace(/\s+/g, "_"),
+              service_name: svc.name,
+              service_type: svc.category?.toLowerCase() || "service",
+              unit_price: toMoney(svc.plan_price),
+              quantity: Number(svc.quantity || 1),
+              is_active: true,
+              added_at: nowIso,
+            });
+          }
+          for (const addon of payload.streaming_addons || []) {
+            serviceItems.push({
+              subscription_id: subscriptionId,
+              service_code: addon.name.toLowerCase().replace(/\s+/g, "_"),
+              service_name: addon.name,
+              service_type: "streaming",
+              unit_price: toMoney(addon.monthly_price ?? addon.plan_price),
+              quantity: 1,
+              is_active: true,
+              added_at: nowIso,
+            });
+          }
+          if (serviceItems.length > 0) {
+            const { error: svcError } = await admin
+              .from("billing_subscription_services")
+              .insert(serviceItems);
+            if (svcError) {
+              console.error("[checkout-canonical-sync] subscription_services insert failed:", svcError);
+              errors.push(`subscription_services: ${svcError.message}`);
+            } else {
+              results.subscription_services_created = serviceItems.length;
+              console.log(`[checkout-canonical-sync] ✅ ${serviceItems.length} subscription service items created`);
+            }
+          }
+        } else {
+          results.subscription_services_existing = existingServiceCount;
+        }
+
+        // Link subscription to invoice
         await admin.from("billing_invoices").update({
           subscription_id: subscriptionId,
         }).eq("id", response.invoice_id);
 
-        // INVARIANT: Subscription activation is NEVER done at checkout.
-        // Subscriptions remain "pending" until operational processing (admin/staff/automation) activates them.
-        // This ensures order lifecycle is operationally controlled, not payment-driven.
-        console.log(`[checkout-canonical-sync] Subscription ${subscriptionId} created as 'pending' — awaiting operational activation`);
+        console.log(`[checkout-canonical-sync] Subscription ${subscriptionId} created as 'pending' — cycle ${cycleDate} to ${cycleEndStr}, renewal ${nextRenewalStr}`);
 
         results.subscription = true;
       } catch (err: any) {
