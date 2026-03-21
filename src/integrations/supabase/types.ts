@@ -1690,6 +1690,10 @@ export type Database = {
           plan_code: string
           plan_name: string
           plan_price: number
+          recurring_provider: string | null
+          recurring_setup_status:
+            | Database["public"]["Enums"]["recurring_setup_status"]
+            | null
           service_category: string | null
           source_id: string | null
           source_type: string | null
@@ -1726,6 +1730,10 @@ export type Database = {
           plan_code: string
           plan_name: string
           plan_price: number
+          recurring_provider?: string | null
+          recurring_setup_status?:
+            | Database["public"]["Enums"]["recurring_setup_status"]
+            | null
           service_category?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -1762,6 +1770,10 @@ export type Database = {
           plan_code?: string
           plan_name?: string
           plan_price?: number
+          recurring_provider?: string | null
+          recurring_setup_status?:
+            | Database["public"]["Enums"]["recurring_setup_status"]
+            | null
           service_category?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -8658,6 +8670,54 @@ export type Database = {
           },
         ]
       }
+      paypal_plan_cache: {
+        Row: {
+          amount_cad: number
+          created_at: string
+          currency: string
+          cycle_count: number
+          cycle_unit: string
+          id: string
+          is_active: boolean
+          last_used_at: string
+          paypal_plan_id: string
+          paypal_product_id: string
+          plan_label: string
+          tax_inclusive: boolean
+          tax_percentage: string
+        }
+        Insert: {
+          amount_cad: number
+          created_at?: string
+          currency?: string
+          cycle_count?: number
+          cycle_unit?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string
+          paypal_plan_id: string
+          paypal_product_id: string
+          plan_label: string
+          tax_inclusive?: boolean
+          tax_percentage?: string
+        }
+        Update: {
+          amount_cad?: number
+          created_at?: string
+          currency?: string
+          cycle_count?: number
+          cycle_unit?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string
+          paypal_plan_id?: string
+          paypal_product_id?: string
+          plan_label?: string
+          tax_inclusive?: boolean
+          tax_percentage?: string
+        }
+        Relationships: []
+      }
       pdf_generation_logs: {
         Row: {
           customer_email: string | null
@@ -14555,6 +14615,12 @@ export type Database = {
         | "CHANNEL_PUSH"
         | "EQUIPMENT_ASSIGN"
         | "CUSTOM"
+      recurring_setup_status:
+        | "pending"
+        | "active"
+        | "failed"
+        | "skipped"
+        | "no_provider"
       referral_reward_status:
         | "not_eligible"
         | "in_progress"
@@ -15017,6 +15083,13 @@ export const Constants = {
         "CHANNEL_PUSH",
         "EQUIPMENT_ASSIGN",
         "CUSTOM",
+      ],
+      recurring_setup_status: [
+        "pending",
+        "active",
+        "failed",
+        "skipped",
+        "no_provider",
       ],
       referral_reward_status: [
         "not_eligible",
