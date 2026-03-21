@@ -2,7 +2,7 @@
  * Equipment management visible action bar for Account 360.
  * All actions are direct and operational.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -177,22 +177,49 @@ function AddEquipmentModal({ orders, onClose, onRefresh }: { orders: any[]; onCl
 
 function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: any[]; onClose: () => void; onRefresh: () => void }) {
   const [selectedId, setSelectedId] = useState(equipment[0]?.id || "");
-  const [serialNumber, setSerialNumber] = useState("");
+  const [selectedInventoryId, setSelectedInventoryId] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(true);
+
+  // Load available inventory items (in_stock only)
+  useEffect(() => {
+    supabase
+      .from("equipment_inventory")
+      .select("id, catalog_name, serial_number, imei, mac_address, sku, status")
+      .eq("status", "in_stock")
+      .order("catalog_name")
+      .then(({ data }) => {
+        setInventoryItems(data || []);
+        setInventoryLoading(false);
+      });
+  }, []);
+
+  const selectedItem = inventoryItems.find(i => i.id === selectedInventoryId);
+  const serialDisplay = selectedItem
+    ? (selectedItem.serial_number || selectedItem.imei || selectedItem.mac_address || selectedItem.sku || "—")
+    : "";
 
   const handleAssign = async () => {
-    if (!selectedId || !serialNumber.trim()) {
-      toast.error("Le numéro de série est requis pour l'assignation");
+    if (!selectedId || !selectedInventoryId) {
+      toast.error("Sélectionnez un équipement de l'inventaire");
       return;
     }
     setLoading(true);
     try {
+      // Update order line with serial from inventory
       const { error } = await supabase
         .from("equipment_order_lines")
-        .update({ serial_numbers: [serialNumber.trim()] })
+        .update({ serial_numbers: [serialDisplay] })
         .eq("id", selectedId);
       if (error) throw error;
+
+      // Update inventory status to deployed
+      await supabase
+        .from("equipment_inventory")
+        .update({ status: "deployed" } as any)
+        .eq("id", selectedInventoryId);
 
       const user = (await supabase.auth.getUser()).data.user;
       await supabase.from("activity_logs").insert({
@@ -201,10 +228,15 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
         entity_id: selectedId,
         action: "equipment_assigned",
         reason: note || null,
-        details: { serial_number: serialNumber.trim(), source: "account_360" },
+        details: {
+          serial_number: serialDisplay,
+          inventory_id: selectedInventoryId,
+          catalog_name: selectedItem?.catalog_name,
+          source: "account_360_inventory",
+        },
       });
 
-      toast.success("Équipement assigné");
+      toast.success("Équipement assigné depuis l'inventaire");
       onRefresh();
       onClose();
     } catch (e: any) {
@@ -220,15 +252,36 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
         <DialogHeader><DialogTitle className="text-sm font-bold flex items-center gap-2"><Link2 className="h-4 w-4 text-primary" /> Assigner un équipement</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Équipement</label>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Ligne de commande</label>
             <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className={inputCls}>
               {equipment.map((eq: any) => (<option key={eq.id} value={eq.id}>{eq.item_name} — {eq.item_sku || "N/A"}</option>))}
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Numéro de série</label>
-            <input value={serialNumber} onChange={e => setSerialNumber(e.target.value)} className={inputCls} placeholder="S/N, MAC, IMEI..." />
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Sélectionner depuis l'inventaire</label>
+            {inventoryLoading ? (
+              <p className="text-[10px] text-muted-foreground py-2">Chargement de l'inventaire...</p>
+            ) : inventoryItems.length === 0 ? (
+              <p className="text-[10px] text-amber-500 py-2">Aucun équipement en stock disponible</p>
+            ) : (
+              <select value={selectedInventoryId} onChange={e => setSelectedInventoryId(e.target.value)} className={inputCls}>
+                <option value="">— Sélectionner —</option>
+                {inventoryItems.map((item: any) => (
+                  <option key={item.id} value={item.id}>
+                    {item.catalog_name} — S/N: {item.serial_number || item.imei || item.mac_address || item.sku || "N/A"}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
+          {selectedItem && (
+            <div className="p-2 rounded-md bg-muted/50 text-[10px] space-y-1">
+              <p><span className="font-semibold">Article:</span> {selectedItem.catalog_name}</p>
+              <p><span className="font-semibold">S/N:</span> {selectedItem.serial_number || "—"}</p>
+              {selectedItem.imei && <p><span className="font-semibold">IMEI:</span> {selectedItem.imei}</p>}
+              {selectedItem.mac_address && <p><span className="font-semibold">MAC:</span> {selectedItem.mac_address}</p>}
+            </div>
+          )}
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Note interne</label>
             <Textarea value={note} onChange={e => setNote(e.target.value)} rows={2} className="text-[11px]" />
@@ -236,7 +289,7 @@ function AssignEquipmentModal({ equipment, onClose, onRefresh }: { equipment: an
         </div>
         <DialogFooter className="gap-2">
           <button onClick={onClose} className={btnSecondary}>Annuler</button>
-          <button onClick={handleAssign} disabled={loading} className={btnPrimary}>{loading ? "…" : "Assigner"}</button>
+          <button onClick={handleAssign} disabled={loading || !selectedInventoryId} className={btnPrimary}>{loading ? "…" : "Assigner"}</button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
