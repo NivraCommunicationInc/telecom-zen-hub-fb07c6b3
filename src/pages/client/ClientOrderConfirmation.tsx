@@ -959,7 +959,7 @@ END:VCALENDAR`;
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
-                  Les factures sont générées automatiquement chaque mois selon vos services actifs.
+                  Les factures de renouvellement sont générées 3 jours avant votre date de cycle. Le paiement est dû le {billingInfo.cycleDay}e du mois. Une période de grâce de 5 jours s'applique après la date d'échéance.
                 </p>
                 
                 <Button 
