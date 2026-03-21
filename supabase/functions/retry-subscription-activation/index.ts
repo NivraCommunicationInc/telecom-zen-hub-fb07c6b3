@@ -28,41 +28,26 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify admin auth - accepts JWT or service-role key
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Authorization required");
+    // Auth: accept service-role key via x-admin-key header or JWT
+    const adminKey = req.headers.get("x-admin-key");
+    const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     
-    const token = authHeader.replace("Bearer ", "");
-    
-    // Try user auth first
-    const { data: userData, error: authErr } = await supabase.auth.getUser(token);
-    
-    if (!authErr && userData.user) {
-      // Verify admin/staff role
+    if (adminKey && adminKey === srk) {
+      console.log("[retry-sub] Authenticated via service role key");
+    } else {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) throw new Error("Authorization required");
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr || !userData.user) throw new Error("Authentication failed");
       const { data: adminUser } = await supabase
         .from("admin_users")
         .select("id")
         .eq("user_id", userData.user.id)
         .eq("is_active", true)
         .maybeSingle();
-
-      if (!adminUser) {
-        const { data: staffUser } = await supabase
-          .from("staff_users")
-          .select("id")
-          .eq("user_id", userData.user.id)
-          .eq("is_active", true)
-          .maybeSingle();
-        if (!staffUser) throw new Error("Admin or staff access required");
-      }
-      console.log("[retry-sub] Authenticated as admin/staff user");
-    } else {
-      // Service role key auth — compare token directly
-      const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-      if (!srk || token !== srk) {
-        throw new Error("Authentication failed — invalid token");
-      }
-      console.log("[retry-sub] Service role invocation — admin bypass");
+      if (!adminUser) throw new Error("Admin access required");
+      console.log("[retry-sub] Authenticated as admin user");
     }
 
     const body = await req.json();
