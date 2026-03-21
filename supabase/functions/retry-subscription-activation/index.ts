@@ -37,6 +37,7 @@ serve(async (req) => {
     console.log(`[retry-sub] Invocation received for invoice_id=${invoice_id}`);
 
     // body already parsed above
+    if (!invoice_id) throw new Error("invoice_id is required");
 
     if (!invoice_id) throw new Error("invoice_id is required");
 
