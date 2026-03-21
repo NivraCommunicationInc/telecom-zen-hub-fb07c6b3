@@ -64,184 +64,220 @@ function validatePDFClientData(vars: Record<string, any>): { valid: boolean; mis
   return { valid: missing.length === 0, missing };
 }
 
-// Build invoice data from template vars
-function buildInvoiceData(vars: Record<string, any>): InvoiceData {
-  const canonicalTotal = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? vars.amount ?? 0) || 0;
-  const canonicalAmountDue = Number(vars.amount_due_today ?? vars.balance_due ?? vars.canonical_balance_due ?? canonicalTotal) || 0;
-  const canonicalSubtotal = Number(vars.subtotal ?? vars.taxable_base ?? vars.canonical_subtotal ?? canonicalTotal) || 0;
-  const canonicalTps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
-  const canonicalTvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
+// ============================================================================
+// LOCKED PDF BRIDGE — Maps template_vars → locked template interfaces
+// Uses ONLY: generateInvoiceV3PDF, generateReceiptPDF, generateContractV3PDF, generateOrderSummaryPDF
+// These are the APPROVED production templates. DO NOT replace with any other generator.
+// ============================================================================
+
+const n = (v: unknown): number => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+};
+
+function buildInvoiceData(vars: Record<string, any>): InvoiceDataV2 {
+  const total = n(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? vars.amount);
+  const subtotal = n(vars.subtotal ?? vars.taxable_base ?? vars.canonical_subtotal ?? total);
+  const tps = n(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount);
+  const tvq = n(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount);
+  const balanceDue = n(vars.amount_due_today ?? vars.balance_due ?? vars.canonical_balance_due ?? total);
+  const discountAmt = n(vars.discount_amount);
+  const addr = (vars.client_address || vars.address || vars.service_address || "").split(",").map((s: string) => s.trim());
+
+  const sourceItems = vars.items || vars.billed_items || vars.services || [];
+  const items = (Array.isArray(sourceItems) ? sourceItems : []).map((it: any) => ({
+    category: (it.category || it.type || "Other") as any,
+    description: it.description || it.name || it.label || "Service Nivra",
+    period: it.period,
+    qty: Math.max(1, n(it.qty ?? it.quantity ?? 1)),
+    unit_price: n(it.unit_price ?? it.price ?? it.monthly_price ?? it.amount),
+    amount: n(it.amount ?? it.line_total ?? it.total ?? it.monthly_price ?? it.price),
+    is_recurring: Boolean(it.is_recurring ?? true),
+  }));
+  if (items.length === 0) items.push({ category: "Other" as any, description: vars.service_type || "Service Nivra", qty: 1, unit_price: subtotal, amount: subtotal, is_recurring: true });
 
   return {
+    invoice_type: "ONETIME",
     invoice_number: vars.invoice_number || vars.invoiceNumber || `NV-${Date.now()}`,
     invoice_date: vars.invoice_date || vars.created_at || new Date().toISOString(),
-    due_date: vars.due_date || vars.dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-    account_number: vars.account_number || vars.client_number || '',
-    period_start: vars.period_start || '',
-    period_end: vars.period_end || '',
-    client_name: vars.client_name || vars.name || 'Client',
-    client_email: vars.client_email || vars.email || '',
-    client_phone: vars.client_phone || vars.phone || '',
-    client_address: vars.client_address || vars.address || '',
-    services: vars.services || [
-      { name: vars.service_type || 'Service Nivra', description: 'Service mensuel', price: canonicalTotal }
-    ],
-    subtotal: canonicalSubtotal,
-    discount_label: vars.discount_label || (vars.discount_amount ? 'Rabais' : undefined),
-    discount_amount: Number(vars.discount_amount ?? 0) || undefined,
-    tps: canonicalTps,
-    tvq: canonicalTvq,
-    total: canonicalTotal,
-    previous_balance: vars.previous_balance || 0,
-    payments: vars.payments || [],
-    balance_due: canonicalAmountDue,
+    due_date: vars.due_date || vars.dueDate || new Date(Date.now() + 15*86400000).toISOString(),
+    account_number: vars.account_number || vars.client_number || "",
+    billing_period_start: vars.period_start || vars.billing_period_start,
+    billing_period_end: vars.period_end || vars.billing_period_end,
+    currency: "CAD",
+    status: (vars.invoice_status || vars.status || "pending") as any,
+    customer: {
+      full_name: vars.client_name || vars.name || "Client",
+      email: vars.client_email || vars.email || "",
+      phone: vars.client_phone || vars.phone,
+      address_line1: addr[0] || "—",
+      city: vars.client_city || addr[1] || "Laval",
+      province: vars.client_province || addr[2] || "QC",
+      postal_code: vars.client_postal_code || addr[3] || "",
+    },
+    items,
+    discounts: discountAmt > 0 ? [{ label: vars.discount_label || "Rabais", amount: discountAmt }] : [],
+    subtotal,
+    taxes: { gst_rate: 0.05, gst_amount: tps, qst_rate: 0.09975, qst_amount: tvq },
+    total,
+    balance_due: balanceDue,
+    payments_total: n(vars.amount_paid_today ?? vars.amount_paid),
   };
 }
 
-// Build receipt data from template vars
-function buildReceiptData(vars: Record<string, any>): ReceiptData {
-  const amountPaid = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.amount_paid ?? vars.amount ?? vars.total_payable ?? 0) || 0;
-  const subtotal = Number(vars.subtotal ?? vars.taxable_base ?? 0) || 0;
-  const tps = Number(vars.tps_amount ?? vars.tps ?? 0) || 0;
-  const tvq = Number(vars.tvq_amount ?? vars.tvq ?? 0) || 0;
-  const total = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? amountPaid) || 0;
-
+function buildReceiptData(vars: Record<string, any>): LockedReceiptData {
   return {
     receipt_number: vars.payment_number || vars.receipt_number || `REC-${Date.now()}`,
-    receipt_date: vars.paid_at || vars.payment_date || new Date().toISOString(),
-    invoice_number: vars.invoice_number || '',
-    account_number: vars.account_number || vars.client_number || '',
-    client_name: vars.client_name || vars.name || 'Client',
-    client_email: vars.client_email || vars.email || '',
-    client_phone: vars.client_phone || vars.phone || '',
-    client_address: vars.client_address || vars.address || '',
-    payment_method: vars.payment_method || 'paypal',
-    payment_reference: vars.payment_reference || vars.reference || '',
-    amount_paid: amountPaid,
-    subtotal,
-    discount_label: vars.discount_label || (vars.discount_amount ? 'Rabais' : undefined),
-    discount_amount: Number(vars.discount_amount ?? 0) || undefined,
-    tps,
-    tvq,
-    total,
-    services: vars.services,
+    payment_date: vars.paid_at || vars.payment_date || new Date().toISOString(),
+    payment_method: vars.payment_method || "paypal",
+    amount_paid: n(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.amount_paid ?? vars.amount ?? vars.total_payable),
+    invoice_number: vars.invoice_number || "",
+    invoice_total: n(vars.invoice_total ?? vars.total_payable ?? vars.total),
+    order_number: vars.order_number || vars.order_id,
+    client_name: vars.client_name || vars.name || "Client",
+    client_email: vars.client_email || vars.email || "",
+    client_phone: vars.client_phone || vars.phone,
+    client_address: vars.client_address || vars.address,
+    account_number: vars.account_number || vars.client_number || "",
+    billed_items: Array.isArray(vars.billed_items) ? vars.billed_items.map((it: any) => ({
+      description: it.description || it.name || "Service",
+      amount: n(it.amount ?? it.line_total),
+    })) : undefined,
+    transaction_reference: vars.payment_reference || vars.reference || vars.transaction_reference,
+    balance_remaining: n(vars.balance_remaining ?? vars.balance_due),
+    subtotal: n(vars.subtotal ?? vars.taxable_base),
+    discount_label: vars.discount_label || (n(vars.discount_amount) > 0 ? "Rabais" : undefined),
+    discount_amount: n(vars.discount_amount) || undefined,
+    tps_amount: n(vars.tps_amount ?? vars.tps),
+    tvq_amount: n(vars.tvq_amount ?? vars.tvq),
   };
 }
 
-// Build contract data from template vars
-function buildContractData(vars: Record<string, any>): ContractData {
+function buildContractData(vars: Record<string, any>): ContractDataV3 {
   return {
     contract_number: vars.contract_number || `CTR-${Date.now()}`,
-    effective_date: vars.effective_date || vars.created_at || new Date().toISOString(),
-    client_name: vars.client_name || vars.name || 'Client',
-    client_email: vars.client_email || vars.email || '',
-    client_phone: vars.client_phone || vars.phone || '',
-    client_address: vars.client_address || vars.address || '',
-    client_dob: vars.client_dob || '',
-    services: vars.services || [
-      { name: vars.service_type || 'Service Nivra', description: '', monthly_price: vars.monthly_amount || 0 }
-    ],
+    contract_date: vars.contract_date || vars.effective_date || vars.created_at || new Date().toISOString(),
+    terms_version: vars.terms_version || "v5.0",
+    client_name: vars.client_name || vars.name || "Client",
+    client_email: vars.client_email || vars.email || "",
+    client_phone: vars.client_phone || vars.phone || "—",
+    client_dob: vars.client_dob,
+    billing_address: vars.billing_address || vars.client_address || vars.address || "—",
+    service_address: vars.service_address || vars.client_address || vars.address || "—",
+    account_number: vars.account_number || vars.client_number || "—",
+    order_number: vars.order_number || vars.order_id || "—",
+    services: vars.services || [{ type: "Internet", name: vars.service_type || "Service Nivra", monthly_price: n(vars.monthly_amount) }],
     equipment: vars.equipment || [],
-    total_monthly: vars.total_monthly || vars.monthly_amount || 0,
-    total_one_time: vars.total_one_time || 0,
-    agent_name: vars.agent_name || '',
-    agent_code: vars.agent_code || '',
+    one_time_fees: vars.one_time_fees || vars.fees || [],
+    subtotal_monthly: n(vars.subtotal_monthly ?? vars.monthly_amount ?? vars.monthly_recurring_amount),
+    subtotal_one_time: n(vars.subtotal_one_time ?? vars.one_time_charges ?? vars.total_one_time),
+    discount_amount: n(vars.discount_amount),
+    tax_gst: n(vars.tax_gst ?? vars.tps_amount ?? vars.tps),
+    tax_qst: n(vars.tax_qst ?? vars.tvq_amount ?? vars.tvq),
+    total_due_today: n(vars.total_due_today ?? vars.amount_paid_today ?? vars.total_payable ?? vars.total),
+    payment_method: vars.payment_method,
+    signature_name: vars.signature_name,
+    signature_date: vars.signature_date,
+    signature_ip: vars.signature_ip,
+    is_signed: Boolean(vars.is_signed ?? false),
+    discount_label: vars.discount_label,
   };
 }
 
-// Build summary data from template vars
-function buildSummaryData(vars: Record<string, any>): SummaryData {
-  const paidToday = Number(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.total_payable ?? vars.total_amount ?? 0) || 0;
-  const totalPayable = Number(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? paidToday) || 0;
-  const tps = Number(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount ?? 0) || 0;
-  const tvq = Number(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount ?? 0) || 0;
-
+function buildSummaryData(vars: Record<string, any>): OrderSummaryV3Data {
+  const total = n(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? vars.amount_paid_today);
   return {
     order_number: vars.order_number || vars.order_id?.substring(0, 8) || "—",
     order_date: vars.order_date || vars.created_at || new Date().toISOString(),
-    status: vars.status || 'En traitement',
-    client_name: vars.client_name || vars.name || 'Client',
-    client_email: vars.client_email || vars.email || '',
-    client_phone: vars.client_phone || vars.phone || '',
-    client_address: vars.client_address || vars.service_address || '',
-    services: vars.services || [
-      { name: vars.service_type || 'Service Nivra', price: paidToday || totalPayable, is_recurring: true }
-    ],
-    subtotal_recurring: Number(vars.monthly_recurring_amount ?? vars.subtotal_recurring ?? vars.monthly_amount ?? 0) || 0,
-    subtotal_one_time: Number(vars.one_time_charges ?? vars.subtotal_one_time ?? vars.one_time_amount ?? 0) || 0,
-    tps,
-    tvq,
-    total: totalPayable,
-    installation_date: vars.installation_date || vars.scheduled_at || '',
+    order_status: vars.order_status || vars.status || "submitted",
+    client_name: vars.client_name || vars.name || "Client",
+    client_email: vars.client_email || vars.email || "",
+    client_phone: vars.client_phone || vars.phone || "—",
+    service_address: vars.service_address || vars.client_address || vars.address || "—",
+    account_number: vars.account_number || vars.client_number || "—",
+    services: vars.services || [{ type: "Internet", name: vars.service_type || "Service Nivra", monthly_price: n(vars.monthly_recurring_amount ?? vars.monthly_amount) }],
+    equipment: vars.equipment || [],
+    fees: vars.fees || [],
+    subtotal_monthly: n(vars.monthly_recurring_amount ?? vars.subtotal_monthly ?? vars.subtotal_recurring ?? vars.monthly_amount),
+    subtotal_onetime: n(vars.one_time_charges ?? vars.subtotal_onetime ?? vars.subtotal_one_time),
+    discount_amount: n(vars.discount_amount),
+    discount_label: vars.discount_label,
+    tax_gst: n(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount),
+    tax_qst: n(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount),
+    total_due: total,
+    delivery_method: vars.delivery_method,
+    payment_method: vars.payment_method,
+    payment_status: vars.payment_status,
+    estimated_activation: vars.estimated_activation || vars.installation_date || vars.scheduled_at,
   };
 }
 
-// Generate ALL 4 PDFs for full document set (order/payment confirmation)
-function generateFullDocumentSet(vars: Record<string, any>): Array<{ filename: string; content: string }> {
+// Generate a single PDF using the LOCKED templates and return base64 for Resend attachment
+async function lockedPdfToAttachment(
+  pdfType: PDFType,
+  data: InvoiceDataV2 | LockedReceiptData | ContractDataV3 | OrderSummaryV3Data,
+): Promise<PDFAttachment | null> {
+  const result =
+    pdfType === "invoice" ? generateInvoiceV3PDF(data as InvoiceDataV2)
+    : pdfType === "receipt" ? generateReceiptPDF(data as LockedReceiptData)
+    : pdfType === "contract" ? generateContractV3PDF(data as ContractDataV3)
+    : generateOrderSummaryPDF(data as OrderSummaryV3Data);
+
+  if (!result.success || !result.blob) {
+    console.error(`[LOCKED PDF] ${pdfType} generation failed:`, result.error);
+    return null;
+  }
+  return { filename: result.filename || `Nivra-${pdfType}.pdf`, content: await blobToBase64(result.blob) };
+}
+
+// Generate ALL 4 PDFs for full document set
+async function generateFullDocumentSet(vars: Record<string, any>): Promise<Array<{ filename: string; content: string }>> {
   const validation = validatePDFClientData(vars);
   if (!validation.valid) {
-    console.warn(`[PDF Safety] Missing client fields for full doc set: ${validation.missing.join(', ')}. Skipping PDF attachments.`);
+    console.warn(`[PDF Safety] Missing client fields for full doc set: ${validation.missing.join(', ')}. Skipping.`);
     return [];
   }
-
   const attachments: Array<{ filename: string; content: string }> = [];
-
-  // 1. Invoice PDF
-  try {
-    const invoiceData = buildInvoiceData(vars);
-    const invoicePdf = generatePDFAttachment('invoice', invoiceData);
-    if (invoicePdf) attachments.push({ filename: invoicePdf.filename, content: invoicePdf.content });
-  } catch (e) { console.error('[PDF] Invoice generation failed:', e); }
-
-  // 2. Receipt PDF
-  try {
-    const receiptData = buildReceiptData(vars);
-    const receiptPdf = generatePDFAttachment('receipt', receiptData);
-    if (receiptPdf) attachments.push({ filename: receiptPdf.filename, content: receiptPdf.content });
-  } catch (e) { console.error('[PDF] Receipt generation failed:', e); }
-
-  // 3. Contract PDF
-  try {
-    const contractData = buildContractData(vars);
-    const contractPdf = generatePDFAttachment('contract', contractData);
-    if (contractPdf) attachments.push({ filename: contractPdf.filename, content: contractPdf.content });
-  } catch (e) { console.error('[PDF] Contract generation failed:', e); }
-
-  // 4. Order Summary PDF
-  try {
-    const summaryData = buildSummaryData(vars);
-    const summaryPdf = generatePDFAttachment('summary', summaryData);
-    if (summaryPdf) attachments.push({ filename: summaryPdf.filename, content: summaryPdf.content });
-  } catch (e) { console.error('[PDF] Summary generation failed:', e); }
-
+  for (const [type, builder] of [
+    ["invoice", buildInvoiceData],
+    ["receipt", buildReceiptData],
+    ["contract", buildContractData],
+    ["summary", buildSummaryData],
+  ] as const) {
+    try {
+      const pdf = await lockedPdfToAttachment(type as PDFType, (builder as any)(vars));
+      if (pdf) attachments.push(pdf);
+    } catch (e) { console.error(`[PDF] ${type} failed:`, e); }
+  }
   return attachments;
 }
 
-// Generate single PDF attachment from template vars (for non-full-set templates)
-function generateEmailPDFAttachment(templateKey: string, vars: Record<string, any>): PDFAttachment | null {
+// Generate single PDF attachment for a specific email template
+async function generateEmailPDFAttachment(templateKey: string, vars: Record<string, any>): Promise<PDFAttachment | null> {
   const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
   if (!pdfType) return null;
-
   const validation = validatePDFClientData(vars);
   if (!validation.valid) {
-    console.warn(`[PDF Safety] Missing client fields for ${templateKey}: ${validation.missing.join(', ')}. Skipping PDF attachment.`);
+    console.warn(`[PDF Safety] Missing fields for ${templateKey}: ${validation.missing.join(', ')}. Skipping.`);
     return null;
   }
-
   try {
-    switch (pdfType) {
-      case 'invoice':
-        return generatePDFAttachment('invoice', buildInvoiceData(vars));
-      case 'contract':
-        return generatePDFAttachment('contract', buildContractData(vars));
-      case 'summary':
-        return generatePDFAttachment('summary', buildSummaryData(vars));
-      case 'receipt':
-        return generatePDFAttachment('receipt', buildReceiptData(vars));
-        return null;
-    }
+    const builders: Record<string, () => any> = {
+      invoice: () => buildInvoiceData(vars),
+      receipt: () => buildReceiptData(vars),
+      contract: () => buildContractData(vars),
+      summary: () => buildSummaryData(vars),
+    };
+    return await lockedPdfToAttachment(pdfType, builders[pdfType]());
   } catch (error) {
-    console.error(`[PDF Generation] Error for template ${templateKey}:`, error);
+    console.error(`[PDF] Error for ${templateKey}:`, error);
     return null;
   }
 }
