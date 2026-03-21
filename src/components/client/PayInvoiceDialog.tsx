@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Banknote, Mail, Copy, Check, Info, CreditCard, Wallet, Loader2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
-import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
+// StripeInlinePayment removed — Stripe disabled
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

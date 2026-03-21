@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatBillingCycleDescription, BILLING_CONSTANTS } from "@/lib/billingCycleUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PayPalButton } from "@/components/payment/PayPalButton";
-import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
+// StripeInlinePayment removed — Stripe disabled
 import { ETRANSFER_CONFIG } from "@/config/company";
 
 const statusColors: Record<string, string> = {
