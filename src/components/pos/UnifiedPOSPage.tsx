@@ -32,8 +32,9 @@ import { POSEquipmentSelector } from "@/components/pos/POSEquipmentSelector";
 import { POSAdjustments } from "@/components/pos/POSAdjustments";
 import { POSUnifiedCart } from "@/components/pos/POSUnifiedCart";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
-import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
+// STRIPE DISABLED — imports removed
+// import { StripeInlinePayment } from "@/components/payment/StripeInlinePayment";
+// import { createPOSDraftInvoice, finalizePOSCardPayment, type POSDraftInvoiceResult } from "@/lib/pos/createPOSDraftInvoice";
 
 /** Resolve or create account for a client (used by non-card POS flow) */
 async function resolveAccountForOrder(clientId: string, serviceAddress: string, serviceCity: string, servicePostalCode: string): Promise<string> {
