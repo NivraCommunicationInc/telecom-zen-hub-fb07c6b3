@@ -958,6 +958,9 @@ const ClientNewOrder = () => {
     if (!isHydrated) return;
     
     const draft: OrderDraft = {
+      transactionId: checkoutTransactionId,
+      transactionStartedAt,
+      draftUpdatedAt: new Date().toISOString(),
       step,
       selectedServices,
       selectedFreeChannels,
@@ -979,6 +982,7 @@ const ClientNewOrder = () => {
       selectedDate,
       selectedTime,
       appointmentConfirmed,
+      appointmentLockedAt,
       notes,
       discountCode,
       installationCredit,
@@ -997,6 +1001,9 @@ const ClientNewOrder = () => {
       serviceAddressPostalCode,
       // KYC session persistence (independent of order)
       verificationSessionId,
+      verificationReferenceId,
+      verificationSubmittedAt,
+      verificationSubmissionState,
       idVerificationApproved,
       kycChoice,
       existingKycStatus,
