@@ -28,10 +28,10 @@ import Stripe from "npm:stripe@18";
 export interface NivraPaymentIntentParams {
   stripe: Stripe;
   
-  // REQUIRED — will throw if missing
+  // REQUIRED for billing flows; optional for checkout_preconfirm pre-auth
   customer_email: string;
-  invoice_id: string;
-  invoice_number: string;
+  invoice_id?: string;
+  invoice_number?: string;
   service_name: string;
   total_amount: number; // in dollars (e.g. 45.99)
 
