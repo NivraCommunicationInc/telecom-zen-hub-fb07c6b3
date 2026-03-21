@@ -182,19 +182,48 @@ export async function createNivraSubscription(
   const planItems = await resolvePlanItems(supabase, params.plan_code, params.additional_plan_codes);
 
   // ═══ STEP 4: ENSURE PAYMENT METHOD IS ATTACHED ═══
+  let pmAttached = false;
   try {
     await stripe.paymentMethods.attach(params.default_payment_method_id, {
       customer: params.stripe_customer_id,
     });
+    pmAttached = true;
   } catch (attachErr: any) {
-    if (!attachErr.message?.includes("already been attached")) {
-      console.warn(`[NivraSub] PaymentMethod attach warning: ${attachErr.message}`);
+    if (attachErr.message?.includes("already been attached")) {
+      pmAttached = true;
+    } else {
+      console.warn(`[NivraSub] PaymentMethod attach failed: ${attachErr.message}`);
+      // PM may be expired/detached — try to find an existing PM on the customer
+      try {
+        const pms = await stripe.paymentMethods.list({
+          customer: params.stripe_customer_id,
+          type: "card",
+          limit: 1,
+        });
+        if (pms.data.length > 0) {
+          console.log(`[NivraSub] Using existing customer PM: ${pms.data[0].id}`);
+          params.default_payment_method_id = pms.data[0].id;
+          pmAttached = true;
+        }
+      } catch (_) {
+        // ignore
+      }
     }
   }
 
-  await stripe.customers.update(params.stripe_customer_id, {
-    invoice_settings: { default_payment_method: params.default_payment_method_id },
-  });
+  if (pmAttached) {
+    try {
+      await stripe.customers.update(params.stripe_customer_id, {
+        invoice_settings: { default_payment_method: params.default_payment_method_id },
+      });
+    } catch (updateErr: any) {
+      console.warn(`[NivraSub] Customer update PM warning: ${updateErr.message}`);
+    }
+  }
+
+  // If no PM available but trial is set, allow subscription creation without PM
+  // (customer will need to add PM before trial ends)
+  const hasTrial = Boolean(params.trial_end && params.trial_end > Math.floor(Date.now() / 1000));
 
   // ═══ STEP 5: BUILD METADATA ═══
   const totalMonthly = planItems.reduce((sum, item) => sum + Number(item.monthly_amount), 0);
