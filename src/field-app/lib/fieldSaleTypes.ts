@@ -45,9 +45,10 @@ export interface FieldSaleBilling {
 }
 
 export interface FieldSalePayment {
-  method: "send_link" | "card_present";
+  method: "paypal" | "interac" | "send_link" | "card_present";
   status: "pending" | "sent" | "completed";
   linkSentTo: string | null;
+  interacReference?: string;
 }
 
 export type FieldSaleStep = 

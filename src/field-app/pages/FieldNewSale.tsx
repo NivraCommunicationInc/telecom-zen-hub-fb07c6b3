@@ -181,7 +181,7 @@ export default function FieldNewSale() {
           city: draft.customer.city,
           postal_code: draft.customer.postal_code,
           service_need: draft.services.map((s) => s.name).join(", "),
-          payment_method_intent: draft.payment.method === "send_link" ? "Lien de paiement" : "Carte sur place",
+          payment_method_intent: draft.payment.method === "paypal" ? "PayPal" : draft.payment.method === "interac" ? "Virement Interac" : draft.payment.method === "send_link" ? "Lien de paiement" : "Carte sur place",
           eligibility_notes: `Installation: ${draft.installation.type}${draft.installation.scheduledDate ? ` le ${draft.installation.scheduledDate}` : ""}`,
           notes: [
             `Services: ${draft.services.map((s) => s.name).join(", ")}`,
