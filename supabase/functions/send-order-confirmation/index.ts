@@ -781,6 +781,10 @@ Deno.serve(async (req) => {
         manual_send: force,
         client_name: client_first_name || "Client",
         client_email,
+        client_phone: client_phone || orderData?.client_phone || "",
+        client_address: delivery_address
+          ? `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}`
+          : "",
         order_id,
         order_number,
         invoice_id: latestInvoice?.id || null,
@@ -807,6 +811,8 @@ Deno.serve(async (req) => {
         payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
         payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
         portal_path: `/portal/orders/${order_id}`,
+        // PDF attachment data: services list for contract/summary
+        services: services || [],
       },
       status: "queued",
       attempts: 0,
