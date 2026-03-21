@@ -237,6 +237,7 @@ const generateQuebecPhoneNumber = (): string => {
 };
 
 const ORDER_DRAFT_KEY = "nivra_order_draft";
+const ORDER_DRAFT_TTL_MS = 24 * 60 * 60 * 1000; // 24h controlled expiry
 const INSTALLATION_APPOINTMENT_ENABLED = true;
 const DEFAULT_INSTALLATION_CHOICE: "auto" | "technician" = "auto";
 const PROMO_ALREADY_APPLIED_MESSAGE = "Ce rabais est déjà appliqué à votre commande";
@@ -254,6 +255,9 @@ interface StreamingService {
 }
 
 interface OrderDraft {
+  transactionId: string;
+  transactionStartedAt: string;
+  draftUpdatedAt: string;
   step: number;
   selectedServices: Service[];
   selectedFreeChannels: Channel[];
@@ -275,6 +279,7 @@ interface OrderDraft {
   selectedDate: string;
   selectedTime: string;
   appointmentConfirmed?: boolean;
+  appointmentLockedAt: string | null;
   notes: string;
   discountCode: string;
   installationCredit: number;
@@ -294,6 +299,9 @@ interface OrderDraft {
   serviceAddressPostalCode: string;
   // KYC session persistence (survives refresh/crash/order failure)
   verificationSessionId: string | null;
+  verificationReferenceId: string | null;
+  verificationSubmittedAt: string | null;
+  verificationSubmissionState: string | null;
   idVerificationApproved: boolean;
   kycChoice: "reuse" | "restart" | null;
   existingKycStatus: string | null;
@@ -573,6 +581,8 @@ const ClientNewOrder = () => {
   // Hydration flag to prevent step guards from redirecting before state is loaded
   const [isHydrated, setIsHydrated] = useState(false);
   const isInitialMount = useRef(true);
+  const [checkoutTransactionId, setCheckoutTransactionId] = useState<string>(() => crypto.randomUUID());
+  const [transactionStartedAt, setTransactionStartedAt] = useState<string>(() => new Date().toISOString());
 
   // Promo: track last validated cart signature to prevent loops on silent revalidation
   const promoCartSignatureRef = useRef<string>("");
@@ -622,10 +632,13 @@ const ClientNewOrder = () => {
   const [idExpiration, setIdExpiration] = useState("");
   const [idProvince, setIdProvince] = useState("");
   
-  // QR Identity Verification state (Rogers-grade) — persisted independently of order
+  // QR Identity Verification state (Rogers-grade) — persisted + locked to active checkout transaction
   const [verificationSessionId, setVerificationSessionId] = useState<string | null>(() => {
     try { return localStorage.getItem('nivra_kyc_session_id') || null; } catch { return null; }
   });
+  const [verificationReferenceId, setVerificationReferenceId] = useState<string | null>(null);
+  const [verificationSubmittedAt, setVerificationSubmittedAt] = useState<string | null>(null);
+  const [verificationSubmissionState, setVerificationSubmissionState] = useState<string | null>(null);
   const [idVerificationApproved, setIdVerificationApproved] = useState(false);
   // KYC choice state: null = user hasn't decided yet, "reuse" or "restart"
   const [kycChoice, setKycChoice] = useState<"reuse" | "restart" | null>(null);
@@ -652,10 +665,11 @@ const ClientNewOrder = () => {
   // Delivery choice state (for delivery-only orders: Mobile, Streaming, Accessories, Equipment)
   const [deliveryChoice, setDeliveryChoice] = useState<"standard" | "uber" | "shipHome" | null>(null);
   
-  // Appointment scheduling state
+  // Appointment scheduling state (locked to active checkout transaction once confirmed)
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
+  const [appointmentLockedAt, setAppointmentLockedAt] = useState<string | null>(null);
 
   // Initialize installation choice for installable services (only on first selection, not on every change)
   useEffect(() => {
@@ -763,83 +777,105 @@ const ClientNewOrder = () => {
       const savedDraft = sessionStorage.getItem(ORDER_DRAFT_KEY);
       if (savedDraft) {
         const draft: OrderDraft = JSON.parse(savedDraft);
-        console.log("[OrderWizard] Hydrating from sessionStorage:", draft.step, "services:", draft.selectedServices?.length);
-        
-        if (draft.step) setStep(draft.step);
-        if (draft.selectedServices?.length) setSelectedServices(draft.selectedServices);
-        if (draft.selectedFreeChannels?.length) setSelectedFreeChannels(draft.selectedFreeChannels);
-        if (draft.selectedPaidChannels?.length) setSelectedPaidChannels(draft.selectedPaidChannels);
-        if (draft.selectedStreamingServices?.length) setSelectedStreamingServices(draft.selectedStreamingServices);
-        if (draft.terminalQuantity) setTerminalQuantity(draft.terminalQuantity);
-        if (draft.mobileLineQuantities) setMobileLineQuantities(draft.mobileLineQuantities);
-        if (draft.mobileTransferChoice) setMobileTransferChoice(draft.mobileTransferChoice);
-        if (draft.transferPhoneNumber) setTransferPhoneNumber(draft.transferPhoneNumber);
-        if (draft.transferCarrier) setTransferCarrier(draft.transferCarrier);
-        if (draft.transferAccountNumber) setTransferAccountNumber(draft.transferAccountNumber);
-        if (draft.transferServiceAccount) setTransferServiceAccount(draft.transferServiceAccount);
-        if (draft.transferImei) setTransferImei(draft.transferImei);
-        if (draft.transferValidationResult) setTransferValidationResult(draft.transferValidationResult);
-        if (draft.assignedPhoneNumber) setAssignedPhoneNumber(draft.assignedPhoneNumber);
-        setSimType("physical"); // enforced: no SIM choice in client checkout
-        if (INSTALLATION_APPOINTMENT_ENABLED && draft.installationChoice) {
-          setInstallationChoice(draft.installationChoice);
+        const draftTimestamp = draft.draftUpdatedAt || draft.transactionStartedAt;
+        const isDraftExpired = !draftTimestamp || (Date.now() - new Date(draftTimestamp).getTime()) > ORDER_DRAFT_TTL_MS;
+
+        if (isDraftExpired) {
+          console.warn("[OrderWizard] Draft expired, clearing transaction-locked checkout state");
+          sessionStorage.removeItem(ORDER_DRAFT_KEY);
+          localStorage.removeItem('nivra_kyc_session_id');
+          localStorage.removeItem('nivra_kyc_choice');
+          import("@/lib/appointmentHold").then(m => m.clearAppointmentHold());
         } else {
-          setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
+          console.log("[OrderWizard] Hydrating from sessionStorage:", draft.step, "services:", draft.selectedServices?.length, "txn:", draft.transactionId);
+
+          if (draft.transactionId) setCheckoutTransactionId(draft.transactionId);
+          if (draft.transactionStartedAt) setTransactionStartedAt(draft.transactionStartedAt);
+
+          if (draft.step) setStep(draft.step);
+          if (draft.selectedServices?.length) setSelectedServices(draft.selectedServices);
+          if (draft.selectedFreeChannels?.length) setSelectedFreeChannels(draft.selectedFreeChannels);
+          if (draft.selectedPaidChannels?.length) setSelectedPaidChannels(draft.selectedPaidChannels);
+          if (draft.selectedStreamingServices?.length) setSelectedStreamingServices(draft.selectedStreamingServices);
+          if (draft.terminalQuantity) setTerminalQuantity(draft.terminalQuantity);
+          if (draft.mobileLineQuantities) setMobileLineQuantities(draft.mobileLineQuantities);
+          if (draft.mobileTransferChoice) setMobileTransferChoice(draft.mobileTransferChoice);
+          if (draft.transferPhoneNumber) setTransferPhoneNumber(draft.transferPhoneNumber);
+          if (draft.transferCarrier) setTransferCarrier(draft.transferCarrier);
+          if (draft.transferAccountNumber) setTransferAccountNumber(draft.transferAccountNumber);
+          if (draft.transferServiceAccount) setTransferServiceAccount(draft.transferServiceAccount);
+          if (draft.transferImei) setTransferImei(draft.transferImei);
+          if (draft.transferValidationResult) setTransferValidationResult(draft.transferValidationResult);
+          if (draft.assignedPhoneNumber) setAssignedPhoneNumber(draft.assignedPhoneNumber);
+          setSimType("physical"); // enforced: no SIM choice in client checkout
+          if (INSTALLATION_APPOINTMENT_ENABLED && draft.installationChoice) {
+            setInstallationChoice(draft.installationChoice);
+          } else {
+            setInstallationChoice(DEFAULT_INSTALLATION_CHOICE);
+          }
+          if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
+          if (draft.selectedDate) setSelectedDate(draft.selectedDate);
+          if (draft.selectedTime) setSelectedTime(draft.selectedTime);
+          if (typeof draft.appointmentConfirmed === "boolean") {
+            setAppointmentConfirmed(draft.appointmentConfirmed);
+          } else if (draft.selectedDate && draft.selectedTime) {
+            // Backward compatibility for drafts saved before appointmentConfirmed existed
+            setAppointmentConfirmed(true);
+          }
+          if (draft.appointmentLockedAt) {
+            setAppointmentLockedAt(draft.appointmentLockedAt);
+          } else if (draft.selectedDate && draft.selectedTime && draft.appointmentConfirmed) {
+            setAppointmentLockedAt(new Date().toISOString());
+          }
+          if (draft.notes) setNotes(draft.notes);
+          if (draft.discountCode) setDiscountCode(draft.discountCode);
+          if (draft.installationCredit) setInstallationCredit(draft.installationCredit);
+          if (draft.idType) setIdType(draft.idType);
+          if (draft.idNumber) setIdNumber(draft.idNumber);
+          if (draft.idExpiration) setIdExpiration(draft.idExpiration);
+          if (draft.idProvince) setIdProvince(draft.idProvince);
+          // Customer info fields
+          if (draft.firstName) setFirstName(draft.firstName);
+          if (draft.lastName) setLastName(draft.lastName);
+          if (draft.dateOfBirth) setDateOfBirth(draft.dateOfBirth);
+          if (draft.checkoutPhone) setCheckoutPhone(draft.checkoutPhone);
+          if (draft.serviceAddressStreet) setServiceAddressStreet(draft.serviceAddressStreet);
+          if (draft.serviceAddressApartment) setServiceAddressApartment(draft.serviceAddressApartment);
+          if (draft.serviceAddressCity) setServiceAddressCity(draft.serviceAddressCity);
+          if (draft.serviceAddressProvince) setServiceAddressProvince(draft.serviceAddressProvince);
+          if (draft.serviceAddressPostalCode) setServiceAddressPostalCode(draft.serviceAddressPostalCode);
+          // KYC session persistence (transaction-locked)
+          if (draft.verificationSessionId) {
+            setVerificationSessionId(draft.verificationSessionId);
+            localStorage.setItem('nivra_kyc_session_id', draft.verificationSessionId);
+          }
+          if (typeof draft.idVerificationApproved === "boolean") setIdVerificationApproved(draft.idVerificationApproved);
+          if (draft.verificationReferenceId) setVerificationReferenceId(draft.verificationReferenceId);
+          if (draft.verificationSubmittedAt) setVerificationSubmittedAt(draft.verificationSubmittedAt);
+          if (draft.verificationSubmissionState) setVerificationSubmissionState(draft.verificationSubmissionState);
+          if (draft.kycChoice) setKycChoice(draft.kycChoice);
+          if (draft.existingKycStatus) setExistingKycStatus(draft.existingKycStatus);
+          if (draft.existingKycCaseNumber) setExistingKycCaseNumber(draft.existingKycCaseNumber);
+          // Promo/referral code details
+          if (draft.appliedPromo) {
+            setAppliedPromo(draft.appliedPromo);
+            console.log("[OrderWizard] Restored appliedPromo:", draft.appliedPromo.code, "discount:", draft.appliedPromo.discount_amount);
+          }
+          if (draft.appliedReferral) {
+            setAppliedReferral(draft.appliedReferral);
+            console.log("[OrderWizard] Restored appliedReferral:", draft.appliedReferral.code, "type:", draft.appliedReferral.type);
+          }
+          // Welcome discount dismissal (CRITICAL: must restore BEFORE payment to prevent default promo override)
+          if (typeof draft.welcomeDiscountDismissed === "boolean") {
+            setWelcomeDiscountDismissed(draft.welcomeDiscountDismissed);
+            console.log("[OrderWizard] Restored welcomeDiscountDismissed:", draft.welcomeDiscountDismissed);
+          }
+          // Payment state (critical — must restore ALL payment fields)
+          if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
+          if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
+          if (draft.paymentConfirmationNumber) setPaymentConfirmationNumber(draft.paymentConfirmationNumber);
+          if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
         }
-        if (draft.deliveryChoice) setDeliveryChoice(draft.deliveryChoice);
-        if (draft.selectedDate) setSelectedDate(draft.selectedDate);
-        if (draft.selectedTime) setSelectedTime(draft.selectedTime);
-        if (typeof draft.appointmentConfirmed === "boolean") {
-          setAppointmentConfirmed(draft.appointmentConfirmed);
-        } else if (draft.selectedDate && draft.selectedTime) {
-          // Backward compatibility for drafts saved before appointmentConfirmed existed
-          setAppointmentConfirmed(true);
-        }
-        if (draft.notes) setNotes(draft.notes);
-        if (draft.discountCode) setDiscountCode(draft.discountCode);
-        if (draft.installationCredit) setInstallationCredit(draft.installationCredit);
-        if (draft.idType) setIdType(draft.idType);
-        if (draft.idNumber) setIdNumber(draft.idNumber);
-        if (draft.idExpiration) setIdExpiration(draft.idExpiration);
-        if (draft.idProvince) setIdProvince(draft.idProvince);
-        // Customer info fields
-        if (draft.firstName) setFirstName(draft.firstName);
-        if (draft.lastName) setLastName(draft.lastName);
-        if (draft.dateOfBirth) setDateOfBirth(draft.dateOfBirth);
-        if (draft.checkoutPhone) setCheckoutPhone(draft.checkoutPhone);
-        if (draft.serviceAddressStreet) setServiceAddressStreet(draft.serviceAddressStreet);
-        if (draft.serviceAddressApartment) setServiceAddressApartment(draft.serviceAddressApartment);
-        if (draft.serviceAddressCity) setServiceAddressCity(draft.serviceAddressCity);
-        if (draft.serviceAddressProvince) setServiceAddressProvince(draft.serviceAddressProvince);
-        if (draft.serviceAddressPostalCode) setServiceAddressPostalCode(draft.serviceAddressPostalCode);
-        // KYC session persistence (independent of order)
-        if (draft.verificationSessionId) {
-          setVerificationSessionId(draft.verificationSessionId);
-          localStorage.setItem('nivra_kyc_session_id', draft.verificationSessionId);
-        }
-        if (draft.idVerificationApproved) setIdVerificationApproved(draft.idVerificationApproved);
-        if (draft.kycChoice) setKycChoice(draft.kycChoice);
-        if (draft.existingKycStatus) setExistingKycStatus(draft.existingKycStatus);
-        if (draft.existingKycCaseNumber) setExistingKycCaseNumber(draft.existingKycCaseNumber);
-        // Promo/referral code details
-        if (draft.appliedPromo) {
-          setAppliedPromo(draft.appliedPromo);
-          console.log("[OrderWizard] Restored appliedPromo:", draft.appliedPromo.code, "discount:", draft.appliedPromo.discount_amount);
-        }
-        if (draft.appliedReferral) {
-          setAppliedReferral(draft.appliedReferral);
-          console.log("[OrderWizard] Restored appliedReferral:", draft.appliedReferral.code, "type:", draft.appliedReferral.type);
-        }
-        // Welcome discount dismissal (CRITICAL: must restore BEFORE payment to prevent default promo override)
-        if (typeof draft.welcomeDiscountDismissed === "boolean") {
-          setWelcomeDiscountDismissed(draft.welcomeDiscountDismissed);
-          console.log("[OrderWizard] Restored welcomeDiscountDismissed:", draft.welcomeDiscountDismissed);
-        }
-        // Payment state (critical — must restore ALL payment fields)
-        if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
-        if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
-        if (draft.paymentConfirmationNumber) setPaymentConfirmationNumber(draft.paymentConfirmationNumber);
-        if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
       }
     } catch (e) {
       console.error("[OrderWizard] Failed to hydrate from sessionStorage:", e);
@@ -908,6 +944,7 @@ const ClientNewOrder = () => {
           setSelectedDate(normalizedHoldDate);
           setSelectedTime(hold.timeSlot || "");
           setAppointmentConfirmed(true);
+          setAppointmentLockedAt((prev) => prev || new Date().toISOString());
         }
       } catch (err) {
         console.error("[OrderWizard] Failed to restore appointment hold:", err);
@@ -921,6 +958,9 @@ const ClientNewOrder = () => {
     if (!isHydrated) return;
     
     const draft: OrderDraft = {
+      transactionId: checkoutTransactionId,
+      transactionStartedAt,
+      draftUpdatedAt: new Date().toISOString(),
       step,
       selectedServices,
       selectedFreeChannels,
@@ -942,6 +982,7 @@ const ClientNewOrder = () => {
       selectedDate,
       selectedTime,
       appointmentConfirmed,
+      appointmentLockedAt,
       notes,
       discountCode,
       installationCredit,
@@ -960,6 +1001,9 @@ const ClientNewOrder = () => {
       serviceAddressPostalCode,
       // KYC session persistence (independent of order)
       verificationSessionId,
+      verificationReferenceId,
+      verificationSubmittedAt,
+      verificationSubmissionState,
       idVerificationApproved,
       kycChoice,
       existingKycStatus,
@@ -979,14 +1023,15 @@ const ClientNewOrder = () => {
     console.log("[OrderWizard] Saving draft to sessionStorage, step:", step, "services:", selectedServices.length, "promo:", appliedPromo?.code || "none", "referral:", appliedReferral?.code || "none", "welcomeDiscountDismissed:", welcomeDiscountDismissed, "paymentComplete:", paymentComplete);
     sessionStorage.setItem(ORDER_DRAFT_KEY, JSON.stringify(draft));
   }, [
-    isHydrated, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
+    isHydrated, checkoutTransactionId, transactionStartedAt, step, selectedServices, selectedFreeChannels, selectedPaidChannels, selectedStreamingServices,
     terminalQuantity, mobileLineQuantities, mobileTransferChoice, transferPhoneNumber, transferCarrier,
     transferAccountNumber, transferServiceAccount, transferImei, transferValidationResult,
     assignedPhoneNumber, simType, installationChoice, deliveryChoice, selectedDate,
-    selectedTime, appointmentConfirmed, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
+    selectedTime, appointmentConfirmed, appointmentLockedAt, notes, discountCode, installationCredit, idType, idNumber, idExpiration, idProvince,
     firstName, lastName, dateOfBirth,
     checkoutPhone, serviceAddressStreet, serviceAddressApartment, serviceAddressCity, serviceAddressProvince, serviceAddressPostalCode,
-    verificationSessionId, idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
+    verificationSessionId, verificationReferenceId, verificationSubmittedAt, verificationSubmissionState,
+    idVerificationApproved, kycChoice, existingKycStatus, existingKycCaseNumber,
     appliedPromo, appliedReferral, welcomeDiscountDismissed, paypalCaptureId, paymentComplete, paymentConfirmationNumber, paymentMethod
   ]);
 
@@ -1002,9 +1047,9 @@ const ClientNewOrder = () => {
   useEffect(() => {
     if (!user?.id || !isHydrated) return;
     
-    // If draft hydration already restored a valid KYC choice + session, don't re-query and risk resetting
-    if (kycChoice && verificationSessionId && (idVerificationApproved || existingKycStatus)) {
-      console.log("[KYC] Skipping DB restore — draft already has valid KYC state:", kycChoice, existingKycStatus);
+    // If draft hydration already restored a verified session, don't re-query and risk resetting locked state
+    if (verificationSessionId && idVerificationApproved) {
+      console.log("[KYC] Skipping DB restore — transaction already has locked verification state:", verificationSessionId);
       return;
     }
     
@@ -1015,7 +1060,7 @@ const ClientNewOrder = () => {
         
         const { data: activeSession } = await supabase
           .from("identity_verification_sessions")
-          .select("id, status, case_number, reviewed_at, document_front_path")
+          .select("id, status, case_number, reviewed_at, created_at, document_front_path")
           .eq("user_id", user.id)
           .in("status", activeStatuses)
           .order("created_at", { ascending: false })
@@ -5161,7 +5206,10 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     setSelectedTime(time);
                   }}
                   appointmentConfirmed={appointmentConfirmed}
-                  onAppointmentConfirmedChange={(confirmed) => setAppointmentConfirmed(confirmed)}
+                  onAppointmentConfirmedChange={(confirmed) => {
+                    setAppointmentConfirmed(confirmed);
+                    setAppointmentLockedAt(confirmed ? new Date().toISOString() : null);
+                  }}
                   onDecisionMade={(decision) => {
                     console.log("[Checkout] Installation decision:", decision);
                   }}
@@ -5400,17 +5448,20 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                                 // Reuse: restore the session from DB — only if docs exist
                                 supabase
                                   .from("identity_verification_sessions")
-                                  .select("id, status, document_front_path")
+.select("id, status, case_number, reviewed_at, created_at, document_front_path")
                                   .eq("user_id", user?.id || "")
                                   .in("status", ["submitted", "manual_review", "approved"])
                                   .order("created_at", { ascending: false })
                                   .limit(1)
                                   .maybeSingle()
                                   .then(({ data }) => {
-                                    if (data && data.document_front_path) {
-                                      setVerificationSessionId(data.id);
-                                      localStorage.setItem('nivra_kyc_session_id', data.id);
-                                      setIdVerificationApproved(true);
+                                      if (data && data.document_front_path) {
+                                        setVerificationSessionId(data.id);
+                                        setVerificationReferenceId(data.case_number || data.id);
+                                        setVerificationSubmissionState(data.status || "submitted");
+                                        setVerificationSubmittedAt(data.reviewed_at || data.created_at || new Date().toISOString());
+                                        localStorage.setItem('nivra_kyc_session_id', data.id);
+                                        setIdVerificationApproved(true);
                                     } else {
                                       // No documents → force restart
                                       toast.error("Aucun document trouvé. Veuillez soumettre de nouveaux documents.");
@@ -5436,11 +5487,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             isFrench={true}
                             onSessionGenerated={(sessionId) => {
                               setVerificationSessionId(sessionId);
+                              setVerificationReferenceId(sessionId);
+                              setVerificationSubmissionState("created");
                               localStorage.setItem('nivra_kyc_session_id', sessionId);
                               setIdVerificationApproved(false);
                             }}
                             onVerified={(sessionId) => {
                               setVerificationSessionId(sessionId);
+                              setVerificationReferenceId(sessionId);
+                              setVerificationSubmissionState("submitted");
+                              setVerificationSubmittedAt(new Date().toISOString());
                               localStorage.setItem('nivra_kyc_session_id', sessionId);
                               setIdVerificationApproved(true);
                             }}
