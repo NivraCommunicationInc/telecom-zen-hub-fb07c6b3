@@ -944,6 +944,7 @@ const ClientNewOrder = () => {
           setSelectedDate(normalizedHoldDate);
           setSelectedTime(hold.timeSlot || "");
           setAppointmentConfirmed(true);
+          setAppointmentLockedAt((prev) => prev || new Date().toISOString());
         }
       } catch (err) {
         console.error("[OrderWizard] Failed to restore appointment hold:", err);
