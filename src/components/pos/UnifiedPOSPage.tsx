@@ -354,7 +354,7 @@ export default function UnifiedPOSPage({
       pos.clearCart();
       setCustomerData(null);
       setPaymentData(null);
-      setStripePending(null);
+      // STRIPE DISABLED — stripePending removed
       setStep("catalog");
 
     } catch (error: any) {
