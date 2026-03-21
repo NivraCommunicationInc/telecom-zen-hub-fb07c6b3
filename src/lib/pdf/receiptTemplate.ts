@@ -48,6 +48,13 @@ export interface ReceiptData {
 
   transaction_reference?: string;
   balance_remaining?: number;
+
+  // Canonical tax fields from compute_invoice_breakdown
+  subtotal?: number;
+  discount_amount?: number;
+  discount_label?: string;
+  tps_amount?: number;
+  tvq_amount?: number;
 }
 
 // ============================================================================
@@ -175,14 +182,18 @@ export function generateReceiptPDF(data: ReceiptData): PDFGenerationResult {
     doc.setTextColor(0, 0, 0);
     y += 5;
 
-    // TOTALS
+    // TOTALS — use CANONICAL values from compute_invoice_breakdown (zero local math)
     const tx = 120;
-    // Calculate taxes from total if we have them
-    const subtotal = data.invoice_total / 1.14975;
-    const tps = subtotal * 0.05;
-    const tvq = subtotal * 0.09975;
+    const subtotal = data.subtotal ?? data.invoice_total;
+    const tps = data.tps_amount ?? 0;
+    const tvq = data.tvq_amount ?? 0;
 
     doc.text("Sous-total", tx, y); doc.text(fmt(subtotal), 185, y, { align: "right" }); y += 6;
+    if (data.discount_amount && data.discount_amount > 0) {
+      doc.setTextColor(0, 128, 0);
+      doc.text(data.discount_label || "Promotion", tx, y); doc.text(fmt(-data.discount_amount), 185, y, { align: "right" }); y += 6;
+      doc.setTextColor(0, 0, 0);
+    }
     doc.text("TPS (5%)", tx, y); doc.text(fmt(tps), 185, y, { align: "right" }); y += 6;
     doc.text("TVQ (9,975%)", tx, y); doc.text(fmt(tvq), 185, y, { align: "right" }); y += 8;
 
