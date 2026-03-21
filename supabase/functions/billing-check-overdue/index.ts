@@ -224,9 +224,12 @@ serve(async (req) => {
           }
         }
 
-        // ── J+5: Grace period expired → SUSPEND service, VOID invoice ──
-        if (daysPastDue >= 5 && invoice.subscription?.status === "active") {
-          // Suspend subscription (not cancel — can be reactivated on payment)
+        // ══════════════════════════════════════════════════════════════
+        // J+5: Grace period expired → SUSPEND service
+        // Invoice stays OVERDUE (client can still pay to reactivate)
+        // ══════════════════════════════════════════════════════════════
+        if (daysPastDue >= 5 && daysPastDue < 10 && invoice.subscription?.status === "active") {
+          // Suspend subscription (can be reactivated if client pays this invoice)
           await supabase
             .from("billing_subscriptions")
             .update({
@@ -235,15 +238,17 @@ serve(async (req) => {
             })
             .eq("id", invoice.subscription_id);
 
-          // Void the invoice (prepaid model: no debt accumulation)
-          await supabase
-            .from("billing_invoices")
-            .update({
-              status: "void",
-              notes: `[J+${daysPastDue}] Service suspendu après expiration de la période de grâce de 5 jours — modèle prépayé (aucune dette)`,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", invoice.id);
+          // Invoice stays OVERDUE — client can still pay to reactivate
+          if (invoice.status === "pending") {
+            await supabase
+              .from("billing_invoices")
+              .update({
+                status: "overdue",
+                notes: `[J+${daysPastDue}] Service suspendu — la facture reste payable pour réactivation`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", invoice.id);
+          }
 
           // Send suspension email
           if (invoice.customer?.email) {
@@ -262,6 +267,7 @@ serve(async (req) => {
                 overdueAmount: Number(invoice.total).toFixed(2),
                 suspendedDate: todayStr,
                 days_past_due: daysPastDue,
+                reactivation_window: "5 jours",
               },
               status: "queued",
               attempts: 0,
@@ -284,34 +290,44 @@ serve(async (req) => {
               due_date: invoice.due_date,
               days_past_due: daysPastDue,
               suspended_at: new Date().toISOString(),
+              void_scheduled_at: new Date(dueDate.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             },
           });
 
           results.suspended.push(invoice.invoice_number);
-          console.log(`[billing-check-overdue] SUSPENDED subscription for invoice ${invoice.invoice_number} at J+${daysPastDue} (5-day grace expired)`);
+          console.log(`[billing-check-overdue] SUSPENDED subscription for invoice ${invoice.invoice_number} at J+${daysPastDue} — invoice stays overdue for reactivation`);
         }
 
-        // ── Already overdue + J+5 reached ──
-        if (daysPastDue >= 5 && invoice.status === "overdue") {
+        // ══════════════════════════════════════════════════════════════
+        // J+10: Reactivation window expired → VOID invoice (no debt)
+        // ══════════════════════════════════════════════════════════════
+        if (daysPastDue >= 10 && (invoice.status === "overdue" || invoice.status === "pending")) {
+          // Suspend subscription if somehow still active
           if (invoice.subscription?.status === "active") {
-            // Same suspension logic as above
             await supabase
               .from("billing_subscriptions")
               .update({ status: "suspended", updated_at: new Date().toISOString() })
               .eq("id", invoice.subscription_id);
           }
 
+          // NOW void the invoice — reactivation window closed
           await supabase
             .from("billing_invoices")
             .update({
               status: "void",
-              notes: `[J+${daysPastDue}] Facture annulée après période de grâce — modèle prépayé`,
+              notes: `[J+${daysPastDue}] Facture annulée — fenêtre de réactivation expirée (J+10). Modèle prépayé, aucune dette.`,
               updated_at: new Date().toISOString(),
             })
             .eq("id", invoice.id);
 
           results.suspended.push(invoice.invoice_number);
-          console.log(`[billing-check-overdue] Voided overdue invoice ${invoice.invoice_number} at J+${daysPastDue}`);
+          console.log(`[billing-check-overdue] VOIDED invoice ${invoice.invoice_number} at J+${daysPastDue} — reactivation window expired`);
+        }
+
+        // ── J+5 reached on already-overdue invoice (subscription already suspended) ──
+        if (daysPastDue >= 5 && daysPastDue < 10 && invoice.status === "overdue" && invoice.subscription?.status !== "active") {
+          // Invoice stays overdue, subscription already suspended — just log
+          console.log(`[billing-check-overdue] Invoice ${invoice.invoice_number} still overdue at J+${daysPastDue}, subscription already ${invoice.subscription?.status}`);
         }
 
       } catch (err: unknown) {
