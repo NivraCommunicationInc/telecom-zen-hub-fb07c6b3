@@ -1047,9 +1047,9 @@ const ClientNewOrder = () => {
   useEffect(() => {
     if (!user?.id || !isHydrated) return;
     
-    // If draft hydration already restored a valid KYC choice + session, don't re-query and risk resetting
-    if (kycChoice && verificationSessionId && (idVerificationApproved || existingKycStatus)) {
-      console.log("[KYC] Skipping DB restore — draft already has valid KYC state:", kycChoice, existingKycStatus);
+    // If draft hydration already restored a verified session, don't re-query and risk resetting locked state
+    if (verificationSessionId && idVerificationApproved) {
+      console.log("[KYC] Skipping DB restore — transaction already has locked verification state:", verificationSessionId);
       return;
     }
     
