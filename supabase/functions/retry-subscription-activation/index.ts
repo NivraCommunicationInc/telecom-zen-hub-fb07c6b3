@@ -28,29 +28,34 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify admin auth
+    // Verify admin auth - accepts JWT or service-role invocation
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Authorization required");
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !userData.user) throw new Error("Authentication failed");
+    const isServiceRole = authHeader?.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "NONE");
+    
+    if (!isServiceRole) {
+      if (!authHeader) throw new Error("Authorization required");
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr || !userData.user) throw new Error("Authentication failed");
 
-    // Check admin role
-    const { data: adminUser } = await supabase
-      .from("admin_users")
-      .select("id")
-      .eq("user_id", userData.user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!adminUser) {
-      const { data: staffUser } = await supabase
-        .from("staff_users")
+      const { data: adminUser } = await supabase
+        .from("admin_users")
         .select("id")
         .eq("user_id", userData.user.id)
         .eq("is_active", true)
         .maybeSingle();
-      if (!staffUser) throw new Error("Admin or staff access required");
+
+      if (!adminUser) {
+        const { data: staffUser } = await supabase
+          .from("staff_users")
+          .select("id")
+          .eq("user_id", userData.user.id)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (!staffUser) throw new Error("Admin or staff access required");
+      }
+    } else {
+      console.log("[retry-sub] Service role invocation — admin bypass");
     }
 
     const body = await req.json();
