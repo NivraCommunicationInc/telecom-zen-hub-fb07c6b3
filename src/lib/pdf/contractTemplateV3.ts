@@ -327,11 +327,11 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y += 3;
 
     y = sectionTitle(doc, 3, "CONDITIONS DE PAIEMENT", y);
-    y = bulletClause(doc, "Methodes de paiement acceptees: carte de credit, PayPal, virement Interac (e-Transfer).", y);
+    y = bulletClause(doc, "Methodes de paiement acceptees: PayPal (methode principale recommandee) et virement Interac (e-Transfer).", y);
     y = bulletClause(doc, "Le paiement doit etre confirme AVANT la date de cycle pour renouveler le service.", y);
-    y = bulletClause(doc, "La confirmation est automatique pour carte de credit et PayPal. Pour Interac, la confirmation est effectuee manuellement dans un delai de vingt-quatre (24) heures ouvrables.", y);
+    y = bulletClause(doc, "La confirmation est automatique pour PayPal. Pour Interac, la confirmation est effectuee manuellement dans un delai de vingt-quatre (24) heures ouvrables.", y);
     y = bulletClause(doc, "Aucun paiement en especes, cheque ou mandat-poste n'est accepte.", y);
-    y = bulletClause(doc, "Tout paiement en retard de plus de quinze (15) jours peut entrainer des frais de retard de 5,00 $.", y);
+    y = bulletClause(doc, "Tout paiement en retard de plus de cinq (5) jours apres la date d'echeance peut entrainer des frais de retard de 5,00 $.", y);
     y += 3;
 
     y = sectionTitle(doc, 4, "PRELEVEMENTS AUTOMATIQUES (AUTOPAY)", y);
@@ -361,9 +361,10 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = 42;
 
     y = sectionTitle(doc, 6, "NON-RENOUVELLEMENT ET CONSEQUENCES", y);
-    y = bulletClause(doc, "En cas de non-paiement confirme a la date de cycle, le service n'est pas renouvele.", y);
-    y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours.", y);
-    y = bulletClause(doc, "Apres 90 jours sans renouvellement, le numero peut devenir irrecuperable.", y);
+    y = bulletClause(doc, "En cas de non-paiement confirme a la date de cycle (jour d'echeance), la facture devient en souffrance.", y);
+    y = bulletClause(doc, "Apres cinq (5) jours de retard (J+5), le service est suspendu. La facture demeure en souffrance et le client dispose d'un delai de reactivation de cinq (5) jours supplementaires.", y);
+    y = bulletClause(doc, "Apres dix (10) jours de retard (J+10), la facture est annulee et aucune dette n'est portee au dossier. La reactivation requiert un nouveau cycle de paiement.", y);
+    y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours apres suspension. Apres 90 jours, le numero peut devenir irrecuperable.", y);
     y = bulletClause(doc, "Exception — Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
     y += 3;
 
@@ -383,8 +384,8 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y += 3;
 
     y = sectionTitle(doc, 9, "SUSPENSION POUR NON-PAIEMENT", y);
-    y = bulletClause(doc, "En cas de non-paiement de trente (30) jours ou plus, Nivra se reserve le droit de suspendre le service sans preavis.", y);
-    y = bulletClause(doc, "La reactivation est conditionnelle au paiement integral du solde impaye.", y);
+    y = bulletClause(doc, "En cas de non-paiement a la date d'echeance (jour de cycle), la facture devient en souffrance (J0). Apres cinq (5) jours (J+5), le service est automatiquement suspendu.", y);
+    y = bulletClause(doc, "Entre J+5 et J+10, le client peut reactiver son service en reglant la facture en souffrance. Apres J+10, la facture est annulee et la reactivation necessite un nouveau paiement complet.", y);
     y = bulletClause(doc, "Des frais de reactivation de 15,00 $ peuvent s'appliquer.", y);
     y += 3;
 

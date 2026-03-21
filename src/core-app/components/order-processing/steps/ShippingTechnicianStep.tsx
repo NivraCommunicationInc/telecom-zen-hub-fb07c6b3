@@ -67,6 +67,15 @@ export function ShippingTechnicianStep({ proc }: Props) {
     setLoading("delivered");
     try {
       await proc.changeStatus("delivered");
+      // P4: Notify client on delivery
+      await proc.sendClientNotification(
+        "order_completed",
+        "Votre commande a été livrée — Nivra",
+        {
+          carrier: shippingFields.carrier || order.carrier || "",
+          tracking_number: shippingFields.tracking_number || order.tracking_number || "",
+        }
+      );
     } finally {
       setLoading(null);
     }
@@ -143,6 +152,12 @@ export function ShippingTechnicianStep({ proc }: Props) {
         await proc.addNote(`[Installation terminée] ${techFields.completionNotes}`);
       }
       await proc.changeStatus("installation_completed");
+      // P3: Explicit installation completed notification
+      await proc.sendClientNotification(
+        "installation_completed",
+        "Votre installation est terminée — Nivra",
+        { appointment_date: appointment?.scheduled_at || "", service_address: appointment?.service_address || "" }
+      );
     } finally {
       setLoading(null);
     }
