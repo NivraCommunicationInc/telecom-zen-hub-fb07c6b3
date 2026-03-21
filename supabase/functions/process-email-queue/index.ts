@@ -14,23 +14,24 @@ interface EmailQueueItem {
 }
 
 // Templates that should include PDF attachments
-// Single-type attachment templates
-const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'contract' | 'summary'> = {
+// Single-type attachment templates (strict one-email -> one-PDF mapping)
+const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'receipt' | 'contract' | 'summary'> = {
   'invoice_created': 'invoice',
   'billing_new_invoice': 'invoice',
+  'renewal_invoice_created': 'invoice',
   'contract_ready': 'contract',
   'contract_signed': 'contract',
+  'contract_ready_for_signature': 'contract',
+  'order_submitted': 'summary',
+  'order_confirmation': 'summary',
+  'payment_receipt': 'receipt',
+  'payment_confirmed': 'receipt',
+  'payment_received': 'receipt',
+  'invoice_paid': 'receipt',
 };
 
-// Templates that get ALL 4 PDFs (invoice + receipt + contract + summary)
-const FULL_DOCUMENT_SET_TEMPLATES = new Set([
-  'order_submitted',
-  'order_confirmation',
-  'order_completed',
-  'payment_confirmed',
-  'payment_received',
-  'payment_receipt',
-]);
+// Full bundle disabled by default to avoid wrong attachment routing per template.
+const FULL_DOCUMENT_SET_TEMPLATES = new Set<string>([]);
 
 // Validate required client fields for PDF generation
 function validatePDFClientData(vars: Record<string, any>): { valid: boolean; missing: string[] } {
