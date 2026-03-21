@@ -182,12 +182,13 @@ export async function createNivraPaymentIntent(
   const metadata: Record<string, string> = {
     source: params.source,
     intent_context: params.intent_context,
-    invoice_id: params.invoice_id,
-    invoice_number: params.invoice_number,
     service_name: params.service_name,
     total_amount: String(params.total_amount),
     billing_cycle: params.billing_cycle || "monthly",
   };
+
+  if (params.invoice_id) metadata.invoice_id = params.invoice_id;
+  if (params.invoice_number) metadata.invoice_number = params.invoice_number;
 
   if (params.order_id) metadata.order_id = params.order_id;
   if (params.order_number) metadata.order_number = String(params.order_number);
