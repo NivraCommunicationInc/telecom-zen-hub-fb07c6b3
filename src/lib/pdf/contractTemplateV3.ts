@@ -361,9 +361,10 @@ export function generateContractV3PDF(data: ContractDataV3): PDFGenerationResult
     y = 42;
 
     y = sectionTitle(doc, 6, "NON-RENOUVELLEMENT ET CONSEQUENCES", y);
-    y = bulletClause(doc, "En cas de non-paiement confirme a la date de cycle, le service n'est pas renouvele.", y);
-    y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours.", y);
-    y = bulletClause(doc, "Apres 90 jours sans renouvellement, le numero peut devenir irrecuperable.", y);
+    y = bulletClause(doc, "En cas de non-paiement confirme a la date de cycle (jour d'echeance), la facture devient en souffrance.", y);
+    y = bulletClause(doc, "Apres cinq (5) jours de retard (J+5), le service est suspendu. La facture demeure en souffrance et le client dispose d'un delai de reactivation de cinq (5) jours supplementaires.", y);
+    y = bulletClause(doc, "Apres dix (10) jours de retard (J+10), la facture est annulee et aucune dette n'est portee au dossier. La reactivation requiert un nouveau cycle de paiement.", y);
+    y = bulletClause(doc, "Le client conserve son numero et ses donnees pendant une periode de grace de quatre-vingt-dix (90) jours apres suspension. Apres 90 jours, le numero peut devenir irrecuperable.", y);
     y = bulletClause(doc, "Exception — Litiges et retrofacturations: en cas de chargeback ou fraude, des interets de 5% par mois et des frais de reactivation de 15,00 $ s'appliquent. Le client doit contacter Nivra AVANT d'initier un litige bancaire; toute retrofacturation abusive entraine la suspension immediate du service et des poursuites legales.", y);
     y += 3;
 
