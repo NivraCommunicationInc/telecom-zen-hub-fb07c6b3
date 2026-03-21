@@ -18,7 +18,7 @@
  * └─────────────────────────────────────────────┘
  */
 
-import jsPDF from "jspdf";
+import jsPDF from "npm:jspdf@2";
 import type { PDFGenerationResult } from "./types";
 import { NIVRA } from "./companyInfo";
 
