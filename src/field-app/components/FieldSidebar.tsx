@@ -17,7 +17,7 @@ const navItems = [
   { label: "Nouvelle vente", href: `${FIELD_BASE}/sale/new`, icon: ShoppingCart },
   { label: "Leads", href: `${FIELD_BASE}/leads`, icon: UserPlus },
   { label: "Offres approuvées", href: `${FIELD_BASE}/offers`, icon: Package },
-  { label: "Soumissions", href: `${FIELD_BASE}/submissions`, icon: Send },
+  { label: "Mes commandes", href: `${FIELD_BASE}/submissions`, icon: Send },
   { label: "Suivi ventes", href: `${FIELD_BASE}/tracking`, icon: TrendingUp },
   { label: "Commissions", href: `${FIELD_BASE}/commissions`, icon: DollarSign },
 ];
