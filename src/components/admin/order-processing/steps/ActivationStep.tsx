@@ -2,16 +2,20 @@
  * ActivationStep — Step 7: Activation / Provisioning (Admin variant)
  * Calls canonical provision_services_for_order RPC, creates subscription,
  * updates account billing cycle, and marks order as activated.
+ * 
+ * GATED: Uses safe state machine transitions via hook.
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Zap, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Zap, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props { proc: any; }
+
+const TERMINAL_STATES = ["active", "activated", "completed"];
 
 export function ActivationStep({ proc }: Props) {
   const { order, account, invoice } = proc;
@@ -20,7 +24,8 @@ export function ActivationStep({ proc }: Props) {
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
 
-  const isActivated = ["active", "activated", "completed"].includes(order.status || "");
+  const currentStatus = order.status || "";
+  const isActivated = TERMINAL_STATES.includes(currentStatus);
   const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoice?.status || "");
   const canActivate = invoicePaid && !isActivated;
 
@@ -43,11 +48,6 @@ export function ActivationStep({ proc }: Props) {
     }
   };
 
-  const handleRetry = async () => {
-    await proc.updateOrder({ status: "provisioning_in_progress" });
-    toast.info("Réessai d'activation en cours…");
-  };
-
   return (
     <div>
       <h3 className="text-base font-bold text-foreground mb-4">Activation / Provisionnement</h3>
@@ -64,6 +64,15 @@ export function ActivationStep({ proc }: Props) {
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
           <p className="text-sm text-amber-800 flex items-center gap-1">
             <AlertTriangle className="w-4 h-4" /> La facture doit être payée avant l'activation du service.
+          </p>
+        </div>
+      )}
+
+      {!isActivated && invoicePaid && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p className="text-xs text-blue-800 font-medium">État actuel: <span className="font-bold">{currentStatus}</span></p>
+          <p className="text-xs text-blue-700 mt-0.5">
+            L'activation transitera automatiquement par les états opérationnels requis.
           </p>
         </div>
       )}
@@ -101,22 +110,12 @@ export function ActivationStep({ proc }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <Label className="text-xs text-muted-foreground">Référence fournisseur</Label>
-              <Input
-                value={providerRef}
-                onChange={(e) => setProviderRef(e.target.value)}
-                placeholder="Numéro de confirmation…"
-                className="h-9 text-sm font-mono"
-              />
+              <Input value={providerRef} onChange={(e) => setProviderRef(e.target.value)} placeholder="Numéro de confirmation…" className="h-9 text-sm font-mono" />
             </div>
           </div>
           <div className="mb-4">
             <Label className="text-xs text-muted-foreground">Notes d'activation</Label>
-            <Textarea
-              value={activationNotes}
-              onChange={(e) => setActivationNotes(e.target.value)}
-              placeholder="Notes techniques…"
-              className="min-h-[60px] text-sm"
-            />
+            <Textarea value={activationNotes} onChange={(e) => setActivationNotes(e.target.value)} placeholder="Notes techniques…" className="min-h-[60px] text-sm" />
           </div>
         </>
       )}
@@ -145,7 +144,7 @@ export function ActivationStep({ proc }: Props) {
           {isActivating ? "Activation en cours…" : "Activer le service"}
         </Button>
         {!isActivated && (
-          <Button size="sm" variant="outline" onClick={handleRetry} disabled={proc.isUpdating} className="text-xs h-8">
+          <Button size="sm" variant="outline" onClick={() => proc.changeStatus("provisioning", "Réessai")} disabled={proc.isUpdating} className="text-xs h-8">
             <RefreshCw className="w-3 h-3 mr-1" /> Réessayer
           </Button>
         )}

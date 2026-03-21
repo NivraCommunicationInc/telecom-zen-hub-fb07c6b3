@@ -9,12 +9,34 @@ import { toNonNegativeMoney } from "@/lib/pricing/money";
 
 interface Props { proc: any; }
 
+/**
+ * LOCKED PRICING DOMAIN RULE:
+ * - Recurring monthly block = recurring items + recurring-only discounts
+ * - One-time block = equipment + fees + one-time discounts
+ * - One-time/equipment promos must NOT reduce the recurring monthly total
+ * - One-time discounts must remain visible as negative line items in one-time block
+ */
+
 /** Classify an invoice line by its type/description */
-function classifyLine(line: any): "recurring" | "equipment" | "fee" | "discount" {
-  if (line.line_type === "discount" || line.line_type === "credit") return "discount";
+function classifyLine(line: any): "recurring" | "equipment" | "fee" | "discount_recurring" | "discount_onetime" {
   const desc = (line.description || "").toLowerCase();
-  if (line.line_type === "equipment" || desc.includes("routeur") || desc.includes("router") || desc.includes("terminal") || desc.includes("modem") || desc.includes("sim") || desc.includes("décodeur")) return "equipment";
-  if (line.line_type === "fee" || desc.includes("activation") || desc.includes("livraison") || desc.includes("installation") || desc.includes("shipping") || desc.includes("delivery")) return "fee";
+  const lineType = (line.line_type || "").toLowerCase();
+
+  // Discounts need sub-classification: one-time vs recurring
+  if (lineType === "discount" || lineType === "credit") {
+    // One-time/equipment discounts: equipment promos, EQUIP codes, installation discounts
+    if (desc.includes("equip") || desc.includes("équip") || desc.includes("installation") ||
+        desc.includes("activation") || desc.includes("livraison") || desc.includes("router") ||
+        desc.includes("routeur") || desc.includes("terminal") || desc.includes("sim") ||
+        desc.includes("modem") || desc.includes("décodeur") || desc.includes("frais")) {
+      return "discount_onetime";
+    }
+    // Recurring discounts: monthly promos, new client discounts, welcome discounts
+    return "discount_recurring";
+  }
+
+  if (lineType === "equipment" || desc.includes("routeur") || desc.includes("router") || desc.includes("terminal") || desc.includes("modem") || desc.includes("sim") || desc.includes("décodeur")) return "equipment";
+  if (lineType === "fee" || desc.includes("activation") || desc.includes("livraison") || desc.includes("installation") || desc.includes("shipping") || desc.includes("delivery")) return "fee";
   return "recurring";
 }
 
@@ -22,11 +44,12 @@ export function OrderReviewStep({ proc }: Props) {
   const { order, invoice, invoiceLines } = proc;
   const hasInvoiceLines = invoiceLines && invoiceLines.length > 0;
 
-  // Categorize invoice lines
+  // Categorize invoice lines with domain-separated discounts
   const recurringLines: any[] = [];
   const equipmentLines: any[] = [];
   const feeLines: any[] = [];
-  const discountLines: any[] = [];
+  const discountRecurringLines: any[] = [];
+  const discountOnetimeLines: any[] = [];
 
   if (hasInvoiceLines) {
     for (const line of invoiceLines) {
@@ -34,22 +57,29 @@ export function OrderReviewStep({ proc }: Props) {
       if (cat === "recurring") recurringLines.push(line);
       else if (cat === "equipment") equipmentLines.push(line);
       else if (cat === "fee") feeLines.push(line);
-      else if (cat === "discount") discountLines.push(line);
+      else if (cat === "discount_recurring") discountRecurringLines.push(line);
+      else if (cat === "discount_onetime") discountOnetimeLines.push(line);
     }
   }
 
-  // Financial totals — from canonical invoice lines ONLY
+  // DOMAIN-SEPARATED TOTALS
+  // Recurring: recurring items - recurring-only discounts
   const recurringSubtotal = toNonNegativeMoney(
     hasInvoiceLines ? recurringLines.reduce((s, l) => s + Number(l.line_total || 0), 0) : 0
   );
-  const discountTotal = toNonNegativeMoney(
-    hasInvoiceLines ? discountLines.reduce((s, l) => s + Math.abs(Number(l.line_total || 0)), 0) : 0
+  const recurringDiscountTotal = toNonNegativeMoney(
+    hasInvoiceLines ? discountRecurringLines.reduce((s, l) => s + Math.abs(Number(l.line_total || 0)), 0) : 0
   );
-  const recurringNet = Math.max(0, recurringSubtotal - discountTotal);
+  const recurringNet = Math.max(0, recurringSubtotal - recurringDiscountTotal);
 
-  const oneTimeSubtotal = toNonNegativeMoney(
+  // One-time: equipment + fees - one-time discounts
+  const onetimeGross = toNonNegativeMoney(
     hasInvoiceLines ? [...equipmentLines, ...feeLines].reduce((s, l) => s + Number(l.line_total || 0), 0) : 0
   );
+  const onetimeDiscountTotal = toNonNegativeMoney(
+    hasInvoiceLines ? discountOnetimeLines.reduce((s, l) => s + Math.abs(Number(l.line_total || 0)), 0) : 0
+  );
+  const onetimeNet = Math.max(0, onetimeGross - onetimeDiscountTotal);
 
   // Taxes and total from invoice (canonical source of truth)
   const tpsAmount = toNonNegativeMoney(invoice?.tps_amount ?? 0);
@@ -142,9 +172,9 @@ export function OrderReviewStep({ proc }: Props) {
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
         <div className="space-y-1 text-sm">
           <div className="flex justify-between"><span className="text-gray-500">Sous-total mensuel</span><span className="text-gray-900 font-medium tabular-nums">{recurringSubtotal.toFixed(2)} $/mois</span></div>
-          {discountTotal > 0 && (
+          {recurringDiscountTotal > 0 && (
             <>
-              {discountLines.map((dl: any, i: number) => (
+              {discountRecurringLines.map((dl: any, i: number) => (
                 <div key={`d-${i}`} className="flex justify-between">
                   <span className="text-gray-500">{dl.description}</span>
                   <span className="text-emerald-600 tabular-nums">-{Math.abs(Number(dl.line_total || 0)).toFixed(2)} $</span>
@@ -157,7 +187,7 @@ export function OrderReviewStep({ proc }: Props) {
       </div>
 
       {/* ═══ SECTION B: One-time Fees & Equipment ═══ */}
-      {(equipmentLines.length > 0 || feeLines.length > 0) && (
+      {(equipmentLines.length > 0 || feeLines.length > 0 || discountOnetimeLines.length > 0) && (
         <>
           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Frais uniques & Équipement</h4>
           <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
@@ -174,9 +204,15 @@ export function OrderReviewStep({ proc }: Props) {
                   <span className="text-gray-700 tabular-nums">{Number(line.line_total || 0).toFixed(2)} $</span>
                 </div>
               ))}
+              {discountOnetimeLines.map((dl: any, i: number) => (
+                <div key={`dot-${i}`} className="flex justify-between">
+                  <span className="text-gray-500">{dl.description}</span>
+                  <span className="text-emerald-600 tabular-nums">-{Math.abs(Number(dl.line_total || 0)).toFixed(2)} $</span>
+                </div>
+              ))}
               <div className="flex justify-between border-t border-gray-200 pt-1 font-medium">
                 <span className="text-gray-900">Total frais uniques</span>
-                <span className="text-gray-900 tabular-nums">{oneTimeSubtotal.toFixed(2)} $</span>
+                <span className="text-gray-900 tabular-nums">{onetimeNet.toFixed(2)} $</span>
               </div>
             </div>
           </div>
@@ -188,11 +224,14 @@ export function OrderReviewStep({ proc }: Props) {
       <div className="bg-gray-50 rounded-lg border border-gray-100 p-3 mb-4">
         <div className="space-y-1 text-sm">
           <div className="flex justify-between"><span className="text-gray-500">Services 1er mois</span><span className="text-gray-700 tabular-nums">{recurringSubtotal.toFixed(2)} $</span></div>
-          {oneTimeSubtotal > 0 && (
-            <div className="flex justify-between"><span className="text-gray-500">Frais uniques</span><span className="text-gray-700 tabular-nums">{oneTimeSubtotal.toFixed(2)} $</span></div>
+          {onetimeGross > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Frais uniques</span><span className="text-gray-700 tabular-nums">{onetimeGross.toFixed(2)} $</span></div>
           )}
-          {discountTotal > 0 && (
-            <div className="flex justify-between"><span className="text-gray-500">Rabais</span><span className="text-emerald-600 tabular-nums">-{discountTotal.toFixed(2)} $</span></div>
+          {recurringDiscountTotal > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Rabais récurrents</span><span className="text-emerald-600 tabular-nums">-{recurringDiscountTotal.toFixed(2)} $</span></div>
+          )}
+          {onetimeDiscountTotal > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">Rabais uniques</span><span className="text-emerald-600 tabular-nums">-{onetimeDiscountTotal.toFixed(2)} $</span></div>
           )}
           <div className="flex justify-between"><span className="text-gray-500">TPS (5%)</span><span className="text-gray-700 tabular-nums">{tpsAmount.toFixed(2)} $</span></div>
           <div className="flex justify-between"><span className="text-gray-500">TVQ (9.975%)</span><span className="text-gray-700 tabular-nums">{tvqAmount.toFixed(2)} $</span></div>
