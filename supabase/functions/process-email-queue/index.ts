@@ -221,7 +221,8 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
         return generatePDFAttachment('contract', buildContractData(vars));
       case 'summary':
         return generatePDFAttachment('summary', buildSummaryData(vars));
-      default:
+      case 'receipt':
+        return generatePDFAttachment('receipt', buildReceiptData(vars));
         return null;
     }
   } catch (error) {
@@ -2759,6 +2760,7 @@ Deno.serve(async (req) => {
           'order_confirmation_html': 'order_submitted',
           'nivra_order_confirmation_fr': 'order_submitted',
           'payment_received': 'payment_confirmed',
+          'payment_receipt': 'payment_confirmed',
           'billing_new_invoice': 'invoice_created',
           'billing_payment_confirmed': 'payment_confirmed',
           'billing_renewal_reminder': 'invoice_overdue',
