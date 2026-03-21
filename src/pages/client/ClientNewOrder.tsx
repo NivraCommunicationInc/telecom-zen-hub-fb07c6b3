@@ -581,6 +581,8 @@ const ClientNewOrder = () => {
   // Hydration flag to prevent step guards from redirecting before state is loaded
   const [isHydrated, setIsHydrated] = useState(false);
   const isInitialMount = useRef(true);
+  const [checkoutTransactionId, setCheckoutTransactionId] = useState(() => crypto.randomUUID());
+  const [transactionStartedAt, setTransactionStartedAt] = useState(() => new Date().toISOString());
 
   // Promo: track last validated cart signature to prevent loops on silent revalidation
   const promoCartSignatureRef = useRef<string>("");
