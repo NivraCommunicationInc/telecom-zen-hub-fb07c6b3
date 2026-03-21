@@ -31,6 +31,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ═══ STRIPE KILL-SWITCH — 2026-03-21 ═══
+  // Stripe webhook processing permanently disabled. PayPal is the primary provider.
+  console.warn("[stripe-webhook] BLOCKED — Stripe disabled in production");
+  return new Response(
+    JSON.stringify({ received: false, error: "Stripe webhook processing disabled" }),
+    { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");

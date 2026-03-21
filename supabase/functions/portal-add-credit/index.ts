@@ -24,6 +24,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ═══ STRIPE KILL-SWITCH — 2026-03-21 ═══
+  // portal-add-credit was Stripe-specific. Disabled until PayPal credit flow is implemented.
+  console.warn("[portal-add-credit] BLOCKED — Stripe disabled in production");
+  return new Response(
+    JSON.stringify({ error: "L'ajout de crédit par carte est désactivé. Utilisez PayPal ou Interac." }),
+    { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
