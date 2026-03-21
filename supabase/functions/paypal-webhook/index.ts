@@ -374,10 +374,11 @@ serve(async (req) => {
             await supabase.from("email_queue").insert({
               event_key: `paypal_cancelled_${paypalSubscriptionId}`,
               to_email: sub.customer.email,
-              template_key: "subscription_cancelled",
+              template_key: "paypal_subscription_cancelled",
               template_vars: {
                 client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
                 plan_name: sub.plan_name,
+                reason: event.resource.status_change_note || "Annulé via PayPal",
               },
               status: "queued",
               attempts: 0,
