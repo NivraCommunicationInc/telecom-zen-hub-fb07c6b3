@@ -308,10 +308,10 @@ function RecordPaymentModal({ invoices, customerId, onClose, onRefresh }: { invo
               <Textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={2} placeholder="Notes opérationnelles" className="text-[11px]" />
             </div>
 
-            {/* Card payments via Stripe disabled — use PayPal or manual methods */}
+            {/* Card method redirected to PayPal */}
             {method === "debit_credit" && (
-              <div className="rounded-lg border border-muted bg-muted/30 p-3">
-                <p className="text-[10px] text-muted-foreground">Les paiements par carte (Stripe) ne sont pas disponibles actuellement. Utilisez PayPal ou un paiement manuel.</p>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-[10px] text-muted-foreground">Pour payer par carte, utilisez PayPal (recommandé) — vous pouvez payer par carte directement via PayPal sans compte PayPal.</p>
               </div>
             )}
           </div>

@@ -234,9 +234,9 @@ export default function UnifiedPOSPage({
 
     const isCardPayment = paymentData.payment_method === "card";
 
-    // ── CARD PAYMENT: DISABLED — Stripe is no longer available ──
+    // ── CARD PAYMENT: DISABLED — use PayPal or Interac ──
     if (isCardPayment) {
-      toast.error("Les paiements par carte sont désactivés. Veuillez utiliser un autre mode de paiement.");
+      toast.error("Les paiements par carte directe ne sont pas disponibles. Utilisez PayPal (recommandé) ou Interac.");
       return;
     }
 
@@ -648,12 +648,12 @@ export default function UnifiedPOSPage({
                   </div>
                 )}
 
-                {/* Stripe card payment — DISABLED during maintenance */}
+                {/* Card payment — redirect to PayPal */}
                 {paymentData.payment_method === "card" && (
-                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                    <p className="text-amber-300 text-sm flex items-center gap-2">
+                  <div className="p-4 rounded-xl bg-primary/10 border border-primary/30">
+                    <p className="text-primary text-sm flex items-center gap-2">
                       <CreditCard className="h-4 w-4" />
-                      Les paiements par carte sont temporairement indisponibles pour maintenance. Veuillez utiliser un autre mode de paiement.
+                      Pour payer par carte, sélectionnez PayPal (recommandé) — vous pouvez payer par carte directement via PayPal.
                     </p>
                   </div>
                 )}

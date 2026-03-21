@@ -236,11 +236,11 @@ export function POSPaymentFormAdmin({ onSubmit, isSubmitting, totalAmount, rende
             </div>
           )}
 
-          {/* Card (Stripe) disabled — show message */}
+          {/* Card → redirect to PayPal */}
           {method === "card" && (
-            <div className="rounded-xl border border-muted bg-muted/30 p-4">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Carte indisponible</p>
-              <p className="text-xs text-muted-foreground">Les paiements par carte ne sont pas disponibles. Utilisez PayPal ou un autre mode.</p>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-2">Carte via PayPal</p>
+              <p className="text-xs text-muted-foreground">Pour payer par carte, utilisez PayPal (recommandé) — aucun compte PayPal requis.</p>
             </div>
           )}
 

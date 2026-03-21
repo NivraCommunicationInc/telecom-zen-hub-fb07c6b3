@@ -171,18 +171,18 @@ const ClientPayments = () => {
                 Cartes de crédit / débit
               </CardTitle>
               <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">
-                Indisponible
+                Via PayPal
               </Badge>
             </div>
             <CardDescription>
-              Les paiements par carte ne sont pas disponibles pour le moment. Utilisez PayPal pour payer par carte.
+              Payez par carte de crédit ou débit directement via PayPal — aucun compte PayPal requis.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-start gap-2 p-3 bg-muted/30 border border-border rounded-lg">
-              <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+              <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                Vous pouvez payer par carte de crédit ou débit directement via PayPal sans avoir de compte PayPal.
+                Sélectionnez PayPal ci-dessus pour payer par carte — c'est rapide, sécurisé et sans frais supplémentaires.
               </p>
             </div>
           </CardContent>

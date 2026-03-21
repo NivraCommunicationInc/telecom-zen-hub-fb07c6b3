@@ -2,10 +2,7 @@
  * Payment Provider Configuration
  * 
  * CARD/STRIPE PERMANENTLY DISABLED — 2026-03-21
- * Stripe account under review. PayPal is now the primary payment provider.
- * 
- * This flag disables all card/Stripe payment UI entry points system-wide.
- * PayPal and Interac remain active.
+ * PayPal is the primary payment provider. Interac is secondary.
  */
 
 /** Card (Stripe) payments are permanently disabled across all portals */
@@ -14,8 +11,12 @@ export const CARD_PAYMENTS_DISABLED = true;
 /** Stripe is no longer the live payment provider */
 export const STRIPE_LIVE_DISABLED = true;
 
-export const CARD_MAINTENANCE_MESSAGE_FR = 
-  "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez utiliser PayPal ou Interac.";
+/** PayPal is the primary recommended payment method */
+export const PAYPAL_PRIMARY = true;
 
-export const CARD_MAINTENANCE_MESSAGE_EN = 
-  "Card payments are currently unavailable. Please use PayPal or Interac.";
+/** Standard payment priority messaging */
+export const PAYMENT_PRIORITY_MESSAGE_FR = 
+  "Payez facilement par PayPal (recommandé) ou par virement Interac.";
+
+export const PAYMENT_PRIORITY_MESSAGE_EN = 
+  "Pay easily with PayPal (recommended) or by Interac transfer.";

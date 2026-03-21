@@ -52,7 +52,7 @@ export default function StepPayment({ payment, customer, totalAmount, leadId, on
       toast.success(`Lien de paiement envoyé à ${customer.email}`);
     } catch (err) {
       console.error("[StepPayment] send link error:", err);
-      toast.error("Les paiements par carte sont temporairement indisponibles. Utilisez PayPal ou Interac.");
+      toast.error("Erreur lors de l'envoi du lien de paiement. Veuillez réessayer ou utiliser PayPal / Interac.");
     } finally {
       setSendingLink(false);
     }
@@ -129,7 +129,7 @@ export default function StepPayment({ payment, customer, totalAmount, leadId, on
           </div>
           <div>
             <p className="text-sm font-semibold text-muted-foreground">Paiement par carte sur place</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Temporairement indisponible — utilisez le lien de paiement</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Non disponible — utilisez PayPal ou Interac</p>
           </div>
         </div>
       </div>
