@@ -37,12 +37,15 @@ describe("Canonical Billing Cycle Rule Lock", () => {
       expect(code).toContain("grace");
     });
 
-    it("must mark invoices overdue at J0, not expire immediately", () => {
+    it("must mark invoices overdue at J0 before suspension, not expire immediately", () => {
       const code = readFile("supabase/functions/billing-check-overdue/index.ts");
       // Must transition to overdue first
       expect(code).toContain('status: "overdue"');
-      // Must NOT expire at J0
-      expect(code).not.toMatch(/daysPastDue >= 0.*status.*expired/s);
+      // The normal overdue flow (PART 2) must NOT use "expired" — it must use "suspended"
+      // Dispute flow (PART 1) is allowed to use "expired" separately
+      const part2 = code.split("PART 2")[1] || "";
+      expect(part2).toContain('"suspended"');
+      expect(part2).not.toContain('"expired"');
     });
 
     it("must void invoice at suspension (prepaid, no debt)", () => {
