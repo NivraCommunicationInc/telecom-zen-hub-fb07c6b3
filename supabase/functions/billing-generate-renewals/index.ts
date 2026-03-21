@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { computeTaxes } from "../_shared/tax-constants.ts";
-import { createNivraPaymentIntent } from "../_shared/nivraPaymentIntentFactory.ts";
+// STRIPE DISABLED — import removed: createNivraPaymentIntent
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
