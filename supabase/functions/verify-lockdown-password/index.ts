@@ -54,11 +54,18 @@ Deno.serve(async (req) => {
 
     const storedHash = hashData?.value_json?.hash;
 
-    // If no hash is set, use default password
-    const defaultPassword = Deno.env.get("LOCKDOWN_DEFAULT_PASSWORD") || "NivraSecure2024!";
+    // If no hash is set, require env var — no hardcoded fallback
+    const defaultPassword = Deno.env.get("LOCKDOWN_DEFAULT_PASSWORD");
     
     if (!storedHash) {
-      // First time - compare with default password
+      if (!defaultPassword) {
+        console.error("[verify-lockdown-password] No stored hash and no LOCKDOWN_DEFAULT_PASSWORD env var configured");
+        return new Response(
+          JSON.stringify({ success: false, error: "Lockdown password not configured. Set LOCKDOWN_DEFAULT_PASSWORD secret." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // First time - compare with env-configured default password
       if (password === defaultPassword) {
         // Set the hash for future use
         const newHash = await hashPassword(password);

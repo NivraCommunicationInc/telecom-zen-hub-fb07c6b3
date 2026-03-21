@@ -18,10 +18,8 @@ const corsHeaders = {
 
 const MAX_ATTEMPTS = 5;
 const LOCK_DURATION_MINUTES = 10;
-const DEFAULT_CODE = "112233";
-
-// Forbidden codes
-const FORBIDDEN_CODES = ["000000", "123456", "111111", "654321"];
+// Forbidden codes — no hardcoded default; env var required
+const FORBIDDEN_CODES = ["000000", "123456", "111111", "654321", "112233"];
 
 // Hash code using SHA-256
 async function hashCode(code: string): Promise<string> {
