@@ -341,7 +341,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         date: todayStr,
-        rule: "due_date based: overdue at J0, suspended at J+5",
+        rule: "due_date based: overdue at J0, suspended at J+5, void at J+10",
         ...results
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
