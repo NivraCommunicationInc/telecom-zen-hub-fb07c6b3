@@ -308,6 +308,24 @@ serve(async (req) => {
             reason: `PayPal subscription activated via webhook`,
           });
 
+          // Notify customer of activation
+          if (sub.customer) {
+            await supabase.from("email_queue").insert({
+              event_key: `paypal_activated_${paypalSubscriptionId}`,
+              to_email: sub.customer.email,
+              template_key: "paypal_subscription_activated",
+              template_vars: {
+                client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
+                plan_name: sub.plan_name,
+                monthly_amount: sub.plan_price,
+                next_billing_date: sub.cycle_end_date,
+              },
+              status: "queued",
+              attempts: 0,
+              max_attempts: 5,
+            });
+          }
+
         } else {
           console.warn(`[PayPal Webhook] No subscription found for PayPal ID: ${paypalSubscriptionId}`);
           await supabase.from("billing_system_alerts").insert({
