@@ -632,10 +632,13 @@ const ClientNewOrder = () => {
   const [idExpiration, setIdExpiration] = useState("");
   const [idProvince, setIdProvince] = useState("");
   
-  // QR Identity Verification state (Rogers-grade) — persisted independently of order
+  // QR Identity Verification state (Rogers-grade) — persisted + locked to active checkout transaction
   const [verificationSessionId, setVerificationSessionId] = useState<string | null>(() => {
     try { return localStorage.getItem('nivra_kyc_session_id') || null; } catch { return null; }
   });
+  const [verificationReferenceId, setVerificationReferenceId] = useState<string | null>(null);
+  const [verificationSubmittedAt, setVerificationSubmittedAt] = useState<string | null>(null);
+  const [verificationSubmissionState, setVerificationSubmissionState] = useState<string | null>(null);
   const [idVerificationApproved, setIdVerificationApproved] = useState(false);
   // KYC choice state: null = user hasn't decided yet, "reuse" or "restart"
   const [kycChoice, setKycChoice] = useState<"reuse" | "restart" | null>(null);
