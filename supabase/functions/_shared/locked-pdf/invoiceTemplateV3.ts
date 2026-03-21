@@ -20,7 +20,8 @@
  * └─────────────────────────────────────────────┘
  */
 
-import jsPDF from "npm:jspdf@2";
+import jsPDFModule from "npm:jspdf@2";
+const jsPDF = (jsPDFModule as any).default || jsPDFModule;
 import type { InvoiceDataV2, PDFGenerationResult } from "./types.ts";
 import { NIVRA, TAX } from "./companyInfo.ts";
 
