@@ -28,16 +28,17 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify admin auth - accepts JWT or service-role invocation
+    // Verify admin auth - accepts JWT or service-role key
     const authHeader = req.headers.get("Authorization");
-    const isServiceRole = authHeader?.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "NONE");
+    if (!authHeader) throw new Error("Authorization required");
     
-    if (!isServiceRole) {
-      if (!authHeader) throw new Error("Authorization required");
-      const token = authHeader.replace("Bearer ", "");
-      const { data: userData, error: authErr } = await supabase.auth.getUser(token);
-      if (authErr || !userData.user) throw new Error("Authentication failed");
-
+    const token = authHeader.replace("Bearer ", "");
+    
+    // Try user auth first
+    const { data: userData, error: authErr } = await supabase.auth.getUser(token);
+    
+    if (!authErr && userData.user) {
+      // Verify admin/staff role
       const { data: adminUser } = await supabase
         .from("admin_users")
         .select("id")
@@ -54,7 +55,13 @@ serve(async (req) => {
           .maybeSingle();
         if (!staffUser) throw new Error("Admin or staff access required");
       }
+      console.log("[retry-sub] Authenticated as admin/staff user");
     } else {
+      // Service role key auth — compare token directly
+      const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+      if (!srk || token !== srk) {
+        throw new Error("Authentication failed — invalid token");
+      }
       console.log("[retry-sub] Service role invocation — admin bypass");
     }
 
