@@ -2062,7 +2062,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
         { label: 'Montant mensuel / Monthly amount', value: formatCurrency(vars.monthly_amount) },
       ])}
       <div style="text-align:center; margin:28px 0;">
-        <a href="${vars.approval_url}" target="_blank" style="display:inline-block; background:${emailStyles.primary}; color:#fff; padding:14px 36px; border-radius:8px; text-decoration:none; font-weight:600; font-size:16px;">
+        <a href="${vars.approval_url}" target="_blank" style="display:inline-block; background:${emailStyles.accent}; color:#fff; padding:14px 36px; border-radius:8px; text-decoration:none; font-weight:600; font-size:16px;">
           Approuver sur PayPal / Approve on PayPal
         </a>
       </div>
