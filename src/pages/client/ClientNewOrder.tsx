@@ -830,6 +830,11 @@ const ClientNewOrder = () => {
           setAppliedReferral(draft.appliedReferral);
           console.log("[OrderWizard] Restored appliedReferral:", draft.appliedReferral.code, "type:", draft.appliedReferral.type);
         }
+        // Welcome discount dismissal (CRITICAL: must restore BEFORE payment to prevent default promo override)
+        if (typeof draft.welcomeDiscountDismissed === "boolean") {
+          setWelcomeDiscountDismissed(draft.welcomeDiscountDismissed);
+          console.log("[OrderWizard] Restored welcomeDiscountDismissed:", draft.welcomeDiscountDismissed);
+        }
         // Payment state (critical — must restore ALL payment fields)
         if (draft.paypalCaptureId) setPaypalCaptureId(draft.paypalCaptureId);
         if (draft.paymentComplete) setPaymentComplete(draft.paymentComplete);
