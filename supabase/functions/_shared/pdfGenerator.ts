@@ -1051,10 +1051,177 @@ export function generateContractSummaryPDF(data: ContractSummaryData): string {
 }
 
 // ============================================================================
+// RECEIPT PDF GENERATOR
+// ============================================================================
+
+export interface ReceiptData {
+  receipt_number: string;
+  receipt_date: string;
+  invoice_number: string;
+  account_number: string;
+  client_name: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  payment_method: string;
+  payment_reference?: string;
+  amount_paid: number;
+  subtotal: number;
+  discount_label?: string;
+  discount_amount?: number;
+  tps: number;
+  tvq: number;
+  total: number;
+  services?: Array<{ name: string; price: number }>;
+}
+
+export function generateReceiptPDF(data: ReceiptData): string {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+
+  doc.setFillColor(...COLORS.white);
+  doc.rect(0, 0, pageWidth, pageHeight, "F");
+  drawHeader(doc, "REÇU DE PAIEMENT");
+
+  let y = 32;
+
+  // Success banner
+  doc.setFillColor(...COLORS.success);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 16, 3, 3, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("✓ PAIEMENT CONFIRMÉ", pageWidth / 2, y + 10, { align: "center" });
+  y += 24;
+
+  // Receipt info
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 28, 3, 3, "F");
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Reçu Nº:", margin + 5, y + 7);
+  doc.text("Date:", margin + 5, y + 14);
+  doc.text("Facture:", margin + 5, y + 21);
+  doc.text("Compte:", pageWidth / 2, y + 7);
+  doc.text("Méthode:", pageWidth / 2, y + 14);
+  if (data.payment_reference) {
+    doc.text("Référence:", pageWidth / 2, y + 21);
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.text);
+  doc.text(data.receipt_number || "—", margin + 30, y + 7);
+  doc.text(formatDate(data.receipt_date), margin + 30, y + 14);
+  doc.text(data.invoice_number || "—", margin + 30, y + 21);
+  doc.text(data.account_number || "—", pageWidth / 2 + 28, y + 7);
+
+  const methodLabel = data.payment_method === "paypal" ? "PayPal"
+    : data.payment_method === "interac" ? "Interac e-Transfer"
+    : data.payment_method || "—";
+  doc.text(methodLabel, pageWidth / 2 + 28, y + 14);
+  if (data.payment_reference) {
+    doc.text(data.payment_reference.substring(0, 30), pageWidth / 2 + 28, y + 21);
+  }
+  y += 36;
+
+  // Client info
+  doc.setFillColor(...COLORS.accent);
+  doc.rect(margin, y, 3, 18, "F");
+  doc.setTextColor(...COLORS.primary);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text("Client", margin + 8, y + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.text);
+  doc.text(data.client_name || "—", margin + 8, y + 12);
+  if (data.client_email) doc.text(data.client_email, margin + 8, y + 17);
+  y += 26;
+
+  // Services if provided
+  if (data.services && data.services.length > 0) {
+    doc.setFillColor(...COLORS.primary);
+    doc.rect(margin, y, pageWidth - margin * 2, 8, "F");
+    doc.setTextColor(...COLORS.white);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("SERVICE", margin + 5, y + 5.5);
+    doc.text("MONTANT", pageWidth - margin - 5, y + 5.5, { align: "right" });
+    y += 10;
+
+    doc.setTextColor(...COLORS.text);
+    doc.setFont("helvetica", "normal");
+    data.services.forEach((s, i) => {
+      if (i % 2 === 0) {
+        doc.setFillColor(...COLORS.lightGray);
+        doc.rect(margin, y - 2, pageWidth - margin * 2, 8, "F");
+      }
+      doc.text(s.name, margin + 5, y + 4);
+      doc.text(formatCurrency(s.price), pageWidth - margin - 5, y + 4, { align: "right" });
+      y += 8;
+    });
+    y += 5;
+  }
+
+  // Financial summary
+  doc.setDrawColor(...COLORS.border);
+  doc.line(pageWidth / 2, y, pageWidth - margin, y);
+  y += 7;
+
+  const lines: Array<{ label: string; value: string; highlight?: boolean }> = [
+    { label: "Sous-total", value: formatCurrency(data.subtotal) },
+  ];
+  if (data.discount_label && data.discount_amount) {
+    lines.push({ label: data.discount_label, value: `-${formatCurrency(Math.abs(data.discount_amount))}`, highlight: true });
+  }
+  lines.push(
+    { label: "TPS (5%)", value: formatCurrency(data.tps) },
+    { label: "TVQ (9.975%)", value: formatCurrency(data.tvq) },
+  );
+
+  doc.setFontSize(9);
+  lines.forEach((item) => {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(item.highlight ? ...COLORS.success : ...COLORS.text);
+    doc.text(item.label, pageWidth / 2 + 10, y);
+    doc.text(item.value, pageWidth - margin - 5, y, { align: "right" });
+    y += 6;
+  });
+
+  y += 4;
+
+  // Amount paid box
+  doc.setFillColor(...COLORS.success);
+  doc.roundedRect(pageWidth / 2, y, pageWidth / 2 - margin, 14, 2, 2, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("MONTANT PAYÉ", pageWidth / 2 + 8, y + 9);
+  doc.text(formatCurrency(data.amount_paid), pageWidth - margin - 5, y + 9, { align: "right" });
+
+  // Legal note
+  y = pageHeight - 45;
+  doc.setDrawColor(...COLORS.border);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(...COLORS.textLight);
+  doc.text("Ce reçu confirme le paiement reçu par Nivra Communications Inc.", margin, y);
+  doc.text("Conservez ce document pour vos dossiers.", margin, y + 4);
+
+  drawFooter(doc, 1, 1);
+  return doc.output("datauristring").split(",")[1];
+}
+
+// ============================================================================
 // EXPORT
 // ============================================================================
 
-export type PDFType = 'invoice' | 'contract' | 'summary' | 'contract_summary';
+export type PDFType = 'invoice' | 'contract' | 'summary' | 'contract_summary' | 'receipt';
 
 export interface PDFAttachment {
   filename: string;
@@ -1064,7 +1231,7 @@ export interface PDFAttachment {
 
 export function generatePDFAttachment(
   type: PDFType, 
-  data: InvoiceData | ContractData | SummaryData | ContractSummaryData
+  data: InvoiceData | ContractData | SummaryData | ContractSummaryData | ReceiptData
 ): PDFAttachment | null {
   try {
     switch (type) {
@@ -1072,6 +1239,12 @@ export function generatePDFAttachment(
         return {
           filename: `Facture-${(data as InvoiceData).invoice_number || 'Nivra'}.pdf`,
           content: generateInvoicePDF(data as InvoiceData),
+          contentType: 'application/pdf',
+        };
+      case 'receipt':
+        return {
+          filename: `Recu-${(data as ReceiptData).receipt_number || 'Nivra'}.pdf`,
+          content: generateReceiptPDF(data as ReceiptData),
           contentType: 'application/pdf',
         };
       case 'contract':
