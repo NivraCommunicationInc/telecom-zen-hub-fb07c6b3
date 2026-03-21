@@ -36,13 +36,12 @@ serve(async (req) => {
     // Log invocation for audit
     console.log(`[retry-sub] Invocation received for invoice_id=${invoice_id}`);
 
-    // body already parsed above
-    if (!invoice_id) throw new Error("invoice_id is required");
-
     if (!invoice_id) throw new Error("invoice_id is required");
 
     const stripeKey = (Deno.env.get("STRIPE_SECRET_KEY") || "").trim();
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");
+    const keyPrefix = stripeKey.substring(0, 8);
+    console.log(`[retry-sub] STRIPE_SECRET_KEY prefix: "${keyPrefix}..." (length: ${stripeKey.length})`);
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // If no PM provided, try to extract from the most recent payment for this invoice
