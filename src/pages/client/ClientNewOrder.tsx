@@ -5487,11 +5487,16 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                             isFrench={true}
                             onSessionGenerated={(sessionId) => {
                               setVerificationSessionId(sessionId);
+                              setVerificationReferenceId(sessionId);
+                              setVerificationSubmissionState("created");
                               localStorage.setItem('nivra_kyc_session_id', sessionId);
                               setIdVerificationApproved(false);
                             }}
                             onVerified={(sessionId) => {
                               setVerificationSessionId(sessionId);
+                              setVerificationReferenceId(sessionId);
+                              setVerificationSubmissionState("submitted");
+                              setVerificationSubmittedAt(new Date().toISOString());
                               localStorage.setItem('nivra_kyc_session_id', sessionId);
                               setIdVerificationApproved(true);
                             }}
