@@ -1,6 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { generatePDFAttachment, type PDFAttachment, type InvoiceData, type ContractData, type SummaryData, type ReceiptData } from "../_shared/pdfGenerator.ts";
+// LOCKED PDF TEMPLATES — approved production designs, DO NOT replace with pdfGenerator.ts
+import { generateInvoiceV3PDF } from "../_shared/locked-pdf/invoiceTemplateV3.ts";
+import { generateReceiptPDF } from "../_shared/locked-pdf/receiptTemplate.ts";
+import { generateContractV3PDF } from "../_shared/locked-pdf/contractTemplateV3.ts";
+import { generateOrderSummaryPDF } from "../_shared/locked-pdf/orderSummaryTemplate.ts";
+import type { InvoiceDataV2 } from "../_shared/locked-pdf/types.ts";
+import type { ReceiptData as LockedReceiptData } from "../_shared/locked-pdf/receiptTemplate.ts";
+import type { ContractDataV3 } from "../_shared/locked-pdf/contractTemplateV3.ts";
+import type { OrderSummaryV3Data } from "../_shared/locked-pdf/orderSummaryTemplate.ts";
 
 interface EmailQueueItem {
   id: string;
