@@ -255,6 +255,9 @@ interface StreamingService {
 }
 
 interface OrderDraft {
+  transactionId: string;
+  transactionStartedAt: string;
+  draftUpdatedAt: string;
   step: number;
   selectedServices: Service[];
   selectedFreeChannels: Channel[];
@@ -276,6 +279,7 @@ interface OrderDraft {
   selectedDate: string;
   selectedTime: string;
   appointmentConfirmed?: boolean;
+  appointmentLockedAt: string | null;
   notes: string;
   discountCode: string;
   installationCredit: number;
@@ -295,6 +299,9 @@ interface OrderDraft {
   serviceAddressPostalCode: string;
   // KYC session persistence (survives refresh/crash/order failure)
   verificationSessionId: string | null;
+  verificationReferenceId: string | null;
+  verificationSubmittedAt: string | null;
+  verificationSubmissionState: string | null;
   idVerificationApproved: boolean;
   kycChoice: "reuse" | "restart" | null;
   existingKycStatus: string | null;
