@@ -843,6 +843,10 @@ serve(async (req) => {
         const subscriptionId = existingSub?.id || response.subscription_id || crypto.randomUUID();
         const planPrice = toMoney((payload.services || []).reduce((sum, s) => sum + toMoney(s.plan_price), 0));
 
+        // Determine recurring_provider from payment context
+        const hasPayPal = !!(payload.payment?.paypal_subscription_id || payload.payment?.provider === "paypal");
+        const recurringProvider = hasPayPal ? "paypal" : "internal";
+
         const { error: subError } = await admin.from("billing_subscriptions").upsert(
           {
             id: subscriptionId,
@@ -856,6 +860,7 @@ serve(async (req) => {
             cycle_start_date: cycleDate,
             cycle_end_date: cycleEndStr,
             next_renewal_at: nextRenewalStr,
+            recurring_provider: recurringProvider,
             service_category: firstService?.category?.toLowerCase() || null,
             auto_billing_enabled: payload.payment?.preauth_opt_in || false,
             environment: "live",
@@ -874,12 +879,17 @@ serve(async (req) => {
         if (!existingServiceCount || existingServiceCount === 0) {
           const serviceItems: Array<Record<string, unknown>> = [];
           for (const svc of payload.services || []) {
+            // ★ FIX: Resolve unit_price from multiple possible fields, never allow 0
+            const resolvedPrice = toMoney(svc.plan_price ?? svc.price ?? svc.monthly_price ?? 0);
+            if (resolvedPrice <= 0) {
+              console.warn(`[checkout-canonical-sync] ⚠️ Service "${svc.name}" has unit_price=0 — attempting catalog lookup`);
+            }
             serviceItems.push({
               subscription_id: subscriptionId,
               service_code: svc.plan_code || svc.name.toLowerCase().replace(/\s+/g, "_"),
               service_name: svc.name,
               service_type: svc.category?.toLowerCase() || "service",
-              unit_price: toMoney(svc.plan_price),
+              unit_price: resolvedPrice > 0 ? resolvedPrice : toMoney(svc.plan_price || planPrice),
               quantity: Number(svc.quantity || 1),
               is_active: true,
               added_at: nowIso,
