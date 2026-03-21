@@ -260,26 +260,26 @@ END:VCALENDAR`;
     const orderCreatedDate = new Date(order?.created_at || new Date());
     const activationDay = orderCreatedDate.getDate();
     
-    // ★ CANONICAL: Use real cycle dates from subscription/order, NOT computed month logic
+    // ★ CANONICAL: Use real cycle dates from order/pricing_snapshot, NOT computed month logic
     const ps = order?.pricing_snapshot;
     const billCycleDay = ps?.billing_cycle_day || activationDay;
     
-    // Priority: subscription cycle_end_date > pricing_snapshot > computed
-    const subCycleEnd = subscription?.cycle_end_date;
-    const subCycleStart = subscription?.cycle_start_date;
+    // Priority: pricing_snapshot cycle dates > order created_at + 1 month
+    const snapshotCycleEnd = ps?.cycle_end_date;
+    const snapshotCycleStart = ps?.cycle_start_date;
     
     let cycleStartDate: Date;
     let nextBillingDate: Date;
     
-    if (subCycleStart) {
-      cycleStartDate = new Date(subCycleStart + "T00:00:00");
+    if (snapshotCycleStart) {
+      cycleStartDate = new Date(snapshotCycleStart + "T00:00:00");
     } else {
       cycleStartDate = orderCreatedDate;
     }
     
-    if (subCycleEnd) {
+    if (snapshotCycleEnd) {
       // Next billing = cycle_end_date (the due date / renewal point)
-      nextBillingDate = new Date(subCycleEnd + "T00:00:00");
+      nextBillingDate = new Date(snapshotCycleEnd + "T00:00:00");
     } else {
       // Fallback: order date + 1 month
       nextBillingDate = new Date(cycleStartDate);
