@@ -14,16 +14,22 @@ interface EmailQueueItem {
 }
 
 // Templates that should include PDF attachments
+// Single-type attachment templates
 const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'contract' | 'summary'> = {
   'invoice_created': 'invoice',
   'billing_new_invoice': 'invoice',
-  'payment_confirmed': 'invoice',
-  'payment_received': 'invoice',
   'contract_ready': 'contract',
   'contract_signed': 'contract',
-  'order_submitted': 'summary',
-  'order_confirmation': 'summary',
 };
+
+// Templates that get ALL 4 PDFs (invoice + receipt + contract + summary)
+const FULL_DOCUMENT_SET_TEMPLATES = new Set([
+  'order_submitted',
+  'order_confirmation',
+  'payment_confirmed',
+  'payment_received',
+  'payment_receipt',
+]);
 
 // Validate required client fields for PDF generation
 function validatePDFClientData(vars: Record<string, any>): { valid: boolean; missing: string[] } {
