@@ -6349,29 +6349,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                     </div>
                   </div>
 
-                  {/* Stripe Card Form */}
-                  {paymentMethod === "credit_card" && !paymentComplete && (
-                    <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/30">
-                      <p className="text-sm text-muted-foreground">
-                        Entrez vos informations de carte pour autoriser le paiement.
-                      </p>
-                      <StripeInlinePayment
-                        intentContext="checkout_preconfirm"
-                        amount={uiTodayTotal}
-                        description="Commande Nivra Telecom"
-                        customerEmail={profile?.email || user?.email || undefined}
-                        onSuccess={({ paymentIntentId }) => {
-                          setPaymentConfirmationNumber(paymentIntentId);
-                          setPaymentComplete(true);
-                          setPaypalCaptureId("");
-                          toast.success(`Paiement carte autorisé! Réf: ${paymentIntentId}`);
-                        }}
-                        onError={(error) => {
-                          toast.error(error || "Erreur de paiement par carte");
-                        }}
-                      />
-                    </div>
-                  )}
+                  {/* Card payments disabled — PayPal handles cards */}
 
                   {/* E-Transfer Form */}
                   {paymentMethod === "etransfer" && !paymentComplete && (
