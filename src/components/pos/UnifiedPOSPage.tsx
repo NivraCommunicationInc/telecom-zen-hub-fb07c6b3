@@ -234,9 +234,9 @@ export default function UnifiedPOSPage({
 
     const isCardPayment = paymentData.payment_method === "card";
 
-    // ── CARD PAYMENT: DISABLED — Stripe is no longer available ──
+    // ── CARD PAYMENT: DISABLED — use PayPal or Interac ──
     if (isCardPayment) {
-      toast.error("Les paiements par carte sont désactivés. Veuillez utiliser un autre mode de paiement.");
+      toast.error("Les paiements par carte directe ne sont pas disponibles. Utilisez PayPal (recommandé) ou Interac.");
       return;
     }
 
