@@ -807,10 +807,10 @@ Deno.serve(async (req) => {
         manual_send: force,
         client_name: client_first_name || "Client",
         client_email,
-        client_phone: client_phone || orderData?.client_phone || "",
+        client_phone: client_phone || orderData?.client_phone || profilePhone || "",
         client_address: delivery_address
           ? `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}`
-          : "",
+          : profileAddress || "",
         order_id,
         order_number,
         invoice_id: latestInvoice?.id || null,
