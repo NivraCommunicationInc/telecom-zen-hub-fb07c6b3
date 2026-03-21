@@ -387,7 +387,7 @@ async function processLegacyRenewals(
           status: "pending",
           cycle_start_date: newCycleStart,
           cycle_end_date: newCycleEnd,
-          due_date: sub.cycle_end_date,
+          due_date: sub.cycle_end_date, // due_date = cycle day (the day payment is due)
         })
         .select()
         .single();
