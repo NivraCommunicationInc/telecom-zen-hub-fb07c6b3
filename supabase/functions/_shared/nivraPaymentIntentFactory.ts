@@ -208,7 +208,9 @@ export async function createNivraPaymentIntent(
   // ═══ STEP 4: BUILD DESCRIPTION ═══
   const description = params.order_number
     ? `Nivra Telecom — Commande ${params.order_number} — ${params.service_name}`
-    : `Nivra Telecom — Facture ${params.invoice_number} — ${params.service_name}`;
+    : params.invoice_number
+      ? `Nivra Telecom — Facture ${params.invoice_number} — ${params.service_name}`
+      : `Nivra Telecom — ${params.service_name}`;
 
   // ═══ STEP 5: CREATE PAYMENTINTENT ═══
   const piParams: Stripe.PaymentIntentCreateParams = {
