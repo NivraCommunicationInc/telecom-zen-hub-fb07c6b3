@@ -563,6 +563,13 @@ serve(async (req) => {
     // CANONICAL INVARIANT: order.total_amount MUST equal invoice.total
     // Use pricing_snapshot.grand_total as the single source of truth (server-computed)
     const canonicalGrandTotal = toMoney(payload.pricing_snapshot?.grand_total ?? response.pricing?.grand_total);
+
+    // ★ Promo propagation: extract from pricing_snapshot.promo_applied (canonical source)
+    const snapshotPromoCode = (payload.pricing_snapshot as any)?.promo_applied?.code || payload.promo?.code || null;
+    const snapshotPromoDiscount = toMoney(
+      payload.pricing_snapshot?.promo_discount ?? payload.promo?.discount_value ?? 0
+    );
+
     if (accountId) {
       try {
         const { error: orderError } = await admin.from("orders").upsert(
@@ -601,6 +608,9 @@ serve(async (req) => {
                 : billingMethod === "card"
                   ? (payload.payment?.reference || null)
                   : null,
+            // ★ FIX GAP 1: Promo fields propagated from pricing_snapshot
+            promo_code: snapshotPromoCode,
+            promo_discount_amount: snapshotPromoDiscount,
           },
           { onConflict: "id" },
         );
