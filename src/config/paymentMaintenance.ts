@@ -1,17 +1,21 @@
 /**
- * Payment Maintenance Configuration
+ * Payment Provider Configuration
  * 
- * Central flag to disable credit card (Stripe) payments across the platform.
- * Set CARD_PAYMENTS_DISABLED to false to re-enable card payments.
+ * CARD/STRIPE PERMANENTLY DISABLED — 2026-03-21
+ * Stripe account under review. PayPal is now the primary payment provider.
  * 
- * DO NOT modify backend billing logic or Stripe configuration.
- * This only affects UI entry points.
+ * This flag disables all card/Stripe payment UI entry points system-wide.
+ * PayPal and Interac remain active.
  */
 
-export const CARD_PAYMENTS_DISABLED = false;
+/** Card (Stripe) payments are permanently disabled across all portals */
+export const CARD_PAYMENTS_DISABLED = true;
+
+/** Stripe is no longer the live payment provider */
+export const STRIPE_LIVE_DISABLED = true;
 
 export const CARD_MAINTENANCE_MESSAGE_FR = 
-  "Les paiements par carte sont temporairement indisponibles pour maintenance. Veuillez utiliser PayPal.";
+  "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez utiliser PayPal ou Interac.";
 
 export const CARD_MAINTENANCE_MESSAGE_EN = 
-  "Card payments are temporarily unavailable for maintenance. Please use PayPal.";
+  "Card payments are currently unavailable. Please use PayPal or Interac.";
