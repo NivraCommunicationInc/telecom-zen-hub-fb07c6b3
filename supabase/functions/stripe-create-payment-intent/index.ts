@@ -53,6 +53,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { invoice_id, amount, description, customer_email, customer_id, intent_context } = body;
+    const isCheckoutPreconfirm = intent_context === "checkout_preconfirm";
 
     if (!amount || amount <= 0) throw new Error("Invalid amount");
 
@@ -117,7 +118,7 @@ serve(async (req) => {
     const email = customer_email || customerObj?.email;
     const customerName = customerObj ? `${customerObj.first_name || ""} ${customerObj.last_name || ""}`.trim() : undefined;
     const pricingSnapshot = order?.pricing_snapshot;
-    const isInvoicePayment = Boolean(invoice_id || intent_context === "invoice_payment");
+    const isInvoicePayment = !isCheckoutPreconfirm && Boolean(invoice_id || intent_context === "invoice_payment");
 
     // Service name
     const serviceName = order?.plan_name ||
@@ -153,8 +154,8 @@ serve(async (req) => {
     const result = await createNivraPaymentIntent({
       stripe,
       customer_email: email,
-      invoice_id: invoice_id || "",
-      invoice_number: invoice?.invoice_number || "",
+      invoice_id: invoice_id || undefined,
+      invoice_number: invoice?.invoice_number || undefined,
       service_name: serviceName,
       total_amount: amount,
       order_id: order?.id,

@@ -28,10 +28,10 @@ import Stripe from "npm:stripe@18";
 export interface NivraPaymentIntentParams {
   stripe: Stripe;
   
-  // REQUIRED — will throw if missing
+  // REQUIRED for billing flows; optional for checkout_preconfirm pre-auth
   customer_email: string;
-  invoice_id: string;
-  invoice_number: string;
+  invoice_id?: string;
+  invoice_number?: string;
   service_name: string;
   total_amount: number; // in dollars (e.g. 45.99)
 
@@ -96,13 +96,20 @@ export interface NivraPaymentIntentResult {
 function validateRequired(params: NivraPaymentIntentParams): void {
   const errors: string[] = [];
 
+  // Pre-authorization (checkout_preconfirm) is a hold before any order/invoice exists.
+  // Only customer_email, service_name, and total_amount are strictly required.
+  const isPreAuth = params.intent_context === "checkout_preconfirm" && params.capture_method === "manual";
+
   if (!params.customer_email) errors.push("customer_email is required");
-  if (!params.invoice_id) errors.push("invoice_id is required");
-  if (!params.invoice_number) errors.push("invoice_number is required");
   if (!params.service_name) errors.push("service_name is required");
   if (!params.total_amount || params.total_amount <= 0) errors.push("total_amount must be > 0");
-  if (!params.order_id && !params.subscription_id) {
-    errors.push("order_id or subscription_id is required (at least one)");
+
+  if (!isPreAuth) {
+    if (!params.invoice_id) errors.push("invoice_id is required");
+    if (!params.invoice_number) errors.push("invoice_number is required");
+    if (!params.order_id && !params.subscription_id) {
+      errors.push("order_id or subscription_id is required (at least one)");
+    }
   }
 
   if (errors.length > 0) {
@@ -175,12 +182,13 @@ export async function createNivraPaymentIntent(
   const metadata: Record<string, string> = {
     source: params.source,
     intent_context: params.intent_context,
-    invoice_id: params.invoice_id,
-    invoice_number: params.invoice_number,
     service_name: params.service_name,
     total_amount: String(params.total_amount),
     billing_cycle: params.billing_cycle || "monthly",
   };
+
+  if (params.invoice_id) metadata.invoice_id = params.invoice_id;
+  if (params.invoice_number) metadata.invoice_number = params.invoice_number;
 
   if (params.order_id) metadata.order_id = params.order_id;
   if (params.order_number) metadata.order_number = String(params.order_number);
@@ -201,7 +209,9 @@ export async function createNivraPaymentIntent(
   // ═══ STEP 4: BUILD DESCRIPTION ═══
   const description = params.order_number
     ? `Nivra Telecom — Commande ${params.order_number} — ${params.service_name}`
-    : `Nivra Telecom — Facture ${params.invoice_number} — ${params.service_name}`;
+    : params.invoice_number
+      ? `Nivra Telecom — Facture ${params.invoice_number} — ${params.service_name}`
+      : `Nivra Telecom — ${params.service_name}`;
 
   // ═══ STEP 5: CREATE PAYMENTINTENT ═══
   const piParams: Stripe.PaymentIntentCreateParams = {
