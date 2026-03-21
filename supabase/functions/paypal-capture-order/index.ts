@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { createNivraPayPalSubscription } from "../_shared/nivraPayPalSubscriptionFactory.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,6 +74,30 @@ async function getPayPalAccessToken(): Promise<string> {
   if (!response.ok) throw new Error("Failed to get PayPal access token");
   const data = await response.json();
   return data.access_token;
+}
+
+// ============================================================================
+// RECURRING ELIGIBILITY CHECK
+// ============================================================================
+
+const RECURRING_CATEGORIES = new Set([
+  "internet", "mobile", "tv_combo", "tv_pack", "streaming", "security",
+]);
+
+function isRecurringEligible(order: any): boolean {
+  if (!order) return false;
+  const snapshot = order.pricing_snapshot;
+  if (snapshot) {
+    const category = snapshot.category || snapshot.service_category;
+    if (category && RECURRING_CATEGORIES.has(category)) return true;
+    if (snapshot.plan_code) return true;
+  }
+  const st = (order.service_type || "").toLowerCase();
+  if (st.includes("internet") || st.includes("mobile") || st.includes("tv") ||
+      st.includes("streaming") || st.includes("sécurité") || st.includes("security")) {
+    return true;
+  }
+  return false;
 }
 
 serve(async (req) => {
@@ -162,10 +187,10 @@ serve(async (req) => {
     let updatedInvoice: any = null;
 
     if (invoiceId) {
-      // Try V2 billing_invoices first
+      // Try V2 billing_invoices
       const { data: v2Invoice } = await supabase
         .from("billing_invoices")
-        .select("id, order_id, invoice_number, total, customer:billing_customers(email, first_name, last_name)")
+        .select("id, order_id, invoice_number, total, customer_id, subscription_id, customer:billing_customers(email, first_name, last_name, phone)")
         .eq("id", invoiceId)
         .maybeSingle();
 
@@ -183,7 +208,7 @@ serve(async (req) => {
             p_source: "portal",
             p_created_by_name: "PayPal Capture",
             p_created_by_role: "system",
-            p_customer_id: linkedCustomerId,
+            p_customer_id: linkedCustomerId || v2Invoice.customer_id,
           }
         );
 
@@ -234,10 +259,29 @@ serve(async (req) => {
             });
             console.log("[PayPal Capture] ✓ Confirmation email queued to:", customerEmail);
           }
+
+          // ══════════════════════════════════════════════════════════════
+          // PHASE 2b: RECURRING SUBSCRIPTION SETUP AFTER CAPTURE
+          // ══════════════════════════════════════════════════════════════
+          // Only trigger after:
+          //   1. Successful PayPal capture (COMPLETED)
+          //   2. Payment applied to invoice (invoiceUpdated = true)
+          //   3. Order is recurring-eligible
+          //   4. No existing PayPal subscription for this order
+          // ══════════════════════════════════════════════════════════════
+          if (v2Invoice.order_id && paymentResult.is_fully_paid) {
+            await attemptRecurringSetup(
+              supabase,
+              v2Invoice.order_id,
+              v2Invoice.id,
+              linkedCustomerId || v2Invoice.customer_id,
+              v2Invoice.subscription_id,
+              v2Invoice.customer,
+              payerPhone,
+            );
+          }
         }
       } else {
-        // Legacy billing table access has been permanently removed.
-        // All invoices must exist in billing_invoices (canonical Core table).
         console.warn("[PayPal Capture] ⚠ Invoice ID not found in billing_invoices — no legacy fallback. invoice_id:", invoiceId);
       }
     }
@@ -295,3 +339,184 @@ serve(async (req) => {
     );
   }
 });
+
+// ============================================================================
+// RECURRING SUBSCRIPTION SETUP — called only after successful capture
+// ============================================================================
+
+async function attemptRecurringSetup(
+  supabase: ReturnType<typeof createClient>,
+  orderId: string,
+  invoiceId: string,
+  customerId: string,
+  subscriptionId: string | null,
+  customer: any,
+  payerPhone: string,
+): Promise<void> {
+  const log = (msg: string) => console.log(`[PayPal Capture][RecurringSetup] ${msg}`);
+
+  try {
+    // ═══ STEP 1: Load order ═══
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, order_number, account_id, service_type, pricing_snapshot")
+      .eq("id", orderId)
+      .single();
+
+    if (!order) {
+      log(`Order ${orderId} not found — skipping recurring setup`);
+      await setRecurringStatus(supabase, subscriptionId, "skipped");
+      return;
+    }
+
+    // ═══ STEP 2: Check recurring eligibility ═══
+    if (!isRecurringEligible(order)) {
+      log(`Order ${order.order_number} is not recurring-eligible — marking skipped`);
+      await setRecurringStatus(supabase, subscriptionId, "skipped");
+      return;
+    }
+
+    // ═══ STEP 3: Anti-duplication — check existing PayPal subscription ═══
+    const { data: existingSub } = await supabase
+      .from("billing_subscriptions")
+      .select("id, paypal_subscription_id, recurring_setup_status")
+      .eq("order_id", orderId)
+      .not("paypal_subscription_id", "is", null)
+      .maybeSingle();
+
+    if (existingSub?.paypal_subscription_id) {
+      log(`PayPal subscription already exists for order ${orderId}: ${existingSub.paypal_subscription_id} — anti-duplication`);
+      return;
+    }
+
+    // ═══ STEP 4: Resolve recurring monthly total from billing_subscription_services ═══
+    // Find the subscription for this order
+    let nivraSubId = subscriptionId;
+    if (!nivraSubId) {
+      const { data: sub } = await supabase
+        .from("billing_subscriptions")
+        .select("id")
+        .eq("order_id", orderId)
+        .maybeSingle();
+      nivraSubId = sub?.id || null;
+    }
+
+    let recurringTotal = 0;
+    let planLabel = "";
+    let planCode = "";
+
+    if (nivraSubId) {
+      // Get item-level detail from billing_subscription_services
+      const { data: services } = await supabase
+        .from("billing_subscription_services")
+        .select("service_code, service_name, unit_price")
+        .eq("subscription_id", nivraSubId)
+        .eq("is_active", true);
+
+      if (services && services.length > 0) {
+        recurringTotal = services.reduce((sum: number, s: any) => sum + Number(s.unit_price), 0);
+        planLabel = services.map((s: any) => s.service_name).join(" + ");
+        planCode = services[0].service_code;
+      }
+    }
+
+    // Fallback: use pricing_snapshot if no services found
+    if (recurringTotal <= 0) {
+      const snapshot = order.pricing_snapshot;
+      if (snapshot) {
+        recurringTotal = Number(snapshot.monthly_total || snapshot.plan_price || 0);
+        planLabel = snapshot.plan_name || order.service_type || "Abonnement Nivra";
+        planCode = snapshot.plan_code || "";
+      }
+    }
+
+    if (recurringTotal <= 0 || !planCode) {
+      log(`Cannot resolve recurring amount or plan_code for order ${order.order_number} — marking failed`);
+      await setRecurringStatus(supabase, nivraSubId, "failed");
+      await supabase.from("billing_system_alerts").insert({
+        alert_type: "recurring_setup_failed",
+        entity_type: "order",
+        entity_id: orderId,
+        details: {
+          reason: "recurring_total_or_plan_code_unresolvable",
+          recurring_total: recurringTotal,
+          plan_code: planCode,
+          order_number: order.order_number,
+        },
+      });
+      return;
+    }
+
+    // ═══ STEP 5: Resolve customer info ═══
+    const customerEmail = customer?.email || "";
+    const customerFirstName = customer?.first_name || "";
+    const customerLastName = customer?.last_name || "";
+    const customerPhone = customer?.phone || payerPhone || "";
+
+    if (!customerEmail) {
+      log(`No customer email for order ${order.order_number} — marking failed`);
+      await setRecurringStatus(supabase, nivraSubId, "failed");
+      return;
+    }
+
+    // ═══ STEP 6: Call the canonical PayPal subscription factory ═══
+    log(`✓ Creating PayPal subscription: order=${order.order_number}, plan=${planCode}, amount=${recurringTotal}/mo`);
+
+    const result = await createNivraPayPalSubscription({
+      supabase,
+      customer_id: customerId,
+      customer_email: customerEmail,
+      customer_first_name: customerFirstName,
+      customer_last_name: customerLastName,
+      customer_phone: customerPhone,
+      order_id: orderId,
+      order_number: String(order.order_number),
+      account_id: order.account_id || "",
+      invoice_id: invoiceId,
+      recurring_monthly_total: recurringTotal,
+      plan_label: planLabel,
+      plan_code: planCode,
+      nivra_subscription_id: nivraSubId || undefined,
+    });
+
+    log(`✓ PayPal subscription created: ${result.paypal_subscription_id} | plan reused: ${result.plan_reused} | status: ${result.recurring_setup_status}`);
+    log(`  Approval URL: ${result.approval_url}`);
+
+    // Queue email with approval link for customer
+    await supabase.from("email_queue").insert({
+      event_key: `paypal_recurring_setup_${orderId}`,
+      to_email: normalizeEmail(customerEmail),
+      template_key: "paypal_recurring_approval",
+      template_vars: {
+        client_name: `${customerFirstName} ${customerLastName}`.trim(),
+        plan_name: planLabel,
+        monthly_amount: recurringTotal.toFixed(2),
+        approval_url: result.approval_url,
+        order_number: order.order_number,
+      },
+      status: "queued",
+      attempts: 0,
+      max_attempts: 5,
+    });
+
+  } catch (err: any) {
+    log(`✗ Recurring setup FAILED: ${err.message}`);
+    // Factory already creates system alert on failure, just log here
+    console.error("[PayPal Capture][RecurringSetup] Error:", err);
+  }
+}
+
+async function setRecurringStatus(
+  supabase: ReturnType<typeof createClient>,
+  subId: string | null,
+  status: string,
+): Promise<void> {
+  if (!subId) return;
+  await supabase.from("billing_subscriptions")
+    .update({
+      recurring_setup_status: status,
+      recurring_provider: status === "skipped" ? null : "paypal",
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", subId);
+}
