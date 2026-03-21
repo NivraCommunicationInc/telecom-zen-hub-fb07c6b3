@@ -221,7 +221,8 @@ function generateEmailPDFAttachment(templateKey: string, vars: Record<string, an
         return generatePDFAttachment('contract', buildContractData(vars));
       case 'summary':
         return generatePDFAttachment('summary', buildSummaryData(vars));
-      default:
+      case 'receipt':
+        return generatePDFAttachment('receipt', buildReceiptData(vars));
         return null;
     }
   } catch (error) {
