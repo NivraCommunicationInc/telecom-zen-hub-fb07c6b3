@@ -512,9 +512,18 @@ serve(async (req) => {
         accountId = existingAccount.id;
         accountNumber = existingAccount.account_number;
       } else {
+        // CANONICAL RULE: billing_cycle_day = day of order/service start
+        // Derive from pricing_snapshot first, then order created_at day, then today
+        const canonicalBillingCycleDay =
+          response.billing_cycle_day ||
+          (payload.pricing_snapshot as any)?.billing_cycle_day ||
+          new Date().getDate();
+
         const accountInsert: Record<string, unknown> = {
           client_id: payload.customer.user_id,
           status: "active",
+          billing_cycle_day: canonicalBillingCycleDay,
+          billing_anchor_date: new Date().toISOString().split("T")[0],
           primary_service_address: payload.service_address?.street || null,
           primary_service_city: payload.service_address?.city || null,
           primary_service_province: payload.service_address?.province || "QC",
@@ -545,10 +554,16 @@ serve(async (req) => {
         }
       }
 
-      if (accountId && response.billing_cycle_day) {
+      // ALWAYS ensure billing_cycle_day matches canonical rule on existing accounts too
+      const finalBillingCycleDay =
+        response.billing_cycle_day ||
+        (payload.pricing_snapshot as any)?.billing_cycle_day ||
+        new Date().getDate();
+
+      if (accountId) {
         await admin
           .from("accounts")
-          .update({ billing_cycle_day: response.billing_cycle_day })
+          .update({ billing_cycle_day: finalBillingCycleDay })
           .eq("id", accountId);
       }
 
