@@ -612,6 +612,7 @@ const ClientNewOrder = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [recurringPaymentAccepted, setRecurringPaymentAccepted] = useState(false);
   // Welcome discount dismissal — client can remove the auto-applied welcome discount
+  // CRITICAL: initialized as false, but hydrated from draft on mount to survive refresh
   const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
   
   
