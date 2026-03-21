@@ -1,15 +1,16 @@
 /**
  * Step 6 — Payment Options
- * STRIPE DISABLED — 2026-03-21
- * Card payments via Stripe are no longer available.
- * Only "Send payment link" option remains (will be migrated to PayPal).
+ * PayPal = primary recommended. Interac = secondary.
+ * Stripe/card flows permanently removed.
  */
 import { useState } from "react";
-import { Link2, Send, Mail, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Wallet, Banknote, Mail, Copy, Check, Info, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { ETRANSFER_CONFIG } from "@/config/company";
 import type { FieldSalePayment, FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   payment: FieldSalePayment;
@@ -22,41 +23,18 @@ interface Props {
 }
 
 export default function StepPayment({ payment, customer, totalAmount, leadId, onChange, onNext, onBack }: Props) {
-  const [sendingLink, setSendingLink] = useState(false);
-  const [linkSent, setLinkSent] = useState(payment.status === "sent");
+  const [copied, setCopied] = useState(false);
 
-  // ── Option A: Send payment link (Stripe disabled — will show error) ──
-  const handleSendLink = async () => {
-    if (!customer.email.trim()) {
-      toast.error("Le client doit avoir un courriel pour recevoir le lien de paiement.");
-      return;
-    }
-    setSendingLink(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("field-sale-payment", {
-        body: {
-          action: "create_payment_link",
-          amount: totalAmount,
-          customer_email: customer.email,
-          customer_name: `${customer.first_name} ${customer.last_name}`,
-          description: `Nivra — Commande terrain`,
-          lead_id: leadId || null,
-        },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      onChange({ ...payment, method: "send_link", status: "sent", linkSentTo: customer.email });
-      setLinkSent(true);
-      toast.success(`Lien de paiement envoyé à ${customer.email}`);
-    } catch (err) {
-      console.error("[StepPayment] send link error:", err);
-      toast.error("Erreur lors de l'envoi du lien de paiement. Veuillez réessayer ou utiliser PayPal / Interac.");
-    } finally {
-      setSendingLink(false);
-    }
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(ETRANSFER_CONFIG.email);
+    setCopied(true);
+    toast.success("Courriel copié!");
+    setTimeout(() => setCopied(false), 2000);
   };
+
+  const canContinue =
+    payment.method === "paypal" ||
+    (payment.method === "interac" && (payment.interacReference?.trim() || "").length > 0);
 
   return (
     <div className="space-y-6">
@@ -67,71 +45,113 @@ export default function StepPayment({ payment, customer, totalAmount, leadId, on
         </p>
       </div>
 
-      {/* Option A: Send link */}
+      {/* Option A: PayPal — PRIMARY */}
       <div className={cn(
-        "rounded-xl border-2 p-5 transition-all",
-        payment.method === "send_link" ? "border-primary bg-primary/5" : "border-border bg-card"
+        "rounded-xl border-2 p-5 transition-all cursor-pointer",
+        payment.method === "paypal" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/30"
       )}>
         <button
           type="button"
-          onClick={() => onChange({ ...payment, method: "send_link", status: "pending" })}
+          onClick={() => onChange({ ...payment, method: "paypal", status: "pending" })}
           className="w-full text-left"
         >
           <div className="flex items-center gap-3">
             <div className={cn(
               "h-10 w-10 rounded-lg flex items-center justify-center",
-              payment.method === "send_link" ? "bg-primary/10" : "bg-muted"
+              payment.method === "paypal" ? "bg-primary/10" : "bg-muted"
             )}>
-              <Link2 className={cn("h-5 w-5", payment.method === "send_link" ? "text-primary" : "text-muted-foreground")} />
+              <Wallet className={cn("h-5 w-5", payment.method === "paypal" ? "text-primary" : "text-muted-foreground")} />
             </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Envoyer un lien de paiement</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Le client paiera en ligne via un lien sécurisé</p>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">PayPal</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Le client paiera en ligne via PayPal (carte ou compte PayPal)
+              </p>
             </div>
+            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
           </div>
         </button>
 
-        {payment.method === "send_link" && (
-          <div className="mt-4 pt-4 border-t border-primary/20 space-y-3">
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Envoyer le lien à</label>
-              <div className="flex items-center gap-2 text-sm text-foreground bg-card border border-border rounded-lg px-3 py-2.5">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{customer.email || "Aucun courriel — requis"}</span>
-              </div>
+        {payment.method === "paypal" && (
+          <div className="mt-4 pt-4 border-t border-primary/20">
+            <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-lg">
+              <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Le paiement sera effectué par le client via PayPal lors de la confirmation de la commande. Un lien de paiement sécurisé lui sera envoyé automatiquement.
+              </p>
             </div>
-
-            {linkSent ? (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-sm text-primary font-medium">
-                <CheckCircle2 className="h-4 w-4" />
-                Lien envoyé à {payment.linkSentTo}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSendLink}
-                disabled={sendingLink || !customer.email.trim()}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
-              >
-                {sendingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                {sendingLink ? "Envoi en cours…" : "Envoyer le lien de paiement"}
-              </button>
-            )}
           </div>
         )}
       </div>
 
-      {/* Option B: Card present — DISABLED */}
-      <div className="rounded-xl border-2 border-border bg-muted/50 p-5 opacity-60">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-muted">
-            <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+      {/* Option B: Interac — SECONDARY */}
+      <div className={cn(
+        "rounded-xl border-2 p-5 transition-all cursor-pointer",
+        payment.method === "interac" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-muted-foreground/30"
+      )}>
+        <button
+          type="button"
+          onClick={() => onChange({ ...payment, method: "interac", status: "pending" })}
+          className="w-full text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center",
+              payment.method === "interac" ? "bg-primary/10" : "bg-muted"
+            )}>
+              <Banknote className={cn("h-5 w-5", payment.method === "interac" ? "text-primary" : "text-muted-foreground")} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Virement Interac</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Le client paiera par virement bancaire</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-muted-foreground">Paiement par carte sur place</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Non disponible — utilisez PayPal ou Interac</p>
+        </button>
+
+        {payment.method === "interac" && (
+          <div className="mt-4 pt-4 border-t border-primary/20 space-y-3">
+            <div className="p-3 bg-muted/50 border border-border rounded-lg">
+              <p className="text-xs font-medium text-foreground mb-2">Envoyer le virement Interac à :</p>
+              <div className="flex items-center gap-2 p-2 bg-background rounded border border-border">
+                <Mail className="w-4 h-4 text-primary" />
+                <span className="font-mono text-sm flex-1">{ETRANSFER_CONFIG.emailDisplay}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="text-xs px-2 py-1 rounded border border-border hover:bg-muted transition-colors flex items-center gap-1"
+                >
+                  {copied ? <><Check className="w-3 h-3 text-primary" /> Copié</> : <><Copy className="w-3 h-3" /> Copier</>}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2 bg-muted/50 rounded-lg border border-border">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Question de sécurité</p>
+                <p className="text-xs font-medium text-foreground">{ETRANSFER_CONFIG.securityQuestion}</p>
+              </div>
+              <div className="p-2 bg-muted/50 rounded-lg border border-border">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Réponse</p>
+                <p className="text-xs font-medium text-foreground">{ETRANSFER_CONFIG.securityAnswer}</p>
+              </div>
+            </div>
+
+            <div className="p-2 bg-muted/50 rounded-lg border border-border">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Montant exact</p>
+              <p className="text-base font-bold text-foreground">{totalAmount.toFixed(2)} $</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1 block">Référence du virement Interac</label>
+              <Input
+                value={payment.interacReference || ""}
+                onChange={(e) => onChange({ ...payment, interacReference: e.target.value })}
+                placeholder="Ex: TRF-847291"
+                className="text-sm"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex gap-3">
@@ -141,7 +161,7 @@ export default function StepPayment({ payment, customer, totalAmount, leadId, on
         <button
           type="button"
           onClick={onNext}
-          disabled={payment.status === "pending"}
+          disabled={!canContinue}
           className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Continuer →

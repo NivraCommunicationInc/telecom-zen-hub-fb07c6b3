@@ -45,9 +45,10 @@ export interface FieldSaleBilling {
 }
 
 export interface FieldSalePayment {
-  method: "send_link" | "card_present";
+  method: "paypal" | "interac" | "send_link" | "card_present";
   status: "pending" | "sent" | "completed";
   linkSentTo: string | null;
+  interacReference?: string;
 }
 
 export type FieldSaleStep = 
@@ -102,7 +103,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     billingCycleDay: new Date().getDate(),
   },
   payment: {
-    method: "send_link",
+    method: "paypal",
     status: "pending",
     linkSentTo: null,
   },

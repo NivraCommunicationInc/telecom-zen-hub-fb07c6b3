@@ -128,7 +128,7 @@ export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmi
       <Section icon={CreditCard} title="Paiement">
         <Row
           label="Méthode"
-          value={payment.method === "send_link" ? "Lien de paiement" : "Carte sur place"}
+          value={payment.method === "paypal" ? "PayPal (recommandé)" : payment.method === "interac" ? "Virement Interac" : payment.method === "send_link" ? "Lien de paiement" : "Carte sur place"}
         />
         <Row
           label="Statut"
