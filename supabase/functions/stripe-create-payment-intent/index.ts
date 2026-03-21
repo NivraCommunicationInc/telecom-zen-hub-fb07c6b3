@@ -53,6 +53,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { invoice_id, amount, description, customer_email, customer_id, intent_context } = body;
+    const isCheckoutPreconfirm = intent_context === "checkout_preconfirm";
 
     if (!amount || amount <= 0) throw new Error("Invalid amount");
 

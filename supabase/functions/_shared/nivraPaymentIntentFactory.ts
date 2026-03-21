@@ -96,13 +96,20 @@ export interface NivraPaymentIntentResult {
 function validateRequired(params: NivraPaymentIntentParams): void {
   const errors: string[] = [];
 
+  // Pre-authorization (checkout_preconfirm) is a hold before any order/invoice exists.
+  // Only customer_email, service_name, and total_amount are strictly required.
+  const isPreAuth = params.intent_context === "checkout_preconfirm" && params.capture_method === "manual";
+
   if (!params.customer_email) errors.push("customer_email is required");
-  if (!params.invoice_id) errors.push("invoice_id is required");
-  if (!params.invoice_number) errors.push("invoice_number is required");
   if (!params.service_name) errors.push("service_name is required");
   if (!params.total_amount || params.total_amount <= 0) errors.push("total_amount must be > 0");
-  if (!params.order_id && !params.subscription_id) {
-    errors.push("order_id or subscription_id is required (at least one)");
+
+  if (!isPreAuth) {
+    if (!params.invoice_id) errors.push("invoice_id is required");
+    if (!params.invoice_number) errors.push("invoice_number is required");
+    if (!params.order_id && !params.subscription_id) {
+      errors.push("order_id or subscription_id is required (at least one)");
+    }
   }
 
   if (errors.length > 0) {
