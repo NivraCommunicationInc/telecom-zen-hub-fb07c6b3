@@ -234,49 +234,9 @@ export default function UnifiedPOSPage({
 
     const isCardPayment = paymentData.payment_method === "card";
 
-    // ── CARD PAYMENT: Create draft order+invoice, then mount Stripe ──
-    if (isCardPayment && !stripePending) {
-      setIsSubmitting(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          toast.error("Session expirée");
-          navigate(backPath);
-          return;
-        }
-
-        const custInfo = buildCustomerInfo();
-        if (!custInfo) return;
-
-        const payload = pos.getOrderPayload();
-        const result = await createPOSDraftInvoice({
-          customer: custInfo,
-          services: pos.services,
-          equipment: pos.equipment,
-          adjustments: pos.adjustments,
-          totals: pos.totals,
-          portalType,
-          notes: paymentData.notes,
-          orderPayload: {
-            customer: custInfo,
-            services: payload.services,
-            equipment: payload.equipment,
-            adjustments: payload.adjustments,
-            ...((customerData as AdminCustomerData).is_new_client !== undefined && {
-              is_new_client: (customerData as AdminCustomerData).is_new_client,
-              client_id: (customerData as AdminCustomerData).client_id,
-            }),
-          },
-        });
-
-        setStripePending(result);
-        toast.info("Formulaire de paiement prêt — entrez les informations de carte.");
-      } catch (error: any) {
-        console.error("Draft invoice error:", error);
-        toast.error("Erreur", { description: error?.message || "Erreur inconnue" });
-      } finally {
-        setIsSubmitting(false);
-      }
+    // ── CARD PAYMENT: DISABLED — Stripe is no longer available ──
+    if (isCardPayment) {
+      toast.error("Les paiements par carte sont désactivés. Veuillez utiliser un autre mode de paiement.");
       return;
     }
 
