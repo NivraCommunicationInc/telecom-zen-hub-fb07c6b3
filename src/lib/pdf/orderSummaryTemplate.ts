@@ -215,10 +215,10 @@ export function generateOrderSummaryPDF(data: any): PDFGenerationResult {
     doc.setFontSize(9);
     const canonicalSubtotal = (d.subtotal_monthly || 0) + (d.subtotal_onetime || 0);
     doc.text("Sous-total", tx, y); doc.text(fmt(canonicalSubtotal), 185, y, { align: "right" }); y += 6;
+    // Discount already shown in "Promotion appliquee" card above — show net subtotal in totals
     if (d.discount_amount > 0) {
-      doc.setTextColor(0, 128, 0);
-      doc.text(d.discount_label || "Promotion", tx, y); doc.text(fmt(-d.discount_amount), 185, y, { align: "right" }); y += 6;
-      doc.setTextColor(0, 0, 0);
+      const netSubtotal = canonicalSubtotal - d.discount_amount;
+      doc.text("Sous-total apres rabais", tx, y); doc.text(fmt(netSubtotal), 185, y, { align: "right" }); y += 6;
     }
     doc.text("TPS (5%)", tx, y); doc.text(fmt(d.tax_gst), 185, y, { align: "right" }); y += 6;
     doc.text("TVQ (9,975%)", tx, y); doc.text(fmt(d.tax_qst), 185, y, { align: "right" }); y += 8;
