@@ -112,6 +112,8 @@ export default function FieldNewSale() {
       }));
 
       const paymentMethodMap: Record<string, string> = {
+        paypal: "paypal",
+        interac: "interac",
         send_link: "deferred",
         card_present: "card",
       };

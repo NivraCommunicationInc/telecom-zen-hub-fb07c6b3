@@ -103,7 +103,7 @@ export const EMPTY_DRAFT: Omit<FieldSaleDraft, "agentId" | "createdAt"> = {
     billingCycleDay: new Date().getDate(),
   },
   payment: {
-    method: "send_link",
+    method: "paypal",
     status: "pending",
     linkSentTo: null,
   },
