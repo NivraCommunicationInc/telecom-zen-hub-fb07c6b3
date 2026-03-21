@@ -5455,10 +5455,13 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                                   .limit(1)
                                   .maybeSingle()
                                   .then(({ data }) => {
-                                    if (data && data.document_front_path) {
-                                      setVerificationSessionId(data.id);
-                                      localStorage.setItem('nivra_kyc_session_id', data.id);
-                                      setIdVerificationApproved(true);
+                                      if (data && data.document_front_path) {
+                                        setVerificationSessionId(data.id);
+                                        setVerificationReferenceId(data.case_number || data.id);
+                                        setVerificationSubmissionState(data.status || "submitted");
+                                        setVerificationSubmittedAt(data.reviewed_at || data.created_at || new Date().toISOString());
+                                        localStorage.setItem('nivra_kyc_session_id', data.id);
+                                        setIdVerificationApproved(true);
                                     } else {
                                       // No documents → force restart
                                       toast.error("Aucun document trouvé. Veuillez soumettre de nouveaux documents.");
