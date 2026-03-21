@@ -236,3 +236,6 @@ verify_jwt = false
 
 [functions.employee-verify-customer-pin]
 verify_jwt = true
+
+[functions.retry-subscription-activation]
+verify_jwt = false
