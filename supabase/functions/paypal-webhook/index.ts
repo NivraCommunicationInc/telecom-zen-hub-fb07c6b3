@@ -463,7 +463,7 @@ serve(async (req) => {
             await supabase.from("email_queue").insert({
               event_key: `paypal_failed_${event.id}`,
               to_email: sub.customer.email,
-              template_key: "payment_failed",
+              template_key: "paypal_recurring_payment_failed",
               template_vars: {
                 client_name: `${sub.customer.first_name} ${sub.customer.last_name}`,
                 plan_name: sub.plan_name,
