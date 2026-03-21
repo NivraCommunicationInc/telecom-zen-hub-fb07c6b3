@@ -341,15 +341,28 @@ END:VCALENDAR`;
     ? normalizedSnapshot.recurring_subtotal
     : toNonNegativeMoney(order.subtotal);
 
-  // ★ Discount applies ONLY to service portion (recurring), never to equipment/fees
-  const serviceOnlyDiscount = normalizedSnapshot
-    ? toNonNegativeMoney(normalizedSnapshot.promo_discount + normalizedSnapshot.welcome_discount)
+  // ★ Split discounts: recurring-only for monthly display, one-time for today's payment
+  // A promo is recurring ONLY if its duration is 'recurring' or 'month' or it applies_to services.
+  // Equipment/one-time promos (e.g. EQUIP26) must NOT reduce the monthly recurring total.
+  const promoApplied = normalizedSnapshot?.promo_applied;
+  const isPromoRecurring = promoApplied
+    ? (promoApplied.duration === "recurring" || promoApplied.duration === "month"
+      || promoApplied.applies_to?.services === true || promoApplied.applies_to?.recurring === true)
+      && !promoApplied.applies_to?.equipment_only
+    : false;
+  const recurringPromoDiscount = normalizedSnapshot
+    ? toNonNegativeMoney((isPromoRecurring ? normalizedSnapshot.promo_discount : 0) + normalizedSnapshot.welcome_discount)
     : toNonNegativeMoney(order.promo_discount_amount);
-  const monthlyRecurringNet = toNonNegativeMoney(monthlyRecurringGross - serviceOnlyDiscount);
+  // One-time promo discount (equipment/activation credits) — affects today's payment only
+  const oneTimePromoDiscount = normalizedSnapshot && !isPromoRecurring
+    ? toNonNegativeMoney(normalizedSnapshot.promo_discount)
+    : 0;
+  const serviceOnlyDiscount = recurringPromoDiscount;
+  const monthlyRecurringNet = toNonNegativeMoney(monthlyRecurringGross - recurringPromoDiscount);
   const oneTimeSubtotal = normalizedSnapshot
     ? normalizedSnapshot.one_time_subtotal
     : toNonNegativeMoney(deliveryFee + activationFee + installationFee + routerFee + terminalFee + simFee);
-  const promoDiscount = serviceOnlyDiscount;
+  const promoDiscount = recurringPromoDiscount;
 
   // ★ Taxes and total — always finite, never NaN
   const taxableBase = normalizedSnapshot ? normalizedSnapshot.taxable_base : toNonNegativeMoney(order.subtotal);
