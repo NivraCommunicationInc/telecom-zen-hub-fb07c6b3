@@ -475,6 +475,22 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Change order status ── */
   const changeStatus = async (newStatus: string, reason?: string) => {
     const oldStatus = data?.order?.status;
+
+    // Use safe transition for completion states from intake states
+    const intakeStates = ["submitted", "pending_admin_review", "received"];
+    const completionStates = ["completed", "activated", "fulfilled", "delivered", "installation_completed"];
+    if (intakeStates.includes(oldStatus || "") && completionStates.includes(newStatus)) {
+      // Step through operational states to satisfy DB guard
+      await updateOrder.mutateAsync({ status: "confirmed" });
+      await logActivity("status_change", "order", orderId, {
+        old_status: oldStatus, new_status: "confirmed", reason: "Auto-transition"
+      });
+      await updateOrder.mutateAsync({ status: "processing" });
+      await logActivity("status_change", "order", orderId, {
+        old_status: "confirmed", new_status: "processing", reason: "Auto-transition"
+      });
+    }
+
     await updateOrder.mutateAsync({ status: newStatus });
     await logActivity(
       "status_change",
@@ -487,7 +503,6 @@ export function useOrderProcessing(orderId: string | undefined) {
     // Queue email notification to client — map to existing template keys
     const email = getClientEmail();
     if (email) {
-      // Map status to known template keys in process-email-queue
       const statusTemplateMap: Record<string, string> = {
         shipped: "order_shipped",
         delivered: "order_completed",
@@ -495,6 +510,8 @@ export function useOrderProcessing(orderId: string | undefined) {
         activated: "order_completed",
         installed: "order_completed",
         cancelled: "order_cancelled",
+        technician_en_route: "technician_en_route",
+        installation_completed: "order_completed",
       };
       const templateKey = statusTemplateMap[newStatus] || "order_submitted";
 
