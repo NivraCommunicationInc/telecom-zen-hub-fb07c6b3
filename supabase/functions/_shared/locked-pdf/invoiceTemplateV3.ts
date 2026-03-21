@@ -20,7 +20,7 @@
  * └─────────────────────────────────────────────┘
  */
 
-import jsPDF from "jspdf";
+import jsPDF from "npm:jspdf@2";
 import type { InvoiceDataV2, PDFGenerationResult } from "./types";
 import { NIVRA, TAX } from "./companyInfo";
 
