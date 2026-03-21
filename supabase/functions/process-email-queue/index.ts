@@ -2870,12 +2870,20 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Generate attachments: passthrough from ResendProxy OR auto-generated PDF
+        // Generate attachments: passthrough > full document set > single PDF
         let attachments: Array<{ filename: string; content: string }> | undefined;
         if (templateVars._attachments && Array.isArray(templateVars._attachments)) {
           attachments = templateVars._attachments;
           console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
+        } else if (FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) {
+          // Order/payment confirmation → attach ALL 4 PDFs
+          const fullSet = generateFullDocumentSet(templateVars);
+          if (fullSet.length > 0) {
+            attachments = fullSet;
+            console.log(`[FULL DOC SET] email_id=${email.id} files=${fullSet.map(f => f.filename).join(', ')}`);
+          }
         } else {
+          // Other templates → single PDF based on type
           const pdfAttachment = generateEmailPDFAttachment(templateKey, templateVars);
           if (pdfAttachment) {
             attachments = [{
