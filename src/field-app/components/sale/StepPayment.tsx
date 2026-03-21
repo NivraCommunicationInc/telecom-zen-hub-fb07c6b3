@@ -129,7 +129,7 @@ export default function StepPayment({ payment, customer, totalAmount, leadId, on
           </div>
           <div>
             <p className="text-sm font-semibold text-muted-foreground">Paiement par carte sur place</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Temporairement indisponible — utilisez le lien de paiement</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Non disponible — utilisez PayPal ou Interac</p>
           </div>
         </div>
       </div>
