@@ -101,72 +101,143 @@ export default function FieldNewSale() {
 
     try {
       const promoNames = draft.promos.map(p => p.name).join(", ");
-      
-      const { data: lead, error } = await supabase.from("field_leads").insert({
-        agent_id: user.id,
-        agent_name: profile?.full_name || "Agent",
-        first_name: draft.customer.first_name,
-        last_name: draft.customer.last_name,
-        email: draft.customer.email,
-        phone: draft.customer.phone,
-        address: draft.customer.address,
-        city: draft.customer.city,
-        postal_code: draft.customer.postal_code,
-        service_need: draft.services.map((s) => s.name).join(", "),
-        payment_method_intent: draft.payment.method === "send_link" ? "Lien de paiement" : "Carte sur place",
-        eligibility_notes: `Installation: ${draft.installation.type}${draft.installation.scheduledDate ? ` le ${draft.installation.scheduledDate}` : ""}`,
-        notes: [
-          `Services: ${draft.services.map((s) => s.name).join(", ")}`,
-          `Équipement: ${draft.equipment.map((e) => `${e.name} x${e.quantity}`).join(", ") || "Aucun"}`,
-          promoNames ? `Promos: ${promoNames}` : "",
-          `Total: ${taxes.total.toFixed(2)} $`,
-          `Pré-auth: ${draft.billing.preauthorizedPayment ? "Oui" : "Non"}`,
-          draft.customer.notes,
-        ].filter(Boolean).join(". ").trim(),
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
-      }).select("id").single();
 
-      if (error) throw error;
+      // ═══ STEP 1: Insert into field_sales_orders (canonical sync source) ═══
+      const servicesPayload = draft.services.map(s => ({
+        name: s.name,
+        category: s.category,
+        price_monthly: s.monthlyPrice,
+        price_setup: 0,
+        quantity: 1,
+      }));
 
-      // Auto-create commission record
+      const paymentMethodMap: Record<string, string> = {
+        send_link: "deferred",
+        card_present: "card",
+      };
+
+      const { data: fieldOrder, error: fieldOrderError } = await supabase
+        .from("field_sales_orders")
+        .insert({
+          salesperson_id: user.id,
+          customer_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim(),
+          customer_email: draft.customer.email,
+          customer_phone: draft.customer.phone,
+          customer_address: draft.customer.address,
+          customer_city: draft.customer.city,
+          customer_postal_code: draft.customer.postal_code,
+          services: servicesPayload,
+          total_amount: totalDueToday,
+          payment_method: paymentMethodMap[draft.payment.method] || "deferred",
+          payment_status: draft.payment.status === "completed" ? "confirmed" : "pending",
+          payment_reference: null,
+          appointment_date: draft.installation.scheduledDate || null,
+          appointment_notes: draft.installation.timeWindow
+            ? `Plage: ${draft.installation.timeWindow}. Type: ${draft.installation.type}`
+            : `Type: ${draft.installation.type}`,
+          sync_status: "pending",
+          internal_notes: [
+            promoNames ? `Promos: ${promoNames}` : "",
+            draft.equipment.length > 0 ? `Équipement: ${draft.equipment.map(e => `${e.name} x${e.quantity}`).join(", ")}` : "",
+            draft.billing.preauthorizedPayment ? "Pré-auth: Oui" : "",
+            draft.customer.notes || "",
+          ].filter(Boolean).join("\n"),
+        })
+        .select("id")
+        .single();
+
+      if (fieldOrderError) throw fieldOrderError;
+
+      console.log("[FieldNewSale] field_sales_orders created:", fieldOrder.id);
+
+      // ═══ STEP 2: Call field-sales-sync to create canonical order ═══
       try {
-        const { data: rules } = await supabase
-          .from("field_sales_commission_rules")
-          .select("*")
-          .eq("is_active", true)
-          .limit(1);
+        const { data: syncResult, error: syncError } = await supabase.functions.invoke(
+          "field-sales-sync",
+          { body: { action: "sync_single", sale_id: fieldOrder.id } }
+        );
 
-        const rule = rules?.[0];
-        let commissionAmount = 0;
+        if (syncError) {
+          console.error("[FieldNewSale] Sync error (non-blocking):", syncError);
+        } else if (syncResult?.success) {
+          console.log("[FieldNewSale] Canonical order created:", syncResult.order_number);
+        } else {
+          console.warn("[FieldNewSale] Sync returned failure:", syncResult);
+        }
+      } catch (syncErr) {
+        console.error("[FieldNewSale] Sync call failed (non-blocking):", syncErr);
+      }
 
-        if (rule) {
-          if (rule.rule_type === "percentage" && rule.bonus_percentage) {
-            commissionAmount = Math.round((taxes.total * rule.bonus_percentage / 100) * 100) / 100;
-          } else if (rule.bonus_amount) {
-            commissionAmount = rule.bonus_amount;
+      // ═══ STEP 3: Also create field_leads record (legacy / CRM tracking) ═══
+      try {
+        const { data: lead } = await supabase.from("field_leads").insert({
+          agent_id: user.id,
+          agent_name: profile?.full_name || "Agent",
+          first_name: draft.customer.first_name,
+          last_name: draft.customer.last_name,
+          email: draft.customer.email,
+          phone: draft.customer.phone,
+          address: draft.customer.address,
+          city: draft.customer.city,
+          postal_code: draft.customer.postal_code,
+          service_need: draft.services.map((s) => s.name).join(", "),
+          payment_method_intent: draft.payment.method === "send_link" ? "Lien de paiement" : "Carte sur place",
+          eligibility_notes: `Installation: ${draft.installation.type}${draft.installation.scheduledDate ? ` le ${draft.installation.scheduledDate}` : ""}`,
+          notes: [
+            `Services: ${draft.services.map((s) => s.name).join(", ")}`,
+            `Équipement: ${draft.equipment.map((e) => `${e.name} x${e.quantity}`).join(", ") || "Aucun"}`,
+            promoNames ? `Promos: ${promoNames}` : "",
+            `Total: ${taxes.total.toFixed(2)} $`,
+            `Pré-auth: ${draft.billing.preauthorizedPayment ? "Oui" : "Non"}`,
+            draft.customer.notes,
+          ].filter(Boolean).join(". ").trim(),
+          status: "submitted",
+          submitted_at: new Date().toISOString(),
+        }).select("id").single();
+
+        // Auto-create commission record
+        if (lead) {
+          try {
+            const { data: rules } = await supabase
+              .from("field_sales_commission_rules")
+              .select("*")
+              .eq("is_active", true)
+              .limit(1);
+
+            const rule = rules?.[0];
+            let commissionAmount = 0;
+
+            if (rule) {
+              if (rule.rule_type === "percentage" && rule.bonus_percentage) {
+                commissionAmount = Math.round((taxes.total * rule.bonus_percentage / 100) * 100) / 100;
+              } else if (rule.bonus_amount) {
+                commissionAmount = rule.bonus_amount;
+              }
+            }
+
+            if (commissionAmount <= 0) commissionAmount = 10;
+
+            await supabase.from("field_commissions").insert({
+              agent_id: user.id,
+              lead_id: lead.id,
+              amount: commissionAmount,
+              status: "pending",
+              notes: `Auto-commission: ${draft.services.map((s) => s.name).join(", ")} — ${taxes.total.toFixed(2)} $`,
+            });
+          } catch (commErr) {
+            console.error("[FieldNewSale] Commission creation failed (non-blocking):", commErr);
           }
         }
-
-        if (commissionAmount <= 0) commissionAmount = 10;
-
-        await supabase.from("field_commissions").insert({
-          agent_id: user.id,
-          lead_id: lead.id,
-          amount: commissionAmount,
-          status: "pending",
-          notes: `Auto-commission: ${draft.services.map((s) => s.name).join(", ")} — ${taxes.total.toFixed(2)} $`,
-        });
-      } catch (commErr) {
-        console.error("[FieldNewSale] Commission creation failed (non-blocking):", commErr);
+      } catch (leadErr) {
+        console.error("[FieldNewSale] Lead creation failed (non-blocking):", leadErr);
       }
 
       await logInternalAudit({
         action: "field_sale_submitted",
         category: "operations",
         portal: "field",
-        targetType: "lead",
-        targetId: lead.id,
+        targetType: "field_sales_order",
+        targetId: fieldOrder.id,
         details: {
           customer: `${draft.customer.first_name} ${draft.customer.last_name}`,
           services: draft.services.map((s) => s.name),
@@ -177,7 +248,7 @@ export default function FieldNewSale() {
       });
 
       toast.success("Commande soumise avec succès !");
-      navigate(fieldPath(`/sale/success?leadId=${lead.id}&total=${taxes.total.toFixed(2)}&payment=${draft.payment.method}&status=${draft.payment.status}`));
+      navigate(fieldPath(`/sale/success?leadId=${fieldOrder.id}&total=${taxes.total.toFixed(2)}&payment=${draft.payment.method}&status=${draft.payment.status}`));
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de la soumission");
