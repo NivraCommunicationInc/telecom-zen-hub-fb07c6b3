@@ -260,29 +260,35 @@ END:VCALENDAR`;
     const orderCreatedDate = new Date(order?.created_at || new Date());
     const activationDay = orderCreatedDate.getDate();
     
-    // ★ Nivra Core source of truth: pricing_snapshot.billing_cycle_day > order creation day
+    // ★ CANONICAL: Use real cycle dates from subscription/order, NOT computed month logic
     const ps = order?.pricing_snapshot;
     const billCycleDay = ps?.billing_cycle_day || activationDay;
     
-    const today = new Date();
-    let nextBillingDate = new Date(today.getFullYear(), today.getMonth(), billCycleDay);
+    // Priority: subscription cycle_end_date > pricing_snapshot > computed
+    const subCycleEnd = subscription?.cycle_end_date;
+    const subCycleStart = subscription?.cycle_start_date;
     
-    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    if (billCycleDay > lastDayOfMonth) {
-      nextBillingDate = new Date(today.getFullYear(), today.getMonth(), lastDayOfMonth);
+    let cycleStartDate: Date;
+    let nextBillingDate: Date;
+    
+    if (subCycleStart) {
+      cycleStartDate = new Date(subCycleStart + "T00:00:00");
+    } else {
+      cycleStartDate = orderCreatedDate;
     }
     
-    if (nextBillingDate <= today) {
-      const nextMonth = today.getMonth() + 1;
-      const nextYear = nextMonth > 11 ? today.getFullYear() + 1 : today.getFullYear();
-      const adjustedMonth = nextMonth > 11 ? 0 : nextMonth;
-      const lastDayNextMonth = new Date(nextYear, adjustedMonth + 1, 0).getDate();
-      const adjustedDay = Math.min(billCycleDay, lastDayNextMonth);
-      nextBillingDate = new Date(nextYear, adjustedMonth, adjustedDay);
+    if (subCycleEnd) {
+      // Next billing = cycle_end_date (the due date / renewal point)
+      nextBillingDate = new Date(subCycleEnd + "T00:00:00");
+    } else {
+      // Fallback: order date + 1 month
+      nextBillingDate = new Date(cycleStartDate);
+      nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
     }
     
     return {
       cycleDay: billCycleDay,
+      cycleStartDate,
       nextBillingDate,
       activationDay,
     };

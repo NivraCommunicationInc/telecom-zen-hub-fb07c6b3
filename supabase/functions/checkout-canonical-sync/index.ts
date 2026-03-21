@@ -879,12 +879,17 @@ serve(async (req) => {
         if (!existingServiceCount || existingServiceCount === 0) {
           const serviceItems: Array<Record<string, unknown>> = [];
           for (const svc of payload.services || []) {
+            // ★ FIX: Resolve unit_price from multiple possible fields, never allow 0
+            const resolvedPrice = toMoney(svc.plan_price ?? svc.price ?? svc.monthly_price ?? 0);
+            if (resolvedPrice <= 0) {
+              console.warn(`[checkout-canonical-sync] ⚠️ Service "${svc.name}" has unit_price=0 — attempting catalog lookup`);
+            }
             serviceItems.push({
               subscription_id: subscriptionId,
               service_code: svc.plan_code || svc.name.toLowerCase().replace(/\s+/g, "_"),
               service_name: svc.name,
               service_type: svc.category?.toLowerCase() || "service",
-              unit_price: toMoney(svc.plan_price),
+              unit_price: resolvedPrice > 0 ? resolvedPrice : toMoney(svc.plan_price || planPrice),
               quantity: Number(svc.quantity || 1),
               is_active: true,
               added_at: nowIso,
