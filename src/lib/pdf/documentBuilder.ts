@@ -570,6 +570,12 @@ export function buildReceiptData(data: OrderDocumentData): ReceiptData | null {
       : undefined,
     transaction_reference: confirmedPayment?.provider_payment_id || confirmedPayment?.reference || undefined,
     balance_remaining: breakdown ? breakdown.balance_due : (billingInvoice?.balance_due || 0),
+    // Canonical tax fields from compute_invoice_breakdown
+    subtotal: breakdown?.subtotal,
+    discount_amount: breakdown?.discounts_total || 0,
+    discount_label: breakdown?.items.filter(i => i.line_type === "discount").map(i => i.description).join(", ") || undefined,
+    tps_amount: breakdown?.tps_amount,
+    tvq_amount: breakdown?.tvq_amount,
   };
 }
 
