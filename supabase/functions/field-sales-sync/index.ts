@@ -243,6 +243,65 @@ Deno.serve(async (req) => {
         const baseAmount = subtotal + activationFee + deliveryFee + installationFee;
         const { tps: tpsAmount, tvq: tvqAmount, total: totalAmount } = computeTaxes(baseAmount);
 
+        // ═══ RESOLVE OR CREATE ACCOUNT (orders.account_id is NOT NULL) ═══
+        let accountId: string | null = null;
+
+        // 1) Try to find existing account by client_id
+        const { data: existingAccount } = await supabaseAdmin
+          .from("accounts")
+          .select("id")
+          .eq("client_id", clientUserId!)
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingAccount) {
+          accountId = existingAccount.id;
+          console.log(`[field-sales-sync] Found existing account ${accountId} for client ${clientUserId}`);
+        } else {
+          // 2) Create new account with generated account_number
+          const { data: acctNum, error: acctNumErr } = await supabaseAdmin.rpc("generate_account_number");
+          if (acctNumErr || !acctNum) {
+            throw new Error(`generate_account_number failed: ${acctNumErr?.message}`);
+          }
+
+          const { firstName: fn, lastName: ln } = splitName(sale.customer_name);
+          const { data: newAccount, error: acctErr } = await supabaseAdmin
+            .from("accounts")
+            .insert({
+              client_id: clientUserId!,
+              account_number: String(acctNum),
+              account_name: sale.customer_name || `${fn || ""} ${ln || ""}`.trim() || "Client Terrain",
+              status: "active",
+              billing_address: sale.customer_address || null,
+              billing_city: sale.customer_city || null,
+              billing_postal_code: sale.customer_postal_code || null,
+              billing_province: "QC",
+              primary_service_address: sale.customer_address || null,
+              primary_service_city: sale.customer_city || null,
+              primary_service_postal_code: sale.customer_postal_code || null,
+              primary_service_province: "QC",
+              billing_cycle_day: new Date().getDate(),
+            })
+            .select("id, account_number")
+            .single();
+
+          if (acctErr || !newAccount) {
+            console.error("[field-sales-sync] Account creation error:", acctErr);
+            throw new Error(`Account creation failed: ${acctErr?.message}`);
+          }
+
+          accountId = newAccount.id;
+          console.log(`[field-sales-sync] Created account ${newAccount.account_number} (${accountId}) for client ${clientUserId}`);
+
+          // Sync account_number to profile
+          await supabaseAdmin
+            .from("profiles")
+            .update({ account_number: String(acctNum) })
+            .eq("user_id", clientUserId!);
+        }
+
         // Generate order number from DB sequence — Core is sole source of truth
         const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
 
@@ -254,6 +313,7 @@ Deno.serve(async (req) => {
           .from('orders')
           .insert({
             user_id: clientUserId,
+            account_id: accountId,
             order_number: orderNumber,
             created_by: 'field_sales',
 
@@ -283,15 +343,11 @@ Deno.serve(async (req) => {
             appointment_date: sale.appointment_date || null,
             appointment_notes: sale.appointment_notes || null,
 
-            // Shipping fields used by staff/admin flows
             shipping_address: sale.customer_address || null,
             shipping_city: sale.customer_city || null,
             shipping_postal_code: sale.customer_postal_code || null,
 
-            // Keep original channel selection if TV workflow was used
             selected_channels: sale.selected_channels || [],
-
-            // Contract/billing engines read structured line_items from equipment_details
             equipment_details: wrapLineItemsForOrder(lineItems),
 
             notes: `Vente terrain (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
