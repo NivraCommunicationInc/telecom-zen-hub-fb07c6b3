@@ -10,6 +10,13 @@ import type { ReceiptData as LockedReceiptData } from "../_shared/locked-pdf/rec
 import type { ContractDataV3 } from "../_shared/locked-pdf/contractTemplateV3.ts";
 import type { OrderSummaryV3Data } from "../_shared/locked-pdf/orderSummaryTemplate.ts";
 
+type PDFType = "invoice" | "receipt" | "contract" | "summary";
+
+interface PDFAttachment {
+  filename: string;
+  content: string;
+}
+
 interface EmailQueueItem {
   id: string;
   event_key: string;
