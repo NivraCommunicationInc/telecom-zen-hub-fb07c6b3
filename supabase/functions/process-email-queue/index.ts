@@ -286,61 +286,8 @@ async function generateEmailPDFAttachment(templateKey: string, vars: Record<stri
 // SHARED EMAIL LAYOUT COMPONENTS
 // =============================================
 
-// PROFESSIONAL BLUE DESIGN SYSTEM - #0066CC Primary
-const emailStyles = {
-  fontFamily: "Arial, Helvetica, 'Segoe UI', sans-serif",
-  bgColor: "#F8FAFB",
-  cardBg: "#ffffff",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#4A4A4A",
-  textMuted: "#6B7280",
-  // Professional Blue Primary
-  accent: "#0066CC",
-  accentDark: "#004C99",
-  accentLight: "#E6F0FA",
-  // Status Colors
-  success: "#059669",
-  successBg: "#ECFDF5",
-  successBorder: "#A7F3D0",
-  warning: "#D97706",
-  warningBg: "#FFFBEB",
-  warningBorder: "#FCD34D",
-  error: "#DC2626",
-  errorBg: "#FEF2F2",
-  errorBorder: "#FECACA",
-  info: "#2563EB",
-  infoBg: "#EFF6FF",
-  infoBorder: "#BFDBFE",
-  border: "#E5E7EB",
-  footerBg: "#1F2937",
-  footerText: "#D1D5DB",
-};
-
-const formatCurrency = (amount: number) => 
-  new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
-
-const formatDate = (dateStr: string, includeTime = false) => {
-  if (!dateStr) return 'N/A';
-  const date = new Date(dateStr);
-  if (includeTime) {
-    return date.toLocaleString('fr-CA', { dateStyle: 'long', timeStyle: 'short' });
-  }
-  return date.toLocaleDateString('fr-CA', { dateStyle: 'long' });
-};
-
-// URL joining helper - guarantees exactly one slash between base and path
-const joinUrl = (baseUrl: string, path: string): string => {
-  const base = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
-  const cleanPath = path.replace(/^\/+/, ''); // Remove leading slashes
-  const result = `${base}/${cleanPath}`;
-  
-  // Validation: check for common URL joining errors
-  if (result.includes('.appclient') || result.includes('.caclient') || result.includes('.app/client') === false && result.includes('.app') && result.includes('client')) {
-    console.error(`[URL ERROR] Invalid URL detected: ${result}`);
-  }
-  
-  return result;
-};
+import { emailStyles, formatCurrency, formatDate, joinUrl, wrapEmail, detailsCard, statusBadge, greeting, emailTemplates } from "../_shared/email-templates.ts";
+import type { EmailConfig } from "../_shared/email-templates.ts";
 
 const toMoney = (value: unknown): number | null => {
   const n = Number(value);
