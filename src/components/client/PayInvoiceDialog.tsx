@@ -124,30 +124,10 @@ const PayInvoiceDialog = ({
           </div>
         </div>
 
-        {/* Payment Method Selection */}
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">Choisir un mode de paiement</p>
 
-          {/* Credit Card — PRIMARY */}
-          <button
-            onClick={() => setPaymentMethod("card")}
-            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
-              paymentMethod === "card"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-muted-foreground/30 bg-background"
-            }`}
-          >
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">Carte de crédit ou débit</p>
-              <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex — paiement sécurisé via Stripe</p>
-            </div>
-            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
-          </button>
-
-          {/* PayPal */}
+          {/* PayPal — PRIMARY */}
           <button
             onClick={() => setPaymentMethod("paypal")}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
@@ -163,6 +143,7 @@ const PayInvoiceDialog = ({
               <p className="font-semibold text-foreground">PayPal</p>
               <p className="text-xs text-muted-foreground">Payez avec votre compte PayPal ou carte via PayPal</p>
             </div>
+            <Badge className="bg-primary/10 text-primary border-0 text-xs">Recommandé</Badge>
           </button>
 
           {/* Interac */}
@@ -185,21 +166,6 @@ const PayInvoiceDialog = ({
         </div>
 
         {/* ============ Payment Form Based on Selection ============ */}
-
-        {/* Credit/Debit Card via Stripe Elements (inline) */}
-        {paymentMethod === "card" && (
-          <div className="mt-2">
-            <StripeInlinePayment
-              invoiceId={invoice.id}
-              intentContext="invoice_payment"
-              amount={amount}
-              description={`Facture ${invoiceNumber} - Nivra Telecom`}
-              customerEmail={profile?.email}
-              onSuccess={handlePaymentSuccess}
-              onError={handlePaymentError}
-            />
-          </div>
-        )}
 
         {/* PayPal */}
         {paymentMethod === "paypal" && (
