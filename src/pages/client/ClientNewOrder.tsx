@@ -312,6 +312,8 @@ interface OrderDraft {
   } | null;
   // Referral code details (persisted to survive PayPal redirect)
   appliedReferral: AppliedReferral | null;
+  // Welcome discount dismissal (persisted to prevent default promo override)
+  welcomeDiscountDismissed?: boolean;
   // Payment state (persisted to avoid double-charging after redirect)
   paypalCaptureId: string;
   paymentComplete: boolean;
