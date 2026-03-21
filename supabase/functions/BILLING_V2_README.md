@@ -88,16 +88,24 @@ Crée: billing_payment (status = 'pending')
 Email rappel de renouvellement
 ```
 
-### 4. Non-Paiement
+### 4. Non-Paiement (Règle canonique)
 ```
-CRON billing-check-overdue (quotidien)
+CRON billing-check-overdue + billing-lifecycle (quotidien)
     ↓
-J+2 après due_date: subscription.status = 'suspended'
-                    Email avertissement
+RÈGLE: due_date = jour du cycle (billing_cycle_day)
     ↓
-J+5 après due_date: subscription.status = 'cancelled'
-                    invoice.status = 'failed'
-                    Email annulation
+J0 (due_date): invoice.status = 'overdue'
+               Email rappel de paiement en retard
+               Période de grâce de 5 jours commence
+    ↓
+J+1 à J+4: rappels quotidiens envoyés
+            Grâce active — service toujours actif
+    ↓
+J+5 (due_date + 5 jours): subscription.status = 'suspended'
+                           invoice.status = 'void'
+                           Email service suspendu
+                           Alerte système créée
+                           AUCUNE dette — modèle 100% prépayé
 ```
 
 ## Protections SQL

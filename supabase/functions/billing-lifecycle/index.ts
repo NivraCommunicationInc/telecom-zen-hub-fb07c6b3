@@ -43,20 +43,29 @@ function addDays(dateStr: string, days: number): string {
 }
 
 // ========================================
-// STEP 1 — Expire subscriptions past cycle_end_date
-// Scenario A: No debt. subscription=expired, invoice=void
-// ========================================
+// STEP 1 — Suspend/expire subscriptions past due_date + grace period
+// ══════════════════════════════════════════════════════════════════
+// CANONICAL NIVRA BILLING RULE:
+//   - due_date = the cycle day (billing_cycle_day of the month)
+//   - J0 (due_date) → invoice becomes overdue
+//   - J+5 (due_date + 5 days) → subscription SUSPENDED, invoice VOIDED
+//   - No debt accumulation (prepaid model)
+// ══════════════════════════════════════════════════════════════════
 async function processExpirations(
   supabase: ReturnType<typeof createClient>,
   stats: RunStats,
 ) {
   const today = todayStr();
+  const todayDate = new Date(today);
 
-  const { data: expired, error } = await supabase
-    .from("billing_subscriptions")
-    .select("*, customer:billing_customers(id, email, first_name, last_name)")
-    .in("status", ["active", "pending"])
-    .lte("cycle_end_date", today);
+  // Find subscriptions with unpaid invoices past due_date + 5 days (grace expired)
+  const graceCutoff = addDays(today, -5); // invoices with due_date <= this are past grace
+
+  const { data: pastGraceInvoices, error } = await supabase
+    .from("billing_invoices")
+    .select("*, subscription:billing_subscriptions(id, status, plan_name, customer_id)")
+    .in("status", ["pending", "overdue"])
+    .lte("due_date", graceCutoff);
 
   if (error) {
     stats.errors.push(`Expiration query error: ${error.message}`);
@@ -64,104 +73,102 @@ async function processExpirations(
     return;
   }
 
-  console.log(`[lifecycle] Found ${expired?.length || 0} expired subscriptions`);
+  console.log(`[lifecycle] Found ${pastGraceInvoices?.length || 0} invoices past 5-day grace period`);
 
-  for (const sub of expired || []) {
+  for (const inv of pastGraceInvoices || []) {
     try {
-      // Check if there's a PAID renewal invoice for the next cycle
-      const nextCycleStart = sub.cycle_end_date;
-      const { data: paidRenewal } = await supabase
-        .from("billing_invoices")
-        .select("id")
-        .eq("subscription_id", sub.id)
-        .eq("type", "renewal")
-        .eq("cycle_start_date", nextCycleStart)
-        .eq("status", "paid")
-        .maybeSingle();
+      const sub = inv.subscription;
+      if (!sub) continue;
 
-      if (paidRenewal) {
-        const newEnd = addDays(nextCycleStart, 30);
+      // Skip already suspended/expired
+      if (sub.status !== "active" && sub.status !== "pending") {
+        // Just void the invoice if still pending/overdue
         await supabase
-          .from("billing_subscriptions")
-          .update({
-            cycle_start_date: nextCycleStart,
-            cycle_end_date: newEnd,
-            status: "active",
-          })
-          .eq("id", sub.id);
-
-        stats.processed_items.push({
-          action: "renewed",
-          subscription_id: sub.id,
-          plan: sub.plan_name,
-          new_cycle_end: newEnd,
-        });
-        console.log(`[lifecycle] Renewed subscription ${sub.id} to ${newEnd}`);
+          .from("billing_invoices")
+          .update({ status: "void", updated_at: new Date().toISOString() })
+          .eq("id", inv.id);
+        stats.invoices_voided++;
         continue;
       }
 
-      // Scenario A: expire (no debt)
-      const { error: expErr } = await supabase
+      // Check if there's a PAID invoice for this same subscription/cycle (late payment)
+      const { data: paidInvoice } = await supabase
+        .from("billing_invoices")
+        .select("id")
+        .eq("subscription_id", sub.id)
+        .eq("status", "paid")
+        .eq("cycle_start_date", inv.cycle_start_date)
+        .maybeSingle();
+
+      if (paidInvoice) {
+        // Already paid separately — void duplicate and skip
+        await supabase
+          .from("billing_invoices")
+          .update({ status: "void", notes: "Duplicate — already paid" })
+          .eq("id", inv.id);
+        stats.invoices_voided++;
+        continue;
+      }
+
+      // SUSPEND the subscription (J+5 grace expired)
+      const { error: suspErr } = await supabase
         .from("billing_subscriptions")
-        .update({ status: "expired", updated_at: new Date().toISOString() })
+        .update({ status: "suspended", updated_at: new Date().toISOString() })
         .eq("id", sub.id);
 
-      if (expErr) {
-        stats.errors.push(`Failed to expire ${sub.id}: ${expErr.message}`);
+      if (suspErr) {
+        stats.errors.push(`Failed to suspend ${sub.id}: ${suspErr.message}`);
         stats.errors_count++;
         continue;
       }
 
+      // VOID the invoice (prepaid model — no debt)
+      await supabase
+        .from("billing_invoices")
+        .update({
+          status: "void",
+          notes: `[LIFECYCLE] Service suspendu — période de grâce de 5 jours expirée (due_date: ${inv.due_date})`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", inv.id);
+
       stats.subscriptions_expired++;
-
-      // Void ALL unpaid invoices for this subscription
-      const { data: unpaidInvoices } = await supabase
-        .from("billing_invoices")
-        .select("id, status")
-        .eq("subscription_id", sub.id)
-        .in("status", ["pending", "overdue", "draft"]);
-
-      for (const inv of unpaidInvoices || []) {
-        const { error: voidErr } = await supabase
-          .from("billing_invoices")
-          .update({ status: "void" })
-          .eq("id", inv.id);
-        if (!voidErr) stats.invoices_voided++;
-      }
-
-      // Also void customer-level orphan invoices
-      const { data: customerUnpaid } = await supabase
-        .from("billing_invoices")
-        .select("id, status")
-        .eq("customer_id", sub.customer_id)
-        .in("status", ["pending", "overdue", "draft"])
-        .is("subscription_id", null);
-
-      for (const inv of customerUnpaid || []) {
-        const { error: voidErr } = await supabase
-          .from("billing_invoices")
-          .update({ status: "void" })
-          .eq("id", inv.id);
-        if (!voidErr) stats.invoices_voided++;
-      }
+      stats.invoices_voided++;
 
       stats.processed_items.push({
-        action: "expired",
+        action: "suspended_grace_expired",
         subscription_id: sub.id,
-        previous_status: sub.status,
+        invoice_id: inv.id,
+        invoice_number: inv.invoice_number,
+        due_date: inv.due_date,
         plan: sub.plan_name,
-        customer: sub.customer?.email,
-        invoices_voided: (unpaidInvoices?.length || 0) + (customerUnpaid?.length || 0),
       });
 
       console.log(
-        `[lifecycle] Expired subscription ${sub.id} (${sub.plan_name}), voided ${(unpaidInvoices?.length || 0) + (customerUnpaid?.length || 0)} invoices`,
+        `[lifecycle] SUSPENDED subscription ${sub.id} (${sub.plan_name}), voided invoice ${inv.invoice_number} — grace period expired (due: ${inv.due_date})`,
       );
     } catch (err: unknown) {
-      const msg = `Expiration error for ${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
+      const msg = `Expiration error for invoice ${inv.id}: ${err instanceof Error ? err.message : String(err)}`;
       stats.errors.push(msg);
       stats.errors_count++;
       console.error(`[lifecycle] ${msg}`);
+    }
+  }
+
+  // Also void any orphaned unpaid invoices for already-expired/suspended subscriptions
+  const { data: orphanInvoices } = await supabase
+    .from("billing_invoices")
+    .select("id, invoice_number, subscription:billing_subscriptions(status)")
+    .in("status", ["pending", "overdue"])
+    .lte("due_date", graceCutoff);
+
+  for (const inv of orphanInvoices || []) {
+    if (inv.subscription?.status === "suspended" || inv.subscription?.status === "expired") {
+      await supabase
+        .from("billing_invoices")
+        .update({ status: "void", updated_at: new Date().toISOString() })
+        .eq("id", inv.id);
+      stats.invoices_voided++;
     }
   }
 }
@@ -380,7 +387,7 @@ async function processLegacyRenewals(
           status: "pending",
           cycle_start_date: newCycleStart,
           cycle_end_date: newCycleEnd,
-          due_date: sub.cycle_end_date,
+          due_date: sub.cycle_end_date, // due_date = cycle day (the day payment is due)
         })
         .select()
         .single();

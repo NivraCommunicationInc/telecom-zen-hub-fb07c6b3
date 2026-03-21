@@ -248,8 +248,14 @@ END:VCALENDAR`;
     return equipment;
   };
 
-  // Billing cycle: anchored to the day the order was placed (Nivra Core source of truth)
-  // The pricing_snapshot stores billing_cycle_day; fallback to order creation day
+  // ══════════════════════════════════════════════════════════════════
+  // CANONICAL NIVRA BILLING RULE (production-locked):
+  //   1. Billing cycle is anchored to the customer's order/service start date
+  //   2. Renewal invoices generated 2–3 days BEFORE the cycle day
+  //   3. Invoice due_date = the cycle day itself
+  //   4. Unpaid past due_date → overdue
+  //   5. Unpaid past due_date + 5 days → service suspended
+  // ══════════════════════════════════════════════════════════════════
   const getBillingInfo = () => {
     const orderCreatedDate = new Date(order?.created_at || new Date());
     const activationDay = orderCreatedDate.getDate();
@@ -953,7 +959,7 @@ END:VCALENDAR`;
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
-                  Les factures sont générées automatiquement chaque mois selon vos services actifs.
+                  Les factures de renouvellement sont générées 3 jours avant votre date de cycle. Le paiement est dû le {billingInfo.cycleDay}e du mois. Une période de grâce de 5 jours s'applique après la date d'échéance.
                 </p>
                 
                 <Button 
