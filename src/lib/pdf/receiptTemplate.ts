@@ -48,6 +48,13 @@ export interface ReceiptData {
 
   transaction_reference?: string;
   balance_remaining?: number;
+
+  // Canonical tax fields from compute_invoice_breakdown
+  subtotal?: number;
+  discount_amount?: number;
+  discount_label?: string;
+  tps_amount?: number;
+  tvq_amount?: number;
 }
 
 // ============================================================================
