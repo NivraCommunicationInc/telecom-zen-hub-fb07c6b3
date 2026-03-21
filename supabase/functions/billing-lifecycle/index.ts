@@ -624,7 +624,10 @@ serve(async (req) => {
       await processReminders(supabase, stats);
     }
 
-    // STEP 4: Cleanup overdue invoices
+    // STEP 4: Advance referral qualifying cycles for paid invoices
+    await advanceReferralCycles(supabase, stats);
+
+    // STEP 5: Cleanup overdue invoices
     await cleanupOverdueInvoices(supabase, stats);
 
     const summary = [
