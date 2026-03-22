@@ -394,7 +394,7 @@ export default function StaffClientDetail() {
                     <Calendar className="h-3 w-3" /> Cycle de facturation
                   </p>
                   <p className="text-white font-semibold">
-                    Jour {account.billing_cycle_day || 1}
+                    Jour {account.billing_cycle_day || "—"}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">de chaque mois</p>
                 </div>

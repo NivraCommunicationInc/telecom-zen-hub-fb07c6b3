@@ -363,7 +363,7 @@ const AdminAccounts = () => {
 
   // Calculate billing cycle info
   const getBillingCycleInfo = (account: any) => {
-    const cycleDay = account.billing_cycle_day || 1;
+    const cycleDay = account.billing_cycle_day || new Date().getDate();
     const today = new Date();
     let cycleStart = setDate(today, cycleDay);
     if (cycleStart > today) {
@@ -548,7 +548,7 @@ const AdminAccounts = () => {
                           primary_service_address: selectedAccount?.primary_service_address || "",
                           primary_service_city: selectedAccount?.primary_service_city || "",
                           primary_service_postal_code: selectedAccount?.primary_service_postal_code || "",
-                          billing_cycle_day: selectedAccount?.billing_cycle_day || 1,
+                          billing_cycle_day: selectedAccount?.billing_cycle_day || null,
                         });
                         setEditAccountOpen(true);
                       }}

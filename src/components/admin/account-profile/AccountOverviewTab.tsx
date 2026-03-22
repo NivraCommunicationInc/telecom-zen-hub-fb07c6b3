@@ -179,7 +179,7 @@ export function AccountOverviewTab({
             />
             <InfoRow
               label="Cycle de facturation"
-              value={`${account.billing_cycle_day || 1} du mois`}
+              value={account.billing_cycle_day ? `${account.billing_cycle_day} du mois` : "—"}
             />
             <InfoRow
               label="Dernier paiement"
