@@ -559,14 +559,14 @@ async function enrichClientDataForPDF(
         if (!hasAddress && cust.user_id) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("address, city, province, postal_code")
+            .select("service_address, service_city, service_province, service_postal_code")
             .eq("id", cust.user_id)
             .maybeSingle();
-          if (profile?.address) {
-            enriched.client_address = [profile.address, profile.city, profile.province, profile.postal_code].filter(Boolean).join(", ");
-            if (profile.city) enriched.client_city = profile.city;
-            if (profile.province) enriched.client_province = profile.province;
-            if (profile.postal_code) enriched.client_postal_code = profile.postal_code;
+          if (profile?.service_address) {
+            enriched.client_address = [profile.service_address, profile.service_city, profile.service_province, profile.service_postal_code].filter(Boolean).join(", ");
+            if (profile.service_city) enriched.client_city = profile.service_city;
+            if (profile.service_province) enriched.client_province = profile.service_province;
+            if (profile.service_postal_code) enriched.client_postal_code = profile.service_postal_code;
           }
         }
       }
