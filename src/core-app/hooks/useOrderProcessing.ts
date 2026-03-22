@@ -699,11 +699,24 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Mark payment invalid ── */
   /* PRODUCTION FIX: Updates billing_payments + recalculates invoice balance_due from confirmed payments. */
   const markPaymentInvalid = async (reason?: string) => {
-    const targetInvoice = data?.invoice;
+    try {
+      const targetInvoice = data?.invoice;
 
-    // Update billing_payments if a pending payment exists
-    let invalidatedAmount = 0;
-    if (targetInvoice?.id) {
+      // GUARD: Check invoice exists
+      if (!targetInvoice?.id) {
+        toast.error("Aucune facture liée — impossible de marquer le paiement invalide");
+        return;
+      }
+
+      // GUARD: Don't invalidate on already-void invoices
+      const invStatus = String(targetInvoice.status || "").toLowerCase();
+      if (["void", "cancelled"].includes(invStatus)) {
+        toast.info("Facture déjà annulée — aucune action nécessaire");
+        return;
+      }
+
+      // Update billing_payments if a pending payment exists
+      let invalidatedAmount = 0;
       const { data: pendingPayments } = await supabase
         .from("billing_payments")
         .select("id, amount")
@@ -722,6 +735,9 @@ export function useOrderProcessing(orderId: string | undefined) {
           })
           .eq("id", pendingPayments[0].id);
         if (payErr) throw payErr;
+        console.info("[GUARDRAIL][PaymentInvalid] Payment marked failed:", pendingPayments[0].id);
+      } else {
+        console.warn("[GUARDRAIL][PaymentInvalid] No pending payment found for invoice:", targetInvoice.id);
       }
 
       // Recalculate invoice totals from confirmed payments only (SSOT)
@@ -746,33 +762,36 @@ export function useOrderProcessing(orderId: string | undefined) {
         })
         .eq("id", targetInvoice.id);
       if (invErr) throw invErr;
-    }
 
-    await updateOrder.mutateAsync({ payment_status: "failed" });
-    await logActivity("payment_invalidated", "order", orderId, {
-      reason,
-      invalidated_amount: invalidatedAmount,
-      invoice_id: targetInvoice?.id,
-    });
-
-    const email = getClientEmail();
-    if (email) {
-      await queueClientEmail({
-        to_email: email,
-        template_key: "payment_failed",
-        event_key: `payment_failed_${orderId}_${Date.now()}`,
-        subject: "Problème de paiement — Nivra",
-        entity_id: orderId,
-        template_vars: {
-          client_name: getClientName(),
-          order_number: data?.order?.order_number || "",
-          reason: reason || "",
-        },
+      await updateOrder.mutateAsync({ payment_status: "failed" });
+      await logActivity("payment_invalidated", "order", orderId, {
+        reason,
+        invalidated_amount: invalidatedAmount,
+        invoice_id: targetInvoice.id,
       });
-    }
 
-    invalidateAll();
-    toast.warning("Paiement marqué comme invalide — facture recalculée");
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "payment_failed",
+          event_key: `payment_failed_${orderId}_${Date.now()}`,
+          subject: "Problème de paiement — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_number: data?.order?.order_number || "",
+            reason: reason || "",
+          },
+        });
+      }
+
+      invalidateAll();
+      toast.warning("Paiement marqué comme invalide — facture recalculée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][PaymentInvalid] Failed:", err);
+      toast.error(`Erreur invalidation paiement: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Mark payment partial ── */
