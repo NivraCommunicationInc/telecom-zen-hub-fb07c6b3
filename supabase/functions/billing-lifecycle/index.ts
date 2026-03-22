@@ -13,6 +13,7 @@ const corsHeaders = {
 interface RunStats {
   subscriptions_expired: number;
   invoices_voided: number;
+  invoices_overdue: number;
   renewals_generated: number;
   reminders_queued: number;
   errors_count: number;
@@ -24,6 +25,7 @@ function newStats(): RunStats {
   return {
     subscriptions_expired: 0,
     invoices_voided: 0,
+    invoices_overdue: 0,
     renewals_generated: 0,
     reminders_queued: 0,
     errors_count: 0,
