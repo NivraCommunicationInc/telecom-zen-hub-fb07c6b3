@@ -801,23 +801,26 @@ serve(async (req) => {
   console.log(`[lifecycle] Starting ${mode} run (id: ${runId})`);
 
   try {
-    // STEP 1: Process expirations
+    // STEP 1: Process expirations (J+5 suspend, J+10 void)
     await processExpirations(supabase, stats);
 
-    // STEP 2: Generate renewals (account-anchored + legacy fallback)
+    // STEP 2: Generate renewals at J-3 (account-anchored + legacy fallback)
     if (mode !== "backfill") {
       await processRenewals(supabase, stats);
     }
 
-    // STEP 3: Queue reminders
+    // STEP 3: Queue payment reminders (J-7, J-3, J-1, J0)
     if (mode !== "backfill") {
       await processReminders(supabase, stats);
     }
 
-    // STEP 4: Advance referral qualifying cycles for paid invoices
+    // STEP 4: Mark invoices OVERDUE at J0 (pending → overdue, service stays active)
+    await processOverdue(supabase, stats);
+
+    // STEP 5: Advance referral qualifying cycles for paid invoices
     await advanceReferralCycles(supabase, stats);
 
-    // STEP 5: Cleanup overdue invoices
+    // STEP 6: Cleanup — void overdue invoices past J+10 (safety net)
     await cleanupOverdueInvoices(supabase, stats);
 
     const summary = [
