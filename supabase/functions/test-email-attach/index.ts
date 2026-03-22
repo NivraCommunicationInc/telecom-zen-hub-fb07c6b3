@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
   const results = [];
   for (const t of tests) {
-    const { data, error } = await supabase.from("email_queue").insert({
+    const { error } = await supabase.from("email_queue").insert({
       event_key: t.event_key,
       to_email: t.to_email,
       template_key: t.template_key,
@@ -52,8 +52,8 @@ Deno.serve(async (req) => {
       status: "queued",
       attempts: 0,
       max_attempts: 5,
-    }).select("id").single();
-    results.push({ event_key: t.event_key, id: data?.id, error: error?.message });
+    });
+    results.push({ event_key: t.event_key, error: error?.message || null });
   }
 
   return new Response(JSON.stringify({ results }), {
