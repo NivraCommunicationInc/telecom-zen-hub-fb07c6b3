@@ -1,10 +1,10 @@
 /**
- * EmployeeClientDetail — Phase 2: Enhanced 360° client profile.
- * Better account/service info, billing summary (read-only), notes, linked activity.
+ * EmployeeClientDetail — Phase 2: Rewired to shared-ops canonical layer.
+ * Uses useClientProfile from shared-ops + addOperationalNote for notes.
+ * UI preserved, data now canonical.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, User, ShoppingCart, FileText, CreditCard,
   MapPin, Zap, MessageSquare, Shield, Clock, ChevronRight,
@@ -15,78 +15,11 @@ import { fr } from "date-fns/locale";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { toast } from "sonner";
 import { CustomerPinGate } from "@/employee-app/components/CustomerPinGate";
-
-function useClientDetail(clientId: string) {
-  return useQuery({
-    queryKey: ["employee-client-360", clientId],
-    queryFn: async () => {
-      // First get account + billing_customer for proper filtering
-      const [profileRes, accountRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", clientId).maybeSingle(),
-        supabase.from("accounts").select("*").eq("client_id", clientId).maybeSingle(),
-      ]);
-
-      // Get billing_customer linked to this user
-      const { data: billingCustomer } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", clientId)
-        .maybeSingle();
-
-      const customerId = billingCustomer?.id;
-
-      const [ordersRes, ticketsRes, invoicesRes, subscriptionsRes, notesRes] = await Promise.all([
-        supabase.from("orders")
-          .select("id, order_number, status, service_type, payment_status, created_at, total_amount")
-          .eq("user_id", clientId).eq("environment", "live")
-          .order("created_at", { ascending: false }).limit(10),
-        supabase.from("support_tickets")
-          .select("id, ticket_number, subject, status, priority, created_at")
-          .eq("user_id", clientId)
-          .order("created_at", { ascending: false }).limit(10),
-        customerId
-          ? supabase.from("billing_invoices")
-              .select("id, invoice_number, total, status, due_date, paid_at, balance_due")
-              .eq("customer_id", customerId)
-              .eq("environment", "live")
-              .order("created_at", { ascending: false }).limit(10)
-          : Promise.resolve({ data: [] }),
-        customerId
-          ? supabase.from("billing_subscriptions")
-              .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at")
-              .eq("customer_id", customerId)
-              .eq("environment", "live")
-              .in("status", ["active", "pending", "past_due", "suspended"])
-              .limit(10)
-          : Promise.resolve({ data: [] }),
-        supabase.from("activity_logs")
-          .select("action, created_at, actor_name, actor_role")
-          .eq("entity_id", clientId).eq("entity_type", "client")
-          .order("created_at", { ascending: false }).limit(10),
-      ]);
-
-      // Get service locations if account exists
-      const accountId = accountRes.data?.id;
-      const locationsRes = accountId
-        ? await supabase.from("account_service_locations").select("*").eq("account_id", accountId).eq("is_active", true)
-        : { data: [] };
-
-      return {
-        profile: profileRes.data,
-        account: accountRes.data,
-        orders: ordersRes.data ?? [],
-        tickets: ticketsRes.data ?? [],
-        invoices: invoicesRes.data ?? [],
-        subscriptions: subscriptionsRes.data ?? [],
-        notes: notesRes.data ?? [],
-        locations: locationsRes.data ?? [],
-      };
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-}
+import { useClientProfile, addOperationalNote } from "@/shared-ops";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 export default function EmployeeClientDetail() {
   const { clientId } = useParams<{ clientId: string }>();
@@ -108,32 +41,50 @@ export default function EmployeeClientDetail() {
 }
 
 function ClientDetailContent({ clientId }: { clientId: string }) {
-  const { data, isLoading } = useClientDetail(clientId);
+  const { data, isLoading } = useClientProfile(clientId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [noteText, setNoteText] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
 
-  const addNoteMutation = useMutation({
-    mutationFn: async (note: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Non authentifié");
-      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
-      await supabase.from("activity_logs").insert({
-        user_id: session.user.id,
-        entity_id: clientId,
-        entity_type: "client",
-        action: `Note: ${note}`,
-        actor_name: profile?.full_name ?? session.user.email ?? "Employé",
-        actor_role: "employee",
-      });
-      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", targetType: "client", targetId: clientId });
+  // Employee-specific: tickets + notes + locations (not in shared-ops since they're portal-specific)
+  const { data: extras } = useQuery({
+    queryKey: ["employee-client-extras", clientId],
+    enabled: !!data?.profile,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const accountId = data?.account?.id;
+      const [ticketsRes, notesRes, locationsRes] = await Promise.all([
+        supabase.from("support_tickets")
+          .select("id, ticket_number, subject, status, priority, created_at")
+          .eq("user_id", clientId)
+          .order("created_at", { ascending: false }).limit(10),
+        supabase.from("activity_logs")
+          .select("action, created_at, actor_name, actor_role")
+          .eq("entity_id", clientId).eq("entity_type", "client")
+          .order("created_at", { ascending: false }).limit(10),
+        accountId
+          ? supabase.from("account_service_locations").select("*").eq("account_id", accountId).eq("is_active", true)
+          : Promise.resolve({ data: [] }),
+      ]);
+      return {
+        tickets: ticketsRes.data ?? [],
+        notes: notesRes.data ?? [],
+        locations: locationsRes.data ?? [],
+      };
     },
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: (note: string) =>
+      addOperationalNote({ entityId: clientId, entityType: "client", note, portal: "employee" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee-client-360", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["employee-client-extras", clientId] });
       setNoteText("");
       setShowNoteInput(false);
+      toast.success("Note ajoutée");
     },
+    onError: (err: any) => toast.error(`Erreur: ${err.message}`),
   });
 
   if (isLoading) {
@@ -153,7 +104,10 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
     );
   }
 
-  const { profile, account, orders, tickets, invoices, subscriptions, notes, locations } = data;
+  const { profile, account, orders, invoices, subscriptions } = data;
+  const tickets = extras?.tickets ?? [];
+  const notes = extras?.notes ?? [];
+  const locations = extras?.locations ?? [];
   const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
 
   const statusBadge = (s: string) => {
@@ -263,7 +217,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucun service actif.</p>
             ) : (
               <div className="space-y-2">
-                {subscriptions.map(s => (
+                {subscriptions.map((s: any) => (
                   <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
                     <div>
                       <p className="text-xs text-white font-medium">{s.plan_name}</p>
@@ -282,7 +236,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucune facture.</p>
             ) : (
               <div className="space-y-1.5">
-                {invoices.map(inv => (
+                {invoices.map((inv: any) => (
                   <div key={inv.id} className="flex items-center justify-between py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0">
                     <span className="text-white font-mono">{inv.invoice_number}</span>
                     <div className="flex items-center gap-3">
@@ -301,10 +255,10 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucune commande.</p>
             ) : (
               <div className="space-y-1.5">
-                {orders.map(o => (
+                {orders.map((o: any) => (
                   <Link
                     key={o.id}
-                    to={employeePath(`/orders/${o.id}`)}
+                    to={employeePath(`/orders/${o.order_number ?? o.id}`)}
                     className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-[hsl(220,15%,10%)] transition-colors text-xs"
                   >
                     <div className="flex items-center gap-3">
@@ -324,7 +278,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           {/* Service locations */}
           {locations.length > 0 && (
             <Section title="Adresses de service" icon={<MapPin className="h-4 w-4" />}>
-              {locations.map(loc => (
+              {locations.map((loc: any) => (
                 <div key={loc.id} className="flex items-start gap-2 py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0">
                   <MapPin className="h-3 w-3 text-[hsl(220,10%,30%)] mt-0.5 shrink-0" />
                   <div>
@@ -345,7 +299,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucun ticket.</p>
             ) : (
               <div className="space-y-2">
-                {tickets.map(t => (
+                {tickets.map((t: any) => (
                   <div key={t.id} className="p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
                     <div className="flex items-start justify-between">
                       <div>
@@ -368,7 +322,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucune activité enregistrée.</p>
             ) : (
               <div className="space-y-0 max-h-[400px] overflow-y-auto pr-1">
-                {notes.map((n, i) => {
+                {notes.map((n: any, i: number) => {
                   const isNote = n.action?.startsWith("Note:");
                   return (
                     <div key={i} className="relative pl-4 pb-3 last:pb-0">

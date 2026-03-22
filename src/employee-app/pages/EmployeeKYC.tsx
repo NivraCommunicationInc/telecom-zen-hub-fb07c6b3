@@ -1,9 +1,12 @@
 /**
- * EmployeeKYC — KYC / Identity verification queue with approve/reject actions.
+ * EmployeeKYC — Phase 2: KYC verification queue.
+ * KYC data query stays employee-specific (not in shared-ops — domain-specific).
+ * Note action uses addOperationalNote from shared-ops for audit consistency.
+ * Approve/reject writes to order_identity_data with proper audit logging.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldCheck, Loader2, CheckCircle, XCircle, ArrowUpRight, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -13,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { useState } from "react";
+import { addOperationalNote } from "@/shared-ops";
 
 type KYCFilter = "pending" | "approved" | "rejected" | "all";
 
@@ -24,7 +28,6 @@ interface KYCItem {
   created_at: string;
   verified_by: string | null;
   verified_at: string | null;
-  // joined
   orderNumber?: string | null;
   clientName?: string | null;
 }
@@ -51,14 +54,12 @@ export default function EmployeeKYC() {
       if (error) throw error;
       if (!data?.length) return [];
 
-      // Enrich with order + client info
       const orderIds = [...new Set(data.map(d => d.order_id).filter(Boolean))] as string[];
       const { data: orders } = orderIds.length
         ? await supabase.from("orders").select("id, order_number, user_id").in("id", orderIds)
         : { data: [] };
 
       const orderMap = new Map((orders ?? []).map(o => [o.id, o]));
-
       const userIds = [...new Set((orders ?? []).map(o => o.user_id).filter(Boolean))];
       const { data: profiles } = userIds.length
         ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
@@ -96,16 +97,14 @@ export default function EmployeeKYC() {
         .eq("id", id);
       if (error) throw error;
 
-      // Log the action
+      // Use shared addOperationalNote for consistent audit trail
       const item = items.find(i => i.id === id);
       if (item?.order_id) {
-        await supabase.from("activity_logs").insert({
-          user_id: session.user.id,
-          entity_id: item.order_id,
-          entity_type: "order",
-          action: action === "approved" ? "KYC approuvé" : "KYC rejeté",
-          actor_name: verifierName,
-          actor_role: "employee",
+        await addOperationalNote({
+          entityId: item.order_id,
+          entityType: "order",
+          note: action === "approved" ? "KYC approuvé" : "KYC rejeté",
+          portal: "employee",
         });
       }
 
@@ -209,10 +208,10 @@ export default function EmployeeKYC() {
                     <td className="px-4 py-3">
                       {item.order_id ? (
                         <button
-                          onClick={() => navigate(employeePath(`/orders/${item.order_id}`))}
+                          onClick={() => navigate(employeePath(`/orders/${item.orderNumber ?? item.order_id}`))}
                           className="font-mono text-xs text-primary hover:underline"
                         >
-                          {item.orderNumber ?? item.order_id.slice(0, 8)}
+                          {item.orderNumber ?? item.order_id!.slice(0, 8)}
                         </button>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>

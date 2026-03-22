@@ -1,11 +1,10 @@
 /**
- * EmployeeOrderDetail — Full operational order console for employees.
- * Status visualization, operational actions, canonical financials (read-only),
- * equipment, appointment, shipping, subscription visibility.
+ * EmployeeOrderDetail — Phase 2: Rewired to shared-ops canonical layer.
+ * Uses useOrderDetail + updateOrderStatus + addOperationalNote from shared-ops.
+ * No duplicated queries or mutation logic.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, ShoppingCart, Clock, Shield, FileText,
   DollarSign, User, MapPin, Calendar, Package, Send, MessageSquare,
@@ -17,110 +16,10 @@ import { fr } from "date-fns/locale";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { toast } from "sonner";
 import { NextOperationalStep } from "@/employee-app/components/NextOperationalStep";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
-
-const UUID_PARAM_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SAFE_ROUTE_PARAM_REGEX = /^[\w-]+$/;
-
-function useEmployeeOrderDetail(orderRouteParam: string) {
-  return useQuery({
-    queryKey: ["employee-order-detail-v3", orderRouteParam],
-    queryFn: async () => {
-      const normalizedParam = decodeURIComponent(orderRouteParam).trim();
-      if (!normalizedParam) throw new Error("Identifiant de commande manquant");
-      if (!SAFE_ROUTE_PARAM_REGEX.test(normalizedParam)) throw new Error("Identifiant de commande invalide");
-
-      const fetchById = async (id: string) => {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("id", id)
-          .maybeSingle();
-        if (error) throw error;
-        return data;
-      };
-
-      const fetchByOrderNumber = async (orderNumber: string) => {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("order_number", orderNumber)
-          .maybeSingle();
-        if (error) throw error;
-        return data;
-      };
-
-      let order: any = null;
-
-      if (UUID_PARAM_REGEX.test(normalizedParam)) {
-        order = await fetchById(normalizedParam);
-      }
-
-      if (!order) {
-        order = await fetchByOrderNumber(normalizedParam);
-      }
-
-      if (!order) throw new Error("Commande introuvable");
-
-      const resolvedOrderId = order.id;
-
-      const [profileRes, invoiceRes, consentRes, logsRes, appointmentRes, accountRes, subscriptionRes, equipmentRes] = await Promise.all([
-        order.user_id
-          ? supabase.from("profiles").select("full_name, email, phone").eq("user_id", order.user_id).maybeSingle()
-          : Promise.resolve({ data: null }),
-        supabase.from("billing_invoices")
-          .select("id, invoice_number, total, subtotal, tps_amount, tvq_amount, status, due_date, paid_at, balance_due, amount_paid")
-          .eq("order_id", resolvedOrderId).maybeSingle(),
-        supabase.from("consent_records").select("*").eq("order_id", resolvedOrderId).order("created_at", { ascending: false }).limit(1),
-        supabase.from("activity_logs").select("action, created_at, actor_name, details, actor_role")
-          .eq("entity_id", resolvedOrderId).eq("entity_type", "order").order("created_at", { ascending: false }).limit(30),
-        supabase.from("appointments").select("id, appointment_number, title, scheduled_at, status, service_address, service_city, technician_id")
-          .eq("order_id", resolvedOrderId).maybeSingle(),
-        order.account_id
-          ? supabase.from("accounts").select("account_number, status, billing_address, billing_city").eq("id", order.account_id).maybeSingle()
-          : Promise.resolve({ data: null }),
-        supabase.from("billing_subscriptions")
-          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at")
-          .eq("order_id", resolvedOrderId).maybeSingle(),
-        supabase.from("equipment_inventory")
-          .select("id, catalog_name, serial_number, mac_address, status, category, sku, condition")
-          .eq("order_id", resolvedOrderId),
-      ]);
-
-      // Load payment if invoice exists
-      let paymentData = null;
-      if (invoiceRes.data?.id) {
-        const { data: payment } = await supabase
-          .from("billing_payments")
-          .select("id, payment_number, status, amount, method, provider, received_at, reference")
-          .eq("invoice_id", invoiceRes.data.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        paymentData = payment;
-      }
-
-      return {
-        resolvedOrderId,
-        order,
-        profile: profileRes.data,
-        invoice: invoiceRes.data,
-        payment: paymentData,
-        consent: consentRes.data?.[0] ?? null,
-        logs: logsRes.data ?? [],
-        appointment: appointmentRes.data,
-        account: accountRes.data,
-        subscription: subscriptionRes.data,
-        equipment: equipmentRes.data ?? [],
-        pricingSnapshot: order.pricing_snapshot as Record<string, any> | null,
-      };
-    },
-    staleTime: 1000 * 60 * 2,
-  });
-}
+import { useOrderDetail, updateOrderStatus, addOperationalNote } from "@/shared-ops";
 
 export default function EmployeeOrderDetail() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -139,7 +38,7 @@ export default function EmployeeOrderDetail() {
 }
 
 function OrderDetailContent({ orderId }: { orderId: string }) {
-  const { data, isLoading, error } = useEmployeeOrderDetail(orderId);
+  const { data, isLoading, error } = useOrderDetail(orderId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [noteText, setNoteText] = useState("");
@@ -147,22 +46,10 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const canonicalOrderId = data?.resolvedOrderId ?? orderId;
 
   const addNoteMutation = useMutation({
-    mutationFn: async (note: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Non authentifié");
-      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
-      await supabase.from("activity_logs").insert({
-        user_id: session.user.id,
-        entity_id: canonicalOrderId,
-        entity_type: "order",
-        action: `Note: ${note}`,
-        actor_name: profile?.full_name ?? session.user.email ?? "Employé",
-        actor_role: "employee",
-      });
-      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", targetType: "order", targetId: canonicalOrderId });
-    },
+    mutationFn: (note: string) =>
+      addOperationalNote({ entityId: canonicalOrderId, entityType: "order", note, portal: "employee" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v3", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["shared-order-detail", orderId] });
       setNoteText("");
       setShowNoteInput(false);
       toast.success("Note ajoutée");
@@ -170,31 +57,11 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     onError: (err: any) => toast.error(`Erreur: ${err.message}`),
   });
 
-  /* ─── Operational status update ─── */
   const statusMutation = useMutation({
-    mutationFn: async ({ newStatus, logAction }: { newStatus: string; logAction: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Non authentifié");
-
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", canonicalOrderId);
-      if (error) throw error;
-
-      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
-      await supabase.from("activity_logs").insert({
-        user_id: session.user.id,
-        entity_id: canonicalOrderId,
-        entity_type: "order",
-        action: logAction,
-        actor_name: profile?.full_name ?? session.user.email ?? "Employé",
-        actor_role: "employee",
-      });
-      await logInternalAudit({ action: logAction.toLowerCase().replace(/\s/g, "_"), category: "operations", portal: "employee", targetType: "order", targetId: canonicalOrderId });
-    },
+    mutationFn: ({ newStatus, logAction }: { newStatus: string; logAction: string }) =>
+      updateOrderStatus({ orderId: canonicalOrderId, newStatus, logAction, portal: "employee" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v3", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["shared-order-detail", orderId] });
       toast.success("Statut mis à jour");
     },
     onError: (err: any) => toast.error(`Erreur: ${err.message}`),
@@ -214,7 +81,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     );
   }
 
-  const { order, profile, invoice, payment, consent, logs, pricingSnapshot, appointment, account, subscription, equipment, resolvedOrderId } = data;
+  const { order, profile, invoice, invoiceLines, payment, consent, logs, pricingSnapshot, appointment, account, subscription, equipment, resolvedOrderId } = data;
 
   const statusConfig: Record<string, { color: string; bg: string; icon: typeof CheckCircle; label: string }> = {
     pending: { color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock, label: "En attente" },
@@ -245,11 +112,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     on_hold: "Mettre en pause → bloque toutes les actions suivantes",
   };
 
-  // Determine available operational actions based on current status
   const getAvailableActions = () => {
     const actions: { label: string; status: string; logAction: string; variant: "primary" | "default" | "warning" }[] = [];
     const s = order.status;
-
     if (s === "pending" || s === "submitted") {
       actions.push({ label: "Marquer reçue", status: "received", logAction: "Commande marquée reçue", variant: "default" });
     }
@@ -311,7 +176,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         </div>
       </div>
 
-      {/* ═══ Operational Status Summary ═══ */}
+      {/* Operational Status Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <MiniCard label="Commande" value={sc.label} color={sc.color} />
         <MiniCard label="Paiement" value={order.payment_status ?? "—"}
@@ -324,7 +189,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           color={equipment.length > 0 ? "text-blue-400" : "text-[hsl(220,10%,40%)]"} />
       </div>
 
-      {/* ═══ NEXT OPERATIONAL STEP ═══ */}
+      {/* NEXT OPERATIONAL STEP */}
       <NextOperationalStep
         orderStatus={order.status}
         paymentStatus={order.payment_status}
@@ -334,7 +199,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         invoiceStatus={invoice?.status ?? null}
       />
 
-      {/* ═══ Latest Note / Last Action ═══ */}
+      {/* Latest Note / Last Action */}
       {logs.length > 0 && (
         <div className="rounded-xl border border-[hsl(220,15%,13%)] bg-[hsl(220,20%,7%)] px-4 py-3">
           <div className="flex items-center gap-2 mb-1.5">
@@ -348,7 +213,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         </div>
       )}
 
-      {/* ═══ Canonical Traceability IDs ═══ */}
+      {/* Canonical Traceability IDs */}
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-[hsl(220,10%,35%)] font-mono">
         <span>order: {resolvedOrderId.slice(0, 8)}</span>
         {invoice && <span>· inv: {invoice.invoice_number}</span>}
@@ -358,7 +223,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         <span>· màj: {format(new Date(order.updated_at || order.created_at), "d MMM HH:mm", { locale: fr })}</span>
       </div>
 
-      {/* ═══ Operational Actions with consequences ═══ */}
+      {/* Operational Actions with consequences */}
       {availableActions.length > 0 && (
         <div className="rounded-xl border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] p-4">
           <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
