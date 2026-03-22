@@ -70,7 +70,7 @@ export function AccountBillingTab({ account, invoices, payments, subscriptions, 
     .filter((s: any) => s.status === "active")
     .reduce((sum: number, s: any) => sum + (s.plan_price || 0), 0);
 
-  const cycleDay = account?.billing_cycle_day || 1;
+  const cycleDay = account?.billing_cycle_day || new Date().getDate();
   const today = new Date();
   let cycleStart = setDate(today, cycleDay);
   if (cycleStart > today) cycleStart = addMonths(cycleStart, -1);

@@ -363,7 +363,7 @@ const AdminAccounts = () => {
 
   // Calculate billing cycle info
   const getBillingCycleInfo = (account: any) => {
-    const cycleDay = account.billing_cycle_day || 1;
+    const cycleDay = account.billing_cycle_day || new Date().getDate();
     const today = new Date();
     let cycleStart = setDate(today, cycleDay);
     if (cycleStart > today) {
