@@ -691,7 +691,7 @@ async function resolveCanonicalFinancialVars(
     if (resolvedOrderId) {
       const { data } = await supabase
         .from("orders")
-        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
+        .select("id, order_number, service_type, client_first_name, client_last_name, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
         .eq("id", resolvedOrderId)
         .maybeSingle();
       order = data as Record<string, any> | null;
@@ -700,7 +700,7 @@ async function resolveCanonicalFinancialVars(
     if (!order && requestedOrderNumber) {
       const { data } = await supabase
         .from("orders")
-        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
+        .select("id, order_number, service_type, client_first_name, client_last_name, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
         .eq("order_number", requestedOrderNumber)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -769,25 +769,74 @@ async function resolveCanonicalFinancialVars(
           : null),
       );
 
-    // Enrich shipping fields from order (prevents N/A when data exists)
     const shippingAddress = order?.shipping_address
       ? [order.shipping_address, order.shipping_city, order.shipping_province, order.shipping_postal_code].filter(Boolean).join(", ")
       : order?.client_full_address || null;
 
+    const orderClientName = [order?.client_first_name, order?.client_last_name]
+      .filter((part) => hasRenderableValue(part))
+      .join(" ")
+      .trim();
+
+    const canonicalOrderNumber = toRenderableString(preferCanonicalValue(order?.order_number, vars.order_number, vars.orderNumber));
+    const canonicalInvoiceNumber = toRenderableString(preferCanonicalValue(invoice?.invoice_number, vars.invoice_number, vars.invoiceNumber));
+    const canonicalContractNumber = toRenderableString(preferCanonicalValue(vars.contract_number, vars.contractNumber));
+    const canonicalTicketNumber = toRenderableString(preferCanonicalValue(vars.ticket_number, vars.ticketNumber));
+    const canonicalRequestNumber = toRenderableString(preferCanonicalValue(vars.request_number, vars.requestNumber));
+    const canonicalDisputeNumber = toRenderableString(preferCanonicalValue(vars.dispute_number, vars.disputeNumber));
+    const canonicalPaymentMethod = toRenderableString(preferCanonicalValue(payment?.method, order?.payment_method, vars.payment_method, vars.paymentMethod));
+    const canonicalPaymentReference = toRenderableString(preferCanonicalValue(
+      payment?.provider_payment_id,
+      payment?.reference,
+      order?.payment_reference,
+      vars.payment_reference,
+      vars.reference,
+    ));
+    const canonicalCarrier = toRenderableString(preferCanonicalValue(order?.carrier, vars.carrier));
+    const canonicalTrackingNumber = toRenderableString(preferCanonicalValue(order?.tracking_number, vars.tracking_number));
+    const canonicalTrackingUrl = toRenderableString(preferCanonicalValue(order?.tracking_url, vars.tracking_url));
+    const canonicalServiceType = buildCanonicalServiceLabel(order, vars);
+    const canonicalClientName = toRenderableString(preferCanonicalValue(vars.client_name, vars.clientName, orderClientName));
+
     const merged: Record<string, any> = {
       ...vars,
-      order_id: vars.order_id || order?.id || invoice?.order_id || undefined,
-      order_number: vars.order_number || order?.order_number || undefined,
-      invoice_id: vars.invoice_id || invoice?.id || undefined,
-      invoice_number: vars.invoice_number || invoice?.invoice_number || undefined,
-      payment_method: vars.payment_method || payment?.method || order?.payment_method || undefined,
-      payment_reference: vars.payment_reference || vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
-      reference: vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
-      // Shipping data: use queued vars first, fall back to order DB fields
-      carrier: vars.carrier || order?.carrier || undefined,
-      tracking_number: vars.tracking_number || order?.tracking_number || undefined,
-      tracking_url: vars.tracking_url || order?.tracking_url || undefined,
-      shipping_address: vars.shipping_address || shippingAddress || undefined,
+      order_id: toRenderableString(preferCanonicalValue(order?.id, invoice?.order_id, vars.order_id, vars.orderId)),
+      orderId: toRenderableString(preferCanonicalValue(order?.id, invoice?.order_id, vars.orderId, vars.order_id)),
+      order_number: canonicalOrderNumber,
+      orderNumber: canonicalOrderNumber,
+      invoice_id: toRenderableString(preferCanonicalValue(invoice?.id, vars.invoice_id, vars.invoiceId)),
+      invoiceId: toRenderableString(preferCanonicalValue(invoice?.id, vars.invoiceId, vars.invoice_id)),
+      invoice_number: canonicalInvoiceNumber,
+      invoiceNumber: canonicalInvoiceNumber,
+      contract_number: canonicalContractNumber,
+      contractNumber: canonicalContractNumber,
+      ticket_number: canonicalTicketNumber,
+      ticketNumber: canonicalTicketNumber,
+      request_number: canonicalRequestNumber,
+      requestNumber: canonicalRequestNumber,
+      dispute_number: canonicalDisputeNumber,
+      disputeNumber: canonicalDisputeNumber,
+      payment_method: canonicalPaymentMethod,
+      paymentMethod: canonicalPaymentMethod,
+      payment_reference: canonicalPaymentReference,
+      reference: canonicalPaymentReference,
+      carrier: canonicalCarrier,
+      tracking_number: canonicalTrackingNumber,
+      trackingNumber: canonicalTrackingNumber,
+      tracking_url: canonicalTrackingUrl,
+      trackingUrl: canonicalTrackingUrl,
+      shipping_address: toRenderableString(preferCanonicalValue(shippingAddress, vars.shipping_address)),
+      shippingAddress: toRenderableString(preferCanonicalValue(shippingAddress, vars.shippingAddress, vars.shipping_address)),
+      client_name: canonicalClientName,
+      clientName: canonicalClientName,
+      service_type: canonicalServiceType,
+      serviceType: canonicalServiceType,
+      service_name: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.service_name, vars.serviceName)),
+      serviceName: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.serviceName, vars.service_name)),
+      services_summary: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.services_summary, vars.servicesSummary)),
+      servicesSummary: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.servicesSummary, vars.services_summary)),
+      plan_name: toRenderableString(preferCanonicalValue(vars.plan_name, vars.planName, canonicalServiceType)),
+      planName: toRenderableString(preferCanonicalValue(vars.planName, vars.plan_name, canonicalServiceType)),
       // Financial data
       subtotal: canonicalSubtotal ?? vars.subtotal,
       tps_amount: canonicalTps ?? vars.tps_amount,
