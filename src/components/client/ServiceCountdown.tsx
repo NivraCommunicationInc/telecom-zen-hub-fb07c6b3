@@ -72,6 +72,15 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
   const isOk = daysRemaining > 7;
 
   const getStatusConfig = () => {
+    if (isSuspended) {
+      return {
+        icon: AlertTriangle,
+        color: "text-red-500",
+        bgColor: "bg-red-500/10 border-red-500/30",
+        progressColor: "bg-red-500",
+        label: "Service suspendu",
+      };
+    }
     if (isExpired) {
       return {
         icon: AlertTriangle,
