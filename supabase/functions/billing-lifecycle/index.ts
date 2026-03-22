@@ -129,6 +129,38 @@ async function processExpirations(
           days_past_due: daysPastDue,
         });
 
+        // Queue void notification email (J+10)
+        if (inv.customer?.email) {
+          const voidKey = `billing_voided_${inv.id}`;
+          const { data: existingVoid } = await supabase
+            .from("email_queue")
+            .select("id")
+            .or(`event_key.eq.${voidKey},idempotency_key.eq.${voidKey}`)
+            .maybeSingle();
+          if (!existingVoid) {
+            await supabase.from("email_queue").insert({
+              event_key: voidKey,
+              idempotency_key: voidKey,
+              to_email: inv.customer.email,
+              from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+              subject: `Nivra — Facture annulée (#${inv.invoice_number})`,
+              template_key: "invoice_voided",
+              template_vars: {
+                client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
+                invoice_number: inv.invoice_number,
+                plan_name: sub.plan_name || "Service Nivra",
+                total: inv.total?.toFixed(2),
+                due_date: inv.due_date,
+                void_reason: "Fenêtre de réactivation expirée (J+10)",
+              },
+              status: "queued",
+              attempts: 0,
+              max_attempts: 3,
+            });
+            stats.reminders_queued++;
+          }
+        }
+
         console.log(`[lifecycle] VOIDED invoice ${inv.invoice_number} at J+${daysPastDue} — reactivation window expired`);
         continue;
       }
