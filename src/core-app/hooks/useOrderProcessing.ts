@@ -795,11 +795,20 @@ export function useOrderProcessing(orderId: string | undefined) {
   };
 
   /* ── Mark payment partial ── */
-  /* PRODUCTION FIX: Recalculates invoice from confirmed payments (SSOT). */
   const markPaymentPartial = async () => {
-    const targetInvoice = data?.invoice;
+    try {
+      const targetInvoice = data?.invoice;
+      if (!targetInvoice?.id) {
+        toast.error("Aucune facture liée — impossible de marquer partiel");
+        return;
+      }
 
-    if (targetInvoice?.id) {
+      // GUARD: Already paid
+      if (targetInvoice.status === "paid" && Number(targetInvoice.balance_due ?? 0) <= 0) {
+        toast.info("Facture déjà entièrement payée");
+        return;
+      }
+
       // Recalculate from confirmed payments only
       const { data: confirmedPayments } = await supabase
         .from("billing_payments")
@@ -820,14 +829,15 @@ export function useOrderProcessing(orderId: string | undefined) {
         })
         .eq("id", targetInvoice.id);
       if (invErr) throw invErr;
-    }
 
-    await updateOrder.mutateAsync({ payment_status: "partial" });
-    await logActivity("payment_partial", "order", orderId, {
-      invoice_id: targetInvoice?.id,
-    });
-    invalidateAll();
-    toast.info("Paiement marqué comme partiel — facture recalculée");
+      await updateOrder.mutateAsync({ payment_status: "partial" });
+      await logActivity("payment_partial", "order", orderId, { invoice_id: targetInvoice.id });
+      invalidateAll();
+      toast.info("Paiement marqué comme partiel — facture recalculée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][PaymentPartial] Failed:", err);
+      toast.error(`Erreur paiement partiel: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Update fulfillment type ── */
