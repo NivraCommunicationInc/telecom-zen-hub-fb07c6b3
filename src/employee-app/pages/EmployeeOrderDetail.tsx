@@ -278,7 +278,41 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           color={equipment.length > 0 ? "text-blue-400" : "text-[hsl(220,10%,40%)]"} />
       </div>
 
-      {/* ═══ Operational Actions ═══ */}
+      {/* ═══ NEXT OPERATIONAL STEP ═══ */}
+      <NextOperationalStep
+        orderStatus={order.status}
+        paymentStatus={order.payment_status}
+        hasEquipment={equipment.length > 0}
+        hasAppointment={!!appointment}
+        subscriptionStatus={subscription?.status ?? null}
+        invoiceStatus={invoice?.status ?? null}
+      />
+
+      {/* ═══ Latest Note / Last Action ═══ */}
+      {logs.length > 0 && (
+        <div className="rounded-xl border border-[hsl(220,15%,13%)] bg-[hsl(220,20%,7%)] px-4 py-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <MessageSquare className="h-3 w-3 text-[hsl(220,10%,38%)]" />
+            <span className="text-[10px] text-[hsl(220,10%,40%)] font-semibold uppercase tracking-wider">Dernière action</span>
+          </div>
+          <p className="text-xs text-white font-medium">{logs[0].action}</p>
+          <p className="text-[10px] text-[hsl(220,10%,35%)] mt-0.5">
+            {logs[0].actor_name ?? "Système"} · {logs[0].actor_role ?? ""} · {formatDistanceToNow(new Date(logs[0].created_at), { addSuffix: true, locale: fr })}
+          </p>
+        </div>
+      )}
+
+      {/* ═══ Canonical Traceability IDs ═══ */}
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-[hsl(220,10%,35%)] font-mono">
+        <span>order: {orderId.slice(0, 8)}</span>
+        {invoice && <span>· inv: {invoice.invoice_number}</span>}
+        {payment && <span>· pay: {payment.payment_number}</span>}
+        {subscription && <span>· sub: {subscription.id.slice(0, 8)}</span>}
+        {appointment && <span>· apt: {appointment.appointment_number || appointment.id.slice(0, 8)}</span>}
+        <span>· màj: {format(new Date(order.updated_at || order.created_at), "d MMM HH:mm", { locale: fr })}</span>
+      </div>
+
+      {/* ═══ Operational Actions with consequences ═══ */}
       {availableActions.length > 0 && (
         <div className="rounded-xl border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] p-4">
           <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -286,23 +320,14 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
           </h3>
           <div className="flex flex-wrap gap-2">
             {availableActions.map((action) => (
-              <button
+              <ActionConfirmButton
                 key={action.status}
-                onClick={() => {
-                  if (confirm(`Confirmer: ${action.label} ?`)) {
-                    statusMutation.mutate({ newStatus: action.status, logAction: action.logAction });
-                  }
-                }}
-                disabled={statusMutation.isPending}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-40",
-                  action.variant === "primary" && "bg-blue-600 text-white hover:bg-blue-500",
-                  action.variant === "default" && "border border-[hsl(220,15%,18%)] text-[hsl(220,10%,60%)] hover:text-white hover:border-blue-500/30",
-                  action.variant === "warning" && "border border-amber-500/30 text-amber-400 hover:bg-amber-500/10",
-                )}
-              >
-                {action.label}
-              </button>
+                label={action.label}
+                consequence={ACTION_CONSEQUENCES[action.status] || `${action.label} — cette action sera enregistrée`}
+                onConfirm={() => statusMutation.mutate({ newStatus: action.status, logAction: action.logAction })}
+                isPending={statusMutation.isPending}
+                variant={action.variant}
+              />
             ))}
           </div>
         </div>
