@@ -51,8 +51,8 @@ function useEmployeeOrderDetail(orderId: string) {
           .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at")
           .eq("order_id", orderId).maybeSingle(),
         supabase.from("equipment_inventory")
-          .select("id, model, serial_number, mac_address, status, category")
-          .eq("assigned_order_id", orderId),
+          .select("id, catalog_name, serial_number, mac_address, status, category, sku, condition")
+          .eq("order_id", orderId),
       ]);
 
       // Load payment if invoice exists
