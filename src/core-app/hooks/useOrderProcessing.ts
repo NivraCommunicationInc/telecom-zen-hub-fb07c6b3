@@ -1293,6 +1293,8 @@ export function useOrderProcessing(orderId: string | undefined) {
     channelSelection: data?.channelSelection || null,
     serviceAddresses: data?.serviceAddresses || [],
     installationEstimate: data?.installationEstimate || null,
+    mobileFulfillment: data?.mobileFulfillment || null,
+    portRequest: data?.order?.port_request || null,
     kycSession: data?.kycSession,
     activityLogs: data?.activityLogs || [],
     isLoading: orderQuery.isLoading,
