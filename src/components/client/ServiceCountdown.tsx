@@ -40,7 +40,7 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
         .from('billing_subscriptions')
         .select('id, plan_name, cycle_end_date, status')
         .eq('customer_id', customer.id)
-        .in('status', ['active', 'pending_renewal', 'grace_period'])
+        .in('status', ['active', 'pending_renewal', 'grace_period', 'suspended'])
         .order('cycle_end_date', { ascending: true });
 
       if (error) throw error;
