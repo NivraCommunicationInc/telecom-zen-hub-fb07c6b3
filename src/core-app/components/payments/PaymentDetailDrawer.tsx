@@ -115,8 +115,9 @@ export function PaymentDetailDrawer({ payment, onClose }: Props) {
     setActionLoading(newStatus);
     try {
       if (newStatus === "confirmed" || newStatus === "completed") {
+        const currentUser = (await supabase.auth.getUser()).data.user;
         const { error: payErr } = await supabase.from("billing_payments")
-          .update({ status: "confirmed" as any, confirmed_by: "admin", received_at: new Date().toISOString(), ...extra })
+          .update({ status: "confirmed" as any, confirmed_by: currentUser?.id || null, received_at: new Date().toISOString(), ...extra })
           .eq("id", p.id);
         if (payErr) throw payErr;
 

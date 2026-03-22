@@ -41,13 +41,11 @@ export function InteracVerificationPanel({ payments, onSelect }: Props) {
   const handleConfirm = async (p: AdminPayment) => {
     setLoadingId(`confirm-${p.id}`);
     try {
-      // ★ FIX: Do NOT call apply_payment_to_invoice RPC for existing pending payments.
-      // The RPC creates a NEW payment row, causing duplicates.
-      // Instead: confirm the existing payment + update the invoice directly.
+      const currentUser = (await supabase.auth.getUser()).data.user;
 
       // 1. Confirm the existing pending payment
       const { error: payErr } = await supabase.from("billing_payments")
-        .update({ status: "confirmed" as any, confirmed_by: "admin", received_at: new Date().toISOString() })
+        .update({ status: "confirmed" as any, confirmed_by: currentUser?.id || null, received_at: new Date().toISOString() })
         .eq("id", p.id);
       if (payErr) throw payErr;
 
