@@ -1,9 +1,7 @@
 /**
- * EmployeeOrders — Orders list and entry to detail.
- * Read-only canonical financials. Operational actions only.
+ * EmployeeOrders — Phase 2: Rewired to shared-ops canonical layer.
+ * Uses useOrdersList from shared-ops instead of local duplicate query.
  */
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ShoppingCart, Loader2, Search, ArrowUpRight } from "lucide-react";
 import { useState } from "react";
@@ -11,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { employeePath } from "@/employee-app/lib/employeePaths";
+import { useOrdersList } from "@/shared-ops";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Toutes" },
@@ -21,55 +20,26 @@ const STATUS_FILTERS = [
   { key: "cancelled", label: "Annulées" },
 ];
 
-function useEmployeeOrders(statusFilter: string) {
-  return useQuery({
-    queryKey: ["employee-orders", statusFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from("orders")
-        .select("id, order_number, user_id, account_id, status, payment_status, service_type, total_amount, created_at, assigned_to")
-        .eq("environment", "live")
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
-      }
-
-      const { data: orders, error } = await query;
-      if (error) throw error;
-      if (!orders?.length) return [];
-
-      const userIds = [...new Set(orders.map(o => o.user_id).filter(Boolean))];
-      const { data: profiles } = userIds.length
-        ? await supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds)
-        : { data: [] };
-      const profileMap = new Map((profiles ?? []).map(p => [p.user_id, p]));
-
-      return orders.map(o => ({
-        ...o,
-        clientName: profileMap.get(o.user_id)?.full_name ?? null,
-        clientEmail: profileMap.get(o.user_id)?.email ?? null,
-      }));
-    },
-    staleTime: 1000 * 60 * 2,
-  });
-}
-
 export default function EmployeeOrders() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
   const [search, setSearch] = useState("");
-  const { data: orders = [], isLoading } = useEmployeeOrders(statusFilter);
+  const { data: allOrders = [], isLoading } = useOrdersList("live");
+
+  // Apply status filter client-side (shared hook loads all statuses)
+  const statusFiltered = statusFilter === "all"
+    ? allOrders
+    : allOrders.filter(o => o.status === statusFilter);
 
   const filtered = search.trim()
-    ? orders.filter(o =>
+    ? statusFiltered.filter(o =>
         o.order_number?.toLowerCase().includes(search.toLowerCase()) ||
-        o.clientName?.toLowerCase().includes(search.toLowerCase()) ||
-        o.clientEmail?.toLowerCase().includes(search.toLowerCase())
+        o.client_full_name?.toLowerCase().includes(search.toLowerCase()) ||
+        o.client_email?.toLowerCase().includes(search.toLowerCase()) ||
+        o.account_number?.toLowerCase().includes(search.toLowerCase())
       )
-    : orders;
+    : statusFiltered;
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
@@ -139,6 +109,7 @@ export default function EmployeeOrders() {
                 <tr className="border-b border-[hsl(220,15%,13%)] bg-[hsl(220,20%,8%)]">
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Commande</th>
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Client</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Compte</th>
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Service</th>
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Statut</th>
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Paiement</th>
@@ -150,11 +121,12 @@ export default function EmployeeOrders() {
                 {filtered.map(o => (
                   <tr
                     key={o.id}
-                    onClick={() => navigate(employeePath(`/orders/${o.id}`))}
+                    onClick={() => navigate(employeePath(`/orders/${o.order_number ?? o.id}`))}
                     className="border-b border-[hsl(220,15%,10%)] hover:bg-[hsl(220,20%,9%)] cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-3 font-mono text-xs text-white">{o.order_number ?? "—"}</td>
-                    <td className="px-4 py-3 text-xs text-[hsl(220,10%,55%)]">{o.clientName ?? o.clientEmail ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-[hsl(220,10%,55%)]">{o.client_full_name ?? o.client_email ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-[hsl(220,10%,50%)] font-mono">{o.account_number ?? "—"}</td>
                     <td className="px-4 py-3 text-xs text-[hsl(220,10%,50%)]">{o.service_type ?? "—"}</td>
                     <td className="px-4 py-3">
                       <span className={cn("px-2 py-0.5 rounded text-[10px] font-medium", statusColor(o.status))}>
