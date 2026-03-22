@@ -99,14 +99,14 @@ export default function CoreAutomationPage() {
   /* ═══ Manual trigger ═══ */
   const triggerRenewal = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("billing-subscription-cycle", {
-        body: { lookahead_days: 3 },
+      const { data, error } = await supabase.functions.invoke("billing-lifecycle", {
+        body: { mode: "daily_lifecycle" },
       });
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      toast.success(`Cycle terminé: ${data?.created || 0} factures créées`);
+    onSuccess: (data: any) => {
+      toast.success(`Cycle terminé: ${data?.stats?.renewals_generated || 0} factures créées`);
       qc.invalidateQueries({ queryKey: ["order-automation-logs"] });
       qc.invalidateQueries({ queryKey: ["billing-automation-runs"] });
     },
