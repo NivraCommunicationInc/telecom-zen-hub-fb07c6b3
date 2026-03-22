@@ -578,23 +578,24 @@ async function enrichClientDataForPDF(
       if (orderId) {
         const { data: order } = await supabase
           .from("orders")
-          .select("user_id, service_address, service_city, service_postal_code")
+          .select("user_id, client_full_address, shipping_address, shipping_city, shipping_province, shipping_postal_code")
           .eq("id", orderId)
           .maybeSingle();
-        if (order?.service_address) {
-          enriched.client_address = enriched.service_address = order.service_address;
-          if (order.service_city) enriched.client_city = order.service_city;
-          if (order.service_postal_code) enriched.client_postal_code = order.service_postal_code;
+        const orderAddr = order?.client_full_address || order?.shipping_address;
+        if (orderAddr) {
+          enriched.client_address = enriched.service_address = orderAddr;
+          if (order?.shipping_city) enriched.client_city = order.shipping_city;
+          if (order?.shipping_postal_code) enriched.client_postal_code = order.shipping_postal_code;
         }
         if (!hasPhone && order?.user_id) {
           const { data: prof } = await supabase
             .from("profiles")
-            .select("phone, address, city, province, postal_code")
+            .select("phone, service_address, service_city, service_province, service_postal_code")
             .eq("id", order.user_id)
             .maybeSingle();
           if (prof?.phone && !enriched.client_phone) enriched.client_phone = prof.phone;
-          if (prof?.address && !enriched.client_address) {
-            enriched.client_address = [prof.address, prof.city, prof.province, prof.postal_code].filter(Boolean).join(", ");
+          if (prof?.service_address && !enriched.client_address) {
+            enriched.client_address = [prof.service_address, prof.service_city, prof.service_province, prof.service_postal_code].filter(Boolean).join(", ");
           }
         }
       }
