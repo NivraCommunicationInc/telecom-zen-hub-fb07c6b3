@@ -1255,18 +1255,48 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const html = template.getHtml(templateVars, emailConfig);
-        
-        // Replace template variables in subject
-        // Subject: prefer override from template_vars (custom_html emails), then template default
-        let subject = templateVars._subject || template.subject;
-        const vars = templateVars;
-        if (vars.order_number) subject = subject.replace('{{order_number}}', vars.order_number);
-        if (vars.invoice_number) subject = subject.replace('{{invoice_number}}', vars.invoice_number);
-        if (vars.ticket_number) subject = subject.replace('{{ticket_number}}', vars.ticket_number);
-        if (vars.contract_number) subject = subject.replace('{{contract_number}}', vars.contract_number);
-        if (vars.request_number) subject = subject.replace('{{request_number}}', vars.request_number);
-        if (vars.dispute_number) subject = subject.replace('{{dispute_number}}', vars.dispute_number);
+        let html = template.getHtml(templateVars, emailConfig);
+        html = renderPlaceholders(html, templateVars);
+
+        const unresolvedBodyTokens = findUnresolvedPlaceholders(html);
+        if (unresolvedBodyTokens.length > 0) {
+          const unresolved = unresolvedBodyTokens.join(", ");
+          throw new Error(`[EMAIL_RENDER_GUARD] Unresolved body placeholders for template=${templateKey}: ${unresolved}`);
+        }
+
+        // Subject: prefer override from template_vars, then template default (supports snake_case + camelCase)
+        let subject = renderPlaceholders(templateVars._subject || template.subject, templateVars).trim();
+
+        const unresolvedSubjectTokens = findUnresolvedPlaceholders(subject);
+        if (unresolvedSubjectTokens.length > 0) {
+          console.error(`[EMAIL_RENDER_GUARD] unresolved subject placeholders email_id=${email.id} template=${templateKey} tokens=${unresolvedSubjectTokens.join(",")}`);
+          subject = subject
+            .replace(/{{\s*[A-Za-z0-9_]+\s*}}/g, "")
+            .replace(/\(\s*#?\s*\)/g, "")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+        }
+
+        if (!subject || findUnresolvedPlaceholders(subject).length > 0) {
+          throw new Error(`[EMAIL_RENDER_GUARD] Subject rendering incomplete for template=${templateKey}`);
+        }
+
+        if (SERVICE_LABEL_TEMPLATES.has(templateKey) && hasRenderableValue(templateVars.service_type)) {
+          const serviceNARendered = />\s*Service\s*<\/td>\s*<td[^>]*>\s*N\/A\s*<\/td>/i.test(html);
+          if (serviceNARendered) {
+            const repairedVars = {
+              ...templateVars,
+              service_type: String(templateVars.service_type),
+              serviceType: String(templateVars.service_type),
+              service_name: String(templateVars.service_type),
+              serviceName: String(templateVars.service_type),
+            };
+            html = renderPlaceholders(template.getHtml(repairedVars, emailConfig), repairedVars);
+            if (/>\s*Service\s*<\/td>\s*<td[^>]*>\s*N\/A\s*<\/td>/i.test(html)) {
+              throw new Error(`[EMAIL_RENDER_GUARD] Service rendered as N/A despite canonical data for template=${templateKey}`);
+            }
+          }
+        }
 
         // Plain text: prefer override, then auto-generate
         const plainText = templateVars._text || `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
