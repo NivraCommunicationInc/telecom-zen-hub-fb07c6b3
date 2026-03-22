@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,25 +7,27 @@ const corsHeaders = {
 
 /**
  * ══════════════════════════════════════════════════════════════════════
- * NIVRA BILLING RULE — CANONICAL OVERDUE & SUSPENSION LOGIC
+ * DEPRECATED — 2026-03-22
  * ══════════════════════════════════════════════════════════════════════
- *
- * OFFICIAL RULE (immutable):
- *
- *   1. Billing cycle is anchored to the customer's service start date.
- *      Example: order on 21st → cycle day = 21st.
- *
- *   2. Renewal invoices are generated 2–3 days BEFORE the cycle day (J-3).
- *      Invoice due_date = the cycle day itself.
- *
- *   3. If invoice remains unpaid AFTER the due_date:
- *      → invoice status becomes "overdue" / balance_due.
- *
- *   4. A 5-day grace period applies after the due_date.
- *
- *   5. If still unpaid after due_date + 5 days:
- *      → service is automatically SUSPENDED.
- *      → invoice is voided (prepaid model, no debt accumulation).
+ * ALL overdue/suspension/void logic is now handled by billing-lifecycle.
+ * This function is kept as a no-op to prevent 404s on stale invocations.
+ * ══════════════════════════════════════════════════════════════════════
+ */
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  console.warn("[billing-check-overdue] DEPRECATED — all logic moved to billing-lifecycle");
+  return new Response(
+    JSON.stringify({
+      deprecated: true,
+      message: "All overdue/suspension/void logic is now in billing-lifecycle. This function is a no-op.",
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+});
  *
  * This function runs daily via CRON.
  * ══════════════════════════════════════════════════════════════════════
