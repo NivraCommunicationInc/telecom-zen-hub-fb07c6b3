@@ -414,6 +414,17 @@ export function useOrderProcessing(orderId: string | undefined) {
             .order("created_at", { ascending: true })
         : { data: [] as any[] };
 
+      // Fetch mobile fulfillment data for mobile orders
+      let mobileFulfillment = null;
+      if (svcType.includes("mobile")) {
+        const { data: mf } = await supabase
+          .from("mobile_fulfillment")
+          .select("*")
+          .eq("order_id", orderId!)
+          .maybeSingle();
+        mobileFulfillment = mf;
+      }
+
       // Compute installation time estimate
       const installationEstimate = computeInstallationEstimate(order, appointment);
 
@@ -437,6 +448,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         channelSelection,
         serviceAddresses: serviceAddresses || [],
         installationEstimate,
+        mobileFulfillment,
         kycSession,
         activityLogs: activityLogs || [],
       };
