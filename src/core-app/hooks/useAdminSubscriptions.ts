@@ -92,7 +92,11 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
           customer_id: s.customer_id,
           created_at: s.created_at,
           environment: (s as any).environment,
-          client_name: cust ? `${cust.first_name} ${cust.last_name}` : null,
+          client_name: (() => {
+            const prof = cust?.user_id ? profileMap.get(cust.user_id) : null;
+            if (prof?.first_name || prof?.last_name) return `${prof.first_name || ""} ${prof.last_name || ""}`.trim();
+            return cust ? `${cust.first_name} ${cust.last_name}` : null;
+          })(),
           client_email: cust?.email ?? null,
           account_number: accountNumber,
         };
