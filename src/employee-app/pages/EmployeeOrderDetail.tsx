@@ -199,6 +199,17 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
   const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
 
+  const ACTION_CONSEQUENCES: Record<string, string> = {
+    received: "La commande sera marquée comme reçue par les opérations",
+    processing: "Le traitement sera lancé — la commande apparaîtra comme en cours",
+    shipped: "Marquer expédiée → le client sera notifié de l'envoi",
+    delivered: "Marquer livrée → permettra l'activation du service",
+    installed: "Installation terminée → permettra l'activation du service",
+    activated: "Activer le service → l'abonnement deviendra actif",
+    completed: "Clôturer la commande → aucune autre action possible",
+    on_hold: "Mettre en pause → bloque toutes les actions suivantes",
+  };
+
   // Determine available operational actions based on current status
   const getAvailableActions = () => {
     const actions: { label: string; status: string; logAction: string; variant: "primary" | "default" | "warning" }[] = [];
