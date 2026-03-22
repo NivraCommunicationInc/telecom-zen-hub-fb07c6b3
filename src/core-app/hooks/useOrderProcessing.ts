@@ -1205,42 +1205,53 @@ export function useOrderProcessing(orderId: string | undefined) {
 
   /* ── Complete order ── */
   const completeOrder = async () => {
-    // SYSTEMIC GUARD: Verify invoice is paid before allowing completion
-    const invoice = data?.invoice;
-    if (!invoice) {
-      toast.error("Impossible de compléter : aucune facture liée à cette commande.");
-      return;
-    }
-    const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
-    const invoiceStatus = invoice.status;
-    if (!["paid", "partially_paid"].includes(invoiceStatus || "") && balanceDue > 0) {
-      toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
-      return;
-    }
+    try {
+      // GUARD: Already completed
+      if (data?.order?.status === "completed") {
+        toast.info("Commande déjà complétée");
+        return;
+      }
 
-    await changeStatus("completed");
-    await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
+      // SYSTEMIC GUARD: Verify invoice is paid before allowing completion
+      const invoice = data?.invoice;
+      if (!invoice) {
+        toast.error("Impossible de compléter : aucune facture liée à cette commande.");
+        return;
+      }
+      const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
+      const invoiceStatus = invoice.status;
+      if (!["paid", "partially_paid"].includes(invoiceStatus || "") && balanceDue > 0) {
+        toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+        return;
+      }
 
-    // Queue completion notification
-    const email = getClientEmail();
-    if (email) {
-      await queueClientEmail({
-        to_email: email,
-        template_key: "order_completed",
-        event_key: `order_completed_${orderId}_${Date.now()}`,
-        idempotency_key: `auto_order_completed_${orderId}`,
-        mode: "automatic",
-        subject: "Votre commande est complétée — Nivra",
-        entity_id: orderId,
-        template_vars: {
-          client_name: getClientName(),
-          order_id: orderId,
-          order_number: data?.order?.order_number || "",
-        },
-      });
+      await changeStatus("completed");
+      await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
+
+      // Queue completion notification
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "order_completed",
+          event_key: `order_completed_${orderId}_${Date.now()}`,
+          idempotency_key: `auto_order_completed_${orderId}`,
+          mode: "automatic",
+          subject: "Votre commande est complétée — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_id: orderId,
+            order_number: data?.order?.order_number || "",
+          },
+        });
+      }
+
+      toast.success("Commande complétée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Complete] Failed:", err);
+      toast.error(`Erreur complétion: ${err?.message || "Erreur inconnue"}`);
     }
-
-    toast.success("Commande complétée");
   };
 
   return {
