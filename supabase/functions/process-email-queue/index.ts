@@ -605,13 +605,13 @@ async function enrichClientDataForPDF(
     if ((!enriched.client_phone || !enriched.client_address) && vars.to_email) {
       const { data: prof } = await supabase
         .from("profiles")
-        .select("phone, address, city, province, postal_code")
+        .select("phone, service_address, service_city, service_province, service_postal_code")
         .eq("email", vars.to_email)
         .maybeSingle();
       if (prof) {
         if (!enriched.client_phone && prof.phone) enriched.client_phone = prof.phone;
-        if (!enriched.client_address && prof.address) {
-          enriched.client_address = [prof.address, prof.city, prof.province, prof.postal_code].filter(Boolean).join(", ");
+        if (!enriched.client_address && prof.service_address) {
+          enriched.client_address = [prof.service_address, prof.service_city, prof.service_province, prof.service_postal_code].filter(Boolean).join(", ");
         }
       }
     }
