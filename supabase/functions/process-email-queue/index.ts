@@ -48,26 +48,9 @@ const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'receipt' | 'contract
 // Full bundle disabled by default to avoid wrong attachment routing per template.
 const FULL_DOCUMENT_SET_TEMPLATES = new Set<string>([]);
 
-// Validate required client fields for PDF generation
-function validatePDFClientData(vars: Record<string, any>): { valid: boolean; missing: string[] } {
-  const missing: string[] = [];
-  const name = vars.client_name || vars.name;
-  const email = vars.client_email || vars.email;
-  const phone = vars.client_phone || vars.phone;
-  const address = vars.client_address || vars.address || vars.service_address;
-  
-  if (!name || name === 'Client' || name.trim() === '') missing.push('client_name');
-  if (!email || email.trim() === '') missing.push('client_email');
-  if (!phone || phone.trim() === '') missing.push('client_phone');
-  if (!address || address.trim() === '') missing.push('client_address');
-  
-  return { valid: missing.length === 0, missing };
-}
-
 // ============================================================================
-// LOCKED PDF BRIDGE — Maps template_vars → locked template interfaces
-// Uses ONLY: generateInvoiceV3PDF, generateReceiptPDF, generateContractV3PDF, generateOrderSummaryPDF
-// These are the APPROVED production templates. DO NOT replace with any other generator.
+// CANONICAL PDF GENERATION — fetches real data from DB, identical to frontend
+// No template_vars-based reconstruction. Uses compute_invoice_breakdown RPC.
 // ============================================================================
 
 const n = (v: unknown): number => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
@@ -82,144 +65,360 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
   return btoa(binary);
 };
 
-function buildInvoiceData(vars: Record<string, any>): InvoiceDataV2 {
-  const total = n(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? vars.amount);
-  const subtotal = n(vars.subtotal ?? vars.taxable_base ?? vars.canonical_subtotal ?? total);
-  const tps = n(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount);
-  const tvq = n(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount);
-  const balanceDue = n(vars.amount_due_today ?? vars.balance_due ?? vars.canonical_balance_due ?? total);
-  const discountAmt = n(vars.discount_amount);
-  const addr = (vars.client_address || vars.address || vars.service_address || "").split(",").map((s: string) => s.trim());
+// --- Helpers mirroring src/lib/pdf/canonicalDocumentService.ts ---
 
-  const sourceItems = vars.items || vars.billed_items || vars.services || [];
-  const items = (Array.isArray(sourceItems) ? sourceItems : []).map((it: any) => ({
-    category: (it.category || it.type || "Other") as any,
-    description: it.description || it.name || it.label || "Service Nivra",
-    period: it.period,
-    qty: Math.max(1, n(it.qty ?? it.quantity ?? 1)),
-    unit_price: n(it.unit_price ?? it.price ?? it.monthly_price ?? it.amount),
-    amount: n(it.amount ?? it.line_total ?? it.total ?? it.monthly_price ?? it.price),
-    is_recurring: Boolean(it.is_recurring ?? true),
-  }));
-  if (items.length === 0) items.push({ category: "Other" as any, description: vars.service_type || "Service Nivra", qty: 1, unit_price: subtotal, amount: subtotal, is_recurring: true });
+function requireField(value: string | undefined | null, fieldName: string): string {
+  if (!value || value === "—" || value === "N/A" || value === "À confirmer" || value === "000000" || value.trim() === "") {
+    return "Non fourni par le client";
+  }
+  return value.trim();
+}
+
+function buildFullAddress(parts: { line1?: string; city?: string; province?: string; postal?: string }): string {
+  return [parts.line1, parts.city, parts.province || "QC", parts.postal].filter(Boolean).join(", ");
+}
+
+function buildCustomerAddress(order: any, profile: any, account: any) {
+  const address_line1 = order.shipping_address || account?.primary_service_address || profile?.address || profile?.service_address || "";
+  const city = order.shipping_city || account?.primary_service_city || profile?.service_city || "";
+  const province = order.shipping_province || account?.primary_service_province || profile?.service_province || "QC";
+  const postal_code = order.shipping_postal_code || account?.primary_service_postal_code || profile?.service_postal_code || "";
+  const serviceAddr = buildFullAddress({ line1: address_line1, city, province, postal: postal_code });
+  const billingAddr = account?.billing_address
+    ? buildFullAddress({ line1: account.billing_address, city: account.billing_city, province: account.billing_province || "QC", postal: account.billing_postal_code })
+    : serviceAddr;
+  return { billing: billingAddr || serviceAddr || "", service: serviceAddr || billingAddr || "", address_line1, city, province, postal_code };
+}
+
+function buildClientName(order: any, profile: any): string {
+  const fromOrder = [order.client_first_name, order.client_last_name].filter(Boolean).join(" ");
+  if (fromOrder) return fromOrder;
+  if (profile?.full_name) return profile.full_name;
+  return [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "";
+}
+
+function resolvePaymentMethod(order: any, payments: any[]): string {
+  const completed = payments.find((p: any) => p.status === "confirmed" || p.status === "completed");
+  if (completed?.method) return completed.method;
+  return order.payment_method || "";
+}
+
+interface BreakdownItem {
+  description: string;
+  line_type: string;
+  quantity: number;
+  unit_price_cents: number;
+  line_total_cents: number;
+}
+
+interface Breakdown {
+  items: BreakdownItem[];
+  subtotal: number;
+  tps_amount: number;
+  tvq_amount: number;
+  total: number;
+  amount_paid: number;
+  balance_due: number;
+  discounts_total: number;
+  status: string;
+  type: string;
+  order_id?: string;
+  used_stored_totals?: boolean;
+}
+
+function structureFromBreakdown(bd: Breakdown, order: any) {
+  const services: Array<{ type: string; name: string; monthly_price: number }> = [];
+  const equipment: Array<{ name: string; quantity: number; unit_price: number }> = [];
+  const fees: Array<{ label: string; amount: number }> = [];
+  const discounts: Array<{ label: string; amount: number }> = [];
+  const invoiceItems: Array<{ category: string; description: string; qty: number; unit_price: number; amount: number; is_recurring: boolean; service_address?: string }> = [];
+
+  for (const item of bd.items) {
+    const amount = item.line_total_cents / 100;
+    const unitPrice = item.unit_price_cents / 100;
+    const qty = item.quantity || 1;
+
+    if (item.line_type === "discount" || item.line_type === "credit") {
+      discounts.push({ label: item.description, amount: Math.abs(amount) });
+      continue;
+    }
+
+    const descLower = item.description.toLowerCase();
+    const isFee = descLower.includes("frais") || descLower.includes("activation") || descLower.includes("livraison") || descLower.includes("installation") || descLower.includes("shipping") || descLower.includes("delivery");
+    const isEquipment = descLower.includes("routeur") || descLower.includes("router") || descLower.includes("modem") || descLower.includes("terminal") || descLower.includes("décodeur") || descLower.includes("sim") || descLower.includes("équipement");
+
+    if (item.line_type === "equipment" || isEquipment) {
+      equipment.push({ name: item.description, quantity: qty, unit_price: unitPrice });
+      invoiceItems.push({ category: "Equipment", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
+    } else if (item.line_type === "fee" || isFee) {
+      fees.push({ label: item.description, amount });
+      invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
+    } else {
+      const type = descLower.includes("internet") || descLower.includes("giga") ? "Internet"
+        : descLower.includes("mobile") || descLower.includes("talk") || descLower.includes("text") ? "Mobile"
+        : descLower.includes("tv") || descLower.includes("télé") ? "TV"
+        : descLower.includes("streaming") ? "Streaming"
+        : descLower.includes("sécurité") || descLower.includes("security") ? "Sécurité"
+        : "Télécom";
+      services.push({ type, name: item.description, monthly_price: amount });
+      invoiceItems.push({ category: type, description: item.description, qty, unit_price: unitPrice, amount, is_recurring: bd.type === "renewal", service_address: order.shipping_address });
+    }
+  }
+
+  const subtotalMonthly = services.reduce((s, sv) => s + sv.monthly_price, 0);
+  const subtotalOnetime = equipment.reduce((s, e) => s + e.unit_price * e.quantity, 0) + fees.reduce((s, f) => s + f.amount, 0);
+
+  return { services, equipment, fees, invoiceItems, discounts, subtotal: bd.subtotal, subtotalMonthly, subtotalOnetime, discountAmount: bd.discounts_total, tpsAmount: bd.tps_amount, tvqAmount: bd.tvq_amount, total: bd.total, amountPaid: bd.amount_paid, balanceDue: bd.balance_due };
+}
+
+// --- Canonical data fetcher (mirrors fetchCanonicalDocumentData) ---
+
+async function fetchCanonicalData(supabase: ReturnType<typeof createClient>, vars: Record<string, any>) {
+  let order: any = null;
+  let billingInvoice: any = null;
+
+  const orderId = vars.order_id;
+  const invoiceId = vars.invoice_id;
+  const invoiceNumber = vars.invoice_number;
+
+  // Route 1: from invoice_id
+  if (invoiceId) {
+    const { data } = await supabase.from("billing_invoices").select("*").eq("id", invoiceId).maybeSingle();
+    billingInvoice = data;
+    if (data?.order_id) {
+      const { data: o } = await supabase.from("orders").select("*").eq("id", data.order_id).maybeSingle();
+      order = o;
+    }
+  }
+
+  // Route 2: from invoice_number
+  if (!billingInvoice && invoiceNumber) {
+    const { data } = await supabase.from("billing_invoices").select("*").eq("invoice_number", invoiceNumber).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    billingInvoice = data;
+    if (data?.order_id && !order) {
+      const { data: o } = await supabase.from("orders").select("*").eq("id", data.order_id).maybeSingle();
+      order = o;
+    }
+  }
+
+  // Route 3: from order_id
+  if (!order && orderId) {
+    const { data } = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
+    order = data;
+  }
+
+  // Get invoice from order if not yet found
+  if (!billingInvoice && order?.id) {
+    const { data } = await supabase.from("billing_invoices").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    billingInvoice = data;
+  }
+
+  if (!order) {
+    console.warn("[PDF CANONICAL] No order found for PDF generation");
+    return null;
+  }
+
+  const userId = order.user_id;
+  const invId = billingInvoice?.id;
+
+  // Fetch all related data in parallel
+  const [profileRes, accountRes, contractRes, paymentsRes, linesRes] = await Promise.all([
+    userId ? supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle() : Promise.resolve({ data: null }),
+    userId ? supabase.from("accounts").select("*").eq("client_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
+    supabase.from("contracts").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    invId ? supabase.from("billing_payments").select("*").eq("invoice_id", invId).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    invId ? supabase.from("billing_invoice_lines").select("*").eq("invoice_id", invId).order("created_at", { ascending: true }) : Promise.resolve({ data: [] }),
+  ]);
+
+  // Fetch breakdown via RPC
+  let breakdown: Breakdown | null = null;
+  if (invId) {
+    try {
+      const { data, error } = await supabase.rpc("compute_invoice_breakdown", { p_invoice_id: invId });
+      if (!error && data) {
+        breakdown = data as unknown as Breakdown;
+      } else {
+        console.warn("[PDF CANONICAL] compute_invoice_breakdown failed:", error);
+      }
+    } catch (e) {
+      console.warn("[PDF CANONICAL] Breakdown RPC exception:", e);
+    }
+  }
+
+  return {
+    order,
+    profile: profileRes.data,
+    account: accountRes.data,
+    billingInvoice,
+    billingPayments: paymentsRes.data || [],
+    billingInvoiceLines: linesRes.data || [],
+    contract: contractRes.data,
+    breakdown,
+  };
+}
+
+// --- Canonical PDF builders (mirrors canonicalDocumentService.ts + documentBuilder.ts) ---
+
+function buildCanonicalInvoiceData(data: any): InvoiceDataV2 {
+  const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
+  const addr = buildCustomerAddress(order, profile, account);
+  const paymentMethod = resolvePaymentMethod(order, billingPayments);
+  const clientName = buildClientName(order, profile);
+
+  if (!breakdown) throw new Error("Breakdown requis pour facture");
+  const s = structureFromBreakdown(breakdown, order);
+
+  const invoiceStatus = breakdown.status || billingInvoice?.status || (["captured", "paid", "confirmed"].includes(order.payment_status) ? "paid" : "unpaid");
+  const snapshotClient = billingInvoice?.billing_snapshot_client as any;
+  const liveAccountNumber = account?.account_number;
+  const snapshotAccountNumber = billingInvoice?.billing_snapshot_account_number;
 
   return {
     invoice_type: "ONETIME",
-    invoice_number: vars.invoice_number || vars.invoiceNumber || `NV-${Date.now()}`,
-    invoice_date: vars.invoice_date || vars.created_at || new Date().toISOString(),
-    due_date: vars.due_date || vars.dueDate || new Date(Date.now() + 15*86400000).toISOString(),
-    account_number: vars.account_number || vars.client_number || "",
-    billing_period_start: vars.period_start || vars.billing_period_start,
-    billing_period_end: vars.period_end || vars.billing_period_end,
+    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "—",
+    invoice_date: billingInvoice?.created_at || order.created_at,
+    due_date: billingInvoice?.due_date || billingInvoice?.created_at || order.created_at,
+    account_number: requireField(liveAccountNumber || snapshotAccountNumber, "account_number"),
+    billing_period_start: billingInvoice?.cycle_start_date,
+    billing_period_end: billingInvoice?.cycle_end_date,
     currency: "CAD",
-    status: (vars.invoice_status || vars.status || "pending") as any,
+    status: invoiceStatus as any,
     customer: {
-      full_name: vars.client_name || vars.name || "Client",
-      email: vars.client_email || vars.email || "",
-      phone: vars.client_phone || vars.phone,
-      address_line1: addr[0] || "—",
-      city: vars.client_city || addr[1] || "Laval",
-      province: vars.client_province || addr[2] || "QC",
-      postal_code: vars.client_postal_code || addr[3] || "",
+      full_name: requireField(snapshotClient?.full_name || snapshotClient?.name || clientName, "client_name"),
+      email: requireField(snapshotClient?.email || order.client_email || profile?.email, "client_email"),
+      phone: requireField(snapshotClient?.phone || order.client_phone || profile?.phone, "client_phone"),
+      address_line1: requireField(snapshotClient?.address_line1 || addr.address_line1, "address_line1"),
+      city: requireField(snapshotClient?.city || addr.city, "city"),
+      province: snapshotClient?.province || addr.province || "QC",
+      postal_code: requireField(snapshotClient?.postal_code || addr.postal_code, "postal_code"),
     },
-    items,
-    discounts: discountAmt > 0 ? [{ label: vars.discount_label || "Rabais", amount: discountAmt }] : [],
-    subtotal,
-    taxes: { gst_rate: 0.05, gst_amount: tps, qst_rate: 0.09975, qst_amount: tvq },
-    total,
-    balance_due: balanceDue,
-    payments_total: n(vars.amount_paid_today ?? vars.amount_paid),
+    items: s.invoiceItems.map(item => ({ ...item, category: item.category as any, service_address: item.service_address || addr.service || undefined, reference: order.order_number?.toString() })),
+    discounts: s.discounts.map(d => ({ label: d.label, amount: d.amount, applies_to: "services" })),
+    subtotal: s.subtotal,
+    subtotal_monthly: s.subtotalMonthly,
+    subtotal_onetime: s.subtotalOnetime,
+    taxes: { gst_rate: 0.05, gst_amount: s.tpsAmount, qst_rate: 0.09975, qst_amount: s.tvqAmount },
+    total: s.total,
+    balance_due: s.balanceDue,
+    payments: billingPayments.filter((p: any) => ["confirmed", "completed", "captured"].includes(p.status)).map((p: any) => ({
+      method: p.method || paymentMethod, status: "Confirmed" as const, paid_amount: Number(p.amount || 0),
+      paid_at: p.received_at || p.created_at, payment_reference: p.payment_number || p.reference || "—", processor_txn_id: p.provider_payment_id,
+    })),
+    payments_total: s.amountPaid,
   };
 }
 
-function buildReceiptData(vars: Record<string, any>): LockedReceiptData {
+function buildCanonicalReceiptData(data: any): LockedReceiptData | null {
+  const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
+  const clientName = buildClientName(order, profile);
+  const addr = buildCustomerAddress(order, profile, account);
+
+  const confirmedPayment = billingPayments.find((p: any) => ["confirmed", "completed", "captured"].includes(p.status));
+  if (!confirmedPayment && (!breakdown || breakdown.amount_paid <= 0)) return null;
+
+  const amountPaid = confirmedPayment ? Number(confirmedPayment.amount) : (breakdown?.amount_paid || 0);
+
   return {
-    receipt_number: vars.payment_number || vars.receipt_number || `REC-${Date.now()}`,
-    payment_date: vars.paid_at || vars.payment_date || new Date().toISOString(),
-    payment_method: vars.payment_method || "paypal",
-    amount_paid: n(vars.amount_paid_today ?? vars.canonical_amount_paid_today ?? vars.amount_paid ?? vars.amount ?? vars.total_payable),
-    invoice_number: vars.invoice_number || "",
-    invoice_total: n(vars.invoice_total ?? vars.total_payable ?? vars.total),
-    order_number: vars.order_number || vars.order_id,
-    client_name: vars.client_name || vars.name || "Client",
-    client_email: vars.client_email || vars.email || "",
-    client_phone: vars.client_phone || vars.phone,
-    client_address: vars.client_address || vars.address,
-    account_number: vars.account_number || vars.client_number || "",
-    billed_items: Array.isArray(vars.billed_items) ? vars.billed_items.map((it: any) => ({
-      description: it.description || it.name || "Service",
-      amount: n(it.amount ?? it.line_total),
-    })) : undefined,
-    transaction_reference: vars.payment_reference || vars.reference || vars.transaction_reference,
-    balance_remaining: n(vars.balance_remaining ?? vars.balance_due),
-    subtotal: n(vars.subtotal ?? vars.taxable_base),
-    discount_label: vars.discount_label || (n(vars.discount_amount) > 0 ? "Rabais" : undefined),
-    discount_amount: n(vars.discount_amount) || undefined,
-    tps_amount: n(vars.tps_amount ?? vars.tps),
-    tvq_amount: n(vars.tvq_amount ?? vars.tvq),
+    receipt_number: confirmedPayment?.payment_number || confirmedPayment?.reference || billingInvoice?.invoice_number || order.order_number?.toString() || "—",
+    payment_date: confirmedPayment?.received_at || confirmedPayment?.created_at || order.paid_at || order.updated_at || "",
+    payment_method: confirmedPayment?.method || order.payment_method || "Interac",
+    amount_paid: amountPaid,
+    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "",
+    invoice_total: breakdown?.total || billingInvoice?.total || 0,
+    order_number: order.order_number?.toString(),
+    client_name: requireField(clientName, "client_name"),
+    client_email: requireField(order.client_email || profile?.email, "client_email"),
+    client_phone: order.client_phone || profile?.phone || undefined,
+    client_address: addr.billing || addr.service || undefined,
+    account_number: requireField(account?.account_number, "account_number"),
+    billed_items: breakdown ? breakdown.items.filter((i: any) => i.line_type !== "discount" && i.line_type !== "credit").map((i: any) => ({ description: i.description, amount: i.line_total_cents / 100 })) : undefined,
+    transaction_reference: confirmedPayment?.provider_payment_id || confirmedPayment?.reference || undefined,
+    balance_remaining: breakdown ? breakdown.balance_due : (billingInvoice?.balance_due || 0),
+    subtotal: breakdown?.subtotal,
+    discount_amount: breakdown?.discounts_total || 0,
+    discount_label: breakdown?.items.filter((i: any) => i.line_type === "discount").map((i: any) => i.description).join(", ") || undefined,
+    tps_amount: breakdown?.tps_amount,
+    tvq_amount: breakdown?.tvq_amount,
   };
 }
 
-function buildContractData(vars: Record<string, any>): ContractDataV3 {
+function buildCanonicalContractData(data: any): ContractDataV3 {
+  const { order, profile, account, contract, billingPayments = [], breakdown } = data;
+  const addr = buildCustomerAddress(order, profile, account);
+  const paymentMethod = resolvePaymentMethod(order, billingPayments);
+  const clientName = buildClientName(order, profile);
+
+  if (!breakdown) throw new Error("Breakdown requis pour contrat");
+  const s = structureFromBreakdown(breakdown, order);
+
   return {
-    contract_number: vars.contract_number || `CTR-${Date.now()}`,
-    contract_date: vars.contract_date || vars.effective_date || vars.created_at || new Date().toISOString(),
-    terms_version: vars.terms_version || "v5.0",
-    client_name: vars.client_name || vars.name || "Client",
-    client_email: vars.client_email || vars.email || "",
-    client_phone: vars.client_phone || vars.phone || "—",
-    client_dob: vars.client_dob,
-    billing_address: vars.billing_address || vars.client_address || vars.address || "—",
-    service_address: vars.service_address || vars.client_address || vars.address || "—",
-    account_number: vars.account_number || vars.client_number || "—",
-    order_number: vars.order_number || vars.order_id || "—",
-    services: vars.services || [{ type: "Internet", name: vars.service_type || "Service Nivra", monthly_price: n(vars.monthly_amount) }],
-    equipment: vars.equipment || [],
-    one_time_fees: vars.one_time_fees || vars.fees || [],
-    subtotal_monthly: n(vars.subtotal_monthly ?? vars.monthly_amount ?? vars.monthly_recurring_amount),
-    subtotal_one_time: n(vars.subtotal_one_time ?? vars.one_time_charges ?? vars.total_one_time),
-    discount_amount: n(vars.discount_amount),
-    tax_gst: n(vars.tax_gst ?? vars.tps_amount ?? vars.tps),
-    tax_qst: n(vars.tax_qst ?? vars.tvq_amount ?? vars.tvq),
-    total_due_today: n(vars.total_due_today ?? vars.amount_paid_today ?? vars.total_payable ?? vars.total),
-    payment_method: vars.payment_method,
-    signature_name: vars.signature_name,
-    signature_date: vars.signature_date,
-    signature_ip: vars.signature_ip,
-    is_signed: Boolean(vars.is_signed ?? false),
-    discount_label: vars.discount_label,
+    contract_number: contract?.contract_number || order.related_contract_id || `CTR-${order.order_number || order.id?.slice(0, 8)}`,
+    contract_date: contract?.created_at || order.created_at,
+    terms_version: "v5.0",
+    client_name: requireField(clientName, "client_name"),
+    client_email: requireField(order.client_email || profile?.email, "client_email"),
+    client_phone: requireField(order.client_phone || profile?.phone, "client_phone"),
+    client_dob: order.client_dob,
+    billing_address: requireField(addr.billing, "billing_address"),
+    service_address: requireField(addr.service, "service_address"),
+    account_number: requireField(account?.account_number, "account_number"),
+    order_number: requireField(order.order_number?.toString(), "order_number"),
+    services: s.services,
+    equipment: s.equipment,
+    one_time_fees: s.fees,
+    subtotal_monthly: s.subtotalMonthly,
+    subtotal_one_time: s.subtotalOnetime,
+    discount_amount: s.discountAmount,
+    tax_gst: s.tpsAmount,
+    tax_qst: s.tvqAmount,
+    total_due_today: s.total,
+    payment_method: paymentMethod,
+    is_signed: contract?.is_signed || contract?.status === "signed_by_client" || contract?.status === "fully_signed",
+    signature_name: contract?.client_signer_name || clientName,
+    signature_date: contract?.client_signed_at || contract?.signed_at,
+    signature_ip: contract?.client_ip,
+    admin_signature_name: contract?.admin_signer_name,
+    admin_signature_date: contract?.admin_signed_at,
   };
 }
 
-function buildSummaryData(vars: Record<string, any>): OrderSummaryV3Data {
-  const total = n(vars.total_payable ?? vars.canonical_total_payable ?? vars.total ?? vars.amount_paid_today);
+function buildCanonicalSummaryData(data: any): OrderSummaryV3Data {
+  const { order, profile, account, billingPayments = [], breakdown } = data;
+  const addr = buildCustomerAddress(order, profile, account);
+  const paymentMethod = resolvePaymentMethod(order, billingPayments);
+  const clientName = buildClientName(order, profile);
+
+  if (!breakdown) throw new Error("Breakdown requis pour sommaire");
+  const s = structureFromBreakdown(breakdown, order);
+
   return {
-    order_number: vars.order_number || vars.order_id?.substring(0, 8) || "—",
-    order_date: vars.order_date || vars.created_at || new Date().toISOString(),
-    order_status: vars.order_status || vars.status || "submitted",
-    client_name: vars.client_name || vars.name || "Client",
-    client_email: vars.client_email || vars.email || "",
-    client_phone: vars.client_phone || vars.phone || "—",
-    service_address: vars.service_address || vars.client_address || vars.address || "—",
-    account_number: vars.account_number || vars.client_number || "—",
-    services: vars.services || [{ type: "Internet", name: vars.service_type || "Service Nivra", monthly_price: n(vars.monthly_recurring_amount ?? vars.monthly_amount) }],
-    equipment: vars.equipment || [],
-    fees: vars.fees || [],
-    subtotal_monthly: n(vars.monthly_recurring_amount ?? vars.subtotal_monthly ?? vars.subtotal_recurring ?? vars.monthly_amount),
-    subtotal_onetime: n(vars.one_time_charges ?? vars.subtotal_onetime ?? vars.subtotal_one_time),
-    discount_amount: n(vars.discount_amount),
-    discount_label: vars.discount_label,
-    tax_gst: n(vars.tps_amount ?? vars.tps ?? vars.canonical_tps_amount),
-    tax_qst: n(vars.tvq_amount ?? vars.tvq ?? vars.canonical_tvq_amount),
-    total_due: total,
-    delivery_method: vars.delivery_method,
-    payment_method: vars.payment_method,
-    payment_status: vars.payment_status,
-    estimated_activation: vars.estimated_activation || vars.installation_date || vars.scheduled_at,
+    order_number: requireField(order.order_number?.toString(), "order_number"),
+    order_date: order.created_at,
+    order_status: order.status || "pending",
+    client_name: requireField(clientName, "client_name"),
+    client_email: requireField(order.client_email || profile?.email, "client_email"),
+    client_phone: requireField(order.client_phone || profile?.phone, "client_phone"),
+    service_address: requireField(addr.service, "service_address"),
+    account_number: requireField(account?.account_number, "account_number"),
+    services: s.services,
+    equipment: s.equipment,
+    fees: s.fees,
+    subtotal_monthly: s.subtotalMonthly,
+    subtotal_onetime: s.subtotalOnetime,
+    discount_amount: s.discountAmount,
+    discount_label: s.discounts.length > 0 ? s.discounts.map(d => d.label).join(", ") : order.promo_code ? `Promo: ${order.promo_code}` : undefined,
+    tax_gst: s.tpsAmount,
+    tax_qst: s.tvqAmount,
+    total_due: s.total,
+    delivery_method: order.delivery_method || order.installation_method,
+    payment_method: paymentMethod,
+    payment_status: order.payment_status,
+    estimated_activation: order.estimated_activation,
   };
 }
 
-// Generate a single PDF using the LOCKED templates and return base64 for Resend attachment
+// --- Generate PDF using locked templates ---
+
 async function lockedPdfToAttachment(
   pdfType: PDFType,
   data: InvoiceDataV2 | LockedReceiptData | ContractDataV3 | OrderSummaryV3Data,
@@ -237,47 +436,46 @@ async function lockedPdfToAttachment(
   return { filename: result.filename || `Nivra-${pdfType}.pdf`, content: await blobToBase64(result.blob) };
 }
 
-// Generate ALL 4 PDFs for full document set
-async function generateFullDocumentSet(vars: Record<string, any>): Promise<Array<{ filename: string; content: string }>> {
-  const validation = validatePDFClientData(vars);
-  if (!validation.valid) {
-    console.warn(`[PDF Safety] Missing client fields for full doc set: ${validation.missing.join(', ')}. Skipping.`);
-    return [];
-  }
-  const attachments: Array<{ filename: string; content: string }> = [];
-  for (const [type, builder] of [
-    ["invoice", buildInvoiceData],
-    ["receipt", buildReceiptData],
-    ["contract", buildContractData],
-    ["summary", buildSummaryData],
-  ] as const) {
-    try {
-      const pdf = await lockedPdfToAttachment(type as PDFType, (builder as any)(vars));
-      if (pdf) attachments.push(pdf);
-    } catch (e) { console.error(`[PDF] ${type} failed:`, e); }
-  }
-  return attachments;
-}
+// --- Main canonical PDF attachment generator ---
 
-// Generate single PDF attachment for a specific email template
-async function generateEmailPDFAttachment(templateKey: string, vars: Record<string, any>): Promise<PDFAttachment | null> {
+async function generateCanonicalPDFAttachment(
+  supabase: ReturnType<typeof createClient>,
+  templateKey: string,
+  vars: Record<string, any>,
+): Promise<PDFAttachment | null> {
   const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
   if (!pdfType) return null;
-  const validation = validatePDFClientData(vars);
-  if (!validation.valid) {
-    console.warn(`[PDF Safety] Missing fields for ${templateKey}: ${validation.missing.join(', ')}. Skipping.`);
-    return null;
-  }
+
   try {
-    const builders: Record<string, () => any> = {
-      invoice: () => buildInvoiceData(vars),
-      receipt: () => buildReceiptData(vars),
-      contract: () => buildContractData(vars),
-      summary: () => buildSummaryData(vars),
-    };
-    return await lockedPdfToAttachment(pdfType, builders[pdfType]());
+    const canonicalData = await fetchCanonicalData(supabase, vars);
+    if (!canonicalData) {
+      console.warn(`[PDF CANONICAL] No canonical data found for ${templateKey}, skipping PDF attachment`);
+      return null;
+    }
+
+    if (!canonicalData.breakdown) {
+      console.warn(`[PDF CANONICAL] No breakdown available for ${templateKey}, skipping PDF attachment`);
+      return null;
+    }
+
+    let pdfData: any;
+    if (pdfType === "invoice") {
+      pdfData = buildCanonicalInvoiceData(canonicalData);
+    } else if (pdfType === "receipt") {
+      pdfData = buildCanonicalReceiptData(canonicalData);
+      if (!pdfData) {
+        console.warn(`[PDF CANONICAL] No confirmed payment for receipt, skipping`);
+        return null;
+      }
+    } else if (pdfType === "contract") {
+      pdfData = buildCanonicalContractData(canonicalData);
+    } else {
+      pdfData = buildCanonicalSummaryData(canonicalData);
+    }
+
+    return await lockedPdfToAttachment(pdfType, pdfData);
   } catch (error) {
-    console.error(`[PDF] Error for ${templateKey}:`, error);
+    console.error(`[PDF CANONICAL] Error generating ${pdfType} for ${templateKey}:`, error);
     return null;
   }
 }
@@ -946,27 +1144,15 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Enrich client data for PDF generation (fetch missing phone/address from DB)
-        const pdfVars = await enrichClientDataForPDF(supabase, templateVars, templateKey);
-
-        // Generate attachments: passthrough > full document set > single PDF
+        // Generate PDF attachment from CANONICAL database data (not template_vars)
         let attachments: Array<{ filename: string; content: string }> | undefined;
-        if (pdfVars._attachments && Array.isArray(pdfVars._attachments)) {
-          attachments = pdfVars._attachments;
+        if (templateVars._attachments && Array.isArray(templateVars._attachments)) {
+          attachments = templateVars._attachments;
           console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
-        } else if (FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) {
-          const fullSet = await generateFullDocumentSet(pdfVars);
-          if (fullSet.length > 0) {
-            attachments = fullSet;
-            console.log(`[FULL DOC SET] email_id=${email.id} files=${fullSet.map(f => f.filename).join(', ')}`);
-          }
         } else {
-          const pdfAttachment = await generateEmailPDFAttachment(templateKey, pdfVars);
+          const pdfAttachment = await generateCanonicalPDFAttachment(supabase, templateKey, templateVars);
           if (pdfAttachment) {
-            attachments = [{
-              filename: pdfAttachment.filename,
-              content: pdfAttachment.content,
-            }];
+            attachments = [{ filename: pdfAttachment.filename, content: pdfAttachment.content }];
             console.log(`[PDF ATTACHED] email_id=${email.id} file=${pdfAttachment.filename}`);
           }
         }
