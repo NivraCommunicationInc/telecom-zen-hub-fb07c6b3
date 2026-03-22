@@ -20,7 +20,7 @@ interface Props { proc: any; }
 const INTAKE_STATES = ["submitted", "pending_admin_review", "received"];
 const OPERATIONAL_STATES = ["confirmed", "processing", "in_progress", "provisioning", "shipping", "installing",
   "shipped", "delivered", "technician_en_route", "installation_completed"];
-const TERMINAL_STATES = ["active", "activated", "completed"];
+const TERMINAL_STATES = ["active", "activated"];
 
 export function ActivationStep({ proc }: Props) {
   const { order, account, invoice } = proc;

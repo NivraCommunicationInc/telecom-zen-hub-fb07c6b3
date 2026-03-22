@@ -973,17 +973,17 @@ export function useOrderProcessing(orderId: string | undefined) {
     const current = data?.order?.status || "";
     const intakeStates = ["submitted", "pending_admin_review", "received"];
     const completionStates = ["completed", "activated", "fulfilled", "delivered", "installation_completed"];
+    const alreadyOperational = ["confirmed", "processing", "in_progress", "provisioning", "shipping",
+      "installing", "shipped", "delivered", "technician_en_route", "installation_completed", "completed"];
 
     // If we're in an intake state and targeting a completion state,
     // we must step through operational states first to satisfy the DB trigger
     if (intakeStates.includes(current) && completionStates.includes(targetStatus)) {
       // Step 1: Move to "confirmed"
-      if (intakeStates.includes(current)) {
-        await updateOrder.mutateAsync({ status: "confirmed" });
-        await logActivity("status_change", "order", orderId, {
-          old_status: current, new_status: "confirmed", reason: "Auto-transition vers état opérationnel"
-        });
-      }
+      await updateOrder.mutateAsync({ status: "confirmed" });
+      await logActivity("status_change", "order", orderId, {
+        old_status: current, new_status: "confirmed", reason: "Auto-transition vers état opérationnel"
+      });
       // Step 2: Move to "processing"
       await updateOrder.mutateAsync({ status: "processing" });
       await logActivity("status_change", "order", orderId, {
@@ -994,7 +994,13 @@ export function useOrderProcessing(orderId: string | undefined) {
       return;
     }
 
-    // If already in an operational state, just set directly
+    // If already in an operational or completed state, transition directly
+    if (alreadyOperational.includes(current)) {
+      await updateOrder.mutateAsync({ status: targetStatus });
+      return;
+    }
+
+    // Fallback: set directly
     await updateOrder.mutateAsync({ status: targetStatus });
   };
 
