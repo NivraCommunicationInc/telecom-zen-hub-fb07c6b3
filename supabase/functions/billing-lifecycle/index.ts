@@ -596,6 +596,7 @@ async function cleanupOverdueInvoices(
       console.log(`[lifecycle] Voided overdue invoice ${inv.invoice_number} (past J+10)`);
     }
   }
+}
 
 // ========================================
 // STEP 4 — Advance referral qualifying_cycles_paid when a renewal invoice is paid
