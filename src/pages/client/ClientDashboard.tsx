@@ -190,9 +190,15 @@ const ClientDashboard = () => {
               </div>
             </div>
 
-            {/* Payment info row */}
+            {/* Billing info row */}
             <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-600">
-              <span><strong>Mode de paiement actuel :</strong> Paiements manuels</span>
+              <span><strong>Mode de paiement :</strong> Paiements manuels</span>
+              {account?.billing_cycle_day && (
+                <span><strong>Cycle :</strong> {account.billing_cycle_day} du mois</span>
+              )}
+              {account?.next_invoice_date && (
+                <span><strong>Prochaine facture :</strong> {format(new Date(account.next_invoice_date), "d MMM yyyy", { locale: fr })}</span>
+              )}
             </div>
 
             {/* Quick links */}
