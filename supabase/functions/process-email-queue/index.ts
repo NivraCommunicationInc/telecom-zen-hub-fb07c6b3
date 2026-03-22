@@ -514,6 +514,125 @@ const DUE_AMOUNT_TEMPLATES = new Set([
   "renewal_invoice_created",
 ]);
 
+const SERVICE_LABEL_TEMPLATES = new Set([
+  "order_submitted",
+  "cancellation_received",
+  "cancellation_scheduled",
+  "cancellation_completed",
+  "cancellation_declined",
+]);
+
+const NON_VALUE_STRINGS = new Set([
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "undefined",
+  "—",
+  "à confirmer",
+  "a confirmer",
+  "non fourni par le client",
+]);
+
+const normalizeTokenKey = (key: string): string => key.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+
+const hasRenderableValue = (value: unknown): boolean => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "boolean") return true;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (trimmed.includes("{{") && trimmed.includes("}}")) return false;
+    if (NON_VALUE_STRINGS.has(trimmed.toLowerCase())) return false;
+    return true;
+  }
+  if (Array.isArray(value)) return value.some(hasRenderableValue);
+  return true;
+};
+
+const preferCanonicalValue = <T>(...values: T[]): T | undefined => values.find((v) => hasRenderableValue(v));
+
+const toRenderableString = (value: unknown): string | undefined => {
+  if (!hasRenderableValue(value)) return undefined;
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry ?? "").trim()))
+      .filter((entry) => !!entry && !NON_VALUE_STRINGS.has(entry.toLowerCase()));
+    return normalized.length > 0 ? normalized.join(", ") : undefined;
+  }
+  return String(value).trim();
+};
+
+const buildRenderDictionary = (vars: Record<string, any>): Record<string, string> => {
+  const dictionary: Record<string, string> = {};
+  for (const [rawKey, rawValue] of Object.entries(vars)) {
+    const value = toRenderableString(rawValue);
+    if (!value) continue;
+    const key = String(rawKey || "").trim();
+    if (!key) continue;
+
+    const camel = key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+    const snake = key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+
+    dictionary[normalizeTokenKey(key)] = value;
+    dictionary[normalizeTokenKey(camel)] = value;
+    dictionary[normalizeTokenKey(snake)] = value;
+  }
+  return dictionary;
+};
+
+const renderPlaceholders = (input: string, vars: Record<string, any>): string => {
+  if (!input) return input;
+  const dictionary = buildRenderDictionary(vars);
+  return input.replace(/{{\s*([A-Za-z0-9_]+)\s*}}/g, (full, token) => {
+    const replacement = dictionary[normalizeTokenKey(String(token || ""))];
+    return replacement ?? full;
+  });
+};
+
+const findUnresolvedPlaceholders = (value: string): string[] => {
+  if (!value) return [];
+  const matches = value.matchAll(/{{\s*([A-Za-z0-9_]+)\s*}}/g);
+  return Array.from(matches, (m) => m[1]).filter(Boolean);
+};
+
+const buildCanonicalServiceLabel = (order: Record<string, any> | null, vars: Record<string, any>): string | undefined => {
+  const planNames = Array.isArray(order?.pricing_snapshot?.all_plan_codes)
+    ? order.pricing_snapshot.all_plan_codes
+      .map((plan: any) => toRenderableString(plan?.name || plan?.plan_name))
+      .filter((name: any) => !!name)
+    : [];
+
+  if (planNames.length > 0) {
+    return Array.from(new Set(planNames)).join(", ");
+  }
+
+  const listServices = Array.isArray(vars.services)
+    ? vars.services
+      .map((service: any) => toRenderableString(service?.name || service?.plan_name || service))
+      .filter((name: any) => !!name)
+    : [];
+
+  if (listServices.length > 0) {
+    return Array.from(new Set(listServices)).join(", ");
+  }
+
+  return toRenderableString(
+    preferCanonicalValue(
+      order?.service_type,
+      vars.service_type,
+      vars.serviceType,
+      vars.service_name,
+      vars.serviceName,
+      vars.services_summary,
+      vars.servicesSummary,
+      vars.plan_name,
+      vars.planName,
+    ),
+  );
+};
+
 async function resolveCanonicalFinancialVars(
   supabase: ReturnType<typeof createClient>,
   emailRow: Record<string, any>,
