@@ -197,16 +197,23 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* ═══ CRITICAL ALERTS ═══ */}
-      {criticalAlerts.length > 0 && (
+      {/* ═══ OPERATIONAL ALERTS (actionable, linked) ═══ */}
+      {operationalAlerts.length > 0 && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="h-4 w-4 text-red-400" />
-            <h2 className="text-xs font-semibold text-red-400">Alertes critiques</h2>
+            <h2 className="text-xs font-semibold text-red-400">Alertes opérationnelles — {operationalAlerts.length}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            {criticalAlerts.map((a, i) => (
-              <Badge key={i} variant="destructive" className="text-[10px]">{a}</Badge>
+            {operationalAlerts.map((a, i) => (
+              <Link key={i} to={a.href}>
+                <Badge
+                  variant={a.severity === "critical" ? "destructive" : "secondary"}
+                  className={`text-[10px] cursor-pointer hover:opacity-80 ${a.severity === "warning" ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : ""}`}
+                >
+                  {a.label} →
+                </Badge>
+              </Link>
             ))}
           </div>
         </div>
