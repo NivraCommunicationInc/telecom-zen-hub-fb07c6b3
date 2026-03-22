@@ -498,6 +498,141 @@ async function resolveCanonicalFinancialVars(
   }
 }
 
+// =============================================
+// CLIENT DATA ENRICHMENT FOR PDF ATTACHMENTS
+// Fetches missing client fields (phone, address) from DB
+// so validatePDFClientData() doesn't silently skip PDFs.
+// =============================================
+async function enrichClientDataForPDF(
+  supabase: ReturnType<typeof createClient>,
+  vars: Record<string, any>,
+  templateKey: string,
+): Promise<Record<string, any>> {
+  // Only enrich for templates that need PDF attachments
+  const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
+  if (!pdfType && !FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) return vars;
+
+  const hasPhone = !!(vars.client_phone || vars.phone);
+  const hasAddress = !!(vars.client_address || vars.address || vars.service_address);
+  const hasEmail = !!(vars.client_email || vars.email);
+
+  // If all fields present, skip lookup
+  if (hasPhone && hasAddress && hasEmail) return vars;
+
+  const enriched = { ...vars };
+
+  try {
+    // Strategy 1: Look up billing_customer via invoice
+    const invoiceId = vars.invoice_id;
+    const invoiceNumber = vars.invoice_number;
+    let customerId: string | null = null;
+
+    if (invoiceId) {
+      const { data: inv } = await supabase
+        .from("billing_invoices")
+        .select("customer_id")
+        .eq("id", invoiceId)
+        .maybeSingle();
+      customerId = inv?.customer_id || null;
+    }
+    if (!customerId && invoiceNumber) {
+      const { data: inv } = await supabase
+        .from("billing_invoices")
+        .select("customer_id")
+        .eq("invoice_number", invoiceNumber)
+        .maybeSingle();
+      customerId = inv?.customer_id || null;
+    }
+
+    if (customerId) {
+      const { data: cust } = await supabase
+        .from("billing_customers")
+        .select("email, phone, user_id")
+        .eq("id", customerId)
+        .maybeSingle();
+
+      if (cust) {
+        if (!hasEmail && cust.email) enriched.client_email = cust.email;
+        if (!hasPhone && cust.phone) enriched.client_phone = cust.phone;
+
+        // Look up profile for address if still missing
+        if (!hasAddress && cust.user_id) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("address, city, province, postal_code")
+            .eq("id", cust.user_id)
+            .maybeSingle();
+          if (profile?.address) {
+            enriched.client_address = [profile.address, profile.city, profile.province, profile.postal_code].filter(Boolean).join(", ");
+            if (profile.city) enriched.client_city = profile.city;
+            if (profile.province) enriched.client_province = profile.province;
+            if (profile.postal_code) enriched.client_postal_code = profile.postal_code;
+          }
+        }
+      }
+    }
+
+    // Strategy 2: Look up via order → accounts → profiles
+    if (!enriched.client_address && !enriched.service_address) {
+      const orderId = vars.order_id;
+      if (orderId) {
+        const { data: order } = await supabase
+          .from("orders")
+          .select("user_id, service_address, service_city, service_postal_code")
+          .eq("id", orderId)
+          .maybeSingle();
+        if (order?.service_address) {
+          enriched.client_address = enriched.service_address = order.service_address;
+          if (order.service_city) enriched.client_city = order.service_city;
+          if (order.service_postal_code) enriched.client_postal_code = order.service_postal_code;
+        }
+        if (!hasPhone && order?.user_id) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("phone, address, city, province, postal_code")
+            .eq("id", order.user_id)
+            .maybeSingle();
+          if (prof?.phone && !enriched.client_phone) enriched.client_phone = prof.phone;
+          if (prof?.address && !enriched.client_address) {
+            enriched.client_address = [prof.address, prof.city, prof.province, prof.postal_code].filter(Boolean).join(", ");
+          }
+        }
+      }
+    }
+
+    // Strategy 3: Look up via to_email as last resort
+    if ((!enriched.client_phone || !enriched.client_address) && vars.to_email) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("phone, address, city, province, postal_code")
+        .eq("email", vars.to_email)
+        .maybeSingle();
+      if (prof) {
+        if (!enriched.client_phone && prof.phone) enriched.client_phone = prof.phone;
+        if (!enriched.client_address && prof.address) {
+          enriched.client_address = [prof.address, prof.city, prof.province, prof.postal_code].filter(Boolean).join(", ");
+        }
+      }
+    }
+
+    // Final fallback: use placeholder values so PDF is still generated
+    // Better to send a PDF with "—" than no PDF at all
+    if (!enriched.client_phone && !enriched.phone) enriched.client_phone = "—";
+    if (!enriched.client_address && !enriched.address && !enriched.service_address) enriched.client_address = "—";
+    if (!enriched.client_email && !enriched.email) enriched.client_email = vars.to_email || "—";
+
+    console.log(`[PDF ENRICH] template=${templateKey} enriched: phone=${!!enriched.client_phone} address=${!!enriched.client_address} email=${!!enriched.client_email}`);
+  } catch (err) {
+    console.warn("[PDF ENRICH] Lookup failed, using fallbacks:", err);
+    // Fallback so PDF still generates
+    if (!enriched.client_phone && !enriched.phone) enriched.client_phone = "—";
+    if (!enriched.client_address && !enriched.address && !enriched.service_address) enriched.client_address = "—";
+    if (!enriched.client_email && !enriched.email) enriched.client_email = vars.to_email || "—";
+  }
+
+  return enriched;
+}
+
 
 // =============================================
 // MAIN SERVER HANDLER
@@ -810,21 +945,22 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Enrich client data for PDF generation (fetch missing phone/address from DB)
+        const pdfVars = await enrichClientDataForPDF(supabase, templateVars, templateKey);
+
         // Generate attachments: passthrough > full document set > single PDF
         let attachments: Array<{ filename: string; content: string }> | undefined;
-        if (templateVars._attachments && Array.isArray(templateVars._attachments)) {
-          attachments = templateVars._attachments;
+        if (pdfVars._attachments && Array.isArray(pdfVars._attachments)) {
+          attachments = pdfVars._attachments;
           console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
         } else if (FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) {
-          // Order/payment confirmation → attach ALL 4 PDFs
-          const fullSet = await generateFullDocumentSet(templateVars);
+          const fullSet = await generateFullDocumentSet(pdfVars);
           if (fullSet.length > 0) {
             attachments = fullSet;
             console.log(`[FULL DOC SET] email_id=${email.id} files=${fullSet.map(f => f.filename).join(', ')}`);
           }
         } else {
-          // Other templates → single PDF based on type
-          const pdfAttachment = await generateEmailPDFAttachment(templateKey, templateVars);
+          const pdfAttachment = await generateEmailPDFAttachment(templateKey, pdfVars);
           if (pdfAttachment) {
             attachments = [{
               filename: pdfAttachment.filename,
