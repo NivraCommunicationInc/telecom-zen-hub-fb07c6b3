@@ -6,7 +6,7 @@
  * Deduplication: only one export per calendar day (America/Toronto).
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as XLSX from "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs";
+import * as XLSX from "npm:xlsx@0.18.5";
 
 const RECIPIENTS = [
   "support@nivra-telecom.ca",
