@@ -145,7 +145,10 @@ export default function EmployeeWorkQueue() {
 
   const getItemHref = (item: WorkItem) => {
     switch (item.item_type) {
-      case "order": return employeePath(`/orders/${item.source_id}`);
+      case "order": {
+        const orderRouteParam = (item.source_reference || item.source_id || "").trim();
+        return employeePath(`/orders/${encodeURIComponent(orderRouteParam)}`);
+      }
       case "activation": return employeePath("/activations");
       case "payment": return employeePath(`/payments?id=${item.source_id}`);
       case "kyc": return employeePath("/kyc");
