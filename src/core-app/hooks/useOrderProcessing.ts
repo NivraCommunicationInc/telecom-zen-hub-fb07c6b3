@@ -904,69 +904,88 @@ export function useOrderProcessing(orderId: string | undefined) {
     tracking_url?: string;
     shipped_at?: string;
   }) => {
-    await updateOrder.mutateAsync(fields);
-    await logActivity("shipment_updated", "order", orderId, fields);
+    try {
+      await updateOrder.mutateAsync(fields);
+      await logActivity("shipment_updated", "order", orderId, fields);
 
-    // Send shipping notification if tracking was added
-    if (fields.tracking_number) {
-      const email = getClientEmail();
-      if (email) {
-        await queueClientEmail({
-          to_email: email,
-          template_key: "shipment_created",
-          event_key: `shipment_${orderId}_${Date.now()}`,
-          subject: "Votre commande a été expédiée — Nivra",
-          entity_id: orderId,
-          template_vars: {
-            client_name: getClientName(),
-            order_number: data?.order?.order_number || "",
-            carrier: fields.carrier || "",
-            tracking_number: fields.tracking_number || "",
-            tracking_url: fields.tracking_url || "",
-          },
-        });
+      // Send shipping notification if tracking was added
+      if (fields.tracking_number) {
+        const email = getClientEmail();
+        if (email) {
+          await queueClientEmail({
+            to_email: email,
+            template_key: "shipment_created",
+            event_key: `shipment_${orderId}_${Date.now()}`,
+            subject: "Votre commande a été expédiée — Nivra",
+            entity_id: orderId,
+            template_vars: {
+              client_name: getClientName(),
+              order_number: data?.order?.order_number || "",
+              carrier: fields.carrier || "",
+              tracking_number: fields.tracking_number || "",
+              tracking_url: fields.tracking_url || "",
+            },
+          });
+        }
       }
-    }
 
-    toast.success("Expédition mise à jour");
+      toast.success("Expédition mise à jour");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Shipping] Failed:", err);
+      toast.error(`Erreur expédition: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Assign technician ── */
   const assignTechnician = async (technicianId: string) => {
-    await updateOrder.mutateAsync({ technician_id: technicianId });
+    try {
+      // GUARD: Validate tech ID
+      if (!technicianId) {
+        toast.error("ID technicien manquant");
+        return;
+      }
 
-    // Also update the linked appointment if one exists
-    if (data?.appointment?.id) {
-      await supabase
-        .from("appointments")
-        .update({
-          technician_id: technicianId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", data.appointment.id);
+      await updateOrder.mutateAsync({ technician_id: technicianId });
+
+      // Also update the linked appointment if one exists
+      if (data?.appointment?.id) {
+        const { error: aptErr } = await supabase
+          .from("appointments")
+          .update({
+            technician_id: technicianId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.appointment.id);
+        if (aptErr) {
+          console.warn("[GUARDRAIL][Technician] Appointment update failed:", aptErr.message);
+          toast.warning("Technicien assigné à la commande, mais erreur lors de la mise à jour du rendez-vous");
+        }
+      }
+
+      await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
+
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "technician_assigned",
+          event_key: `technician_assigned_${orderId}_${Date.now()}`,
+          subject: "Un technicien a été assigné à votre commande — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_id: orderId,
+            order_number: data?.order?.order_number || "",
+            technician_id: technicianId,
+          },
+        });
+      }
+
+      toast.success("Technicien assigné");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Technician] Failed:", err);
+      toast.error(`Erreur assignation technicien: ${err?.message || "Erreur inconnue"}`);
     }
-
-    await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
-
-    // P3: Send client notification for technician assignment
-    const email = getClientEmail();
-    if (email) {
-      await queueClientEmail({
-        to_email: email,
-        template_key: "technician_assigned",
-        event_key: `technician_assigned_${orderId}_${Date.now()}`,
-        subject: "Un technicien a été assigné à votre commande — Nivra",
-        entity_id: orderId,
-        template_vars: {
-          client_name: getClientName(),
-          order_id: orderId,
-          order_number: data?.order?.order_number || "",
-          technician_id: technicianId,
-        },
-      });
-    }
-
-    toast.success("Technicien assigné");
   };
 
   /* ── Add internal note ── */
