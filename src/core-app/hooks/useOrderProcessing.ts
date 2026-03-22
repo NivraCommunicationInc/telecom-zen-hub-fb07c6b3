@@ -1026,25 +1026,43 @@ export function useOrderProcessing(orderId: string | undefined) {
 
   /* ── Sign contract (admin side) ── */
   const signContract = async (contractId: string) => {
-    const { error } = await supabase
-      .from("contracts")
-      .update({
-        is_signed: true,
-        admin_signed_at: new Date().toISOString(),
-        admin_signer_id: user?.id || null,
-        admin_signer_name: user?.email || "Admin",
-        status: "signed_by_admin",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", contractId);
-    if (error) throw error;
-    await logActivity("contract_signed_admin", "order", orderId, { contract_id: contractId });
+    try {
+      // GUARD: Validate contract ID
+      if (!contractId) {
+        toast.error("ID de contrat manquant");
+        return;
+      }
 
-    // Also update order to link the contract
-    await updateOrder.mutateAsync({ related_contract_id: contractId });
+      // GUARD: Check if contract is already signed
+      const existing = data?.contracts?.find((c: any) => c.id === contractId);
+      if (existing?.is_signed) {
+        toast.info("Ce contrat est déjà signé");
+        return;
+      }
 
-    invalidateAll();
-    toast.success("Contrat signé (admin)");
+      const { error } = await supabase
+        .from("contracts")
+        .update({
+          is_signed: true,
+          admin_signed_at: new Date().toISOString(),
+          admin_signer_id: user?.id || null,
+          admin_signer_name: user?.email || "Admin",
+          status: "signed_by_admin",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contractId);
+      if (error) throw error;
+      await logActivity("contract_signed_admin", "order", orderId, { contract_id: contractId });
+
+      // Also update order to link the contract
+      await updateOrder.mutateAsync({ related_contract_id: contractId });
+
+      invalidateAll();
+      toast.success("Contrat signé (admin)");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Contract] Sign failed:", err);
+      toast.error(`Erreur signature contrat: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Transition order through operational states safely ── */
