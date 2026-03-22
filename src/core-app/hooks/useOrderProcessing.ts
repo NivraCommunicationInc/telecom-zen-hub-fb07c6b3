@@ -601,7 +601,7 @@ export function useOrderProcessing(orderId: string | undefined) {
             method: billingMethod as any,
             status: "pending" as any,
             reference: reference || order.payment_reference || null,
-            source: "core_admin_confirm",
+            source: "admin_confirm",
             environment: order.environment || "production",
           })
           .select("*")
