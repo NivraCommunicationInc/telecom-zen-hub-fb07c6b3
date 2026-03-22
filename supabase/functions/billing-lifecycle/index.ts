@@ -557,19 +557,24 @@ async function processReminders(
 }
 
 // ========================================
-// STEP 4 — Cleanup: void any leftover "overdue" invoices (prepaid = no overdue)
+// STEP 4 — Cleanup: void overdue invoices ONLY after J+10
+// CANONICAL RULE: overdue invoices stay overdue from J+5 to J+9
+// to allow reactivation. Only void at J+10+.
+// Step 1 (processExpirations) already handles this correctly,
+// so this is a safety net for any edge cases missed.
 // ========================================
 async function cleanupOverdueInvoices(
   supabase: ReturnType<typeof createClient>,
   stats: RunStats,
 ) {
   const today = todayStr();
+  const voidCutoff = addDays(today, -10); // Only void if due_date was 10+ days ago
 
   const { data: overdueInvoices, error } = await supabase
     .from("billing_invoices")
     .select("id, invoice_number, due_date")
     .eq("status", "overdue")
-    .lt("due_date", today);
+    .lte("due_date", voidCutoff);
 
   if (error) {
     stats.errors.push(`Overdue cleanup error: ${error.message}`);
@@ -580,15 +585,17 @@ async function cleanupOverdueInvoices(
   for (const inv of overdueInvoices || []) {
     const { error: voidErr } = await supabase
       .from("billing_invoices")
-      .update({ status: "void" })
+      .update({
+        status: "void",
+        notes: `[LIFECYCLE CLEANUP] Voided at J+10+ — reactivation window expired`,
+      })
       .eq("id", inv.id);
 
     if (!voidErr) {
       stats.invoices_voided++;
-      console.log(`[lifecycle] Voided overdue invoice ${inv.invoice_number}`);
+      console.log(`[lifecycle] Voided overdue invoice ${inv.invoice_number} (past J+10)`);
     }
   }
-}
 
 // ========================================
 // STEP 4 — Advance referral qualifying_cycles_paid when a renewal invoice is paid
