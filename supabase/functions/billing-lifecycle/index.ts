@@ -116,7 +116,6 @@ async function processExpirations(
           .update({
             status: "void",
             notes: `[LIFECYCLE J+${daysPastDue}] Facture annulée — fenêtre de réactivation expirée (J+10). Aucune dette.`,
-            updated_at: new Date().toISOString(),
           })
           .eq("id", inv.id);
 
