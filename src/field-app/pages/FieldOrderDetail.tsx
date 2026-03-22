@@ -265,6 +265,56 @@ export default function FieldOrderDetail() {
         <span className="text-lg font-bold text-[#000000]">{order.total_amount?.toFixed(2)} $</span>
       </div>
 
+      {/* ═══ NEXT ACTION — TOP PRIORITY ═══ */}
+      <NextActionBanner
+        paymentStatus={order.payment_status}
+        syncStatus={order.sync_status}
+        convertedOrderId={order.converted_order_id}
+        canonicalOrderStatus={canonicalOrder?.status}
+        hasAppointment={!!appointment}
+        subscriptionStatus={subscription?.status}
+      />
+
+      {/* ═══ ORDER SUMMARY STRIP ═══ */}
+      <OrderSummaryStrip
+        saleStatus={getPhaseLabel()}
+        paymentStatus={order.payment_status || "pending"}
+        syncStatus={order.sync_status || "pending"}
+        installationStatus={canonicalOrder?.status || "—"}
+        serviceStatus={subscription?.status || "—"}
+        commissionStatus={commission?.status || "pending"}
+        commissionAmount={commission?.amount}
+      />
+
+      {/* ═══ Commission Detail ═══ */}
+      {commission && (
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4">
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+            <CreditCard className="h-3.5 w-3.5" /> Commission
+          </h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <InfoRow label="Montant" value={`${commission.amount?.toFixed(2)} $`} bold />
+            <InfoRow label="Statut" value={commission.status === "approved" ? "Approuvée" : commission.status === "paid" ? "Payée" : "En attente"} />
+            {commission.reason && <div className="col-span-2"><InfoRow label="Note" value={commission.reason} /></div>}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Promo / Referral Impact ═══ */}
+      {((order as any).promo_code || (order as any).referral_code) && (
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5">
+            <Tag className="h-3.5 w-3.5" /> Promotions & Référencement
+          </h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            {(order as any).promo_code && <InfoRow label="Code promo" value={(order as any).promo_code} mono />}
+            {(order as any).referral_code && <InfoRow label="Code parrainage" value={(order as any).referral_code} mono />}
+            {(order as any).discount_amount && <InfoRow label="Rabais appliqué" value={`-${Number((order as any).discount_amount).toFixed(2)} $`} bold />}
+            {(order as any).discount_type === "percentage" && <InfoRow label="Impact" value="50% premier mois" />}
+          </div>
+        </div>
+      )}
+
       {/* ═══ Pipeline Status ═══ */}
       <div className="grid grid-cols-2 gap-3">
         <div className={cn("rounded-xl border p-4", sync.classes.replace(/text-\S+/, ""))}>
