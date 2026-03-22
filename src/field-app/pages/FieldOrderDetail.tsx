@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { NextActionBanner } from "@/field-app/components/NextActionBanner";
+import { OrderSummaryStrip } from "@/field-app/components/OrderSummaryStrip";
 
 /* ─── Status configurations ─── */
 const SYNC_CONFIG: Record<string, { label: string; desc: string; icon: typeof CheckCircle2; classes: string }> = {
@@ -155,6 +157,21 @@ export default function FieldOrderDetail() {
     enabled: !!order?.converted_order_id,
   });
 
+  /* ─── Load commission for this order ─── */
+  const { data: commission } = useQuery({
+    queryKey: ["field-commission", orderId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("field_commissions")
+        .select("id, amount, status, reason")
+        .eq("sale_id", orderId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!orderId,
+  });
+
   /* ─── Retry sync ─── */
   const retrySyncMutation = useMutation({
     mutationFn: async () => {
@@ -247,6 +264,56 @@ export default function FieldOrderDetail() {
         </div>
         <span className="text-lg font-bold text-[#000000]">{order.total_amount?.toFixed(2)} $</span>
       </div>
+
+      {/* ═══ NEXT ACTION — TOP PRIORITY ═══ */}
+      <NextActionBanner
+        paymentStatus={order.payment_status}
+        syncStatus={order.sync_status}
+        convertedOrderId={order.converted_order_id}
+        canonicalOrderStatus={canonicalOrder?.status}
+        hasAppointment={!!appointment}
+        subscriptionStatus={subscription?.status}
+      />
+
+      {/* ═══ ORDER SUMMARY STRIP ═══ */}
+      <OrderSummaryStrip
+        saleStatus={getPhaseLabel()}
+        paymentStatus={order.payment_status || "pending"}
+        syncStatus={order.sync_status || "pending"}
+        installationStatus={canonicalOrder?.status || "—"}
+        serviceStatus={subscription?.status || "—"}
+        commissionStatus={commission?.status || "pending"}
+        commissionAmount={commission?.amount}
+      />
+
+      {/* ═══ Commission Detail ═══ */}
+      {commission && (
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4">
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+            <CreditCard className="h-3.5 w-3.5" /> Commission
+          </h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <InfoRow label="Montant" value={`${commission.amount?.toFixed(2)} $`} bold />
+            <InfoRow label="Statut" value={commission.status === "approved" ? "Approuvée" : commission.status === "paid" ? "Payée" : "En attente"} />
+            {commission.reason && <div className="col-span-2"><InfoRow label="Note" value={commission.reason} /></div>}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Promo / Referral Impact ═══ */}
+      {((order as any).promo_code || (order as any).referral_code) && (
+        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5">
+            <Tag className="h-3.5 w-3.5" /> Promotions & Référencement
+          </h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            {(order as any).promo_code && <InfoRow label="Code promo" value={(order as any).promo_code} mono />}
+            {(order as any).referral_code && <InfoRow label="Code parrainage" value={(order as any).referral_code} mono />}
+            {(order as any).discount_amount && <InfoRow label="Rabais appliqué" value={`-${Number((order as any).discount_amount).toFixed(2)} $`} bold />}
+            {(order as any).discount_type === "percentage" && <InfoRow label="Impact" value="50% premier mois" />}
+          </div>
+        </div>
+      )}
 
       {/* ═══ Pipeline Status ═══ */}
       <div className="grid grid-cols-2 gap-3">
@@ -447,20 +514,7 @@ export default function FieldOrderDetail() {
         </div>
       )}
 
-      {/* ═══ Promo / Referral ═══ */}
-      {((order as any).promo_code || (order as any).referral_code) && (
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
-          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5">
-            <Tag className="h-3.5 w-3.5" /> Promotions & Référencement
-          </h3>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            {(order as any).promo_code && <InfoRow label="Code promo" value={(order as any).promo_code} mono />}
-            {(order as any).referral_code && <InfoRow label="Code référence" value={(order as any).referral_code} mono />}
-            {(order as any).discount_amount && <InfoRow label="Rabais" value={`-${Number((order as any).discount_amount).toFixed(2)} $`} />}
-          </div>
-        </div>
-      )}
-
+      {/* Promo section moved to top summary */}
       {/* ═══ Installation Type ═══ */}
       {((order as any).installation_type || canonicalOrder?.fulfillment_type) && (
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
@@ -481,12 +535,22 @@ export default function FieldOrderDetail() {
         </div>
       )}
 
+      {/* ═══ Canonical Traceability ═══ */}
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#9CA3AF] font-mono bg-[#F9FAFB] rounded-lg px-3 py-2">
+        <span>sale: {order.id.slice(0, 8)}</span>
+        {order.converted_order_id && <span>· order: {canonicalOrder?.order_number || order.converted_order_id.slice(0, 8)}</span>}
+        {canonicalInvoice && <span>· inv: {canonicalInvoice.invoice_number}</span>}
+        {canonicalPayment && <span>· pay: {canonicalPayment.payment_number}</span>}
+        {subscription && <span>· sub: {subscription.id.slice(0, 8)}</span>}
+        {appointment && <span>· apt: {appointment.appointment_number || appointment.id.slice(0, 8)}</span>}
+      </div>
+
       {/* ═══ Timestamps ═══ */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl p-4">
         <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-2">Historique</h3>
         <div className="text-xs text-[#6B7280] space-y-1">
           <p>Créée: {format(new Date(order.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
-          {order.updated_at && <p>Mise à jour: {formatDistanceToNow(new Date(order.updated_at), { addSuffix: true, locale: fr })}</p>}
+          {order.updated_at && <p>Dernière mise à jour: {formatDistanceToNow(new Date(order.updated_at), { addSuffix: true, locale: fr })}</p>}
         </div>
       </div>
 
