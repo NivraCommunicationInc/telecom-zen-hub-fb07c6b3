@@ -91,8 +91,8 @@ const statusBadge = (status: string) => {
   switch (status) {
     case "active": return <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">Actif</Badge>;
     case "pending": return <Badge className="bg-amber-500/20 text-amber-500 text-xs"><Clock className="w-3 h-3 mr-0.5" />En attente</Badge>;
-    case "paused":
-    case "suspended": return <Badge className="bg-amber-500/20 text-amber-500 text-xs"><Pause className="w-3 h-3 mr-0.5" />Suspendu</Badge>;
+    case "paused": return <Badge className="bg-amber-500/20 text-amber-500 text-xs"><Pause className="w-3 h-3 mr-0.5" />En pause</Badge>;
+    case "suspended": return <Badge className="bg-red-500/20 text-red-500 text-xs"><AlertTriangle className="w-3 h-3 mr-0.5" />Suspendu</Badge>;
     case "cancelled":
     case "expired": return <Badge className="bg-red-500/20 text-red-500 text-xs">Annulé</Badge>;
     default: return <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">Actif</Badge>;

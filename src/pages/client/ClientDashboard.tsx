@@ -35,7 +35,7 @@ const ClientDashboard = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch from billing_subscriptions (V2 source of truth) via billing_customer
+  // Fetch from billing_subscriptions (V2 source of truth) — ALL non-cancelled
   const { data: subscriptions } = useQuery({
     queryKey: ["client-billing-subscriptions", user?.id],
     queryFn: async () => {
@@ -53,7 +53,7 @@ const ClientDashboard = () => {
         .from("billing_subscriptions")
         .select("*, services:billing_subscription_services(*)")
         .eq("customer_id", customer.id)
-        .eq("status", "active");
+        .not("status", "in", '("cancelled","expired")');
       return (subs || []).map((s: any) => ({
         id: s.id,
         plan_name: s.plan_name,
@@ -61,7 +61,24 @@ const ClientDashboard = () => {
         billing_cycle: "monthly",
         service_type: s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
         status: s.status,
+        cycle_start_date: s.cycle_start_date,
+        cycle_end_date: s.cycle_end_date,
       }));
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch account for billing_cycle_day + next_invoice_date
+  const { data: account } = useQuery({
+    queryKey: ["client-account-billing", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await portalSupabase
+        .from("accounts")
+        .select("billing_cycle_day, next_invoice_date, status")
+        .eq("client_id", user.id)
+        .maybeSingle();
+      return data;
     },
     enabled: !!user?.id,
   });
@@ -89,6 +106,17 @@ const ClientDashboard = () => {
   const dismiss = (id: string) => setDismissedBanners((prev) => [...prev, id]);
 
   const accountNumber = accountIdentity?.accountNumber || "Non attribué";
+
+  // Status badge helper
+  const statusBadge = (status: string) => {
+    const cfg: Record<string, { label: string; cls: string }> = {
+      active:    { label: "Actif",      cls: "bg-emerald-100 text-emerald-700" },
+      suspended: { label: "Suspendu",   cls: "bg-red-100 text-red-700" },
+      pending:   { label: "En attente", cls: "bg-amber-100 text-amber-700" },
+    };
+    const c = cfg[status] || { label: status, cls: "bg-slate-100 text-slate-600" };
+    return <Badge className={`${c.cls} text-xs ml-2`}>{c.label}</Badge>;
+  };
 
   // Group subscriptions by type
   const mobileServices = subscriptions?.filter((s: any) => 
@@ -173,9 +201,15 @@ const ClientDashboard = () => {
               </div>
             </div>
 
-            {/* Payment info row */}
+            {/* Billing info row */}
             <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-x-8 gap-y-2 text-sm text-slate-600">
-              <span><strong>Mode de paiement actuel :</strong> Paiements manuels</span>
+              <span><strong>Mode de paiement :</strong> Paiements manuels</span>
+              {account?.billing_cycle_day && (
+                <span><strong>Cycle :</strong> {account.billing_cycle_day} du mois</span>
+              )}
+              {account?.next_invoice_date && (
+                <span><strong>Prochaine facture :</strong> {format(new Date(account.next_invoice_date), "d MMM yyyy", { locale: fr })}</span>
+              )}
             </div>
 
             {/* Quick links */}
@@ -208,10 +242,14 @@ const ClientDashboard = () => {
                   <div className="flex items-center gap-4">
                     <Smartphone className="w-5 h-5 text-slate-400" />
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-slate-900 flex items-center">
                         {profile?.full_name || user?.user_metadata?.full_name || "Client"}
+                        {statusBadge(sub.status)}
                       </p>
-                      <p className="text-sm text-slate-500">{profile?.phone || "—"}</p>
+                      <p className="text-sm text-slate-500">
+                        {profile?.phone || "—"}
+                        {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
+                      </p>
                     </div>
                   </div>
                   <Link to="/portal/services">
@@ -238,9 +276,13 @@ const ClientDashboard = () => {
               {internetServices.map((sub: any) => (
                 <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-slate-900">{sub.plan_name}</p>
+                    <p className="font-medium text-slate-900 flex items-center">
+                      {sub.plan_name}
+                      {statusBadge(sub.status)}
+                    </p>
                     <p className="text-sm text-slate-500">
                       {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/{sub.billing_cycle === "monthly" ? "mois" : "an"}
+                      {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
                     </p>
                   </div>
                   <Link to="/portal/services">
@@ -267,9 +309,13 @@ const ClientDashboard = () => {
               {tvServices.map((sub: any) => (
                 <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-slate-900">{sub.plan_name}</p>
+                    <p className="font-medium text-slate-900 flex items-center">
+                      {sub.plan_name}
+                      {statusBadge(sub.status)}
+                    </p>
                     <p className="text-sm text-slate-500">
                       {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
                     </p>
                   </div>
                   <Link to="/portal/services">

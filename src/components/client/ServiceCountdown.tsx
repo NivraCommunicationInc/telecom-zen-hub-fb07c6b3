@@ -40,7 +40,7 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
         .from('billing_subscriptions')
         .select('id, plan_name, cycle_end_date, status')
         .eq('customer_id', customer.id)
-        .in('status', ['active', 'pending_renewal', 'grace_period'])
+        .in('status', ['active', 'pending_renewal', 'grace_period', 'suspended'])
         .order('cycle_end_date', { ascending: true });
 
       if (error) throw error;
@@ -55,6 +55,7 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
 
   // Find the subscription expiring soonest
   const nextExpiring = subscriptions[0];
+  const isSuspended = nextExpiring.status === 'suspended';
   const endDate = new Date(nextExpiring.cycle_end_date);
   const today = new Date();
   const daysRemaining = differenceInDays(endDate, today);
@@ -71,6 +72,15 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
   const isOk = daysRemaining > 7;
 
   const getStatusConfig = () => {
+    if (isSuspended) {
+      return {
+        icon: AlertTriangle,
+        color: "text-red-500",
+        bgColor: "bg-red-500/10 border-red-500/30",
+        progressColor: "bg-red-500",
+        label: "Service suspendu",
+      };
+    }
     if (isExpired) {
       return {
         icon: AlertTriangle,
@@ -163,12 +173,14 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
           </span>
         </div>
 
-        {/* Warning message for critical status */}
-        {(isExpired || isCritical) && (
-          <div className={`mt-3 p-2 rounded text-xs ${isExpired ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
-            {isExpired 
-              ? "Votre service est suspendu. Payez maintenant pour réactiver."
-              : "Payez avant l'échéance pour éviter une interruption de service."}
+        {/* Warning message for critical/suspended status */}
+        {(isExpired || isCritical || isSuspended) && (
+          <div className={`mt-3 p-2 rounded text-xs ${isExpired || isSuspended ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
+            {isSuspended
+              ? "Votre service est suspendu en raison d'un paiement en retard. Payez maintenant pour réactiver."
+              : isExpired 
+                ? "Votre service est suspendu. Payez maintenant pour réactiver."
+                : "Payez avant l'échéance pour éviter une interruption de service."}
           </div>
         )}
       </CardContent>
