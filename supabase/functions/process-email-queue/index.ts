@@ -572,7 +572,7 @@ async function resolveCanonicalFinancialVars(
     if (resolvedOrderId) {
       const { data } = await supabase
         .from("orders")
-        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot")
+        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
         .eq("id", resolvedOrderId)
         .maybeSingle();
       order = data as Record<string, any> | null;
@@ -581,7 +581,7 @@ async function resolveCanonicalFinancialVars(
     if (!order && requestedOrderNumber) {
       const { data } = await supabase
         .from("orders")
-        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot")
+        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
         .eq("order_number", requestedOrderNumber)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -650,6 +650,11 @@ async function resolveCanonicalFinancialVars(
           : null),
       );
 
+    // Enrich shipping fields from order (prevents N/A when data exists)
+    const shippingAddress = order?.shipping_address
+      ? [order.shipping_address, order.shipping_city, order.shipping_province, order.shipping_postal_code].filter(Boolean).join(", ")
+      : order?.client_full_address || null;
+
     const merged: Record<string, any> = {
       ...vars,
       order_id: vars.order_id || order?.id || invoice?.order_id || undefined,
@@ -659,6 +664,12 @@ async function resolveCanonicalFinancialVars(
       payment_method: vars.payment_method || payment?.method || order?.payment_method || undefined,
       payment_reference: vars.payment_reference || vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
       reference: vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
+      // Shipping data: use queued vars first, fall back to order DB fields
+      carrier: vars.carrier || order?.carrier || undefined,
+      tracking_number: vars.tracking_number || order?.tracking_number || undefined,
+      tracking_url: vars.tracking_url || order?.tracking_url || undefined,
+      shipping_address: vars.shipping_address || shippingAddress || undefined,
+      // Financial data
       subtotal: canonicalSubtotal ?? vars.subtotal,
       tps_amount: canonicalTps ?? vars.tps_amount,
       tvq_amount: canonicalTvq ?? vars.tvq_amount,

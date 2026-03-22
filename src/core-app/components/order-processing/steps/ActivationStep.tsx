@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Zap, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { MobileNumberSection } from "./MobileNumberSection";
 
 interface Props { proc: any; }
 
@@ -23,8 +24,9 @@ const OPERATIONAL_STATES = ["confirmed", "processing", "in_progress", "provision
 const TERMINAL_STATES = ["active", "activated"];
 
 export function ActivationStep({ proc }: Props) {
-  const { order, account, invoice } = proc;
+  const { order, account, invoice, mobileFulfillment, portRequest } = proc;
   const serviceType = (order.service_type || "").toLowerCase();
+  const hasMobile = serviceType.includes("mobile");
   const [providerRef, setProviderRef] = useState("");
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
@@ -143,6 +145,11 @@ export function ActivationStep({ proc }: Props) {
           )}
         </div>
       </div>
+
+      {/* Mobile number choice section — only for mobile orders */}
+      {hasMobile && (
+        <MobileNumberSection portRequest={portRequest} mobileFulfillment={mobileFulfillment} />
+      )}
 
       {/* Provider reference + notes */}
       {!isActivated && (
