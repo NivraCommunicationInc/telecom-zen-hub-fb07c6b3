@@ -116,7 +116,6 @@ async function processExpirations(
           .update({
             status: "void",
             notes: `[LIFECYCLE J+${daysPastDue}] Facture annulée — fenêtre de réactivation expirée (J+10). Aucune dette.`,
-            updated_at: new Date().toISOString(),
           })
           .eq("id", inv.id);
 
@@ -184,7 +183,6 @@ async function processExpirations(
             .update({
               status: "overdue",
               notes: `[LIFECYCLE J+${daysPastDue}] Service suspendu — facture payable pour réactivation (void à J+10)`,
-              updated_at: new Date().toISOString(),
             })
             .eq("id", inv.id);
         }
@@ -670,7 +668,6 @@ async function processOverdue(
         .update({
           status: "overdue",
           notes: `[LIFECYCLE J+${daysPastDue}] Paiement en retard — service actif jusqu'à J+5, suspension si non payé.`,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", inv.id);
 
