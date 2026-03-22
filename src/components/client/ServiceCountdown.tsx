@@ -55,6 +55,7 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
 
   // Find the subscription expiring soonest
   const nextExpiring = subscriptions[0];
+  const isSuspended = nextExpiring.status === 'suspended';
   const endDate = new Date(nextExpiring.cycle_end_date);
   const today = new Date();
   const daysRemaining = differenceInDays(endDate, today);
