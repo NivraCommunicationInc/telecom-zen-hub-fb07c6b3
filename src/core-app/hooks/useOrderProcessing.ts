@@ -990,38 +990,52 @@ export function useOrderProcessing(orderId: string | undefined) {
 
   /* ── Add internal note ── */
   const addNote = async (note: string) => {
-    const existing = data?.order?.internal_notes || "";
-    const timestamp = new Date().toISOString();
-    const entry = `[${timestamp}] ${user?.email}: ${note}`;
-    const updated = existing ? `${existing}\n${entry}` : entry;
-    await updateOrder.mutateAsync({ internal_notes: updated });
-    await logActivity("note_added", "order", orderId, { note });
-    toast.success("Note ajoutée");
+    try {
+      if (!note?.trim()) {
+        toast.error("Note vide — rien à ajouter");
+        return;
+      }
+      const existing = data?.order?.internal_notes || "";
+      const timestamp = new Date().toISOString();
+      const entry = `[${timestamp}] ${user?.email}: ${note}`;
+      const updated = existing ? `${existing}\n${entry}` : entry;
+      await updateOrder.mutateAsync({ internal_notes: updated });
+      await logActivity("note_added", "order", orderId, { note });
+      toast.success("Note ajoutée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Note] Failed:", err);
+      toast.error(`Erreur ajout note: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Send notification to client ── */
   const sendClientNotification = async (templateKey: string, subject: string, extraVars?: Record<string, any>) => {
-    const email = getClientEmail();
-    if (!email) {
-      toast.error("Aucun courriel client disponible");
-      return;
+    try {
+      const email = getClientEmail();
+      if (!email) {
+        toast.error("Aucun courriel client disponible");
+        return;
+      }
+      await queueClientEmail({
+        to_email: email,
+        template_key: templateKey,
+        event_key: `manual_${templateKey}_${orderId}_${Date.now()}`,
+        mode: "manual",
+        subject,
+        entity_id: orderId,
+        template_vars: {
+          client_name: getClientName(),
+          order_id: orderId,
+          order_number: data?.order?.order_number || "",
+          ...extraVars,
+        },
+      });
+      await logActivity("notification_sent", "order", orderId, { template_key: templateKey, to: email });
+      toast.success("Notification envoyée au client");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Notification] Failed:", err);
+      toast.error(`Erreur envoi notification: ${err?.message || "Erreur inconnue"}`);
     }
-    await queueClientEmail({
-      to_email: email,
-      template_key: templateKey,
-      event_key: `manual_${templateKey}_${orderId}_${Date.now()}`,
-      mode: "manual",
-      subject,
-      entity_id: orderId,
-      template_vars: {
-        client_name: getClientName(),
-        order_id: orderId,
-        order_number: data?.order?.order_number || "",
-        ...extraVars,
-      },
-    });
-    await logActivity("notification_sent", "order", orderId, { template_key: templateKey, to: email });
-    toast.success("Notification envoyée au client");
   };
 
   /* ── Sign contract (admin side) ── */
