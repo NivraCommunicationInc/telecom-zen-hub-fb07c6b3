@@ -648,6 +648,7 @@ async function processOverdue(
         }
       }
 
+      stats.invoices_overdue++;
       stats.processed_items.push({
         action: "marked_overdue",
         invoice_id: inv.id,
