@@ -24,8 +24,9 @@ const OPERATIONAL_STATES = ["confirmed", "processing", "in_progress", "provision
 const TERMINAL_STATES = ["active", "activated"];
 
 export function ActivationStep({ proc }: Props) {
-  const { order, account, invoice } = proc;
+  const { order, account, invoice, mobileFulfillment, portRequest } = proc;
   const serviceType = (order.service_type || "").toLowerCase();
+  const hasMobile = serviceType.includes("mobile");
   const [providerRef, setProviderRef] = useState("");
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
