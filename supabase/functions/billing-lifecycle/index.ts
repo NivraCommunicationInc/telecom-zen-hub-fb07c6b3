@@ -421,6 +421,19 @@ async function processLegacyRenewals(
         });
       }
 
+      // FIX: Advance subscription cycle dates after invoice creation
+      const nextRenewalAt = addDays(newCycleEnd, -3); // J-3
+      await supabase
+        .from("billing_subscriptions")
+        .update({
+          cycle_start_date: newCycleStart,
+          cycle_end_date: newCycleEnd,
+          next_renewal_at: nextRenewalAt,
+          last_invoice_id: invoice.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sub.id);
+
       if (hasPayPal) {
         try {
           await supabase.functions.invoke("paypal-charge-subscription", {
