@@ -558,12 +558,13 @@ export function useOrderProcessing(orderId: string | undefined) {
         return;
       }
 
-      // Step 1: Find the EXISTING pending/in_verification payment for this invoice
+      // Step 1: Find the EXISTING pending payment for this invoice
+      // Valid billing_payment_status enum: pending | confirmed | failed | cancelled | refunded
       const { data: existingPayments, error: fetchError } = await supabase
         .from("billing_payments")
         .select("*")
         .eq("invoice_id", targetInvoice.id)
-        .in("status", ["pending", "in_verification"] as any)
+        .eq("status", "pending")
         .order("created_at", { ascending: false })
         .limit(1);
 
