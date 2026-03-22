@@ -157,6 +157,21 @@ export default function FieldOrderDetail() {
     enabled: !!order?.converted_order_id,
   });
 
+  /* ─── Load commission for this order ─── */
+  const { data: commission } = useQuery({
+    queryKey: ["field-commission", orderId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("field_commissions")
+        .select("id, amount, status, reason")
+        .eq("sale_id", orderId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!orderId,
+  });
+
   /* ─── Retry sync ─── */
   const retrySyncMutation = useMutation({
     mutationFn: async () => {
