@@ -842,19 +842,34 @@ export function useOrderProcessing(orderId: string | undefined) {
 
   /* ── Update fulfillment type ── */
   const setFulfillmentType = async (type: string) => {
-    await updateOrder.mutateAsync({
-      fulfillment_type: type,
-      fulfillment_assigned_at: new Date().toISOString(),
-    });
-    await logActivity("fulfillment_assigned", "order", orderId, { fulfillment_type: type });
-    toast.success(`Mode de livraison: ${type}`);
+    try {
+      // GUARD: Terminal orders cannot change fulfillment
+      if (["cancelled", "activated"].includes(data?.order?.status || "")) {
+        toast.error("Commande terminée — impossible de modifier le fulfillment");
+        return;
+      }
+      await updateOrder.mutateAsync({
+        fulfillment_type: type,
+        fulfillment_assigned_at: new Date().toISOString(),
+      });
+      await logActivity("fulfillment_assigned", "order", orderId, { fulfillment_type: type });
+      toast.success(`Mode de livraison: ${type}`);
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Fulfillment] Failed:", err);
+      toast.error(`Erreur fulfillment: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Update fulfillment details (dynamic fields per type) ── */
   const updateFulfillmentDetails = async (fields: Record<string, any>) => {
-    await updateOrder.mutateAsync(fields);
-    await logActivity("fulfillment_details_updated", "order", orderId, fields);
-    toast.success("Détails de fulfillment mis à jour");
+    try {
+      await updateOrder.mutateAsync(fields);
+      await logActivity("fulfillment_details_updated", "order", orderId, fields);
+      toast.success("Détails de fulfillment mis à jour");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][FulfillmentDetails] Failed:", err);
+      toast.error(`Erreur mise à jour fulfillment: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Assign equipment ── */
@@ -865,9 +880,21 @@ export function useOrderProcessing(orderId: string | undefined) {
     equipment_id?: string;
     equipment_details?: any;
   }) => {
-    await updateOrder.mutateAsync(fields);
-    await logActivity("equipment_assigned", "order", orderId, fields);
-    toast.success("Équipement assigné");
+    try {
+      // GUARD: Terminal orders
+      if (["cancelled"].includes(data?.order?.status || "")) {
+        toast.error("Commande annulée — impossible d'assigner de l'équipement");
+        return;
+      }
+      await updateOrder.mutateAsync(fields);
+      await logActivity("equipment_assigned", "order", orderId, fields);
+      console.info("[GUARDRAIL][Equipment] Assigned:", { orderId, fields: Object.keys(fields) });
+      toast.success("Équipement assigné");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Equipment] Failed:", err);
+      toast.error(`Erreur assignation équipement: ${err?.message || "Erreur inconnue"}`);
+      throw err;
+    }
   };
 
   /* ── Update shipping ── */
