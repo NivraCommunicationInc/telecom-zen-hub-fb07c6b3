@@ -51,8 +51,8 @@ function useEmployeeOrderDetail(orderId: string) {
           .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at")
           .eq("order_id", orderId).maybeSingle(),
         supabase.from("equipment_inventory")
-          .select("id, model, serial_number, mac_address, status, category")
-          .eq("assigned_order_id", orderId),
+          .select("id, catalog_name, serial_number, mac_address, status, category, sku, condition")
+          .eq("order_id", orderId),
       ]);
 
       // Load payment if invoice exists
@@ -407,7 +407,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                 {equipment.map((eq: any) => (
                   <div key={eq.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
                     <div>
-                      <p className="text-xs text-white font-medium">{eq.model || eq.category}</p>
+                      <p className="text-xs text-white font-medium">{eq.catalog_name || eq.category}</p>
                       <p className="text-[10px] text-[hsl(220,10%,40%)] font-mono mt-0.5">
                         {[eq.serial_number, eq.mac_address].filter(Boolean).join(" · ") || "—"}
                       </p>
