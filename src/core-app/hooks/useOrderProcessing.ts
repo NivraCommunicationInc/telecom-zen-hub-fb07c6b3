@@ -580,7 +580,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         .from("billing_payments")
         .update({
           status: "confirmed" as any,
-          confirmed_by: user?.email || "admin",
+          confirmed_by: user?.id || null,
           received_at: now,
           reference: reference || existingPayment.reference,
         })
