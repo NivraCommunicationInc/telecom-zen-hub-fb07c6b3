@@ -51,9 +51,17 @@ export function useAdminSubscriptions(environment: EnvironmentFilter = "all") {
         .in("id", customerIds);
 
       const customerMap = new Map((customers || []).map((c) => [c.id, c]));
+
+      // Fetch profile names (source of truth) to override stale billing_customer names
+      const userIds = [...new Set((customers || []).map((c) => c.user_id).filter(Boolean))];
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", userIds)
+        : { data: [] };
+      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+
       const maps = await buildCanonicalAccountMaps(supabase, {
         customerIds,
-        userIds: (customers || []).map((c) => c.user_id),
+        userIds,
       });
 
       return subs.map((s) => {
