@@ -668,7 +668,6 @@ async function processOverdue(
         .update({
           status: "overdue",
           notes: `[LIFECYCLE J+${daysPastDue}] Paiement en retard — service actif jusqu'à J+5, suspension si non payé.`,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", inv.id);
 
