@@ -945,21 +945,22 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Enrich client data for PDF generation (fetch missing phone/address from DB)
+        const pdfVars = await enrichClientDataForPDF(supabase, templateVars, templateKey);
+
         // Generate attachments: passthrough > full document set > single PDF
         let attachments: Array<{ filename: string; content: string }> | undefined;
-        if (templateVars._attachments && Array.isArray(templateVars._attachments)) {
-          attachments = templateVars._attachments;
+        if (pdfVars._attachments && Array.isArray(pdfVars._attachments)) {
+          attachments = pdfVars._attachments;
           console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
         } else if (FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) {
-          // Order/payment confirmation → attach ALL 4 PDFs
-          const fullSet = await generateFullDocumentSet(templateVars);
+          const fullSet = await generateFullDocumentSet(pdfVars);
           if (fullSet.length > 0) {
             attachments = fullSet;
             console.log(`[FULL DOC SET] email_id=${email.id} files=${fullSet.map(f => f.filename).join(', ')}`);
           }
         } else {
-          // Other templates → single PDF based on type
-          const pdfAttachment = await generateEmailPDFAttachment(templateKey, templateVars);
+          const pdfAttachment = await generateEmailPDFAttachment(templateKey, pdfVars);
           if (pdfAttachment) {
             attachments = [{
               filename: pdfAttachment.filename,
