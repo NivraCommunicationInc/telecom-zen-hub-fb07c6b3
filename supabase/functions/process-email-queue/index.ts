@@ -1144,27 +1144,15 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Enrich client data for PDF generation (fetch missing phone/address from DB)
-        const pdfVars = await enrichClientDataForPDF(supabase, templateVars, templateKey);
-
-        // Generate attachments: passthrough > full document set > single PDF
+        // Generate PDF attachment from CANONICAL database data (not template_vars)
         let attachments: Array<{ filename: string; content: string }> | undefined;
-        if (pdfVars._attachments && Array.isArray(pdfVars._attachments)) {
-          attachments = pdfVars._attachments;
+        if (templateVars._attachments && Array.isArray(templateVars._attachments)) {
+          attachments = templateVars._attachments;
           console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
-        } else if (FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) {
-          const fullSet = await generateFullDocumentSet(pdfVars);
-          if (fullSet.length > 0) {
-            attachments = fullSet;
-            console.log(`[FULL DOC SET] email_id=${email.id} files=${fullSet.map(f => f.filename).join(', ')}`);
-          }
         } else {
-          const pdfAttachment = await generateEmailPDFAttachment(templateKey, pdfVars);
+          const pdfAttachment = await generateCanonicalPDFAttachment(supabase, templateKey, templateVars);
           if (pdfAttachment) {
-            attachments = [{
-              filename: pdfAttachment.filename,
-              content: pdfAttachment.content,
-            }];
+            attachments = [{ filename: pdfAttachment.filename, content: pdfAttachment.content }];
             console.log(`[PDF ATTACHED] email_id=${email.id} file=${pdfAttachment.filename}`);
           }
         }
