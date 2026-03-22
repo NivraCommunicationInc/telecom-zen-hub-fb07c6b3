@@ -3597,6 +3597,42 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_backup_log: {
+        Row: {
+          backup_date: string
+          completed_at: string | null
+          created_at: string
+          email_id: string | null
+          error_message: string | null
+          generated_at: string | null
+          id: string
+          row_counts: Json | null
+          status: string
+        }
+        Insert: {
+          backup_date: string
+          completed_at?: string | null
+          created_at?: string
+          email_id?: string | null
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          row_counts?: Json | null
+          status?: string
+        }
+        Update: {
+          backup_date?: string
+          completed_at?: string | null
+          created_at?: string
+          email_id?: string | null
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          row_counts?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       direct_email_recipients: {
         Row: {
           client_id: string | null
