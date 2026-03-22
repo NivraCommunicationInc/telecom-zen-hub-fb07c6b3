@@ -173,12 +173,14 @@ export function ServiceCountdown({ userId, compact = false }: ServiceCountdownPr
           </span>
         </div>
 
-        {/* Warning message for critical status */}
-        {(isExpired || isCritical) && (
-          <div className={`mt-3 p-2 rounded text-xs ${isExpired ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
-            {isExpired 
-              ? "Votre service est suspendu. Payez maintenant pour réactiver."
-              : "Payez avant l'échéance pour éviter une interruption de service."}
+        {/* Warning message for critical/suspended status */}
+        {(isExpired || isCritical || isSuspended) && (
+          <div className={`mt-3 p-2 rounded text-xs ${isExpired || isSuspended ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>
+            {isSuspended
+              ? "Votre service est suspendu en raison d'un paiement en retard. Payez maintenant pour réactiver."
+              : isExpired 
+                ? "Votre service est suspendu. Payez maintenant pour réactiver."
+                : "Payez avant l'échéance pour éviter une interruption de service."}
           </div>
         )}
       </CardContent>
