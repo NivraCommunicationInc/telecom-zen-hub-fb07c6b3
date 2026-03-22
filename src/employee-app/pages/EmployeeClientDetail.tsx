@@ -22,9 +22,22 @@ function useClientDetail(clientId: string) {
   return useQuery({
     queryKey: ["employee-client-360", clientId],
     queryFn: async () => {
-      const [profileRes, accountRes, ordersRes, ticketsRes, invoicesRes, subscriptionsRes, notesRes] = await Promise.all([
+      // First get account + billing_customer for proper filtering
+      const [profileRes, accountRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", clientId).maybeSingle(),
         supabase.from("accounts").select("*").eq("client_id", clientId).maybeSingle(),
+      ]);
+
+      // Get billing_customer linked to this user
+      const { data: billingCustomer } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", clientId)
+        .maybeSingle();
+
+      const customerId = billingCustomer?.id;
+
+      const [ordersRes, ticketsRes, invoicesRes, subscriptionsRes, notesRes] = await Promise.all([
         supabase.from("orders")
           .select("id, order_number, status, service_type, payment_status, created_at, total_amount")
           .eq("user_id", clientId).eq("environment", "live")
@@ -33,15 +46,21 @@ function useClientDetail(clientId: string) {
           .select("id, ticket_number, subject, status, priority, created_at")
           .eq("user_id", clientId)
           .order("created_at", { ascending: false }).limit(10),
-        supabase.from("billing_invoices")
-          .select("id, invoice_number, total, status, due_date, paid_at, balance_due")
-          .eq("environment", "live")
-          .order("created_at", { ascending: false }).limit(5),
-        supabase.from("billing_subscriptions")
-          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date")
-          .eq("environment", "live")
-          .in("status", ["active", "pending", "past_due"])
-          .limit(5),
+        customerId
+          ? supabase.from("billing_invoices")
+              .select("id, invoice_number, total, status, due_date, paid_at, balance_due")
+              .eq("customer_id", customerId)
+              .eq("environment", "live")
+              .order("created_at", { ascending: false }).limit(10)
+          : Promise.resolve({ data: [] }),
+        customerId
+          ? supabase.from("billing_subscriptions")
+              .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at")
+              .eq("customer_id", customerId)
+              .eq("environment", "live")
+              .in("status", ["active", "pending", "past_due", "suspended"])
+              .limit(10)
+          : Promise.resolve({ data: [] }),
         supabase.from("activity_logs")
           .select("action, created_at, actor_name, actor_role")
           .eq("entity_id", clientId).eq("entity_type", "client")
