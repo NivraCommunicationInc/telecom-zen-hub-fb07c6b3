@@ -153,7 +153,17 @@ const DashboardPage = () => {
       if (!i.due_date) return false;
       try { return isBefore(parseISO(i.due_date), new Date()); } catch { return false; }
     }).length;
-    return { ordersToday, paymentsToday, pendingOrders, confirmedOrders, unpaidInvoices, overdueInvoices, onHold: wq.onHold.length, pendingActivations: wq.activations.length };
+
+    // New operational metrics
+    const paidNotProcessed = orders.filter(o => o.payment_status === "paid" && ["pending", "submitted"].includes(o.status)).length;
+    const ordersWithoutEquip = orders.filter(o => ["processing", "confirmed"].includes(o.status)).length; // rough proxy
+    const ordersWithoutAppt = orders.filter(o => o.status === "processing").length; // rough proxy
+
+    return {
+      ordersToday, paymentsToday, pendingOrders, confirmedOrders, unpaidInvoices, overdueInvoices,
+      onHold: wq.onHold.length, pendingActivations: wq.activations.length,
+      paidNotProcessed, ordersWithoutEquip, ordersWithoutAppt,
+    };
   }, [orders, payments, invoices, wq.activations, wq.onHold]);
 
   const recentOrders = useMemo(() => orders.slice(0, 6), [orders]);
@@ -163,12 +173,16 @@ const DashboardPage = () => {
   );
 
   const anyLoading = wq.isLoading || invLoading || payLoading || ordLoading;
-  const criticalAlerts: string[] = [];
-  if (metrics.overdueInvoices > 0) criticalAlerts.push(`${metrics.overdueInvoices} facture${metrics.overdueInvoices > 1 ? 's' : ''} en souffrance`);
-  if (metrics.onHold > 0) criticalAlerts.push(`${metrics.onHold} commande${metrics.onHold > 1 ? 's' : ''} bloquée${metrics.onHold > 1 ? 's' : ''}`);
-  if ((installStats?.failed ?? 0) > 0) criticalAlerts.push(`${installStats!.failed} installation${installStats!.failed > 1 ? 's' : ''} échouée${installStats!.failed > 1 ? 's' : ''}`);
-  if ((equipStats?.defective ?? 0) > 0) criticalAlerts.push(`${equipStats!.defective} équipement${equipStats!.defective > 1 ? 's' : ''} défectueux`);
-  if ((autoHealth?.totalErrors ?? 0) > 0) criticalAlerts.push(`${autoHealth!.totalErrors} erreur${autoHealth!.totalErrors > 1 ? 's' : ''} d'automatisation`);
+
+  // Build actionable alerts
+  const operationalAlerts: { label: string; href: string; severity: "critical" | "warning" | "info" }[] = [];
+  if (metrics.overdueInvoices > 0) operationalAlerts.push({ label: `${metrics.overdueInvoices} facture${metrics.overdueInvoices > 1 ? 's' : ''} en souffrance`, href: corePath("/invoices"), severity: "critical" });
+  if (metrics.onHold > 0) operationalAlerts.push({ label: `${metrics.onHold} commande${metrics.onHold > 1 ? 's' : ''} bloquée${metrics.onHold > 1 ? 's' : ''}`, href: corePath("/work-queue"), severity: "critical" });
+  if ((installStats?.failed ?? 0) > 0) operationalAlerts.push({ label: `${installStats!.failed} installation${installStats!.failed > 1 ? 's' : ''} échouée${installStats!.failed > 1 ? 's' : ''}`, href: corePath("/installations"), severity: "critical" });
+  if ((equipStats?.defective ?? 0) > 0) operationalAlerts.push({ label: `${equipStats!.defective} équipement${equipStats!.defective > 1 ? 's' : ''} défectueux`, href: corePath("/equipment"), severity: "warning" });
+  if ((autoHealth?.totalErrors ?? 0) > 0) operationalAlerts.push({ label: `${autoHealth!.totalErrors} erreur${autoHealth!.totalErrors > 1 ? 's' : ''} d'automatisation`, href: corePath("/automation"), severity: "warning" });
+  if (metrics.paidNotProcessed > 0) operationalAlerts.push({ label: `${metrics.paidNotProcessed} commande${metrics.paidNotProcessed > 1 ? 's' : ''} payée${metrics.paidNotProcessed > 1 ? 's' : ''} non traitée${metrics.paidNotProcessed > 1 ? 's' : ''}`, href: corePath("/work-queue"), severity: "critical" });
+  if (metrics.pendingActivations > 0) operationalAlerts.push({ label: `${metrics.pendingActivations} activation${metrics.pendingActivations > 1 ? 's' : ''} en attente`, href: corePath("/work-queue"), severity: "warning" });
 
   return (
     <div className="space-y-4">
