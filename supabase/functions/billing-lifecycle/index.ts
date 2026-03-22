@@ -13,6 +13,7 @@ const corsHeaders = {
 interface RunStats {
   subscriptions_expired: number;
   invoices_voided: number;
+  invoices_overdue: number;
   renewals_generated: number;
   reminders_queued: number;
   errors_count: number;
@@ -24,6 +25,7 @@ function newStats(): RunStats {
   return {
     subscriptions_expired: 0,
     invoices_voided: 0,
+    invoices_overdue: 0,
     renewals_generated: 0,
     reminders_queued: 0,
     errors_count: 0,
@@ -557,11 +559,118 @@ async function processReminders(
 }
 
 // ========================================
-// STEP 4 — Cleanup: void overdue invoices ONLY after J+10
-// CANONICAL RULE: overdue invoices stay overdue from J+5 to J+9
-// to allow reactivation. Only void at J+10+.
-// Step 1 (processExpirations) already handles this correctly,
-// so this is a safety net for any edge cases missed.
+// STEP 4 — Mark invoices OVERDUE at J0 (due_date passed, not yet J+5)
+// CANONICAL RULE:
+//   J0: invoice pending → overdue (service still active, payment past due)
+//   J+5: handled by processExpirations → subscription suspended
+//   J+10: handled by processExpirations → invoice voided
+// This step fills the J0-to-J+4 gap where invoices were incorrectly
+// staying "pending" even after due_date had passed.
+// ========================================
+async function processOverdue(
+  supabase: ReturnType<typeof createClient>,
+  stats: RunStats,
+) {
+  const today = todayStr();
+  const suspendCutoff = addDays(today, -5); // J+5 boundary — handled by processExpirations
+
+  // Find pending invoices where due_date has passed (J0+) but NOT yet J+5
+  // These should be marked overdue but subscription stays active
+  const { data: newlyOverdue, error } = await supabase
+    .from("billing_invoices")
+    .select("id, invoice_number, due_date, subscription_id, customer_id, total, customer:billing_customers(email, first_name, last_name)")
+    .eq("status", "pending")
+    .lte("due_date", today)        // due_date <= today (past due)
+    .gt("due_date", suspendCutoff); // due_date > today-5 (not yet J+5)
+
+  if (error) {
+    stats.errors.push(`Overdue transition query error: ${error.message}`);
+    stats.errors_count++;
+    return;
+  }
+
+  console.log(`[lifecycle] Found ${newlyOverdue?.length || 0} invoices to mark overdue (J0 to J+4)`);
+
+  for (const inv of newlyOverdue || []) {
+    try {
+      const dueDate = new Date(inv.due_date);
+      const daysPastDue = Math.floor((new Date(today).getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Mark invoice as overdue
+      const { error: updateErr } = await supabase
+        .from("billing_invoices")
+        .update({
+          status: "overdue",
+          notes: `[LIFECYCLE J+${daysPastDue}] Paiement en retard — service actif jusqu'à J+5, suspension si non payé.`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", inv.id);
+
+      if (updateErr) {
+        stats.errors.push(`Failed to mark overdue ${inv.invoice_number}: ${updateErr.message}`);
+        stats.errors_count++;
+        continue;
+      }
+
+      // Queue overdue notification email (once, at J0)
+      if (daysPastDue === 0 && inv.customer?.email) {
+        const idempotencyKey = `billing_overdue_${inv.id}_J0_${today}`;
+        const { data: existingEmail } = await supabase
+          .from("email_queue")
+          .select("id")
+          .or(`event_key.eq.${idempotencyKey},idempotency_key.eq.${idempotencyKey}`)
+          .maybeSingle();
+
+        if (!existingEmail) {
+          await supabase.from("email_queue").insert({
+            event_key: idempotencyKey,
+            idempotency_key: idempotencyKey,
+            to_email: inv.customer.email,
+            from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+            subject: `Nivra — Paiement en retard (#${inv.invoice_number})`,
+            template_key: "payment_overdue",
+            template_vars: {
+              client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
+              invoice_number: inv.invoice_number,
+              total: inv.total?.toFixed(2),
+              amount: inv.total?.toFixed(2),
+              due_date: inv.due_date,
+              suspension_date: addDays(inv.due_date, 5),
+              void_date: addDays(inv.due_date, 10),
+              payment_link: "https://nivra-telecom.ca/portail/facturation",
+            },
+            status: "queued",
+            attempts: 0,
+            max_attempts: 3,
+            max_retries: 3,
+          });
+          stats.reminders_queued++;
+        }
+      }
+
+      stats.invoices_overdue++;
+      stats.processed_items.push({
+        action: "marked_overdue",
+        invoice_id: inv.id,
+        invoice_number: inv.invoice_number,
+        due_date: inv.due_date,
+        days_past_due: daysPastDue,
+      });
+
+      console.log(`[lifecycle] Marked invoice ${inv.invoice_number} OVERDUE at J+${daysPastDue} — service stays active until J+5`);
+    } catch (err: unknown) {
+      const msg = `Overdue transition error for ${inv.id}: ${err instanceof Error ? err.message : String(err)}`;
+      stats.errors.push(msg);
+      stats.errors_count++;
+    }
+  }
+}
+
+// ========================================
+// STEP 5 — Cleanup: void overdue invoices ONLY after J+10
+// CANONICAL RULE: overdue invoices stay overdue from J0 to J+9.
+// Subscription suspended at J+5 (processExpirations).
+// Invoice voided at J+10+ (this step + processExpirations safety net).
 // ========================================
 async function cleanupOverdueInvoices(
   supabase: ReturnType<typeof createClient>,
@@ -695,28 +804,32 @@ serve(async (req) => {
   console.log(`[lifecycle] Starting ${mode} run (id: ${runId})`);
 
   try {
-    // STEP 1: Process expirations
+    // STEP 1: Process expirations (J+5 suspend, J+10 void)
     await processExpirations(supabase, stats);
 
-    // STEP 2: Generate renewals (account-anchored + legacy fallback)
+    // STEP 2: Generate renewals at J-3 (account-anchored + legacy fallback)
     if (mode !== "backfill") {
       await processRenewals(supabase, stats);
     }
 
-    // STEP 3: Queue reminders
+    // STEP 3: Queue payment reminders (J-7, J-3, J-1, J0)
     if (mode !== "backfill") {
       await processReminders(supabase, stats);
     }
 
-    // STEP 4: Advance referral qualifying cycles for paid invoices
+    // STEP 4: Mark invoices OVERDUE at J0 (pending → overdue, service stays active)
+    await processOverdue(supabase, stats);
+
+    // STEP 5: Advance referral qualifying cycles for paid invoices
     await advanceReferralCycles(supabase, stats);
 
-    // STEP 5: Cleanup overdue invoices
+    // STEP 6: Cleanup — void overdue invoices past J+10 (safety net)
     await cleanupOverdueInvoices(supabase, stats);
 
     const summary = [
       `Expired: ${stats.subscriptions_expired}`,
       `Voided: ${stats.invoices_voided}`,
+      `Overdue: ${stats.invoices_overdue}`,
       `Renewals: ${stats.renewals_generated}`,
       `Reminders: ${stats.reminders_queued}`,
       `Errors: ${stats.errors_count}`,
