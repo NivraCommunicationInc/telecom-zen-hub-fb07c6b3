@@ -535,12 +535,22 @@ export default function FieldOrderDetail() {
         </div>
       )}
 
+      {/* ═══ Canonical Traceability ═══ */}
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#9CA3AF] font-mono bg-[#F9FAFB] rounded-lg px-3 py-2">
+        <span>sale: {order.id.slice(0, 8)}</span>
+        {order.converted_order_id && <span>· order: {canonicalOrder?.order_number || order.converted_order_id.slice(0, 8)}</span>}
+        {canonicalInvoice && <span>· inv: {canonicalInvoice.invoice_number}</span>}
+        {canonicalPayment && <span>· pay: {canonicalPayment.payment_number}</span>}
+        {subscription && <span>· sub: {subscription.id.slice(0, 8)}</span>}
+        {appointment && <span>· apt: {appointment.appointment_number || appointment.id.slice(0, 8)}</span>}
+      </div>
+
       {/* ═══ Timestamps ═══ */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl p-4">
         <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider mb-2">Historique</h3>
         <div className="text-xs text-[#6B7280] space-y-1">
           <p>Créée: {format(new Date(order.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
-          {order.updated_at && <p>Mise à jour: {formatDistanceToNow(new Date(order.updated_at), { addSuffix: true, locale: fr })}</p>}
+          {order.updated_at && <p>Dernière mise à jour: {formatDistanceToNow(new Date(order.updated_at), { addSuffix: true, locale: fr })}</p>}
         </div>
       </div>
 
