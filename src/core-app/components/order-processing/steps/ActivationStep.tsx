@@ -146,6 +146,11 @@ export function ActivationStep({ proc }: Props) {
         </div>
       </div>
 
+      {/* Mobile number choice section — only for mobile orders */}
+      {hasMobile && (
+        <MobileNumberSection portRequest={portRequest} mobileFulfillment={mobileFulfillment} />
+      )}
+
       {/* Provider reference + notes */}
       {!isActivated && (
         <>
