@@ -829,6 +829,7 @@ serve(async (req) => {
     const summary = [
       `Expired: ${stats.subscriptions_expired}`,
       `Voided: ${stats.invoices_voided}`,
+      `Overdue: ${stats.invoices_overdue}`,
       `Renewals: ${stats.renewals_generated}`,
       `Reminders: ${stats.reminders_queued}`,
       `Errors: ${stats.errors_count}`,
