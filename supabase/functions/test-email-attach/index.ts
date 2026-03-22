@@ -7,54 +7,71 @@ Deno.serve(async (req) => {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  // Test 1: direct SQL insert
-  const { data: sqlResult, error: sqlErr } = await supabase.rpc("execute_sql" as any, {
-    sql: "SELECT auth.role() as role"
-  });
-
-  // Test 2: Try insert + immediate read
-  const testKey = "test_receipt_proof_" + Date.now();
-  const { error: insertErr } = await supabase.from("email_queue").insert({
-    event_key: testKey,
-    to_email: "nivratelecom@gmail.com",
-    template_key: "payment_confirmed",
-    template_vars: {
-      client_name: "Table Lakay",
-      invoice_number: "4612661",
-      invoice_id: "9665f877-ce11-4ba6-9578-e2ca7c4ac9e8",
-      amount: "344.93",
-      total_payable: "344.93",
-      payment_method: "interac",
-      subtotal: "300.00",
-      tps_amount: "15.00",
-      tvq_amount: "29.93",
+  const tests = [
+    {
+      event_key: "manual_test_receipt_" + Date.now(),
+      template_key: "payment_confirmed",
+      template_vars: {
+        manual_send: "true",
+        client_name: "Table Lakay",
+        invoice_number: "4612661",
+        invoice_id: "9665f877-ce11-4ba6-9578-e2ca7c4ac9e8",
+        amount: "344.93",
+        total_payable: "344.93",
+        payment_method: "interac",
+        subtotal: "300.00",
+        tps_amount: "15.00",
+        tvq_amount: "29.93",
+      },
     },
-    status: "queued",
-    attempts: 0,
-    max_attempts: 5,
-  });
+    {
+      event_key: "manual_test_summary_" + Date.now(),
+      template_key: "order_submitted",
+      template_vars: {
+        manual_send: "true",
+        client_name: "Table Lakay",
+        order_number: "61567",
+        order_id: "f473afe3-03f9-40d5-abfd-19880502249b",
+        invoice_number: "4612661",
+        invoice_id: "9665f877-ce11-4ba6-9578-e2ca7c4ac9e8",
+        subtotal: "300.00",
+        tps_amount: "15.00",
+        tvq_amount: "29.93",
+        total: "344.93",
+        service_type: "Internet 300",
+      },
+    },
+  ];
 
-  // Try to read it back
-  const { data: readBack, error: readErr } = await supabase
-    .from("email_queue")
-    .select("id, event_key, status")
-    .eq("event_key", testKey)
-    .maybeSingle();
+  const results = [];
+  for (const t of tests) {
+    const { error } = await supabase.from("email_queue").insert({
+      event_key: t.event_key,
+      to_email: "nivratelecom@gmail.com",
+      template_key: t.template_key,
+      template_vars: t.template_vars,
+      status: "queued",
+      attempts: 0,
+      max_attempts: 5,
+    });
 
-  // Count total queued
-  const { count } = await supabase
-    .from("email_queue")
-    .select("*", { count: "exact", head: true })
-    .in("status", ["queued", "pending"]);
+    // Verify inserted
+    const { data: check } = await supabase
+      .from("email_queue")
+      .select("id, status")
+      .eq("event_key", t.event_key)
+      .maybeSingle();
 
-  return new Response(JSON.stringify({
-    testKey,
-    insertError: insertErr?.message || null,
-    insertCode: insertErr?.code || null,
-    readBack,
-    readError: readErr?.message || null,
-    queuedCount: count,
-  }, null, 2), {
+    results.push({
+      event_key: t.event_key,
+      template_key: t.template_key,
+      insertError: error?.message || null,
+      inserted: !!check,
+      id: check?.id,
+    });
+  }
+
+  return new Response(JSON.stringify({ results }, null, 2), {
     headers: { "Content-Type": "application/json" },
   });
 });
