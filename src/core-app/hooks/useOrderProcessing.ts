@@ -250,9 +250,13 @@ async function queueClientEmail(params: {
       template_vars: templateVars,
       status: "queued",
     });
-    if (error) console.error("[OrderProcessing] Email queue error:", error);
-  } catch (err) {
-    console.error("[OrderProcessing] Email queue exception:", err);
+    if (error) {
+      console.error("[GUARDRAIL][EmailQueue] Insert failed:", error.message, { template: params.template_key, entity: params.entity_id });
+      toast.warning(`⚠ Courriel non envoyé (${params.template_key}) — ${error.message}`);
+    }
+  } catch (err: any) {
+    console.error("[GUARDRAIL][EmailQueue] Exception:", err?.message, { template: params.template_key });
+    toast.warning(`⚠ Courriel non envoyé (${params.template_key})`);
   }
 }
 
