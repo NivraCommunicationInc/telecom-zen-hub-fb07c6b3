@@ -183,7 +183,6 @@ async function processExpirations(
             .update({
               status: "overdue",
               notes: `[LIFECYCLE J+${daysPastDue}] Service suspendu — facture payable pour réactivation (void à J+10)`,
-              updated_at: new Date().toISOString(),
             })
             .eq("id", inv.id);
         }
