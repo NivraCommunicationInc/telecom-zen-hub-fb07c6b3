@@ -298,9 +298,13 @@ const ClientDashboard = () => {
               {tvServices.map((sub: any) => (
                 <div key={sub.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-slate-900">{sub.plan_name}</p>
+                    <p className="font-medium text-slate-900 flex items-center">
+                      {sub.plan_name}
+                      {statusBadge(sub.status)}
+                    </p>
                     <p className="text-sm text-slate-500">
                       {Number(sub.amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}/mois
+                      {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
                     </p>
                   </div>
                   <Link to="/portal/services">
