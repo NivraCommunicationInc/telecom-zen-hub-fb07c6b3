@@ -514,6 +514,125 @@ const DUE_AMOUNT_TEMPLATES = new Set([
   "renewal_invoice_created",
 ]);
 
+const SERVICE_LABEL_TEMPLATES = new Set([
+  "order_submitted",
+  "cancellation_received",
+  "cancellation_scheduled",
+  "cancellation_completed",
+  "cancellation_declined",
+]);
+
+const NON_VALUE_STRINGS = new Set([
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "undefined",
+  "—",
+  "à confirmer",
+  "a confirmer",
+  "non fourni par le client",
+]);
+
+const normalizeTokenKey = (key: string): string => key.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+
+const hasRenderableValue = (value: unknown): boolean => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "boolean") return true;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    if (trimmed.includes("{{") && trimmed.includes("}}")) return false;
+    if (NON_VALUE_STRINGS.has(trimmed.toLowerCase())) return false;
+    return true;
+  }
+  if (Array.isArray(value)) return value.some(hasRenderableValue);
+  return true;
+};
+
+const preferCanonicalValue = <T>(...values: T[]): T | undefined => values.find((v) => hasRenderableValue(v));
+
+const toRenderableString = (value: unknown): string | undefined => {
+  if (!hasRenderableValue(value)) return undefined;
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry ?? "").trim()))
+      .filter((entry) => !!entry && !NON_VALUE_STRINGS.has(entry.toLowerCase()));
+    return normalized.length > 0 ? normalized.join(", ") : undefined;
+  }
+  return String(value).trim();
+};
+
+const buildRenderDictionary = (vars: Record<string, any>): Record<string, string> => {
+  const dictionary: Record<string, string> = {};
+  for (const [rawKey, rawValue] of Object.entries(vars)) {
+    const value = toRenderableString(rawValue);
+    if (!value) continue;
+    const key = String(rawKey || "").trim();
+    if (!key) continue;
+
+    const camel = key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+    const snake = key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+
+    dictionary[normalizeTokenKey(key)] = value;
+    dictionary[normalizeTokenKey(camel)] = value;
+    dictionary[normalizeTokenKey(snake)] = value;
+  }
+  return dictionary;
+};
+
+const renderPlaceholders = (input: string, vars: Record<string, any>): string => {
+  if (!input) return input;
+  const dictionary = buildRenderDictionary(vars);
+  return input.replace(/{{\s*([A-Za-z0-9_]+)\s*}}/g, (full, token) => {
+    const replacement = dictionary[normalizeTokenKey(String(token || ""))];
+    return replacement ?? full;
+  });
+};
+
+const findUnresolvedPlaceholders = (value: string): string[] => {
+  if (!value) return [];
+  const matches = value.matchAll(/{{\s*([A-Za-z0-9_]+)\s*}}/g);
+  return Array.from(matches, (m) => m[1]).filter(Boolean);
+};
+
+const buildCanonicalServiceLabel = (order: Record<string, any> | null, vars: Record<string, any>): string | undefined => {
+  const planNames = Array.isArray(order?.pricing_snapshot?.all_plan_codes)
+    ? order.pricing_snapshot.all_plan_codes
+      .map((plan: any) => toRenderableString(plan?.name || plan?.plan_name))
+      .filter((name: any) => !!name)
+    : [];
+
+  if (planNames.length > 0) {
+    return Array.from(new Set(planNames)).join(", ");
+  }
+
+  const listServices = Array.isArray(vars.services)
+    ? vars.services
+      .map((service: any) => toRenderableString(service?.name || service?.plan_name || service))
+      .filter((name: any) => !!name)
+    : [];
+
+  if (listServices.length > 0) {
+    return Array.from(new Set(listServices)).join(", ");
+  }
+
+  return toRenderableString(
+    preferCanonicalValue(
+      order?.service_type,
+      vars.service_type,
+      vars.serviceType,
+      vars.service_name,
+      vars.serviceName,
+      vars.services_summary,
+      vars.servicesSummary,
+      vars.plan_name,
+      vars.planName,
+    ),
+  );
+};
+
 async function resolveCanonicalFinancialVars(
   supabase: ReturnType<typeof createClient>,
   emailRow: Record<string, any>,
@@ -572,7 +691,7 @@ async function resolveCanonicalFinancialVars(
     if (resolvedOrderId) {
       const { data } = await supabase
         .from("orders")
-        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
+        .select("id, order_number, service_type, client_first_name, client_last_name, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
         .eq("id", resolvedOrderId)
         .maybeSingle();
       order = data as Record<string, any> | null;
@@ -581,7 +700,7 @@ async function resolveCanonicalFinancialVars(
     if (!order && requestedOrderNumber) {
       const { data } = await supabase
         .from("orders")
-        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
+        .select("id, order_number, service_type, client_first_name, client_last_name, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
         .eq("order_number", requestedOrderNumber)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -650,25 +769,74 @@ async function resolveCanonicalFinancialVars(
           : null),
       );
 
-    // Enrich shipping fields from order (prevents N/A when data exists)
     const shippingAddress = order?.shipping_address
       ? [order.shipping_address, order.shipping_city, order.shipping_province, order.shipping_postal_code].filter(Boolean).join(", ")
       : order?.client_full_address || null;
 
+    const orderClientName = [order?.client_first_name, order?.client_last_name]
+      .filter((part) => hasRenderableValue(part))
+      .join(" ")
+      .trim();
+
+    const canonicalOrderNumber = toRenderableString(preferCanonicalValue(order?.order_number, vars.order_number, vars.orderNumber));
+    const canonicalInvoiceNumber = toRenderableString(preferCanonicalValue(invoice?.invoice_number, vars.invoice_number, vars.invoiceNumber));
+    const canonicalContractNumber = toRenderableString(preferCanonicalValue(vars.contract_number, vars.contractNumber));
+    const canonicalTicketNumber = toRenderableString(preferCanonicalValue(vars.ticket_number, vars.ticketNumber));
+    const canonicalRequestNumber = toRenderableString(preferCanonicalValue(vars.request_number, vars.requestNumber));
+    const canonicalDisputeNumber = toRenderableString(preferCanonicalValue(vars.dispute_number, vars.disputeNumber));
+    const canonicalPaymentMethod = toRenderableString(preferCanonicalValue(payment?.method, order?.payment_method, vars.payment_method, vars.paymentMethod));
+    const canonicalPaymentReference = toRenderableString(preferCanonicalValue(
+      payment?.provider_payment_id,
+      payment?.reference,
+      order?.payment_reference,
+      vars.payment_reference,
+      vars.reference,
+    ));
+    const canonicalCarrier = toRenderableString(preferCanonicalValue(order?.carrier, vars.carrier));
+    const canonicalTrackingNumber = toRenderableString(preferCanonicalValue(order?.tracking_number, vars.tracking_number));
+    const canonicalTrackingUrl = toRenderableString(preferCanonicalValue(order?.tracking_url, vars.tracking_url));
+    const canonicalServiceType = buildCanonicalServiceLabel(order, vars);
+    const canonicalClientName = toRenderableString(preferCanonicalValue(vars.client_name, vars.clientName, orderClientName));
+
     const merged: Record<string, any> = {
       ...vars,
-      order_id: vars.order_id || order?.id || invoice?.order_id || undefined,
-      order_number: vars.order_number || order?.order_number || undefined,
-      invoice_id: vars.invoice_id || invoice?.id || undefined,
-      invoice_number: vars.invoice_number || invoice?.invoice_number || undefined,
-      payment_method: vars.payment_method || payment?.method || order?.payment_method || undefined,
-      payment_reference: vars.payment_reference || vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
-      reference: vars.reference || payment?.provider_payment_id || payment?.reference || order?.payment_reference || undefined,
-      // Shipping data: use queued vars first, fall back to order DB fields
-      carrier: vars.carrier || order?.carrier || undefined,
-      tracking_number: vars.tracking_number || order?.tracking_number || undefined,
-      tracking_url: vars.tracking_url || order?.tracking_url || undefined,
-      shipping_address: vars.shipping_address || shippingAddress || undefined,
+      order_id: toRenderableString(preferCanonicalValue(order?.id, invoice?.order_id, vars.order_id, vars.orderId)),
+      orderId: toRenderableString(preferCanonicalValue(order?.id, invoice?.order_id, vars.orderId, vars.order_id)),
+      order_number: canonicalOrderNumber,
+      orderNumber: canonicalOrderNumber,
+      invoice_id: toRenderableString(preferCanonicalValue(invoice?.id, vars.invoice_id, vars.invoiceId)),
+      invoiceId: toRenderableString(preferCanonicalValue(invoice?.id, vars.invoiceId, vars.invoice_id)),
+      invoice_number: canonicalInvoiceNumber,
+      invoiceNumber: canonicalInvoiceNumber,
+      contract_number: canonicalContractNumber,
+      contractNumber: canonicalContractNumber,
+      ticket_number: canonicalTicketNumber,
+      ticketNumber: canonicalTicketNumber,
+      request_number: canonicalRequestNumber,
+      requestNumber: canonicalRequestNumber,
+      dispute_number: canonicalDisputeNumber,
+      disputeNumber: canonicalDisputeNumber,
+      payment_method: canonicalPaymentMethod,
+      paymentMethod: canonicalPaymentMethod,
+      payment_reference: canonicalPaymentReference,
+      reference: canonicalPaymentReference,
+      carrier: canonicalCarrier,
+      tracking_number: canonicalTrackingNumber,
+      trackingNumber: canonicalTrackingNumber,
+      tracking_url: canonicalTrackingUrl,
+      trackingUrl: canonicalTrackingUrl,
+      shipping_address: toRenderableString(preferCanonicalValue(shippingAddress, vars.shipping_address)),
+      shippingAddress: toRenderableString(preferCanonicalValue(shippingAddress, vars.shippingAddress, vars.shipping_address)),
+      client_name: canonicalClientName,
+      clientName: canonicalClientName,
+      service_type: canonicalServiceType,
+      serviceType: canonicalServiceType,
+      service_name: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.service_name, vars.serviceName)),
+      serviceName: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.serviceName, vars.service_name)),
+      services_summary: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.services_summary, vars.servicesSummary)),
+      servicesSummary: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.servicesSummary, vars.services_summary)),
+      plan_name: toRenderableString(preferCanonicalValue(vars.plan_name, vars.planName, canonicalServiceType)),
+      planName: toRenderableString(preferCanonicalValue(vars.planName, vars.plan_name, canonicalServiceType)),
       // Financial data
       subtotal: canonicalSubtotal ?? vars.subtotal,
       tps_amount: canonicalTps ?? vars.tps_amount,
@@ -1087,18 +1255,48 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const html = template.getHtml(templateVars, emailConfig);
-        
-        // Replace template variables in subject
-        // Subject: prefer override from template_vars (custom_html emails), then template default
-        let subject = templateVars._subject || template.subject;
-        const vars = templateVars;
-        if (vars.order_number) subject = subject.replace('{{order_number}}', vars.order_number);
-        if (vars.invoice_number) subject = subject.replace('{{invoice_number}}', vars.invoice_number);
-        if (vars.ticket_number) subject = subject.replace('{{ticket_number}}', vars.ticket_number);
-        if (vars.contract_number) subject = subject.replace('{{contract_number}}', vars.contract_number);
-        if (vars.request_number) subject = subject.replace('{{request_number}}', vars.request_number);
-        if (vars.dispute_number) subject = subject.replace('{{dispute_number}}', vars.dispute_number);
+        let html = template.getHtml(templateVars, emailConfig);
+        html = renderPlaceholders(html, templateVars);
+
+        const unresolvedBodyTokens = findUnresolvedPlaceholders(html);
+        if (unresolvedBodyTokens.length > 0) {
+          const unresolved = unresolvedBodyTokens.join(", ");
+          throw new Error(`[EMAIL_RENDER_GUARD] Unresolved body placeholders for template=${templateKey}: ${unresolved}`);
+        }
+
+        // Subject: prefer override from template_vars, then template default (supports snake_case + camelCase)
+        let subject = renderPlaceholders(templateVars._subject || template.subject, templateVars).trim();
+
+        const unresolvedSubjectTokens = findUnresolvedPlaceholders(subject);
+        if (unresolvedSubjectTokens.length > 0) {
+          console.error(`[EMAIL_RENDER_GUARD] unresolved subject placeholders email_id=${email.id} template=${templateKey} tokens=${unresolvedSubjectTokens.join(",")}`);
+          subject = subject
+            .replace(/{{\s*[A-Za-z0-9_]+\s*}}/g, "")
+            .replace(/\(\s*#?\s*\)/g, "")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+        }
+
+        if (!subject || findUnresolvedPlaceholders(subject).length > 0) {
+          throw new Error(`[EMAIL_RENDER_GUARD] Subject rendering incomplete for template=${templateKey}`);
+        }
+
+        if (SERVICE_LABEL_TEMPLATES.has(templateKey) && hasRenderableValue(templateVars.service_type)) {
+          const serviceNARendered = />\s*Service\s*<\/td>\s*<td[^>]*>\s*N\/A\s*<\/td>/i.test(html);
+          if (serviceNARendered) {
+            const repairedVars = {
+              ...templateVars,
+              service_type: String(templateVars.service_type),
+              serviceType: String(templateVars.service_type),
+              service_name: String(templateVars.service_type),
+              serviceName: String(templateVars.service_type),
+            };
+            html = renderPlaceholders(template.getHtml(repairedVars, emailConfig), repairedVars);
+            if (/>\s*Service\s*<\/td>\s*<td[^>]*>\s*N\/A\s*<\/td>/i.test(html)) {
+              throw new Error(`[EMAIL_RENDER_GUARD] Service rendered as N/A despite canonical data for template=${templateKey}`);
+            }
+          }
+        }
 
         // Plain text: prefer override, then auto-generate
         const plainText = templateVars._text || `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
