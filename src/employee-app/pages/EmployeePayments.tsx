@@ -147,7 +147,7 @@ export default function EmployeePayments() {
       });
       await logInternalAudit({
         action: action === "confirm" ? "confirm_payment" : "reject_payment",
-        category: "billing",
+        category: "operations",
         portal: "employee",
         targetType: "payment",
         targetId: paymentId,
