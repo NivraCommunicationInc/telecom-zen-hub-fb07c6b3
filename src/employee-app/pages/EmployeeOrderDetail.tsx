@@ -22,17 +22,50 @@ import { toast } from "sonner";
 import { NextOperationalStep } from "@/employee-app/components/NextOperationalStep";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 
-function useEmployeeOrderDetail(orderId: string) {
+const UUID_PARAM_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SAFE_ROUTE_PARAM_REGEX = /^[\w-]+$/;
+
+function useEmployeeOrderDetail(orderRouteParam: string) {
   return useQuery({
-    queryKey: ["employee-order-detail-v3", orderId],
+    queryKey: ["employee-order-detail-v3", orderRouteParam],
     queryFn: async () => {
-      const { data: order, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", orderId)
-        .maybeSingle();
-      if (error) throw error;
+      const normalizedParam = decodeURIComponent(orderRouteParam).trim();
+      if (!normalizedParam) throw new Error("Identifiant de commande manquant");
+      if (!SAFE_ROUTE_PARAM_REGEX.test(normalizedParam)) throw new Error("Identifiant de commande invalide");
+
+      const fetchById = async (id: string) => {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      };
+
+      const fetchByOrderNumber = async (orderNumber: string) => {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("order_number", orderNumber)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      };
+
+      let order: any = null;
+
+      if (UUID_PARAM_REGEX.test(normalizedParam)) {
+        order = await fetchById(normalizedParam);
+      }
+
+      if (!order) {
+        order = await fetchByOrderNumber(normalizedParam);
+      }
+
       if (!order) throw new Error("Commande introuvable");
+
+      const resolvedOrderId = order.id;
 
       const [profileRes, invoiceRes, consentRes, logsRes, appointmentRes, accountRes, subscriptionRes, equipmentRes] = await Promise.all([
         order.user_id
@@ -40,21 +73,21 @@ function useEmployeeOrderDetail(orderId: string) {
           : Promise.resolve({ data: null }),
         supabase.from("billing_invoices")
           .select("id, invoice_number, total, subtotal, tps_amount, tvq_amount, status, due_date, paid_at, balance_due, amount_paid")
-          .eq("order_id", orderId).maybeSingle(),
-        supabase.from("consent_records").select("*").eq("order_id", orderId).order("created_at", { ascending: false }).limit(1),
+          .eq("order_id", resolvedOrderId).maybeSingle(),
+        supabase.from("consent_records").select("*").eq("order_id", resolvedOrderId).order("created_at", { ascending: false }).limit(1),
         supabase.from("activity_logs").select("action, created_at, actor_name, details, actor_role")
-          .eq("entity_id", orderId).eq("entity_type", "order").order("created_at", { ascending: false }).limit(30),
+          .eq("entity_id", resolvedOrderId).eq("entity_type", "order").order("created_at", { ascending: false }).limit(30),
         supabase.from("appointments").select("id, appointment_number, title, scheduled_at, status, service_address, service_city, technician_id")
-          .eq("order_id", orderId).maybeSingle(),
+          .eq("order_id", resolvedOrderId).maybeSingle(),
         order.account_id
           ? supabase.from("accounts").select("account_number, status, billing_address, billing_city").eq("id", order.account_id).maybeSingle()
           : Promise.resolve({ data: null }),
         supabase.from("billing_subscriptions")
           .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at")
-          .eq("order_id", orderId).maybeSingle(),
+          .eq("order_id", resolvedOrderId).maybeSingle(),
         supabase.from("equipment_inventory")
           .select("id, catalog_name, serial_number, mac_address, status, category, sku, condition")
-          .eq("order_id", orderId),
+          .eq("order_id", resolvedOrderId),
       ]);
 
       // Load payment if invoice exists
@@ -71,6 +104,7 @@ function useEmployeeOrderDetail(orderId: string) {
       }
 
       return {
+        resolvedOrderId,
         order,
         profile: profileRes.data,
         invoice: invoiceRes.data,
@@ -110,6 +144,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
   const queryClient = useQueryClient();
   const [noteText, setNoteText] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const canonicalOrderId = data?.resolvedOrderId ?? orderId;
 
   const addNoteMutation = useMutation({
     mutationFn: async (note: string) => {
@@ -118,13 +153,13 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
       await supabase.from("activity_logs").insert({
         user_id: session.user.id,
-        entity_id: orderId,
+        entity_id: canonicalOrderId,
         entity_type: "order",
         action: `Note: ${note}`,
         actor_name: profile?.full_name ?? session.user.email ?? "Employé",
         actor_role: "employee",
       });
-      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", targetType: "order", targetId: orderId });
+      await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", targetType: "order", targetId: canonicalOrderId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v3", orderId] });
@@ -144,19 +179,19 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       const { error } = await supabase
         .from("orders")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", orderId);
+        .eq("id", canonicalOrderId);
       if (error) throw error;
 
       const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
       await supabase.from("activity_logs").insert({
         user_id: session.user.id,
-        entity_id: orderId,
+        entity_id: canonicalOrderId,
         entity_type: "order",
         action: logAction,
         actor_name: profile?.full_name ?? session.user.email ?? "Employé",
         actor_role: "employee",
       });
-      await logInternalAudit({ action: logAction.toLowerCase().replace(/\s/g, "_"), category: "operations", portal: "employee", targetType: "order", targetId: orderId });
+      await logInternalAudit({ action: logAction.toLowerCase().replace(/\s/g, "_"), category: "operations", portal: "employee", targetType: "order", targetId: canonicalOrderId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v3", orderId] });
@@ -179,7 +214,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
     );
   }
 
-  const { order, profile, invoice, payment, consent, logs, pricingSnapshot, appointment, account, subscription, equipment } = data;
+  const { order, profile, invoice, payment, consent, logs, pricingSnapshot, appointment, account, subscription, equipment, resolvedOrderId } = data;
 
   const statusConfig: Record<string, { color: string; bg: string; icon: typeof CheckCircle; label: string }> = {
     pending: { color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock, label: "En attente" },
@@ -256,7 +291,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         <div>
           <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-blue-400" />
-            {order.order_number ?? `#${orderId.slice(0, 8)}`}
+            {order.order_number ?? `#${order.id.slice(0, 8)}`}
           </h1>
           <div className="flex items-center gap-3 mt-1 text-xs text-[hsl(220,10%,45%)]">
             <span>{format(new Date(order.created_at), "d MMM yyyy HH:mm", { locale: fr })}</span>
@@ -315,7 +350,7 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
       {/* ═══ Canonical Traceability IDs ═══ */}
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-[hsl(220,10%,35%)] font-mono">
-        <span>order: {orderId.slice(0, 8)}</span>
+        <span>order: {resolvedOrderId.slice(0, 8)}</span>
         {invoice && <span>· inv: {invoice.invoice_number}</span>}
         {payment && <span>· pay: {payment.payment_number}</span>}
         {subscription && <span>· sub: {subscription.id.slice(0, 8)}</span>}
