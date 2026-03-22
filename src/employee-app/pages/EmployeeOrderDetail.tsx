@@ -23,7 +23,6 @@ import { NextOperationalStep } from "@/employee-app/components/NextOperationalSt
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 
 const UUID_PARAM_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ORDER_NUMBER_PARAM_REGEX = /^\d{3,}$/;
 const SAFE_ROUTE_PARAM_REGEX = /^[\w-]+$/;
 
 function useEmployeeOrderDetail(orderRouteParam: string) {
@@ -60,7 +59,7 @@ function useEmployeeOrderDetail(orderRouteParam: string) {
         order = await fetchById(normalizedParam);
       }
 
-      if (!order && ORDER_NUMBER_PARAM_REGEX.test(normalizedParam)) {
+      if (!order) {
         order = await fetchByOrderNumber(normalizedParam);
       }
 
