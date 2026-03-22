@@ -1,7 +1,7 @@
 /**
- * EmployeeOrderDetail — Phase 2: Enhanced order console.
- * Better status visualization, operational action bar, richer timeline,
- * appointment/equipment info. READ-ONLY canonical financials.
+ * EmployeeOrderDetail — Full operational order console for employees.
+ * Status visualization, operational actions, canonical financials (read-only),
+ * equipment, appointment, shipping, subscription visibility.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, Loader2, ShoppingCart, Clock, Shield, FileText,
   DollarSign, User, MapPin, Calendar, Package, Send, MessageSquare,
-  CheckCircle, XCircle, AlertTriangle, ChevronRight,
+  CheckCircle, XCircle, AlertTriangle, ChevronRight, Wrench,
+  Truck, Zap, CreditCard, Phone, Mail, Hash,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -17,10 +18,11 @@ import { employeePath } from "@/employee-app/lib/employeePaths";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { toast } from "sonner";
 
 function useEmployeeOrderDetail(orderId: string) {
   return useQuery({
-    queryKey: ["employee-order-detail-v2", orderId],
+    queryKey: ["employee-order-detail-v3", orderId],
     queryFn: async () => {
       const { data: order, error } = await supabase
         .from("orders")
@@ -30,7 +32,7 @@ function useEmployeeOrderDetail(orderId: string) {
       if (error) throw error;
       if (!order) throw new Error("Commande introuvable");
 
-      const [profileRes, invoiceRes, consentRes, logsRes, appointmentRes, accountRes] = await Promise.all([
+      const [profileRes, invoiceRes, consentRes, logsRes, appointmentRes, accountRes, subscriptionRes, equipmentRes] = await Promise.all([
         order.user_id
           ? supabase.from("profiles").select("full_name, email, phone").eq("user_id", order.user_id).maybeSingle()
           : Promise.resolve({ data: null }),
@@ -45,20 +47,42 @@ function useEmployeeOrderDetail(orderId: string) {
         order.account_id
           ? supabase.from("accounts").select("account_number, status, billing_address, billing_city").eq("id", order.account_id).maybeSingle()
           : Promise.resolve({ data: null }),
+        supabase.from("billing_subscriptions")
+          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at")
+          .eq("order_id", orderId).maybeSingle(),
+        supabase.from("equipment_inventory")
+          .select("id, model, serial_number, mac_address, status, category")
+          .eq("assigned_order_id", orderId),
       ]);
+
+      // Load payment if invoice exists
+      let paymentData = null;
+      if (invoiceRes.data?.id) {
+        const { data: payment } = await supabase
+          .from("billing_payments")
+          .select("id, payment_number, status, amount, method, provider, received_at, reference")
+          .eq("invoice_id", invoiceRes.data.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        paymentData = payment;
+      }
 
       return {
         order,
         profile: profileRes.data,
         invoice: invoiceRes.data,
+        payment: paymentData,
         consent: consentRes.data?.[0] ?? null,
         logs: logsRes.data ?? [],
         appointment: appointmentRes.data,
         account: accountRes.data,
+        subscription: subscriptionRes.data,
+        equipment: equipmentRes.data ?? [],
         pricingSnapshot: order.pricing_snapshot as Record<string, any> | null,
       };
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -101,54 +125,120 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       await logInternalAudit({ action: "add_note", category: "operations", portal: "employee", targetType: "order", targetId: orderId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v2", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v3", orderId] });
       setNoteText("");
       setShowNoteInput(false);
+      toast.success("Note ajoutée");
     },
+    onError: (err: any) => toast.error(`Erreur: ${err.message}`),
+  });
+
+  /* ─── Operational status update ─── */
+  const statusMutation = useMutation({
+    mutationFn: async ({ newStatus, logAction }: { newStatus: string; logAction: string }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Non authentifié");
+
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", orderId);
+      if (error) throw error;
+
+      const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", session.user.id).maybeSingle();
+      await supabase.from("activity_logs").insert({
+        user_id: session.user.id,
+        entity_id: orderId,
+        entity_type: "order",
+        action: logAction,
+        actor_name: profile?.full_name ?? session.user.email ?? "Employé",
+        actor_role: "employee",
+      });
+      await logInternalAudit({ action: logAction.toLowerCase().replace(/\s/g, "_"), category: "operations", portal: "employee", targetType: "order", targetId: orderId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-order-detail-v3", orderId] });
+      toast.success("Statut mis à jour");
+    },
+    onError: (err: any) => toast.error(`Erreur: ${err.message}`),
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-96"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>;
   }
 
   if (error || !data) {
     return (
       <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-8 text-center">
         <p className="text-red-400 text-sm font-medium">Erreur de chargement</p>
+        <p className="text-xs text-[hsl(220,10%,40%)] mt-1">{error instanceof Error ? error.message : "Commande introuvable"}</p>
         <Link to={employeePath("/orders")} className="text-blue-400 text-xs mt-2 inline-block hover:underline">← Retour</Link>
       </div>
     );
   }
 
-  const { order, profile, invoice, consent, logs, pricingSnapshot, appointment, account } = data;
+  const { order, profile, invoice, payment, consent, logs, pricingSnapshot, appointment, account, subscription, equipment } = data;
 
-  const statusConfig: Record<string, { color: string; bg: string; icon: typeof CheckCircle }> = {
-    pending: { color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock },
-    submitted: { color: "text-blue-400", bg: "bg-blue-500/10", icon: Send },
-    processing: { color: "text-indigo-400", bg: "bg-indigo-500/10", icon: Package },
-    completed: { color: "text-emerald-400", bg: "bg-emerald-500/10", icon: CheckCircle },
-    cancelled: { color: "text-red-400", bg: "bg-red-500/10", icon: XCircle },
-    on_hold: { color: "text-amber-400", bg: "bg-amber-500/10", icon: AlertTriangle },
+  const statusConfig: Record<string, { color: string; bg: string; icon: typeof CheckCircle; label: string }> = {
+    pending: { color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock, label: "En attente" },
+    submitted: { color: "text-blue-400", bg: "bg-blue-500/10", icon: Send, label: "Soumise" },
+    received: { color: "text-blue-400", bg: "bg-blue-500/10", icon: Package, label: "Reçue" },
+    processing: { color: "text-indigo-400", bg: "bg-indigo-500/10", icon: Package, label: "En traitement" },
+    confirmed: { color: "text-blue-400", bg: "bg-blue-500/10", icon: CheckCircle, label: "Confirmée" },
+    shipped: { color: "text-cyan-400", bg: "bg-cyan-500/10", icon: Truck, label: "Expédiée" },
+    delivered: { color: "text-blue-400", bg: "bg-blue-500/10", icon: Package, label: "Livrée" },
+    installed: { color: "text-indigo-400", bg: "bg-indigo-500/10", icon: Wrench, label: "Installée" },
+    activated: { color: "text-emerald-400", bg: "bg-emerald-500/10", icon: Zap, label: "Activée" },
+    completed: { color: "text-emerald-400", bg: "bg-emerald-500/10", icon: CheckCircle, label: "Complétée" },
+    cancelled: { color: "text-red-400", bg: "bg-red-500/10", icon: XCircle, label: "Annulée" },
+    on_hold: { color: "text-amber-400", bg: "bg-amber-500/10", icon: AlertTriangle, label: "En pause" },
   };
   const sc = statusConfig[order.status] ?? statusConfig.pending;
 
-  const fmtMoney = (v: number | null | undefined) =>
-    v != null ? `${v.toFixed(2)} $` : "—";
+  const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
 
-  const snap = pricingSnapshot;
+  // Determine available operational actions based on current status
+  const getAvailableActions = () => {
+    const actions: { label: string; status: string; logAction: string; variant: "primary" | "default" | "warning" }[] = [];
+    const s = order.status;
+
+    if (s === "pending" || s === "submitted") {
+      actions.push({ label: "Marquer reçue", status: "received", logAction: "Commande marquée reçue", variant: "default" });
+    }
+    if (s === "received" || s === "pending" || s === "submitted") {
+      actions.push({ label: "Commencer traitement", status: "processing", logAction: "Traitement commencé", variant: "primary" });
+    }
+    if (s === "processing") {
+      actions.push({ label: "Marquer expédiée", status: "shipped", logAction: "Commande expédiée", variant: "default" });
+      actions.push({ label: "Marquer installée", status: "installed", logAction: "Installation terminée", variant: "default" });
+    }
+    if (s === "shipped") {
+      actions.push({ label: "Marquer livrée", status: "delivered", logAction: "Commande livrée", variant: "primary" });
+    }
+    if (s === "delivered" || s === "installed") {
+      actions.push({ label: "Activer le service", status: "activated", logAction: "Service activé", variant: "primary" });
+    }
+    if (s === "activated") {
+      actions.push({ label: "Marquer complétée", status: "completed", logAction: "Commande complétée", variant: "primary" });
+    }
+    if (!["completed", "cancelled", "activated"].includes(s)) {
+      actions.push({ label: "Mettre en pause", status: "on_hold", logAction: "Commande mise en pause", variant: "warning" });
+    }
+    if (s === "on_hold") {
+      actions.push({ label: "Reprendre traitement", status: "processing", logAction: "Traitement repris", variant: "primary" });
+    }
+    return actions;
+  };
+
+  const availableActions = getAvailableActions();
 
   return (
     <div className="space-y-4">
-      {/* Back */}
       <Link to={employeePath("/orders")} className="inline-flex items-center gap-1.5 text-[11px] text-[hsl(220,10%,45%)] hover:text-white transition-colors">
         <ArrowLeft className="h-3.5 w-3.5" /> Commandes
       </Link>
 
-      {/* Header with status badge */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -169,9 +259,52 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
         </div>
         <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg", sc.bg)}>
           <sc.icon className={cn("h-4 w-4", sc.color)} />
-          <span className={cn("text-xs font-semibold uppercase tracking-wide", sc.color)}>{order.status}</span>
+          <span className={cn("text-xs font-semibold uppercase tracking-wide", sc.color)}>{sc.label}</span>
         </div>
       </div>
+
+      {/* ═══ Operational Status Summary ═══ */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <MiniCard label="Commande" value={sc.label} color={sc.color} />
+        <MiniCard label="Paiement" value={order.payment_status ?? "—"}
+          color={order.payment_status === "paid" ? "text-emerald-400" : order.payment_status === "failed" ? "text-red-400" : "text-amber-400"} />
+        <MiniCard label="Facture" value={invoice?.status ?? "—"}
+          color={invoice?.status === "paid" ? "text-emerald-400" : "text-amber-400"} />
+        <MiniCard label="Abonnement" value={subscription?.status ?? "—"}
+          color={subscription?.status === "active" ? "text-emerald-400" : "text-amber-400"} />
+        <MiniCard label="Équipement" value={equipment.length > 0 ? `${equipment.length} assigné(s)` : "Aucun"}
+          color={equipment.length > 0 ? "text-blue-400" : "text-[hsl(220,10%,40%)]"} />
+      </div>
+
+      {/* ═══ Operational Actions ═══ */}
+      {availableActions.length > 0 && (
+        <div className="rounded-xl border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] p-4">
+          <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <Zap className="h-3.5 w-3.5" /> Actions opérationnelles
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {availableActions.map((action) => (
+              <button
+                key={action.status}
+                onClick={() => {
+                  if (confirm(`Confirmer: ${action.label} ?`)) {
+                    statusMutation.mutate({ newStatus: action.status, logAction: action.logAction });
+                  }
+                }}
+                disabled={statusMutation.isPending}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-40",
+                  action.variant === "primary" && "bg-blue-600 text-white hover:bg-blue-500",
+                  action.variant === "default" && "border border-[hsl(220,15%,18%)] text-[hsl(220,10%,60%)] hover:text-white hover:border-blue-500/30",
+                  action.variant === "warning" && "border border-amber-500/30 text-amber-400 hover:bg-amber-500/10",
+                )}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action bar */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -222,63 +355,85 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* LEFT: Details */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Status summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <MiniCard label="Commande" value={order.status} color={sc.color} />
-            <MiniCard label="Paiement" value={order.payment_status ?? "—"}
-              color={order.payment_status === "paid" ? "text-emerald-400" : "text-amber-400"} />
-            <MiniCard label="Service" value={order.service_type ?? "—"} color="text-blue-400" />
-            <MiniCard label="Source" value={(order as any).source ?? "web"} color="text-[hsl(220,10%,55%)]" />
-          </div>
-
-          {/* Pricing Snapshot — READ ONLY */}
+          {/* Financial detail — READ ONLY */}
           <Section title="Détail financier" icon={<DollarSign className="h-4 w-4" />} locked>
             <div className="rounded-lg p-3 bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
               <div className="flex items-center gap-1.5 mb-3">
                 <Shield className="h-3 w-3 text-emerald-400" />
-                <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
-                  Canonique · pricing_snapshot
-                </span>
+                <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Canonique</span>
               </div>
-              {snap ? (
+              {pricingSnapshot ? (
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                  <InfoRow label="Sous-total" value={fmtMoney(snap.subtotal)} />
-                  <InfoRow label="TPS (5%)" value={fmtMoney(snap.tps_amount)} />
-                  <InfoRow label="TVQ (9.975%)" value={fmtMoney(snap.tvq_amount)} />
-                  {snap.discount_amount > 0 && <InfoRow label="Rabais" value={`-${fmtMoney(snap.discount_amount)}`} />}
-                  {snap.activation_fee > 0 && <InfoRow label="Frais activation" value={fmtMoney(snap.activation_fee)} />}
-                  {snap.delivery_fee > 0 && <InfoRow label="Livraison" value={fmtMoney(snap.delivery_fee)} />}
+                  <InfoRow label="Sous-total" value={fmtMoney(pricingSnapshot.subtotal)} />
+                  <InfoRow label="TPS (5%)" value={fmtMoney(pricingSnapshot.tps_amount)} />
+                  <InfoRow label="TVQ (9.975%)" value={fmtMoney(pricingSnapshot.tvq_amount)} />
+                  {pricingSnapshot.discount_amount > 0 && <InfoRow label="Rabais" value={`-${fmtMoney(pricingSnapshot.discount_amount)}`} />}
                   <div className="col-span-2 border-t border-[hsl(220,15%,13%)] pt-1.5 mt-1.5">
-                    <InfoRow label="TOTAL" value={fmtMoney(snap.grand_total)} bold />
+                    <InfoRow label="TOTAL" value={fmtMoney(pricingSnapshot.grand_total)} bold />
                   </div>
                 </div>
               ) : (
                 <div className="space-y-1 text-xs">
-                  <InfoRow label="Total facturé" value={fmtMoney(invoice?.total)} />
                   <InfoRow label="Total commande" value={fmtMoney(order.total_amount)} />
-                  <p className="text-[10px] text-amber-400/80 mt-2">⚠ Aucun pricing_snapshot disponible</p>
                 </div>
               )}
               {invoice && (
                 <div className="mt-3 pt-2 border-t border-[hsl(220,15%,11%)] grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
                   <InfoRow label="Facture" value={invoice.invoice_number} />
-                  <InfoRow label="Statut facture" value={invoice.status ?? "—"} />
-                  <InfoRow label="Montant payé" value={fmtMoney(invoice.amount_paid)} />
+                  <InfoRow label="Statut" value={invoice.status ?? "—"} />
+                  <InfoRow label="Payé" value={fmtMoney(invoice.amount_paid)} />
                   <InfoRow label="Solde dû" value={fmtMoney(invoice.balance_due)} />
+                  {invoice.due_date && <InfoRow label="Échéance" value={format(new Date(invoice.due_date), "d MMM yyyy", { locale: fr })} />}
+                </div>
+              )}
+              {payment && (
+                <div className="mt-3 pt-2 border-t border-[hsl(220,15%,11%)] grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                  <InfoRow label="Paiement" value={payment.payment_number} />
+                  <InfoRow label="Statut" value={payment.status ?? "—"} />
+                  <InfoRow label="Montant" value={fmtMoney(payment.amount)} />
+                  <InfoRow label="Méthode" value={payment.method ?? "—"} />
+                  {payment.reference && <InfoRow label="Référence" value={payment.reference} />}
+                  {payment.received_at && <InfoRow label="Reçu" value={format(new Date(payment.received_at), "d MMM yyyy HH:mm", { locale: fr })} />}
                 </div>
               )}
             </div>
           </Section>
 
-          {/* Consent */}
-          {consent && (
-            <Section title="Consentement" icon={<Shield className="h-4 w-4" />}>
+          {/* Equipment */}
+          {equipment.length > 0 && (
+            <Section title={`Équipement (${equipment.length})`} icon={<Wrench className="h-4 w-4" />}>
+              <div className="space-y-2">
+                {equipment.map((eq: any) => (
+                  <div key={eq.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
+                    <div>
+                      <p className="text-xs text-white font-medium">{eq.model || eq.category}</p>
+                      <p className="text-[10px] text-[hsl(220,10%,40%)] font-mono mt-0.5">
+                        {[eq.serial_number, eq.mac_address].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                    </div>
+                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-medium",
+                      eq.status === "assigned" ? "text-blue-400 bg-blue-500/10" :
+                      eq.status === "deployed" ? "text-emerald-400 bg-emerald-500/10" :
+                      "text-[hsl(220,10%,50%)] bg-[hsl(220,15%,13%)]"
+                    )}>
+                      {eq.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Subscription */}
+          {subscription && (
+            <Section title="Abonnement" icon={<Zap className="h-4 w-4" />}>
               <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                <InfoRow label="Horodatage" value={format(new Date(consent.created_at), "d MMM yyyy HH:mm:ss", { locale: fr })} />
-                <InfoRow label="IP" value={(consent as any).ip_address ?? "—"} />
-                <InfoRow label="Conditions" value={(consent as any).terms_accepted ? "✓ Acceptées" : "✗ Non"} />
+                <InfoRow label="Plan" value={subscription.plan_name} />
+                <InfoRow label="Prix" value={fmtMoney(subscription.plan_price)} />
+                <InfoRow label="Statut" value={subscription.status ?? "—"} />
+                {subscription.cycle_start_date && <InfoRow label="Cycle" value={`${format(new Date(subscription.cycle_start_date), "d MMM", { locale: fr })} → ${format(new Date(subscription.cycle_end_date), "d MMM yyyy", { locale: fr })}`} />}
+                {subscription.next_renewal_at && <InfoRow label="Prochain renouvellement" value={format(new Date(subscription.next_renewal_at), "d MMM yyyy", { locale: fr })} />}
               </div>
             </Section>
           )}
@@ -294,9 +449,36 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
               </div>
             </Section>
           )}
+
+          {/* Shipping info */}
+          {((order as any).shipping_carrier || (order as any).shipping_tracking_number) && (
+            <Section title="Expédition" icon={<Truck className="h-4 w-4" />}>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                <InfoRow label="Transporteur" value={(order as any).shipping_carrier || "—"} />
+                <InfoRow label="Suivi" value={(order as any).shipping_tracking_number || "—"} />
+              </div>
+              {(order as any).shipping_tracking_url && (
+                <a href={(order as any).shipping_tracking_url} target="_blank" rel="noopener noreferrer"
+                  className="text-[10px] text-blue-400 hover:underline mt-1 inline-block">
+                  Suivre le colis →
+                </a>
+              )}
+            </Section>
+          )}
+
+          {/* Consent */}
+          {consent && (
+            <Section title="Consentement" icon={<Shield className="h-4 w-4" />}>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                <InfoRow label="Horodatage" value={format(new Date(consent.created_at), "d MMM yyyy HH:mm:ss", { locale: fr })} />
+                <InfoRow label="IP" value={(consent as any).ip_address ?? "—"} />
+                <InfoRow label="Conditions" value={(consent as any).terms_accepted ? "✓ Acceptées" : "✗ Non"} />
+              </div>
+            </Section>
+          )}
         </div>
 
-        {/* RIGHT: Client + Account + Timeline */}
+        {/* RIGHT */}
         <div className="space-y-4">
           {/* Client card */}
           <Section title="Client" icon={<User className="h-4 w-4" />}>
@@ -332,11 +514,9 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
                   const isNote = log.action?.startsWith("Note:");
                   return (
                     <div key={i} className="relative pl-4 pb-3 last:pb-0">
-                      {/* Vertical line */}
                       {i < logs.length - 1 && (
                         <div className="absolute left-[5px] top-[10px] bottom-0 w-px bg-[hsl(220,15%,13%)]" />
                       )}
-                      {/* Dot */}
                       <div className={cn(
                         "absolute left-0 top-[5px] h-[10px] w-[10px] rounded-full border-2",
                         isNote
@@ -368,9 +548,18 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
 
 function MiniCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="rounded-lg border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)] p-3">
-      <p className="text-[10px] text-[hsl(220,10%,38%)] font-medium mb-1">{label}</p>
-      <p className={cn("text-xs font-semibold uppercase", color)}>{value}</p>
+    <div className="rounded-lg border border-[hsl(220,15%,13%)] bg-[hsl(220,20%,8%)] px-3 py-2">
+      <p className="text-[10px] text-[hsl(220,10%,40%)] font-medium">{label}</p>
+      <p className={cn("text-xs font-semibold mt-0.5 capitalize", color)}>{value}</p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-[hsl(220,10%,45%)]">{label}</span>
+      <span className={cn("text-white text-right", bold && "font-semibold")}>{value}</span>
     </div>
   );
 }
@@ -380,23 +569,14 @@ function Section({ title, icon, children, locked }: { title: string; icon: React
     <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,8%)] p-4">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[hsl(220,10%,38%)]">{icon}</span>
-        <h3 className="text-xs font-semibold text-[hsl(220,10%,58%)] uppercase tracking-wider">{title}</h3>
+        <h3 className="text-xs font-semibold text-[hsl(220,10%,55%)] uppercase tracking-wider">{title}</h3>
         {locked && (
-          <span className="ml-auto text-[9px] text-[hsl(220,10%,30%)] bg-[hsl(220,15%,11%)] px-1.5 py-0.5 rounded font-mono">
+          <span className="ml-auto text-[9px] text-[hsl(220,10%,28%)] bg-[hsl(220,15%,11%)] px-1.5 py-0.5 rounded font-mono">
             LECTURE SEULE
           </span>
         )}
       </div>
       {children}
-    </div>
-  );
-}
-
-function InfoRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className="flex justify-between py-0.5">
-      <span className="text-[hsl(220,10%,42%)]">{label}</span>
-      <span className={cn("text-white text-right max-w-[60%] truncate", bold && "font-bold")}>{value}</span>
     </div>
   );
 }
