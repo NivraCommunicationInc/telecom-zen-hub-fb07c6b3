@@ -64,7 +64,7 @@ async function processExpirations(
 
   const { data: pastGraceInvoices, error } = await supabase
     .from("billing_invoices")
-    .select("*, subscription:billing_subscriptions(id, status, plan_name, customer_id)")
+    .select("*, subscription:billing_subscriptions(id, status, plan_name, customer_id), customer:billing_customers(id, email, first_name, last_name)")
     .in("status", ["pending", "overdue"])
     .lte("due_date", suspendCutoff);
 
@@ -129,6 +129,38 @@ async function processExpirations(
           days_past_due: daysPastDue,
         });
 
+        // Queue void notification email (J+10)
+        if (inv.customer?.email) {
+          const voidKey = `billing_voided_${inv.id}`;
+          const { data: existingVoid } = await supabase
+            .from("email_queue")
+            .select("id")
+            .or(`event_key.eq.${voidKey},idempotency_key.eq.${voidKey}`)
+            .maybeSingle();
+          if (!existingVoid) {
+            await supabase.from("email_queue").insert({
+              event_key: voidKey,
+              idempotency_key: voidKey,
+              to_email: inv.customer.email,
+              from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+              subject: `Nivra — Facture annulée (#${inv.invoice_number})`,
+              template_key: "invoice_voided",
+              template_vars: {
+                client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
+                invoice_number: inv.invoice_number,
+                plan_name: sub.plan_name || "Service Nivra",
+                total: inv.total?.toFixed(2),
+                due_date: inv.due_date,
+                void_reason: "Fenêtre de réactivation expirée (J+10)",
+              },
+              status: "queued",
+              attempts: 0,
+              max_attempts: 3,
+            });
+            stats.reminders_queued++;
+          }
+        }
+
         console.log(`[lifecycle] VOIDED invoice ${inv.invoice_number} at J+${daysPastDue} — reactivation window expired`);
         continue;
       }
@@ -167,6 +199,42 @@ async function processExpirations(
           days_past_due: daysPastDue,
           plan: sub.plan_name,
         });
+
+        // Queue suspension notification email (J+5, once per invoice)
+        if (inv.customer?.email) {
+          const suspKey = `billing_suspended_${inv.id}`;
+          const { data: existingSusp } = await supabase
+            .from("email_queue")
+            .select("id")
+            .or(`event_key.eq.${suspKey},idempotency_key.eq.${suspKey}`)
+            .maybeSingle();
+          if (!existingSusp) {
+            await supabase.from("email_queue").insert({
+              event_key: suspKey,
+              idempotency_key: suspKey,
+              to_email: inv.customer.email,
+              from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+              subject: `Nivra — Service suspendu (#${inv.invoice_number})`,
+              template_key: "service_suspended",
+              template_vars: {
+                client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
+                invoice_number: inv.invoice_number,
+                plan_name: sub.plan_name || "Service Nivra",
+                total: inv.total?.toFixed(2),
+                amount: inv.total?.toFixed(2),
+                due_date: inv.due_date,
+                suspension_date: today,
+                void_date: addDays(inv.due_date, 10),
+                reactivation_window: "5 jours",
+                payment_link: "https://nivra-telecom.ca/portail/facturation",
+              },
+              status: "queued",
+              attempts: 0,
+              max_attempts: 3,
+            });
+            stats.reminders_queued++;
+          }
+        }
 
         console.log(
           `[lifecycle] SUSPENDED subscription ${sub.id} (${sub.plan_name}), invoice ${inv.invoice_number} stays OVERDUE — reactivation until J+10`,

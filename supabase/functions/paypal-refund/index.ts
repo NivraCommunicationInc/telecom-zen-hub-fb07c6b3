@@ -268,10 +268,13 @@ Deno.serve(async (req: Request) => {
               .single()
           : { data: null };
 
+        const refundEventKey = `paypal_refund_${payment.id}_${Date.now()}`;
         await supabase.from("email_queue").insert({
+          event_key: refundEventKey,
+          idempotency_key: refundEventKey,
           to_email: customer.email,
           template_key: "refund_issued",
-          variables: {
+          template_vars: {
             client_name: `${customer.first_name} ${customer.last_name}`,
             invoice_number: invoiceData?.invoice_number || payment.payment_number,
             refund_amount: refundAmount,
@@ -279,7 +282,9 @@ Deno.serve(async (req: Request) => {
             refund_method: "PayPal",
             reason,
           },
-          priority: "high",
+          status: "queued",
+          attempts: 0,
+          max_attempts: 3,
         });
       }
     }
