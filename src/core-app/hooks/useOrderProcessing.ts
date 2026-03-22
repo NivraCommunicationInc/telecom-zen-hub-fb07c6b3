@@ -570,9 +570,45 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       if (fetchError) throw fetchError;
 
-      const existingPayment = existingPayments?.[0];
+      let existingPayment = existingPayments?.[0];
+
+      // If no billing_payments record exists, create one from order data
+      // This handles orders where checkout stored payment info on orders table only
       if (!existingPayment) {
-        throw new Error("Aucun paiement en attente trouvé pour cette facture. Utilisez 'Enregistrer paiement' pour créer un nouveau paiement.");
+        const order = data?.order;
+        if (!order?.payment_method && !order?.payment_reference) {
+          throw new Error("Aucun paiement en attente trouvé pour cette facture. Utilisez 'Enregistrer paiement' pour créer un nouveau paiement.");
+        }
+
+        // Map order payment_method to billing_payment_method enum
+        const methodMap: Record<string, string> = {
+          etransfer: "interac",
+          interac: "interac",
+          card: "card",
+          paypal: "paypal",
+          manual: "manual",
+        };
+        const billingMethod = methodMap[order.payment_method || ""] || "manual";
+
+        const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+        const { data: created, error: createErr } = await supabase
+          .from("billing_payments")
+          .insert({
+            payment_number: paymentNumber,
+            invoice_id: targetInvoice.id,
+            customer_id: targetInvoice.customer_id,
+            amount: Number(targetInvoice.total),
+            method: billingMethod as any,
+            status: "pending" as any,
+            reference: reference || order.payment_reference || null,
+            source: "core_admin_confirm",
+            environment: order.environment || "production",
+          })
+          .select("*")
+          .single();
+
+        if (createErr) throw createErr;
+        existingPayment = created;
       }
 
       // Step 2: UPDATE the existing payment — preserve original provider and method
