@@ -231,10 +231,14 @@ const ClientDashboard = () => {
                   <div className="flex items-center gap-4">
                     <Smartphone className="w-5 h-5 text-slate-400" />
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-slate-900 flex items-center">
                         {profile?.full_name || user?.user_metadata?.full_name || "Client"}
+                        {statusBadge(sub.status)}
                       </p>
-                      <p className="text-sm text-slate-500">{profile?.phone || "—"}</p>
+                      <p className="text-sm text-slate-500">
+                        {profile?.phone || "—"}
+                        {sub.cycle_end_date && <span className="ml-2">· Expire: {format(new Date(sub.cycle_end_date), "d MMM yyyy", { locale: fr })}</span>}
+                      </p>
                     </div>
                   </div>
                   <Link to="/portal/services">
