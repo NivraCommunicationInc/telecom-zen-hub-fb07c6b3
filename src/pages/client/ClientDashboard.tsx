@@ -107,6 +107,17 @@ const ClientDashboard = () => {
 
   const accountNumber = accountIdentity?.accountNumber || "Non attribué";
 
+  // Status badge helper
+  const statusBadge = (status: string) => {
+    const cfg: Record<string, { label: string; cls: string }> = {
+      active:    { label: "Actif",      cls: "bg-emerald-100 text-emerald-700" },
+      suspended: { label: "Suspendu",   cls: "bg-red-100 text-red-700" },
+      pending:   { label: "En attente", cls: "bg-amber-100 text-amber-700" },
+    };
+    const c = cfg[status] || { label: status, cls: "bg-slate-100 text-slate-600" };
+    return <Badge className={`${c.cls} text-xs ml-2`}>{c.label}</Badge>;
+  };
+
   // Group subscriptions by type
   const mobileServices = subscriptions?.filter((s: any) => 
     s.plan_name?.toLowerCase().includes("mobile") || s.service_type === "mobile"
