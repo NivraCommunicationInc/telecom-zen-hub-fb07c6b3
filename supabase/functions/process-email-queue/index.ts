@@ -572,7 +572,7 @@ async function resolveCanonicalFinancialVars(
     if (resolvedOrderId) {
       const { data } = await supabase
         .from("orders")
-        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot")
+        .select("id, order_number, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
         .eq("id", resolvedOrderId)
         .maybeSingle();
       order = data as Record<string, any> | null;
