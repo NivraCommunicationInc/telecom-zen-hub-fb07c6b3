@@ -250,9 +250,13 @@ async function queueClientEmail(params: {
       template_vars: templateVars,
       status: "queued",
     });
-    if (error) console.error("[OrderProcessing] Email queue error:", error);
-  } catch (err) {
-    console.error("[OrderProcessing] Email queue exception:", err);
+    if (error) {
+      console.error("[GUARDRAIL][EmailQueue] Insert failed:", error.message, { template: params.template_key, entity: params.entity_id });
+      toast.warning(`⚠ Courriel non envoyé (${params.template_key}) — ${error.message}`);
+    }
+  } catch (err: any) {
+    console.error("[GUARDRAIL][EmailQueue] Exception:", err?.message, { template: params.template_key });
+    toast.warning(`⚠ Courriel non envoyé (${params.template_key})`);
   }
 }
 
@@ -695,11 +699,24 @@ export function useOrderProcessing(orderId: string | undefined) {
   /* ── Mark payment invalid ── */
   /* PRODUCTION FIX: Updates billing_payments + recalculates invoice balance_due from confirmed payments. */
   const markPaymentInvalid = async (reason?: string) => {
-    const targetInvoice = data?.invoice;
+    try {
+      const targetInvoice = data?.invoice;
 
-    // Update billing_payments if a pending payment exists
-    let invalidatedAmount = 0;
-    if (targetInvoice?.id) {
+      // GUARD: Check invoice exists
+      if (!targetInvoice?.id) {
+        toast.error("Aucune facture liée — impossible de marquer le paiement invalide");
+        return;
+      }
+
+      // GUARD: Don't invalidate on already-void invoices
+      const invStatus = String(targetInvoice.status || "").toLowerCase();
+      if (["void", "cancelled"].includes(invStatus)) {
+        toast.info("Facture déjà annulée — aucune action nécessaire");
+        return;
+      }
+
+      // Update billing_payments if a pending payment exists
+      let invalidatedAmount = 0;
       const { data: pendingPayments } = await supabase
         .from("billing_payments")
         .select("id, amount")
@@ -718,6 +735,9 @@ export function useOrderProcessing(orderId: string | undefined) {
           })
           .eq("id", pendingPayments[0].id);
         if (payErr) throw payErr;
+        console.info("[GUARDRAIL][PaymentInvalid] Payment marked failed:", pendingPayments[0].id);
+      } else {
+        console.warn("[GUARDRAIL][PaymentInvalid] No pending payment found for invoice:", targetInvoice.id);
       }
 
       // Recalculate invoice totals from confirmed payments only (SSOT)
@@ -742,41 +762,53 @@ export function useOrderProcessing(orderId: string | undefined) {
         })
         .eq("id", targetInvoice.id);
       if (invErr) throw invErr;
-    }
 
-    await updateOrder.mutateAsync({ payment_status: "failed" });
-    await logActivity("payment_invalidated", "order", orderId, {
-      reason,
-      invalidated_amount: invalidatedAmount,
-      invoice_id: targetInvoice?.id,
-    });
-
-    const email = getClientEmail();
-    if (email) {
-      await queueClientEmail({
-        to_email: email,
-        template_key: "payment_failed",
-        event_key: `payment_failed_${orderId}_${Date.now()}`,
-        subject: "Problème de paiement — Nivra",
-        entity_id: orderId,
-        template_vars: {
-          client_name: getClientName(),
-          order_number: data?.order?.order_number || "",
-          reason: reason || "",
-        },
+      await updateOrder.mutateAsync({ payment_status: "failed" });
+      await logActivity("payment_invalidated", "order", orderId, {
+        reason,
+        invalidated_amount: invalidatedAmount,
+        invoice_id: targetInvoice.id,
       });
-    }
 
-    invalidateAll();
-    toast.warning("Paiement marqué comme invalide — facture recalculée");
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "payment_failed",
+          event_key: `payment_failed_${orderId}_${Date.now()}`,
+          subject: "Problème de paiement — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_number: data?.order?.order_number || "",
+            reason: reason || "",
+          },
+        });
+      }
+
+      invalidateAll();
+      toast.warning("Paiement marqué comme invalide — facture recalculée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][PaymentInvalid] Failed:", err);
+      toast.error(`Erreur invalidation paiement: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Mark payment partial ── */
-  /* PRODUCTION FIX: Recalculates invoice from confirmed payments (SSOT). */
   const markPaymentPartial = async () => {
-    const targetInvoice = data?.invoice;
+    try {
+      const targetInvoice = data?.invoice;
+      if (!targetInvoice?.id) {
+        toast.error("Aucune facture liée — impossible de marquer partiel");
+        return;
+      }
 
-    if (targetInvoice?.id) {
+      // GUARD: Already paid
+      if (targetInvoice.status === "paid" && Number(targetInvoice.balance_due ?? 0) <= 0) {
+        toast.info("Facture déjà entièrement payée");
+        return;
+      }
+
       // Recalculate from confirmed payments only
       const { data: confirmedPayments } = await supabase
         .from("billing_payments")
@@ -797,31 +829,47 @@ export function useOrderProcessing(orderId: string | undefined) {
         })
         .eq("id", targetInvoice.id);
       if (invErr) throw invErr;
-    }
 
-    await updateOrder.mutateAsync({ payment_status: "partial" });
-    await logActivity("payment_partial", "order", orderId, {
-      invoice_id: targetInvoice?.id,
-    });
-    invalidateAll();
-    toast.info("Paiement marqué comme partiel — facture recalculée");
+      await updateOrder.mutateAsync({ payment_status: "partial" });
+      await logActivity("payment_partial", "order", orderId, { invoice_id: targetInvoice.id });
+      invalidateAll();
+      toast.info("Paiement marqué comme partiel — facture recalculée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][PaymentPartial] Failed:", err);
+      toast.error(`Erreur paiement partiel: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Update fulfillment type ── */
   const setFulfillmentType = async (type: string) => {
-    await updateOrder.mutateAsync({
-      fulfillment_type: type,
-      fulfillment_assigned_at: new Date().toISOString(),
-    });
-    await logActivity("fulfillment_assigned", "order", orderId, { fulfillment_type: type });
-    toast.success(`Mode de livraison: ${type}`);
+    try {
+      // GUARD: Terminal orders cannot change fulfillment
+      if (["cancelled", "activated"].includes(data?.order?.status || "")) {
+        toast.error("Commande terminée — impossible de modifier le fulfillment");
+        return;
+      }
+      await updateOrder.mutateAsync({
+        fulfillment_type: type,
+        fulfillment_assigned_at: new Date().toISOString(),
+      });
+      await logActivity("fulfillment_assigned", "order", orderId, { fulfillment_type: type });
+      toast.success(`Mode de livraison: ${type}`);
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Fulfillment] Failed:", err);
+      toast.error(`Erreur fulfillment: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Update fulfillment details (dynamic fields per type) ── */
   const updateFulfillmentDetails = async (fields: Record<string, any>) => {
-    await updateOrder.mutateAsync(fields);
-    await logActivity("fulfillment_details_updated", "order", orderId, fields);
-    toast.success("Détails de fulfillment mis à jour");
+    try {
+      await updateOrder.mutateAsync(fields);
+      await logActivity("fulfillment_details_updated", "order", orderId, fields);
+      toast.success("Détails de fulfillment mis à jour");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][FulfillmentDetails] Failed:", err);
+      toast.error(`Erreur mise à jour fulfillment: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Assign equipment ── */
@@ -832,9 +880,21 @@ export function useOrderProcessing(orderId: string | undefined) {
     equipment_id?: string;
     equipment_details?: any;
   }) => {
-    await updateOrder.mutateAsync(fields);
-    await logActivity("equipment_assigned", "order", orderId, fields);
-    toast.success("Équipement assigné");
+    try {
+      // GUARD: Terminal orders
+      if (["cancelled"].includes(data?.order?.status || "")) {
+        toast.error("Commande annulée — impossible d'assigner de l'équipement");
+        return;
+      }
+      await updateOrder.mutateAsync(fields);
+      await logActivity("equipment_assigned", "order", orderId, fields);
+      console.info("[GUARDRAIL][Equipment] Assigned:", { orderId, fields: Object.keys(fields) });
+      toast.success("Équipement assigné");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Equipment] Failed:", err);
+      toast.error(`Erreur assignation équipement: ${err?.message || "Erreur inconnue"}`);
+      throw err;
+    }
   };
 
   /* ── Update shipping ── */
@@ -844,128 +904,179 @@ export function useOrderProcessing(orderId: string | undefined) {
     tracking_url?: string;
     shipped_at?: string;
   }) => {
-    await updateOrder.mutateAsync(fields);
-    await logActivity("shipment_updated", "order", orderId, fields);
+    try {
+      await updateOrder.mutateAsync(fields);
+      await logActivity("shipment_updated", "order", orderId, fields);
 
-    // Send shipping notification if tracking was added
-    if (fields.tracking_number) {
-      const email = getClientEmail();
-      if (email) {
-        await queueClientEmail({
-          to_email: email,
-          template_key: "shipment_created",
-          event_key: `shipment_${orderId}_${Date.now()}`,
-          subject: "Votre commande a été expédiée — Nivra",
-          entity_id: orderId,
-          template_vars: {
-            client_name: getClientName(),
-            order_number: data?.order?.order_number || "",
-            carrier: fields.carrier || "",
-            tracking_number: fields.tracking_number || "",
-            tracking_url: fields.tracking_url || "",
-          },
-        });
+      // Send shipping notification if tracking was added
+      if (fields.tracking_number) {
+        const email = getClientEmail();
+        if (email) {
+          await queueClientEmail({
+            to_email: email,
+            template_key: "shipment_created",
+            event_key: `shipment_${orderId}_${Date.now()}`,
+            subject: "Votre commande a été expédiée — Nivra",
+            entity_id: orderId,
+            template_vars: {
+              client_name: getClientName(),
+              order_number: data?.order?.order_number || "",
+              carrier: fields.carrier || "",
+              tracking_number: fields.tracking_number || "",
+              tracking_url: fields.tracking_url || "",
+            },
+          });
+        }
       }
-    }
 
-    toast.success("Expédition mise à jour");
+      toast.success("Expédition mise à jour");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Shipping] Failed:", err);
+      toast.error(`Erreur expédition: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Assign technician ── */
   const assignTechnician = async (technicianId: string) => {
-    await updateOrder.mutateAsync({ technician_id: technicianId });
+    try {
+      // GUARD: Validate tech ID
+      if (!technicianId) {
+        toast.error("ID technicien manquant");
+        return;
+      }
 
-    // Also update the linked appointment if one exists
-    if (data?.appointment?.id) {
-      await supabase
-        .from("appointments")
-        .update({
-          technician_id: technicianId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", data.appointment.id);
+      await updateOrder.mutateAsync({ technician_id: technicianId });
+
+      // Also update the linked appointment if one exists
+      if (data?.appointment?.id) {
+        const { error: aptErr } = await supabase
+          .from("appointments")
+          .update({
+            technician_id: technicianId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.appointment.id);
+        if (aptErr) {
+          console.warn("[GUARDRAIL][Technician] Appointment update failed:", aptErr.message);
+          toast.warning("Technicien assigné à la commande, mais erreur lors de la mise à jour du rendez-vous");
+        }
+      }
+
+      await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
+
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "technician_assigned",
+          event_key: `technician_assigned_${orderId}_${Date.now()}`,
+          subject: "Un technicien a été assigné à votre commande — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_id: orderId,
+            order_number: data?.order?.order_number || "",
+            technician_id: technicianId,
+          },
+        });
+      }
+
+      toast.success("Technicien assigné");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Technician] Failed:", err);
+      toast.error(`Erreur assignation technicien: ${err?.message || "Erreur inconnue"}`);
     }
+  };
 
-    await logActivity("technician_assigned", "order", orderId, { technician_id: technicianId });
+  /* ── Add internal note ── */
+  const addNote = async (note: string) => {
+    try {
+      if (!note?.trim()) {
+        toast.error("Note vide — rien à ajouter");
+        return;
+      }
+      const existing = data?.order?.internal_notes || "";
+      const timestamp = new Date().toISOString();
+      const entry = `[${timestamp}] ${user?.email}: ${note}`;
+      const updated = existing ? `${existing}\n${entry}` : entry;
+      await updateOrder.mutateAsync({ internal_notes: updated });
+      await logActivity("note_added", "order", orderId, { note });
+      toast.success("Note ajoutée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Note] Failed:", err);
+      toast.error(`Erreur ajout note: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
 
-    // P3: Send client notification for technician assignment
-    const email = getClientEmail();
-    if (email) {
+  /* ── Send notification to client ── */
+  const sendClientNotification = async (templateKey: string, subject: string, extraVars?: Record<string, any>) => {
+    try {
+      const email = getClientEmail();
+      if (!email) {
+        toast.error("Aucun courriel client disponible");
+        return;
+      }
       await queueClientEmail({
         to_email: email,
-        template_key: "technician_assigned",
-        event_key: `technician_assigned_${orderId}_${Date.now()}`,
-        subject: "Un technicien a été assigné à votre commande — Nivra",
+        template_key: templateKey,
+        event_key: `manual_${templateKey}_${orderId}_${Date.now()}`,
+        mode: "manual",
+        subject,
         entity_id: orderId,
         template_vars: {
           client_name: getClientName(),
           order_id: orderId,
           order_number: data?.order?.order_number || "",
-          technician_id: technicianId,
+          ...extraVars,
         },
       });
+      await logActivity("notification_sent", "order", orderId, { template_key: templateKey, to: email });
+      toast.success("Notification envoyée au client");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Notification] Failed:", err);
+      toast.error(`Erreur envoi notification: ${err?.message || "Erreur inconnue"}`);
     }
-
-    toast.success("Technicien assigné");
-  };
-
-  /* ── Add internal note ── */
-  const addNote = async (note: string) => {
-    const existing = data?.order?.internal_notes || "";
-    const timestamp = new Date().toISOString();
-    const entry = `[${timestamp}] ${user?.email}: ${note}`;
-    const updated = existing ? `${existing}\n${entry}` : entry;
-    await updateOrder.mutateAsync({ internal_notes: updated });
-    await logActivity("note_added", "order", orderId, { note });
-    toast.success("Note ajoutée");
-  };
-
-  /* ── Send notification to client ── */
-  const sendClientNotification = async (templateKey: string, subject: string, extraVars?: Record<string, any>) => {
-    const email = getClientEmail();
-    if (!email) {
-      toast.error("Aucun courriel client disponible");
-      return;
-    }
-    await queueClientEmail({
-      to_email: email,
-      template_key: templateKey,
-      event_key: `manual_${templateKey}_${orderId}_${Date.now()}`,
-      mode: "manual",
-      subject,
-      entity_id: orderId,
-      template_vars: {
-        client_name: getClientName(),
-        order_id: orderId,
-        order_number: data?.order?.order_number || "",
-        ...extraVars,
-      },
-    });
-    await logActivity("notification_sent", "order", orderId, { template_key: templateKey, to: email });
-    toast.success("Notification envoyée au client");
   };
 
   /* ── Sign contract (admin side) ── */
   const signContract = async (contractId: string) => {
-    const { error } = await supabase
-      .from("contracts")
-      .update({
-        is_signed: true,
-        admin_signed_at: new Date().toISOString(),
-        admin_signer_id: user?.id || null,
-        admin_signer_name: user?.email || "Admin",
-        status: "signed_by_admin",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", contractId);
-    if (error) throw error;
-    await logActivity("contract_signed_admin", "order", orderId, { contract_id: contractId });
+    try {
+      // GUARD: Validate contract ID
+      if (!contractId) {
+        toast.error("ID de contrat manquant");
+        return;
+      }
 
-    // Also update order to link the contract
-    await updateOrder.mutateAsync({ related_contract_id: contractId });
+      // GUARD: Check if contract is already signed
+      const existing = data?.contracts?.find((c: any) => c.id === contractId);
+      if (existing?.is_signed) {
+        toast.info("Ce contrat est déjà signé");
+        return;
+      }
 
-    invalidateAll();
-    toast.success("Contrat signé (admin)");
+      const { error } = await supabase
+        .from("contracts")
+        .update({
+          is_signed: true,
+          admin_signed_at: new Date().toISOString(),
+          admin_signer_id: user?.id || null,
+          admin_signer_name: user?.email || "Admin",
+          status: "signed_by_admin",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contractId);
+      if (error) throw error;
+      await logActivity("contract_signed_admin", "order", orderId, { contract_id: contractId });
+
+      // Also update order to link the contract
+      await updateOrder.mutateAsync({ related_contract_id: contractId });
+
+      invalidateAll();
+      toast.success("Contrat signé (admin)");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Contract] Sign failed:", err);
+      toast.error(`Erreur signature contrat: ${err?.message || "Erreur inconnue"}`);
+    }
   };
 
   /* ── Transition order through operational states safely ── */
@@ -1108,42 +1219,53 @@ export function useOrderProcessing(orderId: string | undefined) {
 
   /* ── Complete order ── */
   const completeOrder = async () => {
-    // SYSTEMIC GUARD: Verify invoice is paid before allowing completion
-    const invoice = data?.invoice;
-    if (!invoice) {
-      toast.error("Impossible de compléter : aucune facture liée à cette commande.");
-      return;
-    }
-    const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
-    const invoiceStatus = invoice.status;
-    if (!["paid", "partially_paid"].includes(invoiceStatus || "") && balanceDue > 0) {
-      toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
-      return;
-    }
+    try {
+      // GUARD: Already completed
+      if (data?.order?.status === "completed") {
+        toast.info("Commande déjà complétée");
+        return;
+      }
 
-    await changeStatus("completed");
-    await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
+      // SYSTEMIC GUARD: Verify invoice is paid before allowing completion
+      const invoice = data?.invoice;
+      if (!invoice) {
+        toast.error("Impossible de compléter : aucune facture liée à cette commande.");
+        return;
+      }
+      const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
+      const invoiceStatus = invoice.status;
+      if (!["paid", "partially_paid"].includes(invoiceStatus || "") && balanceDue > 0) {
+        toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+        return;
+      }
 
-    // Queue completion notification
-    const email = getClientEmail();
-    if (email) {
-      await queueClientEmail({
-        to_email: email,
-        template_key: "order_completed",
-        event_key: `order_completed_${orderId}_${Date.now()}`,
-        idempotency_key: `auto_order_completed_${orderId}`,
-        mode: "automatic",
-        subject: "Votre commande est complétée — Nivra",
-        entity_id: orderId,
-        template_vars: {
-          client_name: getClientName(),
-          order_id: orderId,
-          order_number: data?.order?.order_number || "",
-        },
-      });
+      await changeStatus("completed");
+      await updateOrder.mutateAsync({ processed_at: new Date().toISOString(), processed_by: user?.id });
+
+      // Queue completion notification
+      const email = getClientEmail();
+      if (email) {
+        await queueClientEmail({
+          to_email: email,
+          template_key: "order_completed",
+          event_key: `order_completed_${orderId}_${Date.now()}`,
+          idempotency_key: `auto_order_completed_${orderId}`,
+          mode: "automatic",
+          subject: "Votre commande est complétée — Nivra",
+          entity_id: orderId,
+          template_vars: {
+            client_name: getClientName(),
+            order_id: orderId,
+            order_number: data?.order?.order_number || "",
+          },
+        });
+      }
+
+      toast.success("Commande complétée");
+    } catch (err: any) {
+      console.error("[GUARDRAIL][Complete] Failed:", err);
+      toast.error(`Erreur complétion: ${err?.message || "Erreur inconnue"}`);
     }
-
-    toast.success("Commande complétée");
   };
 
   return {
