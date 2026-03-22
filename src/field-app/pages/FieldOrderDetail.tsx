@@ -514,20 +514,7 @@ export default function FieldOrderDetail() {
         </div>
       )}
 
-      {/* ═══ Promo / Referral ═══ */}
-      {((order as any).promo_code || (order as any).referral_code) && (
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
-          <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5">
-            <Tag className="h-3.5 w-3.5" /> Promotions & Référencement
-          </h3>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            {(order as any).promo_code && <InfoRow label="Code promo" value={(order as any).promo_code} mono />}
-            {(order as any).referral_code && <InfoRow label="Code référence" value={(order as any).referral_code} mono />}
-            {(order as any).discount_amount && <InfoRow label="Rabais" value={`-${Number((order as any).discount_amount).toFixed(2)} $`} />}
-          </div>
-        </div>
-      )}
-
+      {/* Promo section moved to top summary */}
       {/* ═══ Installation Type ═══ */}
       {((order as any).installation_type || canonicalOrder?.fulfillment_type) && (
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 space-y-2">
