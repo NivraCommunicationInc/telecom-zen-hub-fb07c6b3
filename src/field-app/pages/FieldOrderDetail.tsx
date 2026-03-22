@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { NextActionBanner } from "@/field-app/components/NextActionBanner";
+import { OrderSummaryStrip } from "@/field-app/components/OrderSummaryStrip";
 
 /* ─── Status configurations ─── */
 const SYNC_CONFIG: Record<string, { label: string; desc: string; icon: typeof CheckCircle2; classes: string }> = {
