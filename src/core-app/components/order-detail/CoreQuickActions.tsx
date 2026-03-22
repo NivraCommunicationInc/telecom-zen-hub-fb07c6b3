@@ -31,7 +31,7 @@ export function CoreQuickActions({ proc }: Props) {
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
 
   const order = proc.order;
-  const isTerminal = ["completed", "cancelled", "activated"].includes(order?.status);
+  const isTerminal = ["cancelled", "activated"].includes(order?.status);
   const isPaid = proc.invoice && (proc.invoice.status === "paid" || Number(proc.invoice.balance_due ?? 1) <= 0);
   const hasAppointment = !!proc.appointment;
   const hasTechnician = !!order?.technician_id;
