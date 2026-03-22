@@ -35,7 +35,7 @@ const ClientDashboard = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch from billing_subscriptions (V2 source of truth) via billing_customer
+  // Fetch from billing_subscriptions (V2 source of truth) — ALL non-cancelled
   const { data: subscriptions } = useQuery({
     queryKey: ["client-billing-subscriptions", user?.id],
     queryFn: async () => {
@@ -53,7 +53,7 @@ const ClientDashboard = () => {
         .from("billing_subscriptions")
         .select("*, services:billing_subscription_services(*)")
         .eq("customer_id", customer.id)
-        .eq("status", "active");
+        .not("status", "in", '("cancelled","expired")');
       return (subs || []).map((s: any) => ({
         id: s.id,
         plan_name: s.plan_name,
@@ -61,7 +61,24 @@ const ClientDashboard = () => {
         billing_cycle: "monthly",
         service_type: s.service_category || (s.plan_name?.toLowerCase().includes("internet") ? "internet" : s.plan_name?.toLowerCase().includes("tv") ? "tv" : "mobile"),
         status: s.status,
+        cycle_start_date: s.cycle_start_date,
+        cycle_end_date: s.cycle_end_date,
       }));
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch account for billing_cycle_day + next_invoice_date
+  const { data: account } = useQuery({
+    queryKey: ["client-account-billing", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await portalSupabase
+        .from("accounts")
+        .select("billing_cycle_day, next_invoice_date, status")
+        .eq("client_id", user.id)
+        .maybeSingle();
+      return data;
     },
     enabled: !!user?.id,
   });
