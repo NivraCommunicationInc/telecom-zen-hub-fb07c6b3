@@ -530,8 +530,8 @@ const GuestCheckout = () => {
           supabase.from("accounts").select("id").eq("client_id", userId).limit(1),
           supabase.from("billing_invoices").select("id").eq("order_id", response.order_id).limit(1),
           supabase.from("orders").select("pricing_snapshot").eq("id", response.order_id).maybeSingle(),
-          supabase.from("billing_invoice_lines").select("id").eq("invoice_id", response.order_id).limit(1),
-          supabase.from("billing_payments").select("id").eq("invoice_id", response.order_id).limit(1),
+          supabase.from("billing_invoice_lines").select("id").eq("invoice_id", response.invoice_id).limit(1),
+          supabase.from("billing_payments").select("id").eq("invoice_id", response.invoice_id).limit(1),
           supabase.from("checkout_consent_records" as any).select("id").eq("order_id", response.order_id).limit(1),
         ]);
         const labels = ["profile", "account", "invoice", "pricing_snapshot", "invoice_lines", "payment", "consent_record"];
