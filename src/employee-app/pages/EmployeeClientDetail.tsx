@@ -216,6 +216,14 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         >
           <AlertTriangle className="h-3 w-3" /> Escalation Core
         </button>
+        {unpaidInvoices.length > 0 && (
+          <button
+            onClick={() => setPaymentInvoice(unpaidInvoices[0])}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors"
+          >
+            <DollarSign className="h-3 w-3" /> Enregistrer paiement ({unpaidInvoices.length})
+          </button>
+        )}
       </div>
 
       {/* Dialogs */}
