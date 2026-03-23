@@ -934,24 +934,13 @@ const GuestCheckout = () => {
 
                     <Separator />
 
-                    {/* Terms */}
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          id="terms"
-                          checked={termsAccepted}
-                          onCheckedChange={v => setTermsAccepted(!!v)}
-                        />
-                        <label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                          J'accepte les{" "}
-                          <a href="/legal/terms" target="_blank" className="text-primary underline">conditions d'utilisation</a>,{" "}
-                          la{" "}
-                          <a href="/legal/privacy" target="_blank" className="text-primary underline">politique de confidentialité</a>{" "}
-                          et la{" "}
-                          <a href="/legal/refund" target="_blank" className="text-primary underline">politique de remboursement</a>.
-                        </label>
-                      </div>
-                    </div>
+                    {/* Legal Checklist - Full CheckoutEssentialTerms */}
+                    <CheckoutEssentialTermsBase
+                      isFrench
+                      checklist={legalChecklist}
+                      onChecklistChange={(key, checked) => setLegalChecklist(prev => ({ ...prev, [key]: checked }))}
+                      paymentMethod={paymentMethod || undefined}
+                    />
 
                     {/* Security badges */}
                     <div className="flex items-center gap-4 pt-2">
