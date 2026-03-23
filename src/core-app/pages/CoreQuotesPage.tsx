@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Eye, AlertCircle, UserPlus, ArrowRightCircle, Download, Link2, CheckCircle } from "lucide-react";
+import { Search, FileText, Eye, AlertCircle, UserPlus, ArrowRightCircle, Download, Link2, CheckCircle, Plus } from "lucide-react";
 import { downloadQuotePDF, getQuotePublicUrl } from "@/shared-ops/quoteOperations";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
