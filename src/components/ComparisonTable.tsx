@@ -8,18 +8,16 @@ const rows = [
 
 const ComparisonTable = () => (
   <section className="py-16 lg:py-20 bg-secondary/40">
-    <div className="container mx-auto px-4 max-w-[800px]">
+    <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
       <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-10">
         Une approche plus simple
       </h2>
-      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-        {/* Header */}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm max-w-[800px] mx-auto">
         <div className="grid grid-cols-3 border-b border-border">
           <div className="p-4" />
           <div className="p-4 text-center font-bold text-primary text-sm border-l border-border bg-primary/5">Nivra</div>
           <div className="p-4 text-center font-bold text-muted-foreground text-sm border-l border-border">Fournisseurs traditionnels</div>
         </div>
-        {/* Rows */}
         {rows.map((row, i) => (
           <div key={i} className={`grid grid-cols-3 ${i < rows.length - 1 ? "border-b border-border" : ""}`}>
             <div className="p-4 text-sm font-medium text-foreground">{row.label}</div>

@@ -9,7 +9,7 @@ const steps = [
 
 const HowItWorks = () => (
   <section className="py-16 lg:py-20 bg-background">
-    <div className="container mx-auto px-4 max-w-[1100px]">
+    <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
       <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-12">
         Comment ça fonctionne
       </h2>
