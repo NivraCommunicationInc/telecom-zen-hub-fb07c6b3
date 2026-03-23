@@ -1,9 +1,9 @@
 /**
  * Quote Checkout Page — Dedicated form for clients to complete their info after accepting a quote.
  * Accessible via /quote-checkout?token=XXX (no login required).
- * Creates the real order only after form completion.
+ * Saves client KYC data and sets quote to checkout_completed.
  * Quote transitions: accepted_pending_checkout → checkout_in_progress → checkout_completed
- * Order creation happens ONLY at checkout_completed.
+ * NO ORDER IS CREATED HERE — Staff converts via Employee/Core portal.
  */
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -219,89 +219,68 @@ export default function QuoteCheckout() {
     try {
       const fullName = `${form.firstName} ${form.lastName}`.trim();
 
-      // Resolve or create account
-      let resolvedAccountId = quote.account_id;
-      let resolvedUserId = quote.customer_user_id;
+      // ═══ RULE: NO ORDER CREATION HERE ═══
+      // We only save the client's info on the quote and set checkout_completed.
+      // The actual order is created later by Employee/Core staff via convertQuoteToOrder().
 
-      if (!resolvedAccountId && resolvedUserId) {
-        const { data: acc } = await supabase
-          .from("accounts" as any)
-          .select("id")
-          .eq("client_id", resolvedUserId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        resolvedAccountId = acc?.id || null;
-      }
-
-      const selectedServices = lines
-        .filter((l: any) => l.line_type === "catalog_service")
-        .map((l: any) => l.label)
-        .join(", ");
-
-      // Create the order
-      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
-      const orderPayload = {
-        user_id: resolvedUserId || "00000000-0000-0000-0000-000000000000",
-        account_id: resolvedAccountId || null,
-        order_number: orderNumber,
-        status: "submitted",
-        order_type: "new_service",
-        service_type: selectedServices || "Services de la soumission",
-        total_amount: Number(quote.total_due_now || 0),
-        client_email: form.email,
-        client_phone: formatCanadianPhone(form.phone),
-        service_address: form.address,
-        service_city: form.city,
-        service_province: form.province,
-        service_postal_code: formatPostalCode(form.postalCode),
-        internal_notes: `[Quote Checkout] Depuis soumission ${quote.quote_number}. Client: ${fullName}. DOB: ${form.dob}. Paiement: ${form.paymentMethod}${form.paymentMethod === "interac" ? ` Ref: ${form.interacReference} Expéditeur: ${form.interacSender}` : ""}`,
-        notes: quote.client_note || null,
-      };
-
-      const { data: order, error: orderErr } = await supabase
-        .from("orders")
-        .insert(orderPayload as any)
-        .select()
-        .single();
-
-      if (orderErr) throw new Error(`Erreur de création: ${orderErr.message}`);
-
-      // Update quote to checkout_completed → then converted
-      await supabase
+      // Save checkout data on the quote itself
+      const { error: updateErr } = await supabase
         .from("quotes" as any)
         .update({
-          status: "converted",
-          converted_order_id: order.id,
+          status: "checkout_completed",
           checkout_completed_at: new Date().toISOString(),
+          // Persist client-provided data for later conversion
+          prospect_name: fullName,
+          prospect_email: form.email,
+          prospect_phone: formatCanadianPhone(form.phone),
+          checkout_data: {
+            first_name: form.firstName,
+            last_name: form.lastName,
+            email: form.email,
+            phone: formatCanadianPhone(form.phone),
+            dob: form.dob,
+            address: form.address,
+            city: form.city,
+            province: form.province,
+            postal_code: formatPostalCode(form.postalCode),
+            payment_method: form.paymentMethod,
+            interac_reference: form.paymentMethod === "interac" ? form.interacReference : null,
+            interac_sender: form.paymentMethod === "interac" ? form.interacSender : null,
+            completed_at: new Date().toISOString(),
+          },
         })
         .eq("id", quote.id);
+
+      if (updateErr) throw new Error(`Erreur de sauvegarde: ${updateErr.message}`);
 
       // Log event
       await supabase.from("quote_events" as any).insert({
         quote_id: quote.id,
         event_type: "checkout_completed",
         actor_role: "client",
-        message: `Checkout complété. Commande ${orderNumber} créée. Client: ${fullName}`,
+        message: `Checkout complété par ${fullName} (${form.email}). En attente de création de commande par l'équipe.`,
         metadata: {
-          order_id: order.id,
-          order_number: orderNumber,
+          client_name: fullName,
+          client_email: form.email,
           payment_method: form.paymentMethod,
         },
       });
 
       // Set up PIN via backend (non-blocking)
       try {
-        await backendClient.rpc("hash_client_pin" as any, {
-          p_user_id: resolvedUserId || order.user_id,
-          p_raw_pin: pin,
-        });
+        const resolvedUserId = quote.customer_user_id;
+        if (resolvedUserId) {
+          await backendClient.rpc("hash_client_pin" as any, {
+            p_user_id: resolvedUserId,
+            p_raw_pin: pin,
+          });
+        }
       } catch {
         // PIN setup failure is non-blocking
       }
 
       setCompleted(true);
-      toast.success("Commande créée avec succès !");
+      toast.success("Informations enregistrées avec succès !");
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de la finalisation");
     } finally {
@@ -337,12 +316,12 @@ export default function QuoteCheckout() {
         <Card className="max-w-lg w-full mx-4 border-emerald-500/20 bg-emerald-500/5">
           <CardContent className="pt-8 text-center space-y-4">
             <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto" />
-            <h2 className="text-2xl font-bold text-emerald-600">Commande confirmée !</h2>
+            <h2 className="text-2xl font-bold text-emerald-600">Informations reçues !</h2>
             <p className="text-sm text-muted-foreground">
-              Votre commande a été créée avec succès. Notre équipe traitera votre dossier dans les plus brefs délais.
+              Vos informations ont été enregistrées avec succès. Notre équipe traitera votre dossier et créera votre commande dans les plus brefs délais.
             </p>
             <p className="text-xs text-muted-foreground">
-              Un courriel de confirmation vous sera envoyé à l'adresse fournie.
+              Vous serez contacté par courriel ou téléphone pour confirmer votre commande.
             </p>
             <div className="pt-4">
               <p className="text-[10px] text-muted-foreground">{NIVRA.tradeName} · {NIVRA.email}</p>

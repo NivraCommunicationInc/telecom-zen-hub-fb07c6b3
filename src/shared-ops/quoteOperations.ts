@@ -402,18 +402,24 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     .select("*")
     .eq("quote_id", quoteId);
 
-  let clientEmail: string | null = null;
-  let clientPhone: string | null = null;
+  // Use checkout_data (filled by client) as primary source for client info
+  const checkoutData = quote.checkout_data as Record<string, any> | null;
+
+  let clientEmail: string | null = checkoutData?.email || null;
+  let clientPhone: string | null = checkoutData?.phone || null;
+  let clientName: string | null = checkoutData ? `${checkoutData.first_name || ""} ${checkoutData.last_name || ""}`.trim() : null;
   let resolvedAccountId: string | null = quote.account_id || null;
 
+  // Fallback to profile data if checkout_data incomplete
   if (quote.customer_user_id) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name, email, phone")
       .eq("user_id", quote.customer_user_id)
       .maybeSingle();
-    clientEmail = profile?.email || null;
-    clientPhone = profile?.phone || null;
+    if (!clientEmail) clientEmail = profile?.email || null;
+    if (!clientPhone) clientPhone = profile?.phone || null;
+    if (!clientName) clientName = profile?.full_name || null;
 
     if (!resolvedAccountId) {
       const { data: account } = await supabase
@@ -426,8 +432,9 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
       resolvedAccountId = account?.id || null;
     }
   } else if (quote.is_prospect) {
-    clientEmail = quote.prospect_email;
-    clientPhone = quote.prospect_phone;
+    if (!clientEmail) clientEmail = quote.prospect_email;
+    if (!clientPhone) clientPhone = quote.prospect_phone;
+    if (!clientName) clientName = quote.prospect_name;
   }
 
   if (!resolvedAccountId) {
@@ -440,6 +447,10 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     .map((l: any) => l.label)
     .join(", ");
 
+  const checkoutNotes = checkoutData
+    ? `[Checkout] ${clientName}. DOB: ${checkoutData.dob || "N/A"}. Paiement: ${checkoutData.payment_method || "N/A"}${checkoutData.interac_reference ? ` Ref: ${checkoutData.interac_reference}` : ""}`
+    : "";
+
   const orderInsertPayload = {
     user_id: quote.customer_user_id || actorUserId,
     account_id: resolvedAccountId,
@@ -450,7 +461,11 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     total_amount: Number(quote.total_due_now || 0),
     client_email: clientEmail,
     client_phone: clientPhone,
-    internal_notes: `[Source: quote_${quote.source_portal}] Converti depuis soumission ${quote.quote_number || quoteId}. Prospect: ${quote.is_prospect ? "oui" : "non"}${quote.prospect_name ? ` (${quote.prospect_name})` : ""}. Par: ${actorUserId}`,
+    service_address: checkoutData?.address || null,
+    service_city: checkoutData?.city || null,
+    service_province: checkoutData?.province || null,
+    service_postal_code: checkoutData?.postal_code || null,
+    internal_notes: `[Source: quote_${quote.source_portal}] Converti depuis soumission ${quote.quote_number || quoteId}. ${checkoutNotes}. Par: ${actorUserId}`,
     notes: quote.client_note || null,
   };
 
@@ -698,11 +713,19 @@ export async function downloadQuotePDF(quoteId: string) {
     .eq("approval_status", "approved")
     .order("created_at", { ascending: true });
 
-  let clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : "Client";
+  let clientName = "En attente d'identification";
   let clientEmail = quote.is_prospect ? quote.prospect_email : undefined;
-  let clientPhone = quote.is_prospect ? quote.prospect_phone : undefined;
+  let clientPhone: string | undefined = undefined;
 
-  if (!quote.is_prospect && quote.customer_user_id) {
+  // For prospects: only show email, hide name/phone (unreliable CRM data)
+  if (quote.is_prospect) {
+    // Only use prospect_name if it looks real (not empty, not "Prospect")
+    const pName = quote.prospect_name?.trim();
+    if (pName && pName !== "Prospect" && pName !== "prospect") {
+      clientName = pName;
+    }
+    // Don't show phone for unverified prospects
+  } else if (quote.customer_user_id) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name, email, phone")
