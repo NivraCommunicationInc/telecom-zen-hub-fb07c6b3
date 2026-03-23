@@ -1,20 +1,22 @@
 /**
- * EmployeeClientDetail — Phase 5A: Full customer-service workspace.
- * Uses shared-ops + CreateTicketDialog + EmployeePinReset + EscalationRequestDialog + DocumentActions + RecordPaymentDialog.
+ * EmployeeClientDetail — Complete Client 360 customer-service workspace.
+ * All 12 sections: Header, Alerts, NBA, Quick Actions, Billing, Services,
+ * Orders, Support, Appointments, Documents, Equipment, Timeline.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, User, ShoppingCart, FileText, CreditCard,
-  MapPin, Zap, MessageSquare, Shield, Clock, ChevronRight,
-  Phone, Mail, Hash, Plus, AlertTriangle, Key, DollarSign, Building2,
+  Zap, MessageSquare, Clock, ChevronRight, Calendar, Cpu,
+  Phone, Mail,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { employeePath } from "@/employee-app/lib/employeePaths";
-import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { employeePath } from "@/employee-app/lib/employeePaths";
+import { StatusBadge } from "@/employee-app/components/StatusBadge";
 import { CustomerPinGate } from "@/employee-app/components/CustomerPinGate";
 import { CreateTicketDialog } from "@/employee-app/components/CreateTicketDialog";
 import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
@@ -23,11 +25,16 @@ import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+
+// Sub-components
+import { ClientHeader } from "@/employee-app/components/client360/ClientHeader";
+import { AlertBanner } from "@/employee-app/components/client360/AlertBanner";
+import { NextBestAction } from "@/employee-app/components/client360/NextBestAction";
+import { QuickActions } from "@/employee-app/components/client360/QuickActions";
+import { Section } from "@/employee-app/components/client360/Section";
 
 export default function EmployeeClientDetail() {
   const { clientId } = useParams<{ clientId: string }>();
-
   if (!clientId) {
     return (
       <div className="py-20 text-center">
@@ -36,7 +43,6 @@ export default function EmployeeClientDetail() {
       </div>
     );
   }
-
   return (
     <CustomerPinGate customerId={clientId}>
       <ClientDetailContent clientId={clientId} />
@@ -48,36 +54,58 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const { data, isLoading } = useClientProfile(clientId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // UI state
   const [noteText, setNoteText] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [showEscalation, setShowEscalation] = useState(false);
+  const [showPinReset, setShowPinReset] = useState(false);
+  const [escalationPreset, setEscalationPreset] = useState<{ category: string; subject: string; desc: string } | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
 
-  // Employee-specific: tickets + notes + locations (not in shared-ops since they're portal-specific)
+  // Extra data: tickets, notes, appointments, locations
   const { data: extras } = useQuery({
-    queryKey: ["employee-client-extras", clientId],
+    queryKey: ["employee-client-360-extras", clientId],
     enabled: !!data?.profile,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       const accountId = data?.account?.id;
-      const [ticketsRes, notesRes, locationsRes] = await Promise.all([
+      const orderIds = data?.orders?.map((o: any) => o.id) ?? [];
+
+      const [ticketsRes, notesRes, locationsRes, appointmentsRes, auditRes] = await Promise.all([
         supabase.from("support_tickets")
-          .select("id, ticket_number, subject, status, priority, created_at")
+          .select("id, ticket_number, subject, status, priority, created_at, category")
           .eq("user_id", clientId)
           .order("created_at", { ascending: false }).limit(10),
         supabase.from("activity_logs")
-          .select("action, created_at, actor_name, actor_role")
-          .eq("entity_id", clientId).eq("entity_type", "client")
-          .order("created_at", { ascending: false }).limit(10),
+          .select("action, created_at, actor_name, actor_role, entity_type, details")
+          .or(`entity_id.eq.${clientId},user_id.eq.${clientId}`)
+          .order("created_at", { ascending: false }).limit(25),
         accountId
           ? supabase.from("account_service_locations").select("*").eq("account_id", accountId).eq("is_active", true)
           : Promise.resolve({ data: [] }),
+        orderIds.length > 0
+          ? supabase.from("appointments")
+              .select("id, appointment_number, title, scheduled_at, status, service_address, service_city, service_type, technician_id")
+              .in("order_id", orderIds)
+              .order("scheduled_at", { ascending: false }).limit(10)
+          : supabase.from("appointments")
+              .select("id, appointment_number, title, scheduled_at, status, service_address, service_city, service_type, technician_id")
+              .eq("client_id", clientId)
+              .order("scheduled_at", { ascending: false }).limit(10),
+        supabase.from("internal_audit_log" as any)
+          .select("action, created_at")
+          .eq("target_id", clientId)
+          .order("created_at", { ascending: false }).limit(5),
       ]);
+
       return {
         tickets: ticketsRes.data ?? [],
         notes: notesRes.data ?? [],
         locations: locationsRes.data ?? [],
+        appointments: appointmentsRes.data ?? [],
+        recentAudit: auditRes.data ?? [],
       };
     },
   });
@@ -86,7 +114,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
     mutationFn: (note: string) =>
       addOperationalNote({ entityId: clientId, entityType: "client", note, portal: "employee" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employee-client-extras", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["employee-client-360-extras", clientId] });
       setNoteText("");
       setShowNoteInput(false);
       toast.success("Note ajoutée");
@@ -111,144 +139,68 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
     );
   }
 
-  const { profile, account, orders, invoices, subscriptions } = data;
+  const { profile, account, orders, invoices, payments, subscriptions, equipment, billingCustomer } = data;
   const tickets = extras?.tickets ?? [];
   const notes = extras?.notes ?? [];
   const locations = extras?.locations ?? [];
+  const appointments = extras?.appointments ?? [];
+  const recentAudit = extras?.recentAudit ?? [];
+
   const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
   const unpaidInvoices = invoices.filter((inv: any) => (inv.balance_due ?? 0) > 0 && inv.status !== "paid" && inv.status !== "void");
+  const totalBalance = unpaidInvoices.reduce((sum: number, i: any) => sum + (i.balance_due ?? i.total ?? 0), 0);
+  const primaryAddress = locations[0] ? `${locations[0].service_address}, ${locations[0].service_city ?? ""}` : account?.primary_service_address ?? undefined;
+  const openTickets = tickets.filter((t: any) => t.status !== "resolved" && t.status !== "closed");
 
-  const statusBadge = (s: string) => {
-    const colors: Record<string, string> = {
-      active: "text-emerald-400 bg-emerald-500/10",
-      pending: "text-amber-400 bg-amber-500/10",
-      suspended: "text-red-400 bg-red-500/10",
-      completed: "text-emerald-400 bg-emerald-500/10",
-      cancelled: "text-[hsl(220,10%,40%)] bg-[hsl(220,15%,13%)]",
-      open: "text-blue-400 bg-blue-500/10",
-      in_progress: "text-indigo-400 bg-indigo-500/10",
-      paid: "text-emerald-400 bg-emerald-500/10",
-    };
-    return (
-      <span className={cn("px-2 py-0.5 rounded text-[10px] font-medium", colors[s] ?? "text-[hsl(220,10%,50%)] bg-[hsl(220,15%,13%)]")}>
-        {s}
-      </span>
-    );
+  const handleEscalationPreset = (category: string, subject: string, desc: string) => {
+    setEscalationPreset({ category, subject, desc });
+    setShowEscalation(true);
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 max-w-[1400px]">
+      {/* Back */}
       <Link to={employeePath("/clients")} className="inline-flex items-center gap-1.5 text-[11px] text-[hsl(220,10%,45%)] hover:text-white transition-colors">
         <ArrowLeft className="h-3.5 w-3.5" /> Clients
       </Link>
 
-      {/* Client header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-xl bg-blue-600/10 flex items-center justify-center border border-blue-500/20">
-            <User className="h-7 w-7 text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">{profile.full_name ?? "Client"}</h1>
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
-              {profile.email && (
-                <span className="flex items-center gap-1 text-xs text-[hsl(220,10%,50%)]">
-                  <Mail className="h-3 w-3" /> {profile.email}
-                </span>
-              )}
-              {profile.phone && (
-                <span className="flex items-center gap-1 text-xs text-[hsl(220,10%,50%)]">
-                  <Phone className="h-3 w-3" /> {profile.phone}
-                </span>
-              )}
-              {account?.account_number && (
-                <Link to={employeePath(`/accounts/${account.id}`)} className="flex items-center gap-1 text-xs font-mono text-blue-400 hover:underline">
-                  <Hash className="h-3 w-3" /> {account.account_number}
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-        {account?.status && statusBadge(account.status)}
-      </div>
+      {/* 1. Client header */}
+      <ClientHeader profile={profile} account={account} subscriptions={subscriptions} address={primaryAddress} />
 
-      {/* Customer 360 Quick Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={() => setShowNoteInput(!showNoteInput)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
-        >
-          <MessageSquare className="h-3 w-3" /> Ajouter note
-        </button>
-        {account?.id && (
-          <button
-            onClick={() => navigate(employeePath(`/accounts/${account.id}`))}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-blue-300 hover:text-white hover:border-blue-500/30 transition-colors"
-          >
-            <Building2 className="h-3 w-3" /> Gérer compte
-          </button>
-        )}
-        {orders.length > 0 && (
-          <button
-            onClick={() => navigate(employeePath(`/orders/${orders[0].order_number ?? orders[0].id}`))}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
-          >
-            <ShoppingCart className="h-3 w-3" /> Dernière commande
-          </button>
-        )}
-        {invoices.length > 0 && (
-          <button
-            onClick={() => navigate(employeePath(`/invoices/${invoices[0].id}`))}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
-          >
-            <FileText className="h-3 w-3" /> Dernière facture
-          </button>
-        )}
-        {subscriptions.length > 0 && (
-          <button
-            onClick={() => navigate(employeePath(`/subscriptions/${subscriptions[0].id}`))}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
-          >
-            <Zap className="h-3 w-3" /> Abonnement actif
-          </button>
-        )}
-        <button
-          onClick={() => setShowCreateTicket(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
-        >
-          <Plus className="h-3 w-3" /> Créer ticket
-        </button>
-        <button
-          onClick={() => setShowEscalation(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-amber-400/70 hover:text-amber-400 hover:border-amber-500/30 transition-colors"
-        >
-          <AlertTriangle className="h-3 w-3" /> Escalation Core
-        </button>
-        {unpaidInvoices.length > 0 && (
-          <button
-            onClick={() => setPaymentInvoice(unpaidInvoices[0])}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors"
-          >
-            <DollarSign className="h-3 w-3" /> Enregistrer paiement ({unpaidInvoices.length})
-          </button>
-        )}
-      </div>
+      {/* 2. Alert banner */}
+      <AlertBanner
+        invoices={invoices} subscriptions={subscriptions} appointments={appointments}
+        tickets={tickets} orders={orders} recentAudit={recentAudit}
+      />
+
+      {/* 3. Next Best Action */}
+      <NextBestAction
+        invoices={invoices} subscriptions={subscriptions} orders={orders} appointments={appointments}
+        onRecordPayment={() => unpaidInvoices[0] && setPaymentInvoice(unpaidInvoices[0])}
+      />
+
+      {/* 4. Quick Actions bar */}
+      <QuickActions
+        clientId={clientId} account={account} orders={orders} invoices={invoices}
+        subscriptions={subscriptions} appointments={appointments} tickets={tickets}
+        unpaidCount={unpaidInvoices.length}
+        onAddNote={() => setShowNoteInput(!showNoteInput)}
+        onCreateTicket={() => setShowCreateTicket(true)}
+        onEscalation={() => { setEscalationPreset(null); setShowEscalation(true); }}
+        onRecordPayment={() => unpaidInvoices[0] && setPaymentInvoice(unpaidInvoices[0])}
+        onPinReset={() => setShowPinReset(!showPinReset)}
+        onEscalationPreset={handleEscalationPreset}
+      />
 
       {/* Dialogs */}
       {showCreateTicket && (
-        <CreateTicketDialog
-          clientId={clientId}
-          clientName={profile.full_name ?? undefined}
-          clientEmail={profile.email ?? undefined}
-          onClose={() => setShowCreateTicket(false)}
-        />
+        <CreateTicketDialog clientId={clientId} clientName={profile.full_name ?? undefined} clientEmail={profile.email ?? undefined} onClose={() => setShowCreateTicket(false)} />
       )}
       {showEscalation && (
         <EscalationRequestDialog
-          clientId={clientId}
-          clientName={profile.full_name ?? undefined}
-          accountNumber={account?.account_number}
-          onClose={() => setShowEscalation(false)}
+          clientId={clientId} clientName={profile.full_name ?? undefined} accountNumber={account?.account_number}
+          initialCategory={escalationPreset?.category} initialSubject={escalationPreset?.subject} initialDescription={escalationPreset?.desc}
+          onClose={() => { setShowEscalation(false); setEscalationPreset(null); }}
         />
       )}
       {paymentInvoice && (
@@ -256,7 +208,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           open={!!paymentInvoice}
           onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
           invoiceId={paymentInvoice.id}
-          customerId={paymentInvoice.customer_id}
+          customerId={paymentInvoice.customer_id ?? billingCustomer?.id ?? ""}
           invoiceNumber={paymentInvoice.invoice_number}
           balanceDue={paymentInvoice.balance_due ?? paymentInvoice.total}
           portal="employee"
@@ -268,9 +220,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
       {showNoteInput && (
         <div className="flex gap-2">
           <input
-            type="text"
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
+            type="text" value={noteText} onChange={(e) => setNoteText(e.target.value)}
             placeholder="Écrire une note interne…"
             className="flex-1 px-3 py-2 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-sm text-white placeholder:text-[hsl(220,10%,30%)] focus:outline-none focus:border-blue-500/50"
             onKeyDown={(e) => e.key === "Enter" && noteText.trim() && addNoteMutation.mutate(noteText.trim())}
@@ -285,49 +235,53 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         </div>
       )}
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* LEFT: Services + Billing + Orders */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Active subscriptions */}
-          <Section title="Services actifs" icon={<Zap className="h-4 w-4" />}>
-            {subscriptions.length === 0 ? (
-              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun service actif.</p>
-            ) : (
-              <div className="space-y-2">
-                {subscriptions.map((s: any) => (
-                  <Link
-                    key={s.id}
-                    to={employeePath(`/subscriptions/${s.id}`)}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)] hover:border-blue-500/30 transition-colors"
-                  >
-                    <div>
-                      <p className="text-xs text-white font-medium">{s.plan_name}</p>
-                      <p className="text-[10px] text-[hsl(220,10%,40%)]">{fmtMoney(s.plan_price)}/mois</p>
-                    </div>
-                    {statusBadge(s.status ?? "active")}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </Section>
+      {/* PIN Reset */}
+      {showPinReset && (
+        <EmployeePinReset customerId={clientId} customerName={profile.full_name ?? undefined} />
+      )}
 
-          {/* Billing summary — READ ONLY with invoice links */}
-          <Section title="Facturation (lecture seule)" icon={<CreditCard className="h-4 w-4" />} locked>
+      {/* Main grid: 2 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* LEFT COLUMN: Primary operational sections */}
+        <div className="lg:col-span-2 space-y-3">
+
+          {/* 5. Billing section */}
+          <Section
+            title="Facturation" icon={<CreditCard className="h-4 w-4" />}
+            badge={totalBalance > 0 ? `${totalBalance.toFixed(2)} $ dû` : undefined}
+            badgeColor={totalBalance > 0 ? "text-red-400 bg-red-500/10" : undefined}
+          >
             {invoices.length === 0 ? (
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucune facture.</p>
             ) : (
-              <div className="space-y-1.5">
-                {invoices.map((inv: any) => (
+              <div className="space-y-1">
+                {/* Latest payment */}
+                {payments.length > 0 && (
+                  <div className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-[hsl(220,20%,6%)] mb-2">
+                    <span className="text-[10px] text-[hsl(220,10%,40%)]">Dernier paiement</span>
+                    <span className="text-xs text-emerald-400 font-mono">{fmtMoney(payments[0].amount)} · {payments[0].method}</span>
+                  </div>
+                )}
+                {invoices.slice(0, 5).map((inv: any) => (
                   <Link
-                    key={inv.id}
-                    to={employeePath(`/invoices/${inv.id}`)}
-                    className="flex items-center justify-between py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0 hover:text-blue-400 transition-colors"
+                    key={inv.id} to={employeePath(`/invoices/${inv.id}`)}
+                    className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-[hsl(220,15%,10%)] transition-colors text-xs"
                   >
-                    <span className="text-white font-mono">{inv.invoice_number}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[hsl(220,10%,50%)]">{fmtMoney(inv.total)}</span>
-                      {statusBadge(inv.status ?? "draft")}
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-mono text-[11px]">{inv.invoice_number}</span>
+                      <span className="text-[hsl(220,10%,35%)]">{inv.due_date ? format(new Date(inv.due_date), "dd MMM yyyy", { locale: fr }) : ""}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[11px] text-[hsl(220,10%,50%)]">{fmtMoney(inv.total)}</span>
+                      <StatusBadge status={inv.status} />
+                      {(inv.balance_due ?? 0) > 0 && inv.status !== "paid" && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPaymentInvoice(inv); }}
+                          className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                        >
+                          PAYER
+                        </button>
+                      )}
                     </div>
                   </Link>
                 ))}
@@ -335,25 +289,72 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             )}
           </Section>
 
-          {/* Orders */}
-          <Section title="Commandes" icon={<ShoppingCart className="h-4 w-4" />}>
+          {/* 6. Services section */}
+          <Section
+            title="Services" icon={<Zap className="h-4 w-4" />}
+            badge={subscriptions.length || undefined}
+          >
+            {subscriptions.length === 0 ? (
+              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun service.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {subscriptions.map((s: any) => (
+                  <Link
+                    key={s.id} to={employeePath(`/subscriptions/${s.id}`)}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,6%)] border border-[hsl(220,15%,10%)] hover:border-blue-500/20 transition-colors"
+                  >
+                    <div>
+                      <p className="text-xs text-white font-medium">{s.plan_name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-[hsl(220,10%,40%)]">{fmtMoney(s.plan_price)}/mois</span>
+                        {s.cycle_start_date && (
+                          <span className="text-[10px] text-[hsl(220,10%,30%)]">
+                            Cycle: {format(new Date(s.cycle_start_date), "dd MMM", { locale: fr })} — {s.cycle_end_date ? format(new Date(s.cycle_end_date), "dd MMM", { locale: fr }) : ""}
+                          </span>
+                        )}
+                        {s.next_renewal_at && (
+                          <span className="text-[10px] text-blue-400/50">Renouvellement: {format(new Date(s.next_renewal_at), "dd MMM yyyy", { locale: fr })}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={s.status} />
+                      <ChevronRight className="h-3 w-3 text-[hsl(220,10%,20%)]" />
+                    </div>
+                  </Link>
+                ))}
+                <button
+                  onClick={() => handleEscalationPreset("add_service", "Ajout de service", "")}
+                  className="text-[10px] text-amber-400/60 hover:text-amber-400 transition-colors"
+                >
+                  + Demander ajout de service
+                </button>
+              </div>
+            )}
+          </Section>
+
+          {/* 7. Orders section */}
+          <Section title="Commandes" icon={<ShoppingCart className="h-4 w-4" />} badge={orders.length || undefined}>
             {orders.length === 0 ? (
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucune commande.</p>
             ) : (
-              <div className="space-y-1.5">
-                {orders.map((o: any) => (
+              <div className="space-y-1">
+                {orders.slice(0, 8).map((o: any) => (
                   <Link
-                    key={o.id}
-                    to={employeePath(`/orders/${o.order_number ?? o.id}`)}
-                    className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-[hsl(220,15%,10%)] transition-colors text-xs"
+                    key={o.id} to={employeePath(`/orders/${o.order_number ?? o.id}`)}
+                    className="flex items-center justify-between py-2 px-2 rounded hover:bg-[hsl(220,15%,10%)] transition-colors text-xs"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-white font-mono">{o.order_number ?? "—"}</span>
-                      <span className="text-[hsl(220,10%,40%)]">{o.service_type ?? ""}</span>
+                      <span className="text-white font-mono text-[11px]">{o.order_number ?? "—"}</span>
+                      <span className="text-[hsl(220,10%,35%)]">{o.service_type ?? ""}</span>
+                      <span className="text-[hsl(220,10%,25%)] text-[10px]">
+                        {format(new Date(o.created_at), "dd MMM yyyy", { locale: fr })}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {statusBadge(o.status)}
-                      <ChevronRight className="h-3 w-3 text-[hsl(220,10%,25%)]" />
+                      <span className="font-mono text-[10px] text-[hsl(220,10%,40%)]">{fmtMoney(o.total_amount)}</span>
+                      <StatusBadge status={o.status} />
+                      <ChevronRight className="h-3 w-3 text-[hsl(220,10%,20%)]" />
                     </div>
                   </Link>
                 ))}
@@ -361,74 +362,132 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             )}
           </Section>
 
-          {/* Service locations */}
-          {locations.length > 0 && (
-            <Section title="Adresses de service" icon={<MapPin className="h-4 w-4" />}>
-              {locations.map((loc: any) => (
-                <div key={loc.id} className="flex items-start gap-2 py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0">
-                  <MapPin className="h-3 w-3 text-[hsl(220,10%,30%)] mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-white">{loc.service_address}</p>
-                    <p className="text-[hsl(220,10%,40%)]">{[loc.service_city, loc.service_province, loc.service_postal_code].filter(Boolean).join(", ")}</p>
-                  </div>
-                </div>
-              ))}
-            </Section>
-          )}
+          {/* 8. Support section */}
+          <Section
+            title="Support" icon={<MessageSquare className="h-4 w-4" />}
+            badge={openTickets.length > 0 ? `${openTickets.length} ouvert${openTickets.length > 1 ? "s" : ""}` : undefined}
+            badgeColor={openTickets.length > 0 ? "text-amber-400 bg-amber-500/10" : undefined}
+          >
+            {tickets.length === 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs text-[hsl(220,10%,30%)]">Aucun ticket.</p>
+                <button onClick={() => setShowCreateTicket(true)} className="text-[10px] text-blue-400 hover:underline">
+                  + Créer un ticket
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {tickets.map((t: any) => (
+                  <Link
+                    key={t.id} to={employeePath(`/support/${t.id}`)}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,6%)] border border-[hsl(220,15%,10%)] hover:border-blue-500/20 transition-colors"
+                  >
+                    <div>
+                      <p className="text-xs text-white font-medium">{t.subject ?? t.ticket_number}</p>
+                      <p className="text-[10px] text-[hsl(220,10%,35%)] mt-0.5">
+                        {t.category && <span className="capitalize">{t.category} · </span>}
+                        {formatDistanceToNow(new Date(t.created_at), { addSuffix: true, locale: fr })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={t.status} />
+                      {t.priority === "urgent" && (
+                        <span className="text-[9px] font-bold text-red-400">URGENT</span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+                <button onClick={() => setShowCreateTicket(true)} className="text-[10px] text-blue-400 hover:underline">
+                  + Créer un ticket
+                </button>
+              </div>
+            )}
+          </Section>
         </div>
 
-        {/* RIGHT: Tickets + Activity + PIN + Documents */}
-        <div className="space-y-4">
-          {/* Documents */}
-          {orders.length > 0 && (
-            <DocumentActions
-              orderId={orders[0].id}
-              invoiceId={invoices[0]?.id}
-              clientEmail={profile.email ?? undefined}
-              clientName={profile.full_name ?? undefined}
-              orderNumber={orders[0].order_number}
-              invoiceNumber={invoices[0]?.invoice_number}
-            />
-          )}
+        {/* RIGHT COLUMN: Contextual info */}
+        <div className="space-y-3">
 
-          {/* PIN Reset */}
-          <EmployeePinReset customerId={clientId} customerName={profile.full_name ?? undefined} />
-
-          {/* Tickets */}
-          <Section title="Tickets" icon={<FileText className="h-4 w-4" />}>
-            {tickets.length === 0 ? (
-              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun ticket.</p>
+          {/* 9. Appointments section */}
+          <Section title="Rendez-vous" icon={<Calendar className="h-4 w-4" />} badge={appointments.length || undefined}>
+            {appointments.length === 0 ? (
+              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun rendez-vous.</p>
             ) : (
-              <div className="space-y-2">
-                {tickets.map((t: any) => (
-                  <Link key={t.id} to={employeePath(`/support/${t.id}`)}
-                    className="block p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)] hover:border-blue-500/20 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-white font-medium">{t.subject ?? t.ticket_number}</p>
-                        <p className="text-[10px] text-[hsl(220,10%,35%)] mt-0.5">
-                          {formatDistanceToNow(new Date(t.created_at), { addSuffix: true, locale: fr })}
-                        </p>
-                      </div>
-                      {statusBadge(t.status ?? "open")}
+              <div className="space-y-1.5">
+                {appointments.slice(0, 5).map((a: any) => (
+                  <Link
+                    key={a.id} to={employeePath(`/appointments/${a.id}`)}
+                    className="block p-2.5 rounded-lg bg-[hsl(220,20%,6%)] border border-[hsl(220,15%,10%)] hover:border-blue-500/20 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-white font-medium truncate">{a.title}</p>
+                      <StatusBadge status={a.status} />
                     </div>
+                    <p className="text-[10px] text-[hsl(220,10%,40%)] mt-0.5">
+                      {format(new Date(a.scheduled_at), "dd MMM yyyy HH:mm", { locale: fr })}
+                    </p>
+                    {a.service_address && (
+                      <p className="text-[10px] text-[hsl(220,10%,30%)] mt-0.5 truncate">{a.service_address}</p>
+                    )}
                   </Link>
                 ))}
               </div>
             )}
           </Section>
 
-          {/* Activity */}
-          <Section title="Activité" icon={<Clock className="h-4 w-4" />}>
+          {/* 10. Documents section */}
+          <Section title="Documents" icon={<FileText className="h-4 w-4" />}>
+            {orders.length > 0 ? (
+              <DocumentActions
+                orderId={orders[0].id}
+                invoiceId={invoices[0]?.id}
+                clientEmail={profile.email ?? undefined}
+                clientName={profile.full_name ?? undefined}
+                orderNumber={orders[0].order_number}
+                invoiceNumber={invoices[0]?.invoice_number}
+              />
+            ) : (
+              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun document disponible.</p>
+            )}
+          </Section>
+
+          {/* 11. Equipment section */}
+          <Section title="Équipement" icon={<Cpu className="h-4 w-4" />} badge={equipment.length || undefined}>
+            {equipment.length === 0 ? (
+              <p className="text-xs text-[hsl(220,10%,30%)]">Aucun équipement assigné.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {equipment.map((eq: any) => (
+                  <div key={eq.id} className="p-2.5 rounded-lg bg-[hsl(220,20%,6%)] border border-[hsl(220,15%,10%)]">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-white font-medium">{eq.catalog_name ?? eq.category ?? "Équipement"}</p>
+                      <StatusBadge status={eq.status} />
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      {eq.serial_number && (
+                        <span className="text-[10px] text-[hsl(220,10%,40%)] font-mono">S/N: {eq.serial_number}</span>
+                      )}
+                      {eq.mac_address && (
+                        <span className="text-[10px] text-[hsl(220,10%,40%)] font-mono">MAC: {eq.mac_address}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          {/* 12. Timeline section */}
+          <Section title="Activité récente" icon={<Clock className="h-4 w-4" />} defaultOpen={true}>
             {notes.length === 0 ? (
-              <p className="text-xs text-[hsl(220,10%,30%)]">Aucune activité enregistrée.</p>
+              <p className="text-xs text-[hsl(220,10%,30%)]">Aucune activité.</p>
             ) : (
               <div className="space-y-0 max-h-[400px] overflow-y-auto pr-1">
-                {notes.map((n: any, i: number) => {
+                {notes.slice(0, 15).map((n: any, i: number) => {
                   const isNote = n.action?.startsWith("Note:");
                   return (
                     <div key={i} className="relative pl-4 pb-3 last:pb-0">
-                      {i < notes.length - 1 && (
+                      {i < Math.min(notes.length, 15) - 1 && (
                         <div className="absolute left-[5px] top-[10px] bottom-0 w-px bg-[hsl(220,15%,12%)]" />
                       )}
                       <div className={cn(
@@ -451,23 +510,6 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           </Section>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Section({ title, icon, children, locked }: { title: string; icon: React.ReactNode; children: React.ReactNode; locked?: boolean }) {
-  return (
-    <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,8%)] p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[hsl(220,10%,38%)]">{icon}</span>
-        <h3 className="text-xs font-semibold text-[hsl(220,10%,55%)] uppercase tracking-wider">{title}</h3>
-        {locked && (
-          <span className="ml-auto text-[9px] text-[hsl(220,10%,28%)] bg-[hsl(220,15%,11%)] px-1.5 py-0.5 rounded font-mono">
-            LECTURE SEULE
-          </span>
-        )}
-      </div>
-      {children}
     </div>
   );
 }
