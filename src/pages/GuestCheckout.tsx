@@ -1206,6 +1206,11 @@ const GuestCheckout = () => {
                               <span>{fmt(routerFee)}</span>
                             </div>
                           )}
+                          {terminalFee > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Terminal TV ×{tvTerminalQty}</span>
+                              <span>{fmt(terminalFee)}</span>
+                            </div>
                           {simFee > 0 && (
                             <div className="flex justify-between text-xs">
                               <span className="text-muted-foreground">Carte SIM</span>
