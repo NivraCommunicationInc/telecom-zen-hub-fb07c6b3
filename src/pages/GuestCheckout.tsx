@@ -500,6 +500,36 @@ const GuestCheckout = () => {
         }
       }
 
+      // Step 6b: Post-order data integrity check (non-blocking, logs to billing_system_alerts)
+      try {
+        const checks = await Promise.allSettled([
+          supabase.from("profiles").select("id").eq("user_id", userId).maybeSingle(),
+          supabase.from("accounts").select("id").eq("client_id", userId).limit(1),
+          supabase.from("billing_invoices").select("id").eq("order_id", response.order_id).limit(1),
+          supabase.from("orders").select("pricing_snapshot").eq("id", response.order_id).maybeSingle(),
+        ]);
+        const labels = ["profile", "account", "invoice", "pricing_snapshot"];
+        for (let i = 0; i < checks.length; i++) {
+          const result = checks[i];
+          const hasData = result.status === "fulfilled" && (
+            Array.isArray(result.value?.data) ? result.value.data.length > 0 : !!result.value?.data
+          );
+          if (!hasData) {
+            console.error(`[DataIntegrity] Missing ${labels[i]} for order ${response.order_id}`);
+            await supabase.from("billing_system_alerts" as any).insert({
+              alert_type: "data_integrity",
+              entity_type: labels[i],
+              entity_id: response.order_id,
+              entity_reference: response.order_number,
+              details: { missing: labels[i], order_id: response.order_id, user_id: userId },
+              is_resolved: false,
+            }).then(() => {}).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.warn("[GuestCheckout] Data integrity check failed:", e);
+      }
+
       // Step 7: Send confirmation email
       try {
         await supabase.functions.invoke("send-order-confirmation", {
