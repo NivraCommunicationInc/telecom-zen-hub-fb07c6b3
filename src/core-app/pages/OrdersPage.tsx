@@ -6,7 +6,7 @@
 import { useState, useMemo } from "react";
 import { useAdminOrders } from "@/core-app/hooks/useAdminOrders";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
 import type { EnvironmentFilter } from "@/core-app/hooks/useEnvironmentFilter";
 import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvironmentToggle";
