@@ -401,21 +401,23 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     .map((l: any) => l.label)
     .join(", ");
 
+  const orderInsertPayload = {
+    user_id: quote.customer_user_id || actorUserId,
+    account_id: resolvedAccountId,
+    order_number: orderNumber,
+    status: "submitted",
+    order_type: "new_service",
+    service_type: selectedServices || "Services de la soumission",
+    total_amount: Number(quote.total_due_now || 0),
+    client_email: clientEmail,
+    client_phone: clientPhone,
+    internal_notes: `[Source: quote_${quote.source_portal}] Converti depuis soumission ${quote.quote_number || quoteId}. Prospect: ${quote.is_prospect ? "oui" : "non"}${quote.prospect_name ? ` (${quote.prospect_name})` : ""}. Par: ${actorUserId}`,
+    notes: quote.client_note || null,
+  };
+
   const { data: order, error: orderErr } = await supabase
     .from("orders")
-    .insert({
-      user_id: quote.customer_user_id || actorUserId,
-      account_id: resolvedAccountId,
-      order_number: orderNumber,
-      status: "submitted",
-      order_type: "new_service",
-      service_type: selectedServices || "Services de la soumission",
-      total_amount: quote.total_due_now,
-      client_email: clientEmail,
-      client_phone: clientPhone,
-      internal_notes: `[Source: quote_${quote.source_portal}] Converti depuis soumission ${quote.quote_number || quoteId}. Prospect: ${quote.is_prospect ? "oui" : "non"}${quote.prospect_name ? ` (${quote.prospect_name})` : ""}. Par: ${actorUserId}`,
-      notes: quote.client_note || null,
-    } as any)
+    .insert(orderInsertPayload as any)
     .select()
     .single();
 
