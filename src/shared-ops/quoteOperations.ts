@@ -39,18 +39,22 @@ export interface QuoteAdjustment {
 // ─── 1. Create Draft ──────────────────────────────────────────────────
 
 export async function createQuoteDraft(params: {
-  customerUserId: string;
+  customerUserId?: string;
   accountId?: string | null;
   sourcePortal: "employee" | "core";
   createdByUserId: string;
   clientNote?: string;
   internalNote?: string;
   validUntil?: string;
+  isProspect?: boolean;
+  prospectName?: string;
+  prospectEmail?: string;
+  prospectPhone?: string;
 }) {
   const { data, error } = await supabase
     .from("quotes" as any)
     .insert({
-      customer_user_id: params.customerUserId,
+      customer_user_id: params.isProspect ? null : (params.customerUserId || null),
       account_id: params.accountId || null,
       source_portal: params.sourcePortal,
       created_by_user_id: params.createdByUserId,
@@ -58,13 +62,16 @@ export async function createQuoteDraft(params: {
       internal_note: params.internalNote || null,
       valid_until: params.validUntil || null,
       status: "draft",
+      is_prospect: params.isProspect || false,
+      prospect_name: params.prospectName || null,
+      prospect_email: params.prospectEmail || null,
+      prospect_phone: params.prospectPhone || null,
     })
     .select()
     .single();
 
   if (error) throw new Error(`Failed to create quote draft: ${error.message}`);
 
-  // Log event
   await logQuoteEvent(data.id, "created", params.createdByUserId, params.sourcePortal === "employee" ? "employee" : "admin", "Soumission créée en brouillon");
 
   await logInternalAudit({
@@ -73,7 +80,11 @@ export async function createQuoteDraft(params: {
     portal: params.sourcePortal,
     targetType: "quote",
     targetId: data.id,
-    details: { customer_user_id: params.customerUserId },
+    details: {
+      customer_user_id: params.customerUserId,
+      is_prospect: params.isProspect || false,
+      prospect_name: params.prospectName,
+    },
   });
 
   return data;
@@ -99,7 +110,6 @@ export async function addQuoteLine(quoteId: string, line: QuoteLine) {
     .single();
 
   if (error) throw new Error(`Failed to add quote line: ${error.message}`);
-
   await recalculateQuoteTotals(quoteId);
   return data;
 }
@@ -146,16 +156,27 @@ export async function addQuoteAdjustment(
   return data;
 }
 
-// ─── 5. Recalculate Quote Totals ─────────────────────────────────────
+// ─── 5. Remove Quote Adjustment ──────────────────────────────────────
+
+export async function removeQuoteAdjustment(quoteId: string, adjustmentId: string) {
+  const { error } = await supabase
+    .from("quote_adjustments" as any)
+    .delete()
+    .eq("id", adjustmentId)
+    .eq("quote_id", quoteId);
+
+  if (error) throw new Error(`Failed to remove adjustment: ${error.message}`);
+  await recalculateQuoteTotals(quoteId);
+}
+
+// ─── 6. Recalculate Quote Totals ─────────────────────────────────────
 
 export async function recalculateQuoteTotals(quoteId: string) {
-  // Fetch lines
   const { data: lines } = await supabase
     .from("quote_lines" as any)
     .select("*")
     .eq("quote_id", quoteId);
 
-  // Fetch approved adjustments
   const { data: adjustments } = await supabase
     .from("quote_adjustments" as any)
     .select("*")
@@ -204,7 +225,7 @@ export async function recalculateQuoteTotals(quoteId: string) {
   if (error) throw new Error(`Failed to recalculate totals: ${error.message}`);
 }
 
-// ─── 6. Update Quote Status ──────────────────────────────────────────
+// ─── 7. Update Quote Status ──────────────────────────────────────────
 
 export async function updateQuoteStatus(
   quoteId: string,
@@ -214,13 +235,22 @@ export async function updateQuoteStatus(
   message?: string,
   extra?: Record<string, unknown>,
 ) {
+  const updatePayload: Record<string, unknown> = {
+    status: newStatus,
+    ...extra,
+  };
+
+  if (newStatus === "approved") {
+    updatePayload.approved_by_user_id = actorUserId;
+    updatePayload.approved_at = new Date().toISOString();
+  }
+  if (newStatus === "sent") {
+    updatePayload.last_sent_at = new Date().toISOString();
+  }
+
   const { error } = await supabase
     .from("quotes" as any)
-    .update({
-      status: newStatus,
-      ...(newStatus === "approved" ? { approved_by_user_id: actorUserId, approved_at: new Date().toISOString() } : {}),
-      ...extra,
-    })
+    .update(updatePayload)
     .eq("id", quoteId);
 
   if (error) throw new Error(`Failed to update quote status: ${error.message}`);
@@ -236,10 +266,9 @@ export async function updateQuoteStatus(
   });
 }
 
-// ─── 7. Approve Quote ────────────────────────────────────────────────
+// ─── 8. Approve Quote ────────────────────────────────────────────────
 
 export async function approveQuote(quoteId: string, actorUserId: string, actorRole: string, reason?: string) {
-  // Record approval
   await supabase.from("quote_approvals" as any).insert({
     quote_id: quoteId,
     decision: "approved",
@@ -251,7 +280,7 @@ export async function approveQuote(quoteId: string, actorUserId: string, actorRo
   await updateQuoteStatus(quoteId, "approved", actorUserId, actorRole, `Soumission approuvée${reason ? `: ${reason}` : ""}`);
 }
 
-// ─── 8. Reject Quote ─────────────────────────────────────────────────
+// ─── 9. Reject Quote ─────────────────────────────────────────────────
 
 export async function rejectQuote(quoteId: string, actorUserId: string, actorRole: string, reason: string) {
   await supabase.from("quote_approvals" as any).insert({
@@ -265,16 +294,41 @@ export async function rejectQuote(quoteId: string, actorUserId: string, actorRol
   await updateQuoteStatus(quoteId, "rejected", actorUserId, actorRole, `Soumission rejetée: ${reason}`);
 }
 
-// ─── 9. Send Quote ───────────────────────────────────────────────────
+// ─── 10. Send Quote ──────────────────────────────────────────────────
 
 export async function sendQuote(quoteId: string, actorUserId: string, actorRole: string) {
   await updateQuoteStatus(quoteId, "sent", actorUserId, actorRole, "Soumission envoyée au client");
 }
 
-// ─── 10. Convert Quote to Order ──────────────────────────────────────
+// ─── 11. Follow-up ──────────────────────────────────────────────────
+
+export async function logFollowUp(quoteId: string, actorUserId: string, actorRole: string, message?: string) {
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("quotes" as any)
+    .update({
+      last_followup_at: now,
+      next_followup_at: new Date(Date.now() + 3 * 86400000).toISOString(), // +3 days default
+    })
+    .eq("id", quoteId);
+
+  if (error) throw new Error(`Failed to update follow-up: ${error.message}`);
+
+  await logQuoteEvent(quoteId, "followup", actorUserId, actorRole, message || "Relance effectuée");
+
+  await logInternalAudit({
+    action: "quote_followup",
+    category: "operations",
+    targetType: "quote",
+    targetId: quoteId,
+    details: { followup_at: now },
+  });
+}
+
+// ─── 12. Convert Quote to Order ──────────────────────────────────────
 
 export async function convertQuoteToOrder(quoteId: string, actorUserId: string, actorRole: string) {
-  // 1. Load quote
   const { data: quote, error: qErr } = await supabase
     .from("quotes" as any)
     .select("*")
@@ -286,20 +340,28 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     throw new Error(`Cannot convert quote with status: ${quote.status}. Must be approved or accepted.`);
   }
 
-  // 2. Load lines
   const { data: lines } = await supabase
     .from("quote_lines" as any)
     .select("*")
     .eq("quote_id", quoteId);
 
-  // 3. Load customer profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email, phone")
-    .eq("user_id", quote.customer_user_id)
-    .maybeSingle();
+  // Resolve customer info
+  let clientEmail: string | null = null;
+  let clientPhone: string | null = null;
 
-  // 4. Create canonical order
+  if (quote.customer_user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email, phone")
+      .eq("user_id", quote.customer_user_id)
+      .maybeSingle();
+    clientEmail = profile?.email || null;
+    clientPhone = profile?.phone || null;
+  } else if (quote.is_prospect) {
+    clientEmail = quote.prospect_email;
+    clientPhone = quote.prospect_phone;
+  }
+
   const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
   const selectedServices = (lines || [])
     .filter((l: any) => l.line_type === "catalog_service")
@@ -309,17 +371,19 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .insert({
-      user_id: quote.customer_user_id,
+      user_id: quote.customer_user_id || actorUserId,
       order_number: orderNumber,
       status: "submitted",
       source: `quote_${quote.source_portal}`,
       selected_plan: selectedServices || "Services de la soumission",
       total_amount: quote.total_due_now,
-      client_email: profile?.email || null,
-      client_phone: profile?.phone || null,
+      client_email: clientEmail,
+      client_phone: clientPhone,
       metadata: {
         quote_id: quoteId,
         quote_number: quote.quote_number,
+        is_prospect: quote.is_prospect,
+        prospect_name: quote.prospect_name,
         converted_by: actorUserId,
         converted_at: new Date().toISOString(),
       },
@@ -329,13 +393,9 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
 
   if (orderErr) throw new Error(`Failed to create order from quote: ${orderErr.message}`);
 
-  // 5. Mark quote as converted
   await supabase
     .from("quotes" as any)
-    .update({
-      status: "converted",
-      converted_order_id: order.id,
-    })
+    .update({ status: "converted", converted_order_id: order.id })
     .eq("id", quoteId);
 
   await logQuoteEvent(quoteId, "converted_to_order", actorUserId, actorRole, `Convertie en commande ${orderNumber}`, { order_id: order.id, order_number: orderNumber });
@@ -351,10 +411,9 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
   return { order, orderNumber };
 }
 
-// ─── 11. Duplicate Quote ─────────────────────────────────────────────
+// ─── 13. Duplicate Quote ─────────────────────────────────────────────
 
 export async function duplicateQuote(quoteId: string, actorUserId: string, sourcePortal: "employee" | "core") {
-  // Load original
   const { data: original } = await supabase
     .from("quotes" as any)
     .select("*")
@@ -363,17 +422,19 @@ export async function duplicateQuote(quoteId: string, actorUserId: string, sourc
 
   if (!original) throw new Error("Quote not found");
 
-  // Create new draft
   const newQuote = await createQuoteDraft({
-    customerUserId: original.customer_user_id,
+    customerUserId: original.customer_user_id || undefined,
     accountId: original.account_id,
     sourcePortal,
     createdByUserId: actorUserId,
     clientNote: original.client_note,
     internalNote: original.internal_note,
+    isProspect: original.is_prospect,
+    prospectName: original.prospect_name,
+    prospectEmail: original.prospect_email,
+    prospectPhone: original.prospect_phone,
   });
 
-  // Copy lines
   const { data: lines } = await supabase
     .from("quote_lines" as any)
     .select("*")

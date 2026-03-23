@@ -1,9 +1,10 @@
 /**
  * Employee Create Quote — Multi-step quote builder.
- * Steps: 1. Select Client  2. Add Services  3. Adjustments & Notes  4. Review & Submit
+ * Supports: existing client (pre-selected from Client 360 or searched) + prospect mode.
+ * Steps: 1. Select Client/Prospect  2. Add Services  3. Adjustments & Notes  4. Review & Submit
  */
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { employeePath } from "@/employee-app/lib/employeePaths";
@@ -15,19 +16,26 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Plus, Trash2, Search, User, ShoppingCart, MessageSquare, Eye } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, Trash2, Search, User, ShoppingCart, MessageSquare, Eye, UserPlus } from "lucide-react";
 
 type Step = 1 | 2 | 3 | 4;
 
 export default function EmployeeCreateQuote() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<Step>(1);
+  const [searchParams] = useSearchParams();
+  const preselectedClientId = searchParams.get("clientId");
+
+  const [step, setStep] = useState<Step>(preselectedClientId ? 2 : 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1: Client
+  // Step 1: Client or Prospect
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [isProspect, setIsProspect] = useState(false);
+  const [prospectName, setProspectName] = useState("");
+  const [prospectEmail, setProspectEmail] = useState("");
+  const [prospectPhone, setProspectPhone] = useState("");
 
   // Step 2: Lines
   const [lines, setLines] = useState<Array<{
@@ -47,10 +55,31 @@ export default function EmployeeCreateQuote() {
   const [discountAmount, setDiscountAmount] = useState("");
   const [adjustments, setAdjustments] = useState<Array<{ label: string; amount: number; type: "discount" | "credit" }>>([]);
 
+  // Auto-fetch preselected client
+  const { data: preselectedProfile } = useQuery({
+    queryKey: ["quote-preselect-client", preselectedClientId],
+    enabled: !!preselectedClientId && !selectedClient,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email, phone")
+        .eq("user_id", preselectedClientId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  // Set preselected client once fetched
+  useEffect(() => {
+    if (preselectedProfile && !selectedClient) {
+      setSelectedClient(preselectedProfile);
+    }
+  }, [preselectedProfile]);
+
   // Client search
   const { data: clients } = useQuery({
     queryKey: ["employee-quote-client-search", clientSearch],
-    enabled: clientSearch.length >= 2,
+    enabled: clientSearch.length >= 2 && !isProspect,
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
@@ -74,7 +103,6 @@ export default function EmployeeCreateQuote() {
     },
   });
 
-  // Add catalog service
   const addCatalogService = (service: any) => {
     setLines(prev => [...prev, {
       service_id: service.id,
@@ -86,7 +114,6 @@ export default function EmployeeCreateQuote() {
     }]);
   };
 
-  // Add manual fee
   const addManualFee = () => {
     setLines(prev => [...prev, {
       line_type: "manual_fee",
@@ -97,15 +124,11 @@ export default function EmployeeCreateQuote() {
     }]);
   };
 
-  const removeLine = (idx: number) => {
-    setLines(prev => prev.filter((_, i) => i !== idx));
-  };
-
+  const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx));
   const updateLine = (idx: number, field: string, value: any) => {
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l));
   };
 
-  // Totals preview
   const oneTimeTotal = lines.filter(l => l.billing_frequency === "one_time").reduce((s, l) => s + l.unit_price * l.quantity, 0);
   const monthlyTotal = lines.filter(l => l.billing_frequency === "monthly").reduce((s, l) => s + l.unit_price * l.quantity, 0);
   const adjTotal = adjustments.reduce((s, a) => s + a.amount, 0);
@@ -117,9 +140,17 @@ export default function EmployeeCreateQuote() {
     setDiscountAmount("");
   };
 
+  const canProceedFromStep1 = isProspect
+    ? (prospectName.trim().length > 0 && prospectEmail.trim().length > 0)
+    : !!selectedClient;
+
+  const clientDisplayName = isProspect ? prospectName : selectedClient?.full_name;
+  const clientDisplayEmail = isProspect ? prospectEmail : selectedClient?.email;
+
   // Submit
   const handleSubmit = async (asDraft: boolean) => {
-    if (!selectedClient) return;
+    if (!isProspect && !selectedClient) return;
+    if (isProspect && (!prospectName.trim() || !prospectEmail.trim())) return;
     setIsSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -127,17 +158,19 @@ export default function EmployeeCreateQuote() {
 
       const validUntil = validDays ? new Date(Date.now() + parseInt(validDays) * 86400000).toISOString() : undefined;
 
-      // 1. Create draft
       const quote = await createQuoteDraft({
-        customerUserId: selectedClient.user_id,
+        customerUserId: isProspect ? undefined : selectedClient.user_id,
         sourcePortal: "employee",
         createdByUserId: session.user.id,
         clientNote: clientNote || undefined,
         internalNote: internalNote || undefined,
         validUntil,
+        isProspect,
+        prospectName: isProspect ? prospectName : undefined,
+        prospectEmail: isProspect ? prospectEmail : undefined,
+        prospectPhone: isProspect ? prospectPhone : undefined,
       });
 
-      // 2. Add lines
       for (const line of lines) {
         await addQuoteLine(quote.id, {
           service_id: line.service_id || null,
@@ -149,7 +182,6 @@ export default function EmployeeCreateQuote() {
         });
       }
 
-      // 3. Add adjustments
       for (const adj of adjustments) {
         await addQuoteAdjustment(quote.id, {
           adjustment_type: adj.type,
@@ -160,7 +192,6 @@ export default function EmployeeCreateQuote() {
         }, session.user.id);
       }
 
-      // 4. If not draft, submit for review
       if (!asDraft) {
         await updateQuoteStatus(quote.id, "pending_review", session.user.id, "employee", "Soumise pour approbation");
       }
@@ -202,46 +233,80 @@ export default function EmployeeCreateQuote() {
         ))}
       </div>
 
-      {/* STEP 1: Client */}
+      {/* STEP 1: Client / Prospect */}
       {step === 1 && (
         <Card>
-          <CardHeader><CardTitle>Sélectionner un client</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Sélectionner un client ou prospect
+              <Button
+                variant={isProspect ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setIsProspect(!isProspect);
+                  if (!isProspect) setSelectedClient(null);
+                }}
+              >
+                <UserPlus className="h-3.5 w-3.5 mr-1" />
+                {isProspect ? "Mode prospect" : "Nouveau prospect"}
+              </Button>
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Nom, courriel ou téléphone..."
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-
-            {selectedClient ? (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+            {isProspect ? (
+              <div className="space-y-3">
                 <div>
-                  <p className="font-medium">{selectedClient.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{selectedClient.email} · {selectedClient.phone}</p>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Nom complet *</label>
+                  <Input value={prospectName} onChange={(e) => setProspectName(e.target.value)} placeholder="Nom du prospect" />
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedClient(null)}>Changer</Button>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Courriel *</label>
+                  <Input type="email" value={prospectEmail} onChange={(e) => setProspectEmail(e.target.value)} placeholder="email@exemple.com" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Téléphone</label>
+                  <Input value={prospectPhone} onChange={(e) => setProspectPhone(e.target.value)} placeholder="(555) 555-5555" />
+                </div>
               </div>
             ) : (
-              <div className="space-y-1">
-                {(clients || []).map((c: any) => (
-                  <button
-                    key={c.user_id}
-                    onClick={() => { setSelectedClient(c); setClientSearch(""); }}
-                    className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <p className="font-medium text-sm">{c.full_name}</p>
-                    <p className="text-xs text-muted-foreground">{c.email}</p>
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Nom, courriel ou téléphone..."
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {selectedClient ? (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    <div>
+                      <p className="font-medium">{selectedClient.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{selectedClient.email} · {selectedClient.phone}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedClient(null)}>Changer</Button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {(clients || []).map((c: any) => (
+                      <button
+                        key={c.user_id}
+                        onClick={() => { setSelectedClient(c); setClientSearch(""); }}
+                        className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <p className="font-medium text-sm">{c.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{c.email}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
             <div className="flex justify-end">
-              <Button disabled={!selectedClient} onClick={() => setStep(2)}>
+              <Button disabled={!canProceedFromStep1} onClick={() => setStep(2)}>
                 Suivant <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
@@ -254,14 +319,20 @@ export default function EmployeeCreateQuote() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              Services & frais
+              <span>
+                Services & frais
+                {clientDisplayName && (
+                  <Badge variant="outline" className="ml-2 text-[10px] font-normal">
+                    {isProspect ? "Prospect" : "Client"}: {clientDisplayName}
+                  </Badge>
+                )}
+              </span>
               <Button variant="outline" size="sm" onClick={addManualFee}>
                 <Plus className="h-3.5 w-3.5 mr-1" /> Frais manuel
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Catalog picker */}
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Catalogue de services</p>
               <div className="flex flex-wrap gap-1.5">
@@ -277,41 +348,22 @@ export default function EmployeeCreateQuote() {
               </div>
             </div>
 
-            {/* Selected lines */}
             {lines.length > 0 && (
               <div className="space-y-2 mt-4">
                 <p className="text-xs font-medium text-muted-foreground">Lignes de la soumission</p>
                 {lines.map((line, idx) => (
                   <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
                     {line.line_type === "manual_fee" ? (
-                      <Input
-                        value={line.label}
-                        onChange={(e) => updateLine(idx, "label", e.target.value)}
-                        placeholder="Description du frais"
-                        className="flex-1 h-8 text-sm"
-                      />
+                      <Input value={line.label} onChange={(e) => updateLine(idx, "label", e.target.value)} placeholder="Description du frais" className="flex-1 h-8 text-sm" />
                     ) : (
                       <span className="flex-1 text-sm font-medium">{line.label}</span>
                     )}
-                    <Input
-                      type="number"
-                      value={line.quantity}
-                      onChange={(e) => updateLine(idx, "quantity", parseInt(e.target.value) || 1)}
-                      className="w-16 h-8 text-sm text-center"
-                    />
+                    <Input type="number" value={line.quantity} onChange={(e) => updateLine(idx, "quantity", parseInt(e.target.value) || 1)} className="w-16 h-8 text-sm text-center" />
                     <span className="text-xs text-muted-foreground">×</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={line.unit_price}
-                      onChange={(e) => updateLine(idx, "unit_price", parseFloat(e.target.value) || 0)}
-                      className="w-24 h-8 text-sm text-right"
-                    />
+                    <Input type="number" step="0.01" value={line.unit_price} onChange={(e) => updateLine(idx, "unit_price", parseFloat(e.target.value) || 0)} className="w-24 h-8 text-sm text-right" />
                     <span className="text-xs text-muted-foreground">$</span>
                     <Select value={line.billing_frequency} onValueChange={(v) => updateLine(idx, "billing_frequency", v)}>
-                      <SelectTrigger className="w-28 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="monthly">Mensuel</SelectItem>
                         <SelectItem value="one_time">Unique</SelectItem>
@@ -322,7 +374,6 @@ export default function EmployeeCreateQuote() {
                     </Button>
                   </div>
                 ))}
-
                 <div className="flex justify-end gap-4 pt-2 text-sm">
                   <span className="text-muted-foreground">Mensuel: <strong>{monthlyTotal.toFixed(2)} $</strong></span>
                   <span className="text-muted-foreground">Unique: <strong>{oneTimeTotal.toFixed(2)} $</strong></span>
@@ -363,7 +414,6 @@ export default function EmployeeCreateQuote() {
               <Input type="number" value={validDays} onChange={(e) => setValidDays(e.target.value)} className="w-32" />
             </div>
 
-            {/* Adjustments */}
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Proposer un rabais</p>
               <div className="flex gap-2">
@@ -404,14 +454,15 @@ export default function EmployeeCreateQuote() {
         <Card>
           <CardHeader><CardTitle>Révision de la soumission</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {/* Client */}
             <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">Client</p>
-              <p className="font-medium">{selectedClient?.full_name}</p>
-              <p className="text-xs text-muted-foreground">{selectedClient?.email}</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs text-muted-foreground">{isProspect ? "Prospect" : "Client"}</p>
+                {isProspect && <Badge variant="outline" className="text-[10px]">Prospect</Badge>}
+              </div>
+              <p className="font-medium">{clientDisplayName}</p>
+              <p className="text-xs text-muted-foreground">{clientDisplayEmail}</p>
             </div>
 
-            {/* Lines summary */}
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Services</p>
               {lines.map((l, i) => (
@@ -424,7 +475,6 @@ export default function EmployeeCreateQuote() {
               ))}
             </div>
 
-            {/* Adjustments */}
             {adjustments.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">Ajustements proposés</p>
@@ -437,7 +487,6 @@ export default function EmployeeCreateQuote() {
               </div>
             )}
 
-            {/* Totals */}
             <div className="p-3 rounded-lg bg-muted/50 space-y-1">
               <div className="flex justify-between text-sm">
                 <span>Mensuel</span>
