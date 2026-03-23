@@ -168,6 +168,7 @@ import Install from "@/pages/Install";
 import ComparePlans from "@/pages/ComparePlans";
 import TVConfigurator from "@/pages/TVConfigurator";
 const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
+const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
 
 // Legal pages
 import ConditionsDeService from "@/pages/legal/ConditionsDeService";
