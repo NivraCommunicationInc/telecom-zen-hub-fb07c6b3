@@ -413,6 +413,7 @@ const AppRoutes = () => {
       
       {/* Public Quote View (no login required) */}
       <Route path="/quote" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PublicQuotePage /></Suspense></MaintenanceGuard>} />
+      <Route path="/quote-checkout" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><QuoteCheckoutPage /></Suspense></MaintenanceGuard>} />
       
       {/* Dynamic pages from site_pages */}
       <Route path="/page/:slug" element={<MaintenanceGuard><PublicLayout><DynamicPage /></PublicLayout></MaintenanceGuard>} />
