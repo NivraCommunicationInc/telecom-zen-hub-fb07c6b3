@@ -9413,6 +9413,288 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_adjustments: {
+        Row: {
+          adjustment_type: Database["public"]["Enums"]["quote_adjustment_type"]
+          amount: number
+          approval_status: Database["public"]["Enums"]["quote_approval_status"]
+          approved_at: string | null
+          approved_by_user_id: string | null
+          created_at: string
+          created_by_user_id: string
+          id: string
+          label: string
+          quote_id: string
+          requires_approval: boolean
+          source: Database["public"]["Enums"]["quote_adjustment_source"]
+        }
+        Insert: {
+          adjustment_type: Database["public"]["Enums"]["quote_adjustment_type"]
+          amount?: number
+          approval_status?: Database["public"]["Enums"]["quote_approval_status"]
+          approved_at?: string | null
+          approved_by_user_id?: string | null
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          label: string
+          quote_id: string
+          requires_approval?: boolean
+          source?: Database["public"]["Enums"]["quote_adjustment_source"]
+        }
+        Update: {
+          adjustment_type?: Database["public"]["Enums"]["quote_adjustment_type"]
+          amount?: number
+          approval_status?: Database["public"]["Enums"]["quote_approval_status"]
+          approved_at?: string | null
+          approved_by_user_id?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          label?: string
+          quote_id?: string
+          requires_approval?: boolean
+          source?: Database["public"]["Enums"]["quote_adjustment_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_adjustments_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_approvals: {
+        Row: {
+          actor_role: string
+          actor_user_id: string
+          created_at: string
+          decision: Database["public"]["Enums"]["quote_approval_decision"]
+          id: string
+          quote_id: string
+          reason: string | null
+        }
+        Insert: {
+          actor_role: string
+          actor_user_id: string
+          created_at?: string
+          decision: Database["public"]["Enums"]["quote_approval_decision"]
+          id?: string
+          quote_id: string
+          reason?: string | null
+        }
+        Update: {
+          actor_role?: string
+          actor_user_id?: string
+          created_at?: string
+          decision?: Database["public"]["Enums"]["quote_approval_decision"]
+          id?: string
+          quote_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_approvals_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_events: {
+        Row: {
+          actor_role: string
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          message: string
+          metadata: Json | null
+          quote_id: string
+        }
+        Insert: {
+          actor_role?: string
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          quote_id: string
+        }
+        Update: {
+          actor_role?: string
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          quote_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_events_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_lines: {
+        Row: {
+          billing_frequency: Database["public"]["Enums"]["quote_billing_frequency"]
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          line_type: Database["public"]["Enums"]["quote_line_type"]
+          metadata: Json | null
+          quantity: number
+          quote_id: string
+          service_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          billing_frequency?: Database["public"]["Enums"]["quote_billing_frequency"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          line_type?: Database["public"]["Enums"]["quote_line_type"]
+          metadata?: Json | null
+          quantity?: number
+          quote_id: string
+          service_id?: string | null
+          unit_price?: number
+        }
+        Update: {
+          billing_frequency?: Database["public"]["Enums"]["quote_billing_frequency"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          line_type?: Database["public"]["Enums"]["quote_line_type"]
+          metadata?: Json | null
+          quantity?: number
+          quote_id?: string
+          service_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_lines_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          account_id: string | null
+          approved_at: string | null
+          approved_by_user_id: string | null
+          assigned_to_user_id: string | null
+          client_note: string | null
+          converted_order_id: string | null
+          created_at: string
+          created_by_user_id: string
+          credits_total: number
+          currency: string
+          customer_user_id: string
+          discounts_total: number
+          id: string
+          internal_note: string | null
+          quote_number: string
+          source_portal: string
+          status: Database["public"]["Enums"]["quote_status"]
+          subtotal: number
+          taxes_total: number
+          total_due_now: number
+          total_monthly: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          approved_at?: string | null
+          approved_by_user_id?: string | null
+          assigned_to_user_id?: string | null
+          client_note?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          created_by_user_id: string
+          credits_total?: number
+          currency?: string
+          customer_user_id: string
+          discounts_total?: number
+          id?: string
+          internal_note?: string | null
+          quote_number: string
+          source_portal: string
+          status?: Database["public"]["Enums"]["quote_status"]
+          subtotal?: number
+          taxes_total?: number
+          total_due_now?: number
+          total_monthly?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          approved_at?: string | null
+          approved_by_user_id?: string | null
+          assigned_to_user_id?: string | null
+          client_note?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          credits_total?: number
+          currency?: string
+          customer_user_id?: string
+          discounts_total?: number
+          id?: string
+          internal_note?: string | null
+          quote_number?: string
+          source_portal?: string
+          status?: Database["public"]["Enums"]["quote_status"]
+          subtotal?: number
+          taxes_total?: number
+          total_due_now?: number
+          total_monthly?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "quotes_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_limit_attempts: {
         Row: {
           created_at: string
@@ -14654,6 +14936,28 @@ export type Database = {
         | "CHANNEL_PUSH"
         | "EQUIPMENT_ASSIGN"
         | "CUSTOM"
+      quote_adjustment_source: "employee_proposed" | "admin_approved" | "system"
+      quote_adjustment_type: "discount" | "credit"
+      quote_approval_decision: "approved" | "rejected"
+      quote_approval_status: "pending" | "approved" | "rejected"
+      quote_billing_frequency: "one_time" | "monthly"
+      quote_line_type:
+        | "catalog_service"
+        | "manual_fee"
+        | "activation_fee"
+        | "shipping_fee"
+        | "promo_discount"
+        | "credit"
+      quote_status:
+        | "draft"
+        | "pending_review"
+        | "approved"
+        | "sent"
+        | "viewed"
+        | "accepted"
+        | "rejected"
+        | "expired"
+        | "converted"
       recurring_setup_status:
         | "pending"
         | "active"
@@ -15122,6 +15426,34 @@ export const Constants = {
         "CHANNEL_PUSH",
         "EQUIPMENT_ASSIGN",
         "CUSTOM",
+      ],
+      quote_adjustment_source: [
+        "employee_proposed",
+        "admin_approved",
+        "system",
+      ],
+      quote_adjustment_type: ["discount", "credit"],
+      quote_approval_decision: ["approved", "rejected"],
+      quote_approval_status: ["pending", "approved", "rejected"],
+      quote_billing_frequency: ["one_time", "monthly"],
+      quote_line_type: [
+        "catalog_service",
+        "manual_fee",
+        "activation_fee",
+        "shipping_fee",
+        "promo_discount",
+        "credit",
+      ],
+      quote_status: [
+        "draft",
+        "pending_review",
+        "approved",
+        "sent",
+        "viewed",
+        "accepted",
+        "rejected",
+        "expired",
+        "converted",
       ],
       recurring_setup_status: [
         "pending",

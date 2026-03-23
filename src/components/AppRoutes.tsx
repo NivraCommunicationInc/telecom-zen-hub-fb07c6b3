@@ -52,6 +52,9 @@ const EmployeeInvoiceDetail = lazy(() => import("@/employee-app/pages/EmployeeIn
 const EmployeeSubscriptionDetail = lazy(() => import("@/employee-app/pages/EmployeeSubscriptionDetail"));
 const EmployeeAccounts = lazy(() => import("@/employee-app/pages/EmployeeAccounts"));
 const EmployeeAccountDetail = lazy(() => import("@/employee-app/pages/EmployeeAccountDetail"));
+const EmployeeQuotes = lazy(() => import("@/employee-app/pages/EmployeeQuotes"));
+const EmployeeCreateQuote = lazy(() => import("@/employee-app/pages/EmployeeCreateQuote"));
+const EmployeeQuoteDetail = lazy(() => import("@/employee-app/pages/EmployeeQuoteDetail"));
 
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
@@ -131,6 +134,8 @@ const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
 const CoreMyAccountPage = lazy(() => import("@/core-app/pages/CoreMyAccountPage"));
 const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
+const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
+const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 
 // Public pages
 import Index from "@/pages/Index";
@@ -703,6 +708,9 @@ const AppRoutes = () => {
           <Route path="appointments/:id" element={<Suspense fallback={null}><CoreAppointmentDetail /></Suspense>} />
           <Route path="requests" element={<Suspense fallback={null}><CoreRequestsPage /></Suspense>} />
           <Route path="activations" element={<Suspense fallback={null}><CoreActivationsPage /></Suspense>} />
+          {/* Quotes */}
+          <Route path="quotes" element={<Suspense fallback={null}><CoreQuotesPage /></Suspense>} />
+          <Route path="quotes/:quoteId" element={<Suspense fallback={null}><CoreQuoteDetail /></Suspense>} />
           {/* Clients */}
           <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
           <Route path="clients/:clientId" element={<Suspense fallback={null}><CoreClientProfile /></Suspense>} />
@@ -799,6 +807,9 @@ const AppRoutes = () => {
           <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><EmployeeSecurity /></Suspense>} />
+          <Route path="quotes" element={<Suspense fallback={null}><EmployeeQuotes /></Suspense>} />
+          <Route path="quotes/new" element={<Suspense fallback={null}><EmployeeCreateQuote /></Suspense>} />
+          <Route path="quotes/:quoteId" element={<Suspense fallback={null}><EmployeeQuoteDetail /></Suspense>} />
         </Route>
       </Route>
 
