@@ -191,7 +191,7 @@ export default function QuoteCheckout() {
       newErrors.dob = "Requis";
     } else {
       const dobResult = validateDob(form.dob);
-      if (!dobResult.valid) newErrors.dob = dobResult.error || "Date invalide";
+      if (!dobResult.isValid) newErrors.dob = dobResult.error?.fr || "Date invalide";
     }
     if (!form.address.trim()) newErrors.address = "Requis";
     if (!form.city.trim()) newErrors.city = "Requis";
