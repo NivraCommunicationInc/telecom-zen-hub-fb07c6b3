@@ -328,6 +328,9 @@ const GuestCheckout = () => {
       const userId = accountResult.user_id;
       console.log("[GuestCheckout] Account created/found:", userId, "isNew:", accountResult.is_new_account);
 
+      // Step 1b: Set kyc_status for the order
+      const kycStatusForOrder = isStreamingOnlyOrder ? "not_required" : "pending";
+
       // Step 2: Resolve account_id
       const { data: acctRows } = await supabase
         .from("accounts")
