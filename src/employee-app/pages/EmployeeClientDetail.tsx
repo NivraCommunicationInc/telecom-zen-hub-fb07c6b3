@@ -346,8 +346,23 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           )}
         </div>
 
-        {/* RIGHT: Tickets + Activity */}
+        {/* RIGHT: Tickets + Activity + PIN + Documents */}
         <div className="space-y-4">
+          {/* Documents */}
+          {orders.length > 0 && (
+            <DocumentActions
+              orderId={orders[0].id}
+              invoiceId={invoices[0]?.id}
+              clientEmail={profile.email ?? undefined}
+              clientName={profile.full_name ?? undefined}
+              orderNumber={orders[0].order_number}
+              invoiceNumber={invoices[0]?.invoice_number}
+            />
+          )}
+
+          {/* PIN Reset */}
+          <EmployeePinReset customerId={clientId} customerName={profile.full_name ?? undefined} />
+
           {/* Tickets */}
           <Section title="Tickets" icon={<FileText className="h-4 w-4" />}>
             {tickets.length === 0 ? (
@@ -355,7 +370,8 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             ) : (
               <div className="space-y-2">
                 {tickets.map((t: any) => (
-                  <div key={t.id} className="p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
+                  <Link key={t.id} to={employeePath(`/support/${t.id}`)}
+                    className="block p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)] hover:border-blue-500/20 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-xs text-white font-medium">{t.subject ?? t.ticket_number}</p>
@@ -365,7 +381,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
                       </div>
                       {statusBadge(t.status ?? "open")}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
