@@ -407,6 +407,7 @@ const GuestCheckout = () => {
         })),
         equipment: [
           ...((hasInternetService || hasTVService) ? [{ sku: "EQ-ROUTER", name: "Routeur Nivra Born WiFi 6", quantity: 1, unit_price: ROUTER_PRICE }] : []),
+          ...(hasTVService ? [{ sku: "EQ-TERMINAL-TV", name: "Terminal TV", quantity: Math.min(Math.max(tvTerminalQty, 1), 4), unit_price: terminalPrice ?? 0 }] : []),
           ...(hasMobileService ? [{ sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE }] : []),
         ],
         fees: [
