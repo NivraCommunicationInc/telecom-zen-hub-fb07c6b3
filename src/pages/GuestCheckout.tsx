@@ -1197,6 +1197,20 @@ const GuestCheckout = () => {
                       </p>
                     </div>
 
+                    {/* KYC pending notice */}
+                    {!isStreamingOnlyOrder && (
+                      <div className="mt-4 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 max-w-md mx-auto">
+                        <Shield className="w-5 h-5 text-amber-600 mx-auto mb-2" />
+                        <p className="text-sm font-semibold text-foreground mb-1">
+                          Vérification d'identité en cours
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Votre commande est reçue mais en attente de validation d'identité.
+                          Aucune activation ne sera effectuée avant approbation de vos documents.
+                        </p>
+                      </div>
+                    )
+
                     {/* Next steps */}
                     <div className="mt-6 text-left max-w-md mx-auto space-y-3">
                       <h3 className="font-semibold text-foreground text-sm">Prochaines étapes</h3>

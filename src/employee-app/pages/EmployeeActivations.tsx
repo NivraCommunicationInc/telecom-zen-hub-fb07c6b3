@@ -190,7 +190,7 @@ export default function EmployeeActivations() {
 
 function isReady(item: ActivationItem): boolean {
   const checks = getChecks(item);
-  return checks.payment && checks.equipment;
+  return checks.payment && checks.equipment && checks.kyc;
 }
 
 function getChecks(item: ActivationItem) {
@@ -198,7 +198,7 @@ function getChecks(item: ActivationItem) {
     payment: item.payment_status === "paid" || item.payment_status === "captured" || item.payment_status === "completed",
     equipment: item.hasEquipment,
     appointment: item.appointmentCompleted || !item.hasAppointment,
-    kyc: item.kycApproved || true, // KYC is optional for activation
+    kyc: item.kycApproved,
   };
 }
 
