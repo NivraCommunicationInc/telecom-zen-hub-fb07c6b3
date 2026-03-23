@@ -81,6 +81,12 @@ export default function EmployeeQuoteDetail() {
         queryClient.invalidateQueries({ queryKey: ["quotes-list"] });
         refetchAll();
         return;
+      } else if (action === "checkout_link") {
+        const result = await sendCheckoutLink(quote.id, session.user.id, "employee");
+        navigator.clipboard.writeText(result.checkoutUrl);
+        toast.success("Lien de finalisation copié dans le presse-papier");
+        refetchAll();
+        return;
       } else if (action === "pdf") {
         await downloadQuotePDF(quote.id);
         toast.success("PDF téléchargé");
