@@ -49,6 +49,8 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const queryClient = useQueryClient();
   const [noteText, setNoteText] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const [showCreateTicket, setShowCreateTicket] = useState(false);
+  const [showEscalation, setShowEscalation] = useState(false);
 
   // Employee-specific: tickets + notes + locations (not in shared-ops since they're portal-specific)
   const { data: extras } = useQuery({
