@@ -244,7 +244,7 @@ serve(async (req) => {
       to: recipientEmail,
       subject,
       html,
-      templateKey: "quote_sent",
+      templateKey: "custom_html",
       eventKey: `quote_sent_${quoteId}_${Date.now()}`,
       entityType: "quote",
       entityId: quoteId,
