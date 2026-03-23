@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   approveQuote, rejectQuote, updateQuoteStatus, convertQuoteToOrder, sendQuote,
   addQuoteLine, removeQuoteLine, addQuoteAdjustment, removeQuoteAdjustment, recalculateQuoteTotals,
-  downloadQuotePDF, getQuotePublicUrl,
+  downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, logFollowUp,
 } from "@/shared-ops/quoteOperations";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import {
   ArrowLeft, CheckCircle, XCircle, Send, ArrowRightCircle, User, Clock, FileText,
   MessageSquare, ShoppingCart, ExternalLink, Plus, Trash2, Pencil, UserPlus,
-  Download, Link2, RefreshCw,
+  Download, Link2, RefreshCw, Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -82,7 +82,8 @@ export default function CoreQuoteDetail() {
   const canEdit = ["draft", "pending_review"].includes(quote.status);
   const canApprove = ["pending_review"].includes(quote.status);
   const canSend = ["approved"].includes(quote.status);
-  const canConvert = ["approved", "accepted"].includes(quote.status);
+  const canResend = ["sent", "viewed"].includes(quote.status);
+  const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
 
   const clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : (customer?.full_name || "—");
   const clientEmail = quote.is_prospect ? quote.prospect_email : customer?.email;
@@ -121,7 +122,17 @@ export default function CoreQuoteDetail() {
 
   const handleSend = async () => {
     const session = await getSession();
-    await doAction(() => sendQuote(quote.id, session.user.id, "admin"), "Soumission envoyée");
+    await doAction(() => sendQuote(quote.id, session.user.id, "admin"), "Soumission envoyée au client");
+  };
+
+  const handleResend = async () => {
+    const session = await getSession();
+    await doAction(() => resendQuoteEmail(quote.id, session.user.id, "admin"), "Courriel renvoyé");
+  };
+
+  const handleFollowUp = async () => {
+    const session = await getSession();
+    await doAction(() => logFollowUp(quote.id, session.user.id, "admin"), "Relance enregistrée");
   };
 
   const handleConvert = async () => {
@@ -136,6 +147,28 @@ export default function CoreQuoteDetail() {
       toast.error(err.message);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      await downloadQuotePDF(quote.id);
+      toast.success("PDF téléchargé");
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (quote.public_token) {
+      navigator.clipboard.writeText(getQuotePublicUrl(quote.public_token));
+      toast.success("Lien public copié");
+    }
+  };
+
+  const handleOpenPublic = () => {
+    if (quote.public_token) {
+      window.open(getQuotePublicUrl(quote.public_token), "_blank");
     }
   };
 
@@ -194,7 +227,7 @@ export default function CoreQuoteDetail() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate("/core/quotes")}>
             <ArrowLeft className="h-4 w-4" />
@@ -212,7 +245,7 @@ export default function CoreQuoteDetail() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 flex-wrap">
           {canEdit && !editMode && (
             <Button size="sm" variant="outline" onClick={() => setEditMode(true)}>
               <Pencil className="h-3.5 w-3.5 mr-1" /> Modifier
@@ -238,13 +271,47 @@ export default function CoreQuoteDetail() {
               <Send className="h-3.5 w-3.5 mr-1" /> Envoyer au client
             </Button>
           )}
+          {canResend && (
+            <>
+              <Button size="sm" variant="outline" onClick={handleResend} disabled={processing}>
+                <Send className="h-3.5 w-3.5 mr-1" /> Renvoyer
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleFollowUp} disabled={processing}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
+              </Button>
+            </>
+          )}
           {canConvert && (
             <Button size="sm" variant="default" onClick={() => setShowConvertDialog(true)} disabled={processing}>
-              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir en commande
+              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir
             </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+            <Download className="h-3.5 w-3.5 mr-1" /> PDF
+          </Button>
+          {quote.public_token && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                <Link2 className="h-3.5 w-3.5 mr-1" /> Lien
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleOpenPublic}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1" /> Aperçu
+              </Button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Converted order link */}
+      {quote.converted_order_id && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+          <CheckCircle className="h-4 w-4 text-emerald-600" />
+          <span className="text-sm font-medium">Convertie en commande</span>
+          <Button size="sm" variant="outline" onClick={() => navigate(`/core/orders/${quote.converted_order_id}`)}>
+            <ExternalLink className="h-3.5 w-3.5 mr-1" /> Voir commande
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-6">
         {/* Left 2/3 */}
@@ -299,7 +366,6 @@ export default function CoreQuoteDetail() {
               {/* Edit mode: add lines */}
               {editMode && (
                 <div className="space-y-3 pt-3 border-t border-border">
-                  {/* Catalog services */}
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Ajouter du catalogue</p>
                     <div className="flex flex-wrap gap-1.5">
@@ -314,7 +380,6 @@ export default function CoreQuoteDetail() {
                       ))}
                     </div>
                   </div>
-                  {/* Manual line */}
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Ligne manuelle</p>
                     <div className="flex gap-2">
