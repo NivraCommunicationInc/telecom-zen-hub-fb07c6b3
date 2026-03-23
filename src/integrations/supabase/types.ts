@@ -9618,6 +9618,7 @@ export type Database = {
           prospect_email: string | null
           prospect_name: string | null
           prospect_phone: string | null
+          public_token: string | null
           quote_number: string
           source_portal: string
           status: Database["public"]["Enums"]["quote_status"]
@@ -9650,6 +9651,7 @@ export type Database = {
           prospect_email?: string | null
           prospect_name?: string | null
           prospect_phone?: string | null
+          public_token?: string | null
           quote_number: string
           source_portal: string
           status?: Database["public"]["Enums"]["quote_status"]
@@ -9682,6 +9684,7 @@ export type Database = {
           prospect_email?: string | null
           prospect_name?: string | null
           prospect_phone?: string | null
+          public_token?: string | null
           quote_number?: string
           source_portal?: string
           status?: Database["public"]["Enums"]["quote_status"]

@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { generateQuotePDF, type QuotePDFData } from "@/lib/pdf/quoteTemplate";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -294,10 +295,69 @@ export async function rejectQuote(quoteId: string, actorUserId: string, actorRol
   await updateQuoteStatus(quoteId, "rejected", actorUserId, actorRole, `Soumission rejetée: ${reason}`);
 }
 
-// ─── 10. Send Quote ──────────────────────────────────────────────────
+// ─── 10. Send Quote to Client ────────────────────────────────────────
 
 export async function sendQuote(quoteId: string, actorUserId: string, actorRole: string) {
-  await updateQuoteStatus(quoteId, "sent", actorUserId, actorRole, "Soumission envoyée au client");
+  // Fetch the full quote data for email
+  const { data: quote, error: qErr } = await supabase
+    .from("quotes" as any)
+    .select("*")
+    .eq("id", quoteId)
+    .single();
+
+  if (qErr || !quote) throw new Error("Quote not found");
+
+  // Determine recipient email
+  let recipientEmail: string | null = null;
+  let clientName = "Client";
+
+  if (quote.is_prospect) {
+    recipientEmail = quote.prospect_email;
+    clientName = quote.prospect_name || "Client";
+  } else if (quote.customer_user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("user_id", quote.customer_user_id)
+      .maybeSingle();
+    recipientEmail = profile?.email || null;
+    clientName = profile?.full_name || "Client";
+  }
+
+  if (!recipientEmail) {
+    throw new Error("Aucune adresse courriel disponible pour ce client/prospect");
+  }
+
+  // Build public quote URL
+  const baseUrl = window.location.origin;
+  const publicUrl = `${baseUrl}/quote?token=${quote.public_token}`;
+
+  // Send transactional email via edge function
+  try {
+    await supabase.functions.invoke("send-transactional-email", {
+      body: {
+        templateName: "quote-sent",
+        recipientEmail,
+        idempotencyKey: `quote-sent-${quoteId}-${Date.now()}`,
+        templateData: {
+          clientName,
+          quoteNumber: quote.quote_number,
+          totalMonthly: Number(quote.total_monthly || 0).toFixed(2),
+          totalDueNow: Number(quote.total_due_now || 0).toFixed(2),
+          validUntil: quote.valid_until
+            ? new Date(quote.valid_until).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })
+            : null,
+          publicUrl,
+        },
+      },
+    });
+  } catch (emailErr) {
+    // Email send may fail if not configured — still update status
+    console.warn("Email send failed (may not be configured):", emailErr);
+  }
+
+  // Update status to sent
+  await updateQuoteStatus(quoteId, "sent", actorUserId, actorRole, `Soumission envoyée à ${recipientEmail}`);
 }
 
 // ─── 11. Follow-up ──────────────────────────────────────────────────
@@ -309,7 +369,7 @@ export async function logFollowUp(quoteId: string, actorUserId: string, actorRol
     .from("quotes" as any)
     .update({
       last_followup_at: now,
-      next_followup_at: new Date(Date.now() + 3 * 86400000).toISOString(), // +3 days default
+      next_followup_at: new Date(Date.now() + 3 * 86400000).toISOString(),
     })
     .eq("id", quoteId);
 
@@ -336,6 +396,9 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     .single();
 
   if (qErr || !quote) throw new Error("Quote not found");
+  if (quote.converted_order_id) {
+    throw new Error("Cette soumission a déjà été convertie en commande.");
+  }
   if (!["approved", "accepted"].includes(quote.status)) {
     throw new Error(`Cannot convert quote with status: ${quote.status}. Must be approved or accepted.`);
   }
@@ -345,7 +408,6 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     .select("*")
     .eq("quote_id", quoteId);
 
-  // Resolve customer info
   let clientEmail: string | null = null;
   let clientPhone: string | null = null;
 
@@ -456,6 +518,93 @@ export async function duplicateQuote(quoteId: string, actorUserId: string, sourc
   await logQuoteEvent(newQuote.id, "duplicated", actorUserId, sourcePortal === "employee" ? "employee" : "admin", `Dupliquée depuis ${original.quote_number}`, { source_quote_id: quoteId });
 
   return newQuote;
+}
+
+// ─── 14. Get Public URL ──────────────────────────────────────────────
+
+export function getQuotePublicUrl(publicToken: string): string {
+  return `${window.location.origin}/quote?token=${publicToken}`;
+}
+
+// ─── 15. Download Quote PDF ──────────────────────────────────────────
+
+export async function downloadQuotePDF(quoteId: string) {
+  const { data: quote } = await supabase
+    .from("quotes" as any)
+    .select("*")
+    .eq("id", quoteId)
+    .single();
+
+  if (!quote) throw new Error("Quote not found");
+
+  const { data: lines } = await supabase
+    .from("quote_lines" as any)
+    .select("*")
+    .eq("quote_id", quoteId)
+    .order("created_at", { ascending: true });
+
+  const { data: adjustments } = await supabase
+    .from("quote_adjustments" as any)
+    .select("*")
+    .eq("quote_id", quoteId)
+    .eq("approval_status", "approved")
+    .order("created_at", { ascending: true });
+
+  // Resolve client name
+  let clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : "Client";
+  let clientEmail = quote.is_prospect ? quote.prospect_email : undefined;
+  let clientPhone = quote.is_prospect ? quote.prospect_phone : undefined;
+
+  if (!quote.is_prospect && quote.customer_user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email, phone")
+      .eq("user_id", quote.customer_user_id)
+      .maybeSingle();
+    if (profile) {
+      clientName = profile.full_name || "Client";
+      clientEmail = profile.email;
+      clientPhone = profile.phone;
+    }
+  }
+
+  const pdfData: QuotePDFData = {
+    quoteNumber: quote.quote_number || "—",
+    clientName,
+    clientEmail,
+    clientPhone,
+    isProspect: quote.is_prospect || false,
+    validUntil: quote.valid_until,
+    clientNote: quote.client_note,
+    lines: (lines || []).map((l: any) => ({
+      label: l.label,
+      quantity: l.quantity,
+      unitPrice: l.unit_price,
+      billingFrequency: l.billing_frequency,
+      lineType: l.line_type,
+    })),
+    adjustments: (adjustments || []).map((a: any) => ({
+      label: a.label,
+      amount: a.amount,
+      adjustmentType: a.adjustment_type,
+    })),
+    subtotal: Number(quote.subtotal || 0),
+    discountsTotal: Number(quote.discounts_total || 0),
+    creditsTotal: Number(quote.credits_total || 0),
+    taxesTotal: Number(quote.taxes_total || 0),
+    totalDueNow: Number(quote.total_due_now || 0),
+    totalMonthly: Number(quote.total_monthly || 0),
+    createdAt: quote.created_at,
+    status: quote.status,
+  };
+
+  const blob = generateQuotePDF(pdfData);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Soumission-${quote.quote_number}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── Helper: Log Quote Event ─────────────────────────────────────────

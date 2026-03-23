@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   approveQuote, rejectQuote, updateQuoteStatus, convertQuoteToOrder, sendQuote,
   addQuoteLine, removeQuoteLine, addQuoteAdjustment, removeQuoteAdjustment, recalculateQuoteTotals,
+  downloadQuotePDF, getQuotePublicUrl,
 } from "@/shared-ops/quoteOperations";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import {
   ArrowLeft, CheckCircle, XCircle, Send, ArrowRightCircle, User, Clock, FileText,
   MessageSquare, ShoppingCart, ExternalLink, Plus, Trash2, Pencil, UserPlus,
+  Download, Link2, RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";

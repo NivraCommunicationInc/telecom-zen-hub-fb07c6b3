@@ -4,15 +4,16 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useQuoteDetail } from "@/shared-ops/useQuoteDetail";
-import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp } from "@/shared-ops/quoteOperations";
+import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl } from "@/shared-ops/quoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Copy, Clock, CheckCircle, XCircle, FileText, User, MessageSquare, RefreshCw, UserPlus } from "lucide-react";
+import { ArrowLeft, Send, Copy, Clock, CheckCircle, XCircle, FileText, User, MessageSquare, RefreshCw, UserPlus, Download, ExternalLink, Link2, ArrowRightCircle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useQueryClient } from "@tanstack/react-query";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
   draft: { label: "Brouillon", variant: "secondary", icon: FileText },
@@ -29,12 +30,16 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 export default function EmployeeQuoteDetail() {
   const { quoteId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { quote, lines, adjustments, events, customer, isLoading, refetchAll } = useQuoteDetail(quoteId);
 
   if (isLoading) return <div className="text-center py-12 text-muted-foreground">Chargement...</div>;
   if (!quote) return <div className="text-center py-12 text-muted-foreground">Soumission introuvable</div>;
 
   const st = STATUS_CONFIG[quote.status] || { label: quote.status, variant: "secondary" as const, icon: FileText };
+  const canSend = ["approved"].includes(quote.status);
+  const canResend = ["sent", "viewed"].includes(quote.status);
+  const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
 
   const handleAction = async (action: string) => {
     try {
@@ -43,21 +48,48 @@ export default function EmployeeQuoteDetail() {
 
       if (action === "submit_review") {
         await updateQuoteStatus(quote.id, "pending_review", session.user.id, "employee", "Soumise pour approbation");
-      } else if (action === "send") {
+      } else if (action === "send" || action === "resend") {
         await sendQuote(quote.id, session.user.id, "employee");
+        toast.success("Soumission envoyée au client");
+        refetchAll();
+        return;
       } else if (action === "duplicate") {
         const newQuote = await duplicateQuote(quote.id, session.user.id, "employee");
         toast.success("Soumission dupliquée");
+        queryClient.invalidateQueries({ queryKey: ["quotes-list"] });
         navigate(employeePath(`/quotes/${newQuote.id}`));
         return;
       } else if (action === "followup") {
         await logFollowUp(quote.id, session.user.id, "employee");
+      } else if (action === "convert") {
+        const result = await convertQuoteToOrder(quote.id, session.user.id, "employee");
+        toast.success(`Commande ${result.orderNumber} créée`);
+        queryClient.invalidateQueries({ queryKey: ["quotes-list"] });
+        refetchAll();
+        return;
+      } else if (action === "pdf") {
+        await downloadQuotePDF(quote.id);
+        toast.success("PDF téléchargé");
+        return;
       }
 
       toast.success("Action effectuée");
       refetchAll();
     } catch (err: any) {
       toast.error(err.message);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (quote.public_token) {
+      navigator.clipboard.writeText(getQuotePublicUrl(quote.public_token));
+      toast.success("Lien public copié");
+    }
+  };
+
+  const handleOpenPublic = () => {
+    if (quote.public_token) {
+      window.open(getQuotePublicUrl(quote.public_token), "_blank");
     }
   };
 
@@ -83,27 +115,61 @@ export default function EmployeeQuoteDetail() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 flex-wrap justify-end">
           {quote.status === "draft" && (
             <Button size="sm" onClick={() => handleAction("submit_review")}>
               <Clock className="h-3.5 w-3.5 mr-1" /> Soumettre
             </Button>
           )}
-          {quote.status === "approved" && (
+          {canSend && (
             <Button size="sm" onClick={() => handleAction("send")}>
-              <Send className="h-3.5 w-3.5 mr-1" /> Envoyer
+              <Send className="h-3.5 w-3.5 mr-1" /> Envoyer au client
             </Button>
           )}
-          {["sent", "viewed"].includes(quote.status) && (
+          {canResend && (
+            <Button size="sm" variant="outline" onClick={() => handleAction("resend")}>
+              <Send className="h-3.5 w-3.5 mr-1" /> Renvoyer
+            </Button>
+          )}
+          {canResend && (
             <Button size="sm" variant="outline" onClick={() => handleAction("followup")}>
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => handleAction("duplicate")}>
+          {canConvert && (
+            <Button size="sm" variant="default" onClick={() => handleAction("convert")}>
+              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => handleAction("pdf")}>
+            <Download className="h-3.5 w-3.5 mr-1" /> PDF
+          </Button>
+          {quote.public_token && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                <Link2 className="h-3.5 w-3.5 mr-1" /> Copier lien
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleOpenPublic}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1" /> Aperçu
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => handleAction("duplicate")}>
             <Copy className="h-3.5 w-3.5 mr-1" /> Dupliquer
           </Button>
         </div>
       </div>
+
+      {/* Converted order link */}
+      {quote.converted_order_id && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+          <CheckCircle className="h-4 w-4 text-emerald-600" />
+          <span className="text-sm font-medium">Convertie en commande</span>
+          <Button size="sm" variant="outline" onClick={() => navigate(employeePath(`/orders/${quote.converted_order_id}`))}>
+            <ExternalLink className="h-3.5 w-3.5 mr-1" /> Voir commande
+          </Button>
+        </div>
+      )}
 
       {/* Follow-up info */}
       {(quote.last_followup_at || quote.last_sent_at) && (
