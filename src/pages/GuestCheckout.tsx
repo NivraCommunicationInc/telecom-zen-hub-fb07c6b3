@@ -1125,7 +1125,7 @@ const GuestCheckout = () => {
                     )}
                   </CardContent>
                 </Card>
-                <SecurityTrustBox isFrench className="mt-4" />
+                <div className="mt-4"><SecurityTrustBox isFrench /></div>
               </div>
             </div>
           )}
