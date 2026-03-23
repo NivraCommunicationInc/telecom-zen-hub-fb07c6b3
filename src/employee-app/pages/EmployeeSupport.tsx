@@ -134,7 +134,9 @@ export default function EmployeeSupport() {
       ) : (
         <div className="space-y-2">
           {tickets.map(t => (
-            <div key={t.id} className="rounded-lg border border-border bg-card p-3 hover:border-primary/20 transition-colors">
+            <div key={t.id}
+              onClick={() => navigate(employeePath(`/support/${t.id}`))}
+              className="rounded-lg border border-border bg-card p-3 hover:border-primary/20 transition-colors cursor-pointer">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
