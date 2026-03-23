@@ -1,14 +1,13 @@
 /**
- * EmployeeClientDetail — Phase 2: Rewired to shared-ops canonical layer.
- * Uses useClientProfile from shared-ops + addOperationalNote for notes.
- * UI preserved, data now canonical.
+ * EmployeeClientDetail — Phase 4: Full customer-service workspace.
+ * Uses shared-ops + CreateTicketDialog + EmployeePinReset + EscalationRequestDialog + DocumentActions.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, User, ShoppingCart, FileText, CreditCard,
   MapPin, Zap, MessageSquare, Shield, Clock, ChevronRight,
-  Phone, Mail, Hash,
+  Phone, Mail, Hash, Plus, AlertTriangle, Key,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -17,6 +16,10 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CustomerPinGate } from "@/employee-app/components/CustomerPinGate";
+import { CreateTicketDialog } from "@/employee-app/components/CreateTicketDialog";
+import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
+import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
+import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -46,6 +49,8 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const queryClient = useQueryClient();
   const [noteText, setNoteText] = useState("");
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const [showCreateTicket, setShowCreateTicket] = useState(false);
+  const [showEscalation, setShowEscalation] = useState(false);
 
   // Employee-specific: tickets + notes + locations (not in shared-ops since they're portal-specific)
   const { data: extras } = useQuery({
@@ -197,12 +202,36 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           </button>
         )}
         <button
-          onClick={() => navigate(employeePath("/support"))}
+          onClick={() => setShowCreateTicket(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
         >
-          <FileText className="h-3 w-3" /> Créer ticket
+          <Plus className="h-3 w-3" /> Créer ticket
+        </button>
+        <button
+          onClick={() => setShowEscalation(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-amber-400/70 hover:text-amber-400 hover:border-amber-500/30 transition-colors"
+        >
+          <AlertTriangle className="h-3 w-3" /> Escalation Core
         </button>
       </div>
+
+      {/* Dialogs */}
+      {showCreateTicket && (
+        <CreateTicketDialog
+          clientId={clientId}
+          clientName={profile.full_name ?? undefined}
+          clientEmail={profile.email ?? undefined}
+          onClose={() => setShowCreateTicket(false)}
+        />
+      )}
+      {showEscalation && (
+        <EscalationRequestDialog
+          clientId={clientId}
+          clientName={profile.full_name ?? undefined}
+          accountNumber={account?.account_number}
+          onClose={() => setShowEscalation(false)}
+        />
+      )}
 
       {/* Note input */}
       {showNoteInput && (
@@ -317,8 +346,23 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           )}
         </div>
 
-        {/* RIGHT: Tickets + Activity */}
+        {/* RIGHT: Tickets + Activity + PIN + Documents */}
         <div className="space-y-4">
+          {/* Documents */}
+          {orders.length > 0 && (
+            <DocumentActions
+              orderId={orders[0].id}
+              invoiceId={invoices[0]?.id}
+              clientEmail={profile.email ?? undefined}
+              clientName={profile.full_name ?? undefined}
+              orderNumber={orders[0].order_number}
+              invoiceNumber={invoices[0]?.invoice_number}
+            />
+          )}
+
+          {/* PIN Reset */}
+          <EmployeePinReset customerId={clientId} customerName={profile.full_name ?? undefined} />
+
           {/* Tickets */}
           <Section title="Tickets" icon={<FileText className="h-4 w-4" />}>
             {tickets.length === 0 ? (
@@ -326,7 +370,8 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             ) : (
               <div className="space-y-2">
                 {tickets.map((t: any) => (
-                  <div key={t.id} className="p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
+                  <Link key={t.id} to={employeePath(`/support/${t.id}`)}
+                    className="block p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)] hover:border-blue-500/20 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-xs text-white font-medium">{t.subject ?? t.ticket_number}</p>
@@ -336,7 +381,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
                       </div>
                       {statusBadge(t.status ?? "open")}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
