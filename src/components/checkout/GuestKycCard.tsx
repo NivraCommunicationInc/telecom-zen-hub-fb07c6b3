@@ -53,37 +53,9 @@ export const GuestKycCard = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [regenCount, setRegenCount] = useState(0);
-  const [maxRegen] = useState(3);
+  const maxRegen = 3;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const hasInit = useRef(false);
-
-  // ── Streaming-only bypass ──
-  if (isStreamingOnly) {
-    return (
-      <Card className="border-emerald-500/30 bg-emerald-500/5">
-        <CardContent className="py-5">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <div>
-              <p className="font-semibold text-sm text-foreground">Vérification non requise</p>
-              <p className="text-xs text-muted-foreground">
-                Les services Streaming+ ne nécessitent pas de vérification d'identité.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // ── Derive card-level status ──
-  const cardStatus: GuestKycStatus = sessionStatus
-    ? mapSessionToCardStatus(sessionStatus)
-    : "not_started";
-  const isTerminal = sessionStatus === "approved" || sessionStatus === "submitted" || sessionStatus === "manual_review";
-  const isExpired = sessionStatus === "expired";
-  const canRegenerate = regenCount < maxRegen;
 
   // ── Generate QR session ──
   const generateSession = useCallback(async (regenerateSessionId?: string) => {
@@ -117,7 +89,6 @@ export const GuestKycCard = ({
       }
 
       const data = await response.json();
-
       const fetchedUrl = data.verify_url;
       setVerifyUrl(fetchedUrl || null);
 
@@ -125,8 +96,7 @@ export const GuestKycCard = ({
       if (!qrImage && fetchedUrl) {
         try {
           qrImage = await QRCode.toDataURL(fetchedUrl, {
-            width: 240,
-            margin: 2,
+            width: 240, margin: 2,
             color: { dark: "#000000", light: "#FFFFFF" },
             errorCorrectionLevel: "H",
           });
@@ -141,7 +111,6 @@ export const GuestKycCard = ({
       setSessionStatus("created");
       setExpiresAt(data.expires_at ? new Date(data.expires_at) : null);
       setRegenCount(data.qr_regeneration_count || 0);
-
       onStatusChange("in_progress", newSessionId);
     } catch (err: any) {
       console.error("[GuestKYC] Session generation failed:", err.message);
@@ -155,7 +124,6 @@ export const GuestKycCard = ({
   // ── Poll session status ──
   useEffect(() => {
     if (!sessionId) return;
-
     const poll = async () => {
       try {
         const { data } = await supabase
@@ -163,26 +131,20 @@ export const GuestKycCard = ({
           .select("status")
           .eq("id", sessionId)
           .single();
-
         if (data && data.status !== sessionStatus) {
-          const newStatus = data.status as SessionStatus;
-          setSessionStatus(newStatus);
-          const mapped = mapSessionToCardStatus(newStatus);
-          onStatusChange(mapped, sessionId);
-
-          if (newStatus === "submitted" || newStatus === "manual_review") {
+          const ns = data.status as SessionStatus;
+          setSessionStatus(ns);
+          onStatusChange(mapSessionToCardStatus(ns), sessionId);
+          if (ns === "submitted" || ns === "manual_review") {
             toast.success("Documents soumis — en vérification. Vous pouvez continuer.");
-          } else if (newStatus === "approved") {
+          } else if (ns === "approved") {
             toast.success("Identité vérifiée avec succès !");
-          } else if (newStatus === "rejected") {
+          } else if (ns === "rejected") {
             toast.error("Vérification refusée. Veuillez réessayer.");
           }
         }
-      } catch {
-        // silently ignore polling errors
-      }
+      } catch { /* silent */ }
     };
-
     pollRef.current = setInterval(poll, 3000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [sessionId, sessionStatus, onStatusChange]);
@@ -190,21 +152,15 @@ export const GuestKycCard = ({
   // ── Countdown ──
   useEffect(() => {
     if (!expiresAt) return;
-
-    const update = () => {
+    const tick = () => {
       const diff = expiresAt.getTime() - Date.now();
-      if (diff <= 0) {
-        setTimeLeft("00:00");
-        setSessionStatus("expired");
-        return;
-      }
+      if (diff <= 0) { setTimeLeft("00:00"); setSessionStatus("expired"); return; }
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setTimeLeft(`${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
     };
-
-    update();
-    timerRef.current = setInterval(update, 1000);
+    tick();
+    timerRef.current = setInterval(tick, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [expiresAt]);
 
@@ -216,12 +172,28 @@ export const GuestKycCard = ({
     };
   }, []);
 
-  const handleStart = () => {
-    if (!hasInit.current) {
-      hasInit.current = true;
-    }
-    generateSession();
-  };
+  // ── Streaming-only bypass ──
+  if (isStreamingOnly) {
+    return (
+      <Card className="border-emerald-500/30 bg-emerald-500/5">
+        <CardContent className="py-5">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <p className="font-semibold text-sm text-foreground">Vérification non requise</p>
+              <p className="text-xs text-muted-foreground">
+                Les services Streaming+ ne nécessitent pas de vérification d'identité.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isTerminal = sessionStatus === "approved" || sessionStatus === "submitted" || sessionStatus === "manual_review";
+  const isExpired = sessionStatus === "expired";
+  const canRegenerate = regenCount < maxRegen;
 
   const handleRegenerate = () => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -230,16 +202,10 @@ export const GuestKycCard = ({
   };
 
   const handleMobileLaunch = () => {
-    if (verifyUrl) {
-      window.open(verifyUrl, "_blank", "noopener,noreferrer");
-    }
+    if (verifyUrl) window.open(verifyUrl, "_blank", "noopener,noreferrer");
   };
 
-  // ═══════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════
-
-  // ── Completed state ──
+  // ═══ COMPLETED ═══
   if (isTerminal) {
     return (
       <Card className="border-emerald-500/30 bg-emerald-500/5">
@@ -250,9 +216,7 @@ export const GuestKycCard = ({
             </div>
             <div>
               <p className="font-semibold text-foreground">
-                {sessionStatus === "approved"
-                  ? "Identité vérifiée"
-                  : "Documents soumis"}
+                {sessionStatus === "approved" ? "Identité vérifiée" : "Documents soumis"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {sessionStatus === "approved"
@@ -272,25 +236,21 @@ export const GuestKycCard = ({
     );
   }
 
-  // ── Not started state ──
+  // ═══ NOT STARTED ═══
   if (!sessionId && !loading) {
     return (
       <Card className="border-primary/20 bg-primary/[0.02]">
         <CardContent className="py-6 space-y-5">
-          {/* Header */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">Vérification d'identité</h3>
-              <p className="text-xs text-muted-foreground">
-                Requis pour sécuriser votre commande
-              </p>
+              <p className="text-xs text-muted-foreground">Requis pour sécuriser votre commande</p>
             </div>
           </div>
 
-          {/* Instructions */}
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <p className="text-sm font-medium text-foreground">Comment ça fonctionne :</p>
             <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
@@ -312,25 +272,15 @@ export const GuestKycCard = ({
             </ol>
           </div>
 
-          {/* CTA */}
           <Button
-            onClick={handleStart}
+            onClick={() => generateSession()}
             className="w-full py-5 text-sm font-semibold"
             disabled={loading}
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : isMobile ? (
-              <Camera className="w-4 h-4 mr-2" />
-            ) : (
-              <QrCode className="w-4 h-4 mr-2" />
-            )}
-            {isMobile
-              ? "Commencer la vérification"
-              : "Générer le code QR"}
+            {isMobile ? <Camera className="w-4 h-4 mr-2" /> : <QrCode className="w-4 h-4 mr-2" />}
+            {isMobile ? "Commencer la vérification" : "Générer le code QR"}
           </Button>
 
-          {/* Security notice */}
           <div className="flex items-start gap-2">
             <Lock className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-[11px] text-muted-foreground">
@@ -342,7 +292,7 @@ export const GuestKycCard = ({
     );
   }
 
-  // ── Active session (QR visible / mobile link) ──
+  // ═══ ACTIVE SESSION ═══
   return (
     <Card className="border-primary/20 bg-primary/[0.02]">
       <CardContent className="py-6 space-y-5">
@@ -365,14 +315,13 @@ export const GuestKycCard = ({
           )}
         </div>
 
-        {/* Error state */}
+        {/* Error */}
         {error && (
           <div className="flex flex-col items-center bg-destructive/5 border border-destructive/20 rounded-lg p-5 text-center">
             <XCircle className="w-8 h-8 text-destructive mb-2" />
             <p className="text-sm text-destructive mb-3">{error}</p>
             <Button onClick={() => generateSession()} variant="outline" size="sm">
-              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-              Réessayer
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Réessayer
             </Button>
           </div>
         )}
@@ -384,11 +333,10 @@ export const GuestKycCard = ({
           </div>
         )}
 
-        {/* QR / Mobile CTA */}
+        {/* Content */}
         {!loading && !error && (
           <>
             {isMobile ? (
-              /* ── MOBILE: Direct button ── */
               <div className="space-y-4">
                 <div className="bg-muted/50 rounded-lg p-4">
                   <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
@@ -397,17 +345,11 @@ export const GuestKycCard = ({
                     <li>Soumettez, puis revenez ici</li>
                   </ol>
                 </div>
-
                 {verifyUrl && !isExpired && (
-                  <Button
-                    onClick={handleMobileLaunch}
-                    className="w-full py-5 text-sm font-semibold"
-                  >
-                    <Camera className="w-4 h-4 mr-2" />
-                    Commencer la vérification
+                  <Button onClick={handleMobileLaunch} className="w-full py-5 text-sm font-semibold">
+                    <Camera className="w-4 h-4 mr-2" /> Commencer la vérification
                   </Button>
                 )}
-
                 {isExpired && (
                   <div className="text-center py-4">
                     <AlertCircle className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
@@ -416,25 +358,20 @@ export const GuestKycCard = ({
                 )}
               </div>
             ) : (
-              /* ── DESKTOP: QR Code ── */
               <div className="flex gap-6">
-                {/* Instructions */}
                 <div className="flex-1 space-y-3">
                   <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
                     <li>Scannez le code QR avec votre téléphone</li>
                     <li>Prenez une photo de votre pièce d'identité</li>
                     <li>Soumettez vos documents</li>
-                    <li>Le statut se met à jour automatiquement ici</li>
+                    <li>Le statut se met à jour automatiquement</li>
                   </ol>
-
                   {!isExpired && (
                     <p className="text-xs font-medium text-foreground">
                       Ce code expire dans {timeLeft || "20:00"}. Ne fermez pas votre navigateur.
                     </p>
                   )}
                 </div>
-
-                {/* QR */}
                 <div className="flex flex-col items-center gap-3">
                   {qrDataUrl ? (
                     <div className={`p-2 bg-background rounded-xl border-2 shadow-sm ${
@@ -447,37 +384,25 @@ export const GuestKycCard = ({
                       <QrCode className="w-10 h-10 text-muted-foreground/40" />
                     </div>
                   )}
-
-                  {isExpired && (
-                    <p className="text-xs text-destructive font-medium">Expiré</p>
-                  )}
+                  {isExpired && <p className="text-xs text-destructive font-medium">Expiré</p>}
                 </div>
               </div>
             )}
           </>
         )}
 
-        {/* Status indicator */}
+        {/* Status */}
         {sessionStatus && (
           <div className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium ${
-            sessionStatus === "approved" ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" :
-            sessionStatus === "submitted" || sessionStatus === "manual_review"
-              ? "bg-amber-500/10 text-amber-600 border border-amber-500/20" :
-            sessionStatus === "rejected" ? "bg-destructive/10 text-destructive border border-destructive/20" :
+            sessionStatus === "created" ? "bg-primary/5 text-primary border border-primary/20" :
             sessionStatus === "expired" ? "bg-muted text-muted-foreground border border-border" :
-            "bg-primary/5 text-primary border border-primary/20"
+            "bg-destructive/10 text-destructive border border-destructive/20"
           }`}>
             {sessionStatus === "created" && <Loader2 className="w-4 h-4 animate-spin" />}
-            {sessionStatus === "submitted" && <Loader2 className="w-4 h-4 animate-spin" />}
-            {sessionStatus === "manual_review" && <Loader2 className="w-4 h-4 animate-spin" />}
-            {sessionStatus === "approved" && <CheckCircle2 className="w-4 h-4" />}
             {sessionStatus === "rejected" && <XCircle className="w-4 h-4" />}
             {sessionStatus === "expired" && <Clock className="w-4 h-4" />}
             <span>
               {sessionStatus === "created" && "En attente de soumission…"}
-              {sessionStatus === "submitted" && "Documents soumis — vérification en cours"}
-              {sessionStatus === "manual_review" && "Documents soumis — vérification en cours"}
-              {sessionStatus === "approved" && "Identité vérifiée ✓"}
               {sessionStatus === "rejected" && "Vérification refusée"}
               {sessionStatus === "expired" && "Session expirée"}
             </span>
@@ -486,18 +411,11 @@ export const GuestKycCard = ({
 
         {/* Regenerate */}
         {(isExpired || sessionStatus === "rejected") && (
-          <Button
-            onClick={handleRegenerate}
-            variant="outline"
-            className="w-full"
-            disabled={loading || !canRegenerate}
-          >
+          <Button onClick={handleRegenerate} variant="outline" className="w-full" disabled={loading || !canRegenerate}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             {!canRegenerate
               ? `Limite atteinte (${maxRegen}/${maxRegen})`
-              : isMobile
-                ? "Relancer la vérification"
-                : "Régénérer le code QR"}
+              : isMobile ? "Relancer la vérification" : "Régénérer le code QR"}
           </Button>
         )}
 
