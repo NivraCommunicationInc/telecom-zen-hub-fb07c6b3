@@ -699,7 +699,7 @@ export async function addAccountPromotion(params: {
 
   await logInternalAudit({
     action: "promotion_added",
-    category: "billing",
+    category: "operations",
     targetType: "account",
     targetId: params.accountId,
     details: {
