@@ -49,6 +49,8 @@ const EmployeeAppointments = lazy(() => import("@/employee-app/pages/EmployeeApp
 const EmployeeAppointmentDetail = lazy(() => import("@/employee-app/pages/EmployeeAppointmentDetail"));
 const EmployeeInvoiceDetail = lazy(() => import("@/employee-app/pages/EmployeeInvoiceDetail"));
 const EmployeeSubscriptionDetail = lazy(() => import("@/employee-app/pages/EmployeeSubscriptionDetail"));
+const EmployeeAccounts = lazy(() => import("@/employee-app/pages/EmployeeAccounts"));
+const EmployeeAccountDetail = lazy(() => import("@/employee-app/pages/EmployeeAccountDetail"));
 
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
@@ -778,6 +780,8 @@ const AppRoutes = () => {
           <Route path="orders/:orderId" element={<Suspense fallback={null}><EmployeeOrderDetail /></Suspense>} />
           <Route path="clients" element={<Suspense fallback={null}><EmployeeClients /></Suspense>} />
           <Route path="clients/:clientId" element={<Suspense fallback={null}><EmployeeClientDetail /></Suspense>} />
+          <Route path="accounts" element={<Suspense fallback={null}><EmployeeAccounts /></Suspense>} />
+          <Route path="accounts/:accountId" element={<Suspense fallback={null}><EmployeeAccountDetail /></Suspense>} />
           <Route path="payments" element={<Suspense fallback={null}><EmployeePayments /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><EmployeeKYC /></Suspense>} />
           <Route path="activations" element={<Suspense fallback={null}><EmployeeActivations /></Suspense>} />

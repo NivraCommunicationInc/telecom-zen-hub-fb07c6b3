@@ -29,6 +29,7 @@ const navGroups = [
     label: "Service client",
     items: [
       { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users },
+      { label: "Comptes", href: `${EMP_BASE}/accounts`, icon: Briefcase },
       { label: "Commandes", href: `${EMP_BASE}/orders`, icon: ShoppingCart },
       { label: "Paiements", href: `${EMP_BASE}/payments`, icon: CreditCard },
       { label: "Support", href: `${EMP_BASE}/support`, icon: Headphones },
