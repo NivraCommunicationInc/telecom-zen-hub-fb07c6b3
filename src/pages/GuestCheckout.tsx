@@ -400,12 +400,11 @@ const GuestCheckout = () => {
           paypal_capture_id: paypalCaptureId || null,
         },
         identity: isStreamingOnlyOrder ? null : {
-          document_type: identityData.documentType,
-          document_number: identityData.documentNumber,
-          expiration_date: identityData.expirationDate,
-          issuing_province: identityData.issuingProvince,
-          has_front_photo: !!identityData.frontPhoto,
-          has_back_photo: !!identityData.backPhoto,
+          verification_session_id: `guest_${clientRequestIdRef.current}`,
+          id_type: identityData.documentType || null,
+          id_number: identityData.documentNumber || null,
+          id_expiration: identityData.expirationDate || null,
+          id_province: identityData.issuingProvince || null,
         },
         installation: {
           type: installationChoice || "auto",
