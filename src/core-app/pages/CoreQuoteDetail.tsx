@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   approveQuote, rejectQuote, updateQuoteStatus, convertQuoteToOrder, sendQuote,
   addQuoteLine, removeQuoteLine, addQuoteAdjustment, removeQuoteAdjustment, recalculateQuoteTotals,
-  downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, logFollowUp,
+  downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, logFollowUp, getQuoteCheckoutUrl, sendCheckoutLink,
 } from "@/shared-ops/quoteOperations";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
