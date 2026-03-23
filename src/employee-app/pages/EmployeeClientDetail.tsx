@@ -243,6 +243,18 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           onClose={() => setShowEscalation(false)}
         />
       )}
+      {paymentInvoice && (
+        <RecordPaymentDialog
+          open={!!paymentInvoice}
+          onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
+          invoiceId={paymentInvoice.id}
+          customerId={paymentInvoice.customer_id}
+          invoiceNumber={paymentInvoice.invoice_number}
+          balanceDue={paymentInvoice.balance_due ?? paymentInvoice.total}
+          portal="employee"
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["shared-client-profile", clientId] })}
+        />
+      )}
 
       {/* Note input */}
       {showNoteInput && (
