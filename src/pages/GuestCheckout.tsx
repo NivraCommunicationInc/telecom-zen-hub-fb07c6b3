@@ -20,7 +20,7 @@ import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
-import { GuestIdentityVerification, createEmptyIdentityData, type GuestIdentityData } from "@/components/checkout/GuestIdentityVerification";
+import { GuestKycCard, type GuestKycStatus } from "@/components/checkout/GuestKycCard";
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
