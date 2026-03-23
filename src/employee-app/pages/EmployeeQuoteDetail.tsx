@@ -4,53 +4,50 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useQuoteDetail } from "@/shared-ops/useQuoteDetail";
-import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, getQuoteCheckoutUrl, sendCheckoutLink } from "@/shared-ops/quoteOperations";
+import {
+  updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder,
+  downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, getQuoteCheckoutUrl, sendCheckoutLink,
+  QUOTE_STATUS_CONFIG,
+} from "@/shared-ops/quoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Copy, Clock, CheckCircle, XCircle, FileText, User, MessageSquare, RefreshCw, UserPlus, Download, ExternalLink, Link2, ArrowRightCircle } from "lucide-react";
+import {
+  ArrowLeft, Send, Copy, Clock, CheckCircle, XCircle, FileText, User,
+  MessageSquare, RefreshCw, UserPlus, Download, ExternalLink, Link2,
+  ArrowRightCircle, Loader2
+} from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
-
-const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-  draft: { label: "Brouillon", variant: "secondary", icon: FileText },
-  pending_review: { label: "En révision", variant: "outline", icon: Clock },
-  approved: { label: "Approuvée", variant: "default", icon: CheckCircle },
-  sent: { label: "Envoyée", variant: "default", icon: Send },
-  viewed: { label: "Consultée", variant: "outline", icon: FileText },
-  accepted: { label: "Acceptée", variant: "default", icon: CheckCircle },
-  rejected: { label: "Rejetée", variant: "destructive", icon: XCircle },
-  expired: { label: "Expirée", variant: "secondary", icon: Clock },
-  converted: { label: "Convertie", variant: "default", icon: CheckCircle },
-};
-
-const CHECKOUT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  not_started: { label: "Checkout non démarré", color: "text-amber-600" },
-  in_progress: { label: "Checkout en cours", color: "text-blue-600" },
-  completed: { label: "Checkout complété", color: "text-emerald-600" },
-};
+import { useState } from "react";
 
 export default function EmployeeQuoteDetail() {
   const { quoteId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { quote, lines, adjustments, events, customer, isLoading, refetchAll } = useQuoteDetail(quoteId);
+  const [processing, setProcessing] = useState(false);
 
   if (isLoading) return <div className="text-center py-12 text-muted-foreground">Chargement...</div>;
   if (!quote) return <div className="text-center py-12 text-muted-foreground">Soumission introuvable</div>;
 
-  const st = STATUS_CONFIG[quote.status] || { label: quote.status, variant: "secondary" as const, icon: FileText };
-  const canSend = ["approved"].includes(quote.status);
-  const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
-  const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
-  const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
-  const isAcceptedPendingCheckout = quote.status === "accepted" && quote.checkout_status !== "completed";
-  const checkoutSt = CHECKOUT_STATUS_LABELS[quote.checkout_status] || null;
+  const st = QUOTE_STATUS_CONFIG[quote.status] || { label: quote.status, variant: "secondary" as const };
+  const canSend = quote.status === "approved";
+  const canResend = ["sent", "viewed"].includes(quote.status);
+  const canFollowUp = ["sent", "viewed", "accepted_pending_checkout"].includes(quote.status);
+  
+  // Checkout flow statuses
+  const isAcceptedPendingCheckout = quote.status === "accepted_pending_checkout";
+  const isCheckoutInProgress = quote.status === "checkout_in_progress";
+  const isCheckoutCompleted = quote.status === "checkout_completed";
+  const canConvert = isCheckoutCompleted && !quote.converted_order_id;
+  const isConverted = quote.status === "converted";
 
   const handleAction = async (action: string) => {
+    setProcessing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -60,13 +57,9 @@ export default function EmployeeQuoteDetail() {
       } else if (action === "send") {
         await sendQuote(quote.id, session.user.id, "employee");
         toast.success("Soumission envoyée au client");
-        refetchAll();
-        return;
       } else if (action === "resend") {
         await resendQuoteEmail(quote.id, session.user.id, "employee");
         toast.success("Courriel renvoyé au client");
-        refetchAll();
-        return;
       } else if (action === "duplicate") {
         const newQuote = await duplicateQuote(quote.id, session.user.id, "employee");
         toast.success("Soumission dupliquée");
@@ -79,24 +72,19 @@ export default function EmployeeQuoteDetail() {
         const result = await convertQuoteToOrder(quote.id, session.user.id, "employee");
         toast.success(`Commande ${result.orderNumber} créée`);
         queryClient.invalidateQueries({ queryKey: ["quotes-list"] });
-        refetchAll();
-        return;
       } else if (action === "checkout_link") {
         const result = await sendCheckoutLink(quote.id, session.user.id, "employee");
-        navigator.clipboard.writeText(result.checkoutUrl);
-        toast.success("Lien de finalisation copié dans le presse-papier");
-        refetchAll();
-        return;
+        toast.success(`Lien de finalisation envoyé à ${result.recipientEmail}`);
       } else if (action === "pdf") {
         await downloadQuotePDF(quote.id);
         toast.success("PDF téléchargé");
-        return;
       }
 
-      toast.success("Action effectuée");
       refetchAll();
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -137,36 +125,46 @@ export default function EmployeeQuoteDetail() {
         </div>
         <div className="flex gap-1.5 flex-wrap justify-end">
           {quote.status === "draft" && (
-            <Button size="sm" onClick={() => handleAction("submit_review")}>
+            <Button size="sm" onClick={() => handleAction("submit_review")} disabled={processing}>
               <Clock className="h-3.5 w-3.5 mr-1" /> Soumettre
             </Button>
           )}
           {canSend && (
-            <Button size="sm" onClick={() => handleAction("send")}>
+            <Button size="sm" onClick={() => handleAction("send")} disabled={processing}>
               <Send className="h-3.5 w-3.5 mr-1" /> Envoyer au client
             </Button>
           )}
           {canResend && (
-            <Button size="sm" variant="outline" onClick={() => handleAction("resend")}>
+            <Button size="sm" variant="outline" onClick={() => handleAction("resend")} disabled={processing}>
               <Send className="h-3.5 w-3.5 mr-1" /> Renvoyer
             </Button>
           )}
           {canFollowUp && (
-            <Button size="sm" variant="outline" onClick={() => handleAction("followup")}>
+            <Button size="sm" variant="outline" onClick={() => handleAction("followup")} disabled={processing}>
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
             </Button>
           )}
+          {/* Primary CTA: Send checkout link when accepted but checkout not done */}
           {isAcceptedPendingCheckout && (
-            <Button size="sm" variant="default" onClick={() => handleAction("checkout_link")}>
-              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Envoyer lien de finalisation
+            <Button size="sm" variant="default" onClick={() => handleAction("checkout_link")} disabled={processing}>
+              {processing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5 mr-1" />}
+              Envoyer lien de finalisation
             </Button>
           )}
-          {canConvert && !isAcceptedPendingCheckout && (
-            <Button size="sm" variant="default" onClick={() => handleAction("convert")}>
-              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir en commande
+          {/* Checkout in progress: show status only */}
+          {isCheckoutInProgress && (
+            <Button size="sm" variant="outline" onClick={() => handleAction("checkout_link")} disabled={processing}>
+              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Renvoyer lien de finalisation
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => handleAction("pdf")}>
+          {/* Checkout completed: create order */}
+          {canConvert && (
+            <Button size="sm" variant="default" onClick={() => handleAction("convert")} disabled={processing}>
+              {processing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ArrowRightCircle className="h-3.5 w-3.5 mr-1" />}
+              Créer la commande
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => handleAction("pdf")} disabled={processing}>
             <Download className="h-3.5 w-3.5 mr-1" /> PDF
           </Button>
           {quote.public_token && (
@@ -179,7 +177,7 @@ export default function EmployeeQuoteDetail() {
               </Button>
             </>
           )}
-          <Button variant="ghost" size="sm" onClick={() => handleAction("duplicate")}>
+          <Button variant="ghost" size="sm" onClick={() => handleAction("duplicate")} disabled={processing}>
             <Copy className="h-3.5 w-3.5 mr-1" /> Dupliquer
           </Button>
         </div>
@@ -196,11 +194,11 @@ export default function EmployeeQuoteDetail() {
         </div>
       )}
 
-      {/* Checkout status for accepted quotes */}
-      {quote.status === "accepted" && checkoutSt && (
-        <div className={`flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30`}>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <span className={`text-sm font-medium ${checkoutSt.color}`}>{checkoutSt.label}</span>
+      {/* Checkout status banners */}
+      {isAcceptedPendingCheckout && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+          <Clock className="h-4 w-4 text-amber-600" />
+          <span className="text-sm font-medium text-amber-600">Acceptée — En attente de finalisation client</span>
           {quote.checkout_token && (
             <Button size="sm" variant="outline" onClick={() => {
               navigator.clipboard.writeText(getQuoteCheckoutUrl(quote.checkout_token));
@@ -209,6 +207,18 @@ export default function EmployeeQuoteDetail() {
               <Link2 className="h-3.5 w-3.5 mr-1" /> Copier lien checkout
             </Button>
           )}
+        </div>
+      )}
+      {isCheckoutInProgress && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+          <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+          <span className="text-sm font-medium text-blue-600">Checkout en cours par le client</span>
+        </div>
+      )}
+      {isCheckoutCompleted && !isConverted && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+          <CheckCircle className="h-4 w-4 text-emerald-600" />
+          <span className="text-sm font-medium text-emerald-600">Checkout complété — Prêt pour conversion</span>
         </div>
       )}
 

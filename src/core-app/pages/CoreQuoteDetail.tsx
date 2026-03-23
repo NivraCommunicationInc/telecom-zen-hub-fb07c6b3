@@ -34,6 +34,9 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   approved: { label: "Approuvée", variant: "default" },
   sent: { label: "Envoyée", variant: "default" },
   viewed: { label: "Consultée", variant: "outline" },
+  accepted_pending_checkout: { label: "Acceptée — Checkout requis", variant: "outline" },
+  checkout_in_progress: { label: "Checkout en cours", variant: "outline" },
+  checkout_completed: { label: "Checkout complété", variant: "default" },
   accepted: { label: "Acceptée", variant: "default" },
   rejected: { label: "Rejetée", variant: "destructive" },
   expired: { label: "Expirée", variant: "secondary" },
@@ -81,11 +84,13 @@ export default function CoreQuoteDetail() {
   const st = STATUS_CONFIG[quote.status] || { label: quote.status, variant: "secondary" as const };
   const canEdit = ["draft", "pending_review"].includes(quote.status);
   const canApprove = ["pending_review"].includes(quote.status);
-  const canSend = ["approved"].includes(quote.status);
-  const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
-  const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
-  const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
-  const isAcceptedPendingCheckout = quote.status === "accepted" && quote.checkout_status !== "completed";
+  const canSend = quote.status === "approved";
+  const canResend = ["sent", "viewed"].includes(quote.status);
+  const canFollowUp = ["sent", "viewed", "accepted_pending_checkout"].includes(quote.status);
+  const isAcceptedPendingCheckout = quote.status === "accepted_pending_checkout";
+  const isCheckoutInProgress = quote.status === "checkout_in_progress";
+  const isCheckoutCompleted = quote.status === "checkout_completed";
+  const canConvert = isCheckoutCompleted && !quote.converted_order_id;
 
   const clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : (customer?.full_name || "—");
   const clientEmail = quote.is_prospect ? quote.prospect_email : customer?.email;
@@ -303,9 +308,14 @@ export default function CoreQuoteDetail() {
               <ExternalLink className="h-3.5 w-3.5 mr-1" /> Envoyer lien de finalisation
             </Button>
           )}
-          {canConvert && !isAcceptedPendingCheckout && (
+          {isCheckoutInProgress && (
+            <Button size="sm" variant="outline" onClick={handleCheckoutLink} disabled={processing}>
+              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Renvoyer lien
+            </Button>
+          )}
+          {canConvert && (
             <Button size="sm" variant="default" onClick={() => setShowConvertDialog(true)} disabled={processing}>
-              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir en commande
+              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Créer la commande
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleDownloadPDF}>

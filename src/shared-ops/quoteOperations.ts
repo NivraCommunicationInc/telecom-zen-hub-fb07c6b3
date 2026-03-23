@@ -10,9 +10,8 @@ import { generateQuotePDF, type QuotePDFData } from "@/lib/pdf/quoteTemplate";
 
 export type QuoteStatus =
   | "draft" | "pending_review" | "approved" | "sent"
-  | "viewed" | "accepted" | "rejected" | "expired" | "converted";
-
-export type CheckoutStatus = "not_started" | "in_progress" | "completed";
+  | "viewed" | "accepted_pending_checkout" | "checkout_in_progress"
+  | "checkout_completed" | "rejected" | "expired" | "converted";
 
 export type QuoteLineType =
   | "catalog_service" | "manual_fee" | "activation_fee"
@@ -38,6 +37,21 @@ export interface QuoteAdjustment {
   source: "employee_proposed" | "admin_approved" | "system";
   requires_approval: boolean;
 }
+
+// ─── Status display config ──────────────────────────────────────────
+export const QUOTE_STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; description?: string }> = {
+  draft: { label: "Brouillon", variant: "secondary" },
+  pending_review: { label: "En révision", variant: "outline" },
+  approved: { label: "Approuvée", variant: "default" },
+  sent: { label: "Envoyée", variant: "default" },
+  viewed: { label: "Consultée", variant: "outline" },
+  accepted_pending_checkout: { label: "Acceptée — Checkout requis", variant: "outline", description: "Le client a accepté, en attente de finalisation" },
+  checkout_in_progress: { label: "Checkout en cours", variant: "outline", description: "Le client est en train de compléter le formulaire" },
+  checkout_completed: { label: "Checkout complété", variant: "default", description: "Prêt pour conversion en commande" },
+  rejected: { label: "Rejetée", variant: "destructive" },
+  expired: { label: "Expirée", variant: "secondary" },
+  converted: { label: "Convertie", variant: "default" },
+};
 
 // ─── 1. Create Draft ──────────────────────────────────────────────────
 
@@ -336,17 +350,15 @@ export async function logFollowUp(quoteId: string, actorUserId: string, actorRol
   });
 }
 
-// ─── 12. Accept Quote (Client-side) — NO auto-conversion ────────────
+// ─── 12. Accept Quote (Client-side) — Sets accepted_pending_checkout ─
 
 export async function acceptQuoteByClient(quoteId: string, publicToken: string) {
-  // Generate a checkout token for the dedicated quote checkout form
   const checkoutToken = crypto.randomUUID();
   
   const { error } = await supabase
     .from("quotes" as any)
     .update({
-      status: "accepted",
-      checkout_status: "not_started",
+      status: "accepted_pending_checkout",
       checkout_token: checkoutToken,
     })
     .eq("id", quoteId)
@@ -358,13 +370,13 @@ export async function acceptQuoteByClient(quoteId: string, publicToken: string) 
     quote_id: quoteId,
     event_type: "accepted_by_client",
     actor_role: "client",
-    message: "Le client a accepté la soumission",
+    message: "Le client a accepté la soumission — checkout requis",
   });
 
   return { checkoutToken };
 }
 
-// ─── 13. Convert Quote to Order (Staff only, after checkout completed) ─
+// ─── 13. Convert Quote to Order — ONLY if checkout_completed ─────────
 
 export async function convertQuoteToOrder(quoteId: string, actorUserId: string, actorRole: string) {
   const { data: quote, error: qErr } = await supabase
@@ -377,8 +389,12 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
   if (quote.converted_order_id) {
     throw new Error("Cette soumission a déjà été convertie en commande.");
   }
-  if (!["approved", "accepted"].includes(quote.status)) {
-    throw new Error(`Cannot convert quote with status: ${quote.status}. Must be approved or accepted.`);
+
+  // ═══ RULE: Conversion ONLY allowed when checkout is completed ═══
+  if (quote.status !== "checkout_completed") {
+    throw new Error(
+      `Conversion impossible. Le checkout client doit être complété avant de créer la commande. Statut actuel: ${quote.status}`
+    );
   }
 
   const { data: lines } = await supabase
@@ -448,7 +464,7 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
 
   await supabase
     .from("quotes" as any)
-    .update({ status: "converted", converted_order_id: order.id, checkout_status: "completed" })
+    .update({ status: "converted", converted_order_id: order.id })
     .eq("id", quoteId);
 
   await logQuoteEvent(quoteId, "converted_to_order", actorUserId, actorRole, `Convertie en commande ${orderNumber}`, { order_id: order.id, order_number: orderNumber });
@@ -523,13 +539,12 @@ export function getQuoteCheckoutUrl(checkoutToken: string): string {
   return `${window.location.origin}/quote-checkout?token=${checkoutToken}`;
 }
 
-// ─── 17. Send Checkout Link ─────────────────────────────────────────
+// ─── 17. Send Checkout Link — Real email via email_queue ─────────────
 
 export async function sendCheckoutLink(quoteId: string, actorUserId: string, actorRole: string) {
-  // Ensure checkout token exists
   const { data: quote } = await supabase
     .from("quotes" as any)
-    .select("checkout_token, prospect_email, customer_user_id, is_prospect, quote_number")
+    .select("checkout_token, prospect_email, customer_user_id, is_prospect, quote_number, total_due_now, total_monthly")
     .eq("id", quoteId)
     .single();
 
@@ -541,12 +556,122 @@ export async function sendCheckoutLink(quoteId: string, actorUserId: string, act
     await supabase.from("quotes" as any).update({ checkout_token: checkoutToken }).eq("id", quoteId);
   }
 
-  // For now, copy to clipboard. Email integration can be added later.
-  const url = getQuoteCheckoutUrl(checkoutToken);
-  
-  await logQuoteEvent(quoteId, "checkout_link_generated", actorUserId, actorRole, `Lien de finalisation généré`);
-  
-  return { checkoutUrl: url, checkoutToken };
+  const checkoutUrl = getQuoteCheckoutUrl(checkoutToken);
+
+  // Resolve recipient email
+  let recipientEmail: string | null = null;
+  if (quote.is_prospect) {
+    recipientEmail = quote.prospect_email;
+  } else if (quote.customer_user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("user_id", quote.customer_user_id)
+      .maybeSingle();
+    recipientEmail = profile?.email || null;
+  }
+
+  if (!recipientEmail) {
+    throw new Error("Aucun courriel client trouvé pour envoyer le lien de finalisation.");
+  }
+
+  // Send real transactional email via email_queue (custom_html passthrough)
+  const emailHtml = buildCheckoutEmailHtml({
+    quoteNumber: quote.quote_number || quoteId,
+    checkoutUrl,
+    totalDueNow: Number(quote.total_due_now || 0),
+    totalMonthly: Number(quote.total_monthly || 0),
+  });
+
+  const { error: emailErr } = await supabase
+    .from("email_queue" as any)
+    .insert({
+      event_key: `quote_checkout_${quoteId}_${Date.now()}`,
+      to_email: recipientEmail,
+      template_key: "custom_html",
+      template_vars: {
+        _html: emailHtml,
+        _subject: `Finalisez votre commande — Soumission ${quote.quote_number || ""}`,
+        _from_email: "Nivra Télécom <Support@nivra-telecom.ca>",
+        _reply_to: "Support@nivra-telecom.ca",
+      },
+      from_email: "Nivra Télécom <Support@nivra-telecom.ca>",
+      subject: `Finalisez votre commande — Soumission ${quote.quote_number || ""}`,
+      message_type: "quote_checkout_link",
+      entity_type: "quote",
+      entity_id: quoteId,
+      status: "queued",
+      attempts: 0,
+      max_attempts: 5,
+    });
+
+  if (emailErr) {
+    console.error("[sendCheckoutLink] Email queue error:", emailErr);
+    throw new Error(`Erreur d'envoi du courriel: ${emailErr.message}`);
+  }
+
+  await logQuoteEvent(quoteId, "checkout_link_sent", actorUserId, actorRole, `Lien de finalisation envoyé à ${recipientEmail}`);
+
+  await logInternalAudit({
+    action: "quote_checkout_link_sent",
+    category: "operations",
+    targetType: "quote",
+    targetId: quoteId,
+    details: { recipient: recipientEmail, checkout_url: checkoutUrl },
+  });
+
+  return { checkoutUrl, checkoutToken, recipientEmail };
+}
+
+// ─── Build checkout email HTML ──────────────────────────────────────
+
+function buildCheckoutEmailHtml(params: {
+  quoteNumber: string;
+  checkoutUrl: string;
+  totalDueNow: number;
+  totalMonthly: number;
+}): string {
+  return `
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:32px 20px;">
+  <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+    <div style="background:#0f172a;padding:24px 32px;text-align:center;">
+      <h1 style="color:#ffffff;font-size:20px;margin:0;">Nivra Télécom</h1>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="color:#0f172a;font-size:18px;margin:0 0 16px;">Finalisez votre commande</h2>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;">
+        Votre soumission <strong>${params.quoteNumber}</strong> a été acceptée. 
+        Pour compléter votre commande, veuillez cliquer sur le bouton ci-dessous afin de 
+        remplir vos informations et confirmer votre paiement.
+      </p>
+      <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:0 0 24px;">
+        <table style="width:100%;font-size:14px;color:#334155;">
+          <tr><td style="padding:4px 0;">Total dû maintenant</td><td style="text-align:right;font-weight:700;">${params.totalDueNow.toFixed(2)} $</td></tr>
+          <tr><td style="padding:4px 0;">Mensuel récurrent</td><td style="text-align:right;font-weight:600;color:#2563eb;">${params.totalMonthly.toFixed(2)} $/mois</td></tr>
+        </table>
+      </div>
+      <div style="text-align:center;margin:0 0 24px;">
+        <a href="${params.checkoutUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:16px;font-weight:600;">
+          Compléter ma commande
+        </a>
+      </div>
+      <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0;">
+        Ce lien est sécurisé et unique à votre soumission. Si vous n'avez pas demandé cette soumission, ignorez ce courriel.
+      </p>
+    </div>
+    <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;text-align:center;">
+      <p style="color:#94a3b8;font-size:11px;margin:0;">
+        Nivra Télécom inc. · Support@nivra-telecom.ca · nivra-telecom.ca
+      </p>
+    </div>
+  </div>
+</div>
+</body>
+</html>`.trim();
 }
 
 // ─── 18. Download Quote PDF ──────────────────────────────────────────
