@@ -779,6 +779,10 @@ const AppRoutes = () => {
           <Route path="payments" element={<Suspense fallback={null}><EmployeePayments /></Suspense>} />
           <Route path="kyc" element={<Suspense fallback={null}><EmployeeKYC /></Suspense>} />
           <Route path="activations" element={<Suspense fallback={null}><EmployeeActivations /></Suspense>} />
+          <Route path="appointments" element={<Suspense fallback={null}><EmployeeAppointments /></Suspense>} />
+          <Route path="appointments/:appointmentId" element={<Suspense fallback={null}><EmployeeAppointmentDetail /></Suspense>} />
+          <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><EmployeeInvoiceDetail /></Suspense>} />
+          <Route path="subscriptions/:subscriptionId" element={<Suspense fallback={null}><EmployeeSubscriptionDetail /></Suspense>} />
           <Route path="support" element={<Suspense fallback={null}><EmployeeSupport /></Suspense>} />
           <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />

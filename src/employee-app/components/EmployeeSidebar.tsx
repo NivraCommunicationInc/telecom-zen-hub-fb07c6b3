@@ -20,6 +20,7 @@ const navItems = [
   { label: "Commandes", href: `${EMP_BASE}/orders`, icon: ShoppingCart },
   { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users },
   { label: "Paiements", href: `${EMP_BASE}/payments`, icon: CreditCard },
+  { label: "Rendez-vous", href: `${EMP_BASE}/appointments`, icon: Calendar },
   { label: "KYC / Vérification", href: `${EMP_BASE}/kyc`, icon: ShieldCheck },
   { label: "Activations", href: `${EMP_BASE}/activations`, icon: Zap },
   { label: "Support", href: `${EMP_BASE}/support`, icon: Headphones },
