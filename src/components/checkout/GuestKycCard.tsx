@@ -43,7 +43,7 @@ export const GuestKycCard = ({
   guestRequestId,
   onStatusChange,
 }: GuestKycCardProps) => {
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobileOrTablet();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
