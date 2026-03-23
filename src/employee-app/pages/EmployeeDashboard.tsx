@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ShoppingCart, CreditCard, ShieldCheck, Zap, Headphones,
   UserCheck, AlertTriangle, Search, FileText, ListTodo,
-  Loader2, ArrowUpRight, Activity, Clock,
+  Loader2, ArrowUpRight, Activity, Clock, Calendar, Ban, DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
