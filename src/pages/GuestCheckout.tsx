@@ -441,7 +441,7 @@ const GuestCheckout = () => {
         await supabase.from("checkout_consent_records" as any).insert({
           order_id: response.order_id,
           user_id: userId,
-          terms_accepted: termsAccepted,
+          terms_accepted: isLegalComplete,
           recurring_payment_accepted: false,
           total_amount_displayed: todayTotal,
           payment_method: paymentMethodValue,
