@@ -157,13 +157,21 @@ const GuestCheckout = () => {
     }
   }, [searchParams, services]);
 
+  // ── Equipment quantities ──
+  const [wifiRouterQty, setWifiRouterQty] = useState(1);
+  const [tvTerminalQty, setTvTerminalQty] = useState(1);
+
+  // ── Welcome discount ──
+  const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
+
   // ── Derived ──
   const hasInternetService = selectedServices.some(s => s.category === "Internet");
   const hasTVService = selectedServices.some(s => s.category === "TV");
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
   const hasStreamingService = selectedServices.some(s => s.category === "Streaming" || s.category === "Streaming+");
-  const isStreamingOnlyOrder = hasStreamingService && !hasInternetService && !hasTVService && !hasMobileService;
+  const isStreamingOnlyOrder = selectedServices.length > 0 && selectedServices.every(s => s.category === "Streaming" || s.category === "Streaming+");
   const requiresInstallation = installationChoice === "technician" && (hasInternetService || hasTVService);
+  const needsAddress = !isStreamingOnlyOrder;
   const isETransfer = paymentMethod === "etransfer";
   const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
   const isKycComplete = isStreamingOnlyOrder || identityData.status === "complete";
@@ -172,12 +180,13 @@ const GuestCheckout = () => {
   const SIM_PRICE = simPrice ?? 10;
 
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
-  const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE : 0;
+  const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
   const simFee = hasMobileService ? SIM_PRICE : 0;
-  const activationFee = canonicalFees.activationSingle || 25;
-  const deliveryFee = installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0;
-  const installationFee = installationChoice === "technician" ? (canonicalFees.installationTechnician || 50) : 0;
-  const oneTimeFees = routerFee + simFee + activationFee + deliveryFee + installationFee;
+  const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
+  const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 25);
+  const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0);
+  const installationFee = isStreamingOnlyOrder ? 0 : (installationChoice === "technician" ? (canonicalFees.installationTechnician || 50) : 0);
+  const oneTimeFees = routerFee + simFee + terminalFee + activationFee + deliveryFee + installationFee;
 
   // ── Live server pricing ──
   useEffect(() => {
