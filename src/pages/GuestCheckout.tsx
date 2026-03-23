@@ -175,7 +175,7 @@ const GuestCheckout = () => {
   const needsAddress = !isStreamingOnlyOrder;
   const isETransfer = paymentMethod === "etransfer";
   const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
-  const isKycComplete = isStreamingOnlyOrder || identityData.status === "complete";
+  const isKycComplete = isStreamingOnlyOrder || kycStatus === "completed";
 
   const ROUTER_PRICE = routerPrice ?? 100;
   const SIM_PRICE = simPrice ?? 10;
