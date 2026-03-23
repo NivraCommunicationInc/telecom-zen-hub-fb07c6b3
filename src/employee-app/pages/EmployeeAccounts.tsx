@@ -6,7 +6,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { Search, Loader2, Building2, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
@@ -35,6 +35,7 @@ const STATUS_FILTERS = [
 ];
 
 export default function EmployeeAccounts() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -161,7 +162,11 @@ export default function EmployeeAccounts() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map(a => (
-                <tr key={a.id} className="hover:bg-secondary/30 transition-colors">
+                <tr
+                  key={a.id}
+                  onClick={() => navigate(employeePath(`/accounts/${a.id}`))}
+                  className="hover:bg-secondary/30 transition-colors cursor-pointer"
+                >
                   <td className="px-4 py-3">
                     <Link to={employeePath(`/accounts/${a.id}`)} className="font-mono text-xs text-foreground hover:text-primary transition-colors">
                       {a.account_number}
@@ -179,7 +184,11 @@ export default function EmployeeAccounts() {
                     {format(new Date(a.created_at), "d MMM yyyy", { locale: fr })}
                   </td>
                   <td className="px-4 py-3">
-                    <Link to={employeePath(`/accounts/${a.id}`)} className="text-muted-foreground hover:text-foreground">
+                    <Link
+                      to={employeePath(`/accounts/${a.id}`)}
+                      onClick={e => e.stopPropagation()}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
                       <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
                   </td>
