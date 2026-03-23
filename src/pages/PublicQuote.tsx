@@ -110,6 +110,7 @@ export default function PublicQuote() {
       });
       setQuote({ ...quote, status: "accepted" });
       toast.success("Soumission acceptée ! Vous serez contacté prochainement.");
+      navigate(`/commander?quoteToken=${encodeURIComponent(token || "")}&quoteId=${encodeURIComponent(quote.id)}`);
     } catch {
       toast.error("Erreur lors de l'acceptation");
     } finally {
