@@ -709,11 +709,17 @@ const GuestCheckout = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <PromoCodeInput
+                      clientEmail={email}
+                      cartItems={selectedServices.map(s => ({ type: 'service' as const, amount: s.price, name: s.name }))}
+                      subtotalBeforeDiscount={subtotal}
                       onPromoApplied={setAppliedPromo}
                       appliedPromo={appliedPromo}
                     />
                     <ReferralCodeInput
                       clientEmail={email}
+                      cartItems={selectedServices.map(s => ({ type: 'service', amount: s.price, name: s.name }))}
+                      subtotalBeforeDiscount={subtotal}
+                      hasActivePromoDiscount={!!appliedPromo && appliedPromo.discount_amount > 0}
                       onReferralApplied={setAppliedReferral}
                       appliedReferral={appliedReferral}
                     />
