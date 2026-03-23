@@ -158,7 +158,7 @@ const GuestCheckout = () => {
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE : 0;
   const simFee = hasMobileService ? SIM_PRICE : 0;
-  const activationFee = canonicalFees.activation1Service || 25;
+  const activationFee = canonicalFees.activationSingle || 25;
   const deliveryFee = installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0;
   const installationFee = installationChoice === "technician" ? (canonicalFees.installationTechnician || 50) : 0;
   const oneTimeFees = routerFee + simFee + activationFee + deliveryFee + installationFee;
