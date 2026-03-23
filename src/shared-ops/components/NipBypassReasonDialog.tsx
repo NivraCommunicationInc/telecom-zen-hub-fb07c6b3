@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ShieldAlert, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
+import { toast } from "sonner";
 
 export type BypassReason =
   | "customer_forgot_pin"
