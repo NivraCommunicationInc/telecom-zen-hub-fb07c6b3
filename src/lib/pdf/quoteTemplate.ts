@@ -107,12 +107,22 @@ function drawMetaBlock(doc: jsPDF, W: number, margin: number, contentW: number, 
   doc.setFont("helvetica", "bold");
   doc.text(data.isProspect ? "PROSPECT" : "CLIENT", margin + 6, y + 7);
 
+  // For prospects without verified identity, only show email
+  const showName = !data.isProspect || (data.clientName && data.clientName !== "Prospect");
   doc.setTextColor(...C.text);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(data.clientName, margin + 6, y + 15);
+  doc.text(showName ? data.clientName : "En attente d'identification", margin + 6, y + 15);
 
-  const contactParts = [data.clientEmail, data.clientPhone].filter(Boolean);
+  // Only show contact for non-prospects, or show email-only for prospects
+  const contactParts: string[] = [];
+  if (data.isProspect) {
+    if (data.clientEmail) contactParts.push(data.clientEmail);
+    // Don't show phone/name for unverified prospects
+  } else {
+    if (data.clientEmail) contactParts.push(data.clientEmail);
+    if (data.clientPhone) contactParts.push(data.clientPhone);
+  }
   if (contactParts.length) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);

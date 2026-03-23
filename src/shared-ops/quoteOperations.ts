@@ -713,11 +713,19 @@ export async function downloadQuotePDF(quoteId: string) {
     .eq("approval_status", "approved")
     .order("created_at", { ascending: true });
 
-  let clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : "Client";
+  let clientName = "En attente d'identification";
   let clientEmail = quote.is_prospect ? quote.prospect_email : undefined;
-  let clientPhone = quote.is_prospect ? quote.prospect_phone : undefined;
+  let clientPhone: string | undefined = undefined;
 
-  if (!quote.is_prospect && quote.customer_user_id) {
+  // For prospects: only show email, hide name/phone (unreliable CRM data)
+  if (quote.is_prospect) {
+    // Only use prospect_name if it looks real (not empty, not "Prospect")
+    const pName = quote.prospect_name?.trim();
+    if (pName && pName !== "Prospect" && pName !== "prospect") {
+      clientName = pName;
+    }
+    // Don't show phone for unverified prospects
+  } else if (quote.customer_user_id) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name, email, phone")
