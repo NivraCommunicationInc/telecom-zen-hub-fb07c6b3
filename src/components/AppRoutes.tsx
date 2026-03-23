@@ -134,6 +134,8 @@ const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
 const CoreMyAccountPage = lazy(() => import("@/core-app/pages/CoreMyAccountPage"));
 const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
+const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
+const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 
 // Public pages
 import Index from "@/pages/Index";
