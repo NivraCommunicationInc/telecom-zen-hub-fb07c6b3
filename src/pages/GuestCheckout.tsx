@@ -203,7 +203,8 @@ const GuestCheckout = () => {
         if (activationFee > 0) cartItems.push({ type: "activation", name: "Frais d'activation", amount: activationFee });
         if (deliveryFee > 0) cartItems.push({ type: "delivery", name: "Frais de livraison", amount: deliveryFee });
         if (installationFee > 0) cartItems.push({ type: "installation", name: "Frais d'installation", amount: installationFee });
-        if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: routerFee });
+        if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: ROUTER_PRICE, quantity: Math.min(wifiRouterQty, 1) });
+        if (terminalFee > 0) cartItems.push({ type: "equipment", name: "Terminal TV", amount: terminalPrice ?? 0, quantity: Math.min(Math.max(tvTerminalQty, 1), 4) });
         if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
 
         const effectivePromoCode = appliedPromo?.code || ((appliedReferral?.discount_amount ?? 0) > 0 ? appliedReferral?.code : null) || null;
