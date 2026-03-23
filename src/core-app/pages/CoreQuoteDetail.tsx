@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   approveQuote, rejectQuote, updateQuoteStatus, convertQuoteToOrder, sendQuote,
   addQuoteLine, removeQuoteLine, addQuoteAdjustment, removeQuoteAdjustment, recalculateQuoteTotals,
-  downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, logFollowUp,
+  downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, logFollowUp, getQuoteCheckoutUrl, sendCheckoutLink,
 } from "@/shared-ops/quoteOperations";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,6 +85,7 @@ export default function CoreQuoteDetail() {
   const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
   const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
   const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
+  const isAcceptedPendingCheckout = quote.status === "accepted" && quote.checkout_status !== "completed";
 
   const clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : (customer?.full_name || "—");
   const clientEmail = quote.is_prospect ? quote.prospect_email : customer?.email;
@@ -143,6 +144,21 @@ export default function CoreQuoteDetail() {
       const result = await convertQuoteToOrder(quote.id, session.user.id, "admin");
       toast.success(`Commande ${result.orderNumber} créée`);
       setShowConvertDialog(false);
+      refetchAll();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCheckoutLink = async () => {
+    const session = await getSession();
+    setProcessing(true);
+    try {
+      const result = await sendCheckoutLink(quote.id, session.user.id, "admin");
+      navigator.clipboard.writeText(result.checkoutUrl);
+      toast.success("Lien de finalisation copié");
       refetchAll();
     } catch (err: any) {
       toast.error(err.message);
@@ -282,9 +298,14 @@ export default function CoreQuoteDetail() {
               </Button>
             </>
           )}
-          {canConvert && (
+          {isAcceptedPendingCheckout && (
+            <Button size="sm" variant="default" onClick={handleCheckoutLink} disabled={processing}>
+              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Envoyer lien de finalisation
+            </Button>
+          )}
+          {canConvert && !isAcceptedPendingCheckout && (
             <Button size="sm" variant="default" onClick={() => setShowConvertDialog(true)} disabled={processing}>
-              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir
+              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir en commande
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleDownloadPDF}>

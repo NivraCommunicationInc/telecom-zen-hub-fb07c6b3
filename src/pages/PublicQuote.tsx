@@ -1,10 +1,11 @@
 /**
  * Public Quote Page — Accessible via token link without login.
- * Clients can view, accept, and download their quote.
+ * Clients can view, accept, and be redirected to the quote checkout form.
  */
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { acceptQuoteByClient } from "@/shared-ops/quoteOperations";
 import { generateQuotePDF, type QuotePDFData } from "@/lib/pdf/quoteTemplate";
 import { NIVRA } from "@/lib/pdf/companyInfo";
 import { Badge } from "@/components/ui/badge";
@@ -98,23 +99,24 @@ export default function PublicQuote() {
   };
 
   const handleAccept = async () => {
-    if (!quote) return;
+    if (!quote || !token) return;
     setAccepting(true);
     try {
-      await supabase.from("quotes" as any).update({ status: "accepted" }).eq("id", quote.id);
-      await supabase.from("quote_events" as any).insert({
-        quote_id: quote.id,
-        event_type: "accepted_by_client",
-        actor_role: "client",
-        message: "Le client a accepté la soumission",
-      });
-      setQuote({ ...quote, status: "accepted" });
-      toast.success("Soumission acceptée ! Vous serez contacté prochainement.");
-      navigate(`/commander?quoteToken=${encodeURIComponent(token || "")}&quoteId=${encodeURIComponent(quote.id)}`);
-    } catch {
-      toast.error("Erreur lors de l'acceptation");
+      const { checkoutToken } = await acceptQuoteByClient(quote.id, token);
+      setQuote({ ...quote, status: "accepted", checkout_token: checkoutToken });
+      toast.success("Soumission acceptée !");
+      // Redirect to quote checkout form
+      navigate(`/quote-checkout?token=${encodeURIComponent(checkoutToken)}`);
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de l'acceptation");
     } finally {
       setAccepting(false);
+    }
+  };
+
+  const handleGoToCheckout = () => {
+    if (quote?.checkout_token) {
+      navigate(`/quote-checkout?token=${encodeURIComponent(quote.checkout_token)}`);
     }
   };
 
@@ -184,6 +186,7 @@ export default function PublicQuote() {
   const StatusIcon = st.icon;
   const isExpired = quote.valid_until && new Date(quote.valid_until) < new Date() && !["accepted", "converted"].includes(quote.status);
   const canAccept = st.canAccept && !isExpired;
+  const isAcceptedNotCheckedOut = quote.status === "accepted" && quote.checkout_status !== "completed";
 
   const monthlyLines = lines.filter((l: any) => l.billing_frequency === "monthly");
   const oneTimeLines = lines.filter((l: any) => l.billing_frequency === "one_time");
@@ -212,14 +215,18 @@ export default function PublicQuote() {
         {/* Status Banner */}
         <div className={`flex items-center gap-3 p-4 rounded-xl border ${
           canAccept ? "border-primary/20 bg-primary/5" :
+          isAcceptedNotCheckedOut ? "border-amber-500/20 bg-amber-500/5" :
           quote.status === "accepted" || quote.status === "converted" ? "border-emerald-500/20 bg-emerald-500/5" :
           "border-border bg-muted/30"
         }`}>
           <StatusIcon className={`h-6 w-6 ${st.color}`} />
           <div className="flex-1">
-            <p className={`font-semibold ${st.color}`}>{isExpired ? "Soumission expirée" : st.label}</p>
+            <p className={`font-semibold ${isAcceptedNotCheckedOut ? "text-amber-600" : st.color}`}>
+              {isExpired ? "Soumission expirée" : isAcceptedNotCheckedOut ? "Acceptée — Finalisation requise" : st.label}
+            </p>
             <p className="text-xs text-muted-foreground">
-              {quote.valid_until && !isExpired && `Valide jusqu'au ${format(new Date(quote.valid_until), "d MMMM yyyy", { locale: fr })}`}
+              {isAcceptedNotCheckedOut && "Complétez vos informations pour démarrer votre commande."}
+              {quote.valid_until && !isExpired && !isAcceptedNotCheckedOut && `Valide jusqu'au ${format(new Date(quote.valid_until), "d MMMM yyyy", { locale: fr })}`}
               {isExpired && "Cette soumission n'est plus valide."}
             </p>
           </div>
@@ -316,13 +323,13 @@ export default function PublicQuote() {
           </Card>
         )}
 
-        {/* Accept CTA */}
+        {/* Accept CTA — only if not yet accepted */}
         {canAccept && (
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6 text-center">
               <h3 className="text-lg font-bold mb-2">Prêt à commander ?</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Acceptez cette soumission pour démarrer votre commande avec {NIVRA.tradeName}.
+                Acceptez cette soumission pour compléter vos informations et finaliser votre commande.
               </p>
               <Button size="lg" onClick={handleAccept} disabled={accepting} className="gap-2">
                 <CheckCircle className="h-4 w-4" />
@@ -333,13 +340,44 @@ export default function PublicQuote() {
           </Card>
         )}
 
-        {quote.status === "accepted" && (
+        {/* Accepted but checkout not completed — show continue button */}
+        {isAcceptedNotCheckedOut && (
+          <Card className="border-amber-500/20 bg-amber-500/5">
+            <CardContent className="pt-6 text-center">
+              <Clock className="h-10 w-10 text-amber-600 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-amber-600 mb-1">Finalisation requise</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Vous avez accepté cette soumission. Complétez vos informations pour démarrer votre commande.
+              </p>
+              <Button size="lg" onClick={handleGoToCheckout} className="gap-2">
+                <ArrowRight className="h-4 w-4" />
+                Compléter ma commande
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Fully converted */}
+        {quote.status === "converted" && (
           <Card className="border-emerald-500/20 bg-emerald-500/5">
             <CardContent className="pt-6 text-center">
               <CheckCircle className="h-10 w-10 text-emerald-600 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-emerald-600 mb-1">Soumission acceptée</h3>
+              <h3 className="text-lg font-bold text-emerald-600 mb-1">Commande confirmée</h3>
               <p className="text-sm text-muted-foreground">
-                Votre commande sera traitée par notre équipe. Vous recevrez une confirmation sous peu.
+                Votre commande a été créée. Vous recevrez une confirmation sous peu.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Accepted + checkout completed but not yet converted */}
+        {quote.status === "accepted" && quote.checkout_status === "completed" && (
+          <Card className="border-emerald-500/20 bg-emerald-500/5">
+            <CardContent className="pt-6 text-center">
+              <CheckCircle className="h-10 w-10 text-emerald-600 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-emerald-600 mb-1">Informations reçues</h3>
+              <p className="text-sm text-muted-foreground">
+                Votre commande est en cours de traitement. Notre équipe vous contactera prochainement.
               </p>
             </CardContent>
           </Card>

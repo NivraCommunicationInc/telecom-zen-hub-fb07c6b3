@@ -107,6 +107,80 @@ export type Database = {
         }
         Relationships: []
       }
+      account_promotions: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string
+          created_by_role: string | null
+          created_by_user_id: string | null
+          customer_id: string | null
+          duration_months: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          label: string
+          months_remaining: number
+          notes: string | null
+          order_id: string | null
+          promo_code: string | null
+          promotion_type: string
+          quote_id: string | null
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          created_at?: string
+          created_by_role?: string | null
+          created_by_user_id?: string | null
+          customer_id?: string | null
+          duration_months?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          months_remaining?: number
+          notes?: string | null
+          order_id?: string | null
+          promo_code?: string | null
+          promotion_type: string
+          quote_id?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string
+          created_by_role?: string | null
+          created_by_user_id?: string | null
+          customer_id?: string | null
+          duration_months?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          months_remaining?: number
+          notes?: string | null
+          order_id?: string | null
+          promo_code?: string | null
+          promotion_type?: string
+          quote_id?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_promotions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_service_locations: {
         Row: {
           account_id: string
@@ -9601,6 +9675,9 @@ export type Database = {
           approved_at: string | null
           approved_by_user_id: string | null
           assigned_to_user_id: string | null
+          checkout_completed_at: string | null
+          checkout_status: string | null
+          checkout_token: string | null
           client_note: string | null
           converted_order_id: string | null
           created_at: string
@@ -9634,6 +9711,9 @@ export type Database = {
           approved_at?: string | null
           approved_by_user_id?: string | null
           assigned_to_user_id?: string | null
+          checkout_completed_at?: string | null
+          checkout_status?: string | null
+          checkout_token?: string | null
           client_note?: string | null
           converted_order_id?: string | null
           created_at?: string
@@ -9667,6 +9747,9 @@ export type Database = {
           approved_at?: string | null
           approved_by_user_id?: string | null
           assigned_to_user_id?: string | null
+          checkout_completed_at?: string | null
+          checkout_status?: string | null
+          checkout_token?: string | null
           client_note?: string | null
           converted_order_id?: string | null
           created_at?: string

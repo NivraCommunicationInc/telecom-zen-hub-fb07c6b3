@@ -4,7 +4,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useQuoteDetail } from "@/shared-ops/useQuoteDetail";
-import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail } from "@/shared-ops/quoteOperations";
+import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, getQuoteCheckoutUrl, sendCheckoutLink } from "@/shared-ops/quoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,12 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   converted: { label: "Convertie", variant: "default", icon: CheckCircle },
 };
 
+const CHECKOUT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  not_started: { label: "Checkout non démarré", color: "text-amber-600" },
+  in_progress: { label: "Checkout en cours", color: "text-blue-600" },
+  completed: { label: "Checkout complété", color: "text-emerald-600" },
+};
+
 export default function EmployeeQuoteDetail() {
   const { quoteId } = useParams();
   const navigate = useNavigate();
@@ -41,6 +47,8 @@ export default function EmployeeQuoteDetail() {
   const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
   const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
   const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
+  const isAcceptedPendingCheckout = quote.status === "accepted" && quote.checkout_status !== "completed";
+  const checkoutSt = CHECKOUT_STATUS_LABELS[quote.checkout_status] || null;
 
   const handleAction = async (action: string) => {
     try {
@@ -71,6 +79,12 @@ export default function EmployeeQuoteDetail() {
         const result = await convertQuoteToOrder(quote.id, session.user.id, "employee");
         toast.success(`Commande ${result.orderNumber} créée`);
         queryClient.invalidateQueries({ queryKey: ["quotes-list"] });
+        refetchAll();
+        return;
+      } else if (action === "checkout_link") {
+        const result = await sendCheckoutLink(quote.id, session.user.id, "employee");
+        navigator.clipboard.writeText(result.checkoutUrl);
+        toast.success("Lien de finalisation copié dans le presse-papier");
         refetchAll();
         return;
       } else if (action === "pdf") {
@@ -142,9 +156,14 @@ export default function EmployeeQuoteDetail() {
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
             </Button>
           )}
-          {canConvert && (
+          {isAcceptedPendingCheckout && (
+            <Button size="sm" variant="default" onClick={() => handleAction("checkout_link")}>
+              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Envoyer lien de finalisation
+            </Button>
+          )}
+          {canConvert && !isAcceptedPendingCheckout && (
             <Button size="sm" variant="default" onClick={() => handleAction("convert")}>
-              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir
+              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir en commande
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => handleAction("pdf")}>
@@ -177,7 +196,22 @@ export default function EmployeeQuoteDetail() {
         </div>
       )}
 
-      {/* Follow-up info */}
+      {/* Checkout status for accepted quotes */}
+      {quote.status === "accepted" && checkoutSt && (
+        <div className={`flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30`}>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className={`text-sm font-medium ${checkoutSt.color}`}>{checkoutSt.label}</span>
+          {quote.checkout_token && (
+            <Button size="sm" variant="outline" onClick={() => {
+              navigator.clipboard.writeText(getQuoteCheckoutUrl(quote.checkout_token));
+              toast.success("Lien copié");
+            }}>
+              <Link2 className="h-3.5 w-3.5 mr-1" /> Copier lien checkout
+            </Button>
+          )}
+        </div>
+      )}
+
       {(quote.last_followup_at || quote.last_sent_at) && (
         <div className="flex gap-4 text-xs text-muted-foreground">
           {quote.last_sent_at && <span>Dernier envoi: {format(new Date(quote.last_sent_at), "d MMM yyyy HH:mm", { locale: fr })}</span>}

@@ -12,6 +12,8 @@ export type QuoteStatus =
   | "draft" | "pending_review" | "approved" | "sent"
   | "viewed" | "accepted" | "rejected" | "expired" | "converted";
 
+export type CheckoutStatus = "not_started" | "in_progress" | "completed";
+
 export type QuoteLineType =
   | "catalog_service" | "manual_fee" | "activation_fee"
   | "shipping_fee" | "promo_discount" | "credit";
@@ -298,20 +300,13 @@ export async function rejectQuote(quoteId: string, actorUserId: string, actorRol
 // ─── 10. Send Quote to Client (via Edge Function) ────────────────────
 
 export async function sendQuote(quoteId: string, actorUserId: string, actorRole: string) {
-  // Call the dedicated edge function that builds professional HTML and enqueues
   const { data, error } = await supabase.functions.invoke("send-quote-email", {
     body: { quoteId },
   });
 
-  if (error) {
-    throw new Error(`Erreur d'envoi: ${error.message}`);
-  }
+  if (error) throw new Error(`Erreur d'envoi: ${error.message}`);
+  if (data?.error) throw new Error(data.error);
 
-  if (data?.error) {
-    throw new Error(data.error);
-  }
-
-  // Update status to sent
   await updateQuoteStatus(quoteId, "sent", actorUserId, actorRole, `Soumission envoyée à ${data?.recipientEmail || "client"}`);
 }
 
@@ -341,7 +336,35 @@ export async function logFollowUp(quoteId: string, actorUserId: string, actorRol
   });
 }
 
-// ─── 12. Convert Quote to Order ──────────────────────────────────────
+// ─── 12. Accept Quote (Client-side) — NO auto-conversion ────────────
+
+export async function acceptQuoteByClient(quoteId: string, publicToken: string) {
+  // Generate a checkout token for the dedicated quote checkout form
+  const checkoutToken = crypto.randomUUID();
+  
+  const { error } = await supabase
+    .from("quotes" as any)
+    .update({
+      status: "accepted",
+      checkout_status: "not_started",
+      checkout_token: checkoutToken,
+    })
+    .eq("id", quoteId)
+    .eq("public_token", publicToken);
+
+  if (error) throw new Error(`Erreur d'acceptation: ${error.message}`);
+
+  await supabase.from("quote_events" as any).insert({
+    quote_id: quoteId,
+    event_type: "accepted_by_client",
+    actor_role: "client",
+    message: "Le client a accepté la soumission",
+  });
+
+  return { checkoutToken };
+}
+
+// ─── 13. Convert Quote to Order (Staff only, after checkout completed) ─
 
 export async function convertQuoteToOrder(quoteId: string, actorUserId: string, actorRole: string) {
   const { data: quote, error: qErr } = await supabase
@@ -425,7 +448,7 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
 
   await supabase
     .from("quotes" as any)
-    .update({ status: "converted", converted_order_id: order.id })
+    .update({ status: "converted", converted_order_id: order.id, checkout_status: "completed" })
     .eq("id", quoteId);
 
   await logQuoteEvent(quoteId, "converted_to_order", actorUserId, actorRole, `Convertie en commande ${orderNumber}`, { order_id: order.id, order_number: orderNumber });
@@ -441,7 +464,7 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
   return { order, orderNumber };
 }
 
-// ─── 13. Duplicate Quote ─────────────────────────────────────────────
+// ─── 14. Duplicate Quote ─────────────────────────────────────────────
 
 export async function duplicateQuote(quoteId: string, actorUserId: string, sourcePortal: "employee" | "core") {
   const { data: original } = await supabase
@@ -488,13 +511,45 @@ export async function duplicateQuote(quoteId: string, actorUserId: string, sourc
   return newQuote;
 }
 
-// ─── 14. Get Public URL ──────────────────────────────────────────────
+// ─── 15. Get Public URL ──────────────────────────────────────────────
 
 export function getQuotePublicUrl(publicToken: string): string {
   return `${window.location.origin}/quote?token=${publicToken}`;
 }
 
-// ─── 15. Download Quote PDF ──────────────────────────────────────────
+// ─── 16. Get Checkout URL ────────────────────────────────────────────
+
+export function getQuoteCheckoutUrl(checkoutToken: string): string {
+  return `${window.location.origin}/quote-checkout?token=${checkoutToken}`;
+}
+
+// ─── 17. Send Checkout Link ─────────────────────────────────────────
+
+export async function sendCheckoutLink(quoteId: string, actorUserId: string, actorRole: string) {
+  // Ensure checkout token exists
+  const { data: quote } = await supabase
+    .from("quotes" as any)
+    .select("checkout_token, prospect_email, customer_user_id, is_prospect, quote_number")
+    .eq("id", quoteId)
+    .single();
+
+  if (!quote) throw new Error("Quote not found");
+
+  let checkoutToken = quote.checkout_token;
+  if (!checkoutToken) {
+    checkoutToken = crypto.randomUUID();
+    await supabase.from("quotes" as any).update({ checkout_token: checkoutToken }).eq("id", quoteId);
+  }
+
+  // For now, copy to clipboard. Email integration can be added later.
+  const url = getQuoteCheckoutUrl(checkoutToken);
+  
+  await logQuoteEvent(quoteId, "checkout_link_generated", actorUserId, actorRole, `Lien de finalisation généré`);
+  
+  return { checkoutUrl: url, checkoutToken };
+}
+
+// ─── 18. Download Quote PDF ──────────────────────────────────────────
 
 export async function downloadQuotePDF(quoteId: string) {
   const { data: quote } = await supabase
@@ -518,7 +573,6 @@ export async function downloadQuotePDF(quoteId: string) {
     .eq("approval_status", "approved")
     .order("created_at", { ascending: true });
 
-  // Resolve client name
   let clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : "Client";
   let clientEmail = quote.is_prospect ? quote.prospect_email : undefined;
   let clientPhone = quote.is_prospect ? quote.prospect_phone : undefined;
@@ -575,7 +629,7 @@ export async function downloadQuotePDF(quoteId: string) {
   URL.revokeObjectURL(url);
 }
 
-// ─── 16. Resend Quote Email ──────────────────────────────────────────
+// ─── 19. Resend Quote Email ──────────────────────────────────────────
 
 export async function resendQuoteEmail(quoteId: string, actorUserId: string, actorRole: string) {
   const { data, error } = await supabase.functions.invoke("send-quote-email", {
@@ -585,13 +639,80 @@ export async function resendQuoteEmail(quoteId: string, actorUserId: string, act
   if (error) throw new Error(`Erreur de renvoi: ${error.message}`);
   if (data?.error) throw new Error(data.error);
 
-  // Update last_sent_at without changing status
   await supabase
     .from("quotes" as any)
     .update({ last_sent_at: new Date().toISOString() })
     .eq("id", quoteId);
 
   await logQuoteEvent(quoteId, "email_resent", actorUserId, actorRole, `Courriel renvoyé à ${data?.recipientEmail || "client"}`);
+}
+
+// ─── 20. Add Account Promotion ───────────────────────────────────────
+
+export async function addAccountPromotion(params: {
+  accountId: string;
+  customerId?: string;
+  quoteId?: string;
+  orderId?: string;
+  promoCode?: string;
+  label: string;
+  promotionType: "monthly_discount" | "credit" | "promo";
+  amount: number;
+  durationMonths: number;
+  createdByUserId: string;
+  createdByRole: string;
+  notes?: string;
+}) {
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + params.durationMonths);
+
+  const promoNotes = [
+    params.notes || "",
+    params.promoCode ? `Code: ${params.promoCode}` : "",
+    `Termes: ${params.amount}$/mois × ${params.durationMonths} mois (${params.promotionType})`,
+  ].filter(Boolean).join(" | ");
+
+  const { data, error } = await supabase
+    .from("account_promotions" as any)
+    .insert({
+      account_id: params.accountId,
+      customer_id: params.customerId || null,
+      quote_id: params.quoteId || null,
+      order_id: params.orderId || null,
+      promo_code: params.promoCode || null,
+      label: params.label,
+      promotion_type: params.promotionType,
+      amount: params.amount,
+      duration_months: params.durationMonths,
+      months_remaining: params.durationMonths,
+      is_active: true,
+      created_by_user_id: params.createdByUserId,
+      created_by_role: params.createdByRole,
+      notes: promoNotes,
+      started_at: new Date().toISOString(),
+      expires_at: expiresAt.toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to add promotion: ${error.message}`);
+
+  await logInternalAudit({
+    action: "promotion_added",
+    category: "operations",
+    targetType: "account",
+    targetId: params.accountId,
+    details: {
+      promo_code: params.promoCode,
+      label: params.label,
+      amount: params.amount,
+      duration_months: params.durationMonths,
+      promotion_type: params.promotionType,
+      notes: promoNotes,
+    },
+  });
+
+  return data;
 }
 
 // ─── Helper: Log Quote Event ─────────────────────────────────────────
