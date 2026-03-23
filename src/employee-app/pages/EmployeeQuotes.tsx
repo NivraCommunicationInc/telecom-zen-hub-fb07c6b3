@@ -5,13 +5,13 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useQuotesList } from "@/shared-ops/useQuotesList";
-import { logFollowUp, duplicateQuote, sendQuote } from "@/shared-ops/quoteOperations";
+import { logFollowUp, duplicateQuote, sendQuote, downloadQuotePDF, getQuotePublicUrl } from "@/shared-ops/quoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, FileText, Eye, Copy, Send, RefreshCw } from "lucide-react";
+import { Plus, Search, FileText, Eye, Copy, Send, RefreshCw, Download, ExternalLink, Link2, ArrowRightCircle, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -65,7 +65,8 @@ export default function EmployeeQuotes() {
     );
   });
 
-  const handleAction = async (action: string, quote: any) => {
+  const handleAction = async (action: string, quote: any, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -83,15 +84,18 @@ export default function EmployeeQuotes() {
         await logFollowUp(quote.id, session.user.id, "employee");
         toast.success("Relance enregistrée");
         queryClient.invalidateQueries({ queryKey: ["quotes-list"] });
+      } else if (action === "pdf") {
+        await downloadQuotePDF(quote.id);
+        toast.success("PDF téléchargé");
+      } else if (action === "copylink") {
+        if (quote.public_token) {
+          navigator.clipboard.writeText(getQuotePublicUrl(quote.public_token));
+          toast.success("Lien copié");
+        }
       }
     } catch (err: any) {
       toast.error(err.message);
     }
-  };
-
-  const getClientName = (q: any) => {
-    if (q.is_prospect) return q.prospect_name || q.prospect_email || "Prospect";
-    return q.prospect_name || "—"; // We'll enhance with joined profile data
   };
 
   return (
@@ -111,7 +115,6 @@ export default function EmployeeQuotes() {
         </Button>
       </div>
 
-      {/* Tabs */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
         <TabsList className="flex-wrap h-auto gap-1">
           {TABS.map(t => (
@@ -122,7 +125,6 @@ export default function EmployeeQuotes() {
         </TabsList>
       </Tabs>
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -150,7 +152,8 @@ export default function EmployeeQuotes() {
                 <th className="text-left p-3 font-medium">Statut</th>
                 <th className="text-right p-3 font-medium">Mensuel</th>
                 <th className="text-right p-3 font-medium">Total</th>
-                <th className="text-left p-3 font-medium">Date</th>
+                <th className="text-left p-3 font-medium">Dernier envoi</th>
+                <th className="text-left p-3 font-medium">Relance</th>
                 <th className="text-right p-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -159,40 +162,58 @@ export default function EmployeeQuotes() {
                 const st = STATUS_LABELS[q.status] || { label: q.status, variant: "secondary" as const };
                 const clientName = q.is_prospect
                   ? (q.prospect_name || q.prospect_email || "Prospect")
-                  : (q.quote_number ? "Client" : "—");
+                  : (q.prospect_name || "Client");
                 return (
-                  <tr key={q.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                  <tr
+                    key={q.id}
+                    className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => navigate(employeePath(`/quotes/${q.id}`))}
+                  >
                     <td className="p-3 font-mono text-xs">{q.quote_number}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm">{clientName}</span>
-                        {q.is_prospect && <Badge variant="outline" className="text-[9px]">Prospect</Badge>}
+                        {q.is_prospect && <UserPlus className="h-3 w-3 text-muted-foreground" />}
                       </div>
                     </td>
                     <td className="p-3">
-                      <Badge variant={st.variant}>{st.label}</Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={st.variant}>{st.label}</Badge>
+                        {q.converted_order_id && <ArrowRightCircle className="h-3 w-3 text-emerald-600" />}
+                      </div>
                     </td>
                     <td className="p-3 text-right font-medium">{Number(q.total_monthly || 0).toFixed(2)} $</td>
                     <td className="p-3 text-right font-medium">{Number(q.total_due_now || 0).toFixed(2)} $</td>
                     <td className="p-3 text-muted-foreground text-xs">
-                      {q.created_at ? format(new Date(q.created_at), "d MMM yyyy", { locale: fr }) : "—"}
+                      {q.last_sent_at ? format(new Date(q.last_sent_at), "d MMM yyyy", { locale: fr }) : "—"}
+                    </td>
+                    <td className="p-3 text-muted-foreground text-xs">
+                      {q.last_followup_at ? format(new Date(q.last_followup_at), "d MMM", { locale: fr }) : "—"}
                     </td>
                     <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => navigate(employeePath(`/quotes/${q.id}`))}>
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="ghost" onClick={() => navigate(employeePath(`/quotes/${q.id}`))} title="Voir">
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleAction("duplicate", q)} title="Dupliquer">
+                        <Button size="sm" variant="ghost" onClick={(e) => handleAction("pdf", q, e)} title="PDF">
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={(e) => handleAction("duplicate", q, e)} title="Dupliquer">
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
                         {q.status === "approved" && (
-                          <Button size="sm" variant="ghost" onClick={() => handleAction("send", q)} title="Envoyer">
+                          <Button size="sm" variant="ghost" onClick={(e) => handleAction("send", q, e)} title="Envoyer">
                             <Send className="h-3.5 w-3.5" />
                           </Button>
                         )}
                         {["sent", "viewed"].includes(q.status) && (
-                          <Button size="sm" variant="ghost" onClick={() => handleAction("followup", q)} title="Relancer">
+                          <Button size="sm" variant="ghost" onClick={(e) => handleAction("followup", q, e)} title="Relancer">
                             <RefreshCw className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {q.public_token && (
+                          <Button size="sm" variant="ghost" onClick={(e) => handleAction("copylink", q, e)} title="Copier lien">
+                            <Link2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
                       </div>
