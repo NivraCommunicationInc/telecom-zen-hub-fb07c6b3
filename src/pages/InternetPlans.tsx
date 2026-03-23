@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useOptionalAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -17,7 +16,6 @@ import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices"
 
 const InternetPlans = () => {
   const { language } = useLanguage();
-  const { user } = useOptionalAuth();
   const navigate = useNavigate();
   const isFrench = language === 'fr';
   
@@ -55,19 +53,7 @@ const InternetPlans = () => {
   };
 
   const handleGetStarted = (planId: string) => {
-    // Navigate with address and plan info in state
-    const state = {
-      validatedAddress: address,
-      addressDetails,
-      selectedPlanId: planId,
-      redirectTo: '/portal/internet'
-    };
-    
-    if (user) {
-      navigate('/portal/internet', { state });
-    } else {
-      navigate('/portal/auth', { state });
-    }
+    navigate(`/commander?plan=${planId}`);
   };
 
   return (

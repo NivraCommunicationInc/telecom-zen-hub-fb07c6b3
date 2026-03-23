@@ -61,7 +61,7 @@ const Hero = () => {
                 className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-13 px-8 text-base font-bold w-full sm:w-auto shadow-lg"
                 asChild
               >
-                <Link to="/internet">
+                <Link to="/#forfaits">
                   Voir les forfaits
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>
@@ -71,7 +71,7 @@ const Hero = () => {
                 className="rounded-full h-13 px-8 text-base font-bold w-full sm:w-auto border-2"
                 asChild
               >
-                <Link to="/internet#coverage">
+                <Link to="/commander">
                   <MapPin className="w-4 h-4 mr-2" />
                   Vérifier mon adresse
                 </Link>
