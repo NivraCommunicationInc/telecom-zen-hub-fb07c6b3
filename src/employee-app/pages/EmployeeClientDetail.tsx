@@ -323,12 +323,32 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
                     </div>
                   </Link>
                 ))}
-                <button
-                  onClick={() => handleEscalationPreset("add_service", "Ajout de service", "")}
-                  className="text-[10px] text-amber-400/60 hover:text-amber-400 transition-colors"
-                >
-                  + Demander ajout de service
-                </button>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={() => handleEscalationPreset("add_service", "Ajout de service", `Client: ${profile.full_name}`)}
+                    className="text-[10px] text-amber-400/60 hover:text-amber-400 transition-colors"
+                  >
+                    + Ajout de service
+                  </button>
+                  <button
+                    onClick={() => handleEscalationPreset("service_change", "Modification de service", `Client: ${profile.full_name}`)}
+                    className="text-[10px] text-amber-400/60 hover:text-amber-400 transition-colors"
+                  >
+                    ✎ Modifier un service
+                  </button>
+                  <button
+                    onClick={() => handleEscalationPreset("tv_channel_change", "Changement de chaînes TV", `Client: ${profile.full_name}`)}
+                    className="text-[10px] text-amber-400/60 hover:text-amber-400 transition-colors"
+                  >
+                    📺 Chaînes TV
+                  </button>
+                  <Link
+                    to={employeePath(`/orders/new?clientId=${clientId}`)}
+                    className="text-[10px] text-blue-400/60 hover:text-blue-400 transition-colors"
+                  >
+                    + Nouvelle commande
+                  </Link>
+                </div>
               </div>
             )}
           </Section>
