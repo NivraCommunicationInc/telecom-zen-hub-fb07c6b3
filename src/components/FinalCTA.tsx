@@ -24,7 +24,7 @@ const FinalCTA = () => (
           className="bg-white text-primary hover:bg-white/90 rounded-full px-10 h-13 text-base font-bold shadow-lg transition-all duration-200"
           asChild
         >
-          <Link to="/internet">
+          <Link to="/commander">
             Commencer maintenant
             <ArrowRight className="w-5 h-5 ml-2" />
           </Link>
