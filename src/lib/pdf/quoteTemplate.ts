@@ -325,8 +325,8 @@ function drawTotals(doc: jsPDF, margin: number, contentW: number, data: QuotePDF
 function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: string, startY: number): number {
   let y = startY;
 
-  doc.setFillColor(255, 251, 235);
-  doc.setDrawColor(251, 191, 36);
+  doc.setFillColor(255, 250, 240);
+  doc.setDrawColor(245, 158, 11);
   doc.setLineWidth(0.4);
 
   doc.setTextColor(...C.navy);
@@ -336,8 +336,8 @@ function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: stri
   y += 4;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...C.text);
+  doc.setFontSize(8.5);
+  doc.setTextColor(17, 24, 39);
   const noteLines = doc.splitTextToSize(note, contentW - 14);
 
   doc.roundedRect(margin, y, contentW, noteLines.length * 4.5 + 8, 2, 2, "FD");
