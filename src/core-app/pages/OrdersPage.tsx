@@ -250,7 +250,7 @@ const OrdersPage = () => {
                   const age = getOrderAge(o.created_at);
 
                   return (
-                    <tr key={o.id} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors group">
+                    <tr key={o.id} onClick={() => navigate(corePath(`/orders/${o.id}`))} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors group cursor-pointer">
                       {/* Priority indicator */}
                       <td className="px-2 py-2.5">
                         {priority.level === "high" ? (
