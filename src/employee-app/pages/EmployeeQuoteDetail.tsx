@@ -47,6 +47,8 @@ export default function EmployeeQuoteDetail() {
   const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
   const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
   const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
+  const isAcceptedPendingCheckout = quote.status === "accepted" && quote.checkout_status !== "completed";
+  const checkoutSt = CHECKOUT_STATUS_LABELS[quote.checkout_status] || null;
 
   const handleAction = async (action: string) => {
     try {
