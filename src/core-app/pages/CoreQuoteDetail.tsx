@@ -84,11 +84,13 @@ export default function CoreQuoteDetail() {
   const st = STATUS_CONFIG[quote.status] || { label: quote.status, variant: "secondary" as const };
   const canEdit = ["draft", "pending_review"].includes(quote.status);
   const canApprove = ["pending_review"].includes(quote.status);
-  const canSend = ["approved"].includes(quote.status);
-  const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
-  const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
-  const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
-  const isAcceptedPendingCheckout = quote.status === "accepted" && quote.checkout_status !== "completed";
+  const canSend = quote.status === "approved";
+  const canResend = ["sent", "viewed"].includes(quote.status);
+  const canFollowUp = ["sent", "viewed", "accepted_pending_checkout"].includes(quote.status);
+  const isAcceptedPendingCheckout = quote.status === "accepted_pending_checkout";
+  const isCheckoutInProgress = quote.status === "checkout_in_progress";
+  const isCheckoutCompleted = quote.status === "checkout_completed";
+  const canConvert = isCheckoutCompleted && !quote.converted_order_id;
 
   const clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : (customer?.full_name || "—");
   const clientEmail = quote.is_prospect ? quote.prospect_email : customer?.email;
