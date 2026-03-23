@@ -109,13 +109,23 @@ const GuestCheckout = () => {
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
+  // ── KYC / Identity ──
+  const [identityData, setIdentityData] = useState<GuestIdentityData>(createEmptyIdentityData());
+
   // ── Payment ──
   const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
   const [etransferRef, setEtransferRef] = useState("");
   const [etransferSender, setEtransferSender] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // ── Legal checklist (replaces simple termsAccepted) ──
+  const [legalChecklist, setLegalChecklist] = useState<ChecklistState>({
+    prepaid: false,
+    delays: false,
+    notices: false,
+    etransfer: false,
+  });
 
   // ── Pricing ──
   const [liveServerPricing, setLiveServerPricing] = useState<any>(null);
