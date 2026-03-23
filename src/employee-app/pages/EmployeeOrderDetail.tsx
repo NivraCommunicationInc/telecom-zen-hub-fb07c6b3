@@ -295,6 +295,17 @@ function OrderDetailContent({ orderId }: { orderId: string }) {
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
+          {/* Documents */}
+          <DocumentActions
+            orderId={resolvedOrderId}
+            invoiceId={invoice?.id}
+            contractId={order.id}
+            clientEmail={profile?.email ?? undefined}
+            clientName={profile?.full_name ?? undefined}
+            orderNumber={order.order_number}
+            invoiceNumber={invoice?.invoice_number}
+            compact
+          />
           {/* Financial detail — READ ONLY */}
           <Section title="Détail financier" icon={<DollarSign className="h-4 w-4" />} locked>
             <div className="rounded-lg p-3 bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
