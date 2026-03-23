@@ -739,7 +739,7 @@ const GuestCheckout = () => {
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                  <Button variant="outline" className="flex-1" onClick={() => setStep(isStreamingOnlyOrder ? 1 : 2)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button className="flex-1" disabled={!isClientInfoValid} onClick={() => setStep(4)}>
