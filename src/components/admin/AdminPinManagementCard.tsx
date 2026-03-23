@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, KeyRound, AlertTriangle, Loader2, CheckCircle, Eye, EyeOff, RotateCcw } from "lucide-react";
-import { hashPin, isValidPin, DEFAULT_PIN } from "@/lib/pinUtils";
+import { hashPin, isValidPin, generateTemporaryPin } from "@/lib/pinUtils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
