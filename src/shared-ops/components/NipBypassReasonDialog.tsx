@@ -85,11 +85,25 @@ export function NipBypassReasonDialog({
         },
       });
 
+      // Log to internal_audit_log
+      await logInternalAudit({
+        action: "nip_bypass_access",
+        category: "security",
+        portal,
+        targetType: "client",
+        targetId: customerId,
+        details: {
+          bypass_reason: reason,
+          note: note.trim() || null,
+          account_id: accountId ?? null,
+        },
+      });
+
       onBypassGranted();
     } catch (err) {
-      console.error("[NipBypass] Failed to log:", err);
-      // Still grant access — logging failure should not block operations
-      onBypassGranted();
+      console.error("[NipBypass] Security logging failed — access DENIED:", err);
+      toast.error("Échec de l'enregistrement de sécurité. Accès refusé.");
+      // ACCESS DENIED if logging fails — security event must be traceable
     } finally {
       setSubmitting(false);
     }
