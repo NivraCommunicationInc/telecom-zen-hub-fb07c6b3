@@ -259,62 +259,36 @@ export async function fallbackCheckout(
   const paymentId = crypto.randomUUID();
   const subscriptionId = crypto.randomUUID();
 
-  // ── 2. Resolve billing_customer (idempotent: select-or-insert) ──
+  // ── 2. Resolve billing_customer (READ-ONLY — creation is server-side via checkout-canonical-sync) ──
+  // The fallback NEVER inserts into billing_customers from the client.
+  // checkout-canonical-sync (service_role) is the sole creator.
   let customerId: string | null = null;
   {
-    const { data: existingCust } = await supabase
+    // Try by user_id first, then by email
+    const { data: byUserId } = await supabase
       .from("billing_customers")
       .select("id")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (existingCust) {
-      customerId = existingCust.id;
+    if (byUserId) {
+      customerId = byUserId.id;
     } else {
-      const { data: created, error } = await supabase
+      const { data: byEmail } = await supabase
         .from("billing_customers")
-        .insert({
-          user_id: userId,
-          first_name: payload.customer.first_name,
-          last_name: payload.customer.last_name,
-          email: payload.customer.email.trim().toLowerCase(),
-          phone: payload.customer.phone,
-          status: "active",
-        })
         .select("id")
-        .single();
-
-      if (error) {
-        // Race condition or RLS block (guest checkout uses anon key)
-        if (error.code === "23505" || error.message?.includes("row-level security")) {
-          // Wait briefly for checkout-canonical-sync to create the record
-          await new Promise(r => setTimeout(r, 1500));
-          const { data: reFetched } = await supabase
-            .from("billing_customers")
-            .select("id")
-            .eq("user_id", userId)
-            .maybeSingle();
-          customerId = reFetched?.id || null;
-          if (!customerId) {
-            // Try by email as fallback
-            const { data: byEmail } = await supabase
-              .from("billing_customers")
-              .select("id")
-              .eq("email", payload.customer.email.trim().toLowerCase())
-              .maybeSingle();
-            customerId = byEmail?.id || null;
-          }
-        }
-        if (!customerId) {
-          throw new Error(`billing_customer creation failed: ${error.message}`);
-        }
-      } else {
-        customerId = created.id;
-      }
+        .eq("email", payload.customer.email.trim().toLowerCase())
+        .maybeSingle();
+      customerId = byEmail?.id || null;
     }
   }
 
-  if (!customerId) throw new Error("No billing_customer resolved — checkout blocked");
+  if (!customerId) {
+    throw new Error(
+      "No billing_customer found — checkout-canonical-sync must create it before fallback runs. " +
+      "Ensure the canonical edge function has completed before retrying."
+    );
+  }
 
   // ── 3. Resolve account (idempotent: select-or-insert with 23505 handling) ──
   let accountId = payload.account_id || null;
