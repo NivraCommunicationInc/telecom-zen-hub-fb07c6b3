@@ -157,13 +157,21 @@ const GuestCheckout = () => {
     }
   }, [searchParams, services]);
 
+  // ── Equipment quantities ──
+  const [wifiRouterQty, setWifiRouterQty] = useState(1);
+  const [tvTerminalQty, setTvTerminalQty] = useState(1);
+
+  // ── Welcome discount ──
+  const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
+
   // ── Derived ──
   const hasInternetService = selectedServices.some(s => s.category === "Internet");
   const hasTVService = selectedServices.some(s => s.category === "TV");
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
   const hasStreamingService = selectedServices.some(s => s.category === "Streaming" || s.category === "Streaming+");
-  const isStreamingOnlyOrder = hasStreamingService && !hasInternetService && !hasTVService && !hasMobileService;
+  const isStreamingOnlyOrder = selectedServices.length > 0 && selectedServices.every(s => s.category === "Streaming" || s.category === "Streaming+");
   const requiresInstallation = installationChoice === "technician" && (hasInternetService || hasTVService);
+  const needsAddress = !isStreamingOnlyOrder;
   const isETransfer = paymentMethod === "etransfer";
   const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
   const isKycComplete = isStreamingOnlyOrder || identityData.status === "complete";
@@ -172,12 +180,13 @@ const GuestCheckout = () => {
   const SIM_PRICE = simPrice ?? 10;
 
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
-  const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE : 0;
+  const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
   const simFee = hasMobileService ? SIM_PRICE : 0;
-  const activationFee = canonicalFees.activationSingle || 25;
-  const deliveryFee = installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0;
-  const installationFee = installationChoice === "technician" ? (canonicalFees.installationTechnician || 50) : 0;
-  const oneTimeFees = routerFee + simFee + activationFee + deliveryFee + installationFee;
+  const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
+  const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 25);
+  const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0);
+  const installationFee = isStreamingOnlyOrder ? 0 : (installationChoice === "technician" ? (canonicalFees.installationTechnician || 50) : 0);
+  const oneTimeFees = routerFee + simFee + terminalFee + activationFee + deliveryFee + installationFee;
 
   // ── Live server pricing ──
   useEffect(() => {
@@ -194,7 +203,8 @@ const GuestCheckout = () => {
         if (activationFee > 0) cartItems.push({ type: "activation", name: "Frais d'activation", amount: activationFee });
         if (deliveryFee > 0) cartItems.push({ type: "delivery", name: "Frais de livraison", amount: deliveryFee });
         if (installationFee > 0) cartItems.push({ type: "installation", name: "Frais d'installation", amount: installationFee });
-        if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: routerFee });
+        if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: ROUTER_PRICE, quantity: Math.min(wifiRouterQty, 1) });
+        if (terminalFee > 0) cartItems.push({ type: "equipment", name: "Terminal TV", amount: terminalPrice ?? 0, quantity: Math.min(Math.max(tvTerminalQty, 1), 4) });
         if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
 
         const effectivePromoCode = appliedPromo?.code || ((appliedReferral?.discount_amount ?? 0) > 0 ? appliedReferral?.code : null) || null;
@@ -208,22 +218,38 @@ const GuestCheckout = () => {
     }, 400);
 
     return () => { if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current); };
-  }, [selectedServices, activationFee, deliveryFee, installationFee, routerFee, simFee, appliedPromo?.code, appliedReferral?.code, email]);
+  }, [selectedServices, activationFee, deliveryFee, installationFee, routerFee, simFee, terminalFee, wifiRouterQty, tvTerminalQty, appliedPromo?.code, appliedReferral?.code, email]);
 
   const normalizedPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
   const todayTotal = toNonNegativeMoney(normalizedPricing?.grand_total ?? 0);
   const { total: monthlyTotalWithTax } = estimateMonthlyTaxes(subtotal);
 
-  // ── Service toggle ──
+  // ── Service toggle with compatibility rules ──
   const toggleService = (service: Service) => {
     setSelectedServices(prev => {
       const exists = prev.find(s => s.id === service.id);
       if (exists) return prev.filter(s => s.id !== service.id);
-      // Only 1 Internet per order
+
+      // Rule 1: Only 1 Internet per order
       if (service.category === "Internet" && prev.some(s => s.category === "Internet")) {
-        toast.error("Une seule offre Internet par commande");
+        toast.error("Un seul plan Internet est permis par adresse.");
         return prev;
       }
+      // Rule 2: Only 1 TV per order
+      if (service.category === "TV" && prev.some(s => s.category === "TV")) {
+        toast.error("Un seul forfait TV est permis par adresse.");
+        return prev;
+      }
+      // Rule 3: TV + Internet incompatibility — TV bundles include Internet
+      if (service.category === "Internet" && prev.some(s => s.category === "TV")) {
+        toast.error("Le forfait TV inclut déjà Internet. Vous ne pouvez pas ajouter un plan Internet séparé.");
+        return prev;
+      }
+      if (service.category === "TV" && prev.some(s => s.category === "Internet")) {
+        toast.error("Ce forfait TV inclut Internet. Veuillez d'abord retirer le plan Internet du panier.");
+        return prev;
+      }
+
       return [...prev, service];
     });
   };
@@ -337,7 +363,8 @@ const GuestCheckout = () => {
       if (activationFee > 0) cartItems.push({ type: "activation", name: "Frais d'activation", amount: activationFee });
       if (deliveryFee > 0) cartItems.push({ type: "delivery", name: "Frais de livraison", amount: deliveryFee });
       if (installationFee > 0) cartItems.push({ type: "installation", name: "Frais d'installation", amount: installationFee });
-      if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: routerFee });
+      if (routerFee > 0) cartItems.push({ type: "equipment", name: "Routeur", amount: ROUTER_PRICE, quantity: 1 });
+      if (terminalFee > 0) cartItems.push({ type: "equipment", name: "Terminal TV", amount: terminalPrice ?? 0, quantity: Math.min(Math.max(tvTerminalQty, 1), 4) });
       if (simFee > 0) cartItems.push({ type: "equipment", name: "Carte SIM", amount: simFee });
 
       let rpcPricing: any;
@@ -381,6 +408,7 @@ const GuestCheckout = () => {
         })),
         equipment: [
           ...((hasInternetService || hasTVService) ? [{ sku: "EQ-ROUTER", name: "Routeur Nivra Born WiFi 6", quantity: 1, unit_price: ROUTER_PRICE }] : []),
+          ...(hasTVService ? [{ sku: "EQ-TERMINAL-TV", name: "Terminal TV", quantity: Math.min(Math.max(tvTerminalQty, 1), 4), unit_price: terminalPrice ?? 0 }] : []),
           ...(hasMobileService ? [{ sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE }] : []),
         ],
         fees: [
@@ -470,6 +498,37 @@ const GuestCheckout = () => {
             console.error("[GuestCheckout] CRITICAL: Consent record failed after 3 retries for order", response.order_id);
           }
         }
+      }
+
+      // Step 6b: Post-order data integrity check (non-blocking, logs to billing_system_alerts)
+      try {
+        const checks = await Promise.allSettled([
+          supabase.from("profiles").select("id").eq("user_id", userId).maybeSingle(),
+          supabase.from("accounts").select("id").eq("client_id", userId).limit(1),
+          supabase.from("billing_invoices").select("id").eq("order_id", response.order_id).limit(1),
+          supabase.from("orders").select("pricing_snapshot").eq("id", response.order_id).maybeSingle(),
+        ]);
+        const labels = ["profile", "account", "invoice", "pricing_snapshot"];
+        for (let i = 0; i < checks.length; i++) {
+          const result = checks[i];
+          const hasData = result.status === "fulfilled" && (
+            Array.isArray(result.value?.data) ? result.value.data.length > 0 : !!result.value?.data
+          );
+          if (!hasData) {
+            try {
+              await supabase.from("billing_system_alerts" as any).insert({
+                alert_type: "data_integrity",
+                entity_type: labels[i],
+                entity_id: response.order_id,
+                entity_reference: response.order_number,
+                details: { missing: labels[i], order_id: response.order_id, user_id: userId },
+                is_resolved: false,
+              });
+            } catch { /* non-blocking */ }
+          }
+        }
+      } catch (e) {
+        console.warn("[GuestCheckout] Data integrity check failed:", e);
       }
 
       // Step 7: Send confirmation email
@@ -592,7 +651,7 @@ const GuestCheckout = () => {
                 <Button
                   className="w-full h-12 text-base font-bold"
                   disabled={selectedServices.length === 0}
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(isStreamingOnlyOrder ? 3 : 2)}
                 >
                   Continuer <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
@@ -713,7 +772,7 @@ const GuestCheckout = () => {
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                  <Button variant="outline" className="flex-1" onClick={() => setStep(isStreamingOnlyOrder ? 1 : 2)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button className="flex-1" disabled={!isClientInfoValid} onClick={() => setStep(4)}>
@@ -746,6 +805,88 @@ const GuestCheckout = () => {
                   />
                 )}
 
+                {/* Equipment constraints */}
+                {(hasInternetService || hasTVService) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Package className="w-5 h-5 text-primary" />
+                        Équipement
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* WiFi Router — max 1 */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Borne WiFi 6</p>
+                          <p className="text-xs text-muted-foreground">Maximum 1 par adresse • {fmt(ROUTER_PRICE)}</p>
+                        </div>
+                        <Badge variant="secondary">1</Badge>
+                      </div>
+
+                      {/* TV Terminals — min 1 if TV, max 4 */}
+                      {hasTVService && (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Terminal TV</p>
+                            <p className="text-xs text-muted-foreground">Min 1 avec service TV • Max 4 par adresse • {fmt(terminalPrice ?? 0)}/unité</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm" variant="outline"
+                              disabled={tvTerminalQty <= 1}
+                              onClick={() => setTvTerminalQty(q => Math.max(1, q - 1))}
+                            >−</Button>
+                            <span className="w-8 text-center font-semibold text-foreground">{tvTerminalQty}</span>
+                            <Button
+                              size="sm" variant="outline"
+                              disabled={tvTerminalQty >= 4}
+                              onClick={() => setTvTerminalQty(q => Math.min(4, q + 1))}
+                            >+</Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {hasMobileService && (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Carte SIM</p>
+                            <p className="text-xs text-muted-foreground">{fmt(SIM_PRICE)}</p>
+                          </div>
+                          <Badge variant="secondary">1</Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Welcome Discount Banner */}
+                {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
+                  <Card className="bg-emerald-500/10 border-emerald-500/30">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <Star className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">Rabais bienvenue appliqué !</p>
+                            <p className="text-xs text-muted-foreground">
+                              50% de rabais sur votre premier mois — appliqué automatiquement.
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => setWelcomeDiscountDismissed(true)}
+                        >
+                          Retirer
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Promo / Referral */}
                 <Card>
                   <CardHeader>
@@ -759,7 +900,10 @@ const GuestCheckout = () => {
                       clientEmail={email}
                       cartItems={selectedServices.map(s => ({ type: 'service' as const, amount: s.price, name: s.name }))}
                       subtotalBeforeDiscount={subtotal}
-                      onPromoApplied={setAppliedPromo}
+                      onPromoApplied={(promo) => {
+                        setAppliedPromo(promo);
+                        if (promo) setWelcomeDiscountDismissed(true);
+                      }}
                       appliedPromo={appliedPromo}
                     />
                     <ReferralCodeInput
@@ -1121,6 +1265,12 @@ const GuestCheckout = () => {
                             <div className="flex justify-between text-xs">
                               <span className="text-muted-foreground">Routeur</span>
                               <span>{fmt(routerFee)}</span>
+                            </div>
+                          )}
+                          {terminalFee > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Terminal TV ×{tvTerminalQty}</span>
+                              <span>{fmt(terminalFee)}</span>
                             </div>
                           )}
                           {simFee > 0 && (
