@@ -128,9 +128,11 @@ export default function PublicQuote() {
     if (!quote) return;
     const pdfData: QuotePDFData = {
       quoteNumber: quote.quote_number || "—",
-      clientName: quote.is_prospect ? (quote.prospect_name || "Prospect") : "Client",
+      clientName: quote.is_prospect
+        ? ((quote.prospect_name?.trim() && quote.prospect_name !== "Prospect") ? quote.prospect_name : "En attente d'identification")
+        : "Client",
       clientEmail: quote.is_prospect ? quote.prospect_email : undefined,
-      clientPhone: quote.is_prospect ? quote.prospect_phone : undefined,
+      clientPhone: quote.is_prospect ? undefined : undefined, // Don't show phone for unverified prospects
       isProspect: quote.is_prospect || false,
       validUntil: quote.valid_until,
       clientNote: quote.client_note,
