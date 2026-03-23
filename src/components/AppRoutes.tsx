@@ -52,6 +52,9 @@ const EmployeeInvoiceDetail = lazy(() => import("@/employee-app/pages/EmployeeIn
 const EmployeeSubscriptionDetail = lazy(() => import("@/employee-app/pages/EmployeeSubscriptionDetail"));
 const EmployeeAccounts = lazy(() => import("@/employee-app/pages/EmployeeAccounts"));
 const EmployeeAccountDetail = lazy(() => import("@/employee-app/pages/EmployeeAccountDetail"));
+const EmployeeQuotes = lazy(() => import("@/employee-app/pages/EmployeeQuotes"));
+const EmployeeCreateQuote = lazy(() => import("@/employee-app/pages/EmployeeCreateQuote"));
+const EmployeeQuoteDetail = lazy(() => import("@/employee-app/pages/EmployeeQuoteDetail"));
 
 // Nivra Core internal app (lazy-loaded, fully isolated)
 const CoreAppLayout = lazy(() => import("@/core-app/CoreAppLayout"));
