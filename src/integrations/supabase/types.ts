@@ -9676,6 +9676,7 @@ export type Database = {
           approved_by_user_id: string | null
           assigned_to_user_id: string | null
           checkout_completed_at: string | null
+          checkout_data: Json | null
           checkout_status: string | null
           checkout_token: string | null
           client_note: string | null
@@ -9712,6 +9713,7 @@ export type Database = {
           approved_by_user_id?: string | null
           assigned_to_user_id?: string | null
           checkout_completed_at?: string | null
+          checkout_data?: Json | null
           checkout_status?: string | null
           checkout_token?: string | null
           client_note?: string | null
@@ -9748,6 +9750,7 @@ export type Database = {
           approved_by_user_id?: string | null
           assigned_to_user_id?: string | null
           checkout_completed_at?: string | null
+          checkout_data?: Json | null
           checkout_status?: string | null
           checkout_token?: string | null
           client_note?: string | null
