@@ -95,7 +95,7 @@ export default function EmployeeAccountDetail() {
           .limit(50),
         supabase
           .from("equipment_inventory")
-          .select("id, serial_number, mac_address, equipment_type, category, status")
+          .select("id, serial_number, mac_address, catalog_name, category, status")
           .eq("assigned_to_user_id", account.client_id)
           .limit(30),
         supabase
@@ -423,7 +423,7 @@ export default function EmployeeAccountDetail() {
               <div className="space-y-2">
                 {equipment.map((eq: any) => (
                   <div key={eq.id} className="p-2 rounded-lg bg-secondary/30 text-xs space-y-0.5">
-                    <p className="text-foreground font-medium">{eq.equipment_type ?? eq.category ?? "Équipement"}</p>
+                    <p className="text-foreground font-medium">{eq.catalog_name ?? eq.category ?? "Équipement"}</p>
                     {eq.serial_number && <p className="text-[10px] text-muted-foreground font-mono">S/N: {eq.serial_number}</p>}
                     {eq.mac_address && <p className="text-[10px] text-muted-foreground font-mono">MAC: {eq.mac_address}</p>}
                     {statusBadge(eq.status)}
