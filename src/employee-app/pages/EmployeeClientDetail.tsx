@@ -52,6 +52,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [showEscalation, setShowEscalation] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
 
   // Employee-specific: tickets + notes + locations (not in shared-ops since they're portal-specific)
   const { data: extras } = useQuery({
