@@ -156,9 +156,14 @@ export default function EmployeeQuoteDetail() {
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
             </Button>
           )}
-          {canConvert && (
+          {isAcceptedPendingCheckout && (
+            <Button size="sm" variant="default" onClick={() => handleAction("checkout_link")}>
+              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Envoyer lien de finalisation
+            </Button>
+          )}
+          {canConvert && !isAcceptedPendingCheckout && (
             <Button size="sm" variant="default" onClick={() => handleAction("convert")}>
-              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir
+              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir en commande
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => handleAction("pdf")}>
