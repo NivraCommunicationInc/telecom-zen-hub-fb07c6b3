@@ -196,7 +196,22 @@ export default function EmployeeQuoteDetail() {
         </div>
       )}
 
-      {/* Follow-up info */}
+      {/* Checkout status for accepted quotes */}
+      {quote.status === "accepted" && checkoutSt && (
+        <div className={`flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30`}>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className={`text-sm font-medium ${checkoutSt.color}`}>{checkoutSt.label}</span>
+          {quote.checkout_token && (
+            <Button size="sm" variant="outline" onClick={() => {
+              navigator.clipboard.writeText(getQuoteCheckoutUrl(quote.checkout_token));
+              toast.success("Lien copié");
+            }}>
+              <Link2 className="h-3.5 w-3.5 mr-1" /> Copier lien checkout
+            </Button>
+          )}
+        </div>
+      )}
+
       {(quote.last_followup_at || quote.last_sent_at) && (
         <div className="flex gap-4 text-xs text-muted-foreground">
           {quote.last_sent_at && <span>Dernier envoi: {format(new Date(quote.last_sent_at), "d MMM yyyy HH:mm", { locale: fr })}</span>}
