@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { NextOperationalStep } from "@/employee-app/components/NextOperationalStep";
 import { ActionConfirmButton } from "@/employee-app/components/ActionConfirmDialog";
 import { useOrderDetail, updateOrderStatus, addOperationalNote } from "@/shared-ops";
+import { DocumentActions } from "@/employee-app/components/DocumentActions";
 
 export default function EmployeeOrderDetail() {
   const { orderId } = useParams<{ orderId: string }>();
