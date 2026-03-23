@@ -248,20 +248,24 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             )}
           </Section>
 
-          {/* Billing summary — READ ONLY */}
+          {/* Billing summary — READ ONLY with invoice links */}
           <Section title="Facturation (lecture seule)" icon={<CreditCard className="h-4 w-4" />} locked>
             {invoices.length === 0 ? (
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucune facture.</p>
             ) : (
               <div className="space-y-1.5">
                 {invoices.map((inv: any) => (
-                  <div key={inv.id} className="flex items-center justify-between py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0">
+                  <Link
+                    key={inv.id}
+                    to={employeePath(`/invoices/${inv.id}`)}
+                    className="flex items-center justify-between py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0 hover:text-blue-400 transition-colors"
+                  >
                     <span className="text-white font-mono">{inv.invoice_number}</span>
                     <div className="flex items-center gap-3">
                       <span className="text-[hsl(220,10%,50%)]">{fmtMoney(inv.total)}</span>
                       {statusBadge(inv.status ?? "draft")}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
