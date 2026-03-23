@@ -67,8 +67,12 @@ export function useOrdersList(environment: EnvironmentFilter = "all") {
           total_amount: invoice?.total ?? o.total_amount, risk_flags: o.risk_flags as string[] | null,
           created_at: o.created_at, environment: o.environment,
           client_full_name: profile?.full_name ?? null, client_email: profile?.email ?? null,
-          account_number: accountNumber, invoice_number: invoice?.invoice_number ?? null,
+          account_number: accountNumber,
+          invoice_id: invoice?.id ?? null,
+          invoice_number: invoice?.invoice_number ?? null,
           invoice_status: invoice?.status ?? null,
+          invoice_balance_due: invoice?.balance_due ?? null,
+          customer_id: invoice?.customer_id ?? null,
         };
       });
     },
