@@ -9611,6 +9611,13 @@ export type Database = {
           discounts_total: number
           id: string
           internal_note: string | null
+          is_prospect: boolean
+          last_followup_at: string | null
+          last_sent_at: string | null
+          next_followup_at: string | null
+          prospect_email: string | null
+          prospect_name: string | null
+          prospect_phone: string | null
           quote_number: string
           source_portal: string
           status: Database["public"]["Enums"]["quote_status"]
@@ -9636,6 +9643,13 @@ export type Database = {
           discounts_total?: number
           id?: string
           internal_note?: string | null
+          is_prospect?: boolean
+          last_followup_at?: string | null
+          last_sent_at?: string | null
+          next_followup_at?: string | null
+          prospect_email?: string | null
+          prospect_name?: string | null
+          prospect_phone?: string | null
           quote_number: string
           source_portal: string
           status?: Database["public"]["Enums"]["quote_status"]
@@ -9661,6 +9675,13 @@ export type Database = {
           discounts_total?: number
           id?: string
           internal_note?: string | null
+          is_prospect?: boolean
+          last_followup_at?: string | null
+          last_sent_at?: string | null
+          next_followup_at?: string | null
+          prospect_email?: string | null
+          prospect_name?: string | null
+          prospect_phone?: string | null
           quote_number?: string
           source_portal?: string
           status?: Database["public"]["Enums"]["quote_status"]
