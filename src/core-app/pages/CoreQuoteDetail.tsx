@@ -152,6 +152,21 @@ export default function CoreQuoteDetail() {
     }
   };
 
+  const handleCheckoutLink = async () => {
+    const session = await getSession();
+    setProcessing(true);
+    try {
+      const result = await sendCheckoutLink(quote.id, session.user.id, "admin");
+      navigator.clipboard.writeText(result.checkoutUrl);
+      toast.success("Lien de finalisation copié");
+      refetchAll();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleDownloadPDF = async () => {
     try {
       await downloadQuotePDF(quote.id);
