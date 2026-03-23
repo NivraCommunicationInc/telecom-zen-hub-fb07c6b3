@@ -65,9 +65,9 @@ export default function EmployeeAccountDetail() {
         ordersRes,
         invoicesRes,
         subscriptionsRes,
-        equipmentRes,
         appointmentsRes,
         locationsRes,
+        customersRes,
       ] = await Promise.all([
         supabase
           .from("profiles")
@@ -94,11 +94,6 @@ export default function EmployeeAccountDetail() {
           .order("created_at", { ascending: false })
           .limit(50),
         supabase
-          .from("equipment_inventory")
-          .select("id, serial_number, mac_address, catalog_name, category, status")
-          .eq("assigned_to_user_id", account.client_id)
-          .limit(30),
-        supabase
           .from("appointments")
           .select("id, appointment_number, title, status, scheduled_at, service_type")
           .eq("client_id", account.client_id)
@@ -110,25 +105,36 @@ export default function EmployeeAccountDetail() {
           .select("*")
           .eq("account_id", accountId)
           .eq("is_active", true),
+        supabase
+          .from("billing_customers")
+          .select("id")
+          .eq("user_id", account.client_id),
       ]);
 
-      const { data: customers } = await supabase
-        .from("billing_customers")
-        .select("id")
-        .eq("user_id", account.client_id);
-
-      const customerIds = (customers ?? []).map((c) => c.id);
-
+      const orders = ordersRes.data ?? [];
+      const customerIds = (customersRes.data ?? []).map((c: any) => c.id);
       const filteredInvoices = (invoicesRes.data ?? []).filter((inv: any) => customerIds.includes(inv.customer_id));
       const filteredSubs = (subscriptionsRes.data ?? []).filter((sub: any) => customerIds.includes(sub.customer_id));
+
+      // Equipment linked via order_id (no assigned_to_user_id column)
+      const orderIds = orders.map((o: any) => o.id).filter(Boolean);
+      let equipment: any[] = [];
+      if (orderIds.length > 0) {
+        const { data: eq } = await supabase
+          .from("equipment_inventory")
+          .select("id, serial_number, mac_address, catalog_name, category, status, order_id")
+          .in("order_id", orderIds)
+          .limit(30);
+        equipment = eq ?? [];
+      }
 
       return {
         account,
         profile: profileRes.data,
-        orders: ordersRes.data ?? [],
+        orders,
         invoices: filteredInvoices,
         subscriptions: filteredSubs,
-        equipment: equipmentRes.data ?? [],
+        equipment,
         appointments: appointmentsRes.data ?? [],
         locations: locationsRes.data ?? [],
       };
