@@ -4,7 +4,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useQuoteDetail } from "@/shared-ops/useQuoteDetail";
-import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl } from "@/shared-ops/quoteOperations";
+import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail } from "@/shared-ops/quoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,9 +48,14 @@ export default function EmployeeQuoteDetail() {
 
       if (action === "submit_review") {
         await updateQuoteStatus(quote.id, "pending_review", session.user.id, "employee", "Soumise pour approbation");
-      } else if (action === "send" || action === "resend") {
+      } else if (action === "send") {
         await sendQuote(quote.id, session.user.id, "employee");
         toast.success("Soumission envoyée au client");
+        refetchAll();
+        return;
+      } else if (action === "resend") {
+        await resendQuoteEmail(quote.id, session.user.id, "employee");
+        toast.success("Courriel renvoyé au client");
         refetchAll();
         return;
       } else if (action === "duplicate") {

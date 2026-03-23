@@ -1,0 +1,287 @@
+/**
+ * send-quote-email — Professional transactional email for quote delivery.
+ * Builds Nivra-branded HTML and enqueues via ResendProxy.
+ */
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { enqueueEmail } from "../_shared/ResendProxy.ts";
+import {
+  emailDocument, header, contentWrapper, footer, statusBanner,
+  sectionHeader, infoRow, button, amountBox, greeting, bodyText, divider,
+  colors, fonts, escapeHtml, formatCurrencySimple,
+} from "../_shared/emailTemplates/components.ts";
+
+interface QuoteEmailRequest {
+  quoteId: string;
+}
+
+serve(async (req) => {
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) return preflightResponse;
+
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Authenticate caller
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { quoteId }: QuoteEmailRequest = await req.json();
+    if (!quoteId) {
+      return new Response(JSON.stringify({ error: "quoteId required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fetch quote
+    const { data: quote, error: qErr } = await supabase
+      .from("quotes")
+      .select("*")
+      .eq("id", quoteId)
+      .single();
+
+    if (qErr || !quote) {
+      return new Response(JSON.stringify({ error: "Quote not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Determine recipient
+    let recipientEmail: string | null = null;
+    let clientName = "Client";
+
+    if (quote.is_prospect) {
+      recipientEmail = quote.prospect_email;
+      clientName = quote.prospect_name || "Client";
+    } else if (quote.customer_user_id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", quote.customer_user_id)
+        .maybeSingle();
+      recipientEmail = profile?.email || null;
+      clientName = profile?.full_name || "Client";
+    }
+
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: "Aucune adresse courriel disponible" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fetch lines
+    const { data: lines } = await supabase
+      .from("quote_lines")
+      .select("*")
+      .eq("quote_id", quoteId)
+      .order("created_at", { ascending: true });
+
+    // Fetch approved adjustments
+    const { data: adjustments } = await supabase
+      .from("quote_adjustments")
+      .select("*")
+      .eq("quote_id", quoteId)
+      .eq("approval_status", "approved");
+
+    // Build public URL
+    const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://nivra-telecom.ca";
+    const publicUrl = `${appBaseUrl}/quote?token=${quote.public_token}`;
+
+    // Format dates
+    const validUntilFormatted = quote.valid_until
+      ? new Date(quote.valid_until).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })
+      : null;
+
+    // Build services table rows
+    const monthlyLines = (lines || []).filter((l: any) => l.billing_frequency === "monthly");
+    const oneTimeLines = (lines || []).filter((l: any) => l.billing_frequency === "one_time");
+
+    const buildServiceRows = (items: any[], freqLabel: string) => items.map((l: any) => `
+      <tr>
+        <td style="color: ${colors.textPrimary}; font-size: 14px; padding: 10px 0; border-bottom: 1px solid ${colors.borderLight};">
+          ${escapeHtml(l.label)}${l.quantity > 1 ? ` <span style="color: ${colors.textMuted};">× ${l.quantity}</span>` : ""}
+        </td>
+        <td style="color: ${colors.textPrimary}; font-size: 14px; font-weight: 600; text-align: right; padding: 10px 0; border-bottom: 1px solid ${colors.borderLight};">
+          ${formatCurrencySimple(l.unit_price * l.quantity)} ${freqLabel}
+        </td>
+      </tr>
+    `).join("");
+
+    // Build services section
+    let servicesHtml = "";
+
+    if (monthlyLines.length > 0) {
+      servicesHtml += `
+        <p style="color: ${colors.textMuted}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin: 16px 0 8px 0;">Services mensuels récurrents</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+          ${buildServiceRows(monthlyLines, "/mois")}
+        </table>
+      `;
+    }
+
+    if (oneTimeLines.length > 0) {
+      servicesHtml += `
+        <p style="color: ${colors.textMuted}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin: 16px 0 8px 0;">Frais uniques</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+          ${buildServiceRows(oneTimeLines, "")}
+        </table>
+      `;
+    }
+
+    // Adjustments
+    let adjustmentsHtml = "";
+    if (adjustments && adjustments.length > 0) {
+      adjustmentsHtml = adjustments.map((a: any) => `
+        <tr>
+          <td style="color: ${colors.textMuted}; font-size: 14px; padding: 8px 0;">${escapeHtml(a.label)}</td>
+          <td style="color: #DC2626; font-size: 14px; font-weight: 600; text-align: right; padding: 8px 0;">
+            -${formatCurrencySimple(a.amount)}
+          </td>
+        </tr>
+      `).join("");
+
+      adjustmentsHtml = `
+        ${divider()}
+        <p style="color: ${colors.textMuted}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin: 0 0 8px 0;">Ajustements</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+          ${adjustmentsHtml}
+        </table>
+      `;
+    }
+
+    // Totals section
+    const totalsHtml = `
+      ${divider()}
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+        ${infoRow("Sous-total", formatCurrencySimple(Number(quote.subtotal || 0)))}
+        ${Number(quote.discounts_total) > 0 ? `
+          <tr>
+            <td style="color: #DC2626; font-size: 14px; padding: 10px 0; border-bottom: 1px solid ${colors.borderLight};">Rabais</td>
+            <td style="color: #DC2626; font-size: 14px; font-weight: 600; text-align: right; padding: 10px 0; border-bottom: 1px solid ${colors.borderLight};">
+              -${formatCurrencySimple(Number(quote.discounts_total))}
+            </td>
+          </tr>
+        ` : ""}
+        ${infoRow("Taxes (TPS + TVQ)", formatCurrencySimple(Number(quote.taxes_total || 0)))}
+      </table>
+      ${amountBox("Total dû maintenant", formatCurrencySimple(Number(quote.total_due_now || 0)))}
+      <div style="margin-top: 12px; padding: 12px 16px; background-color: ${colors.primaryLight}; border-radius: 6px; text-align: center;">
+        <span style="color: ${colors.primary}; font-size: 14px; font-weight: 600;">
+          Mensuel récurrent : ${formatCurrencySimple(Number(quote.total_monthly || 0))} /mois
+        </span>
+      </div>
+    `;
+
+    // Validity notice
+    const validityHtml = validUntilFormatted
+      ? `<p style="color: ${colors.textMuted}; font-size: 13px; margin: 16px 0 0 0; text-align: center;">
+          ⏳ Cette soumission est valide jusqu'au <strong>${validUntilFormatted}</strong>
+        </p>`
+      : "";
+
+    // Client note
+    const noteHtml = quote.client_note
+      ? `<div style="margin-top: 20px; padding: 16px; background-color: ${colors.bgSection}; border-radius: 6px; border-left: 3px solid ${colors.primary};">
+          <p style="color: ${colors.textMuted}; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px 0;">Message</p>
+          <p style="color: ${colors.textPrimary}; font-size: 14px; margin: 0; line-height: 1.5;">${escapeHtml(quote.client_note)}</p>
+        </div>`
+      : "";
+
+    // Full email content
+    const emailContent = `
+      ${header()}
+      ${statusBanner("info", "📋", "Votre soumission est prête", `Soumission ${escapeHtml(quote.quote_number)}`)}
+      ${contentWrapper(`
+        ${greeting(clientName)}
+        ${bodyText("Nous avons préparé une soumission personnalisée pour vos services de télécommunications. Consultez les détails ci-dessous et accédez à votre soumission en ligne pour l'accepter.")}
+        
+        ${sectionHeader("Détail des services")}
+        ${servicesHtml}
+        ${adjustmentsHtml}
+        ${totalsHtml}
+        ${validityHtml}
+        ${noteHtml}
+        
+        <div style="margin-top: 32px; text-align: center;">
+          ${button("Voir ma soumission", publicUrl)}
+          <p style="color: ${colors.textMuted}; font-size: 12px; margin: 12px 0 0 0;">
+            Ou copiez ce lien : <a href="${publicUrl}" style="color: ${colors.primary}; word-break: break-all;">${publicUrl}</a>
+          </p>
+        </div>
+      `)}
+      ${footer("support@nivra-telecom.ca")}
+    `;
+
+    const subject = `Soumission ${quote.quote_number} — Nivra Telecom`;
+    const preheader = `Votre soumission ${quote.quote_number} est prête. Total : ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
+
+    const html = emailDocument(subject, preheader, emailContent);
+
+    // Enqueue email
+    const result = await enqueueEmail({
+      to: recipientEmail,
+      subject,
+      html,
+      templateKey: "quote_sent",
+      eventKey: `quote_sent_${quoteId}_${Date.now()}`,
+      entityType: "quote",
+      entityId: quoteId,
+      fromEmail: "Nivra Telecom <noreply@nivra-telecom.ca>",
+      messageType: "transactional",
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to enqueue email");
+    }
+
+    // Update quote timestamps
+    await supabase
+      .from("quotes")
+      .update({ last_sent_at: new Date().toISOString() })
+      .eq("id", quoteId);
+
+    // Log event
+    await supabase.from("quote_events").insert({
+      quote_id: quoteId,
+      event_type: "email_sent",
+      actor_user_id: user.id,
+      actor_role: "staff",
+      message: `Courriel envoyé à ${recipientEmail}`,
+      metadata: { recipient: recipientEmail, email_queue_id: result.id },
+    });
+
+    console.log(`[send-quote-email] Sent quote ${quote.quote_number} to ${recipientEmail}`);
+
+    return new Response(JSON.stringify({ success: true, recipientEmail }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err: any) {
+    console.error("[send-quote-email] Error:", err);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

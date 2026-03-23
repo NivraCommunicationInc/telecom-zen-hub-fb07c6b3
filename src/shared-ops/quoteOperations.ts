@@ -295,69 +295,24 @@ export async function rejectQuote(quoteId: string, actorUserId: string, actorRol
   await updateQuoteStatus(quoteId, "rejected", actorUserId, actorRole, `Soumission rejetée: ${reason}`);
 }
 
-// ─── 10. Send Quote to Client ────────────────────────────────────────
+// ─── 10. Send Quote to Client (via Edge Function) ────────────────────
 
 export async function sendQuote(quoteId: string, actorUserId: string, actorRole: string) {
-  // Fetch the full quote data for email
-  const { data: quote, error: qErr } = await supabase
-    .from("quotes" as any)
-    .select("*")
-    .eq("id", quoteId)
-    .single();
+  // Call the dedicated edge function that builds professional HTML and enqueues
+  const { data, error } = await supabase.functions.invoke("send-quote-email", {
+    body: { quoteId },
+  });
 
-  if (qErr || !quote) throw new Error("Quote not found");
-
-  // Determine recipient email
-  let recipientEmail: string | null = null;
-  let clientName = "Client";
-
-  if (quote.is_prospect) {
-    recipientEmail = quote.prospect_email;
-    clientName = quote.prospect_name || "Client";
-  } else if (quote.customer_user_id) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, email")
-      .eq("user_id", quote.customer_user_id)
-      .maybeSingle();
-    recipientEmail = profile?.email || null;
-    clientName = profile?.full_name || "Client";
+  if (error) {
+    throw new Error(`Erreur d'envoi: ${error.message}`);
   }
 
-  if (!recipientEmail) {
-    throw new Error("Aucune adresse courriel disponible pour ce client/prospect");
-  }
-
-  // Build public quote URL
-  const baseUrl = window.location.origin;
-  const publicUrl = `${baseUrl}/quote?token=${quote.public_token}`;
-
-  // Send transactional email via edge function
-  try {
-    await supabase.functions.invoke("send-transactional-email", {
-      body: {
-        templateName: "quote-sent",
-        recipientEmail,
-        idempotencyKey: `quote-sent-${quoteId}-${Date.now()}`,
-        templateData: {
-          clientName,
-          quoteNumber: quote.quote_number,
-          totalMonthly: Number(quote.total_monthly || 0).toFixed(2),
-          totalDueNow: Number(quote.total_due_now || 0).toFixed(2),
-          validUntil: quote.valid_until
-            ? new Date(quote.valid_until).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" })
-            : null,
-          publicUrl,
-        },
-      },
-    });
-  } catch (emailErr) {
-    // Email send may fail if not configured — still update status
-    console.warn("Email send failed (may not be configured):", emailErr);
+  if (data?.error) {
+    throw new Error(data.error);
   }
 
   // Update status to sent
-  await updateQuoteStatus(quoteId, "sent", actorUserId, actorRole, `Soumission envoyée à ${recipientEmail}`);
+  await updateQuoteStatus(quoteId, "sent", actorUserId, actorRole, `Soumission envoyée à ${data?.recipientEmail || "client"}`);
 }
 
 // ─── 11. Follow-up ──────────────────────────────────────────────────
@@ -605,6 +560,25 @@ export async function downloadQuotePDF(quoteId: string) {
   a.download = `Soumission-${quote.quote_number}.pdf`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ─── 16. Resend Quote Email ──────────────────────────────────────────
+
+export async function resendQuoteEmail(quoteId: string, actorUserId: string, actorRole: string) {
+  const { data, error } = await supabase.functions.invoke("send-quote-email", {
+    body: { quoteId },
+  });
+
+  if (error) throw new Error(`Erreur de renvoi: ${error.message}`);
+  if (data?.error) throw new Error(data.error);
+
+  // Update last_sent_at without changing status
+  await supabase
+    .from("quotes" as any)
+    .update({ last_sent_at: new Date().toISOString() })
+    .eq("id", quoteId);
+
+  await logQuoteEvent(quoteId, "email_resent", actorUserId, actorRole, `Courriel renvoyé à ${data?.recipientEmail || "client"}`);
 }
 
 // ─── Helper: Log Quote Event ─────────────────────────────────────────
