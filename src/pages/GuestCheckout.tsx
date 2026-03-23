@@ -161,7 +161,12 @@ const GuestCheckout = () => {
   const hasInternetService = selectedServices.some(s => s.category === "Internet");
   const hasTVService = selectedServices.some(s => s.category === "TV");
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
+  const hasStreamingService = selectedServices.some(s => s.category === "Streaming" || s.category === "Streaming+");
+  const isStreamingOnlyOrder = hasStreamingService && !hasInternetService && !hasTVService && !hasMobileService;
   const requiresInstallation = installationChoice === "technician" && (hasInternetService || hasTVService);
+  const isETransfer = paymentMethod === "etransfer";
+  const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
+  const isKycComplete = isStreamingOnlyOrder || identityData.status === "complete";
 
   const ROUTER_PRICE = routerPrice ?? 100;
   const SIM_PRICE = simPrice ?? 10;
