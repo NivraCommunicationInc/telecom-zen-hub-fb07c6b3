@@ -1,13 +1,13 @@
 /**
- * EmployeeClientDetail — Phase 4: Full customer-service workspace.
- * Uses shared-ops + CreateTicketDialog + EmployeePinReset + EscalationRequestDialog + DocumentActions.
+ * EmployeeClientDetail — Phase 5A: Full customer-service workspace.
+ * Uses shared-ops + CreateTicketDialog + EmployeePinReset + EscalationRequestDialog + DocumentActions + RecordPaymentDialog.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, User, ShoppingCart, FileText, CreditCard,
   MapPin, Zap, MessageSquare, Shield, Clock, ChevronRight,
-  Phone, Mail, Hash, Plus, AlertTriangle, Key,
+  Phone, Mail, Hash, Plus, AlertTriangle, Key, DollarSign,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -20,6 +20,7 @@ import { CreateTicketDialog } from "@/employee-app/components/CreateTicketDialog
 import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
+import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -51,6 +52,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [showEscalation, setShowEscalation] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
 
   // Employee-specific: tickets + notes + locations (not in shared-ops since they're portal-specific)
   const { data: extras } = useQuery({
@@ -114,6 +116,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const notes = extras?.notes ?? [];
   const locations = extras?.locations ?? [];
   const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
+  const unpaidInvoices = invoices.filter((inv: any) => (inv.balance_due ?? 0) > 0 && inv.status !== "paid" && inv.status !== "void");
 
   const statusBadge = (s: string) => {
     const colors: Record<string, string> = {
@@ -213,6 +216,14 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         >
           <AlertTriangle className="h-3 w-3" /> Escalation Core
         </button>
+        {unpaidInvoices.length > 0 && (
+          <button
+            onClick={() => setPaymentInvoice(unpaidInvoices[0])}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors"
+          >
+            <DollarSign className="h-3 w-3" /> Enregistrer paiement ({unpaidInvoices.length})
+          </button>
+        )}
       </div>
 
       {/* Dialogs */}
@@ -230,6 +241,18 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           clientName={profile.full_name ?? undefined}
           accountNumber={account?.account_number}
           onClose={() => setShowEscalation(false)}
+        />
+      )}
+      {paymentInvoice && (
+        <RecordPaymentDialog
+          open={!!paymentInvoice}
+          onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
+          invoiceId={paymentInvoice.id}
+          customerId={paymentInvoice.customer_id}
+          invoiceNumber={paymentInvoice.invoice_number}
+          balanceDue={paymentInvoice.balance_due ?? paymentInvoice.total}
+          portal="employee"
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["shared-client-profile", clientId] })}
         />
       )}
 
