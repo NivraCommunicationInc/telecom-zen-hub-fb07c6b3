@@ -709,14 +709,12 @@ const GuestCheckout = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <PromoCodeInput
-                      selectedServices={selectedServices}
                       onPromoApplied={setAppliedPromo}
-                      onPromoRemoved={() => setAppliedPromo(null)}
                       appliedPromo={appliedPromo}
                     />
                     <ReferralCodeInput
+                      clientEmail={email}
                       onReferralApplied={setAppliedReferral}
-                      onReferralRemoved={() => setAppliedReferral(null)}
                       appliedReferral={appliedReferral}
                     />
                   </CardContent>
