@@ -236,13 +236,17 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             ) : (
               <div className="space-y-2">
                 {subscriptions.map((s: any) => (
-                  <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
+                  <Link
+                    key={s.id}
+                    to={employeePath(`/subscriptions/${s.id}`)}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)] hover:border-blue-500/30 transition-colors"
+                  >
                     <div>
                       <p className="text-xs text-white font-medium">{s.plan_name}</p>
                       <p className="text-[10px] text-[hsl(220,10%,40%)]">{fmtMoney(s.plan_price)}/mois</p>
                     </div>
                     {statusBadge(s.status ?? "active")}
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
