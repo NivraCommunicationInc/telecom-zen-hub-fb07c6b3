@@ -1,15 +1,16 @@
 /**
- * EmployeeOrders — Phase 2: Rewired to shared-ops canonical layer.
- * Uses useOrdersList from shared-ops instead of local duplicate query.
+ * EmployeeOrders — Operational order list with inline actions.
+ * Uses shared-ops useOrdersList + DocumentActions + navigation.
  */
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ShoppingCart, Loader2, Search, ArrowUpRight } from "lucide-react";
+import { ShoppingCart, Loader2, Search, ArrowUpRight, FileText, Send, Eye } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useOrdersList } from "@/shared-ops";
+import { DocumentActions } from "@/employee-app/components/DocumentActions";
 
 const STATUS_FILTERS = [
   { key: "all", label: "Toutes" },
@@ -25,9 +26,9 @@ export default function EmployeeOrders() {
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all");
   const [search, setSearch] = useState("");
+  const [docTarget, setDocTarget] = useState<{ orderId: string; orderNumber?: string } | null>(null);
   const { data: allOrders = [], isLoading } = useOrdersList("live");
 
-  // Apply status filter client-side (shared hook loads all statuses)
   const statusFiltered = statusFilter === "all"
     ? allOrders
     : allOrders.filter(o => o.status === statusFilter);
@@ -114,7 +115,7 @@ export default function EmployeeOrders() {
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Statut</th>
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Paiement</th>
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Date</th>
-                  <th className="text-right px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider"></th>
+                  <th className="text-right px-4 py-3 text-[10px] font-semibold text-[hsl(220,10%,40%)] uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,13 +145,53 @@ export default function EmployeeOrders() {
                     <td className="px-4 py-3 text-xs text-[hsl(220,10%,45%)]">
                       {format(new Date(o.created_at), "d MMM yyyy", { locale: fr })}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[hsl(220,10%,35%)]" />
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => navigate(employeePath(`/orders/${o.order_number ?? o.id}`))}
+                          title="Ouvrir commande"
+                          className="p-1.5 rounded-md hover:bg-blue-500/10 text-[hsl(220,10%,35%)] hover:text-blue-400 transition-colors"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDocTarget({ orderId: o.id, orderNumber: o.order_number ?? undefined })}
+                          title="Documents"
+                          className="p-1.5 rounded-md hover:bg-amber-500/10 text-[hsl(220,10%,35%)] hover:text-amber-400 transition-colors"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => navigate(employeePath(`/orders/${o.order_number ?? o.id}`))}
+                          className="p-1.5 rounded-md text-[hsl(220,10%,35%)] hover:text-white transition-colors"
+                        >
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Document actions popover */}
+      {docTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDocTarget(null)}>
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-foreground mb-4">Documents — {docTarget.orderNumber ?? "Commande"}</h3>
+            <DocumentActions
+              orderId={docTarget.orderId}
+              orderNumber={docTarget.orderNumber}
+            />
+            <button
+              onClick={() => setDocTarget(null)}
+              className="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Fermer
+            </button>
           </div>
         </div>
       )}

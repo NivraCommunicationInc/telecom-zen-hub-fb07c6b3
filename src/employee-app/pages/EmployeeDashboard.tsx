@@ -1,5 +1,5 @@
 /**
- * EmployeeDashboard — Phase 3: Powered by unified work items + SLA engine.
+ * EmployeeDashboard — Operational cockpit with top action bar and actionable widgets.
  * Priority zone shows SLA breaches, urgent items, and assigned tasks.
  */
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,7 @@ import {
   ShoppingCart, CreditCard, ShieldCheck, Zap, Headphones,
   UserCheck, AlertTriangle, Search, FileText, ListTodo,
   Loader2, ArrowUpRight, Activity, Clock, Calendar, Ban, DollarSign,
+  Plus, Receipt,
 } from "lucide-react";
 import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
@@ -17,6 +18,7 @@ import { useWorkItemCounts } from "@/employee-app/hooks/useWorkItems";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
+import { CreateTicketDialog } from "@/employee-app/components/CreateTicketDialog";
 
 function useEmployeeName() {
   const { user } = useStaffUser();
@@ -109,6 +111,7 @@ export default function EmployeeDashboard() {
   const { data: recentItems = [] } = useRecentActivity();
   const { data: extras } = useDashboardExtras();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showNewTicket, setShowNewTicket] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,43 +127,35 @@ export default function EmployeeDashboard() {
     return "Bonsoir";
   };
 
-  const quickActions = [
-    { label: "Rechercher client", icon: Search, action: () => document.getElementById("emp-search")?.focus() },
+  // Top action bar — real operational actions
+  const topActions = [
+    { label: "Nouvelle commande", icon: Plus, color: "text-blue-400 hover:bg-blue-500/10", action: () => navigate(employeePath("/orders?status=pending")) },
+    { label: "Enregistrer paiement", icon: DollarSign, color: "text-emerald-400 hover:bg-emerald-500/10", action: () => navigate(employeePath("/payments")) },
+    { label: "Créer ticket", icon: Headphones, color: "text-cyan-400 hover:bg-cyan-500/10", action: () => setShowNewTicket(true) },
+    { label: "Rechercher client", icon: Search, color: "text-amber-400 hover:bg-amber-500/10", action: () => document.getElementById("emp-search")?.focus() },
+  ];
+
+  const quickNav = [
     { label: "Ma file", icon: ListTodo, action: () => navigate(employeePath("/work-queue?filter=mine")) },
     { label: "Commandes", icon: FileText, action: () => navigate(employeePath("/orders")) },
+    { label: "Comptes", icon: Receipt, action: () => navigate(employeePath("/accounts")) },
     { label: "Paiements", icon: CreditCard, action: () => navigate(employeePath("/payments")) },
   ];
 
-  // Priority zone widgets
   const priorityWidgets = [
     {
-      label: "SLA dépassés",
-      value: counts?.breached ?? 0,
-      icon: AlertTriangle,
-      color: "text-red-400",
-      ring: "ring-red-500/30",
-      bg: "bg-red-500/10",
-      bar: "bg-red-500",
+      label: "SLA dépassés", value: counts?.breached ?? 0, icon: AlertTriangle,
+      color: "text-red-400", ring: "ring-red-500/30", bg: "bg-red-500/10", bar: "bg-red-500",
       href: employeePath("/work-queue?filter=breached"),
     },
     {
-      label: "Assignés à moi",
-      value: counts?.mine ?? 0,
-      icon: UserCheck,
-      color: "text-blue-400",
-      ring: "ring-blue-500/30",
-      bg: "bg-blue-500/10",
-      bar: "bg-blue-500",
+      label: "Assignés à moi", value: counts?.mine ?? 0, icon: UserCheck,
+      color: "text-blue-400", ring: "ring-blue-500/30", bg: "bg-blue-500/10", bar: "bg-blue-500",
       href: employeePath("/work-queue?filter=mine"),
     },
     {
-      label: "À risque",
-      value: counts?.atRisk ?? 0,
-      icon: Clock,
-      color: "text-amber-400",
-      ring: "ring-amber-500/30",
-      bg: "bg-amber-500/10",
-      bar: "bg-amber-500",
+      label: "À risque", value: counts?.atRisk ?? 0, icon: Clock,
+      color: "text-amber-400", ring: "ring-amber-500/30", bg: "bg-amber-500/10", bar: "bg-amber-500",
       href: employeePath("/work-queue?filter=urgent"),
     },
   ];
@@ -185,19 +180,34 @@ export default function EmployeeDashboard() {
             Vue opérationnelle — {new Date().toLocaleDateString("fr-CA", { weekday: "long", day: "numeric", month: "long" })}
           </p>
         </div>
-        <div className="flex gap-2">
-          {quickActions.map((a) => (
-            <button
-              key={a.label}
-              onClick={a.action}
-              title={a.label}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 hover:bg-blue-500/5 transition-colors"
-            >
-              <a.icon className="h-3 w-3" />
-              <span className="hidden md:inline">{a.label}</span>
-            </button>
-          ))}
-        </div>
+      </div>
+
+      {/* TOP ACTION BAR */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {topActions.map(a => (
+          <button
+            key={a.label}
+            onClick={a.action}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-sm font-medium transition-all",
+              a.color
+            )}
+          >
+            <a.icon className="h-4 w-4" />
+            {a.label}
+          </button>
+        ))}
+        <div className="border-l border-[hsl(220,15%,15%)] h-8 mx-1" />
+        {quickNav.map(a => (
+          <button
+            key={a.label}
+            onClick={a.action}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 hover:bg-blue-500/5 transition-colors"
+          >
+            <a.icon className="h-3 w-3" />
+            <span className="hidden md:inline">{a.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Quick search */}
@@ -272,15 +282,23 @@ export default function EmployeeDashboard() {
             ))}
           </div>
 
-          {/* Operational Widgets Row */}
+          {/* Operational Widgets Row — Actionable */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Appointments today */}
             <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
-                <Calendar className="h-3.5 w-3.5 text-blue-400" />
-                <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
-                  RDV aujourd'hui ({extras?.appointmentsToday?.length ?? 0})
-                </h3>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(220,15%,11%)]">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-blue-400" />
+                  <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
+                    RDV aujourd'hui ({extras?.appointmentsToday?.length ?? 0})
+                  </h3>
+                </div>
+                <button
+                  onClick={() => navigate(employeePath("/appointments"))}
+                  className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Voir tout →
+                </button>
               </div>
               <div className="p-3 space-y-1.5 max-h-[200px] overflow-y-auto">
                 {(extras?.appointmentsToday ?? []).length === 0 ? (
@@ -306,11 +324,19 @@ export default function EmployeeDashboard() {
 
             {/* Suspended subscriptions */}
             <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
-                <Ban className="h-3.5 w-3.5 text-red-400" />
-                <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
-                  Suspendus ({extras?.suspendedSubs?.length ?? 0})
-                </h3>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(220,15%,11%)]">
+                <div className="flex items-center gap-2">
+                  <Ban className="h-3.5 w-3.5 text-red-400" />
+                  <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
+                    Suspendus ({extras?.suspendedSubs?.length ?? 0})
+                  </h3>
+                </div>
+                <button
+                  onClick={() => navigate(employeePath("/activations"))}
+                  className="text-[10px] text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Gérer →
+                </button>
               </div>
               <div className="p-3 space-y-1.5 max-h-[200px] overflow-y-auto">
                 {(extras?.suspendedSubs ?? []).length === 0 ? (
@@ -329,13 +355,21 @@ export default function EmployeeDashboard() {
               </div>
             </div>
 
-            {/* Overdue invoices */}
+            {/* Overdue invoices — actionable */}
             <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
-                <DollarSign className="h-3.5 w-3.5 text-amber-400" />
-                <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
-                  En souffrance ({extras?.overdueInvoices?.length ?? 0})
-                </h3>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[hsl(220,15%,11%)]">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-3.5 w-3.5 text-amber-400" />
+                  <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
+                    En souffrance ({extras?.overdueInvoices?.length ?? 0})
+                  </h3>
+                </div>
+                <button
+                  onClick={() => navigate(employeePath("/payments"))}
+                  className="text-[10px] text-amber-400 hover:text-amber-300 transition-colors"
+                >
+                  Paiements →
+                </button>
               </div>
               <div className="p-3 space-y-1.5 max-h-[200px] overflow-y-auto">
                 {(extras?.overdueInvoices ?? []).length === 0 ? (
@@ -358,6 +392,7 @@ export default function EmployeeDashboard() {
             </div>
           </div>
 
+          {/* Recent activity */}
           <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
               <Activity className="h-3.5 w-3.5 text-[hsl(220,10%,35%)]" />
@@ -406,6 +441,15 @@ export default function EmployeeDashboard() {
             )}
           </div>
         </>
+      )}
+
+      {/* Create ticket dialog — accessible from dashboard */}
+      {showNewTicket && (
+        <CreateTicketDialog
+          clientId=""
+          clientName=""
+          onClose={() => setShowNewTicket(false)}
+        />
       )}
     </div>
   );
