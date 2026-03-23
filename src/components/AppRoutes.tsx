@@ -785,6 +785,7 @@ const AppRoutes = () => {
           <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><EmployeeInvoiceDetail /></Suspense>} />
           <Route path="subscriptions/:subscriptionId" element={<Suspense fallback={null}><EmployeeSubscriptionDetail /></Suspense>} />
           <Route path="support" element={<Suspense fallback={null}><EmployeeSupport /></Suspense>} />
+          <Route path="equipment" element={<Suspense fallback={null}><EmployeeEquipment /></Suspense>} />
           <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><EmployeeSecurity /></Suspense>} />
