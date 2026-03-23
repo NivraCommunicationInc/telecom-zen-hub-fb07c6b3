@@ -7,7 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, User, ShoppingCart, FileText, CreditCard,
   MapPin, Zap, MessageSquare, Shield, Clock, ChevronRight,
-  Phone, Mail, Hash, Plus, AlertTriangle, Key, DollarSign,
+  Phone, Mail, Hash, Plus, AlertTriangle, Key, DollarSign, Building2,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -162,9 +162,9 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
                 </span>
               )}
               {account?.account_number && (
-                <span className="flex items-center gap-1 text-xs font-mono text-[hsl(220,10%,50%)]">
+                <Link to={employeePath(`/accounts/${account.id}`)} className="flex items-center gap-1 text-xs font-mono text-blue-400 hover:underline">
                   <Hash className="h-3 w-3" /> {account.account_number}
-                </span>
+                </Link>
               )}
             </div>
           </div>
@@ -180,6 +180,14 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         >
           <MessageSquare className="h-3 w-3" /> Ajouter note
         </button>
+        {account?.id && (
+          <button
+            onClick={() => navigate(employeePath(`/accounts/${account.id}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-blue-300 hover:text-white hover:border-blue-500/30 transition-colors"
+          >
+            <Building2 className="h-3 w-3" /> Gérer compte
+          </button>
+        )}
         {orders.length > 0 && (
           <button
             onClick={() => navigate(employeePath(`/orders/${orders[0].order_number ?? orders[0].id}`))}
