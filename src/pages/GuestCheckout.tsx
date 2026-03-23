@@ -515,15 +515,16 @@ const GuestCheckout = () => {
             Array.isArray(result.value?.data) ? result.value.data.length > 0 : !!result.value?.data
           );
           if (!hasData) {
-            console.error(`[DataIntegrity] Missing ${labels[i]} for order ${response.order_id}`);
-            await supabase.from("billing_system_alerts" as any).insert({
-              alert_type: "data_integrity",
-              entity_type: labels[i],
-              entity_id: response.order_id,
-              entity_reference: response.order_number,
-              details: { missing: labels[i], order_id: response.order_id, user_id: userId },
-              is_resolved: false,
-            }).then(() => {}).catch(() => {});
+            try {
+              await supabase.from("billing_system_alerts" as any).insert({
+                alert_type: "data_integrity",
+                entity_type: labels[i],
+                entity_id: response.order_id,
+                entity_reference: response.order_number,
+                details: { missing: labels[i], order_id: response.order_id, user_id: userId },
+                is_resolved: false,
+              });
+            } catch { /* non-blocking */ }
           }
         }
       } catch (e) {
