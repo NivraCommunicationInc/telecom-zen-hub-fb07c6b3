@@ -49,6 +49,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "sales",
+    label: "Sales",
+    icon: FileText,
+    items: [
+      { icon: FileText, label: "Soumissions", href: "/quotes" },
+    ],
+  },
+  {
     id: "operations",
     label: "Operations",
     icon: ListTodo,
