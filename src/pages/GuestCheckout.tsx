@@ -62,7 +62,7 @@ interface Service {
 
 const categoryIcons: Record<string, any> = {
   Mobile: Smartphone, Internet: Wifi, TV: Tv, Streaming: MonitorPlay,
-  Sécurité: Shield, Extras: Package,
+  "Streaming+": MonitorPlay, Sécurité: Shield, Extras: Package,
 };
 
 const CHECKOUT_STEPS = [
