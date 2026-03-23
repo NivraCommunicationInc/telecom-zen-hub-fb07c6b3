@@ -1,9 +1,9 @@
 /**
  * Quote Checkout Page — Dedicated form for clients to complete their info after accepting a quote.
  * Accessible via /quote-checkout?token=XXX (no login required).
- * Creates the real order only after form completion.
+ * Saves client KYC data and sets quote to checkout_completed.
  * Quote transitions: accepted_pending_checkout → checkout_in_progress → checkout_completed
- * Order creation happens ONLY at checkout_completed.
+ * NO ORDER IS CREATED HERE — Staff converts via Employee/Core portal.
  */
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
