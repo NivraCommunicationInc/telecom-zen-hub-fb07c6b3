@@ -202,12 +202,36 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
           </button>
         )}
         <button
-          onClick={() => navigate(employeePath("/support"))}
+          onClick={() => setShowCreateTicket(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
         >
-          <FileText className="h-3 w-3" /> Créer ticket
+          <Plus className="h-3 w-3" /> Créer ticket
+        </button>
+        <button
+          onClick={() => setShowEscalation(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-amber-400/70 hover:text-amber-400 hover:border-amber-500/30 transition-colors"
+        >
+          <AlertTriangle className="h-3 w-3" /> Escalation Core
         </button>
       </div>
+
+      {/* Dialogs */}
+      {showCreateTicket && (
+        <CreateTicketDialog
+          clientId={clientId}
+          clientName={profile.full_name ?? undefined}
+          clientEmail={profile.email ?? undefined}
+          onClose={() => setShowCreateTicket(false)}
+        />
+      )}
+      {showEscalation && (
+        <EscalationRequestDialog
+          clientId={clientId}
+          clientName={profile.full_name ?? undefined}
+          accountNumber={account?.account_number}
+          onClose={() => setShowEscalation(false)}
+        />
+      )}
 
       {/* Note input */}
       {showNoteInput && (
