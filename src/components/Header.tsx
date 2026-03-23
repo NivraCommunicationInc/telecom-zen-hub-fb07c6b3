@@ -53,7 +53,6 @@ const Header = () => {
     return () => { document.body.style.overflow = ''; };
   }, [isMenuOpen]);
 
-  // Close dropdown on route change
   useEffect(() => {
     setOpenDropdown(null);
     setMobileExpanded(null);
@@ -107,10 +106,10 @@ const Header = () => {
           onMouseLeave={handleDropdownLeave}
         >
           <button
-            className={`flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors rounded-md ${
+            className={`flex items-center gap-1 px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
               isActive
-                ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
-                : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+                ? 'text-primary'
+                : 'text-foreground/70 hover:text-primary hover:bg-secondary'
             }`}
             type="button"
             onClick={() => handleNavClick(target)}
@@ -121,7 +120,7 @@ const Header = () => {
 
           {openDropdown === target.id && (
             <div className="absolute top-full left-0 pt-1 z-50">
-              <div className="bg-white rounded-lg shadow-lg border border-slate-200 py-1.5 min-w-[200px]">
+              <div className="bg-card rounded-xl shadow-lg border border-border py-1.5 min-w-[200px]">
                 {target.children!.map((child) => {
                   const childActive = location.pathname === child.target;
                   return (
@@ -130,8 +129,8 @@ const Header = () => {
                       to={child.target}
                       className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
                         childActive
-                          ? 'text-[#003366] bg-blue-50'
-                          : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+                          ? 'text-primary bg-primary/5'
+                          : 'text-foreground/70 hover:text-primary hover:bg-secondary'
                       }`}
                     >
                       {getLabel(child)}
@@ -145,15 +144,14 @@ const Header = () => {
       );
     }
 
-    // No children — simple link or scroll button
     return target.type === 'route' ? (
       <Link
         key={target.id}
         to={target.target}
-        className={`px-4 py-2 text-sm font-medium transition-colors rounded-md ${
+        className={`px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
           isActive
-            ? 'text-[#003366] underline underline-offset-[22px] decoration-2 decoration-[#003366]'
-            : 'text-slate-700 hover:text-[#003366] hover:bg-slate-50'
+            ? 'text-primary'
+            : 'text-foreground/70 hover:text-primary hover:bg-secondary'
         }`}
       >
         {getLabel(target)}
@@ -162,7 +160,7 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-[#003366] hover:bg-slate-50 transition-colors rounded-md"
+        className="px-3 py-2 text-sm font-semibold text-foreground/70 hover:text-primary hover:bg-secondary transition-colors rounded-md"
         type="button"
       >
         {getLabel(target)}
@@ -179,7 +177,7 @@ const Header = () => {
         <div key={target.id}>
           <button
             onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
-            className="flex items-center justify-between w-full px-4 py-3.5 text-base font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl mb-1 min-h-[44px]"
+            className="flex items-center justify-between w-full px-4 py-3.5 text-base font-medium text-foreground/80 hover:bg-secondary active:bg-secondary/80 rounded-xl mb-1 min-h-[44px]"
             type="button"
           >
             {getLabel(target)}
@@ -194,8 +192,8 @@ const Header = () => {
                   onClick={() => setIsMenuOpen(false)}
                   className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl min-h-[44px] ${
                     location.pathname === child.target
-                      ? 'bg-blue-50 text-[#003366]'
-                      : 'text-slate-600 hover:bg-slate-50 active:bg-slate-100'
+                      ? 'bg-primary/5 text-primary'
+                      : 'text-foreground/60 hover:bg-secondary active:bg-secondary/80'
                   }`}
                 >
                   {getLabel(child)}
@@ -214,8 +212,8 @@ const Header = () => {
         onClick={() => setIsMenuOpen(false)}
         className={`flex items-center px-4 py-3.5 text-base font-medium rounded-xl mb-1 min-h-[44px] ${
           location.pathname === target.target
-            ? 'bg-blue-50 text-[#003366]'
-            : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'
+            ? 'bg-primary/5 text-primary'
+            : 'text-foreground/80 hover:bg-secondary active:bg-secondary/80'
         }`}
       >
         {getLabel(target)}
@@ -224,7 +222,7 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="flex items-center w-full text-left px-4 py-3.5 text-base font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-xl mb-1 min-h-[44px]"
+        className="flex items-center w-full text-left px-4 py-3.5 text-base font-medium text-foreground/80 hover:bg-secondary active:bg-secondary/80 rounded-xl mb-1 min-h-[44px]"
         type="button"
       >
         {getLabel(target)}
@@ -236,21 +234,21 @@ const Header = () => {
     <>
       <PublicSystemStatusBanner />
       
-      {/* Top utility bar — Bell-style */}
-      <div className="bg-slate-100 border-b border-slate-200 hidden lg:block">
-        <div className="container mx-auto px-6 max-w-[1320px] flex items-center justify-between h-9">
-          <div className="flex items-center gap-5 text-xs font-medium text-slate-700">
-            <Link to="/" className="hover:underline underline-offset-2">{isFr ? "Personnel" : "Personal"}</Link>
-            <Link to="/contact" className="text-slate-500 hover:underline underline-offset-2">{isFr ? "Entreprise" : "Business"}</Link>
+      {/* Top utility bar */}
+      <div className="bg-muted/60 border-b border-border hidden lg:block">
+        <div className="container mx-auto px-6 max-w-[1200px] flex items-center justify-between h-9">
+          <div className="flex items-center gap-5 text-xs font-medium text-foreground/70">
+            <Link to="/" className="hover:text-primary transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
+            <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">{isFr ? "Entreprise" : "Business"}</Link>
           </div>
-          <div className="flex items-center gap-5 text-xs text-slate-500">
-            <Link to="/aide" className="hover:text-slate-800 transition-colors">
+          <div className="flex items-center gap-5 text-xs text-muted-foreground">
+            <Link to="/aide" className="hover:text-foreground transition-colors">
               {isFr ? "Trouver un point de vente" : "Find a store"}
             </Link>
-            <Link to="/a-propos" className="hover:text-slate-800 transition-colors">
+            <Link to="/a-propos" className="hover:text-foreground transition-colors">
               {isFr ? "À propos" : "About"}
             </Link>
-            <Link to="/contact" className="hover:text-slate-800 transition-colors">
+            <Link to="/contact" className="hover:text-foreground transition-colors">
               {isFr ? "Nous joindre" : "Contact Us"}
             </Link>
             <LanguageSelector />
@@ -259,12 +257,12 @@ const Header = () => {
       </div>
 
       {/* Main navigation */}
-      <header className={`sticky top-0 z-50 bg-white border-b border-slate-200 transition-shadow duration-200 ${isScrolled ? 'shadow-sm' : ''}`}>
-        <div className="container mx-auto px-4 max-w-[1320px]">
-          {/* Mobile: strict 3-column grid 56 / 1fr / 56 */}
+      <header className={`sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b transition-all duration-200 ${isScrolled ? 'border-border shadow-md' : 'border-border/50'}`}>
+        <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
+          {/* Mobile */}
           <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
             <button
-              className="w-14 h-14 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"
+              className="w-14 h-14 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle menu"
               type="button"
@@ -273,42 +271,43 @@ const Header = () => {
             </button>
 
             <Link to="/" className="justify-self-center flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
-                <span className="font-bold text-white text-lg">N</span>
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                <span className="font-bold text-primary-foreground text-lg">N</span>
               </div>
-              <span className="font-bold text-xl text-[#003366] tracking-tight">Nivra</span>
+              <span className="font-bold text-xl text-primary tracking-tight">Nivra</span>
             </Link>
 
             <Link
               to={portalLink}
-              className="w-14 h-14 flex items-center justify-center justify-self-end text-slate-600 hover:text-[#003366] hover:bg-slate-50 rounded-lg"
+              className="w-14 h-14 flex items-center justify-center justify-self-end text-muted-foreground hover:text-primary hover:bg-secondary rounded-lg"
               aria-label="Compte"
             >
               <User className="w-5 h-5" />
             </Link>
           </div>
 
-          {/* Desktop navigation */}
-          <div className="hidden lg:flex items-center h-16">
-            <Link to="/" className="flex items-center gap-2 shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
-                <span className="font-bold text-white text-lg">N</span>
+          {/* Desktop */}
+          <div className="hidden lg:flex items-center h-[60px] gap-8">
+            <Link to="/" className="flex items-center gap-2.5 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                <span className="font-bold text-primary-foreground text-lg">N</span>
               </div>
-              <span className="font-bold text-xl text-[#003366] tracking-tight">Nivra</span>
+              <span className="font-bold text-xl text-primary tracking-tight">Nivra</span>
             </Link>
 
-            <nav className="flex items-center gap-1 ml-10 flex-1">
+            <nav className="flex items-center gap-0.5 flex-1">
               {NAV_TARGETS.map(renderDesktopNavItem)}
             </nav>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button className="p-2 text-slate-500 hover:text-[#003366] hover:bg-slate-50 rounded-lg transition-colors" aria-label="Recherche">
-                <Search className="w-5 h-5" />
+            <div className="flex items-center gap-3 shrink-0">
+              <button className="p-2.5 text-muted-foreground hover:text-primary hover:bg-secondary rounded-lg transition-colors" aria-label="Recherche">
+                <Search className="w-[18px] h-[18px]" />
               </button>
               <Link
                 to={portalLink}
-                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-[#003366] text-white rounded-full hover:bg-[#002244] transition-colors"
+                className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
               >
+                <User className="w-4 h-4" />
                 {isFr ? "Connexion" : "Log in"}
               </Link>
             </div>
@@ -316,38 +315,35 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Mobile Menu — full-height drawer from LEFT */}
+      {/* Mobile Menu */}
       {isMenuOpen && (
         <>
           <div 
             className="fixed inset-0 bg-black/40 z-40 lg:hidden" 
             onClick={() => setIsMenuOpen(false)} 
           />
-          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
-            {/* Drawer header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between h-14">
+          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-background z-50 shadow-2xl lg:hidden overflow-y-auto">
+            <div className="p-4 border-b border-border flex items-center justify-between h-14">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#003366] flex items-center justify-center">
-                  <span className="font-bold text-white text-sm">N</span>
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                  <span className="font-bold text-primary-foreground text-sm">N</span>
                 </div>
-                <span className="font-bold text-[#003366] text-lg">Nivra</span>
+                <span className="font-bold text-primary text-lg">Nivra</span>
               </Link>
-              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Navigation links — large tap targets (min 44px) */}
             <nav className="p-3">
               {NAV_TARGETS.map(renderMobileNavItem)}
             </nav>
 
-            {/* Utility links */}
-            <div className="p-4 border-t border-slate-200 space-y-1">
-              <Link to="/aide" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
+            <div className="p-4 border-t border-border space-y-1">
+              <Link to="/aide" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-muted-foreground hover:bg-secondary rounded-xl min-h-[44px]">
                 Support
               </Link>
-              <Link to="/a-propos" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
+              <Link to="/a-propos" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-muted-foreground hover:bg-secondary rounded-xl min-h-[44px]">
                 {isFr ? "À propos" : "About"}
               </Link>
               <div className="px-4 py-2">
@@ -355,9 +351,8 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Login CTA — prominent at bottom */}
-            <div className="p-4 border-t border-slate-200">
-              <Button className="w-full bg-[#003366] hover:bg-[#002244] text-white h-12 text-base font-semibold rounded-xl" asChild>
+            <div className="p-4 border-t border-border">
+              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-base font-semibold rounded-xl" asChild>
                 <Link to={portalLink} onClick={() => setIsMenuOpen(false)}>
                   <User className="w-4 h-4 mr-2" />
                   {isFr ? "Connexion" : "Log in"}

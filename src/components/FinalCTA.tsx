@@ -4,11 +4,11 @@ import { Link } from "react-router-dom";
 
 const FinalCTA = () => (
   <section className="py-16 lg:py-20 bg-primary">
-    <div className="container mx-auto px-4 max-w-[800px] text-center relative">
+    <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] text-center relative">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/5 to-transparent" />
       </div>
-      <div className="relative">
+      <div className="relative max-w-[700px] mx-auto">
         <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-6">
           Prêt à commencer ?
         </h2>

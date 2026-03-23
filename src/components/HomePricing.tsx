@@ -41,7 +41,7 @@ const HomePricing = () => {
   if (isLoading) {
     return (
       <section className="py-16 lg:py-20 bg-secondary/40">
-        <div className="container mx-auto px-4 max-w-[1100px]">
+        <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
           <Skeleton className="h-8 w-56 mx-auto mb-3" />
           <Skeleton className="h-5 w-72 mx-auto mb-10" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -56,7 +56,7 @@ const HomePricing = () => {
 
   return (
     <section id="forfaits" className="py-16 lg:py-20 bg-secondary/40">
-      <div className="container mx-auto px-4 max-w-[1100px]">
+      <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
             Choisissez votre forfait
@@ -66,7 +66,7 @@ const HomePricing = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 items-stretch mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 items-stretch mb-6 max-w-[960px] mx-auto">
           {plans.map((plan) => (
             <Link
               key={plan.id}
@@ -77,10 +77,8 @@ const HomePricing = () => {
                   : "border border-border hover:border-primary/30 shadow-sm hover:shadow-md"
               }`}
             >
-              {/* Top accent */}
               <div className={`h-1 w-full ${plan.recommended ? "bg-primary" : "bg-transparent"}`} />
 
-              {/* Badge */}
               {plan.recommended && (
                 <div className="absolute top-4 right-4 z-10">
                   <div className="flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full">
@@ -98,7 +96,6 @@ const HomePricing = () => {
                   <p className="text-xs text-muted-foreground mb-5">{plan.speed}</p>
                 )}
 
-                {/* Price — dominant */}
                 <div className="mb-5">
                   <div className="flex items-baseline gap-1">
                     <span className={`font-black text-foreground leading-none ${plan.recommended ? "text-5xl" : "text-4xl"}`}>
@@ -108,7 +105,6 @@ const HomePricing = () => {
                   </div>
                 </div>
 
-                {/* Features */}
                 <div className="space-y-2.5 mb-6 flex-1">
                   {plan.features.map((f, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-sm">
@@ -118,7 +114,6 @@ const HomePricing = () => {
                   ))}
                 </div>
 
-                {/* CTA */}
                 <div className={`w-full rounded-full flex items-center justify-center gap-2 font-bold text-sm transition-all duration-200 ${
                   plan.recommended
                     ? "h-12 bg-primary text-primary-foreground"

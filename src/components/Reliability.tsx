@@ -1,6 +1,6 @@
 const Reliability = () => (
   <section className="py-16 lg:py-20 bg-background">
-    <div className="container mx-auto px-4 max-w-[800px] text-center">
+    <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] text-center">
       <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
         Un service simple et fiable
       </h2>
