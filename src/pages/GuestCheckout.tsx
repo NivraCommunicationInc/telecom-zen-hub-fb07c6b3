@@ -618,7 +618,7 @@ const GuestCheckout = () => {
                 <Button
                   className="w-full h-12 text-base font-bold"
                   disabled={selectedServices.length === 0}
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(isStreamingOnlyOrder ? 3 : 2)}
                 >
                   Continuer <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
