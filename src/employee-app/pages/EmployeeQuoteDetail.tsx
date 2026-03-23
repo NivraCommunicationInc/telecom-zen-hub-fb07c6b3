@@ -4,7 +4,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useQuoteDetail } from "@/shared-ops/useQuoteDetail";
-import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail } from "@/shared-ops/quoteOperations";
+import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp, convertQuoteToOrder, downloadQuotePDF, getQuotePublicUrl, resendQuoteEmail, getQuoteCheckoutUrl, sendCheckoutLink } from "@/shared-ops/quoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
