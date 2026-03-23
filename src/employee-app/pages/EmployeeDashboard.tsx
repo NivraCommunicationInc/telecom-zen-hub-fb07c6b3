@@ -107,6 +107,7 @@ export default function EmployeeDashboard() {
   const { data: counts, isLoading } = useWorkItemCounts();
   const { data: userName } = useEmployeeName();
   const { data: recentItems = [] } = useRecentActivity();
+  const { data: extras } = useDashboardExtras();
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
