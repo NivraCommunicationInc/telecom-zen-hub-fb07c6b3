@@ -136,6 +136,7 @@ const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"))
 const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
+const CoreCreateQuote = lazy(() => import("@/core-app/pages/CoreCreateQuote"));
 
 // Public pages
 import Index from "@/pages/Index";
@@ -714,6 +715,7 @@ const AppRoutes = () => {
           <Route path="activations" element={<Suspense fallback={null}><CoreActivationsPage /></Suspense>} />
           {/* Quotes */}
           <Route path="quotes" element={<Suspense fallback={null}><CoreQuotesPage /></Suspense>} />
+          <Route path="quotes/new" element={<Suspense fallback={null}><CoreCreateQuote /></Suspense>} />
           <Route path="quotes/:quoteId" element={<Suspense fallback={null}><CoreQuoteDetail /></Suspense>} />
           {/* Clients */}
           <Route path="clients" element={<Suspense fallback={null}><CoreClients /></Suspense>} />
