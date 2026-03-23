@@ -829,6 +829,33 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
+                {/* Welcome Discount Banner */}
+                {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
+                  <Card className="bg-emerald-500/10 border-emerald-500/30">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <Star className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">Rabais bienvenue appliqué !</p>
+                            <p className="text-xs text-muted-foreground">
+                              50% de rabais sur votre premier mois — appliqué automatiquement.
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => setWelcomeDiscountDismissed(true)}
+                        >
+                          Retirer
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Promo / Referral */}
                 <Card>
                   <CardHeader>
@@ -842,7 +869,10 @@ const GuestCheckout = () => {
                       clientEmail={email}
                       cartItems={selectedServices.map(s => ({ type: 'service' as const, amount: s.price, name: s.name }))}
                       subtotalBeforeDiscount={subtotal}
-                      onPromoApplied={setAppliedPromo}
+                      onPromoApplied={(promo) => {
+                        setAppliedPromo(promo);
+                        if (promo) setWelcomeDiscountDismissed(true);
+                      }}
                       appliedPromo={appliedPromo}
                     />
                     <ReferralCodeInput
