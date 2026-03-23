@@ -161,11 +161,16 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
         }
         break;
       }
-      case "kyc":
-        // Read canonical KYC status from the linked session first, fallback to order field
-        if ((order._kycSessionStatus || order.id_verification_status) === "approved") status = "completed";
+      case "kyc": {
+        // Source of truth: orders.kyc_status (Phase 1 KYC guest)
+        const orderKycStatus = (order as any).kyc_status || "not_required";
+        if (orderKycStatus === "approved" || orderKycStatus === "not_required") status = "completed";
+        else if (orderKycStatus === "rejected") status = "blocked";
+        // fallback to legacy fields
+        else if ((order._kycSessionStatus || order.id_verification_status) === "approved") status = "completed";
         else if ((order._kycSessionStatus || order.id_verification_status) === "rejected") status = "blocked";
         break;
+      }
       case "fulfillment":
         if (order.fulfillment_type && (order.service_location_id || order.shipping_address || order.client_full_address)) status = "completed";
         break;

@@ -75,6 +75,18 @@ export function CoreOrderHeader({ order, profile, account, appointment, onRefres
               {order.payment_status && (
                 <StatusBadge label={order.payment_status} variant={statusToVariant(order.payment_status)} size="sm" />
               )}
+              {/* KYC status badge */}
+              {order.kyc_status && order.kyc_status !== "not_required" && (
+                <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border ${
+                  order.kyc_status === "approved"
+                    ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                    : order.kyc_status === "rejected"
+                      ? "text-red-400 bg-red-500/10 border-red-500/20"
+                      : "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                }`}>
+                  KYC: {order.kyc_status === "approved" ? "Approuvé" : order.kyc_status === "rejected" ? "Rejeté" : "En attente"}
+                </span>
+              )}
               {order.risk_flags && order.risk_flags.length > 0 && (
                 <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded">
                   <AlertTriangle className="h-2.5 w-2.5" /> RISQUE

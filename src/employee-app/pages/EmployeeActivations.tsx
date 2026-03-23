@@ -43,7 +43,7 @@ export default function EmployeeActivations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("id, order_number, user_id, account_id, status, service_type, payment_status, created_at")
+        .select("id, order_number, user_id, account_id, status, service_type, payment_status, created_at, kyc_status")
         .in("status", ["delivered", "installed", "ready", "provisioning", "processing", "confirmed", "completed"])
         .eq("environment", "live")
         .order("created_at", { ascending: true })
@@ -55,19 +55,17 @@ export default function EmployeeActivations() {
       const userIds = [...new Set(data.map(o => o.user_id).filter(Boolean))];
       const accountIds = [...new Set(data.map(o => o.account_id).filter(Boolean))];
 
-      const [profilesRes, accountsRes, equipmentRes, appointmentsRes, kycRes] = await Promise.all([
+      const [profilesRes, accountsRes, equipmentRes, appointmentsRes] = await Promise.all([
         userIds.length ? supabase.from("profiles").select("user_id, full_name").in("user_id", userIds) : Promise.resolve({ data: [] }),
         accountIds.length ? supabase.from("accounts").select("id, account_number").in("id", accountIds) : Promise.resolve({ data: [] }),
         supabase.from("equipment_inventory").select("order_id").in("order_id", orderIds),
         supabase.from("appointments").select("order_id, status").in("order_id", orderIds),
-        supabase.from("order_identity_data").select("order_id, verification_status").in("order_id", orderIds),
       ]);
 
       const profileMap = new Map((profilesRes.data ?? []).map(p => [p.user_id, p]));
       const accountMap = new Map((accountsRes.data ?? []).map(a => [a.id, a]));
       const equipmentByOrder = new Set((equipmentRes.data ?? []).map(e => e.order_id));
       const appointmentsByOrder = new Map((appointmentsRes.data ?? []).map(a => [a.order_id, a]));
-      const kycByOrder = new Map((kycRes.data ?? []).map(k => [k.order_id, k]));
 
       return data.map(o => ({
         ...o,
@@ -76,7 +74,7 @@ export default function EmployeeActivations() {
         hasEquipment: equipmentByOrder.has(o.id),
         hasAppointment: appointmentsByOrder.has(o.id),
         appointmentCompleted: appointmentsByOrder.get(o.id)?.status === "completed",
-        kycApproved: kycByOrder.get(o.id)?.verification_status === "approved",
+        kycApproved: (o as any).kyc_status === "approved" || (o as any).kyc_status === "not_required",
       })) as ActivationItem[];
     },
     staleTime: 1000 * 60 * 2,
@@ -190,7 +188,7 @@ export default function EmployeeActivations() {
 
 function isReady(item: ActivationItem): boolean {
   const checks = getChecks(item);
-  return checks.payment && checks.equipment;
+  return checks.payment && checks.equipment && checks.kyc;
 }
 
 function getChecks(item: ActivationItem) {
@@ -198,7 +196,7 @@ function getChecks(item: ActivationItem) {
     payment: item.payment_status === "paid" || item.payment_status === "captured" || item.payment_status === "completed",
     equipment: item.hasEquipment,
     appointment: item.appointmentCompleted || !item.hasAppointment,
-    kyc: item.kycApproved || true, // KYC is optional for activation
+    kyc: item.kycApproved,
   };
 }
 

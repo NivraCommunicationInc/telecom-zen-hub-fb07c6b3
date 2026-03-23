@@ -7923,6 +7923,7 @@ export type Database = {
           installation_type: string | null
           internal_notes: string | null
           kyc_policy: string
+          kyc_status: string
           late_fee_amount: number | null
           late_fee_applied: boolean | null
           notes: string | null
@@ -8026,6 +8027,7 @@ export type Database = {
           installation_type?: string | null
           internal_notes?: string | null
           kyc_policy?: string
+          kyc_status?: string
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
@@ -8129,6 +8131,7 @@ export type Database = {
           installation_type?: string | null
           internal_notes?: string | null
           kyc_policy?: string
+          kyc_status?: string
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
           notes?: string | null
