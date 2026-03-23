@@ -61,6 +61,7 @@ function getPriorityIndicator(order: any): { level: "high" | "medium" | "low"; r
 }
 
 const OrdersPage = () => {
+  const navigate = useNavigate();
   const [envFilter, setEnvFilter] = useState<EnvironmentFilter>('live');
   const { data: orders, isLoading, refetch } = useAdminOrders(envFilter);
   const [search, setSearch] = useState("");
