@@ -399,7 +399,14 @@ const GuestCheckout = () => {
           reference: paypalCaptureId || etransferRef || null,
           paypal_capture_id: paypalCaptureId || null,
         },
-        identity: null,
+        identity: isStreamingOnlyOrder ? null : {
+          document_type: identityData.documentType,
+          document_number: identityData.documentNumber,
+          expiration_date: identityData.expirationDate,
+          issuing_province: identityData.issuingProvince,
+          has_front_photo: !!identityData.frontPhoto,
+          has_back_photo: !!identityData.backPhoto,
+        },
         installation: {
           type: installationChoice || "auto",
           delivery_fee: deliveryFee,
