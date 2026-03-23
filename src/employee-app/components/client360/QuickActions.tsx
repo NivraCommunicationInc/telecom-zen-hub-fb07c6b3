@@ -81,8 +81,10 @@ export function QuickActions({
           else navigate(employeePath("/appointments"));
         }} />
         <ActionBtn icon={Key} label="NIP" onClick={onPinReset} variant="warning" />
-        <ActionBtn icon={Briefcase} label="Ajout service" onClick={() => onEscalationPreset("add_service", "Ajout de service", "")} variant="warning" />
-        <ActionBtn icon={Tv} label="Chaînes TV" onClick={() => onEscalationPreset("tv_channel_change", "Changement de chaînes TV", "")} variant="warning" />
+        <ActionBtn icon={ShoppingCart} label="Commande" onClick={() => navigate(employeePath(`/orders/new?clientId=${clientId}`))} variant="primary" />
+        <ActionBtn icon={Briefcase} label="Ajout service" onClick={() => onEscalationPreset("add_service", "Ajout de service", `Client: ${clientId}`)} variant="warning" />
+        <ActionBtn icon={Zap} label="Modif. service" onClick={() => onEscalationPreset("service_change", "Modification de service", `Client: ${clientId}`)} variant="warning" />
+        <ActionBtn icon={Tv} label="Chaînes TV" onClick={() => onEscalationPreset("tv_channel_change", "Changement de chaînes TV", `Client: ${clientId}`)} variant="warning" />
         <ActionBtn icon={AlertTriangle} label="Escalation" onClick={onEscalation} variant="warning" />
       </div>
     </div>
