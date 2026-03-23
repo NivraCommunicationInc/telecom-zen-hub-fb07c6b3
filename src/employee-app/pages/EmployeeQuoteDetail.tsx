@@ -48,9 +48,14 @@ export default function EmployeeQuoteDetail() {
 
       if (action === "submit_review") {
         await updateQuoteStatus(quote.id, "pending_review", session.user.id, "employee", "Soumise pour approbation");
-      } else if (action === "send" || action === "resend") {
+      } else if (action === "send") {
         await sendQuote(quote.id, session.user.id, "employee");
         toast.success("Soumission envoyée au client");
+        refetchAll();
+        return;
+      } else if (action === "resend") {
+        await resendQuoteEmail(quote.id, session.user.id, "employee");
+        toast.success("Courriel renvoyé au client");
         refetchAll();
         return;
       } else if (action === "duplicate") {
