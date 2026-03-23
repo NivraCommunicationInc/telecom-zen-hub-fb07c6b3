@@ -1109,14 +1109,25 @@ const GuestCheckout = () => {
                             onChange={e => setEtransferSender(e.target.value)}
                           />
                         </div>
-                        {etransferRef.length >= 6 && etransferSender.length >= 2 && (
-                          <Button
-                            className="w-full"
-                            onClick={() => { setPaymentComplete(true); toast.success("Référence Interac enregistrée"); }}
-                          >
-                            Confirmer le virement
-                          </Button>
-                        )}
+                        <Button
+                          className="w-full"
+                          disabled={etransferRef.length < 6 || etransferSender.length < 2}
+                          onClick={() => {
+                            if (etransferRef.length < 6) {
+                              toast.error("Le numéro de confirmation doit contenir au moins 6 caractères");
+                              return;
+                            }
+                            if (etransferSender.length < 2) {
+                              toast.error("Veuillez entrer le nom de l'expéditeur");
+                              return;
+                            }
+                            setPaymentComplete(true);
+                            toast.success("Référence Interac enregistrée — vérification en cours après soumission");
+                          }}
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          Confirmer le virement
+                        </Button>
                       </div>
                     )}
 
