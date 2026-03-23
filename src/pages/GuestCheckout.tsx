@@ -962,7 +962,7 @@ const GuestCheckout = () => {
                   </Button>
                   <Button
                     className="flex-1 h-12 text-base font-bold"
-                    disabled={!isPaymentDone || !termsAccepted || isSubmitting}
+                    disabled={!isPaymentDone || !isLegalComplete || !isKycComplete || isSubmitting}
                     onClick={handleSubmit}
                   >
                     {isSubmitting ? (
