@@ -113,7 +113,8 @@ export const AdminPinManagementCard = ({
   const handleResetToDefault = async () => {
     setIsLoading(true);
     try {
-      const hashedPin = await hashPin(DEFAULT_PIN);
+      const tempPin = generateTemporaryPin();
+      const hashedPin = await hashPin(tempPin);
       
       const { error } = await supabase
         .from("profiles")
@@ -131,7 +132,7 @@ export const AdminPinManagementCard = ({
 
       toast({ 
         title: "NIP réinitialisé", 
-        description: `Le NIP a été réinitialisé au NIP par défaut (${DEFAULT_PIN}). Le client devra le changer.` 
+        description: `NIP temporaire unique: ${tempPin}. Le client devra le changer.` 
       });
       setDialogOpen(false);
       resetForm();
