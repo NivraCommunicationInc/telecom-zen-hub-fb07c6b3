@@ -246,7 +246,9 @@ export default function EmployeeAccounts() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {a.overdue_count > 0 && (
-                          <AlertTriangle className="h-3 w-3 text-red-400" title={`${a.overdue_count} facture(s) en retard`} />
+                          <span title={`${a.overdue_count} facture(s) en retard`}>
+                            <AlertTriangle className="h-3 w-3 text-red-400" />
+                          </span>
                         )}
                         <span className={cn(
                           "text-xs font-mono",
