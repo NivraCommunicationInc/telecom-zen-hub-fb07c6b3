@@ -297,7 +297,7 @@ export const AdminPinManagementCard = ({
                   <div>
                     <p className="font-medium text-amber-600">Attention</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Le NIP sera réinitialisé à <strong>{DEFAULT_PIN}</strong>. Le client devra le changer lors de sa prochaine action sensible.
+                      Un NIP temporaire unique sera généré. Le client devra le changer lors de sa prochaine action sensible.
                     </p>
                   </div>
                 </div>
