@@ -7,7 +7,7 @@ import {
   ShoppingCart, CreditCard, ShieldCheck, Zap, Headphones,
   UserCheck, AlertTriangle, Search, FileText, ListTodo,
   Loader2, ArrowUpRight, Activity, Clock, Calendar, Ban, DollarSign,
-  Plus, Receipt,
+  Receipt,
 } from "lucide-react";
 import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
@@ -129,7 +129,7 @@ export default function EmployeeDashboard() {
 
   // Top action bar — real operational actions
   const topActions = [
-    { label: "Nouvelle commande", icon: Plus, color: "text-blue-400 hover:bg-blue-500/10", action: () => navigate(employeePath("/orders?status=pending")) },
+    { label: "Commandes en attente", icon: ShoppingCart, color: "text-blue-400 hover:bg-blue-500/10", action: () => navigate(employeePath("/orders?status=pending")) },
     { label: "Enregistrer paiement", icon: DollarSign, color: "text-emerald-400 hover:bg-emerald-500/10", action: () => navigate(employeePath("/payments")) },
     { label: "Créer ticket", icon: Headphones, color: "text-cyan-400 hover:bg-cyan-500/10", action: () => setShowNewTicket(true) },
     { label: "Rechercher client", icon: Search, color: "text-amber-400 hover:bg-amber-500/10", action: () => document.getElementById("emp-search")?.focus() },

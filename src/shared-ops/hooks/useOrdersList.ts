@@ -23,8 +23,11 @@ export interface OrderListItem {
   client_full_name: string | null;
   client_email: string | null;
   account_number: string | null;
+  invoice_id: string | null;
   invoice_number: string | null;
   invoice_status: string | null;
+  invoice_balance_due: number | null;
+  customer_id: string | null;
 }
 
 export function useOrdersList(environment: EnvironmentFilter = "all") {
@@ -42,11 +45,11 @@ export function useOrdersList(environment: EnvironmentFilter = "all") {
       const userIds = [...new Set(orders.map(o => o.user_id))];
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds);
       const orderIds = orders.map(o => o.id);
-      const { data: invoices } = await supabase.from("billing_invoices").select("order_id, invoice_number, status, total").in("order_id", orderIds);
+      const { data: invoices } = await supabase.from("billing_invoices").select("id, order_id, invoice_number, status, total, balance_due, customer_id").in("order_id", orderIds);
       const maps = await buildCanonicalAccountMaps(supabase, { orderIds, userIds, accountIds: orders.map((o: any) => o.account_id) });
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) ?? []);
-      const invoiceMap = new Map<string, { invoice_number: string; status: string | null; total: number }>();
+      const invoiceMap = new Map<string, { id: string; invoice_number: string; status: string | null; total: number; balance_due: number | null; customer_id: string }>();
       for (const inv of invoices || []) {
         if (!inv.order_id) continue;
         const existing = invoiceMap.get(inv.order_id);
@@ -64,8 +67,12 @@ export function useOrdersList(environment: EnvironmentFilter = "all") {
           total_amount: invoice?.total ?? o.total_amount, risk_flags: o.risk_flags as string[] | null,
           created_at: o.created_at, environment: o.environment,
           client_full_name: profile?.full_name ?? null, client_email: profile?.email ?? null,
-          account_number: accountNumber, invoice_number: invoice?.invoice_number ?? null,
+          account_number: accountNumber,
+          invoice_id: invoice?.id ?? null,
+          invoice_number: invoice?.invoice_number ?? null,
           invoice_status: invoice?.status ?? null,
+          invoice_balance_due: invoice?.balance_due ?? null,
+          customer_id: invoice?.customer_id ?? null,
         };
       });
     },
