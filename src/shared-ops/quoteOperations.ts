@@ -365,6 +365,7 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
 
   let clientEmail: string | null = null;
   let clientPhone: string | null = null;
+  let resolvedAccountId: string | null = quote.account_id || null;
 
   if (quote.customer_user_id) {
     const { data: profile } = await supabase
@@ -374,9 +375,24 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
       .maybeSingle();
     clientEmail = profile?.email || null;
     clientPhone = profile?.phone || null;
+
+    if (!resolvedAccountId) {
+      const { data: account } = await supabase
+        .from("accounts" as any)
+        .select("id")
+        .eq("client_id", quote.customer_user_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      resolvedAccountId = account?.id || null;
+    }
   } else if (quote.is_prospect) {
     clientEmail = quote.prospect_email;
     clientPhone = quote.prospect_phone;
+  }
+
+  if (!resolvedAccountId) {
+    throw new Error("Impossible de convertir: aucun compte client actif trouvé pour cette soumission.");
   }
 
   const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
@@ -389,6 +405,7 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
     .from("orders")
     .insert({
       user_id: quote.customer_user_id || actorUserId,
+      account_id: resolvedAccountId,
       order_number: orderNumber,
       status: "submitted",
       order_type: "new_service",

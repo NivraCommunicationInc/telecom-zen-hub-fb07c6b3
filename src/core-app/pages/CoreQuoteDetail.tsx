@@ -82,7 +82,8 @@ export default function CoreQuoteDetail() {
   const canEdit = ["draft", "pending_review"].includes(quote.status);
   const canApprove = ["pending_review"].includes(quote.status);
   const canSend = ["approved"].includes(quote.status);
-  const canResend = ["sent", "viewed"].includes(quote.status);
+  const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
+  const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
   const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
 
   const clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : (customer?.full_name || "—");
@@ -276,7 +277,7 @@ export default function CoreQuoteDetail() {
               <Button size="sm" variant="outline" onClick={handleResend} disabled={processing}>
                 <Send className="h-3.5 w-3.5 mr-1" /> Renvoyer
               </Button>
-              <Button size="sm" variant="outline" onClick={handleFollowUp} disabled={processing}>
+              <Button size="sm" variant="outline" onClick={handleFollowUp} disabled={processing || !canFollowUp}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
               </Button>
             </>

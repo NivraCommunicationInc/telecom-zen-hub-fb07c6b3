@@ -38,7 +38,8 @@ export default function EmployeeQuoteDetail() {
 
   const st = STATUS_CONFIG[quote.status] || { label: quote.status, variant: "secondary" as const, icon: FileText };
   const canSend = ["approved"].includes(quote.status);
-  const canResend = ["sent", "viewed"].includes(quote.status);
+  const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
+  const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
   const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
 
   const handleAction = async (action: string) => {
@@ -136,7 +137,7 @@ export default function EmployeeQuoteDetail() {
               <Send className="h-3.5 w-3.5 mr-1" /> Renvoyer
             </Button>
           )}
-          {canResend && (
+          {canFollowUp && (
             <Button size="sm" variant="outline" onClick={() => handleAction("followup")}>
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
             </Button>
