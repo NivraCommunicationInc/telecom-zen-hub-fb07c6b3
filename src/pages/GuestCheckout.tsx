@@ -19,7 +19,8 @@ import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
-import { CheckoutEssentialTerms } from "@/components/checkout/CheckoutEssentialTerms";
+import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
+import { GuestIdentityVerification, createEmptyIdentityData, type GuestIdentityData } from "@/components/checkout/GuestIdentityVerification";
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,13 +109,23 @@ const GuestCheckout = () => {
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
+  // ── KYC / Identity ──
+  const [identityData, setIdentityData] = useState<GuestIdentityData>(createEmptyIdentityData());
+
   // ── Payment ──
   const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
   const [etransferRef, setEtransferRef] = useState("");
   const [etransferSender, setEtransferSender] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // ── Legal checklist (replaces simple termsAccepted) ──
+  const [legalChecklist, setLegalChecklist] = useState<ChecklistState>({
+    prepaid: false,
+    delays: false,
+    notices: false,
+    etransfer: false,
+  });
 
   // ── Pricing ──
   const [liveServerPricing, setLiveServerPricing] = useState<any>(null);
@@ -150,7 +161,12 @@ const GuestCheckout = () => {
   const hasInternetService = selectedServices.some(s => s.category === "Internet");
   const hasTVService = selectedServices.some(s => s.category === "TV");
   const hasMobileService = selectedServices.some(s => s.category === "Mobile");
+  const hasStreamingService = selectedServices.some(s => s.category === "Streaming" || s.category === "Streaming+");
+  const isStreamingOnlyOrder = hasStreamingService && !hasInternetService && !hasTVService && !hasMobileService;
   const requiresInstallation = installationChoice === "technician" && (hasInternetService || hasTVService);
+  const isETransfer = paymentMethod === "etransfer";
+  const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
+  const isKycComplete = isStreamingOnlyOrder || identityData.status === "complete";
 
   const ROUTER_PRICE = routerPrice ?? 100;
   const SIM_PRICE = simPrice ?? 10;
@@ -247,8 +263,14 @@ const GuestCheckout = () => {
         return;
       }
 
-      if (!termsAccepted) {
-        toast.error("Veuillez accepter les termes et conditions");
+      if (!isLegalComplete) {
+        toast.error("Veuillez compléter la checklist des conditions essentielles");
+        return;
+      }
+
+      // Validate KYC (unless streaming-only)
+      if (!isKycComplete) {
+        toast.error("Veuillez compléter la vérification d'identité");
         return;
       }
 
@@ -377,7 +399,13 @@ const GuestCheckout = () => {
           reference: paypalCaptureId || etransferRef || null,
           paypal_capture_id: paypalCaptureId || null,
         },
-        identity: null,
+        identity: isStreamingOnlyOrder ? null : {
+          verification_session_id: `guest_${clientRequestIdRef.current}`,
+          id_type: identityData.documentType || null,
+          id_number: identityData.documentNumber || null,
+          id_expiration: identityData.expirationDate || null,
+          id_province: identityData.issuingProvince || null,
+        },
         installation: {
           type: installationChoice || "auto",
           delivery_fee: deliveryFee,
@@ -414,22 +442,34 @@ const GuestCheckout = () => {
         console.warn("[GuestCheckout] Canonical sync failed (non-blocking):", e);
       }
 
-      // Step 6: Consent record
-      try {
-        await supabase.from("checkout_consent_records" as any).insert({
-          order_id: response.order_id,
-          user_id: userId,
-          terms_accepted: termsAccepted,
-          recurring_payment_accepted: false,
-          total_amount_displayed: todayTotal,
-          payment_method: paymentMethodValue,
-          services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
-          legal_versions: { terms: "2026-03-19", privacy: "2026-03-19", refund: "2026-03-19", payment: "2026-03-19" },
-          user_agent: navigator.userAgent,
-          consent_timestamp: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.warn("[GuestCheckout] Consent record failed:", e);
+      // Step 6: Consent record (BLOCKING — must succeed)
+      let consentRetries = 0;
+      let consentSaved = false;
+      while (consentRetries < 3 && !consentSaved) {
+        try {
+          const { error: consentError } = await supabase.from("checkout_consent_records" as any).insert({
+            order_id: response.order_id,
+            user_id: userId,
+            terms_accepted: isLegalComplete,
+            recurring_payment_accepted: false,
+            total_amount_displayed: todayTotal,
+            payment_method: paymentMethodValue,
+            services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
+            legal_versions: { terms: "2026-03-23", privacy: "2026-03-23", refund: "2026-03-23", payment: "2026-03-23" },
+            user_agent: navigator.userAgent,
+            consent_timestamp: new Date().toISOString(),
+          });
+          if (!consentError) consentSaved = true;
+          else throw consentError;
+        } catch (e) {
+          consentRetries++;
+          console.error(`[GuestCheckout] Consent record attempt ${consentRetries} failed:`, e);
+          if (consentRetries >= 3) {
+            toast.error("Erreur critique : impossible d'enregistrer le consentement légal. Contactez le support.");
+            // Note: order was already created, but we flag the issue
+            console.error("[GuestCheckout] CRITICAL: Consent record failed after 3 retries for order", response.order_id);
+          }
+        }
       }
 
       // Step 7: Send confirmation email
@@ -686,6 +726,13 @@ const GuestCheckout = () => {
             {/* ═══ STEP 4: OPTIONS ═══ */}
             {step === 4 && (
               <div className="space-y-6">
+                {/* KYC / Identity Verification */}
+                <GuestIdentityVerification
+                  identityData={identityData}
+                  onIdentityChange={setIdentityData}
+                  isStreamingOnly={isStreamingOnlyOrder}
+                />
+
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
                   <InstallationSection
@@ -741,13 +788,26 @@ const GuestCheckout = () => {
                   </CardContent>
                 </Card>
 
+                {/* Step 4 validation gate */}
+                {!isKycComplete && !isStreamingOnlyOrder && (
+                  <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      Veuillez compléter la vérification d'identité pour continuer au paiement.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setStep(3)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
                     className="flex-1"
-                    disabled={requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)}
+                    disabled={
+                      (!isKycComplete && !isStreamingOnlyOrder) ||
+                      (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))
+                    }
                     onClick={() => setStep(5)}
                   >
                     Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
@@ -892,24 +952,13 @@ const GuestCheckout = () => {
 
                     <Separator />
 
-                    {/* Terms */}
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          id="terms"
-                          checked={termsAccepted}
-                          onCheckedChange={v => setTermsAccepted(!!v)}
-                        />
-                        <label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                          J'accepte les{" "}
-                          <a href="/legal/terms" target="_blank" className="text-primary underline">conditions d'utilisation</a>,{" "}
-                          la{" "}
-                          <a href="/legal/privacy" target="_blank" className="text-primary underline">politique de confidentialité</a>{" "}
-                          et la{" "}
-                          <a href="/legal/refund" target="_blank" className="text-primary underline">politique de remboursement</a>.
-                        </label>
-                      </div>
-                    </div>
+                    {/* Legal Checklist - Full CheckoutEssentialTerms */}
+                    <CheckoutEssentialTermsBase
+                      isFrench
+                      checklist={legalChecklist}
+                      onChecklistChange={(key, checked) => setLegalChecklist(prev => ({ ...prev, [key]: checked }))}
+                      paymentMethod={paymentMethod || undefined}
+                    />
 
                     {/* Security badges */}
                     <div className="flex items-center gap-4 pt-2">
@@ -931,7 +980,7 @@ const GuestCheckout = () => {
                   </Button>
                   <Button
                     className="flex-1 h-12 text-base font-bold"
-                    disabled={!isPaymentDone || !termsAccepted || isSubmitting}
+                    disabled={!isPaymentDone || !isLegalComplete || !isKycComplete || isSubmitting}
                     onClick={handleSubmit}
                   >
                     {isSubmitting ? (
