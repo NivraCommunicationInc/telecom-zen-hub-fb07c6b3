@@ -49,7 +49,7 @@ export function useOrdersList(environment: EnvironmentFilter = "all") {
       const maps = await buildCanonicalAccountMaps(supabase, { orderIds, userIds, accountIds: orders.map((o: any) => o.account_id) });
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) ?? []);
-      const invoiceMap = new Map<string, { invoice_number: string; status: string | null; total: number }>();
+      const invoiceMap = new Map<string, { id: string; invoice_number: string; status: string | null; total: number; balance_due: number | null; customer_id: string }>();
       for (const inv of invoices || []) {
         if (!inv.order_id) continue;
         const existing = invoiceMap.get(inv.order_id);
