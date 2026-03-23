@@ -1,16 +1,16 @@
 /**
- * Employee Quote Detail — View, manage, and track a single quote.
+ * Employee Quote Detail — View, manage, track, and follow up on a single quote.
  */
 import { useParams, useNavigate } from "react-router-dom";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useQuoteDetail } from "@/shared-ops/useQuoteDetail";
-import { updateQuoteStatus, sendQuote, duplicateQuote } from "@/shared-ops/quoteOperations";
+import { updateQuoteStatus, sendQuote, duplicateQuote, logFollowUp } from "@/shared-ops/quoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Copy, Clock, CheckCircle, XCircle, FileText, User, MessageSquare } from "lucide-react";
+import { ArrowLeft, Send, Copy, Clock, CheckCircle, XCircle, FileText, User, MessageSquare, RefreshCw, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -50,6 +50,8 @@ export default function EmployeeQuoteDetail() {
         toast.success("Soumission dupliquée");
         navigate(employeePath(`/quotes/${newQuote.id}`));
         return;
+      } else if (action === "followup") {
+        await logFollowUp(quote.id, session.user.id, "employee");
       }
 
       toast.success("Action effectuée");
@@ -58,6 +60,10 @@ export default function EmployeeQuoteDetail() {
       toast.error(err.message);
     }
   };
+
+  const clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : (customer?.full_name || "—");
+  const clientEmail = quote.is_prospect ? quote.prospect_email : customer?.email;
+  const clientPhone = quote.is_prospect ? quote.prospect_phone : customer?.phone;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -70,6 +76,7 @@ export default function EmployeeQuoteDetail() {
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-foreground font-mono">{quote.quote_number}</h1>
               <Badge variant={st.variant}>{st.label}</Badge>
+              {quote.is_prospect && <Badge variant="outline" className="text-[10px]"><UserPlus className="h-3 w-3 mr-0.5" />Prospect</Badge>}
             </div>
             <p className="text-xs text-muted-foreground">
               Créée le {format(new Date(quote.created_at), "d MMMM yyyy à HH:mm", { locale: fr })}
@@ -87,20 +94,36 @@ export default function EmployeeQuoteDetail() {
               <Send className="h-3.5 w-3.5 mr-1" /> Envoyer
             </Button>
           )}
+          {["sent", "viewed"].includes(quote.status) && (
+            <Button size="sm" variant="outline" onClick={() => handleAction("followup")}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1" /> Relancer
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => handleAction("duplicate")}>
             <Copy className="h-3.5 w-3.5 mr-1" /> Dupliquer
           </Button>
         </div>
       </div>
 
+      {/* Follow-up info */}
+      {(quote.last_followup_at || quote.last_sent_at) && (
+        <div className="flex gap-4 text-xs text-muted-foreground">
+          {quote.last_sent_at && <span>Dernier envoi: {format(new Date(quote.last_sent_at), "d MMM yyyy HH:mm", { locale: fr })}</span>}
+          {quote.last_followup_at && <span>Dernière relance: {format(new Date(quote.last_followup_at), "d MMM yyyy HH:mm", { locale: fr })}</span>}
+          {quote.next_followup_at && <span>Prochaine relance: {format(new Date(quote.next_followup_at), "d MMM yyyy", { locale: fr })}</span>}
+        </div>
+      )}
+
       {/* Client */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><User className="h-4 w-4" /> Client</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <User className="h-4 w-4" /> {quote.is_prospect ? "Prospect" : "Client"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="font-medium">{customer?.full_name || "—"}</p>
-          <p className="text-sm text-muted-foreground">{customer?.email} · {customer?.phone}</p>
+          <p className="font-medium">{clientName}</p>
+          <p className="text-sm text-muted-foreground">{clientEmail}{clientPhone ? ` · ${clientPhone}` : ""}</p>
           {quote.valid_until && (
             <p className="text-xs text-muted-foreground mt-1">
               Valide jusqu'au {format(new Date(quote.valid_until), "d MMMM yyyy", { locale: fr })}
