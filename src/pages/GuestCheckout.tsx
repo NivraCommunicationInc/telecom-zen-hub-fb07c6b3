@@ -464,6 +464,16 @@ const GuestCheckout = () => {
         response = await fallbackCheckout(supabase as any, checkoutPayload);
       }
 
+      // Step 4b: Set kyc_status on the created order
+      try {
+        await supabase
+          .from("orders")
+          .update({ kyc_status: kycStatusForOrder } as any)
+          .eq("id", response.order_id);
+      } catch (e) {
+        console.error("[GuestCheckout] Failed to set kyc_status:", e);
+      }
+
       // Step 5: Canonical sync
       try {
         await supabase.functions.invoke("checkout-canonical-sync", {
