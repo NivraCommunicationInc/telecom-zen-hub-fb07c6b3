@@ -218,7 +218,7 @@ const GuestCheckout = () => {
     }, 400);
 
     return () => { if (serverPricingTimerRef.current) clearTimeout(serverPricingTimerRef.current); };
-  }, [selectedServices, activationFee, deliveryFee, installationFee, routerFee, simFee, appliedPromo?.code, appliedReferral?.code, email]);
+  }, [selectedServices, activationFee, deliveryFee, installationFee, routerFee, simFee, terminalFee, wifiRouterQty, tvTerminalQty, appliedPromo?.code, appliedReferral?.code, email]);
 
   const normalizedPricing = liveServerPricing ? normalizeServerPricingResult(liveServerPricing) : null;
   const todayTotal = toNonNegativeMoney(normalizedPricing?.grand_total ?? 0);
