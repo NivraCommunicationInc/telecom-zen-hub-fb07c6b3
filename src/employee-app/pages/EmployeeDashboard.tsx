@@ -58,7 +58,7 @@ function useRecentActivity() {
       return [
         ...(recentOrders.data ?? []).map(o => ({
           id: o.id, type: "order" as const, reference: o.order_number ?? o.id.slice(0, 8),
-          status: o.status, createdAt: o.created_at, href: employeePath(`/orders/${o.id}`),
+          status: o.status, createdAt: o.created_at, href: employeePath(`/orders/${o.order_number ?? o.id}`),
         })),
         ...(recentTickets.data ?? []).map(t => ({
           id: t.id, type: "ticket" as const, reference: t.ticket_number ?? t.id.slice(0, 8),
@@ -67,6 +67,38 @@ function useRecentActivity() {
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8);
     },
     staleTime: 1000 * 60 * 2,
+  });
+}
+
+function useDashboardExtras() {
+  return useQuery({
+    queryKey: ["employee-dashboard-extras"],
+    queryFn: async () => {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+      const [appointmentsRes, suspendedRes, overdueRes] = await Promise.all([
+        supabase.from("appointments")
+          .select("id, appointment_number, title, scheduled_at, status, client_id, service_address")
+          .eq("environment", "live")
+          .gte("scheduled_at", todayStart).lt("scheduled_at", todayEnd)
+          .order("scheduled_at", { ascending: true }).limit(20),
+        supabase.from("billing_subscriptions")
+          .select("id, plan_name, customer_id, status")
+          .eq("environment", "live").eq("status", "suspended").limit(20),
+        supabase.from("billing_invoices")
+          .select("id, invoice_number, total, balance_due, status, due_date, customer_id")
+          .eq("environment", "live").eq("status", "overdue").limit(20),
+      ]);
+
+      return {
+        appointmentsToday: appointmentsRes.data ?? [],
+        suspendedSubs: suspendedRes.data ?? [],
+        overdueInvoices: overdueRes.data ?? [],
+      };
+    },
+    staleTime: 1000 * 60 * 3,
   });
 }
 
