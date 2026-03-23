@@ -2,6 +2,8 @@
  * Quote Checkout Page — Dedicated form for clients to complete their info after accepting a quote.
  * Accessible via /quote-checkout?token=XXX (no login required).
  * Creates the real order only after form completion.
+ * Quote transitions: accepted_pending_checkout → checkout_in_progress → checkout_completed
+ * Order creation happens ONLY at checkout_completed.
  */
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -15,7 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { PinSetupSectionBase } from "@/components/checkout/PinSetupSectionBase";
 import { backendClient } from "@/integrations/backend/client";
 import { validateDob, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
@@ -112,14 +113,15 @@ export default function QuoteCheckout() {
         return;
       }
 
-      if (q.checkout_status === "completed" || q.status === "converted") {
+      if (q.status === "checkout_completed" || q.status === "converted") {
         setCompleted(true);
         setQuote(q);
         setLoading(false);
         return;
       }
 
-      if (q.status !== "accepted") {
+      // Only allow checkout for accepted_pending_checkout or checkout_in_progress
+      if (!["accepted_pending_checkout", "checkout_in_progress"].includes(q.status)) {
         setError("Cette soumission n'est pas dans un état permettant la finalisation.");
         setLoading(false);
         return;
@@ -159,7 +161,9 @@ export default function QuoteCheckout() {
       }
 
       // Mark checkout in progress
-      await supabase.from("quotes" as any).update({ checkout_status: "in_progress" }).eq("id", q.id);
+      if (q.status === "accepted_pending_checkout") {
+        await supabase.from("quotes" as any).update({ status: "checkout_in_progress" }).eq("id", q.id);
+      }
 
       setQuote(q);
 
@@ -213,8 +217,6 @@ export default function QuoteCheckout() {
     setSubmitting(true);
 
     try {
-      // 1. Create the order via convertQuoteToOrder-like logic but with client data
-      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
       const fullName = `${form.firstName} ${form.lastName}`.trim();
 
       // Resolve or create account
@@ -238,6 +240,7 @@ export default function QuoteCheckout() {
         .join(", ");
 
       // Create the order
+      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
       const orderPayload = {
         user_id: resolvedUserId || "00000000-0000-0000-0000-000000000000",
         account_id: resolvedAccountId || null,
@@ -264,18 +267,17 @@ export default function QuoteCheckout() {
 
       if (orderErr) throw new Error(`Erreur de création: ${orderErr.message}`);
 
-      // 2. Update quote
+      // Update quote to checkout_completed → then converted
       await supabase
         .from("quotes" as any)
         .update({
           status: "converted",
           converted_order_id: order.id,
-          checkout_status: "completed",
           checkout_completed_at: new Date().toISOString(),
         })
         .eq("id", quote.id);
 
-      // 3. Log event
+      // Log event
       await supabase.from("quote_events" as any).insert({
         quote_id: quote.id,
         event_type: "checkout_completed",
@@ -288,7 +290,7 @@ export default function QuoteCheckout() {
         },
       });
 
-      // 4. Set up PIN via backend
+      // Set up PIN via backend (non-blocking)
       try {
         await backendClient.rpc("hash_client_pin" as any, {
           p_user_id: resolvedUserId || order.user_id,

@@ -11,7 +11,7 @@ import { NIVRA } from "@/lib/pdf/companyInfo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, Download, FileText, Clock, XCircle, ShieldCheck, ArrowRight } from "lucide-react";
+import { CheckCircle, Download, FileText, Clock, XCircle, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -20,12 +20,16 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any; canA
   sent: { label: "En attente de réponse", color: "text-blue-600", icon: Clock, canAccept: true },
   viewed: { label: "Consultée", color: "text-blue-600", icon: FileText, canAccept: true },
   approved: { label: "Approuvée", color: "text-emerald-600", icon: CheckCircle, canAccept: true },
-  accepted: { label: "Acceptée", color: "text-emerald-600", icon: CheckCircle, canAccept: false },
+  accepted_pending_checkout: { label: "Acceptée — Finalisation requise", color: "text-amber-600", icon: Clock, canAccept: false },
+  checkout_in_progress: { label: "Finalisation en cours", color: "text-blue-600", icon: Clock, canAccept: false },
+  checkout_completed: { label: "Informations reçues", color: "text-emerald-600", icon: CheckCircle, canAccept: false },
   rejected: { label: "Refusée", color: "text-red-600", icon: XCircle, canAccept: false },
   expired: { label: "Expirée", color: "text-muted-foreground", icon: Clock, canAccept: false },
-  converted: { label: "Convertie en commande", color: "text-emerald-600", icon: CheckCircle, canAccept: false },
+  converted: { label: "Commande confirmée", color: "text-emerald-600", icon: CheckCircle, canAccept: false },
   draft: { label: "Brouillon", color: "text-muted-foreground", icon: FileText, canAccept: false },
   pending_review: { label: "En révision", color: "text-muted-foreground", icon: Clock, canAccept: false },
+  // Legacy fallback
+  accepted: { label: "Acceptée", color: "text-emerald-600", icon: CheckCircle, canAccept: false },
 };
 
 export default function PublicQuote() {
@@ -103,7 +107,7 @@ export default function PublicQuote() {
     setAccepting(true);
     try {
       const { checkoutToken } = await acceptQuoteByClient(quote.id, token);
-      setQuote({ ...quote, status: "accepted", checkout_token: checkoutToken });
+      setQuote({ ...quote, status: "accepted_pending_checkout", checkout_token: checkoutToken });
       toast.success("Soumission acceptée !");
       // Redirect to quote checkout form
       navigate(`/quote-checkout?token=${encodeURIComponent(checkoutToken)}`);
@@ -184,9 +188,9 @@ export default function PublicQuote() {
 
   const st = STATUS_MAP[quote.status] || STATUS_MAP.draft;
   const StatusIcon = st.icon;
-  const isExpired = quote.valid_until && new Date(quote.valid_until) < new Date() && !["accepted", "converted"].includes(quote.status);
+  const isExpired = quote.valid_until && new Date(quote.valid_until) < new Date() && !["accepted_pending_checkout", "checkout_in_progress", "checkout_completed", "converted"].includes(quote.status);
   const canAccept = st.canAccept && !isExpired;
-  const isAcceptedNotCheckedOut = quote.status === "accepted" && quote.checkout_status !== "completed";
+  const needsCheckout = ["accepted_pending_checkout", "checkout_in_progress"].includes(quote.status);
 
   const monthlyLines = lines.filter((l: any) => l.billing_frequency === "monthly");
   const oneTimeLines = lines.filter((l: any) => l.billing_frequency === "one_time");
@@ -215,18 +219,18 @@ export default function PublicQuote() {
         {/* Status Banner */}
         <div className={`flex items-center gap-3 p-4 rounded-xl border ${
           canAccept ? "border-primary/20 bg-primary/5" :
-          isAcceptedNotCheckedOut ? "border-amber-500/20 bg-amber-500/5" :
-          quote.status === "accepted" || quote.status === "converted" ? "border-emerald-500/20 bg-emerald-500/5" :
+          needsCheckout ? "border-amber-500/20 bg-amber-500/5" :
+          ["checkout_completed", "converted"].includes(quote.status) ? "border-emerald-500/20 bg-emerald-500/5" :
           "border-border bg-muted/30"
         }`}>
           <StatusIcon className={`h-6 w-6 ${st.color}`} />
           <div className="flex-1">
-            <p className={`font-semibold ${isAcceptedNotCheckedOut ? "text-amber-600" : st.color}`}>
-              {isExpired ? "Soumission expirée" : isAcceptedNotCheckedOut ? "Acceptée — Finalisation requise" : st.label}
+            <p className={`font-semibold ${st.color}`}>
+              {isExpired ? "Soumission expirée" : st.label}
             </p>
             <p className="text-xs text-muted-foreground">
-              {isAcceptedNotCheckedOut && "Complétez vos informations pour démarrer votre commande."}
-              {quote.valid_until && !isExpired && !isAcceptedNotCheckedOut && `Valide jusqu'au ${format(new Date(quote.valid_until), "d MMMM yyyy", { locale: fr })}`}
+              {needsCheckout && "Complétez vos informations pour démarrer votre commande."}
+              {quote.valid_until && !isExpired && canAccept && `Valide jusqu'au ${format(new Date(quote.valid_until), "d MMMM yyyy", { locale: fr })}`}
               {isExpired && "Cette soumission n'est plus valide."}
             </p>
           </div>
@@ -237,7 +241,6 @@ export default function PublicQuote() {
         <Card>
           <CardContent className="pt-6">
             <h3 className="text-sm font-semibold text-foreground mb-4">Services inclus</h3>
-
             {monthlyLines.length > 0 && (
               <div className="mb-4">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Mensuel récurrent</p>
@@ -252,7 +255,6 @@ export default function PublicQuote() {
                 ))}
               </div>
             )}
-
             {oneTimeLines.length > 0 && (
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Frais uniques</p>
@@ -332,7 +334,7 @@ export default function PublicQuote() {
                 Acceptez cette soumission pour compléter vos informations et finaliser votre commande.
               </p>
               <Button size="lg" onClick={handleAccept} disabled={accepting} className="gap-2">
-                <CheckCircle className="h-4 w-4" />
+                {accepting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                 {accepting ? "Traitement..." : "Accepter et continuer"}
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -340,8 +342,8 @@ export default function PublicQuote() {
           </Card>
         )}
 
-        {/* Accepted but checkout not completed — show continue button */}
-        {isAcceptedNotCheckedOut && (
+        {/* Needs checkout — show continue button */}
+        {needsCheckout && (
           <Card className="border-amber-500/20 bg-amber-500/5">
             <CardContent className="pt-6 text-center">
               <Clock className="h-10 w-10 text-amber-600 mx-auto mb-3" />
@@ -357,6 +359,19 @@ export default function PublicQuote() {
           </Card>
         )}
 
+        {/* Checkout completed */}
+        {quote.status === "checkout_completed" && (
+          <Card className="border-emerald-500/20 bg-emerald-500/5">
+            <CardContent className="pt-6 text-center">
+              <CheckCircle className="h-10 w-10 text-emerald-600 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-emerald-600 mb-1">Informations reçues</h3>
+              <p className="text-sm text-muted-foreground">
+                Votre commande est en cours de traitement. Notre équipe vous contactera prochainement.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Fully converted */}
         {quote.status === "converted" && (
           <Card className="border-emerald-500/20 bg-emerald-500/5">
@@ -365,19 +380,6 @@ export default function PublicQuote() {
               <h3 className="text-lg font-bold text-emerald-600 mb-1">Commande confirmée</h3>
               <p className="text-sm text-muted-foreground">
                 Votre commande a été créée. Vous recevrez une confirmation sous peu.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Accepted + checkout completed but not yet converted */}
-        {quote.status === "accepted" && quote.checkout_status === "completed" && (
-          <Card className="border-emerald-500/20 bg-emerald-500/5">
-            <CardContent className="pt-6 text-center">
-              <CheckCircle className="h-10 w-10 text-emerald-600 mx-auto mb-3" />
-              <h3 className="text-lg font-bold text-emerald-600 mb-1">Informations reçues</h3>
-              <p className="text-sm text-muted-foreground">
-                Votre commande est en cours de traitement. Notre équipe vous contactera prochainement.
               </p>
             </CardContent>
           </Card>
