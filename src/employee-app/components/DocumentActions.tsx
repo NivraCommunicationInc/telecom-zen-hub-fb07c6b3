@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FileText, Download, Send, Loader2 } from "lucide-react";
+import { FileText, Download, Send, Loader2, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import {
@@ -60,24 +60,55 @@ export function DocumentActions({
 
   if (availableDocs.length === 0) return null;
 
+  const generateDocument = async (type: DocType) => {
+    switch (type) {
+      case "invoice":
+        return generateCanonicalInvoicePDF(supabase, invoiceId!);
+      case "receipt":
+        return generateCanonicalReceiptPDF(supabase, invoiceId!);
+      case "contract":
+        return generateCanonicalContractPDF(supabase, contractId || orderId!);
+      case "order_summary":
+        return generateCanonicalOrderSummaryPDF(supabase, orderId!);
+    }
+  };
+
+  const handleView = async (type: DocType) => {
+    setGenerating(type);
+    try {
+      const result = await generateDocument(type);
+
+      if (result?.success && result.blob) {
+        const url = URL.createObjectURL(result.blob);
+        const opened = window.open(url, "_blank", "noopener,noreferrer");
+        if (!opened) {
+          toast.error("Impossible d'ouvrir l'aperçu (popup bloquée)");
+          URL.revokeObjectURL(url);
+          return;
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+        await logInternalAudit({
+          action: `document_viewed_${type}`,
+          category: "operations",
+          portal: "employee",
+          targetType: "document",
+          targetId: orderId || invoiceId || contractId || "unknown",
+        });
+      } else {
+        toast.error(result?.error || `Échec de génération: ${DOC_CONFIG[type].label}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erreur de génération");
+    } finally {
+      setGenerating(null);
+    }
+  };
+
   const handleDownload = async (type: DocType) => {
     setGenerating(type);
     try {
-      let result;
-      switch (type) {
-        case "invoice":
-          result = await generateCanonicalInvoicePDF(supabase, invoiceId!);
-          break;
-        case "receipt":
-          result = await generateCanonicalReceiptPDF(supabase, invoiceId!);
-          break;
-        case "contract":
-          result = await generateCanonicalContractPDF(supabase, contractId || orderId!);
-          break;
-        case "order_summary":
-          result = await generateCanonicalOrderSummaryPDF(supabase, orderId!);
-          break;
-      }
+      const result = await generateDocument(type);
 
       if (result?.success && result.blob) {
         safePDFDownload(result.blob, result.filename || `${type}.pdf`);
@@ -180,6 +211,17 @@ export function DocumentActions({
               <span>{DOC_CONFIG[type].icon}</span> {DOC_CONFIG[type].label}
             </span>
             <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleView(type)}
+                  disabled={generating === type}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors disabled:opacity-40",
+                    "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  )}
+                >
+                  {generating === type ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+                  Voir
+                </button>
               <button
                 onClick={() => handleDownload(type)}
                 disabled={generating === type}
