@@ -26,6 +26,12 @@ const navGroups = [
     ],
   },
   {
+    label: "Ventes",
+    items: [
+      { label: "Soumissions", href: `${EMP_BASE}/quotes`, icon: FileText },
+    ],
+  },
+  {
     label: "Service client",
     items: [
       { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users },
