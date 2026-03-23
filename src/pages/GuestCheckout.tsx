@@ -223,16 +223,32 @@ const GuestCheckout = () => {
   const todayTotal = toNonNegativeMoney(normalizedPricing?.grand_total ?? 0);
   const { total: monthlyTotalWithTax } = estimateMonthlyTaxes(subtotal);
 
-  // ── Service toggle ──
+  // ── Service toggle with compatibility rules ──
   const toggleService = (service: Service) => {
     setSelectedServices(prev => {
       const exists = prev.find(s => s.id === service.id);
       if (exists) return prev.filter(s => s.id !== service.id);
-      // Only 1 Internet per order
+
+      // Rule 1: Only 1 Internet per order
       if (service.category === "Internet" && prev.some(s => s.category === "Internet")) {
-        toast.error("Une seule offre Internet par commande");
+        toast.error("Un seul plan Internet est permis par adresse.");
         return prev;
       }
+      // Rule 2: Only 1 TV per order
+      if (service.category === "TV" && prev.some(s => s.category === "TV")) {
+        toast.error("Un seul forfait TV est permis par adresse.");
+        return prev;
+      }
+      // Rule 3: TV + Internet incompatibility — TV bundles include Internet
+      if (service.category === "Internet" && prev.some(s => s.category === "TV")) {
+        toast.error("Le forfait TV inclut déjà Internet. Vous ne pouvez pas ajouter un plan Internet séparé.");
+        return prev;
+      }
+      if (service.category === "TV" && prev.some(s => s.category === "Internet")) {
+        toast.error("Ce forfait TV inclut Internet. Veuillez d'abord retirer le plan Internet du panier.");
+        return prev;
+      }
+
       return [...prev, service];
     });
   };
