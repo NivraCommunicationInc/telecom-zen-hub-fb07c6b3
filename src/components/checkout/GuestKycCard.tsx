@@ -14,7 +14,7 @@ import {
   RefreshCw, Clock, Loader2, Lock, AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 
@@ -43,7 +43,7 @@ export const GuestKycCard = ({
   guestRequestId,
   onStatusChange,
 }: GuestKycCardProps) => {
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobileOrTablet();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
