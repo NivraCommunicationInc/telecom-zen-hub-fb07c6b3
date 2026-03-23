@@ -1,13 +1,13 @@
 /**
- * EmployeeClientDetail — Phase 4: Full customer-service workspace.
- * Uses shared-ops + CreateTicketDialog + EmployeePinReset + EscalationRequestDialog + DocumentActions.
+ * EmployeeClientDetail — Phase 5A: Full customer-service workspace.
+ * Uses shared-ops + CreateTicketDialog + EmployeePinReset + EscalationRequestDialog + DocumentActions + RecordPaymentDialog.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, User, ShoppingCart, FileText, CreditCard,
   MapPin, Zap, MessageSquare, Shield, Clock, ChevronRight,
-  Phone, Mail, Hash, Plus, AlertTriangle, Key,
+  Phone, Mail, Hash, Plus, AlertTriangle, Key, DollarSign,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -20,6 +20,7 @@ import { CreateTicketDialog } from "@/employee-app/components/CreateTicketDialog
 import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
 import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
 import { DocumentActions } from "@/employee-app/components/DocumentActions";
+import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";

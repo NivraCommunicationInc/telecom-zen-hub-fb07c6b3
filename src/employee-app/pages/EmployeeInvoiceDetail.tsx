@@ -1,17 +1,23 @@
 /**
- * EmployeeInvoiceDetail — Read-only invoice detail using shared-ops.
+ * EmployeeInvoiceDetail — Invoice detail with documents + payment recording.
+ * Uses shared-ops canonical data + RecordPaymentDialog + DocumentActions.
  */
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Loader2, FileText, CreditCard, DollarSign, Calendar, Hash, ShoppingCart, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import { useInvoiceDetail } from "@/shared-ops/hooks/useInvoiceDetail";
+import { DocumentActions } from "@/employee-app/components/DocumentActions";
+import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
 
 export default function EmployeeInvoiceDetail() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
-  const { data, isLoading, error } = useInvoiceDetail(invoiceId);
+  const { data, isLoading, error, refetch } = useInvoiceDetail(invoiceId);
+  const [showPayment, setShowPayment] = useState(false);
 
   if (!invoiceId) return <div className="py-20 text-center"><p className="text-sm text-muted-foreground">Facture introuvable</p></div>;
   if (isLoading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -27,6 +33,7 @@ export default function EmployeeInvoiceDetail() {
 
   const { invoice: inv, lines, payments, customer, subscription, order } = data;
   const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
+  const unpaid = (inv.balance_due ?? 0) > 0 && inv.status !== "paid" && inv.status !== "void";
 
   const statusColor = (s: string) => {
     const map: Record<string, string> = {
@@ -53,13 +60,28 @@ export default function EmployeeInvoiceDetail() {
             {inv.type === "renewal" ? "Renouvellement" : inv.type === "one_time" ? "Ponctuelle" : inv.type} · {format(new Date(inv.created_at), "d MMM yyyy", { locale: fr })}
           </p>
         </div>
-        <span className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold uppercase", statusColor(inv.status ?? "draft"))}>
-          {inv.status ?? "draft"}
-        </span>
+        <div className="flex items-center gap-2">
+          {unpaid && (
+            <Button size="sm" onClick={() => setShowPayment(true)} className="text-xs h-8">
+              <DollarSign className="h-3.5 w-3.5 mr-1" /> Enregistrer paiement
+            </Button>
+          )}
+          <span className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold uppercase", statusColor(inv.status ?? "draft"))}>
+            {inv.status ?? "draft"}
+          </span>
+        </div>
       </div>
 
-      {/* READ ONLY badge */}
-      <div className="text-[9px] text-muted-foreground bg-muted px-2 py-1 rounded font-mono inline-block">LECTURE SEULE</div>
+      {/* Documents — canonical PDFs */}
+      <DocumentActions
+        orderId={order?.id}
+        invoiceId={inv.id}
+        contractId={order?.id}
+        clientEmail={customer?.email}
+        clientName={customer ? `${customer.first_name} ${customer.last_name}` : undefined}
+        orderNumber={order?.order_number}
+        invoiceNumber={inv.invoice_number}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Amounts */}
@@ -168,6 +190,20 @@ export default function EmployeeInvoiceDetail() {
         {subscription && <span>· sub: {subscription.id.slice(0, 8)}</span>}
         {customer && <span>· cust: {customer.id.slice(0, 8)}</span>}
       </div>
+
+      {/* Payment dialog */}
+      {showPayment && customer && (
+        <RecordPaymentDialog
+          open={showPayment}
+          onOpenChange={setShowPayment}
+          invoiceId={inv.id}
+          customerId={customer.id}
+          invoiceNumber={inv.invoice_number}
+          balanceDue={inv.balance_due ?? inv.total}
+          portal="employee"
+          onSuccess={() => refetch()}
+        />
+      )}
     </div>
   );
 }
