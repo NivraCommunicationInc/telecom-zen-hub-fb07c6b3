@@ -27,6 +27,12 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   converted: { label: "Convertie", variant: "default", icon: CheckCircle },
 };
 
+const CHECKOUT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  not_started: { label: "Checkout non démarré", color: "text-amber-600" },
+  in_progress: { label: "Checkout en cours", color: "text-blue-600" },
+  completed: { label: "Checkout complété", color: "text-emerald-600" },
+};
+
 export default function EmployeeQuoteDetail() {
   const { quoteId } = useParams();
   const navigate = useNavigate();
