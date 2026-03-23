@@ -15,6 +15,9 @@ interface Props {
   accountNumber?: string;
   orderId?: string;
   orderNumber?: string;
+  initialCategory?: string;
+  initialSubject?: string;
+  initialDescription?: string;
   onClose: () => void;
 }
 
@@ -23,6 +26,7 @@ const ESCALATION_CATEGORIES = [
   { value: "order_creation", label: "Création de commande" },
   { value: "add_service", label: "Ajout de service" },
   { value: "service_change", label: "Modification de service" },
+  { value: "cancel_subscription", label: "Annulation d'abonnement" },
   { value: "tv_channel_change", label: "Changement de chaînes TV" },
   { value: "billing_adjustment", label: "Ajustement de facturation" },
   { value: "account_correction", label: "Correction de compte" },
@@ -41,12 +45,15 @@ export function EscalationRequestDialog({
   accountNumber,
   orderId,
   orderNumber,
+  initialCategory,
+  initialSubject,
+  initialDescription,
   onClose,
 }: Props) {
-  const [category, setCategory] = useState("credit_request");
+  const [category, setCategory] = useState(initialCategory ?? "credit_request");
   const [priority, setPriority] = useState("normal");
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
+  const [subject, setSubject] = useState(initialSubject ?? "");
+  const [description, setDescription] = useState(initialDescription ?? "");
 
   const createMutation = useMutation({
     mutationFn: async () => {

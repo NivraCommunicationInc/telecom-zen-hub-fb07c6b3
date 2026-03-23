@@ -1,24 +1,52 @@
 /**
- * EmployeeAccountDetail — Account 360 view for customer-service agents.
- * Read-only account data with links to client, orders, invoices, subscriptions.
- * Uses canonical data from accounts + billing tables.
+ * EmployeeAccountDetail — Account 360 with real service-agent actions.
+ * Canonical reads + safe operational actions (payment, activation, escalations).
  */
-import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { employeePath } from "@/employee-app/lib/employeePaths";
 import {
-  ArrowLeft, Loader2, Building2, User, MapPin, CreditCard,
-  ShoppingCart, FileText, Zap, Package, Calendar, ChevronRight, Hash,
+  ArrowLeft,
+  Loader2,
+  Building2,
+  User,
+  MapPin,
+  ShoppingCart,
+  FileText,
+  Zap,
+  Package,
+  Calendar,
+  ChevronRight,
+  DollarSign,
+  AlertTriangle,
+  Plus,
+  CirclePlay,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { DocumentActions } from "@/employee-app/components/DocumentActions";
+import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
+import { RecordPaymentDialog } from "@/shared-ops/components/RecordPaymentDialog";
+
+const OPERATIONAL_ENVS = ["live", "production"] as const;
+
+type EscalationPreset = {
+  category: string;
+  subject: string;
+  description: string;
+};
 
 export default function EmployeeAccountDetail() {
   const { accountId } = useParams<{ accountId: string }>();
+  const navigate = useNavigate();
+  const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
+  const [showEscalation, setShowEscalation] = useState(false);
+  const [escalationPreset, setEscalationPreset] = useState<EscalationPreset | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["employee-account-detail", accountId],
     enabled: !!accountId,
     staleTime: 1000 * 60 * 2,
@@ -32,20 +60,64 @@ export default function EmployeeAccountDetail() {
         .single();
       if (acctErr) throw acctErr;
 
-      const [profileRes, ordersRes, invoicesRes, subscriptionsRes, equipmentRes, appointmentsRes, locationsRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, first_name, last_name, email, phone").eq("user_id", account.client_id).maybeSingle(),
-        supabase.from("orders").select("id, order_number, status, service_type, created_at, payment_status").eq("user_id", account.client_id).eq("environment", "live").order("created_at", { ascending: false }).limit(20),
-        supabase.from("billing_invoices").select("id, invoice_number, status, total, balance_due, due_date, created_at, type").eq("environment", "live").order("created_at", { ascending: false }).limit(50),
-        supabase.from("billing_subscriptions").select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at").eq("environment", "live").order("created_at", { ascending: false }).limit(20),
-        supabase.from("equipment_inventory").select("id, serial_number, mac_address, equipment_type, category, status").eq("assigned_to_user_id", account.client_id).limit(20),
-        supabase.from("appointments").select("id, appointment_number, title, status, scheduled_at, service_type").eq("client_id", account.client_id).eq("environment", "live").order("scheduled_at", { ascending: false }).limit(10),
-        supabase.from("account_service_locations").select("*").eq("account_id", accountId).eq("is_active", true),
+      const [
+        profileRes,
+        ordersRes,
+        invoicesRes,
+        subscriptionsRes,
+        equipmentRes,
+        appointmentsRes,
+        locationsRes,
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("user_id, full_name, first_name, last_name, email, phone")
+          .eq("user_id", account.client_id)
+          .maybeSingle(),
+        supabase
+          .from("orders")
+          .select("id, order_number, status, service_type, created_at, payment_status")
+          .eq("user_id", account.client_id)
+          .in("environment", [...OPERATIONAL_ENVS])
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("billing_invoices")
+          .select("id, invoice_number, status, total, balance_due, due_date, created_at, type, customer_id, order_id")
+          .in("environment", [...OPERATIONAL_ENVS])
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase
+          .from("billing_subscriptions")
+          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at, customer_id, order_id")
+          .in("environment", [...OPERATIONAL_ENVS])
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("equipment_inventory")
+          .select("id, serial_number, mac_address, equipment_type, category, status")
+          .eq("assigned_to_user_id", account.client_id)
+          .limit(30),
+        supabase
+          .from("appointments")
+          .select("id, appointment_number, title, status, scheduled_at, service_type")
+          .eq("client_id", account.client_id)
+          .in("environment", [...OPERATIONAL_ENVS])
+          .order("scheduled_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("account_service_locations")
+          .select("*")
+          .eq("account_id", accountId)
+          .eq("is_active", true),
       ]);
 
-      // Filter invoices/subscriptions by customer_id resolution
-      let customerIds: string[] = [];
-      const { data: customers } = await supabase.from("billing_customers").select("id").eq("user_id", account.client_id);
-      if (customers?.length) customerIds = customers.map(c => c.id);
+      const { data: customers } = await supabase
+        .from("billing_customers")
+        .select("id")
+        .eq("user_id", account.client_id);
+
+      const customerIds = (customers ?? []).map((c) => c.id);
 
       const filteredInvoices = (invoicesRes.data ?? []).filter((inv: any) => customerIds.includes(inv.customer_id));
       const filteredSubs = (subscriptionsRes.data ?? []).filter((sub: any) => customerIds.includes(sub.customer_id));
@@ -63,19 +135,45 @@ export default function EmployeeAccountDetail() {
     },
   });
 
-  if (!accountId) return <div className="py-20 text-center"><p className="text-sm text-muted-foreground">Compte introuvable</p></div>;
-  if (isLoading) return <div className="flex items-center justify-center h-96"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  if (!accountId) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-sm text-muted-foreground">Compte introuvable</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (error || !data?.account) {
     return (
       <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-center">
         <p className="text-destructive text-sm">Erreur de chargement</p>
-        <Link to={employeePath("/accounts")} className="text-primary text-xs mt-2 inline-block hover:underline">← Comptes</Link>
+        <Link to={employeePath("/accounts")} className="text-primary text-xs mt-2 inline-block hover:underline">
+          ← Comptes
+        </Link>
       </div>
     );
   }
 
   const { account, profile, orders, invoices, subscriptions, equipment, appointments, locations } = data;
-  const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
+  const fmtMoney = (v: number | null | undefined) => (v != null ? `${v.toFixed(2)} $` : "—");
+
+  const unpaidInvoices = invoices.filter((i: any) => i.status !== "paid" && i.status !== "void" && (i.balance_due ?? 0) > 0);
+  const unpaidCount = unpaidInvoices.length;
+  const balanceDueTotal = unpaidInvoices.reduce((sum: number, inv: any) => sum + Number(inv.balance_due ?? 0), 0);
+  const activeSubs = subscriptions.filter((s: any) => s.status === "active").length;
+  const latestOrder = orders[0];
+  const latestInvoice = invoices[0];
+  const primarySubscription = subscriptions.find((s: any) => s.status === "active") ?? subscriptions[0];
+  const activationCandidate =
+    orders.find((o: any) => ["confirmed", "processing", "delivered", "installed", "completed"].includes(o.status ?? "")) ?? latestOrder;
 
   const statusBadge = (s: string | null) => {
     const colors: Record<string, string> = {
@@ -88,11 +186,17 @@ export default function EmployeeAccountDetail() {
       completed: "text-emerald-400 bg-emerald-500/10",
       processing: "text-blue-400 bg-blue-500/10",
     };
-    return <span className={cn("px-2 py-0.5 rounded text-[10px] font-medium", colors[s ?? ""] ?? "text-muted-foreground bg-muted")}>{s ?? "—"}</span>;
+    return (
+      <span className={cn("px-2 py-0.5 rounded text-[10px] font-medium", colors[s ?? ""] ?? "text-muted-foreground bg-muted")}>
+        {s ?? "—"}
+      </span>
+    );
   };
 
-  const unpaidCount = invoices.filter((i: any) => i.status !== "paid" && i.status !== "void" && (i.balance_due ?? 0) > 0).length;
-  const activeSubs = subscriptions.filter((s: any) => s.status === "active").length;
+  const openEscalation = (preset: EscalationPreset) => {
+    setEscalationPreset(preset);
+    setShowEscalation(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -100,7 +204,6 @@ export default function EmployeeAccountDetail() {
         <ArrowLeft className="h-3.5 w-3.5" /> Comptes
       </Link>
 
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -125,18 +228,103 @@ export default function EmployeeAccountDetail() {
         {statusBadge(account.status)}
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KPI label="Services actifs" value={String(activeSubs)} icon={<Zap className="h-3.5 w-3.5" />} />
         <KPI label="Commandes" value={String(orders.length)} icon={<ShoppingCart className="h-3.5 w-3.5" />} />
         <KPI label="Factures impayées" value={String(unpaidCount)} icon={<FileText className="h-3.5 w-3.5" />} highlight={unpaidCount > 0} />
+        <KPI label="Solde dû" value={fmtMoney(balanceDueTotal)} icon={<DollarSign className="h-3.5 w-3.5" />} highlight={balanceDueTotal > 0} />
         <KPI label="Équipements" value={String(equipment.length)} icon={<Package className="h-3.5 w-3.5" />} />
       </div>
 
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <CirclePlay className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions compte</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => navigate(employeePath(`/clients/${account.client_id}`))}
+            className="px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground hover:bg-secondary transition-colors"
+          >
+            Gérer client
+          </button>
+
+          {unpaidInvoices.length > 0 && (
+            <button
+              onClick={() => setPaymentInvoice(unpaidInvoices[0])}
+              className="px-3 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+            >
+              Enregistrer paiement
+            </button>
+          )}
+
+          {activationCandidate && (
+            <button
+              onClick={() => navigate(employeePath(`/orders/${activationCandidate.order_number ?? activationCandidate.id}`))}
+              className="px-3 py-1.5 rounded-lg border border-blue-500/20 bg-blue-500/5 text-xs text-blue-400 hover:bg-blue-500/10 transition-colors"
+            >
+              Activer / suivre service
+            </button>
+          )}
+
+          <button
+            onClick={() =>
+              openEscalation({
+                category: "order_creation",
+                subject: `Création commande — ${account.account_number}`,
+                description: "Demande de création de nouvelle commande pour ce compte.",
+              })
+            }
+            className="px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground hover:bg-secondary transition-colors"
+          >
+            <Plus className="h-3 w-3 inline mr-1" /> Nouvelle commande
+          </button>
+
+          <button
+            onClick={() =>
+              openEscalation({
+                category: "add_service",
+                subject: `Ajout service — ${account.account_number}`,
+                description: "Demande d'ajout de service sur ce compte.",
+              })
+            }
+            className="px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground hover:bg-secondary transition-colors"
+          >
+            Ajouter service
+          </button>
+
+          <button
+            onClick={() =>
+              openEscalation({
+                category: "credit_request",
+                subject: `Crédit compte — ${account.account_number}`,
+                description: "Demande d'application de crédit pour ce compte.",
+              })
+            }
+            className="px-3 py-1.5 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs text-amber-400 hover:bg-amber-500/10 transition-colors"
+          >
+            <AlertTriangle className="h-3 w-3 inline mr-1" /> Ajouter crédit
+          </button>
+
+          {primarySubscription && (
+            <button
+              onClick={() =>
+                openEscalation({
+                  category: "cancel_subscription",
+                  subject: `Annulation abonnement — ${account.account_number}`,
+                  description: `Demande d'annulation de l'abonnement ${primarySubscription.plan_name}.`,
+                })
+              }
+              className="px-3 py-1.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              Annuler abonnement
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* LEFT: Account info + billing address */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Account info */}
           <Section title="Informations du compte" icon={<Building2 className="h-4 w-4" />}>
             <InfoRow label="Numéro de compte" value={account.account_number} />
             <InfoRow label="Statut" value={account.status ?? "—"} />
@@ -146,12 +334,14 @@ export default function EmployeeAccountDetail() {
             {account.billing_address && (
               <>
                 <div className="border-t border-border pt-1 mt-1" />
-                <InfoRow label="Adresse facturation" value={[account.billing_address, account.billing_city, account.billing_province, account.billing_postal_code].filter(Boolean).join(", ")} />
+                <InfoRow
+                  label="Adresse facturation"
+                  value={[account.billing_address, account.billing_city, account.billing_province, account.billing_postal_code].filter(Boolean).join(", ")}
+                />
               </>
             )}
           </Section>
 
-          {/* Subscriptions */}
           <Section title={`Services actifs (${subscriptions.length})`} icon={<Zap className="h-4 w-4" />}>
             {subscriptions.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucun service.</p>
@@ -173,7 +363,6 @@ export default function EmployeeAccountDetail() {
             )}
           </Section>
 
-          {/* Orders */}
           <Section title={`Commandes (${orders.length})`} icon={<ShoppingCart className="h-4 w-4" />}>
             {orders.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucune commande.</p>
@@ -195,7 +384,6 @@ export default function EmployeeAccountDetail() {
             )}
           </Section>
 
-          {/* Invoices */}
           <Section title={`Factures (${invoices.length})`} icon={<FileText className="h-4 w-4" />}>
             {invoices.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucune facture.</p>
@@ -215,9 +403,19 @@ export default function EmployeeAccountDetail() {
           </Section>
         </div>
 
-        {/* RIGHT: Equipment, Appointments, Locations */}
         <div className="space-y-4">
-          {/* Equipment */}
+          {(latestOrder || latestInvoice) && (
+            <DocumentActions
+              orderId={latestOrder?.id}
+              invoiceId={latestInvoice?.id}
+              contractId={latestOrder?.id}
+              clientEmail={profile?.email ?? undefined}
+              clientName={profile?.full_name ?? undefined}
+              orderNumber={latestOrder?.order_number ?? undefined}
+              invoiceNumber={latestInvoice?.invoice_number ?? undefined}
+            />
+          )}
+
           <Section title={`Équipements (${equipment.length})`} icon={<Package className="h-4 w-4" />}>
             {equipment.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucun équipement assigné.</p>
@@ -235,7 +433,6 @@ export default function EmployeeAccountDetail() {
             )}
           </Section>
 
-          {/* Appointments */}
           <Section title={`Rendez-vous (${appointments.length})`} icon={<Calendar className="h-4 w-4" />}>
             {appointments.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucun rendez-vous.</p>
@@ -254,7 +451,6 @@ export default function EmployeeAccountDetail() {
             )}
           </Section>
 
-          {/* Service locations */}
           {locations.length > 0 && (
             <Section title="Adresses de service" icon={<MapPin className="h-4 w-4" />}>
               {locations.map((loc: any) => (
@@ -269,13 +465,47 @@ export default function EmployeeAccountDetail() {
             </Section>
           )}
 
-          {/* Traceability */}
           <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground font-mono">
             <span>acct: {account.id.slice(0, 8)}</span>
             <span>· client: {account.client_id.slice(0, 8)}</span>
+            {latestInvoice && <span>· inv: {latestInvoice.invoice_number}</span>}
+            {latestOrder && <span>· order: {latestOrder.order_number}</span>}
+            {primarySubscription && <span>· sub: {primarySubscription.id.slice(0, 8)}</span>}
           </div>
         </div>
       </div>
+
+      {showEscalation && (
+        <EscalationRequestDialog
+          clientId={account.client_id}
+          clientName={profile?.full_name ?? undefined}
+          accountNumber={account.account_number}
+          orderId={latestOrder?.id}
+          orderNumber={latestOrder?.order_number}
+          initialCategory={escalationPreset?.category}
+          initialSubject={escalationPreset?.subject}
+          initialDescription={escalationPreset?.description}
+          onClose={() => {
+            setShowEscalation(false);
+            setEscalationPreset(null);
+          }}
+        />
+      )}
+
+      {paymentInvoice?.customer_id && (
+        <RecordPaymentDialog
+          open={!!paymentInvoice}
+          onOpenChange={(open) => {
+            if (!open) setPaymentInvoice(null);
+          }}
+          invoiceId={paymentInvoice.id}
+          customerId={paymentInvoice.customer_id}
+          invoiceNumber={paymentInvoice.invoice_number}
+          balanceDue={paymentInvoice.balance_due ?? paymentInvoice.total}
+          portal="employee"
+          onSuccess={() => refetch()}
+        />
+      )}
     </div>
   );
 }
