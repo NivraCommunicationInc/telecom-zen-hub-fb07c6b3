@@ -804,6 +804,9 @@ const AppRoutes = () => {
           <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><EmployeeSecurity /></Suspense>} />
+          <Route path="quotes" element={<Suspense fallback={null}><EmployeeQuotes /></Suspense>} />
+          <Route path="quotes/new" element={<Suspense fallback={null}><EmployeeCreateQuote /></Suspense>} />
+          <Route path="quotes/:quoteId" element={<Suspense fallback={null}><EmployeeQuoteDetail /></Suspense>} />
         </Route>
       </Route>
 
