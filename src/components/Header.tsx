@@ -257,7 +257,7 @@ const Header = () => {
       </div>
 
       {/* Main navigation */}
-      <header className={`sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b transition-all duration-200 ${isScrolled ? 'border-border shadow-md' : 'border-border/50'}`}>
+      <header className={`sticky top-0 z-50 bg-background/98 backdrop-blur-xl transition-all duration-300 ${isScrolled ? 'shadow-[0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.04)] border-b border-border/60' : 'border-b border-transparent'}`}>
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
           {/* Mobile */}
           <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
@@ -287,28 +287,30 @@ const Header = () => {
           </div>
 
           {/* Desktop */}
-          <div className="hidden lg:flex items-center h-[60px] gap-8">
-            <Link to="/" className="flex items-center gap-2.5 shrink-0">
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-                <span className="font-bold text-primary-foreground text-lg">N</span>
+          <div className="hidden lg:flex items-center h-16 gap-6">
+            <Link to="/" className="flex items-center gap-2.5 shrink-0 mr-2">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+                <span className="font-extrabold text-primary-foreground text-xl">N</span>
               </div>
-              <span className="font-bold text-xl text-primary tracking-tight">Nivra</span>
+              <span className="font-extrabold text-[1.35rem] text-primary tracking-tight">Nivra</span>
             </Link>
+
+            <div className="h-6 w-px bg-border/60 mx-1" />
 
             <nav className="flex items-center gap-0.5 flex-1">
               {NAV_TARGETS.map(renderDesktopNavItem)}
             </nav>
 
-            <div className="flex items-center gap-3 shrink-0">
-              <button className="p-2.5 text-muted-foreground hover:text-primary hover:bg-secondary rounded-lg transition-colors" aria-label="Recherche">
+            <div className="flex items-center gap-2 shrink-0">
+              <button className="p-2 text-muted-foreground hover:text-primary hover:bg-secondary/80 rounded-lg transition-colors" aria-label="Recherche">
                 <Search className="w-[18px] h-[18px]" />
               </button>
               <Link
                 to={portalLink}
-                className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-5 py-2 text-sm font-bold bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
               >
                 <User className="w-4 h-4" />
-                {isFr ? "Connexion" : "Log in"}
+                {isFr ? "Mon compte" : "My account"}
               </Link>
             </div>
           </div>
