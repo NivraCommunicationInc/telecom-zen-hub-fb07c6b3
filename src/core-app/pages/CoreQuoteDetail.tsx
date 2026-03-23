@@ -85,6 +85,7 @@ export default function CoreQuoteDetail() {
   const canResend = ["sent", "viewed", "accepted", "converted"].includes(quote.status);
   const canFollowUp = ["sent", "viewed", "accepted"].includes(quote.status);
   const canConvert = ["approved", "accepted"].includes(quote.status) && !quote.converted_order_id;
+  const isAcceptedPendingCheckout = quote.status === "accepted" && quote.checkout_status !== "completed";
 
   const clientName = quote.is_prospect ? (quote.prospect_name || "Prospect") : (customer?.full_name || "—");
   const clientEmail = quote.is_prospect ? quote.prospect_email : customer?.email;
