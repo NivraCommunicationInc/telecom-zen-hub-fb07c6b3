@@ -78,7 +78,7 @@ export default function EmployeePayments() {
                     <td className="px-3 py-2 font-mono text-foreground font-medium">{p.payment_number}</td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {p.customer_name ? (
-                        <button onClick={(e) => { e.stopPropagation(); p.customer_user_id && navigate(employeePath(`/clients/${p.customer_user_id}`)); }}
+                        <button onClick={(e) => { e.stopPropagation(); p.customer_id && navigate(employeePath(`/clients/${p.customer_id}`)); }}
                           className="hover:text-primary transition-colors">{p.customer_name}</button>
                       ) : "—"}
                     </td>

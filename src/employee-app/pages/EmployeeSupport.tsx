@@ -58,7 +58,7 @@ export default function EmployeeSupport() {
       const { error } = await supabase.from("support_tickets").update({ status: newStatus }).eq("id", ticketId);
       if (error) throw error;
       await addOperationalNote({ entityId: ticketId, entityType: "support_ticket", note: `Statut → ${newStatus}`, portal: "employee" });
-      await logInternalAudit({ action: `ticket_status_${newStatus}`, category: "support", portal: "employee", targetType: "support_ticket", targetId: ticketId });
+      await logInternalAudit({ action: `ticket_status_${newStatus}`, category: "operations", portal: "employee", targetType: "support_ticket", targetId: ticketId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-support-v2"] });
