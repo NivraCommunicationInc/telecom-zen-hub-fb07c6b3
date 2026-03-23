@@ -164,7 +164,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         {account?.status && statusBadge(account.status)}
       </div>
 
-      {/* Action bar */}
+      {/* Customer 360 Quick Actions */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setShowNoteInput(!showNoteInput)}
@@ -172,12 +172,30 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         >
           <MessageSquare className="h-3 w-3" /> Ajouter note
         </button>
-        <button
-          onClick={() => navigate(employeePath("/orders"))}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
-        >
-          <ShoppingCart className="h-3 w-3" /> Nouvelle commande
-        </button>
+        {orders.length > 0 && (
+          <button
+            onClick={() => navigate(employeePath(`/orders/${orders[0].order_number ?? orders[0].id}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
+          >
+            <ShoppingCart className="h-3 w-3" /> Dernière commande
+          </button>
+        )}
+        {invoices.length > 0 && (
+          <button
+            onClick={() => navigate(employeePath(`/invoices/${invoices[0].id}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
+          >
+            <FileText className="h-3 w-3" /> Dernière facture
+          </button>
+        )}
+        {subscriptions.length > 0 && (
+          <button
+            onClick={() => navigate(employeePath(`/subscriptions/${subscriptions[0].id}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
+          >
+            <Zap className="h-3 w-3" /> Abonnement actif
+          </button>
+        )}
         <button
           onClick={() => navigate(employeePath("/support"))}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
