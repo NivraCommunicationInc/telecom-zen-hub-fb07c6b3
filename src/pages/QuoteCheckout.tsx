@@ -527,7 +527,7 @@ export default function QuoteCheckout() {
               <div className="space-y-4 pt-2">
                 <div className="p-3 rounded-lg bg-muted/50 border border-border">
                   <p className="text-xs text-muted-foreground mb-1">Envoyez <strong>{Number(quote?.total_due_now || 0).toFixed(2)} $</strong> par Interac à :</p>
-                  <p className="font-mono text-sm font-bold">{NIVRA.interacEmail || NIVRA.email}</p>
+                  <p className="font-mono text-sm font-bold">{NIVRA.email}</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="interacRef" className="text-sm">Numéro de référence Interac <span className="text-destructive">*</span></Label>
