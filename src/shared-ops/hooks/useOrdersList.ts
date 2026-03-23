@@ -45,7 +45,7 @@ export function useOrdersList(environment: EnvironmentFilter = "all") {
       const userIds = [...new Set(orders.map(o => o.user_id))];
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, email").in("user_id", userIds);
       const orderIds = orders.map(o => o.id);
-      const { data: invoices } = await supabase.from("billing_invoices").select("order_id, invoice_number, status, total").in("order_id", orderIds);
+      const { data: invoices } = await supabase.from("billing_invoices").select("id, order_id, invoice_number, status, total, balance_due, customer_id").in("order_id", orderIds);
       const maps = await buildCanonicalAccountMaps(supabase, { orderIds, userIds, accountIds: orders.map((o: any) => o.account_id) });
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) ?? []);
