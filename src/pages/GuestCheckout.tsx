@@ -803,10 +803,14 @@ const GuestCheckout = () => {
             {step === 4 && (
               <div className="space-y-6">
                 {/* KYC / Identity Verification */}
-                <GuestIdentityVerification
-                  identityData={identityData}
-                  onIdentityChange={setIdentityData}
+                <GuestKycCard
                   isStreamingOnly={isStreamingOnlyOrder}
+                  guestEmail={email}
+                  guestRequestId={clientRequestIdRef.current}
+                  onStatusChange={(status, sid) => {
+                    setKycStatus(status);
+                    if (sid) setKycSessionId(sid);
+                  }}
                 />
 
                 {/* Installation */}
