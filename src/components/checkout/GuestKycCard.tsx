@@ -14,7 +14,7 @@ import {
   RefreshCw, Clock, Loader2, Lock, AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 
