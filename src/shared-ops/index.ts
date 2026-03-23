@@ -37,3 +37,6 @@ export type { StatusUpdateParams } from "./actions/updateOrderStatus";
 
 export { addOperationalNote } from "./actions/addOperationalNote";
 export type { AddNoteParams } from "./actions/addOperationalNote";
+
+export { recordPayment } from "./actions/recordPayment";
+export type { RecordPaymentParams, PaymentMethod } from "./actions/recordPayment";

@@ -9,7 +9,7 @@ export interface AddNoteParams {
   entityId: string;
   entityType: string;
   note: string;
-  portal: "core" | "employee";
+  portal: "core" | "employee" | "field" | "technician";
 }
 
 export async function addOperationalNote({ entityId, entityType, note, portal }: AddNoteParams) {
