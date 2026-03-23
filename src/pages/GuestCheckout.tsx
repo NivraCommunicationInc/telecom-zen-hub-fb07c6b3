@@ -432,11 +432,11 @@ const GuestCheckout = () => {
           paypal_capture_id: paypalCaptureId || null,
         },
         identity: isStreamingOnlyOrder ? null : {
-          verification_session_id: `guest_${clientRequestIdRef.current}`,
-          id_type: identityData.documentType || null,
-          id_number: identityData.documentNumber || null,
-          id_expiration: identityData.expirationDate || null,
-          id_province: identityData.issuingProvince || null,
+          verification_session_id: kycSessionId || `guest_${clientRequestIdRef.current}`,
+          id_type: null,
+          id_number: null,
+          id_expiration: null,
+          id_province: null,
         },
         installation: {
           type: installationChoice || "auto",
