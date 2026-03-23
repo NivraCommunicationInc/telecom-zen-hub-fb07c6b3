@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { adminClient as supabase } from "@/integrations/backend";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, KeyRound, AlertTriangle, Loader2, CheckCircle, Eye, EyeOff, RotateCcw } from "lucide-react";
-import { hashPin, isValidPin, DEFAULT_PIN } from "@/lib/pinUtils";
+import { hashPin, isValidPin, generateTemporaryPin } from "@/lib/pinUtils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -113,7 +113,8 @@ export const AdminPinManagementCard = ({
   const handleResetToDefault = async () => {
     setIsLoading(true);
     try {
-      const hashedPin = await hashPin(DEFAULT_PIN);
+      const tempPin = generateTemporaryPin();
+      const hashedPin = await hashPin(tempPin);
       
       const { error } = await supabase
         .from("profiles")
@@ -131,7 +132,7 @@ export const AdminPinManagementCard = ({
 
       toast({ 
         title: "NIP réinitialisé", 
-        description: `Le NIP a été réinitialisé au NIP par défaut (${DEFAULT_PIN}). Le client devra le changer.` 
+        description: `NIP temporaire unique: ${tempPin}. Le client devra le changer.` 
       });
       setDialogOpen(false);
       resetForm();
@@ -236,7 +237,7 @@ export const AdminPinManagementCard = ({
             <DialogDescription>
               {dialogMode === "set"
                 ? `Définir un nouveau NIP pour ${client.full_name || client.email}`
-                : `Réinitialiser le NIP au NIP par défaut (${DEFAULT_PIN})`}
+                : `Réinitialiser le NIP avec un code temporaire unique`}
             </DialogDescription>
           </DialogHeader>
 
@@ -296,7 +297,7 @@ export const AdminPinManagementCard = ({
                   <div>
                     <p className="font-medium text-amber-600">Attention</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Le NIP sera réinitialisé à <strong>{DEFAULT_PIN}</strong>. Le client devra le changer lors de sa prochaine action sensible.
+                      Un NIP temporaire unique sera généré. Le client devra le changer lors de sa prochaine action sensible.
                     </p>
                   </div>
                 </div>

@@ -164,7 +164,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         {account?.status && statusBadge(account.status)}
       </div>
 
-      {/* Action bar */}
+      {/* Customer 360 Quick Actions */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setShowNoteInput(!showNoteInput)}
@@ -172,12 +172,30 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
         >
           <MessageSquare className="h-3 w-3" /> Ajouter note
         </button>
-        <button
-          onClick={() => navigate(employeePath("/orders"))}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
-        >
-          <ShoppingCart className="h-3 w-3" /> Nouvelle commande
-        </button>
+        {orders.length > 0 && (
+          <button
+            onClick={() => navigate(employeePath(`/orders/${orders[0].order_number ?? orders[0].id}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
+          >
+            <ShoppingCart className="h-3 w-3" /> Dernière commande
+          </button>
+        )}
+        {invoices.length > 0 && (
+          <button
+            onClick={() => navigate(employeePath(`/invoices/${invoices[0].id}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
+          >
+            <FileText className="h-3 w-3" /> Dernière facture
+          </button>
+        )}
+        {subscriptions.length > 0 && (
+          <button
+            onClick={() => navigate(employeePath(`/subscriptions/${subscriptions[0].id}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
+          >
+            <Zap className="h-3 w-3" /> Abonnement actif
+          </button>
+        )}
         <button
           onClick={() => navigate(employeePath("/support"))}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[hsl(220,15%,15%)] bg-[hsl(220,20%,8%)] text-xs text-[hsl(220,10%,55%)] hover:text-white hover:border-blue-500/30 transition-colors"
@@ -218,32 +236,40 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
             ) : (
               <div className="space-y-2">
                 {subscriptions.map((s: any) => (
-                  <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)]">
+                  <Link
+                    key={s.id}
+                    to={employeePath(`/subscriptions/${s.id}`)}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(220,20%,7%)] border border-[hsl(220,15%,11%)] hover:border-blue-500/30 transition-colors"
+                  >
                     <div>
                       <p className="text-xs text-white font-medium">{s.plan_name}</p>
                       <p className="text-[10px] text-[hsl(220,10%,40%)]">{fmtMoney(s.plan_price)}/mois</p>
                     </div>
                     {statusBadge(s.status ?? "active")}
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
           </Section>
 
-          {/* Billing summary — READ ONLY */}
+          {/* Billing summary — READ ONLY with invoice links */}
           <Section title="Facturation (lecture seule)" icon={<CreditCard className="h-4 w-4" />} locked>
             {invoices.length === 0 ? (
               <p className="text-xs text-[hsl(220,10%,30%)]">Aucune facture.</p>
             ) : (
               <div className="space-y-1.5">
                 {invoices.map((inv: any) => (
-                  <div key={inv.id} className="flex items-center justify-between py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0">
+                  <Link
+                    key={inv.id}
+                    to={employeePath(`/invoices/${inv.id}`)}
+                    className="flex items-center justify-between py-1.5 text-xs border-b border-[hsl(220,15%,10%)] last:border-0 hover:text-blue-400 transition-colors"
+                  >
                     <span className="text-white font-mono">{inv.invoice_number}</span>
                     <div className="flex items-center gap-3">
                       <span className="text-[hsl(220,10%,50%)]">{fmtMoney(inv.total)}</span>
                       {statusBadge(inv.status ?? "draft")}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

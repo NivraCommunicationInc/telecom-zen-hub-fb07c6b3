@@ -22,6 +22,15 @@ export type { WorkQueueItem, AppointmentQueueItem } from "./hooks/useOperational
 export { useOrdersList } from "./hooks/useOrdersList";
 export type { OrderListItem } from "./hooks/useOrdersList";
 
+export { useAppointmentDetail, useAppointmentsList } from "./hooks/useAppointmentDetail";
+export type { AppointmentDetailData } from "./hooks/useAppointmentDetail";
+
+export { useInvoiceDetail } from "./hooks/useInvoiceDetail";
+export type { InvoiceDetailData } from "./hooks/useInvoiceDetail";
+
+export { useSubscriptionDetail } from "./hooks/useSubscriptionDetail";
+export type { SubscriptionDetailData } from "./hooks/useSubscriptionDetail";
+
 // Actions
 export { updateOrderStatus } from "./actions/updateOrderStatus";
 export type { StatusUpdateParams } from "./actions/updateOrderStatus";

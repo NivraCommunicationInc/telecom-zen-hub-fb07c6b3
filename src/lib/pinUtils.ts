@@ -24,4 +24,18 @@ export function isValidAdminPin(pin: string): boolean {
   return /^\d{8}$/.test(pin);
 }
 
+/**
+ * Generate a unique temporary 4-digit PIN for customer reset.
+ * Each reset produces a different PIN — no shared static default.
+ */
+export function generateTemporaryPin(): string {
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return String(array[0] % 10000).padStart(4, '0');
+}
+
+/**
+ * @deprecated — Do not use a shared default PIN for all accounts.
+ * Use generateTemporaryPin() instead.
+ */
 export const DEFAULT_PIN = '3112';

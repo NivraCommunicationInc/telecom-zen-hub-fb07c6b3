@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ShoppingCart, CreditCard, ShieldCheck, Zap, Headphones,
   UserCheck, AlertTriangle, Search, FileText, ListTodo,
-  Loader2, ArrowUpRight, Activity, Clock,
+  Loader2, ArrowUpRight, Activity, Clock, Calendar, Ban, DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { employeePath } from "@/employee-app/lib/employeePaths";
@@ -58,7 +58,7 @@ function useRecentActivity() {
       return [
         ...(recentOrders.data ?? []).map(o => ({
           id: o.id, type: "order" as const, reference: o.order_number ?? o.id.slice(0, 8),
-          status: o.status, createdAt: o.created_at, href: employeePath(`/orders/${o.id}`),
+          status: o.status, createdAt: o.created_at, href: employeePath(`/orders/${o.order_number ?? o.id}`),
         })),
         ...(recentTickets.data ?? []).map(t => ({
           id: t.id, type: "ticket" as const, reference: t.ticket_number ?? t.id.slice(0, 8),
@@ -70,11 +70,44 @@ function useRecentActivity() {
   });
 }
 
+function useDashboardExtras() {
+  return useQuery({
+    queryKey: ["employee-dashboard-extras"],
+    queryFn: async () => {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+      const [appointmentsRes, suspendedRes, overdueRes] = await Promise.all([
+        supabase.from("appointments")
+          .select("id, appointment_number, title, scheduled_at, status, client_id, service_address")
+          .eq("environment", "live")
+          .gte("scheduled_at", todayStart).lt("scheduled_at", todayEnd)
+          .order("scheduled_at", { ascending: true }).limit(20),
+        supabase.from("billing_subscriptions")
+          .select("id, plan_name, customer_id, status")
+          .eq("environment", "live").eq("status", "suspended").limit(20),
+        supabase.from("billing_invoices")
+          .select("id, invoice_number, total, balance_due, status, due_date, customer_id")
+          .eq("environment", "live").eq("status", "overdue").limit(20),
+      ]);
+
+      return {
+        appointmentsToday: appointmentsRes.data ?? [],
+        suspendedSubs: suspendedRes.data ?? [],
+        overdueInvoices: overdueRes.data ?? [],
+      };
+    },
+    staleTime: 1000 * 60 * 3,
+  });
+}
+
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const { data: counts, isLoading } = useWorkItemCounts();
   const { data: userName } = useEmployeeName();
   const { data: recentItems = [] } = useRecentActivity();
+  const { data: extras } = useDashboardExtras();
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
@@ -239,7 +272,92 @@ export default function EmployeeDashboard() {
             ))}
           </div>
 
-          {/* Activity feed */}
+          {/* Operational Widgets Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Appointments today */}
+            <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
+                <Calendar className="h-3.5 w-3.5 text-blue-400" />
+                <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
+                  RDV aujourd'hui ({extras?.appointmentsToday?.length ?? 0})
+                </h3>
+              </div>
+              <div className="p-3 space-y-1.5 max-h-[200px] overflow-y-auto">
+                {(extras?.appointmentsToday ?? []).length === 0 ? (
+                  <p className="text-xs text-[hsl(220,10%,30%)]">Aucun rendez-vous.</p>
+                ) : (
+                  (extras?.appointmentsToday ?? []).map((apt: any) => (
+                    <button
+                      key={apt.id}
+                      onClick={() => navigate(employeePath(`/appointments/${apt.id}`))}
+                      className="w-full text-left text-xs p-2 rounded-lg hover:bg-[hsl(220,20%,10%)] transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-white font-medium truncate">{apt.title}</span>
+                        <span className="text-[hsl(220,10%,45%)] shrink-0 ml-2">
+                          {new Date(apt.scheduled_at).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Suspended subscriptions */}
+            <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
+                <Ban className="h-3.5 w-3.5 text-red-400" />
+                <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
+                  Suspendus ({extras?.suspendedSubs?.length ?? 0})
+                </h3>
+              </div>
+              <div className="p-3 space-y-1.5 max-h-[200px] overflow-y-auto">
+                {(extras?.suspendedSubs ?? []).length === 0 ? (
+                  <p className="text-xs text-[hsl(220,10%,30%)]">Aucun service suspendu.</p>
+                ) : (
+                  (extras?.suspendedSubs ?? []).map((s: any) => (
+                    <button
+                      key={s.id}
+                      onClick={() => navigate(employeePath(`/subscriptions/${s.id}`))}
+                      className="w-full text-left text-xs p-2 rounded-lg hover:bg-[hsl(220,20%,10%)] transition-colors"
+                    >
+                      <span className="text-red-300">{s.plan_name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Overdue invoices */}
+            <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
+                <DollarSign className="h-3.5 w-3.5 text-amber-400" />
+                <h3 className="text-xs font-semibold text-[hsl(220,10%,50%)] uppercase tracking-wider">
+                  En souffrance ({extras?.overdueInvoices?.length ?? 0})
+                </h3>
+              </div>
+              <div className="p-3 space-y-1.5 max-h-[200px] overflow-y-auto">
+                {(extras?.overdueInvoices ?? []).length === 0 ? (
+                  <p className="text-xs text-[hsl(220,10%,30%)]">Aucune facture en souffrance.</p>
+                ) : (
+                  (extras?.overdueInvoices ?? []).map((inv: any) => (
+                    <button
+                      key={inv.id}
+                      onClick={() => navigate(employeePath(`/invoices/${inv.id}`))}
+                      className="w-full text-left text-xs p-2 rounded-lg hover:bg-[hsl(220,20%,10%)] transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-white font-mono">{inv.invoice_number}</span>
+                        <span className="text-amber-400">{inv.balance_due?.toFixed(2) ?? inv.total?.toFixed(2)} $</span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-xl border border-[hsl(220,15%,12%)] bg-[hsl(220,20%,7.5%)]">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(220,15%,11%)]">
               <Activity className="h-3.5 w-3.5 text-[hsl(220,10%,35%)]" />
