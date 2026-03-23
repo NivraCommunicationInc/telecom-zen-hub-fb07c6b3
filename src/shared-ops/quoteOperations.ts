@@ -396,14 +396,8 @@ export async function convertQuoteToOrder(quoteId: string, actorUserId: string, 
       total_amount: quote.total_due_now,
       client_email: clientEmail,
       client_phone: clientPhone,
-      metadata: {
-        quote_id: quoteId,
-        quote_number: quote.quote_number,
-        is_prospect: quote.is_prospect,
-        prospect_name: quote.prospect_name,
-        converted_by: actorUserId,
-        converted_at: new Date().toISOString(),
-      },
+      internal_notes: `Converti depuis soumission ${quote.quote_number || quoteId}. Prospect: ${quote.is_prospect ? "oui" : "non"}${quote.prospect_name ? ` (${quote.prospect_name})` : ""}. Par: ${actorUserId}`,
+      notes: quote.client_note || null,
     } as any)
     .select()
     .single();

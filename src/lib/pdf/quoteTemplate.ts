@@ -1,6 +1,6 @@
 /**
  * Professional Quote PDF — Nivra-branded soumission document.
- * Uses the same design system as other canonical PDFs.
+ * Premium design with clean typography, structured layout, and professional finishing.
  */
 import jsPDF from "jspdf";
 import { NIVRA, TAX, PDF_THEME } from "./companyInfo";
@@ -37,219 +37,365 @@ export interface QuotePDFData {
   status: string;
 }
 
-export function generateQuotePDF(data: QuotePDFData): Blob {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const W = 210;
-  const margin = 15;
-  const contentW = W - margin * 2;
-  let y = 0;
+const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " $";
 
-  // ─── Header ────────────────────────────────────────────────────────
+function drawHeader(doc: jsPDF, W: number, margin: number, data: QuotePDFData) {
+  // Full-width navy header bar
   doc.setFillColor(...C.navy);
-  doc.rect(0, 0, W, 42, "F");
+  doc.rect(0, 0, W, 44, "F");
 
+  // Teal accent line
+  doc.setFillColor(...C.teal);
+  doc.rect(0, 44, W, 2, "F");
+
+  // Company name
   doc.setTextColor(...C.white);
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text(NIVRA.tradeName.toUpperCase(), margin, 18);
 
+  // Tagline
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(NIVRA.tagline, margin, 25);
+  doc.text("Fournisseur de services de télécommunications", margin, 26);
+  doc.text("Province de Québec", margin, 32);
 
-  // Quote number badge
+  // Quote badge — right side
   doc.setFillColor(...C.teal);
-  doc.roundedRect(W - margin - 60, 10, 60, 22, 3, 3, "F");
+  doc.roundedRect(W - margin - 62, 8, 62, 28, 3, 3, "F");
   doc.setTextColor(...C.white);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text("SOUMISSION", W - margin - 55, 18);
-  doc.setFontSize(11);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text(data.quoteNumber, W - margin - 55, 27);
+  doc.text("SOUMISSION", W - margin - 31, 17, { align: "center" });
+  doc.setFontSize(10);
+  doc.text(data.quoteNumber, W - margin - 31, 27, { align: "center" });
+}
 
-  y = 50;
+function drawMetaBlock(doc: jsPDF, W: number, margin: number, contentW: number, data: QuotePDFData): number {
+  let y = 54;
 
-  // ─── Date & Validity ──────────────────────────────────────────────
-  doc.setTextColor(...C.text);
+  // Date and validity in a clean row
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.textMuted);
 
-  const createdDate = new Date(data.createdAt).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" });
-  doc.text(`Date : ${createdDate}`, margin, y);
+  const createdDate = new Date(data.createdAt).toLocaleDateString("fr-CA", {
+    year: "numeric", month: "long", day: "numeric",
+  });
+  doc.text(`Émise le ${createdDate}`, margin, y);
 
   if (data.validUntil) {
-    const validDate = new Date(data.validUntil).toLocaleDateString("fr-CA", { year: "numeric", month: "long", day: "numeric" });
-    doc.text(`Valide jusqu'au : ${validDate}`, W - margin - 60, y);
+    const validDate = new Date(data.validUntil).toLocaleDateString("fr-CA", {
+      year: "numeric", month: "long", day: "numeric",
+    });
+    doc.setTextColor(...C.teal);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Valide jusqu'au ${validDate}`, W - margin, y, { align: "right" });
   }
 
   y += 10;
 
-  // ─── Client Section ────────────────────────────────────────────────
+  // Client info card
   doc.setFillColor(...C.lightBg);
-  doc.roundedRect(margin, y, contentW, 24, 2, 2, "F");
+  doc.roundedRect(margin, y, contentW, 28, 3, 3, "F");
+  doc.setDrawColor(...C.teal);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, margin, y + 28);
 
   doc.setTextColor(...C.textMuted);
   doc.setFontSize(7);
-  doc.text(data.isProspect ? "PROSPECT" : "CLIENT", margin + 5, y + 6);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.isProspect ? "PROSPECT" : "CLIENT", margin + 6, y + 7);
 
   doc.setTextColor(...C.text);
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(data.clientName, margin + 5, y + 13);
+  doc.text(data.clientName, margin + 6, y + 15);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
   const contactParts = [data.clientEmail, data.clientPhone].filter(Boolean);
   if (contactParts.length) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
     doc.setTextColor(...C.textMuted);
-    doc.text(contactParts.join(" · "), margin + 5, y + 19);
+    doc.text(contactParts.join("  ·  "), margin + 6, y + 22);
   }
 
-  y += 32;
+  return y + 36;
+}
 
-  // ─── Services Table ────────────────────────────────────────────────
+function drawServicesTable(doc: jsPDF, margin: number, contentW: number, data: QuotePDFData, startY: number): number {
+  let y = startY;
+
+  // Section title
   doc.setTextColor(...C.navy);
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("Détail des services et frais", margin, y);
-  y += 6;
+  y += 7;
 
   // Table header
   doc.setFillColor(...C.navy);
-  doc.rect(margin, y, contentW, 7, "F");
+  doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, "F");
   doc.setTextColor(...C.white);
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("Description", margin + 3, y + 5);
-  doc.text("Qté", margin + 100, y + 5, { align: "center" });
-  doc.text("Prix unit.", margin + 120, y + 5, { align: "center" });
-  doc.text("Fréquence", margin + 145, y + 5, { align: "center" });
-  doc.text("Total", margin + contentW - 3, y + 5, { align: "right" });
-  y += 7;
 
+  const col = {
+    desc: margin + 4,
+    qty: margin + 95,
+    price: margin + 115,
+    freq: margin + 142,
+    total: margin + contentW - 4,
+  };
+
+  doc.text("Description", col.desc, y + 5.5);
+  doc.text("Qté", col.qty, y + 5.5, { align: "center" });
+  doc.text("Prix unit.", col.price, y + 5.5, { align: "center" });
+  doc.text("Fréquence", col.freq, y + 5.5, { align: "center" });
+  doc.text("Total", col.total, y + 5.5, { align: "right" });
+  y += 8;
+
+  // Table rows
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
 
-  for (let i = 0; i < data.lines.length; i++) {
-    const line = data.lines[i];
-    if (i % 2 === 0) {
-      doc.setFillColor(248, 250, 252);
-      doc.rect(margin, y, contentW, 7, "F");
+  const monthlyLines = data.lines.filter(l => l.billingFrequency === "monthly");
+  const oneTimeLines = data.lines.filter(l => l.billingFrequency === "one_time");
+
+  const drawSection = (lines: typeof data.lines, sectionLabel: string) => {
+    if (lines.length === 0) return;
+
+    // Section sub-header
+    doc.setFillColor(240, 245, 250);
+    doc.rect(margin, y, contentW, 6, "F");
+    doc.setTextColor(...C.teal);
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "bold");
+    doc.text(sectionLabel.toUpperCase(), col.desc, y + 4.2);
+    y += 6;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineTotal = line.unitPrice * line.quantity;
+
+      if (i % 2 === 0) {
+        doc.setFillColor(252, 253, 254);
+        doc.rect(margin, y, contentW, 7.5, "F");
+      }
+
+      doc.setTextColor(...C.text);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(line.label.substring(0, 45), col.desc, y + 5.2);
+
+      doc.setTextColor(...C.textMuted);
+      doc.text(String(line.quantity), col.qty, y + 5.2, { align: "center" });
+      doc.text(fmt(line.unitPrice), col.price, y + 5.2, { align: "center" });
+
+      doc.setFontSize(7);
+      doc.text(line.billingFrequency === "monthly" ? "Mensuel" : "Unique", col.freq, y + 5.2, { align: "center" });
+
+      doc.setTextColor(...C.text);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text(fmt(lineTotal), col.total, y + 5.2, { align: "right" });
+
+      y += 7.5;
     }
-    doc.setTextColor(...C.text);
-    doc.text(line.label.substring(0, 50), margin + 3, y + 5);
-    doc.text(String(line.quantity), margin + 100, y + 5, { align: "center" });
-    doc.text(`${line.unitPrice.toFixed(2)} $`, margin + 120, y + 5, { align: "center" });
+  };
+
+  drawSection(monthlyLines, "Services mensuels récurrents");
+  drawSection(oneTimeLines, "Frais uniques");
+
+  // Bottom border
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, margin + contentW, y);
+
+  return y + 4;
+}
+
+function drawAdjustments(doc: jsPDF, margin: number, contentW: number, data: QuotePDFData, startY: number): number {
+  if (data.adjustments.length === 0) return startY;
+
+  let y = startY;
+
+  doc.setTextColor(...C.textMuted);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("AJUSTEMENTS", margin + 4, y + 4);
+  y += 7;
+
+  for (const adj of data.adjustments) {
     doc.setTextColor(...C.textMuted);
-    doc.text(line.billingFrequency === "monthly" ? "Mensuel" : "Unique", margin + 145, y + 5, { align: "center" });
-    doc.setTextColor(...C.text);
-    doc.text(`${(line.unitPrice * line.quantity).toFixed(2)} $`, margin + contentW - 3, y + 5, { align: "right" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(adj.label, margin + 4, y + 4);
+    doc.setTextColor(220, 38, 38);
+    doc.setFont("helvetica", "bold");
+    doc.text(`-${fmt(adj.amount)}`, margin + contentW - 4, y + 4, { align: "right" });
     y += 7;
   }
 
-  y += 3;
+  doc.setDrawColor(...C.border);
+  doc.line(margin, y, margin + contentW, y);
+  return y + 4;
+}
 
-  // ─── Adjustments ───────────────────────────────────────────────────
-  if (data.adjustments.length > 0) {
-    doc.setDrawColor(...C.border);
-    doc.line(margin, y, margin + contentW, y);
-    y += 5;
+function drawTotals(doc: jsPDF, margin: number, contentW: number, data: QuotePDFData, startY: number): number {
+  let y = startY;
+  const boxW = contentW * 0.48;
+  const boxX = margin + contentW - boxW;
 
-    for (const adj of data.adjustments) {
-      doc.setTextColor(...C.textMuted);
-      doc.setFontSize(8);
-      doc.text(adj.label, margin + 3, y + 4);
-      doc.setTextColor(220, 38, 38); // red
-      doc.text(`-${adj.amount.toFixed(2)} $`, margin + contentW - 3, y + 4, { align: "right" });
-      y += 7;
-    }
-    y += 3;
-  }
-
-  // ─── Totals Box ────────────────────────────────────────────────────
+  // Totals card with rounded border
   doc.setFillColor(...C.lightBg);
-  doc.roundedRect(margin + contentW / 2, y, contentW / 2, 42, 2, 2, "F");
+  doc.roundedRect(boxX, y, boxW, 52, 3, 3, "F");
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(boxX, y, boxW, 52, 3, 3, "S");
 
-  const tx = margin + contentW / 2 + 5;
-  const tw = contentW / 2 - 10;
+  const tx = boxX + 8;
+  const tw = boxW - 16;
 
+  // Subtotal
   doc.setTextColor(...C.text);
   doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Sous-total", tx, y + 8);
+  doc.text(fmt(data.subtotal), tx + tw, y + 8, { align: "right" });
 
-  doc.text("Sous-total", tx, y + 7);
-  doc.text(`${data.subtotal.toFixed(2)} $`, tx + tw, y + 7, { align: "right" });
+  let dy = 14;
 
+  // Discounts
   if (data.discountsTotal > 0) {
-    y += 6;
     doc.setTextColor(220, 38, 38);
-    doc.text("Rabais", tx, y + 7);
-    doc.text(`-${data.discountsTotal.toFixed(2)} $`, tx + tw, y + 7, { align: "right" });
+    doc.text("Rabais", tx, y + dy);
+    doc.setFont("helvetica", "bold");
+    doc.text(`-${fmt(data.discountsTotal)}`, tx + tw, y + dy, { align: "right" });
+    dy += 6;
   }
 
-  y += 6;
+  // Taxes
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(...C.textMuted);
-  doc.text(`TPS (5%)`, tx, y + 7);
-  const tpsAmount = Math.max(0, data.subtotal - data.discountsTotal - data.creditsTotal) * TAX.GST_RATE;
-  doc.text(`${tpsAmount.toFixed(2)} $`, tx + tw, y + 7, { align: "right" });
+  doc.setFontSize(7.5);
 
-  y += 6;
-  doc.text(`TVQ (9,975%)`, tx, y + 7);
-  const tvqAmount = Math.max(0, data.subtotal - data.discountsTotal - data.creditsTotal) * TAX.QST_RATE;
-  doc.text(`${tvqAmount.toFixed(2)} $`, tx + tw, y + 7, { align: "right" });
+  const taxableBase = Math.max(0, data.subtotal - data.discountsTotal - data.creditsTotal);
+  const tps = taxableBase * TAX.GST_RATE;
+  const tvq = taxableBase * TAX.QST_RATE;
 
-  y += 8;
+  doc.text("TPS (5 %)", tx, y + dy);
+  doc.text(fmt(tps), tx + tw, y + dy, { align: "right" });
+  dy += 5.5;
+
+  doc.text("TVQ (9,975 %)", tx, y + dy);
+  doc.text(fmt(tvq), tx + tw, y + dy, { align: "right" });
+  dy += 6;
+
+  // Separator
   doc.setDrawColor(...C.navy);
-  doc.line(tx, y + 2, tx + tw, y + 2);
-  y += 4;
+  doc.setLineWidth(0.5);
+  doc.line(tx, y + dy, tx + tw, y + dy);
+  dy += 5;
 
+  // Total due now — prominent
   doc.setTextColor(...C.navy);
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("Total dû maintenant", tx, y + 6);
-  doc.text(`${data.totalDueNow.toFixed(2)} $`, tx + tw, y + 6, { align: "right" });
+  doc.text("Total dû maintenant", tx, y + dy);
+  doc.text(fmt(data.totalDueNow), tx + tw, y + dy, { align: "right" });
 
-  y += 10;
+  // Monthly recurring — teal accent below totals box
+  const monthlyY = y + 56;
+  doc.setFillColor(240, 253, 250);
+  doc.roundedRect(boxX, monthlyY, boxW, 12, 3, 3, "F");
+  doc.setDrawColor(...C.teal);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(boxX, monthlyY, boxW, 12, 3, 3, "S");
+
   doc.setTextColor(...C.teal);
   doc.setFontSize(9);
-  doc.text("Mensuel récurrent", tx, y + 5);
-  doc.text(`${data.totalMonthly.toFixed(2)} $ /mois`, tx + tw, y + 5, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.text("Mensuel récurrent", tx, monthlyY + 8);
+  doc.text(`${fmt(data.totalMonthly)} /mois`, tx + tw, monthlyY + 8, { align: "right" });
 
-  y += 20;
+  return monthlyY + 18;
+}
 
-  // ─── Client Note ───────────────────────────────────────────────────
-  if (data.clientNote) {
-    doc.setTextColor(...C.navy);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("Note", margin, y);
-    y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...C.text);
-    const noteLines = doc.splitTextToSize(data.clientNote, contentW - 10);
-    doc.text(noteLines, margin + 3, y);
-    y += noteLines.length * 4 + 5;
-  }
+function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: string, startY: number): number {
+  let y = startY;
 
-  // ─── Footer ────────────────────────────────────────────────────────
-  const footerY = 270;
-  doc.setDrawColor(...C.border);
+  doc.setFillColor(255, 251, 235);
+  doc.setDrawColor(251, 191, 36);
+  doc.setLineWidth(0.4);
+
+  doc.setTextColor(...C.navy);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("Message au client", margin, y);
+  y += 4;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...C.text);
+  const noteLines = doc.splitTextToSize(note, contentW - 14);
+
+  doc.roundedRect(margin, y, contentW, noteLines.length * 4.5 + 8, 2, 2, "FD");
+  doc.text(noteLines, margin + 6, y + 6);
+
+  return y + noteLines.length * 4.5 + 14;
+}
+
+function drawFooter(doc: jsPDF, W: number, margin: number, contentW: number) {
+  const footerY = 265;
+
+  // Footer separator
+  doc.setDrawColor(...C.teal);
+  doc.setLineWidth(0.5);
   doc.line(margin, footerY, margin + contentW, footerY);
 
   doc.setTextColor(...C.textMuted);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
+
   doc.text(NIVRA.legalName, margin, footerY + 5);
   doc.text(NIVRA.address, margin, footerY + 9);
-  doc.text(`${NIVRA.tpsLabel} | ${NIVRA.tvqLabel}`, margin, footerY + 13);
+  doc.text(`${NIVRA.tpsLabel}  |  ${NIVRA.tvqLabel}`, margin, footerY + 13);
+
+  doc.setTextColor(...C.teal);
+  doc.setFont("helvetica", "bold");
   doc.text(NIVRA.website, W - margin, footerY + 5, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.textMuted);
   doc.text(NIVRA.email, W - margin, footerY + 9, { align: "right" });
 
-  doc.setTextColor(...C.textMuted);
+  // Legal disclaimer
   doc.setFontSize(6);
-  doc.text("Ce document est une soumission et ne constitue pas une facture.", margin, footerY + 18);
-  doc.text("Les prix sont sujets à changement et valides selon la date d'expiration indiquée.", margin, footerY + 22);
+  doc.setTextColor(...C.textMuted);
+  doc.text(
+    "Ce document est une soumission et ne constitue pas une facture. Les prix sont sujets à changement selon la date de validité indiquée.",
+    W / 2, footerY + 18,
+    { align: "center" }
+  );
+}
+
+export function generateQuotePDF(data: QuotePDFData): Blob {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210;
+  const margin = 15;
+  const contentW = W - margin * 2;
+
+  drawHeader(doc, W, margin, data);
+  let y = drawMetaBlock(doc, W, margin, contentW, data);
+  y = drawServicesTable(doc, margin, contentW, data, y);
+  y = drawAdjustments(doc, margin, contentW, data, y);
+  y = drawTotals(doc, margin, contentW, data, y);
+
+  if (data.clientNote) {
+    y = drawClientNote(doc, margin, contentW, data.clientNote, y);
+  }
+
+  drawFooter(doc, W, margin, contentW);
 
   return doc.output("blob");
 }
