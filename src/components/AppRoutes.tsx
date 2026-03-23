@@ -43,6 +43,7 @@ const EmployeeSupport = lazy(() => import("@/employee-app/pages/EmployeeSupport"
 const EmployeeAudit = lazy(() => import("@/employee-app/pages/EmployeeAudit"));
 const EmployeeProfile = lazy(() => import("@/employee-app/pages/EmployeeProfile"));
 const EmployeeSecurity = lazy(() => import("@/employee-app/pages/EmployeeSecurity"));
+const EmployeeEquipment = lazy(() => import("@/employee-app/pages/EmployeeEquipment"));
 const EmployeeAppointments = lazy(() => import("@/employee-app/pages/EmployeeAppointments"));
 const EmployeeAppointmentDetail = lazy(() => import("@/employee-app/pages/EmployeeAppointmentDetail"));
 const EmployeeInvoiceDetail = lazy(() => import("@/employee-app/pages/EmployeeInvoiceDetail"));
