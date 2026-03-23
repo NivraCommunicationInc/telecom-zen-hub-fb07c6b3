@@ -285,15 +285,27 @@ export async function fallbackCheckout(
         .single();
 
       if (error) {
-        // Race condition: another call inserted between our select and insert
-        if (error.code === "23505") {
+        // Race condition or RLS block (guest checkout uses anon key)
+        if (error.code === "23505" || error.message?.includes("row-level security")) {
+          // Wait briefly for checkout-canonical-sync to create the record
+          await new Promise(r => setTimeout(r, 1500));
           const { data: reFetched } = await supabase
             .from("billing_customers")
             .select("id")
             .eq("user_id", userId)
             .maybeSingle();
           customerId = reFetched?.id || null;
-        } else {
+          if (!customerId) {
+            // Try by email as fallback
+            const { data: byEmail } = await supabase
+              .from("billing_customers")
+              .select("id")
+              .eq("email", payload.customer.email.trim().toLowerCase())
+              .maybeSingle();
+            customerId = byEmail?.id || null;
+          }
+        }
+        if (!customerId) {
           throw new Error(`billing_customer creation failed: ${error.message}`);
         }
       } else {

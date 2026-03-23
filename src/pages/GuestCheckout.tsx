@@ -1080,12 +1080,17 @@ const GuestCheckout = () => {
                     {paymentMethod === "etransfer" && (
                       <div className="space-y-4 pt-2">
                         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                          <p className="text-sm font-medium text-amber-800 mb-2">Instructions de virement</p>
-                          <p className="text-xs text-amber-700">
-                            Envoyez <strong>{fmt(todayTotal)}</strong> par Interac à <strong>Support@nivra-telecom.ca</strong>
-                          </p>
-                          <p className="text-xs text-amber-600 mt-1">
-                            Mot de question/réponse : Nivra / Nivra2026
+                          <p className="text-sm font-medium text-amber-800 mb-3">Instructions de virement Interac</p>
+                          <div className="space-y-2 text-xs text-amber-700">
+                            <p>1. Envoyez <strong>{fmt(todayTotal)}</strong> par Interac à :</p>
+                            <p className="font-semibold text-amber-900 text-sm pl-4">Support@nivra-telecom.ca</p>
+                            <p>2. Question de sécurité :</p>
+                            <p className="font-semibold text-amber-900 pl-4">Quel est mon numéro de commande/facture</p>
+                            <p>3. Réponse :</p>
+                            <p className="font-semibold text-amber-900 pl-4">Votre numéro de commande ou de facture</p>
+                          </div>
+                          <p className="text-[11px] text-amber-600 mt-3 border-t border-amber-200 pt-2">
+                            Vous recevrez votre numéro de commande dans la confirmation. Utilisez-le comme réponse à la question de sécurité.
                           </p>
                         </div>
                         <div>
