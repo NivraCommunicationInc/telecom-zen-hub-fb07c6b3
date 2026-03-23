@@ -1,14 +1,13 @@
 /**
- * EmployeeClientDetail — Phase 2: Rewired to shared-ops canonical layer.
- * Uses useClientProfile from shared-ops + addOperationalNote for notes.
- * UI preserved, data now canonical.
+ * EmployeeClientDetail — Phase 4: Full customer-service workspace.
+ * Uses shared-ops + CreateTicketDialog + EmployeePinReset + EscalationRequestDialog + DocumentActions.
  */
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, User, ShoppingCart, FileText, CreditCard,
   MapPin, Zap, MessageSquare, Shield, Clock, ChevronRight,
-  Phone, Mail, Hash,
+  Phone, Mail, Hash, Plus, AlertTriangle, Key,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -17,6 +16,10 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CustomerPinGate } from "@/employee-app/components/CustomerPinGate";
+import { CreateTicketDialog } from "@/employee-app/components/CreateTicketDialog";
+import { EmployeePinReset } from "@/employee-app/components/EmployeePinReset";
+import { EscalationRequestDialog } from "@/employee-app/components/EscalationRequestDialog";
+import { DocumentActions } from "@/employee-app/components/DocumentActions";
 import { useClientProfile, addOperationalNote } from "@/shared-ops";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
