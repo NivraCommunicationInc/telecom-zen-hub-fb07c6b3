@@ -1,1481 +1,360 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-// LOCKED PDF TEMPLATES — approved production designs, DO NOT replace with pdfGenerator.ts
-import { generateInvoiceV3PDF } from "../_shared/locked-pdf/invoiceTemplateV3.ts";
-import { generateReceiptPDF } from "../_shared/locked-pdf/receiptTemplate.ts";
-import { generateContractV3PDF } from "../_shared/locked-pdf/contractTemplateV3.ts";
-import { generateOrderSummaryPDF } from "../_shared/locked-pdf/orderSummaryTemplate.ts";
-import type { InvoiceDataV2 } from "../_shared/locked-pdf/types.ts";
-import type { ReceiptData as LockedReceiptData } from "../_shared/locked-pdf/receiptTemplate.ts";
-import type { ContractDataV3 } from "../_shared/locked-pdf/contractTemplateV3.ts";
-import type { OrderSummaryV3Data } from "../_shared/locked-pdf/orderSummaryTemplate.ts";
+import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
-type PDFType = "invoice" | "receipt" | "contract" | "summary";
+const MAX_RETRIES = 5
+const DEFAULT_BATCH_SIZE = 10
+const DEFAULT_SEND_DELAY_MS = 200
+const DEFAULT_AUTH_TTL_MINUTES = 15
+const DEFAULT_TRANSACTIONAL_TTL_MINUTES = 60
 
-interface PDFAttachment {
-  filename: string;
-  content: string;
-}
-
-interface EmailQueueItem {
-  id: string;
-  event_key: string;
-  to_email: string;
-  template_key: string;
-  template_vars: Record<string, any>;
-  status: string;
-  attempts: number;
-  max_attempts: number;
-}
-
-// Templates that should include PDF attachments
-// Single-type attachment templates (strict one-email -> one-PDF mapping)
-const PDF_ATTACHMENT_TEMPLATES: Record<string, 'invoice' | 'receipt' | 'contract' | 'summary'> = {
-  'invoice_created': 'invoice',
-  'billing_new_invoice': 'invoice',
-  'renewal_invoice_created': 'invoice',
-  'contract_ready': 'contract',
-  'contract_signed': 'contract',
-  'contract_ready_for_signature': 'contract',
-  'order_submitted': 'summary',
-  'order_confirmation': 'summary',
-  'payment_receipt': 'receipt',
-  'payment_confirmed': 'receipt',
-  'payment_received': 'receipt',
-  'invoice_paid': 'receipt',
-};
-
-// Full bundle disabled by default to avoid wrong attachment routing per template.
-const FULL_DOCUMENT_SET_TEMPLATES = new Set<string>([]);
-
-// ============================================================================
-// CANONICAL PDF GENERATION — fetches real data from DB, identical to frontend
-// No template_vars-based reconstruction. Uses compute_invoice_breakdown RPC.
-// ============================================================================
-
-const n = (v: unknown): number => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
-
-const blobToBase64 = async (blob: Blob): Promise<string> => {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  const chunkSize = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+// Check if an error is a rate-limit (429) response.
+// Uses EmailAPIError.status when available (email-js >=0.x with structured errors),
+// falls back to parsing the error message for older versions.
+function isRateLimited(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    return (error as { status: number }).status === 429
   }
-  return btoa(binary);
-};
+  return error instanceof Error && error.message.includes('429')
+}
 
-// --- Helpers mirroring src/lib/pdf/canonicalDocumentService.ts ---
-
-function requireField(value: string | undefined | null, fieldName: string): string {
-  if (!value || value === "—" || value === "N/A" || value === "À confirmer" || value === "000000" || value.trim() === "") {
-    return "Non fourni par le client";
+// Check if an error is a forbidden (403) response, which means emails are
+// disabled for this project. Retrying won't help — move straight to DLQ.
+function isForbidden(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    return (error as { status: number }).status === 403
   }
-  return value.trim();
+  return error instanceof Error && error.message.includes('403')
 }
 
-function buildFullAddress(parts: { line1?: string; city?: string; province?: string; postal?: string }): string {
-  return [parts.line1, parts.city, parts.province || "QC", parts.postal].filter(Boolean).join(", ");
-}
-
-function buildCustomerAddress(order: any, profile: any, account: any) {
-  const address_line1 = order.shipping_address || account?.primary_service_address || profile?.address || profile?.service_address || "";
-  const city = order.shipping_city || account?.primary_service_city || profile?.service_city || "";
-  const province = order.shipping_province || account?.primary_service_province || profile?.service_province || "QC";
-  const postal_code = order.shipping_postal_code || account?.primary_service_postal_code || profile?.service_postal_code || "";
-  const serviceAddr = buildFullAddress({ line1: address_line1, city, province, postal: postal_code });
-  const billingAddr = account?.billing_address
-    ? buildFullAddress({ line1: account.billing_address, city: account.billing_city, province: account.billing_province || "QC", postal: account.billing_postal_code })
-    : serviceAddr;
-  return { billing: billingAddr || serviceAddr || "", service: serviceAddr || billingAddr || "", address_line1, city, province, postal_code };
-}
-
-function buildClientName(order: any, profile: any): string {
-  const fromOrder = [order.client_first_name, order.client_last_name].filter(Boolean).join(" ");
-  if (fromOrder) return fromOrder;
-  if (profile?.full_name) return profile.full_name;
-  return [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "";
-}
-
-function resolvePaymentMethod(order: any, payments: any[]): string {
-  const completed = payments.find((p: any) => p.status === "confirmed" || p.status === "completed");
-  if (completed?.method) return completed.method;
-  return order.payment_method || "";
-}
-
-interface BreakdownItem {
-  description: string;
-  line_type: string;
-  quantity: number;
-  unit_price_cents: number;
-  line_total_cents: number;
-}
-
-interface Breakdown {
-  items: BreakdownItem[];
-  subtotal: number;
-  tps_amount: number;
-  tvq_amount: number;
-  total: number;
-  amount_paid: number;
-  balance_due: number;
-  discounts_total: number;
-  status: string;
-  type: string;
-  order_id?: string;
-  used_stored_totals?: boolean;
-}
-
-function structureFromBreakdown(bd: Breakdown, order: any) {
-  const services: Array<{ type: string; name: string; monthly_price: number }> = [];
-  const equipment: Array<{ name: string; quantity: number; unit_price: number }> = [];
-  const fees: Array<{ label: string; amount: number }> = [];
-  const discounts: Array<{ label: string; amount: number }> = [];
-  const invoiceItems: Array<{ category: string; description: string; qty: number; unit_price: number; amount: number; is_recurring: boolean; service_address?: string }> = [];
-
-  for (const item of bd.items) {
-    const amount = item.line_total_cents / 100;
-    const unitPrice = item.unit_price_cents / 100;
-    const qty = item.quantity || 1;
-
-    if (item.line_type === "discount" || item.line_type === "credit") {
-      discounts.push({ label: item.description, amount: Math.abs(amount) });
-      continue;
-    }
-
-    const descLower = item.description.toLowerCase();
-    const isFee = descLower.includes("frais") || descLower.includes("activation") || descLower.includes("livraison") || descLower.includes("installation") || descLower.includes("shipping") || descLower.includes("delivery");
-    const isEquipment = descLower.includes("routeur") || descLower.includes("router") || descLower.includes("modem") || descLower.includes("terminal") || descLower.includes("décodeur") || descLower.includes("sim") || descLower.includes("équipement");
-
-    if (item.line_type === "equipment" || isEquipment) {
-      equipment.push({ name: item.description, quantity: qty, unit_price: unitPrice });
-      invoiceItems.push({ category: "Equipment", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
-    } else if (item.line_type === "fee" || isFee) {
-      fees.push({ label: item.description, amount });
-      invoiceItems.push({ category: "Fees", description: item.description, qty, unit_price: unitPrice, amount, is_recurring: false });
-    } else {
-      const type = descLower.includes("internet") || descLower.includes("giga") ? "Internet"
-        : descLower.includes("mobile") || descLower.includes("talk") || descLower.includes("text") ? "Mobile"
-        : descLower.includes("tv") || descLower.includes("télé") ? "TV"
-        : descLower.includes("streaming") ? "Streaming"
-        : descLower.includes("sécurité") || descLower.includes("security") ? "Sécurité"
-        : "Télécom";
-      services.push({ type, name: item.description, monthly_price: amount });
-      invoiceItems.push({ category: type, description: item.description, qty, unit_price: unitPrice, amount, is_recurring: bd.type === "renewal", service_address: order.shipping_address });
-    }
+// Extract Retry-After seconds from a structured EmailAPIError, or default to 60s.
+function getRetryAfterSeconds(error: unknown): number {
+  if (error && typeof error === 'object' && 'retryAfterSeconds' in error) {
+    return (error as { retryAfterSeconds: number | null }).retryAfterSeconds ?? 60
   }
-
-  const subtotalMonthly = services.reduce((s, sv) => s + sv.monthly_price, 0);
-  const subtotalOnetime = equipment.reduce((s, e) => s + e.unit_price * e.quantity, 0) + fees.reduce((s, f) => s + f.amount, 0);
-
-  return { services, equipment, fees, invoiceItems, discounts, subtotal: bd.subtotal, subtotalMonthly, subtotalOnetime, discountAmount: bd.discounts_total, tpsAmount: bd.tps_amount, tvqAmount: bd.tvq_amount, total: bd.total, amountPaid: bd.amount_paid, balanceDue: bd.balance_due };
+  return 60
 }
 
-// --- Canonical data fetcher (mirrors fetchCanonicalDocumentData) ---
-
-async function fetchCanonicalData(supabase: ReturnType<typeof createClient>, vars: Record<string, any>) {
-  let order: any = null;
-  let billingInvoice: any = null;
-
-  const orderId = vars.order_id;
-  const invoiceId = vars.invoice_id;
-  const invoiceNumber = vars.invoice_number;
-
-  // Route 1: from invoice_id
-  if (invoiceId) {
-    const { data } = await supabase.from("billing_invoices").select("*").eq("id", invoiceId).maybeSingle();
-    billingInvoice = data;
-    if (data?.order_id) {
-      const { data: o } = await supabase.from("orders").select("*").eq("id", data.order_id).maybeSingle();
-      order = o;
-    }
+function parseJwtClaims(token: string): Record<string, unknown> | null {
+  const parts = token.split('.')
+  if (parts.length < 2) {
+    return null
   }
-
-  // Route 2: from invoice_number
-  if (!billingInvoice && invoiceNumber) {
-    const { data } = await supabase.from("billing_invoices").select("*").eq("invoice_number", invoiceNumber).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    billingInvoice = data;
-    if (data?.order_id && !order) {
-      const { data: o } = await supabase.from("orders").select("*").eq("id", data.order_id).maybeSingle();
-      order = o;
-    }
-  }
-
-  // Route 3: from order_id
-  if (!order && orderId) {
-    const { data } = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
-    order = data;
-  }
-
-  // Get invoice from order if not yet found
-  if (!billingInvoice && order?.id) {
-    const { data } = await supabase.from("billing_invoices").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    billingInvoice = data;
-  }
-
-  if (!order) {
-    console.warn("[PDF CANONICAL] No order found for PDF generation");
-    return null;
-  }
-
-  const userId = order.user_id;
-  const invId = billingInvoice?.id;
-
-  // Fetch all related data in parallel
-  const [profileRes, accountRes, contractRes, paymentsRes, linesRes] = await Promise.all([
-    userId ? supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle() : Promise.resolve({ data: null }),
-    userId ? supabase.from("accounts").select("*").eq("client_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
-    supabase.from("contracts").select("*").eq("order_id", order.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    invId ? supabase.from("billing_payments").select("*").eq("invoice_id", invId).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
-    invId ? supabase.from("billing_invoice_lines").select("*").eq("invoice_id", invId).order("created_at", { ascending: true }) : Promise.resolve({ data: [] }),
-  ]);
-
-  // Fetch breakdown via RPC
-  let breakdown: Breakdown | null = null;
-  if (invId) {
-    try {
-      const { data, error } = await supabase.rpc("compute_invoice_breakdown", { p_invoice_id: invId });
-      if (!error && data) {
-        breakdown = data as unknown as Breakdown;
-      } else {
-        console.warn("[PDF CANONICAL] compute_invoice_breakdown failed:", error);
-      }
-    } catch (e) {
-      console.warn("[PDF CANONICAL] Breakdown RPC exception:", e);
-    }
-  }
-
-  return {
-    order,
-    profile: profileRes.data,
-    account: accountRes.data,
-    billingInvoice,
-    billingPayments: paymentsRes.data || [],
-    billingInvoiceLines: linesRes.data || [],
-    contract: contractRes.data,
-    breakdown,
-  };
-}
-
-// --- Canonical PDF builders (mirrors canonicalDocumentService.ts + documentBuilder.ts) ---
-
-function buildCanonicalInvoiceData(data: any): InvoiceDataV2 {
-  const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
-  const addr = buildCustomerAddress(order, profile, account);
-  const paymentMethod = resolvePaymentMethod(order, billingPayments);
-  const clientName = buildClientName(order, profile);
-
-  if (!breakdown) throw new Error("Breakdown requis pour facture");
-  const s = structureFromBreakdown(breakdown, order);
-
-  const invoiceStatus = breakdown.status || billingInvoice?.status || (["captured", "paid", "confirmed"].includes(order.payment_status) ? "paid" : "unpaid");
-  const snapshotClient = billingInvoice?.billing_snapshot_client as any;
-  const liveAccountNumber = account?.account_number;
-  const snapshotAccountNumber = billingInvoice?.billing_snapshot_account_number;
-
-  return {
-    invoice_type: "ONETIME",
-    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "—",
-    invoice_date: billingInvoice?.created_at || order.created_at,
-    due_date: billingInvoice?.due_date || billingInvoice?.created_at || order.created_at,
-    account_number: requireField(liveAccountNumber || snapshotAccountNumber, "account_number"),
-    billing_period_start: billingInvoice?.cycle_start_date,
-    billing_period_end: billingInvoice?.cycle_end_date,
-    currency: "CAD",
-    status: invoiceStatus as any,
-    customer: {
-      full_name: requireField(snapshotClient?.full_name || snapshotClient?.name || clientName, "client_name"),
-      email: requireField(snapshotClient?.email || order.client_email || profile?.email, "client_email"),
-      phone: requireField(snapshotClient?.phone || order.client_phone || profile?.phone, "client_phone"),
-      address_line1: requireField(snapshotClient?.address_line1 || addr.address_line1, "address_line1"),
-      city: requireField(snapshotClient?.city || addr.city, "city"),
-      province: snapshotClient?.province || addr.province || "QC",
-      postal_code: requireField(snapshotClient?.postal_code || addr.postal_code, "postal_code"),
-    },
-    items: s.invoiceItems.map(item => ({ ...item, category: item.category as any, service_address: item.service_address || addr.service || undefined, reference: order.order_number?.toString() })),
-    discounts: s.discounts.map(d => ({ label: d.label, amount: d.amount, applies_to: "services" })),
-    subtotal: s.subtotal,
-    subtotal_monthly: s.subtotalMonthly,
-    subtotal_onetime: s.subtotalOnetime,
-    taxes: { gst_rate: 0.05, gst_amount: s.tpsAmount, qst_rate: 0.09975, qst_amount: s.tvqAmount },
-    total: s.total,
-    balance_due: s.balanceDue,
-    payments: billingPayments.filter((p: any) => ["confirmed", "completed", "captured"].includes(p.status)).map((p: any) => ({
-      method: p.method || paymentMethod, status: "Confirmed" as const, paid_amount: Number(p.amount || 0),
-      paid_at: p.received_at || p.created_at, payment_reference: p.payment_number || p.reference || "—", processor_txn_id: p.provider_payment_id,
-    })),
-    payments_total: s.amountPaid,
-  };
-}
-
-function buildCanonicalReceiptData(data: any): LockedReceiptData | null {
-  const { order, profile, account, billingInvoice, billingPayments = [], breakdown } = data;
-  const clientName = buildClientName(order, profile);
-  const addr = buildCustomerAddress(order, profile, account);
-
-  const confirmedPayment = billingPayments.find((p: any) => ["confirmed", "completed", "captured"].includes(p.status));
-  if (!confirmedPayment && (!breakdown || breakdown.amount_paid <= 0)) return null;
-
-  const amountPaid = confirmedPayment ? Number(confirmedPayment.amount) : (breakdown?.amount_paid || 0);
-
-  return {
-    receipt_number: confirmedPayment?.payment_number || confirmedPayment?.reference || billingInvoice?.invoice_number || order.order_number?.toString() || "—",
-    payment_date: confirmedPayment?.received_at || confirmedPayment?.created_at || order.paid_at || order.updated_at || "",
-    payment_method: confirmedPayment?.method || order.payment_method || "Interac",
-    amount_paid: amountPaid,
-    invoice_number: billingInvoice?.invoice_number || order.order_number?.toString() || "",
-    invoice_total: breakdown?.total || billingInvoice?.total || 0,
-    order_number: order.order_number?.toString(),
-    client_name: requireField(clientName, "client_name"),
-    client_email: requireField(order.client_email || profile?.email, "client_email"),
-    client_phone: order.client_phone || profile?.phone || undefined,
-    client_address: addr.billing || addr.service || undefined,
-    account_number: requireField(account?.account_number, "account_number"),
-    billed_items: breakdown ? breakdown.items.filter((i: any) => i.line_type !== "discount" && i.line_type !== "credit").map((i: any) => ({ description: i.description, amount: i.line_total_cents / 100 })) : undefined,
-    transaction_reference: confirmedPayment?.provider_payment_id || confirmedPayment?.reference || undefined,
-    balance_remaining: breakdown ? breakdown.balance_due : (billingInvoice?.balance_due || 0),
-    subtotal: breakdown?.subtotal,
-    discount_amount: breakdown?.discounts_total || 0,
-    discount_label: breakdown?.items.filter((i: any) => i.line_type === "discount").map((i: any) => i.description).join(", ") || undefined,
-    tps_amount: breakdown?.tps_amount,
-    tvq_amount: breakdown?.tvq_amount,
-  };
-}
-
-function buildCanonicalContractData(data: any): ContractDataV3 {
-  const { order, profile, account, contract, billingPayments = [], breakdown } = data;
-  const addr = buildCustomerAddress(order, profile, account);
-  const paymentMethod = resolvePaymentMethod(order, billingPayments);
-  const clientName = buildClientName(order, profile);
-
-  if (!breakdown) throw new Error("Breakdown requis pour contrat");
-  const s = structureFromBreakdown(breakdown, order);
-
-  return {
-    contract_number: contract?.contract_number || order.related_contract_id || `CTR-${order.order_number || order.id?.slice(0, 8)}`,
-    contract_date: contract?.created_at || order.created_at,
-    terms_version: "v5.0",
-    client_name: requireField(clientName, "client_name"),
-    client_email: requireField(order.client_email || profile?.email, "client_email"),
-    client_phone: requireField(order.client_phone || profile?.phone, "client_phone"),
-    client_dob: order.client_dob,
-    billing_address: requireField(addr.billing, "billing_address"),
-    service_address: requireField(addr.service, "service_address"),
-    account_number: requireField(account?.account_number, "account_number"),
-    order_number: requireField(order.order_number?.toString(), "order_number"),
-    services: s.services,
-    equipment: s.equipment,
-    one_time_fees: s.fees,
-    subtotal_monthly: s.subtotalMonthly,
-    subtotal_one_time: s.subtotalOnetime,
-    discount_amount: s.discountAmount,
-    tax_gst: s.tpsAmount,
-    tax_qst: s.tvqAmount,
-    total_due_today: s.total,
-    payment_method: paymentMethod,
-    is_signed: contract?.is_signed || contract?.status === "signed_by_client" || contract?.status === "fully_signed",
-    signature_name: contract?.client_signer_name || clientName,
-    signature_date: contract?.client_signed_at || contract?.signed_at,
-    signature_ip: contract?.client_ip,
-    admin_signature_name: contract?.admin_signer_name,
-    admin_signature_date: contract?.admin_signed_at,
-  };
-}
-
-function buildCanonicalSummaryData(data: any): OrderSummaryV3Data {
-  const { order, profile, account, billingPayments = [], breakdown } = data;
-  const addr = buildCustomerAddress(order, profile, account);
-  const paymentMethod = resolvePaymentMethod(order, billingPayments);
-  const clientName = buildClientName(order, profile);
-
-  if (!breakdown) throw new Error("Breakdown requis pour sommaire");
-  const s = structureFromBreakdown(breakdown, order);
-
-  return {
-    order_number: requireField(order.order_number?.toString(), "order_number"),
-    order_date: order.created_at,
-    order_status: order.status || "pending",
-    client_name: requireField(clientName, "client_name"),
-    client_email: requireField(order.client_email || profile?.email, "client_email"),
-    client_phone: requireField(order.client_phone || profile?.phone, "client_phone"),
-    service_address: requireField(addr.service, "service_address"),
-    account_number: requireField(account?.account_number, "account_number"),
-    services: s.services,
-    equipment: s.equipment,
-    fees: s.fees,
-    subtotal_monthly: s.subtotalMonthly,
-    subtotal_onetime: s.subtotalOnetime,
-    discount_amount: s.discountAmount,
-    discount_label: s.discounts.length > 0 ? s.discounts.map(d => d.label).join(", ") : order.promo_code ? `Promo: ${order.promo_code}` : undefined,
-    tax_gst: s.tpsAmount,
-    tax_qst: s.tvqAmount,
-    total_due: s.total,
-    delivery_method: order.delivery_method || order.installation_method,
-    payment_method: paymentMethod,
-    payment_status: order.payment_status,
-    estimated_activation: order.estimated_activation,
-  };
-}
-
-// --- Generate PDF using locked templates ---
-
-async function lockedPdfToAttachment(
-  pdfType: PDFType,
-  data: InvoiceDataV2 | LockedReceiptData | ContractDataV3 | OrderSummaryV3Data,
-): Promise<PDFAttachment | null> {
-  const result =
-    pdfType === "invoice" ? generateInvoiceV3PDF(data as InvoiceDataV2)
-    : pdfType === "receipt" ? generateReceiptPDF(data as LockedReceiptData)
-    : pdfType === "contract" ? generateContractV3PDF(data as ContractDataV3)
-    : generateOrderSummaryPDF(data as OrderSummaryV3Data);
-
-  if (!result.success || !result.blob) {
-    console.error(`[LOCKED PDF] ${pdfType} generation failed:`, result.error);
-    return null;
-  }
-  return { filename: result.filename || `Nivra-${pdfType}.pdf`, content: await blobToBase64(result.blob) };
-}
-
-// --- Main canonical PDF attachment generator ---
-
-async function generateCanonicalPDFAttachment(
-  supabase: ReturnType<typeof createClient>,
-  templateKey: string,
-  vars: Record<string, any>,
-): Promise<PDFAttachment | null> {
-  const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
-  if (!pdfType) return null;
 
   try {
-    const canonicalData = await fetchCanonicalData(supabase, vars);
-    if (!canonicalData) {
-      console.warn(`[PDF CANONICAL] No canonical data found for ${templateKey}, skipping PDF attachment`);
-      return null;
-    }
+    const payload = parts[1]
+      .replaceAll('-', '+')
+      .replaceAll('_', '/')
+      .padEnd(Math.ceil(parts[1].length / 4) * 4, '=')
 
-    if (!canonicalData.breakdown) {
-      console.warn(`[PDF CANONICAL] No breakdown available for ${templateKey}, skipping PDF attachment`);
-      return null;
-    }
-
-    let pdfData: any;
-    if (pdfType === "invoice") {
-      pdfData = buildCanonicalInvoiceData(canonicalData);
-    } else if (pdfType === "receipt") {
-      pdfData = buildCanonicalReceiptData(canonicalData);
-      if (!pdfData) {
-        console.warn(`[PDF CANONICAL] No confirmed payment for receipt, skipping`);
-        return null;
-      }
-    } else if (pdfType === "contract") {
-      pdfData = buildCanonicalContractData(canonicalData);
-    } else {
-      pdfData = buildCanonicalSummaryData(canonicalData);
-    }
-
-    return await lockedPdfToAttachment(pdfType, pdfData);
-  } catch (error) {
-    console.error(`[PDF CANONICAL] Error generating ${pdfType} for ${templateKey}:`, error);
-    return null;
+    return JSON.parse(atob(payload)) as Record<string, unknown>
+  } catch {
+    return null
   }
 }
 
-// =============================================
-// SHARED EMAIL LAYOUT COMPONENTS
-// =============================================
-
-import { emailStyles, formatCurrency, formatDate, joinUrl, wrapEmail, detailsCard, statusBadge, greeting, emailTemplates } from "../_shared/email-templates.ts";
-import type { EmailConfig } from "../_shared/email-templates.ts";
-
-const toMoney = (value: unknown): number | null => {
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
-};
-
-const PAYMENT_AMOUNT_TEMPLATES = new Set([
-  "payment_confirmed",
-  "payment_received",
-  "payment_receipt",
-  "invoice_paid",
-]);
-
-const ORDER_CONFIRMATION_TEMPLATES = new Set([
-  "order_submitted",
-  "order_confirmation",
-]);
-
-const DUE_AMOUNT_TEMPLATES = new Set([
-  "invoice_created",
-  "invoice_overdue",
-  "payment_reminder_1day",
-  "payment_due_today",
-  "payment_overdue_1day",
-  "service_suspension_warning",
-  "renewal_invoice_created",
-]);
-
-const SERVICE_LABEL_TEMPLATES = new Set([
-  "order_submitted",
-  "cancellation_received",
-  "cancellation_scheduled",
-  "cancellation_completed",
-  "cancellation_declined",
-]);
-
-const NON_VALUE_STRINGS = new Set([
-  "n/a",
-  "na",
-  "none",
-  "null",
-  "undefined",
-  "—",
-  "à confirmer",
-  "a confirmer",
-  "non fourni par le client",
-]);
-
-const normalizeTokenKey = (key: string): string => key.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
-
-const hasRenderableValue = (value: unknown): boolean => {
-  if (value === null || value === undefined) return false;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value === "boolean") return true;
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return false;
-    if (trimmed.includes("{{") && trimmed.includes("}}")) return false;
-    if (NON_VALUE_STRINGS.has(trimmed.toLowerCase())) return false;
-    return true;
-  }
-  if (Array.isArray(value)) return value.some(hasRenderableValue);
-  return true;
-};
-
-const preferCanonicalValue = <T>(...values: T[]): T | undefined => values.find((v) => hasRenderableValue(v));
-
-const toRenderableString = (value: unknown): string | undefined => {
-  if (!hasRenderableValue(value)) return undefined;
-  if (Array.isArray(value)) {
-    const normalized = value
-      .map((entry) => (typeof entry === "string" ? entry.trim() : String(entry ?? "").trim()))
-      .filter((entry) => !!entry && !NON_VALUE_STRINGS.has(entry.toLowerCase()));
-    return normalized.length > 0 ? normalized.join(", ") : undefined;
-  }
-  return String(value).trim();
-};
-
-const buildRenderDictionary = (vars: Record<string, any>): Record<string, string> => {
-  const dictionary: Record<string, string> = {};
-  for (const [rawKey, rawValue] of Object.entries(vars)) {
-    const value = toRenderableString(rawValue);
-    if (!value) continue;
-    const key = String(rawKey || "").trim();
-    if (!key) continue;
-
-    const camel = key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-    const snake = key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
-
-    dictionary[normalizeTokenKey(key)] = value;
-    dictionary[normalizeTokenKey(camel)] = value;
-    dictionary[normalizeTokenKey(snake)] = value;
-  }
-  return dictionary;
-};
-
-const renderPlaceholders = (input: string, vars: Record<string, any>): string => {
-  if (!input) return input;
-  const dictionary = buildRenderDictionary(vars);
-  return input.replace(/{{\s*([A-Za-z0-9_]+)\s*}}/g, (full, token) => {
-    const replacement = dictionary[normalizeTokenKey(String(token || ""))];
-    return replacement ?? full;
-  });
-};
-
-const findUnresolvedPlaceholders = (value: string): string[] => {
-  if (!value) return [];
-  const matches = value.matchAll(/{{\s*([A-Za-z0-9_]+)\s*}}/g);
-  return Array.from(matches, (m) => m[1]).filter(Boolean);
-};
-
-const buildCanonicalServiceLabel = (order: Record<string, any> | null, vars: Record<string, any>): string | undefined => {
-  const planNames = Array.isArray(order?.pricing_snapshot?.all_plan_codes)
-    ? order.pricing_snapshot.all_plan_codes
-      .map((plan: any) => toRenderableString(plan?.name || plan?.plan_name))
-      .filter((name: any) => !!name)
-    : [];
-
-  if (planNames.length > 0) {
-    return Array.from(new Set(planNames)).join(", ");
-  }
-
-  const listServices = Array.isArray(vars.services)
-    ? vars.services
-      .map((service: any) => toRenderableString(service?.name || service?.plan_name || service))
-      .filter((name: any) => !!name)
-    : [];
-
-  if (listServices.length > 0) {
-    return Array.from(new Set(listServices)).join(", ");
-  }
-
-  return toRenderableString(
-    preferCanonicalValue(
-      order?.service_type,
-      vars.service_type,
-      vars.serviceType,
-      vars.service_name,
-      vars.serviceName,
-      vars.services_summary,
-      vars.servicesSummary,
-      vars.plan_name,
-      vars.planName,
-    ),
-  );
-};
-
-async function resolveCanonicalFinancialVars(
+// Move a message to the dead letter queue and log the reason.
+async function moveToDlq(
   supabase: ReturnType<typeof createClient>,
-  emailRow: Record<string, any>,
-  templateKey: string,
-  incomingVars: Record<string, any>,
-): Promise<Record<string, any>> {
-  const vars = { ...incomingVars };
-
-  try {
-    const invoiceIdFromEntity = emailRow.entity_type === "invoice" ? emailRow.entity_id : null;
-    const orderIdFromEntity = emailRow.entity_type === "order" ? emailRow.entity_id : null;
-
-    const requestedInvoiceId = String(vars.invoice_id || invoiceIdFromEntity || "").trim();
-    const requestedInvoiceNumber = String(vars.invoice_number || "").trim();
-    const requestedOrderId = String(vars.order_id || orderIdFromEntity || "").trim();
-    const requestedOrderNumber = String(vars.order_number || "").trim();
-    const paymentRef = String(vars.payment_reference || vars.reference || "").trim();
-
-    let invoice: Record<string, any> | null = null;
-    let order: Record<string, any> | null = null;
-    let payment: Record<string, any> | null = null;
-
-    if (requestedInvoiceId) {
-      const { data } = await supabase
-        .from("billing_invoices")
-        .select("id, order_id, invoice_number, subtotal, tps_amount, tvq_amount, total, amount_paid, balance_due, status, due_date")
-        .eq("id", requestedInvoiceId)
-        .maybeSingle();
-      invoice = data as Record<string, any> | null;
-    }
-
-    if (!invoice && requestedInvoiceNumber) {
-      const { data } = await supabase
-        .from("billing_invoices")
-        .select("id, order_id, invoice_number, subtotal, tps_amount, tvq_amount, total, amount_paid, balance_due, status, due_date")
-        .eq("invoice_number", requestedInvoiceNumber)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      invoice = data as Record<string, any> | null;
-    }
-
-    if (!invoice && requestedOrderId) {
-      const { data } = await supabase
-        .from("billing_invoices")
-        .select("id, order_id, invoice_number, subtotal, tps_amount, tvq_amount, total, amount_paid, balance_due, status, due_date")
-        .eq("order_id", requestedOrderId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      invoice = data as Record<string, any> | null;
-    }
-
-    const resolvedOrderId = requestedOrderId || String(invoice?.order_id || "").trim();
-
-    if (resolvedOrderId) {
-      const { data } = await supabase
-        .from("orders")
-        .select("id, order_number, service_type, client_first_name, client_last_name, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
-        .eq("id", resolvedOrderId)
-        .maybeSingle();
-      order = data as Record<string, any> | null;
-    }
-
-    if (!order && requestedOrderNumber) {
-      const { data } = await supabase
-        .from("orders")
-        .select("id, order_number, service_type, client_first_name, client_last_name, total_amount, payment_method, payment_reference, pricing_snapshot, carrier, tracking_number, tracking_url, shipping_address, shipping_city, shipping_province, shipping_postal_code, client_full_address")
-        .eq("order_number", requestedOrderNumber)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      order = data as Record<string, any> | null;
-    }
-
-    const invoiceId = String(invoice?.id || "").trim();
-    if (invoiceId) {
-      const { data: payments } = await supabase
-        .from("billing_payments")
-        .select("amount, method, payment_number, reference, provider_payment_id, status, created_at")
-        .eq("invoice_id", invoiceId)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      const paymentRows = (payments || []) as Record<string, any>[];
-      payment = paymentRows.find((p) =>
-        paymentRef && (p.provider_payment_id === paymentRef || p.reference === paymentRef)
-      )
-        || paymentRows.find((p) => ["confirmed", "completed"].includes(String(p.status || "")))
-        || paymentRows[0]
-        || null;
-    }
-
-    const snapshot = (order?.pricing_snapshot || {}) as Record<string, any>;
-    const promoDiscount = toMoney(snapshot?.promo_discount) || 0;
-    const welcomeDiscount = toMoney(snapshot?.welcome_discount) || 0;
-
-    const canonicalSubtotal = toMoney(snapshot?.taxable_base ?? snapshot?.subtotal ?? invoice?.subtotal ?? vars.subtotal);
-    const canonicalTps = toMoney(snapshot?.tps_amount ?? invoice?.tps_amount ?? vars.tps_amount ?? vars.tps);
-    const canonicalTvq = toMoney(snapshot?.tvq_amount ?? invoice?.tvq_amount ?? vars.tvq_amount ?? vars.tvq);
-    const canonicalDiscount = toMoney(snapshot?.discount_total_combined ?? (promoDiscount + welcomeDiscount) ?? vars.discount_amount);
-    const canonicalRecurring = toMoney(snapshot?.recurring_subtotal ?? vars.monthly_recurring_amount);
-    const canonicalOneTime = toMoney(snapshot?.one_time_subtotal ?? vars.one_time_charges ?? vars.one_time_total);
-
-    const canonicalTotalPayable = toMoney(
-      invoice?.total ??
-      snapshot?.grand_total ??
-      order?.total_amount ??
-      vars.total_payable ??
-      vars.canonical_total_payable ??
-      vars.total ??
-      vars.amount,
-    );
-
-    const canonicalAmountPaidTotal = toMoney(
-      invoice?.amount_paid ?? vars.amount_paid_total ?? vars.canonical_amount_paid_total,
-    );
-
-    const canonicalAmountDue = toMoney(
-      invoice?.balance_due ??
-      vars.amount_due_today ??
-      vars.balance_due ??
-      ((canonicalTotalPayable || 0) - (canonicalAmountPaidTotal || 0)),
-    );
-
-    const canonicalAmountPaidToday = ORDER_CONFIRMATION_TEMPLATES.has(templateKey)
-      ? toMoney(payment?.amount ?? canonicalAmountPaidTotal ?? canonicalTotalPayable ?? vars.amount_paid_today ?? vars.amount_paid)
-      : toMoney(
-        payment?.amount ??
-        vars.amount_paid_today ??
-        vars.amount_paid ??
-        (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)
-          ? (canonicalAmountPaidTotal ?? canonicalTotalPayable)
-          : null),
-      );
-
-    const shippingAddress = order?.shipping_address
-      ? [order.shipping_address, order.shipping_city, order.shipping_province, order.shipping_postal_code].filter(Boolean).join(", ")
-      : order?.client_full_address || null;
-
-    const orderClientName = [order?.client_first_name, order?.client_last_name]
-      .filter((part) => hasRenderableValue(part))
-      .join(" ")
-      .trim();
-
-    const canonicalOrderNumber = toRenderableString(preferCanonicalValue(order?.order_number, vars.order_number, vars.orderNumber));
-    const canonicalInvoiceNumber = toRenderableString(preferCanonicalValue(invoice?.invoice_number, vars.invoice_number, vars.invoiceNumber));
-    const canonicalContractNumber = toRenderableString(preferCanonicalValue(vars.contract_number, vars.contractNumber));
-    const canonicalTicketNumber = toRenderableString(preferCanonicalValue(vars.ticket_number, vars.ticketNumber));
-    const canonicalRequestNumber = toRenderableString(preferCanonicalValue(vars.request_number, vars.requestNumber));
-    const canonicalDisputeNumber = toRenderableString(preferCanonicalValue(vars.dispute_number, vars.disputeNumber));
-    const canonicalPaymentMethod = toRenderableString(preferCanonicalValue(payment?.method, order?.payment_method, vars.payment_method, vars.paymentMethod));
-    const canonicalPaymentReference = toRenderableString(preferCanonicalValue(
-      payment?.provider_payment_id,
-      payment?.reference,
-      order?.payment_reference,
-      vars.payment_reference,
-      vars.reference,
-    ));
-    const canonicalCarrier = toRenderableString(preferCanonicalValue(order?.carrier, vars.carrier));
-    const canonicalTrackingNumber = toRenderableString(preferCanonicalValue(order?.tracking_number, vars.tracking_number));
-    const canonicalTrackingUrl = toRenderableString(preferCanonicalValue(order?.tracking_url, vars.tracking_url));
-    const canonicalServiceType = buildCanonicalServiceLabel(order, vars);
-    const canonicalClientName = toRenderableString(preferCanonicalValue(vars.client_name, vars.clientName, orderClientName));
-
-    const merged: Record<string, any> = {
-      ...vars,
-      order_id: toRenderableString(preferCanonicalValue(order?.id, invoice?.order_id, vars.order_id, vars.orderId)),
-      orderId: toRenderableString(preferCanonicalValue(order?.id, invoice?.order_id, vars.orderId, vars.order_id)),
-      order_number: canonicalOrderNumber,
-      orderNumber: canonicalOrderNumber,
-      invoice_id: toRenderableString(preferCanonicalValue(invoice?.id, vars.invoice_id, vars.invoiceId)),
-      invoiceId: toRenderableString(preferCanonicalValue(invoice?.id, vars.invoiceId, vars.invoice_id)),
-      invoice_number: canonicalInvoiceNumber,
-      invoiceNumber: canonicalInvoiceNumber,
-      contract_number: canonicalContractNumber,
-      contractNumber: canonicalContractNumber,
-      ticket_number: canonicalTicketNumber,
-      ticketNumber: canonicalTicketNumber,
-      request_number: canonicalRequestNumber,
-      requestNumber: canonicalRequestNumber,
-      dispute_number: canonicalDisputeNumber,
-      disputeNumber: canonicalDisputeNumber,
-      payment_method: canonicalPaymentMethod,
-      paymentMethod: canonicalPaymentMethod,
-      payment_reference: canonicalPaymentReference,
-      reference: canonicalPaymentReference,
-      carrier: canonicalCarrier,
-      tracking_number: canonicalTrackingNumber,
-      trackingNumber: canonicalTrackingNumber,
-      tracking_url: canonicalTrackingUrl,
-      trackingUrl: canonicalTrackingUrl,
-      shipping_address: toRenderableString(preferCanonicalValue(shippingAddress, vars.shipping_address)),
-      shippingAddress: toRenderableString(preferCanonicalValue(shippingAddress, vars.shippingAddress, vars.shipping_address)),
-      client_name: canonicalClientName,
-      clientName: canonicalClientName,
-      service_type: canonicalServiceType,
-      serviceType: canonicalServiceType,
-      service_name: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.service_name, vars.serviceName)),
-      serviceName: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.serviceName, vars.service_name)),
-      services_summary: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.services_summary, vars.servicesSummary)),
-      servicesSummary: canonicalServiceType || toRenderableString(preferCanonicalValue(vars.servicesSummary, vars.services_summary)),
-      plan_name: toRenderableString(preferCanonicalValue(vars.plan_name, vars.planName, canonicalServiceType)),
-      planName: toRenderableString(preferCanonicalValue(vars.planName, vars.plan_name, canonicalServiceType)),
-      // Financial data
-      subtotal: canonicalSubtotal ?? vars.subtotal,
-      tps_amount: canonicalTps ?? vars.tps_amount,
-      tvq_amount: canonicalTvq ?? vars.tvq_amount,
-      taxes_total: toMoney((canonicalTps || 0) + (canonicalTvq || 0)),
-      discount_amount: canonicalDiscount ?? vars.discount_amount,
-      monthly_recurring_amount: canonicalRecurring ?? vars.monthly_recurring_amount,
-      one_time_charges: canonicalOneTime ?? vars.one_time_charges ?? vars.one_time_total,
-      total_payable: canonicalTotalPayable ?? vars.total_payable,
-      canonical_total_payable: canonicalTotalPayable,
-      amount_paid_total: canonicalAmountPaidTotal ?? vars.amount_paid_total,
-      canonical_amount_paid_total: canonicalAmountPaidTotal,
-      amount_paid_today: canonicalAmountPaidToday ?? vars.amount_paid_today,
-      canonical_amount_paid_today: canonicalAmountPaidToday,
-      amount_due_today: canonicalAmountDue ?? vars.amount_due_today,
-      canonical_balance_due: canonicalAmountDue,
-      total_amount: ORDER_CONFIRMATION_TEMPLATES.has(templateKey)
-        ? (canonicalAmountPaidToday ?? canonicalTotalPayable ?? vars.total_amount)
-        : vars.total_amount,
-    };
-
-    if (PAYMENT_AMOUNT_TEMPLATES.has(templateKey)) {
-      merged.amount = canonicalAmountPaidToday ?? canonicalAmountPaidTotal ?? canonicalTotalPayable ?? vars.amount;
-      merged.total = canonicalTotalPayable ?? vars.total;
-      merged.balance_due = canonicalAmountDue ?? vars.balance_due;
-    } else if (DUE_AMOUNT_TEMPLATES.has(templateKey)) {
-      merged.amount = canonicalAmountDue ?? canonicalTotalPayable ?? vars.amount;
-      merged.total = canonicalTotalPayable ?? vars.total;
-      merged.balance_due = canonicalAmountDue ?? vars.balance_due;
-    }
-
-    return merged;
-  } catch (error) {
-    console.error("[email-canonical-financial] Failed to enrich template vars:", error);
-    return vars;
+  queue: string,
+  msg: { msg_id: number; message: Record<string, unknown> },
+  reason: string
+): Promise<void> {
+  const payload = msg.message
+  await supabase.from('email_send_log').insert({
+    message_id: payload.message_id,
+    template_name: (payload.label || queue) as string,
+    recipient_email: payload.to,
+    status: 'dlq',
+    error_message: reason,
+  })
+  const { error } = await supabase.rpc('move_to_dlq', {
+    source_queue: queue,
+    dlq_name: `${queue}_dlq`,
+    message_id: msg.msg_id,
+    payload,
+  })
+  if (error) {
+    console.error('Failed to move message to DLQ', { queue, msg_id: msg.msg_id, reason, error })
   }
 }
-
-// =============================================
-// CLIENT DATA ENRICHMENT FOR PDF ATTACHMENTS
-// Fetches missing client fields (phone, address) from DB
-// so validatePDFClientData() doesn't silently skip PDFs.
-// =============================================
-async function enrichClientDataForPDF(
-  supabase: ReturnType<typeof createClient>,
-  vars: Record<string, any>,
-  templateKey: string,
-): Promise<Record<string, any>> {
-  // Only enrich for templates that need PDF attachments
-  const pdfType = PDF_ATTACHMENT_TEMPLATES[templateKey];
-  if (!pdfType && !FULL_DOCUMENT_SET_TEMPLATES.has(templateKey)) return vars;
-
-  const hasPhone = !!(vars.client_phone || vars.phone);
-  const hasAddress = !!(vars.client_address || vars.address || vars.service_address);
-  const hasEmail = !!(vars.client_email || vars.email);
-
-  // If all fields present, skip lookup
-  if (hasPhone && hasAddress && hasEmail) return vars;
-
-  const enriched = { ...vars };
-
-  try {
-    // Strategy 1: Look up billing_customer via invoice
-    const invoiceId = vars.invoice_id;
-    const invoiceNumber = vars.invoice_number;
-    let customerId: string | null = null;
-
-    if (invoiceId) {
-      const { data: inv } = await supabase
-        .from("billing_invoices")
-        .select("customer_id")
-        .eq("id", invoiceId)
-        .maybeSingle();
-      customerId = inv?.customer_id || null;
-    }
-    if (!customerId && invoiceNumber) {
-      const { data: inv } = await supabase
-        .from("billing_invoices")
-        .select("customer_id")
-        .eq("invoice_number", invoiceNumber)
-        .maybeSingle();
-      customerId = inv?.customer_id || null;
-    }
-
-    if (customerId) {
-      const { data: cust } = await supabase
-        .from("billing_customers")
-        .select("email, phone, user_id")
-        .eq("id", customerId)
-        .maybeSingle();
-
-      if (cust) {
-        if (!hasEmail && cust.email) enriched.client_email = cust.email;
-        if (!hasPhone && cust.phone) enriched.client_phone = cust.phone;
-
-        // Look up profile for address if still missing
-        if (!hasAddress && cust.user_id) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("service_address, service_city, service_province, service_postal_code")
-            .eq("id", cust.user_id)
-            .maybeSingle();
-          if (profile?.service_address) {
-            enriched.client_address = [profile.service_address, profile.service_city, profile.service_province, profile.service_postal_code].filter(Boolean).join(", ");
-            if (profile.service_city) enriched.client_city = profile.service_city;
-            if (profile.service_province) enriched.client_province = profile.service_province;
-            if (profile.service_postal_code) enriched.client_postal_code = profile.service_postal_code;
-          }
-        }
-      }
-    }
-
-    // Strategy 2: Look up via order → accounts → profiles
-    if (!enriched.client_address && !enriched.service_address) {
-      const orderId = vars.order_id;
-      if (orderId) {
-        const { data: order } = await supabase
-          .from("orders")
-          .select("user_id, client_full_address, shipping_address, shipping_city, shipping_province, shipping_postal_code")
-          .eq("id", orderId)
-          .maybeSingle();
-        const orderAddr = order?.client_full_address || order?.shipping_address;
-        if (orderAddr) {
-          enriched.client_address = enriched.service_address = orderAddr;
-          if (order?.shipping_city) enriched.client_city = order.shipping_city;
-          if (order?.shipping_postal_code) enriched.client_postal_code = order.shipping_postal_code;
-        }
-        if (!hasPhone && order?.user_id) {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("phone, service_address, service_city, service_province, service_postal_code")
-            .eq("id", order.user_id)
-            .maybeSingle();
-          if (prof?.phone && !enriched.client_phone) enriched.client_phone = prof.phone;
-          if (prof?.service_address && !enriched.client_address) {
-            enriched.client_address = [prof.service_address, prof.service_city, prof.service_province, prof.service_postal_code].filter(Boolean).join(", ");
-          }
-        }
-      }
-    }
-
-    // Strategy 3: Look up via to_email as last resort
-    if ((!enriched.client_phone || !enriched.client_address) && vars.to_email) {
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("phone, service_address, service_city, service_province, service_postal_code")
-        .eq("email", vars.to_email)
-        .maybeSingle();
-      if (prof) {
-        if (!enriched.client_phone && prof.phone) enriched.client_phone = prof.phone;
-        if (!enriched.client_address && prof.service_address) {
-          enriched.client_address = [prof.service_address, prof.service_city, prof.service_province, prof.service_postal_code].filter(Boolean).join(", ");
-        }
-      }
-    }
-
-    // Final fallback: use placeholder values so PDF is still generated
-    // Better to send a PDF with "—" than no PDF at all
-    if (!enriched.client_phone && !enriched.phone) enriched.client_phone = "—";
-    if (!enriched.client_address && !enriched.address && !enriched.service_address) enriched.client_address = "—";
-    if (!enriched.client_email && !enriched.email) enriched.client_email = vars.to_email || "—";
-
-    console.log(`[PDF ENRICH] template=${templateKey} enriched: phone=${!!enriched.client_phone} address=${!!enriched.client_address} email=${!!enriched.client_email}`);
-  } catch (err) {
-    console.warn("[PDF ENRICH] Lookup failed, using fallbacks:", err);
-    // Fallback so PDF still generates
-    if (!enriched.client_phone && !enriched.phone) enriched.client_phone = "—";
-    if (!enriched.client_address && !enriched.address && !enriched.service_address) enriched.client_address = "—";
-    if (!enriched.client_email && !enriched.email) enriched.client_email = vars.to_email || "—";
-  }
-
-  return enriched;
-}
-
-
-// =============================================
-// MAIN SERVER HANDLER
-// =============================================
 
 Deno.serve(async (req) => {
-  const corsPreflightResponse = handleCorsPreflightRequest(req);
-  if (corsPreflightResponse) return corsPreflightResponse;
-  
-  const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const emailFromAddress = "Nivra Telecom <support@nivra-telecom.ca>";
-  const emailReplyTo = "support@nivra-telecom.ca";
-  
-  // Default values (fallback)
-  const defaultSupportEmail = "support@nivra-telecom.ca";
-  const defaultSupportPhone = "";
-  const defaultAddress = "1799 Av. Pierre-Péladeau, Laval, QC H7T 2Y5";
-  const defaultHours = "Lun–Ven : 9 h – 22 h | Sam–Dim : 9 h – 20 h";
-  
-  // Validate APP_BASE_URL - must be single valid URL, never ALLOWED_ORIGINS
-  const rawAppBaseUrl = Deno.env.get("APP_BASE_URL");
-  let appBaseUrl = "https://nivra-telecom.ca"; // Safe default
-  
-  if (rawAppBaseUrl) {
-    // Check for comma (multiple URLs) or invalid URL format
-    if (rawAppBaseUrl.includes(",")) {
-      console.error(`[EMAIL CONFIG ERROR] APP_BASE_URL contains multiple URLs: "${rawAppBaseUrl}". Using fallback.`);
-    } else {
-      try {
-        new URL(rawAppBaseUrl); // Validate URL format
-        appBaseUrl = rawAppBaseUrl.replace(/\/+$/, ""); // Remove trailing slashes
-      } catch {
-        console.error(`[EMAIL CONFIG ERROR] APP_BASE_URL is not a valid URL: "${rawAppBaseUrl}". Using fallback.`);
-      }
+  if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing required environment variables')
+    return new Response(
+      JSON.stringify({ error: 'Server configuration error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Defense in depth: verify_jwt=true already requires a valid JWT at the
+  // gateway layer. This adds an explicit role check so only service-role
+  // callers can trigger queue processing.
+  const token = authHeader.slice('Bearer '.length).trim()
+  const claims = parseJwtClaims(token)
+  if (claims?.role !== 'service_role') {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  // 1. Check rate-limit cooldown and read queue config
+  const { data: state } = await supabase
+    .from('email_send_state')
+    .select('retry_after_until, batch_size, send_delay_ms, auth_email_ttl_minutes, transactional_email_ttl_minutes')
+    .single()
+
+  if (state?.retry_after_until && new Date(state.retry_after_until) > new Date()) {
+    return new Response(
+      JSON.stringify({ skipped: true, reason: 'rate_limited' }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  const batchSize = state?.batch_size ?? DEFAULT_BATCH_SIZE
+  const sendDelayMs = state?.send_delay_ms ?? DEFAULT_SEND_DELAY_MS
+  const ttlMinutes: Record<string, number> = {
+    auth_emails: state?.auth_email_ttl_minutes ?? DEFAULT_AUTH_TTL_MINUTES,
+    transactional_emails: state?.transactional_email_ttl_minutes ?? DEFAULT_TRANSACTIONAL_TTL_MINUTES,
+  }
+
+  let totalProcessed = 0
+
+  // 2. Process auth_emails first (priority), then transactional_emails
+  for (const queue of ['auth_emails', 'transactional_emails']) {
+    const { data: messages, error: readError } = await supabase.rpc('read_email_batch', {
+      queue_name: queue,
+      batch_size: batchSize,
+      vt: 30,
+    })
+
+    if (readError) {
+      console.error('Failed to read email batch', { queue, error: readError })
+      continue
     }
-  } else {
-    console.warn("[EMAIL CONFIG] APP_BASE_URL not set, using fallback: https://nivra-telecom.ca");
-  }
 
-  if (!resendApiKey) {
-    console.error("RESEND_API_KEY not configured");
-    return new Response(JSON.stringify({ error: "Email service not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+    if (!messages?.length) continue
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+    // Retry budget is based on real send failures, not pgmq read_ct.
+    // read_ct increments for every message in a claimed batch, including
+    // messages not attempted when a 429 stops processing early.
+    const messageIds = Array.from(
+      new Set(
+        messages
+          .map((msg) =>
+            msg?.message?.message_id && typeof msg.message.message_id === 'string'
+              ? msg.message.message_id
+              : null
+          )
+          .filter((id): id is string => Boolean(id))
+      )
+    )
+    const failedAttemptsByMessageId = new Map<string, number>()
+    if (messageIds.length > 0) {
+      const { data: failedRows, error: failedRowsError } = await supabase
+        .from('email_send_log')
+        .select('message_id')
+        .in('message_id', messageIds)
+        .eq('status', 'failed')
 
-  // Load site_settings as source of truth for contact values
-  let supportEmail = defaultSupportEmail;
-  let supportPhone = defaultSupportPhone;
-  let supportAddress = defaultAddress;
-  let supportHours = defaultHours;
-  
-  try {
-    const { data: settings, error: settingsError } = await supabase
-      .from("site_settings")
-      .select("key, value_text")
-      .in("key", ["support_email", "support_phone", "address", "business_hours"])
-      .eq("is_public", true);
-    
-    if (!settingsError && settings) {
-      for (const row of settings) {
-        if (row.key === "support_email" && row.value_text) {
-          supportEmail = row.value_text;
-        } else if (row.key === "support_phone" && row.value_text) {
-          supportPhone = row.value_text;
-        } else if (row.key === "address" && row.value_text) {
-          supportAddress = row.value_text;
-        } else if (row.key === "business_hours" && row.value_text) {
-          supportHours = row.value_text;
+      if (failedRowsError) {
+        console.error('Failed to load failed-attempt counters', {
+          queue,
+          error: failedRowsError,
+        })
+      } else {
+        for (const row of failedRows ?? []) {
+          const messageId = row?.message_id
+          if (typeof messageId !== 'string' || !messageId) continue
+          failedAttemptsByMessageId.set(
+            messageId,
+            (failedAttemptsByMessageId.get(messageId) ?? 0) + 1
+          )
         }
       }
-      console.log("[EMAIL CONFIG] Loaded site_settings:", { supportEmail, supportPhone, supportAddress, supportHours });
-    } else if (settingsError) {
-      console.warn("[EMAIL CONFIG] Failed to load site_settings, using defaults:", settingsError.message);
     }
-  } catch (e) {
-    console.warn("[EMAIL CONFIG] Error loading site_settings, using defaults:", e);
-  }
-  
-  const emailConfig: EmailConfig = {
-    baseUrl: appBaseUrl,
-    supportEmail,
-  };
 
-  try {
-    // Check if this is a test email request
-    const url = new URL(req.url);
-    if (url.searchParams.get("test") === "true") {
-      const body = await req.json();
-      const testEmail = body.to_email;
-      
-      if (!testEmail) {
-        return new Response(JSON.stringify({ error: "to_email required for test" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i]
+      const payload = msg.message
+      const failedAttempts =
+        payload?.message_id && typeof payload.message_id === 'string'
+          ? (failedAttemptsByMessageId.get(payload.message_id) ?? 0)
+          : 0
+
+      // Drop expired messages (TTL exceeded)
+      if (payload.queued_at) {
+        const ageMs = Date.now() - new Date(payload.queued_at).getTime()
+        const maxAgeMs = ttlMinutes[queue] * 60 * 1000
+        if (ageMs > maxAgeMs) {
+          console.warn('Email expired (TTL exceeded)', {
+            queue,
+            msg_id: msg.msg_id,
+            queued_at: payload.queued_at,
+            ttl_minutes: ttlMinutes[queue],
+          })
+          await moveToDlq(supabase, queue, msg, `TTL exceeded (${ttlMinutes[queue]} minutes)`)
+          continue
+        }
       }
 
-      const template = emailTemplates.test_email;
-      
-      // Replace template variables in subject
-      let subject = template.subject;
-      
-      const html = template.getHtml({ to_email: testEmail }, emailConfig);
-
-      console.log(`Sending test email to: ${testEmail}`);
-
-      const emailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
-        },
-          body: JSON.stringify({
-            from: emailFromAddress,
-            reply_to: emailReplyTo,
-            to: [testEmail],
-            subject,
-            html,
-            text: `Nivra Telecom - Test email envoyé avec succès. Ceci est un test du système de courriels.`,
-            headers: {
-              "List-Unsubscribe": `<mailto:unsubscribe@nivra-telecom.ca?subject=unsubscribe>`,
-              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-              "X-Entity-Ref-ID": `test-${Date.now()}`,
-            },
-        }),
-      });
-
-      const result = await emailResponse.json();
-
-      if (!emailResponse.ok) {
-        console.error("Test email failed:", result);
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: result.message || "Failed to send test email",
-          details: result
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      // Move to DLQ if max failed send attempts reached.
+      if (failedAttempts >= MAX_RETRIES) {
+        await moveToDlq(supabase, queue, msg, `Max retries (${MAX_RETRIES}) exceeded (attempted ${failedAttempts} times)`)
+        continue
       }
 
-      console.log("Test email sent successfully:", result);
+      // Guard: skip if another worker already sent this message (VT expired race)
+      if (payload.message_id) {
+        const { data: alreadySent } = await supabase
+          .from('email_send_log')
+          .select('id')
+          .eq('message_id', payload.message_id)
+          .eq('status', 'sent')
+          .maybeSingle()
 
-      return new Response(JSON.stringify({
-        success: true,
-        recipient: testEmail,
-        template: "test_email",
-        provider_message_id: result.id,
-        from: emailFromAddress,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Process email queue - fetch both 'queued' and 'pending' status
-    const { data: queuedEmails, error: fetchError } = await supabase
-      .from("email_queue")
-      .select("*")
-      .in("status", ["queued", "pending"])
-      .or(`next_retry_at.is.null,next_retry_at.lte.${new Date().toISOString()}`)
-      .order("created_at", { ascending: true })
-      .limit(20);
-
-    if (fetchError) {
-      console.error("Error fetching email queue:", fetchError);
-      throw fetchError;
-    }
-
-    console.log(`Processing ${queuedEmails?.length || 0} queued emails`);
-
-    const results = [];
-
-    for (const email of queuedEmails || []) {
-      // Mark as processing
-      await supabase
-        .from("email_queue")
-        .update({ status: "processing" })
-        .eq("id", email.id);
+        if (alreadySent) {
+          console.warn('Skipping duplicate send (already sent)', {
+            queue,
+            msg_id: msg.msg_id,
+            message_id: payload.message_id,
+          })
+          const { error: dupDelError } = await supabase.rpc('delete_email', {
+            queue_name: queue,
+            message_id: msg.msg_id,
+          })
+          if (dupDelError) {
+            console.error('Failed to delete duplicate message from queue', { queue, msg_id: msg.msg_id, error: dupDelError })
+          }
+          continue
+        }
+      }
 
       try {
-        // TEMPLATE KEY ALIASES - map old keys to new professional templates
-        const templateKeyAliases: Record<string, string> = {
-          'order_confirmation': 'order_submitted',
-          'order_confirmation_html': 'order_submitted',
-          'nivra_order_confirmation_fr': 'order_submitted',
-          'payment_received': 'payment_confirmed',
-          'payment_receipt': 'payment_confirmed',
-          'billing_new_invoice': 'invoice_created',
-          'billing_payment_confirmed': 'payment_confirmed',
-          'billing_renewal_reminder': 'invoice_overdue',
-          // --- Missing templates mapped to existing ones ---
-          'invoice_sent': 'invoice_created',
-          'document_contract_sent': 'order_completed',
-          'document_invoice_sent': 'invoice_created',
-          'document_summary_sent': 'order_submitted',
-          'document_terms_sent': 'order_submitted',
-          'appointment_confirmed': 'order_processed',
-          'shipment_created': 'shipping_created',
-          'order_status_changed': 'order_processed',
-          'all_documents_sent': 'order_completed',
-        };
-        
-        // Support both template_key and template_type (Billing V2 uses template_type)
-        const rawTemplateKey = email.template_key || email.template_type || 'unknown';
-        const templateKey = templateKeyAliases[rawTemplateKey] || rawTemplateKey;
-        
-        // Support both template_vars and template_data (Billing V2 uses template_data)
-        const rawTemplateVars = email.template_vars || email.template_data || {};
-        const templateVars = await resolveCanonicalFinancialVars(
-          supabase,
-          email as Record<string, any>,
-          templateKey,
-          rawTemplateVars,
-        );
-        
-        const template = emailTemplates[templateKey];
-        
-        if (!template) {
-          console.warn(`Unknown template: ${rawTemplateKey} (resolved to: ${templateKey}), skipping...`);
-          // Mark as failed with descriptive error
-          await supabase
-            .from("email_queue")
-            .update({
-              status: "failed",
-              last_error: `Template inconnu: ${rawTemplateKey}`,
-              attempts: email.attempts + 1,
-            })
-            .eq("id", email.id);
-          results.push({ id: email.id, status: "failed", error: `Unknown template: ${rawTemplateKey}` });
-          continue;
-        }
-
-        let html = template.getHtml(templateVars, emailConfig);
-        html = renderPlaceholders(html, templateVars);
-
-        const unresolvedBodyTokens = findUnresolvedPlaceholders(html);
-        if (unresolvedBodyTokens.length > 0) {
-          const unresolved = unresolvedBodyTokens.join(", ");
-          throw new Error(`[EMAIL_RENDER_GUARD] Unresolved body placeholders for template=${templateKey}: ${unresolved}`);
-        }
-
-        // Subject: prefer override from template_vars, then template default (supports snake_case + camelCase)
-        let subject = renderPlaceholders(templateVars._subject || template.subject, templateVars).trim();
-
-        const unresolvedSubjectTokens = findUnresolvedPlaceholders(subject);
-        if (unresolvedSubjectTokens.length > 0) {
-          console.error(`[EMAIL_RENDER_GUARD] unresolved subject placeholders email_id=${email.id} template=${templateKey} tokens=${unresolvedSubjectTokens.join(",")}`);
-          subject = subject
-            .replace(/{{\s*[A-Za-z0-9_]+\s*}}/g, "")
-            .replace(/\(\s*#?\s*\)/g, "")
-            .replace(/\s{2,}/g, " ")
-            .trim();
-        }
-
-        if (!subject || findUnresolvedPlaceholders(subject).length > 0) {
-          throw new Error(`[EMAIL_RENDER_GUARD] Subject rendering incomplete for template=${templateKey}`);
-        }
-
-        if (SERVICE_LABEL_TEMPLATES.has(templateKey) && hasRenderableValue(templateVars.service_type)) {
-          const serviceNARendered = />\s*Service\s*<\/td>\s*<td[^>]*>\s*N\/A\s*<\/td>/i.test(html);
-          if (serviceNARendered) {
-            const repairedVars = {
-              ...templateVars,
-              service_type: String(templateVars.service_type),
-              serviceType: String(templateVars.service_type),
-              service_name: String(templateVars.service_type),
-              serviceName: String(templateVars.service_type),
-            };
-            html = renderPlaceholders(template.getHtml(repairedVars, emailConfig), repairedVars);
-            if (/>\s*Service\s*<\/td>\s*<td[^>]*>\s*N\/A\s*<\/td>/i.test(html)) {
-              throw new Error(`[EMAIL_RENDER_GUARD] Service rendered as N/A despite canonical data for template=${templateKey}`);
-            }
-          }
-        }
-
-        // Plain text: prefer override, then auto-generate
-        const plainText = templateVars._text || `${subject}\n\nPour voir ce message, ouvrez votre portail client Nivra Telecom.\nTo view this message, open your Nivra Telecom client portal.\n\nNivra Telecom - ${emailConfig.supportEmail}`;
-
-        // Support from/reply-to overrides from template_vars (queued custom_html emails via ResendProxy)
-        const effectiveFrom = templateVars._from_email || emailFromAddress;
-        const effectiveReplyTo = templateVars._reply_to || emailReplyTo;
-
-        // DOMAIN VALIDATION: Only allow verified Resend domains
-        const ALLOWED_DOMAINS = ['nivra-telecom.ca', 'send.nivra-telecom.ca', 'nivra.ca', 'nivratelecom.ca', 'resend.dev'];
-        
-        // ROBUST EMAIL EXTRACTION: Handle various formats
-        // - "Nivra Telecom <support@nivra-telecom.ca>"
-        // - "support@nivra-telecom.ca"
-        // - "Nivra <support@nivra-telecom.ca>" (with trailing chars)
-        let actualEmail = effectiveFrom.trim();
-        
-        // Extract email from angle brackets if present
-        const emailMatch = emailFromAddress.match(/<([^>]+)>/);
-        if (emailMatch && emailMatch[1]) {
-          actualEmail = emailMatch[1].trim();
-        }
-        
-        // Clean any remaining special characters from the email
-        actualEmail = actualEmail.replace(/[<>]/g, '').trim();
-        
-        // Extract domain (everything after the @ sign)
-        const atIndex = actualEmail.lastIndexOf('@');
-        let fromDomain = '';
-        if (atIndex !== -1 && atIndex < actualEmail.length - 1) {
-          fromDomain = actualEmail.substring(atIndex + 1).toLowerCase().trim();
-          // Remove any trailing characters that might have slipped through
-          fromDomain = fromDomain.replace(/[^a-z0-9.-]/g, '');
-        }
-        
-        console.log(`[DOMAIN CHECK] From: "${emailFromAddress}" → Email: "${actualEmail}" → Domain: "${fromDomain}"`);
-        
-        if (!fromDomain || !ALLOWED_DOMAINS.some(d => fromDomain === d || fromDomain.endsWith('.' + d))) {
-          const domainError = `BLOQUÉ: Domaine From non vérifié (${fromDomain}). Domaines autorisés: ${ALLOWED_DOMAINS.join(', ')}`;
-          console.error(domainError);
-          
-          await supabase
-            .from("email_queue")
-            .update({
-              status: "failed",
-              last_error: domainError,
-              attempts: email.attempts + 1,
-              from_email: emailFromAddress,
-              subject: subject,
-            })
-            .eq("id", email.id);
-          
-          results.push({ id: email.id, status: "failed", error: domainError });
-          continue;
-        }
-
-        // Generate PDF attachment from CANONICAL database data (not template_vars)
-        let attachments: Array<{ filename: string; content: string }> | undefined;
-        if (templateVars._attachments && Array.isArray(templateVars._attachments)) {
-          attachments = templateVars._attachments;
-          console.log(`[ATTACHMENTS PASSTHROUGH] email_id=${email.id} count=${attachments.length}`);
-        } else {
-          const pdfAttachment = await generateCanonicalPDFAttachment(supabase, templateKey, templateVars);
-          if (pdfAttachment) {
-            attachments = [{ filename: pdfAttachment.filename, content: pdfAttachment.content }];
-            console.log(`[PDF ATTACHED] email_id=${email.id} file=${pdfAttachment.filename}`);
-          }
-        }
-
-        const emailPayload: Record<string, any> = {
-          from: effectiveFrom,
-          reply_to: effectiveReplyTo,
-          to: [email.to_email],
-          subject,
-          html,
-          text: plainText,
-          headers: {
-            "List-Unsubscribe": `<mailto:unsubscribe@nivra-telecom.ca?subject=unsubscribe>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            "X-Entity-Ref-ID": email.id,
-            "Precedence": "bulk",
+        await sendLovableEmail(
+          {
+            run_id: payload.run_id,
+            to: payload.to,
+            from: payload.from,
+            sender_domain: payload.sender_domain,
+            subject: payload.subject,
+            html: payload.html,
+            text: payload.text,
+            purpose: payload.purpose,
+            label: payload.label,
+            idempotency_key: payload.idempotency_key,
+            unsubscribe_token: payload.unsubscribe_token,
+            message_id: payload.message_id,
           },
-        };
-        
-        // Add attachments if we have any
-        if (attachments && attachments.length > 0) {
-          emailPayload.attachments = attachments;
+          // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
+          // falls back to the default Lovable API endpoint (https://api.lovable.dev).
+          // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
+          { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+        )
+
+        // Log success
+        await supabase.from('email_send_log').insert({
+          message_id: payload.message_id,
+          template_name: payload.label || queue,
+          recipient_email: payload.to,
+          status: 'sent',
+        })
+
+        // Delete from queue
+        const { error: delError } = await supabase.rpc('delete_email', {
+          queue_name: queue,
+          message_id: msg.msg_id,
+        })
+        if (delError) {
+          console.error('Failed to delete sent message from queue', { queue, msg_id: msg.msg_id, error: delError })
+        }
+        totalProcessed++
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        console.error('Email send failed', {
+          queue,
+          msg_id: msg.msg_id,
+          read_ct: msg.read_ct,
+          failed_attempts: failedAttempts,
+          error: errorMsg,
+        })
+
+        if (isRateLimited(error)) {
+          await supabase.from('email_send_log').insert({
+            message_id: payload.message_id,
+            template_name: payload.label || queue,
+            recipient_email: payload.to,
+            status: 'rate_limited',
+            error_message: errorMsg.slice(0, 1000),
+          })
+
+          const retryAfterSecs = getRetryAfterSeconds(error)
+          await supabase
+            .from('email_send_state')
+            .update({
+              retry_after_until: new Date(
+                Date.now() + retryAfterSecs * 1000
+              ).toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', 1)
+
+          // Stop processing — remaining messages stay in queue (VT expires, retried next cycle)
+          return new Response(
+            JSON.stringify({ processed: totalProcessed, stopped: 'rate_limited' }),
+            { headers: { 'Content-Type': 'application/json' } }
+          )
         }
 
-        const emailResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${resendApiKey}`,
-          },
-          body: JSON.stringify(emailPayload),
-        });
-
-        const result = await emailResponse.json();
-        
-        // Log full Resend response for diagnostics
-        console.log(`[RESEND RESPONSE] email_id=${email.id}, response=`, JSON.stringify(result));
-
-        if (!emailResponse.ok) {
-          throw new Error(result.message || "Failed to send email");
+        // 403 means emails are disabled for this project — retrying won't help.
+        // Move straight to DLQ and stop processing the rest of the batch.
+        if (isForbidden(error)) {
+          await moveToDlq(supabase, queue, msg, 'Emails disabled for this project')
+          return new Response(
+            JSON.stringify({ processed: totalProcessed, stopped: 'emails_disabled' }),
+            { headers: { 'Content-Type': 'application/json' } }
+          )
         }
 
-        // Mark as sent with full diagnostic data
-        await supabase
-          .from("email_queue")
-          .update({
-            status: "sent",
-            sent_at: new Date().toISOString(),
-            provider_message_id: result.id,
-            provider_status: "sent",
-            from_email: emailFromAddress,
-            subject: subject,
-            resend_response: result,
-            attempts: email.attempts + 1,
-          })
-          .eq("id", email.id);
+        // Log non-429 failures to track real retry attempts.
+        await supabase.from('email_send_log').insert({
+          message_id: payload.message_id,
+          template_name: payload.label || queue,
+          recipient_email: payload.to,
+          status: 'failed',
+          error_message: errorMsg.slice(0, 1000),
+        })
+        if (payload?.message_id && typeof payload.message_id === 'string') {
+          failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1)
+        }
 
-        results.push({ id: email.id, status: "sent", provider_id: result.id });
-        console.log(`[EMAIL SENT] id=${email.id} to=${email.to_email} resend_id=${result.id}`);
+        // Non-429 errors: message stays invisible until VT expires, then retried
+      }
 
-      } catch (sendError: any) {
-        const newAttempts = email.attempts + 1;
-        const maxAttempts = email.max_attempts || 5;
-        const nextStatus = newAttempts >= maxAttempts ? "failed" : "queued";
-        
-        // Exponential backoff: 1min, 2min, 4min, 8min, 16min
-        const backoffMinutes = Math.pow(2, newAttempts - 1);
-        const nextRetry = new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();
-
-        await supabase
-          .from("email_queue")
-          .update({
-            status: nextStatus,
-            attempts: newAttempts,
-            last_error: sendError.message,
-            next_retry_at: nextRetry,
-          })
-          .eq("id", email.id);
-
-        results.push({ id: email.id, status: nextStatus, error: sendError.message });
-        console.error(`Email failed: ${email.id}`, sendError.message);
+      // Small delay between sends to smooth bursts
+      if (i < messages.length - 1) {
+        await new Promise((r) => setTimeout(r, sendDelayMs))
       }
     }
-
-    // Cleanup old rate limits (ignore errors)
-    try {
-      await supabase.rpc("cleanup_old_rate_limits");
-    } catch (e) {
-      // Ignore cleanup errors
-    }
-
-    return new Response(JSON.stringify({
-      success: true,
-      processed: results.length,
-      results,
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
-  } catch (error: any) {
-    // Generate error ID for tracking without exposing details
-    const errorId = `ERR-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().substring(0, 4).toUpperCase()}`;
-    console.error(`[${errorId}] Error processing email queue:`, error);
-    
-    // Return generic error message with tracking ID
-    const isProd = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined;
-    const safeMessage = isProd 
-      ? `Erreur serveur. (Réf: ${errorId})`
-      : (error?.message || "Erreur inconnue");
-    
-    return new Response(JSON.stringify({ error: safeMessage, errorId }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   }
-});
+
+  return new Response(
+    JSON.stringify({ processed: totalProcessed }),
+    { headers: { 'Content-Type': 'application/json' } }
+  )
+})
