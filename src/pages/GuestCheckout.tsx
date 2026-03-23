@@ -263,8 +263,14 @@ const GuestCheckout = () => {
         return;
       }
 
-      if (!termsAccepted) {
-        toast.error("Veuillez accepter les termes et conditions");
+      if (!isLegalComplete) {
+        toast.error("Veuillez compléter la checklist des conditions essentielles");
+        return;
+      }
+
+      // Validate KYC (unless streaming-only)
+      if (!isKycComplete) {
+        toast.error("Veuillez compléter la vérification d'identité");
         return;
       }
 
