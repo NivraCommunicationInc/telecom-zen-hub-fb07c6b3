@@ -5,6 +5,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+const OPERATIONAL_ENVS = ["live", "production"] as const;
+
 export interface ClientProfileData {
   profile: any;
   account: any | null;
@@ -28,7 +30,7 @@ export function useClientProfile(clientId: string | undefined) {
 
       const [accountRes, ordersRes] = await Promise.all([
         supabase.from("accounts").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("orders").select("id, order_number, status, created_at, service_type, total_amount, payment_status").eq("user_id", clientId).eq("environment", "live").order("created_at", { ascending: false }).limit(50),
+        supabase.from("orders").select("id, order_number, status, created_at, service_type, total_amount, payment_status").eq("user_id", clientId).in("environment", [...OPERATIONAL_ENVS]).order("created_at", { ascending: false }).limit(50),
       ]);
 
       const account = accountRes.data;
@@ -43,9 +45,9 @@ export function useClientProfile(clientId: string | undefined) {
       let invoices: any[] = [], payments: any[] = [], subscriptions: any[] = [], equipment: any[] = [];
       if (billingCustomer?.id) {
         const [invRes, payRes, subRes] = await Promise.all([
-          supabase.from("billing_invoices").select("id, invoice_number, total, status, due_date, paid_at, balance_due, type, created_at").eq("customer_id", billingCustomer.id).eq("environment", "live").order("created_at", { ascending: false }).limit(50),
-          supabase.from("billing_payments").select("id, payment_number, amount, method, status, received_at, reference, created_at").eq("customer_id", billingCustomer.id).eq("environment", "live").order("created_at", { ascending: false }).limit(50),
-          supabase.from("billing_subscriptions").select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at").eq("customer_id", billingCustomer.id).eq("environment", "live").order("created_at", { ascending: false }).limit(20),
+          supabase.from("billing_invoices").select("id, invoice_number, total, status, due_date, paid_at, balance_due, type, created_at").eq("customer_id", billingCustomer.id).in("environment", [...OPERATIONAL_ENVS]).order("created_at", { ascending: false }).limit(50),
+          supabase.from("billing_payments").select("id, payment_number, amount, method, status, received_at, reference, created_at").eq("customer_id", billingCustomer.id).in("environment", [...OPERATIONAL_ENVS]).order("created_at", { ascending: false }).limit(50),
+          supabase.from("billing_subscriptions").select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at").eq("customer_id", billingCustomer.id).in("environment", [...OPERATIONAL_ENVS]).order("created_at", { ascending: false }).limit(20),
         ]);
         invoices = invRes.data ?? []; payments = payRes.data ?? []; subscriptions = subRes.data ?? [];
       }
