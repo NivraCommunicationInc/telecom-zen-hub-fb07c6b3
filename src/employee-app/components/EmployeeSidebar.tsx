@@ -1,35 +1,57 @@
 /**
- * EmployeeSidebar — Operational sidebar for Employee Portal.
+ * EmployeeSidebar — Production-grade telecom sidebar.
+ * Dense, collapsible, grouped navigation.
  */
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, ListTodo, ShoppingCart, Users, CreditCard,
-  ShieldCheck, Zap, Headphones, ScrollText, User, Lock, LogOut,
-  Briefcase, ChevronLeft, ChevronRight, Calendar,
+  ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
+  Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
+  Package, Settings,
 } from "lucide-react";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const EMP_BASE = "/employee";
 
-const navItems = [
-  { label: "Tableau de bord", href: `${EMP_BASE}/dashboard`, icon: LayoutDashboard },
-  { label: "File de travail", href: `${EMP_BASE}/work-queue`, icon: ListTodo },
-  { label: "Commandes", href: `${EMP_BASE}/orders`, icon: ShoppingCart },
-  { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users },
-  { label: "Paiements", href: `${EMP_BASE}/payments`, icon: CreditCard },
-  { label: "Rendez-vous", href: `${EMP_BASE}/appointments`, icon: Calendar },
-  { label: "KYC / Vérification", href: `${EMP_BASE}/kyc`, icon: ShieldCheck },
-  { label: "Activations", href: `${EMP_BASE}/activations`, icon: Zap },
-  { label: "Support", href: `${EMP_BASE}/support`, icon: Headphones },
-  { label: "Audit / Historique", href: `${EMP_BASE}/audit`, icon: ScrollText },
+const navGroups = [
+  {
+    label: "Opérations",
+    items: [
+      { label: "Tableau de bord", href: `${EMP_BASE}/dashboard`, icon: LayoutDashboard },
+      { label: "File de travail", href: `${EMP_BASE}/work-queue`, icon: ListTodo },
+      { label: "Activations", href: `${EMP_BASE}/activations`, icon: Zap },
+    ],
+  },
+  {
+    label: "Service client",
+    items: [
+      { label: "Clients", href: `${EMP_BASE}/clients`, icon: Users },
+      { label: "Commandes", href: `${EMP_BASE}/orders`, icon: ShoppingCart },
+      { label: "Paiements", href: `${EMP_BASE}/payments`, icon: CreditCard },
+      { label: "Support", href: `${EMP_BASE}/support`, icon: Headphones },
+    ],
+  },
+  {
+    label: "Planification",
+    items: [
+      { label: "Rendez-vous", href: `${EMP_BASE}/appointments`, icon: Calendar },
+      { label: "Équipement", href: `${EMP_BASE}/equipment`, icon: Package },
+    ],
+  },
+  {
+    label: "Vérification",
+    items: [
+      { label: "KYC", href: `${EMP_BASE}/kyc`, icon: ShieldCheck },
+      { label: "Audit", href: `${EMP_BASE}/audit`, icon: ScrollText },
+    ],
+  },
 ];
 
 const bottomItems = [
   { label: "Mon profil", href: `${EMP_BASE}/profile`, icon: User },
-  { label: "Sécurité", href: `${EMP_BASE}/security`, icon: Lock },
 ];
 
 export default function EmployeeSidebar() {
@@ -48,76 +70,91 @@ export default function EmployeeSidebar() {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col border-r border-border bg-sidebar transition-all duration-200",
-        collapsed ? "w-16" : "w-60"
+        "hidden lg:flex flex-col border-r border-border bg-card transition-all duration-200 shrink-0",
+        collapsed ? "w-14" : "w-56"
       )}
     >
-      <div className="h-14 flex items-center justify-between px-3 border-b border-border">
+      {/* Logo */}
+      <div className="h-12 flex items-center justify-between px-2.5 border-b border-border">
         {!collapsed ? (
-          <Link to="/employee/dashboard" className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
+          <Link to="/employee/dashboard" className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center shrink-0">
               <Briefcase className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-sm text-foreground tracking-tight">Nivra Employee</span>
+            <div className="leading-tight">
+              <span className="font-bold text-[11px] text-foreground tracking-tight block">NIVRA</span>
+              <span className="text-[9px] text-muted-foreground font-medium tracking-widest">EMPLOYEE</span>
+            </div>
           </Link>
         ) : (
           <div className="mx-auto h-7 w-7 rounded-md bg-primary flex items-center justify-center">
             <Briefcase className="h-3.5 w-3.5 text-primary-foreground" />
           </div>
         )}
-
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
-          {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+          {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
         </button>
       </div>
 
-      <ScrollArea className="flex-1 py-2">
-        <nav className="px-2 space-y-0.5">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              title={collapsed ? item.label : undefined}
-              className={cn(
-                "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
-                isActive(item.href)
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+      <ScrollArea className="flex-1 py-1">
+        <nav className="px-1.5">
+          {navGroups.map((group) => (
+            <div key={group.label} className="mb-1">
+              {!collapsed && (
+                <div className="px-2 pt-3 pb-1">
+                  <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-[0.15em]">
+                    {group.label}
+                  </span>
+                </div>
               )}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] font-medium transition-colors",
+                      isActive(item.href)
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    )}
+                  >
+                    <item.icon className={cn("h-3.5 w-3.5 shrink-0", isActive(item.href) && "text-primary")} />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </ScrollArea>
 
-      <div className="border-t border-border py-2 px-2 space-y-0.5">
+      <div className="border-t border-border py-1.5 px-1.5 space-y-0.5">
         {bottomItems.map((item) => (
           <Link
             key={item.href}
             to={item.href}
             title={collapsed ? item.label : undefined}
             className={cn(
-              "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
+              "flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] font-medium transition-colors",
               isActive(item.href)
                 ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
             )}
           >
-            <item.icon className="h-4 w-4 shrink-0" />
+            <item.icon className="h-3.5 w-3.5 shrink-0" />
             {!collapsed && <span>{item.label}</span>}
           </Link>
         ))}
-
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
         >
-          <LogOut className="h-4 w-4 shrink-0" />
+          <LogOut className="h-3.5 w-3.5 shrink-0" />
           {!collapsed && <span>Déconnexion</span>}
         </button>
       </div>

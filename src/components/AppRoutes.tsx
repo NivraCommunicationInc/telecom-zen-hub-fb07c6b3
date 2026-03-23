@@ -43,6 +43,7 @@ const EmployeeSupport = lazy(() => import("@/employee-app/pages/EmployeeSupport"
 const EmployeeAudit = lazy(() => import("@/employee-app/pages/EmployeeAudit"));
 const EmployeeProfile = lazy(() => import("@/employee-app/pages/EmployeeProfile"));
 const EmployeeSecurity = lazy(() => import("@/employee-app/pages/EmployeeSecurity"));
+const EmployeeEquipment = lazy(() => import("@/employee-app/pages/EmployeeEquipment"));
 const EmployeeAppointments = lazy(() => import("@/employee-app/pages/EmployeeAppointments"));
 const EmployeeAppointmentDetail = lazy(() => import("@/employee-app/pages/EmployeeAppointmentDetail"));
 const EmployeeInvoiceDetail = lazy(() => import("@/employee-app/pages/EmployeeInvoiceDetail"));
@@ -784,6 +785,7 @@ const AppRoutes = () => {
           <Route path="invoices/:invoiceId" element={<Suspense fallback={null}><EmployeeInvoiceDetail /></Suspense>} />
           <Route path="subscriptions/:subscriptionId" element={<Suspense fallback={null}><EmployeeSubscriptionDetail /></Suspense>} />
           <Route path="support" element={<Suspense fallback={null}><EmployeeSupport /></Suspense>} />
+          <Route path="equipment" element={<Suspense fallback={null}><EmployeeEquipment /></Suspense>} />
           <Route path="audit" element={<Suspense fallback={null}><EmployeeAudit /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><EmployeeProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><EmployeeSecurity /></Suspense>} />
