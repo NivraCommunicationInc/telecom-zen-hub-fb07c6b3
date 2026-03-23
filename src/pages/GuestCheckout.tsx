@@ -772,6 +772,61 @@ const GuestCheckout = () => {
                   />
                 )}
 
+                {/* Equipment constraints */}
+                {(hasInternetService || hasTVService) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Package className="w-5 h-5 text-primary" />
+                        Équipement
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* WiFi Router — max 1 */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Borne WiFi 6</p>
+                          <p className="text-xs text-muted-foreground">Maximum 1 par adresse • {fmt(ROUTER_PRICE)}</p>
+                        </div>
+                        <Badge variant="secondary">1</Badge>
+                      </div>
+
+                      {/* TV Terminals — min 1 if TV, max 4 */}
+                      {hasTVService && (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Terminal TV</p>
+                            <p className="text-xs text-muted-foreground">Min 1 avec service TV • Max 4 par adresse • {fmt(terminalPrice ?? 0)}/unité</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm" variant="outline"
+                              disabled={tvTerminalQty <= 1}
+                              onClick={() => setTvTerminalQty(q => Math.max(1, q - 1))}
+                            >−</Button>
+                            <span className="w-8 text-center font-semibold text-foreground">{tvTerminalQty}</span>
+                            <Button
+                              size="sm" variant="outline"
+                              disabled={tvTerminalQty >= 4}
+                              onClick={() => setTvTerminalQty(q => Math.min(4, q + 1))}
+                            >+</Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {hasMobileService && (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Carte SIM</p>
+                            <p className="text-xs text-muted-foreground">{fmt(SIM_PRICE)}</p>
+                          </div>
+                          <Badge variant="secondary">1</Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Promo / Referral */}
                 <Card>
                   <CardHeader>
