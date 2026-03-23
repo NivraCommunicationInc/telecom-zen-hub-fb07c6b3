@@ -237,7 +237,7 @@ export const AdminPinManagementCard = ({
             <DialogDescription>
               {dialogMode === "set"
                 ? `Définir un nouveau NIP pour ${client.full_name || client.email}`
-                : `Réinitialiser le NIP au NIP par défaut (${DEFAULT_PIN})`}
+                : `Réinitialiser le NIP avec un code temporaire unique`}
             </DialogDescription>
           </DialogHeader>
 
