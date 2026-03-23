@@ -116,6 +116,7 @@ function ClientDetailContent({ clientId }: { clientId: string }) {
   const notes = extras?.notes ?? [];
   const locations = extras?.locations ?? [];
   const fmtMoney = (v: number | null | undefined) => v != null ? `${v.toFixed(2)} $` : "—";
+  const unpaidInvoices = invoices.filter((inv: any) => (inv.balance_due ?? 0) > 0 && inv.status !== "paid" && inv.status !== "void");
 
   const statusBadge = (s: string) => {
     const colors: Record<string, string> = {
