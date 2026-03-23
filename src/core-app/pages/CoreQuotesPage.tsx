@@ -87,11 +87,16 @@ export default function CoreQuotesPage() {
           <h1 className="text-2xl font-bold text-foreground">Soumissions</h1>
           <p className="text-sm text-muted-foreground">Gestion complète des soumissions</p>
         </div>
-        {pendingCount > 0 && (
-          <Badge variant="outline" className="gap-1 text-amber-600 border-amber-500/30">
-            <AlertCircle className="h-3 w-3" /> {pendingCount} en attente d'approbation
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {pendingCount > 0 && (
+            <Badge variant="outline" className="gap-1 text-amber-600 border-amber-500/30">
+              <AlertCircle className="h-3 w-3" /> {pendingCount} en attente d'approbation
+            </Badge>
+          )}
+          <Button onClick={() => navigate("/core/quotes/new")} className="gap-2">
+            <Plus className="h-4 w-4" /> Nouvelle soumission
+          </Button>
+        </div>
       </div>
 
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
