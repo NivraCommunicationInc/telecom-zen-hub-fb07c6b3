@@ -298,9 +298,14 @@ export default function CoreQuoteDetail() {
               </Button>
             </>
           )}
-          {canConvert && (
+          {isAcceptedPendingCheckout && (
+            <Button size="sm" variant="default" onClick={handleCheckoutLink} disabled={processing}>
+              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Envoyer lien de finalisation
+            </Button>
+          )}
+          {canConvert && !isAcceptedPendingCheckout && (
             <Button size="sm" variant="default" onClick={() => setShowConvertDialog(true)} disabled={processing}>
-              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir
+              <ArrowRightCircle className="h-3.5 w-3.5 mr-1" /> Convertir en commande
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
