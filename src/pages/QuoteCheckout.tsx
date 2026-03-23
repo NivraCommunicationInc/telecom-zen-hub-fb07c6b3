@@ -316,12 +316,12 @@ export default function QuoteCheckout() {
         <Card className="max-w-lg w-full mx-4 border-emerald-500/20 bg-emerald-500/5">
           <CardContent className="pt-8 text-center space-y-4">
             <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto" />
-            <h2 className="text-2xl font-bold text-emerald-600">Commande confirmée !</h2>
+            <h2 className="text-2xl font-bold text-emerald-600">Informations reçues !</h2>
             <p className="text-sm text-muted-foreground">
-              Votre commande a été créée avec succès. Notre équipe traitera votre dossier dans les plus brefs délais.
+              Vos informations ont été enregistrées avec succès. Notre équipe traitera votre dossier et créera votre commande dans les plus brefs délais.
             </p>
             <p className="text-xs text-muted-foreground">
-              Un courriel de confirmation vous sera envoyé à l'adresse fournie.
+              Vous serez contacté par courriel ou téléphone pour confirmer votre commande.
             </p>
             <div className="pt-4">
               <p className="text-[10px] text-muted-foreground">{NIVRA.tradeName} · {NIVRA.email}</p>
