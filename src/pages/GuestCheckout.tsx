@@ -462,6 +462,15 @@ const GuestCheckout = () => {
       try {
         response = await submitNivraCheckout(checkoutPayload);
       } catch {
+        // Nivra Core unavailable — run canonical sync FIRST to create billing_customer,
+        // then use fallback for remaining records.
+        try {
+          await supabase.functions.invoke("checkout-canonical-sync", {
+            body: { payload: checkoutPayload },
+          });
+        } catch (syncErr) {
+          console.warn("[GuestCheckout] Pre-fallback canonical sync failed:", syncErr);
+        }
         response = await fallbackCheckout(supabase as any, checkoutPayload);
       }
 
@@ -475,7 +484,7 @@ const GuestCheckout = () => {
         console.error("[GuestCheckout] Failed to set kyc_status:", e);
       }
 
-      // Step 5: Canonical sync
+      // Step 5: Canonical sync (idempotent — safe to call again if already called in fallback path)
       try {
         await supabase.functions.invoke("checkout-canonical-sync", {
           body: { payload: checkoutPayload, response },
