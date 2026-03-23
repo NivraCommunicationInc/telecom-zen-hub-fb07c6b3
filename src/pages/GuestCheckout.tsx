@@ -20,7 +20,7 @@ import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
-import { GuestIdentityVerification, createEmptyIdentityData, type GuestIdentityData } from "@/components/checkout/GuestIdentityVerification";
+import { GuestKycCard, type GuestKycStatus } from "@/components/checkout/GuestKycCard";
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,7 +110,8 @@ const GuestCheckout = () => {
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
   // ── KYC / Identity ──
-  const [identityData, setIdentityData] = useState<GuestIdentityData>(createEmptyIdentityData());
+  const [kycStatus, setKycStatus] = useState<GuestKycStatus>("not_started");
+  const [kycSessionId, setKycSessionId] = useState<string | null>(null);
 
   // ── Payment ──
   const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>(null);
@@ -174,7 +175,7 @@ const GuestCheckout = () => {
   const needsAddress = !isStreamingOnlyOrder;
   const isETransfer = paymentMethod === "etransfer";
   const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
-  const isKycComplete = isStreamingOnlyOrder || identityData.status === "complete";
+  const isKycComplete = isStreamingOnlyOrder || kycStatus === "completed";
 
   const ROUTER_PRICE = routerPrice ?? 100;
   const SIM_PRICE = simPrice ?? 10;
@@ -431,11 +432,11 @@ const GuestCheckout = () => {
           paypal_capture_id: paypalCaptureId || null,
         },
         identity: isStreamingOnlyOrder ? null : {
-          verification_session_id: `guest_${clientRequestIdRef.current}`,
-          id_type: identityData.documentType || null,
-          id_number: identityData.documentNumber || null,
-          id_expiration: identityData.expirationDate || null,
-          id_province: identityData.issuingProvince || null,
+          verification_session_id: kycSessionId || `guest_${clientRequestIdRef.current}`,
+          id_type: null,
+          id_number: null,
+          id_expiration: null,
+          id_province: null,
         },
         installation: {
           type: installationChoice || "auto",
@@ -802,10 +803,14 @@ const GuestCheckout = () => {
             {step === 4 && (
               <div className="space-y-6">
                 {/* KYC / Identity Verification */}
-                <GuestIdentityVerification
-                  identityData={identityData}
-                  onIdentityChange={setIdentityData}
+                <GuestKycCard
                   isStreamingOnly={isStreamingOnlyOrder}
+                  guestEmail={email}
+                  guestRequestId={clientRequestIdRef.current}
+                  onStatusChange={(status, sid) => {
+                    setKycStatus(status);
+                    if (sid) setKycSessionId(sid);
+                  }}
                 />
 
                 {/* Installation */}
