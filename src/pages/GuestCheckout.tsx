@@ -442,22 +442,34 @@ const GuestCheckout = () => {
         console.warn("[GuestCheckout] Canonical sync failed (non-blocking):", e);
       }
 
-      // Step 6: Consent record
-      try {
-        await supabase.from("checkout_consent_records" as any).insert({
-          order_id: response.order_id,
-          user_id: userId,
-          terms_accepted: isLegalComplete,
-          recurring_payment_accepted: false,
-          total_amount_displayed: todayTotal,
-          payment_method: paymentMethodValue,
-          services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
-          legal_versions: { terms: "2026-03-19", privacy: "2026-03-19", refund: "2026-03-19", payment: "2026-03-19" },
-          user_agent: navigator.userAgent,
-          consent_timestamp: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.warn("[GuestCheckout] Consent record failed:", e);
+      // Step 6: Consent record (BLOCKING — must succeed)
+      let consentRetries = 0;
+      let consentSaved = false;
+      while (consentRetries < 3 && !consentSaved) {
+        try {
+          const { error: consentError } = await supabase.from("checkout_consent_records" as any).insert({
+            order_id: response.order_id,
+            user_id: userId,
+            terms_accepted: isLegalComplete,
+            recurring_payment_accepted: false,
+            total_amount_displayed: todayTotal,
+            payment_method: paymentMethodValue,
+            services_displayed: selectedServices.map(s => ({ name: s.name, price: s.price, category: s.category })),
+            legal_versions: { terms: "2026-03-23", privacy: "2026-03-23", refund: "2026-03-23", payment: "2026-03-23" },
+            user_agent: navigator.userAgent,
+            consent_timestamp: new Date().toISOString(),
+          });
+          if (!consentError) consentSaved = true;
+          else throw consentError;
+        } catch (e) {
+          consentRetries++;
+          console.error(`[GuestCheckout] Consent record attempt ${consentRetries} failed:`, e);
+          if (consentRetries >= 3) {
+            toast.error("Erreur critique : impossible d'enregistrer le consentement légal. Contactez le support.");
+            // Note: order was already created, but we flag the issue
+            console.error("[GuestCheckout] CRITICAL: Consent record failed after 3 retries for order", response.order_id);
+          }
+        }
       }
 
       // Step 7: Send confirmation email
