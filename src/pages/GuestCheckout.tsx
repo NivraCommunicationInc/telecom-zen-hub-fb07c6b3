@@ -110,7 +110,8 @@ const GuestCheckout = () => {
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
   // ── KYC / Identity ──
-  const [identityData, setIdentityData] = useState<GuestIdentityData>(createEmptyIdentityData());
+  const [kycStatus, setKycStatus] = useState<GuestKycStatus>("not_started");
+  const [kycSessionId, setKycSessionId] = useState<string | null>(null);
 
   // ── Payment ──
   const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>(null);
