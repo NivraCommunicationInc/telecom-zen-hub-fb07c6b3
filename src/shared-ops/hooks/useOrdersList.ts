@@ -23,8 +23,11 @@ export interface OrderListItem {
   client_full_name: string | null;
   client_email: string | null;
   account_number: string | null;
+  invoice_id: string | null;
   invoice_number: string | null;
   invoice_status: string | null;
+  invoice_balance_due: number | null;
+  customer_id: string | null;
 }
 
 export function useOrdersList(environment: EnvironmentFilter = "all") {
