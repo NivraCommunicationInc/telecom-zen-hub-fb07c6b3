@@ -1209,7 +1209,8 @@ const GuestCheckout = () => {
                           Aucune activation ne sera effectuée avant approbation de vos documents.
                         </p>
                       </div>
-                    )
+                    )}
+
 
                     {/* Next steps */}
                     <div className="mt-6 text-left max-w-md mx-auto space-y-3">
