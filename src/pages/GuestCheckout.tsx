@@ -708,6 +708,13 @@ const GuestCheckout = () => {
             {/* ═══ STEP 4: OPTIONS ═══ */}
             {step === 4 && (
               <div className="space-y-6">
+                {/* KYC / Identity Verification */}
+                <GuestIdentityVerification
+                  identityData={identityData}
+                  onIdentityChange={setIdentityData}
+                  isStreamingOnly={isStreamingOnlyOrder}
+                />
+
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
                   <InstallationSection
@@ -763,13 +770,26 @@ const GuestCheckout = () => {
                   </CardContent>
                 </Card>
 
+                {/* Step 4 validation gate */}
+                {!isKycComplete && !isStreamingOnlyOrder && (
+                  <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <p className="text-sm text-amber-800">
+                      Veuillez compléter la vérification d'identité pour continuer au paiement.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setStep(3)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
                     className="flex-1"
-                    disabled={requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)}
+                    disabled={
+                      (!isKycComplete && !isStreamingOnlyOrder) ||
+                      (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))
+                    }
                     onClick={() => setStep(5)}
                   >
                     Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
