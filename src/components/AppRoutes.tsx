@@ -161,6 +161,7 @@ import StatusPage from "@/pages/StatusPage";
 import Install from "@/pages/Install";
 import ComparePlans from "@/pages/ComparePlans";
 import TVConfigurator from "@/pages/TVConfigurator";
+const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
 
 // Legal pages
 import ConditionsDeService from "@/pages/legal/ConditionsDeService";
@@ -392,6 +393,7 @@ const AppRoutes = () => {
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
       <Route path="/parrainage" element={<MaintenanceGuard><PublicLayout><Parrainage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/status" element={<PublicLayout><StatusPage /></PublicLayout>} />
+      <Route path="/commander" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><GuestCheckout /></Suspense></MaintenanceGuard>} />
       <Route path="/install" element={<Install />} />
       {/* DEV-ONLY: Routes stripped from production builds */}
       {!import.meta.env.PROD && <Route path="/dev-login" element={<DevLogin />} />}

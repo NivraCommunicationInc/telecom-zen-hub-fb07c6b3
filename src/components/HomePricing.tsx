@@ -70,7 +70,7 @@ const HomePricing = () => {
           {plans.map((plan) => (
             <Link
               key={plan.id}
-              to="/internet"
+              to={`/commander?plan=${plan.id}`}
               className={`group relative bg-card rounded-2xl overflow-hidden transition-all duration-200 block ${
                 plan.recommended
                   ? "border-2 border-primary shadow-lg md:scale-[1.03] z-10"
