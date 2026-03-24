@@ -159,6 +159,22 @@ const GuestCheckout = () => {
     }
   }, [searchParams, services]);
 
+  // ── Live activity tracking for funnel steps ──
+  useEffect(() => {
+    const stepLabels: Record<number, { type: "checkout_started" | "checkout_step_completed" | "payment_started" | "order_completed"; label: string }> = {
+      1: { type: "checkout_started", label: "Guest Checkout: Sélection forfait" },
+      2: { type: "checkout_step_completed", label: "Guest Checkout: Adresse" },
+      3: { type: "checkout_step_completed", label: "Guest Checkout: Informations client" },
+      4: { type: "checkout_step_completed", label: "Guest Checkout: Vérification & Options" },
+      5: { type: "payment_started", label: "Guest Checkout: Paiement" },
+      6: { type: "order_completed", label: "Guest Checkout: Confirmation" },
+    };
+    const info = stepLabels[step];
+    if (info) {
+      trackLiveActivity(info.type, info.label, { metadata: { step, path: "/commander" } });
+    }
+  }, [step]);
+
   // ── Equipment quantities ──
   const [wifiRouterQty, setWifiRouterQty] = useState(1);
   const [tvTerminalQty, setTvTerminalQty] = useState(1);
