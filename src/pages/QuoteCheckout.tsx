@@ -1,9 +1,12 @@
 /**
  * Quote Checkout Page — Dedicated form for clients to complete their info after accepting a quote.
  * Accessible via /quote-checkout?token=XXX (no login required).
- * Saves client KYC data and sets quote to checkout_completed.
- * Quote transitions: accepted_pending_checkout → checkout_in_progress → checkout_completed
- * NO ORDER IS CREATED HERE — Staff converts via Employee/Core portal.
+ * 
+ * TWO-PHASE FLOW:
+ * Phase 1: Client fills KYC form → submits → edge function creates order + invoice
+ * Phase 2: PayPal button appears → client pays → order confirmed automatically
+ * 
+ * For Interac: saves data, staff handles manually.
  */
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -21,6 +24,7 @@ import { backendClient } from "@/integrations/backend/client";
 import { validateDob, MIN_AGE_TELECOM } from "@/lib/validation/dob";
 import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 import { validateCanadianPostalCode, formatPostalCode } from "@/components/checkout/CheckoutServiceAddress";
+import PayPalButton from "@/components/payment/PayPalButton";
 import { toast } from "sonner";
 import {
   User, MapPin, CreditCard, CheckCircle, ShieldCheck, ArrowRight,
@@ -51,8 +55,6 @@ interface FormData {
   province: string;
   postalCode: string;
   paymentMethod: "interac" | "paypal";
-  interacReference: string;
-  interacSender: string;
   acceptTerms: boolean;
   acceptPrivacy: boolean;
 }
@@ -68,6 +70,13 @@ export default function QuoteCheckout() {
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Phase 2: after form submit, show PayPal
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [totalAmount, setTotalAmount] = useState<number>(0);
+  const [awaitingPayment, setAwaitingPayment] = useState(false);
+
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
 
@@ -81,9 +90,7 @@ export default function QuoteCheckout() {
     city: "",
     province: "QC",
     postalCode: "",
-    paymentMethod: "interac",
-    interacReference: "",
-    interacSender: "",
+    paymentMethod: "paypal",
     acceptTerms: false,
     acceptPrivacy: false,
   });
@@ -120,7 +127,6 @@ export default function QuoteCheckout() {
         return;
       }
 
-      // Only allow checkout for accepted_pending_checkout or checkout_in_progress
       if (!["accepted_pending_checkout", "checkout_in_progress"].includes(q.status)) {
         setError("Cette soumission n'est pas dans un état permettant la finalisation.");
         setLoading(false);
@@ -203,8 +209,6 @@ export default function QuoteCheckout() {
     if (!validateCanadianPostalCode(form.postalCode)) newErrors.postalCode = "Code postal invalide";
     if (pin.length !== 4 || !/^\d{4}$/.test(pin)) newErrors.pin = "NIP à 4 chiffres requis";
     if (pin !== pinConfirm) newErrors.pinConfirm = "Les NIP ne correspondent pas";
-    if (form.paymentMethod === "interac" && !form.interacReference.trim()) newErrors.interacReference = "Référence requise";
-    if (form.paymentMethod === "interac" && !form.interacSender.trim()) newErrors.interacSender = "Nom de l'expéditeur requis";
     if (!form.acceptTerms) newErrors.acceptTerms = "Vous devez accepter les conditions";
     if (!form.acceptPrivacy) newErrors.acceptPrivacy = "Vous devez accepter la politique";
 
@@ -217,75 +221,116 @@ export default function QuoteCheckout() {
     setSubmitting(true);
 
     try {
-      const fullName = `${form.firstName} ${form.lastName}`.trim();
+      const checkoutData = {
+        first_name: form.firstName,
+        last_name: form.lastName,
+        email: form.email,
+        phone: formatCanadianPhone(form.phone),
+        dob: form.dob,
+        address: form.address,
+        city: form.city,
+        province: form.province,
+        postal_code: formatPostalCode(form.postalCode),
+      };
 
-      // ═══ RULE: NO ORDER CREATION HERE ═══
-      // We only save the client's info on the quote and set checkout_completed.
-      // The actual order is created later by Employee/Core staff via convertQuoteToOrder().
-
-      // Save checkout data on the quote itself
-      const { error: updateErr } = await supabase
-        .from("quotes" as any)
-        .update({
-          status: "checkout_completed",
-          checkout_completed_at: new Date().toISOString(),
-          // Persist client-provided data for later conversion
-          prospect_name: fullName,
-          prospect_email: form.email,
-          prospect_phone: formatCanadianPhone(form.phone),
-          checkout_data: {
-            first_name: form.firstName,
-            last_name: form.lastName,
-            email: form.email,
-            phone: formatCanadianPhone(form.phone),
-            dob: form.dob,
-            address: form.address,
-            city: form.city,
-            province: form.province,
-            postal_code: formatPostalCode(form.postalCode),
-            payment_method: form.paymentMethod,
-            interac_reference: form.paymentMethod === "interac" ? form.interacReference : null,
-            interac_sender: form.paymentMethod === "interac" ? form.interacSender : null,
-            completed_at: new Date().toISOString(),
+      if (form.paymentMethod === "paypal") {
+        // PHASE 1: Create order + invoice via edge function, then show PayPal
+        const { data, error: fnErr } = await supabase.functions.invoke("quote-checkout-finalize", {
+          body: {
+            quote_id: quote.id,
+            checkout_data: checkoutData,
+            payment_method: "paypal",
           },
-        })
-        .eq("id", quote.id);
+        });
 
-      if (updateErr) throw new Error(`Erreur de sauvegarde: ${updateErr.message}`);
+        if (fnErr) throw new Error(fnErr.message || "Erreur serveur");
+        if (data?.error) throw new Error(data.error);
 
-      // Log event
-      await supabase.from("quote_events" as any).insert({
-        quote_id: quote.id,
-        event_type: "checkout_completed",
-        actor_role: "client",
-        message: `Checkout complété par ${fullName} (${form.email}). En attente de création de commande par l'équipe.`,
-        metadata: {
-          client_name: fullName,
-          client_email: form.email,
-          payment_method: form.paymentMethod,
-        },
-      });
+        // Set up PIN (non-blocking)
+        try {
+          if (quote.customer_user_id) {
+            await backendClient.rpc("hash_client_pin" as any, {
+              p_user_id: quote.customer_user_id,
+              p_raw_pin: pin,
+            });
+          }
+        } catch { /* non-blocking */ }
 
-      // Set up PIN via backend (non-blocking)
-      try {
-        const resolvedUserId = quote.customer_user_id;
-        if (resolvedUserId) {
-          await backendClient.rpc("hash_client_pin" as any, {
-            p_user_id: resolvedUserId,
-            p_raw_pin: pin,
-          });
-        }
-      } catch {
-        // PIN setup failure is non-blocking
+        // Transition to Phase 2: show PayPal button
+        setInvoiceId(data.invoice_id);
+        setOrderId(data.order_id);
+        setOrderNumber(data.order_number);
+        setTotalAmount(data.total);
+        setAwaitingPayment(true);
+        toast.success("Commande créée ! Procédez au paiement PayPal.");
+      } else {
+        // INTERAC: Save data only, staff handles manually
+        await supabase
+          .from("quotes" as any)
+          .update({
+            status: "checkout_completed",
+            checkout_completed_at: new Date().toISOString(),
+            prospect_name: `${form.firstName} ${form.lastName}`.trim(),
+            prospect_email: form.email,
+            prospect_phone: formatCanadianPhone(form.phone),
+            checkout_data: {
+              ...checkoutData,
+              payment_method: "interac",
+              completed_at: new Date().toISOString(),
+            },
+          })
+          .eq("id", quote.id);
+
+        await supabase.from("quote_events" as any).insert({
+          quote_id: quote.id,
+          event_type: "checkout_completed",
+          actor_role: "client",
+          message: `Checkout complété (Interac). En attente de traitement.`,
+        });
+
+        // PIN setup
+        try {
+          if (quote.customer_user_id) {
+            await backendClient.rpc("hash_client_pin" as any, {
+              p_user_id: quote.customer_user_id,
+              p_raw_pin: pin,
+            });
+          }
+        } catch { /* non-blocking */ }
+
+        setCompleted(true);
+        toast.success("Informations enregistrées !");
       }
-
-      setCompleted(true);
-      toast.success("Informations enregistrées avec succès !");
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de la finalisation");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePayPalSuccess = (captureId: string) => {
+    console.log("[QuoteCheckout] PayPal capture success:", captureId);
+    // Update quote status
+    if (quote?.id) {
+      supabase
+        .from("quotes" as any)
+        .update({ status: "converted" })
+        .eq("id", quote.id)
+        .then(() => {
+          // Update order payment status
+          if (orderId) {
+            supabase
+              .from("orders")
+              .update({
+                payment_status: "paid",
+                payment_reference: captureId,
+                status: "confirmed",
+              })
+              .eq("id", orderId);
+          }
+        });
+    }
+    setCompleted(true);
   };
 
   if (loading) {
@@ -316,12 +361,20 @@ export default function QuoteCheckout() {
         <Card className="max-w-lg w-full mx-4 border-emerald-500/20 bg-emerald-500/5">
           <CardContent className="pt-8 text-center space-y-4">
             <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto" />
-            <h2 className="text-2xl font-bold text-emerald-600">Informations reçues !</h2>
+            <h2 className="text-2xl font-bold text-emerald-600">
+              {form.paymentMethod === "paypal" ? "Paiement confirmé !" : "Informations reçues !"}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Vos informations ont été enregistrées avec succès. Notre équipe traitera votre dossier et créera votre commande dans les plus brefs délais.
+              {form.paymentMethod === "paypal"
+                ? "Votre paiement a été traité avec succès. Votre commande est confirmée et notre équipe procédera à l'activation de vos services."
+                : "Vos informations ont été enregistrées avec succès. Notre équipe traitera votre dossier et créera votre commande dans les plus brefs délais."
+              }
             </p>
+            {orderNumber && (
+              <p className="text-sm font-medium">Numéro de commande : <span className="font-bold">{orderNumber}</span></p>
+            )}
             <p className="text-xs text-muted-foreground">
-              Vous serez contacté par courriel ou téléphone pour confirmer votre commande.
+              Vous serez contacté par courriel ou téléphone pour les prochaines étapes.
             </p>
             <div className="pt-4">
               <p className="text-[10px] text-muted-foreground">{NIVRA.tradeName} · {NIVRA.email}</p>
@@ -332,6 +385,86 @@ export default function QuoteCheckout() {
     );
   }
 
+  // PHASE 2: PayPal payment step
+  if (awaitingPayment && invoiceId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+        <div className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+          <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-sm">N</span>
+            </div>
+            <div>
+              <p className="font-bold text-sm">{NIVRA.tradeName}</p>
+              <p className="text-[10px] text-muted-foreground">Paiement — {quote?.quote_number}</p>
+            </div>
+            <Badge variant="outline" className="ml-auto">
+              <Lock className="h-3 w-3 mr-1" /> Sécurisé
+            </Badge>
+          </div>
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 py-12 space-y-6">
+          <Card className="border-primary/10 bg-primary/5">
+            <CardContent className="pt-6 text-center space-y-2">
+              <CheckCircle className="h-10 w-10 text-emerald-600 mx-auto" />
+              <h2 className="text-lg font-bold">Informations confirmées</h2>
+              <p className="text-sm text-muted-foreground">
+                Votre commande <strong>{orderNumber}</strong> est prête. Complétez le paiement pour confirmer.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <CreditCard className="h-4 w-4" /> Paiement PayPal
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Total à payer</span>
+                <span className="text-xl font-bold">{totalAmount.toFixed(2)} $</span>
+              </div>
+              <Separator />
+              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Payez de façon sécurisée avec votre compte PayPal.
+                </p>
+                <PayPalButton
+                  invoiceId={invoiceId}
+                  amount={totalAmount}
+                  description={`Commande ${orderNumber} — ${NIVRA.tradeName}`}
+                  customer={{
+                    first_name: form.firstName,
+                    last_name: form.lastName,
+                    email: form.email,
+                    phone: formatCanadianPhone(form.phone),
+                    address: {
+                      address_line_1: form.address,
+                      admin_area_2: form.city,
+                      admin_area_1: form.province,
+                      postal_code: formatPostalCode(form.postalCode),
+                      country_code: "CA",
+                    },
+                  }}
+                  onSuccess={handlePayPalSuccess}
+                  onError={(msg) => toast.error(msg)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="text-center text-xs text-muted-foreground pt-4 border-t border-border space-y-1">
+            <p>{NIVRA.legalName}</p>
+            <p>{NIVRA.email} · {NIVRA.website}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // PHASE 1: KYC Form
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       {/* Header */}
@@ -469,7 +602,7 @@ export default function QuoteCheckout() {
           </CardContent>
         </Card>
 
-        {/* Payment */}
+        {/* Payment method selection */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -478,6 +611,21 @@ export default function QuoteCheckout() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => updateField("paymentMethod", "paypal")}
+                className={`p-4 rounded-lg border-2 text-center transition-all ${
+                  form.paymentMethod === "paypal"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/30"
+                }`}
+              >
+                <p className="font-medium text-sm">PayPal</p>
+                <p className="text-[10px] text-muted-foreground">Paiement en ligne</p>
+                {form.paymentMethod === "paypal" && (
+                  <Badge variant="secondary" className="mt-1 text-[9px]">Recommandé</Badge>
+                )}
+              </button>
               <button
                 type="button"
                 onClick={() => updateField("paymentMethod", "interac")}
@@ -490,43 +638,20 @@ export default function QuoteCheckout() {
                 <p className="font-medium text-sm">Interac</p>
                 <p className="text-[10px] text-muted-foreground">Virement électronique</p>
               </button>
-              <button
-                type="button"
-                onClick={() => updateField("paymentMethod", "paypal")}
-                className={`p-4 rounded-lg border-2 text-center transition-all ${
-                  form.paymentMethod === "paypal"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/30"
-                }`}
-              >
-                <p className="font-medium text-sm">PayPal</p>
-                <p className="text-[10px] text-muted-foreground">Paiement en ligne</p>
-              </button>
             </div>
 
-            {form.paymentMethod === "interac" && (
-              <div className="space-y-4 pt-2">
-                <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                  <p className="text-xs text-muted-foreground mb-1">Envoyez <strong>{Number(quote?.total_due_now || 0).toFixed(2)} $</strong> par Interac à :</p>
-                  <p className="font-mono text-sm font-bold">{NIVRA.email}</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="interacRef" className="text-sm">Numéro de référence Interac <span className="text-destructive">*</span></Label>
-                  <Input id="interacRef" value={form.interacReference} onChange={e => updateField("interacReference", e.target.value)} placeholder="Numéro de confirmation" className={errors.interacReference ? "border-destructive" : ""} />
-                  {errors.interacReference && <p className="text-xs text-destructive">{errors.interacReference}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="interacSender" className="text-sm">Nom de l'expéditeur <span className="text-destructive">*</span></Label>
-                  <Input id="interacSender" value={form.interacSender} onChange={e => updateField("interacSender", e.target.value)} placeholder="Nom complet" className={errors.interacSender ? "border-destructive" : ""} />
-                  {errors.interacSender && <p className="text-xs text-destructive">{errors.interacSender}</p>}
-                </div>
+            {form.paymentMethod === "paypal" && (
+              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                <p className="text-xs text-muted-foreground">
+                  Après validation de vos informations, vous serez invité à compléter votre paiement via PayPal.
+                </p>
               </div>
             )}
 
-            {form.paymentMethod === "paypal" && (
+            {form.paymentMethod === "interac" && (
               <div className="p-3 rounded-lg bg-muted/50 border border-border">
                 <p className="text-xs text-muted-foreground">
-                  Après soumission du formulaire, vous serez contacté avec les instructions de paiement PayPal.
+                  Vous recevrez les instructions de paiement par courriel après la validation de vos informations.
                 </p>
               </div>
             )}
@@ -587,12 +712,17 @@ export default function QuoteCheckout() {
             >
               {submitting ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Traitement en cours...</>
+              ) : form.paymentMethod === "paypal" ? (
+                <><ArrowRight className="h-4 w-4" /> Continuer vers le paiement PayPal</>
               ) : (
                 <><CheckCircle className="h-4 w-4" /> Confirmer ma commande</>
               )}
             </Button>
             <p className="text-[10px] text-center text-muted-foreground">
-              En confirmant, vous acceptez que votre commande soit traitée selon les termes de votre soumission.
+              {form.paymentMethod === "paypal"
+                ? "Vous serez redirigé vers PayPal pour compléter le paiement."
+                : "En confirmant, vous acceptez que votre commande soit traitée selon les termes de votre soumission."
+              }
             </p>
           </CardContent>
         </Card>
