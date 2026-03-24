@@ -15200,6 +15200,9 @@ export type Database = {
         | "approved"
         | "sent"
         | "viewed"
+        | "accepted_pending_checkout"
+        | "checkout_in_progress"
+        | "checkout_completed"
         | "accepted"
         | "rejected"
         | "expired"
@@ -15696,6 +15699,9 @@ export const Constants = {
         "approved",
         "sent",
         "viewed",
+        "accepted_pending_checkout",
+        "checkout_in_progress",
+        "checkout_completed",
         "accepted",
         "rejected",
         "expired",
