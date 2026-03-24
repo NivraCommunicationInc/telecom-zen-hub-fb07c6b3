@@ -39,6 +39,14 @@ export interface QuotePDFData {
 
 const fmt = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " $";
 
+const sanitizePdfText = (value: string): string => {
+  return value
+    .normalize("NFKC")
+    .replace(/[^\x09\x0A\x0D\x20-\x7EÀ-ÖØ-öø-ÿŒœ‘’“”«»…–—]/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+};
+
 function drawHeader(doc: jsPDF, W: number, margin: number, data: QuotePDFData) {
   // Full-width navy header bar
   doc.setFillColor(...C.navy);
@@ -334,10 +342,7 @@ function drawTotals(doc: jsPDF, margin: number, contentW: number, data: QuotePDF
 
 function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: string, startY: number): number {
   let y = startY;
-
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(245, 158, 11);
-  doc.setLineWidth(0.4);
+  const safeNote = sanitizePdfText(note);
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
@@ -348,12 +353,17 @@ function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: stri
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(0, 0, 0);
-  const noteLines = doc.splitTextToSize(note, contentW - 14);
+  const noteLines = doc.splitTextToSize(safeNote, contentW - 14);
+  const noteBoxHeight = Math.max(12, noteLines.length * 4.5 + 8);
 
-  doc.roundedRect(margin, y, contentW, noteLines.length * 4.5 + 8, 2, 2, "FD");
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(margin, y, contentW, noteBoxHeight, 2, 2, "F");
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(margin, y, contentW, noteBoxHeight, 2, 2, "S");
   doc.text(noteLines, margin + 6, y + 6);
 
-  return y + noteLines.length * 4.5 + 14;
+  return y + noteBoxHeight + 6;
 }
 
 function drawFooter(doc: jsPDF, W: number, margin: number, contentW: number) {
