@@ -335,11 +335,11 @@ function drawTotals(doc: jsPDF, margin: number, contentW: number, data: QuotePDF
 function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: string, startY: number): number {
   let y = startY;
 
-  doc.setFillColor(255, 250, 240);
+  doc.setFillColor(255, 255, 255);
   doc.setDrawColor(245, 158, 11);
   doc.setLineWidth(0.4);
 
-  doc.setTextColor(...C.navy);
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text("Message au client", margin, y);
@@ -347,7 +347,7 @@ function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: stri
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.setTextColor(17, 24, 39);
+  doc.setTextColor(0, 0, 0);
   const noteLines = doc.splitTextToSize(note, contentW - 14);
 
   doc.roundedRect(margin, y, contentW, noteLines.length * 4.5 + 8, 2, 2, "FD");
