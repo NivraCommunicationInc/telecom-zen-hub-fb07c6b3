@@ -673,7 +673,7 @@ export default function QuoteCheckout() {
                 onCheckedChange={v => updateField("acceptTerms", v as boolean)}
               />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
-                J'accepte les <a href="/conditions-utilisation" target="_blank" className="text-primary underline">conditions d'utilisation</a> et les conditions de service de {NIVRA.tradeName}. <span className="text-destructive">*</span>
+                J'accepte les <a href="/conditions-de-service" target="_blank" className="text-primary underline">conditions d'utilisation</a> et les conditions de service de {NIVRA.tradeName}. <span className="text-destructive">*</span>
               </Label>
             </div>
             {errors.acceptTerms && <p className="text-xs text-destructive">{errors.acceptTerms}</p>}
