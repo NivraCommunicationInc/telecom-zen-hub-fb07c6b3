@@ -96,10 +96,10 @@ serve(async (req) => {
         shipping_city: checkout_data.city || null,
         shipping_province: checkout_data.province || "QC",
         shipping_postal_code: checkout_data.postal_code || null,
-        customer_first_name: checkout_data.first_name,
-        customer_last_name: checkout_data.last_name,
-        customer_email: checkout_data.email,
-        customer_phone: checkout_data.phone,
+        client_first_name: checkout_data.first_name,
+        client_last_name: checkout_data.last_name,
+        client_email: checkout_data.email,
+        client_phone: checkout_data.phone,
         environment: "live",
       })
       .select()
