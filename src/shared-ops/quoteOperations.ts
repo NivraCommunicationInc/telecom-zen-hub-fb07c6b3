@@ -590,31 +590,15 @@ export async function sendCheckoutLink(quoteId: string, actorUserId: string, act
     throw new Error("Aucun courriel client trouvé pour envoyer le lien de finalisation.");
   }
 
-  // Send real transactional email via send-transactional-email edge function (pgmq pipeline)
-  const emailHtml = buildCheckoutEmailHtml({
-    quoteNumber: quote.quote_number || quoteId,
-    checkoutUrl,
-    totalDueNow: Number(quote.total_due_now || 0),
-    totalMonthly: Number(quote.total_monthly || 0),
+  // Send checkout link email via send-quote-email edge function (pgmq pipeline)
+  const { data: emailData, error: emailErr } = await supabase.functions.invoke("send-quote-email", {
+    body: { quoteId, mode: "checkout_link" },
   });
 
-  const { error: emailErr } = await supabase.functions.invoke("send-transactional-email", {
-    body: {
-      recipientEmail,
-      templateName: "custom_html",
-      idempotencyKey: `quote_checkout_${quoteId}_${Date.now()}`,
-      templateData: {
-        _html: emailHtml,
-        _subject: `Finalisez votre commande — Soumission ${quote.quote_number || ""}`,
-      },
-      subject: `Finalisez votre commande — Soumission ${quote.quote_number || ""}`,
-      html: emailHtml,
-    },
-  });
-
-  if (emailErr) {
-    console.error("[sendCheckoutLink] Email queue error:", emailErr);
-    throw new Error(`Erreur d'envoi du courriel: ${emailErr.message}`);
+  if (emailErr || emailData?.error) {
+    const errMsg = emailErr?.message || emailData?.error || "Erreur inconnue";
+    console.error("[sendCheckoutLink] Email error:", errMsg);
+    throw new Error(`Erreur d'envoi du courriel: ${errMsg}`);
   }
 
   await logQuoteEvent(quoteId, "checkout_link_sent", actorUserId, actorRole, `Lien de finalisation envoyé à ${recipientEmail}`);
