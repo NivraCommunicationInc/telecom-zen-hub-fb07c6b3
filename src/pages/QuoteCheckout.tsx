@@ -685,7 +685,7 @@ export default function QuoteCheckout() {
                 onCheckedChange={v => updateField("acceptPrivacy", v as boolean)}
               />
               <Label htmlFor="privacy" className="text-sm leading-relaxed cursor-pointer">
-                J'accepte la <a href="/politique-confidentialite" target="_blank" className="text-primary underline">politique de confidentialité</a>. <span className="text-destructive">*</span>
+                J'accepte la <a href="/confidentialite-loi25" target="_blank" className="text-primary underline">politique de confidentialité</a>. <span className="text-destructive">*</span>
               </Label>
             </div>
             {errors.acceptPrivacy && <p className="text-xs text-destructive">{errors.acceptPrivacy}</p>}
