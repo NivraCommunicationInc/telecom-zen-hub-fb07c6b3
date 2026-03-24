@@ -277,6 +277,13 @@ export function CoreQuickActions({ proc }: Props) {
           );
         })}
       </div>
+
+      <EditOrderDialog
+        order={order}
+        open={editOrderOpen}
+        onClose={() => setEditOrderOpen(false)}
+        onRefresh={() => proc.refetch()}
+      />
     </div>
   );
 }
