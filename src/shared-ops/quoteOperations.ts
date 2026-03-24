@@ -68,6 +68,12 @@ export async function createQuoteDraft(params: {
   prospectEmail?: string;
   prospectPhone?: string;
 }) {
+  // Determine if identity capture is required
+  // If prospect has no name or no phone, identity is unreliable
+  const needsIdentityCapture = params.isProspect
+    ? (!params.prospectName?.trim() || !params.prospectPhone?.trim() || params.prospectName === "Prospect")
+    : false;
+
   const { data, error } = await supabase
     .from("quotes" as any)
     .insert({
@@ -83,6 +89,7 @@ export async function createQuoteDraft(params: {
       prospect_name: params.prospectName || null,
       prospect_email: params.prospectEmail || null,
       prospect_phone: params.prospectPhone || null,
+      requires_identity_capture: needsIdentityCapture,
     })
     .select()
     .single();
