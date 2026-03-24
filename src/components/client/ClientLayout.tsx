@@ -84,6 +84,8 @@ const navGroups = [
 ];
 
 const ClientLayout = ({ children }: ClientLayoutProps) => {
+  // Activate live tracking for all client portal pages
+  useLiveActivityTracker();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useClientAuth();
