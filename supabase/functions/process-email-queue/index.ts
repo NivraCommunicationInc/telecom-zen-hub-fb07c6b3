@@ -34,6 +34,35 @@ function getRetryAfterSeconds(error: unknown): number {
   return 60
 }
 
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h\d|li|tr|table|section)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function resolveEmailText(payload: Record<string, unknown>): string {
+  const directText = typeof payload.text === 'string' ? payload.text.trim() : ''
+  if (directText.length > 0) return directText
+
+  const fromHtml = typeof payload.html === 'string' ? htmlToPlainText(payload.html) : ''
+  if (fromHtml.length > 0) return fromHtml
+
+  const fallbackSubject = typeof payload.subject === 'string' ? payload.subject.trim() : ''
+  return fallbackSubject.length > 0 ? fallbackSubject : 'Notification'
+}
+
 function parseJwtClaims(token: string): Record<string, unknown> | null {
   const parts = token.split('.')
   if (parts.length < 2) {
@@ -246,6 +275,8 @@ Deno.serve(async (req) => {
       }
 
       try {
+        const safeText = resolveEmailText(payload as Record<string, unknown>)
+
         await sendLovableEmail(
           {
             run_id: payload.run_id,
@@ -254,7 +285,7 @@ Deno.serve(async (req) => {
             sender_domain: payload.sender_domain,
             subject: payload.subject,
             html: payload.html,
-            text: payload.text,
+            text: safeText,
             purpose: payload.purpose,
             label: payload.label,
             idempotency_key: payload.idempotency_key,
