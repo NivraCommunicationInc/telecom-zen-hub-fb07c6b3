@@ -355,7 +355,7 @@ serve(async (req) => {
       queue_name: "transactional_emails",
       payload: {
         to: recipientEmail,
-        from: `Nivra Telecom <notify@notify.nivra-telecom.ca>`,
+        from: `Nivra Telecom <support@nivra-telecom.ca>`,
         sender_domain: "notify.nivra-telecom.ca",
         subject: finalSubject,
         html: finalHtml,
@@ -382,6 +382,14 @@ serve(async (req) => {
       status: "pending",
     });
 
+    // Best effort: trigger an immediate queue drain so the client doesn't wait for the cron tick.
+    const { error: dispatchError } = await supabase.functions.invoke("process-email-queue", {
+      body: {},
+    });
+    if (dispatchError) {
+      console.warn("[send-quote-email] Immediate dispatch skipped:", dispatchError.message);
+    }
+
     // Update quote timestamps
     await supabase
       .from("quotes")
@@ -400,7 +408,7 @@ serve(async (req) => {
 
     console.log(`[send-quote-email] Enqueued ${label} for ${quote.quote_number} to ${recipientEmail}`);
 
-    return new Response(JSON.stringify({ success: true, recipientEmail }), {
+    return new Response(JSON.stringify({ success: true, recipientEmail, messageId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
