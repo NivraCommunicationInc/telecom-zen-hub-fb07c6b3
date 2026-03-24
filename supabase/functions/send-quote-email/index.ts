@@ -111,6 +111,42 @@ serve(async (req) => {
       });
     }
 
+    // Ensure transactional emails always have a valid unsubscribe token
+    let unsubscribeToken: string | null = null;
+    const { data: existingUnsubToken } = await supabase
+      .from("email_unsubscribe_tokens")
+      .select("token")
+      .eq("email", recipientEmail)
+      .maybeSingle();
+
+    if (existingUnsubToken?.token) {
+      unsubscribeToken = existingUnsubToken.token;
+    } else {
+      const generatedToken = crypto.randomUUID();
+      const { error: insertTokenError } = await supabase
+        .from("email_unsubscribe_tokens")
+        .insert({ email: recipientEmail, token: generatedToken });
+
+      if (insertTokenError) {
+        // Handle race (another process inserted same email simultaneously)
+        const { data: racedToken } = await supabase
+          .from("email_unsubscribe_tokens")
+          .select("token")
+          .eq("email", recipientEmail)
+          .maybeSingle();
+        unsubscribeToken = racedToken?.token || null;
+      } else {
+        unsubscribeToken = generatedToken;
+      }
+    }
+
+    if (!unsubscribeToken) {
+      return new Response(JSON.stringify({ error: "Impossible de générer le token de désabonnement" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Fetch lines
     const { data: lines } = await supabase
       .from("quote_lines")
@@ -325,6 +361,7 @@ serve(async (req) => {
         html: finalHtml,
         text: finalText,
         purpose: "transactional",
+        unsubscribe_token: unsubscribeToken,
         label,
         idempotency_key: messageId,
         message_id: messageId,
