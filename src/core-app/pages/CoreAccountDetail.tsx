@@ -180,6 +180,9 @@ const CoreAccountDetail = () => {
         accountId={accountId}
         clientId={data.clientId}
         accountStatus={acct.status}
+        customerId={data.customerId}
+        clientName={clientName}
+        subscriptions={data.subscriptions}
         onRefresh={data.refetch}
         onNavigateSection={(s) => setActiveSection(s as SectionId)}
         onEditProfile={() => setEditProfileOpen(true)}

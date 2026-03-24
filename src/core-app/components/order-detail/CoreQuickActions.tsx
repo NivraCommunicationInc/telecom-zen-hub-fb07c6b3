@@ -8,8 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Wrench, Calendar, FileText, Wifi, Headphones, Ban,
   Loader2, CreditCard, Package, Send, CheckCircle2,
-  RotateCcw, AlertTriangle
+  RotateCcw, AlertTriangle, Pencil
 } from "lucide-react";
+import { EditOrderDialog } from "@/core-app/components/account-actions/EditOrderDialog";
 
 interface Props {
   proc: any;
@@ -29,6 +30,7 @@ interface QuickAction {
 export function CoreQuickActions({ proc }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
+  const [editOrderOpen, setEditOrderOpen] = useState(false);
 
   const order = proc.order;
   const isTerminal = ["cancelled", "activated"].includes(order?.status);
@@ -38,6 +40,15 @@ export function CoreQuickActions({ proc }: Props) {
   const hasContract = proc.contracts?.length > 0;
 
   const actions: QuickAction[] = [
+    // Edit order
+    {
+      id: "edit_order",
+      label: "Modifier commande",
+      icon: Pencil,
+      variant: "primary",
+      hidden: isTerminal,
+      handler: async () => { setEditOrderOpen(true); },
+    },
     // Payment - show when not paid
     {
       id: "confirm_payment",
@@ -266,6 +277,13 @@ export function CoreQuickActions({ proc }: Props) {
           );
         })}
       </div>
+
+      <EditOrderDialog
+        order={order}
+        open={editOrderOpen}
+        onClose={() => setEditOrderOpen(false)}
+        onRefresh={() => proc.refetch()}
+      />
     </div>
   );
 }

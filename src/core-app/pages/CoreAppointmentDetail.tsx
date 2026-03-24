@@ -1,21 +1,25 @@
 /**
  * CoreAppointmentDetail — Full appointment detail page for Nivra Core.
  * Accessible via /core/appointments/:id
+ * NOW includes: Edit appointment dialog.
  */
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
+import { EditAppointmentDialog } from "@/core-app/components/account-actions/EditAppointmentDialog";
 import {
   ArrowLeft, Calendar, MapPin, User, Clock, Wrench, Phone, Mail,
-  FileText, Package, Loader2, AlertTriangle,
+  FileText, Package, Loader2, AlertTriangle, Pencil,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function CoreAppointmentDetail() {
   const { id } = useParams<{ id: string }>();
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: apt, isLoading, error, refetch } = useQuery({
     queryKey: ["core-appointment-detail", id],
@@ -67,12 +71,20 @@ export default function CoreAppointmentDetail() {
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Rendez-vous
         </Link>
-        <button
-          onClick={() => refetch()}
-          className="text-[11px] text-[hsl(220,10%,45%)] hover:text-white transition-colors"
-        >
-          Rafraîchir
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 px-3 py-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Modifier
+          </button>
+          <button
+            onClick={() => refetch()}
+            className="text-[11px] text-[hsl(220,10%,45%)] hover:text-white transition-colors"
+          >
+            Rafraîchir
+          </button>
+        </div>
       </div>
 
       {/* Header */}
@@ -92,20 +104,15 @@ export default function CoreAppointmentDetail() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Schedule */}
           <div className="flex items-start gap-3">
             <Calendar className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
             <div>
               <p className="text-[11px] text-[hsl(220,10%,45%)] uppercase tracking-wide">Date & heure</p>
               <p className="text-[13px] text-white">
-                {scheduledDate
-                  ? format(scheduledDate, "d MMMM yyyy 'à' HH:mm", { locale: fr })
-                  : "—"}
+                {scheduledDate ? format(scheduledDate, "d MMMM yyyy 'à' HH:mm", { locale: fr }) : "—"}
               </p>
             </div>
           </div>
-
-          {/* Service Type */}
           <div className="flex items-start gap-3">
             <Wrench className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
             <div>
@@ -113,8 +120,6 @@ export default function CoreAppointmentDetail() {
               <p className="text-[13px] text-white">{apt.service_type || "—"}</p>
             </div>
           </div>
-
-          {/* Installation Method */}
           <div className="flex items-start gap-3">
             <Package className="h-4 w-4 text-purple-400 mt-0.5 shrink-0" />
             <div>
@@ -122,8 +127,6 @@ export default function CoreAppointmentDetail() {
               <p className="text-[13px] text-white capitalize">{apt.installation_method || "—"}</p>
             </div>
           </div>
-
-          {/* Address */}
           <div className="flex items-start gap-3">
             <MapPin className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
             <div>
@@ -133,26 +136,18 @@ export default function CoreAppointmentDetail() {
               </p>
             </div>
           </div>
-
-          {/* Client */}
           <div className="flex items-start gap-3">
             <User className="h-4 w-4 text-cyan-400 mt-0.5 shrink-0" />
             <div>
               <p className="text-[11px] text-[hsl(220,10%,45%)] uppercase tracking-wide">Client</p>
               {apt.client_email && (
-                <p className="text-[13px] text-white flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> {apt.client_email}
-                </p>
+                <p className="text-[13px] text-white flex items-center gap-1"><Mail className="h-3 w-3" /> {apt.client_email}</p>
               )}
               {apt.client_phone && (
-                <p className="text-[13px] text-white flex items-center gap-1">
-                  <Phone className="h-3 w-3" /> {apt.client_phone}
-                </p>
+                <p className="text-[13px] text-white flex items-center gap-1"><Phone className="h-3 w-3" /> {apt.client_phone}</p>
               )}
             </div>
           </div>
-
-          {/* Fees */}
           <div className="flex items-start gap-3">
             <FileText className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />
             <div>
@@ -171,10 +166,7 @@ export default function CoreAppointmentDetail() {
       {apt.order_id && (
         <div className="rounded-xl border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,10%)] p-4">
           <p className="text-[11px] text-[hsl(220,10%,45%)] uppercase tracking-wide mb-2">Commande liée</p>
-          <Link
-            to={corePath(`/orders/${apt.order_id}`)}
-            className="text-[13px] text-emerald-400 hover:underline font-mono"
-          >
+          <Link to={corePath(`/orders/${apt.order_id}`)} className="text-[13px] text-emerald-400 hover:underline font-mono">
             {apt.order_id}
           </Link>
         </div>
@@ -218,6 +210,14 @@ export default function CoreAppointmentDetail() {
           </div>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <EditAppointmentDialog
+        appointment={apt}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onRefresh={() => refetch()}
+      />
     </div>
   );
 }
