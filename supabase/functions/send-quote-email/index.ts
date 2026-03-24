@@ -16,6 +16,24 @@ interface QuoteEmailRequest {
   mode?: "quote" | "checkout_link";
 }
 
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h\d|li|tr|table|section)>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 serve(async (req) => {
   const preflightResponse = handleCorsPreflightRequest(req);
   if (preflightResponse) return preflightResponse;
@@ -238,6 +256,7 @@ serve(async (req) => {
 
     let finalSubject: string;
     let finalHtml: string;
+    let finalText: string;
     let label: string;
     let eventType: string;
 
@@ -279,6 +298,7 @@ serve(async (req) => {
       `;
 
       finalHtml = emailDocument(finalSubject, preheader, checkoutContent);
+      finalText = htmlToPlainText(finalHtml) || `Finalisez votre commande — Soumission ${quote.quote_number || quote.id}`;
       label = "quote_checkout_link";
       eventType = "checkout_link_sent";
     } else {
@@ -286,6 +306,7 @@ serve(async (req) => {
       finalSubject = `Soumission ${quote.quote_number} — Nivra Telecom`;
       const preheader = `Votre soumission ${quote.quote_number} est prête. Total : ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
       finalHtml = emailDocument(finalSubject, preheader, emailContent);
+      finalText = htmlToPlainText(finalHtml) || `Soumission ${quote.quote_number} — Total ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
       label = "quote_sent";
       eventType = "email_sent";
     }
@@ -302,6 +323,7 @@ serve(async (req) => {
         sender_domain: "notify.nivra-telecom.ca",
         subject: finalSubject,
         html: finalHtml,
+        text: finalText,
         purpose: "transactional",
         label,
         idempotency_key: messageId,
