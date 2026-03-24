@@ -9772,7 +9772,7 @@ export type Database = {
           created_by_user_id: string
           credits_total: number
           currency: string
-          customer_user_id: string
+          customer_user_id: string | null
           discounts_total: number
           id: string
           internal_note: string | null
@@ -9785,6 +9785,7 @@ export type Database = {
           prospect_phone: string | null
           public_token: string | null
           quote_number: string
+          requires_identity_capture: boolean
           source_portal: string
           status: Database["public"]["Enums"]["quote_status"]
           subtotal: number
@@ -9809,7 +9810,7 @@ export type Database = {
           created_by_user_id: string
           credits_total?: number
           currency?: string
-          customer_user_id: string
+          customer_user_id?: string | null
           discounts_total?: number
           id?: string
           internal_note?: string | null
@@ -9822,6 +9823,7 @@ export type Database = {
           prospect_phone?: string | null
           public_token?: string | null
           quote_number: string
+          requires_identity_capture?: boolean
           source_portal: string
           status?: Database["public"]["Enums"]["quote_status"]
           subtotal?: number
@@ -9846,7 +9848,7 @@ export type Database = {
           created_by_user_id?: string
           credits_total?: number
           currency?: string
-          customer_user_id?: string
+          customer_user_id?: string | null
           discounts_total?: number
           id?: string
           internal_note?: string | null
@@ -9859,6 +9861,7 @@ export type Database = {
           prospect_phone?: string | null
           public_token?: string | null
           quote_number?: string
+          requires_identity_capture?: boolean
           source_portal?: string
           status?: Database["public"]["Enums"]["quote_status"]
           subtotal?: number
