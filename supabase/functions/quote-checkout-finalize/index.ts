@@ -78,41 +78,60 @@ serve(async (req) => {
       })
       .eq("id", quote_id);
 
-    // 4. Create order in orders table
-    const orderNumber = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+    // 4. Check if order already exists (idempotency for retries)
+    let order: any;
+    if (quote.converted_order_id) {
+      const { data: existingOrder } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", quote.converted_order_id)
+        .single();
+      if (existingOrder) {
+        order = existingOrder;
+        console.log("[quote-checkout-finalize] Reusing existing order:", order.id);
+      }
+    }
 
-    const { data: order, error: orderErr } = await supabase
-      .from("orders")
-      .insert({
-        user_id: quote.customer_user_id || null,
-        order_number: orderNumber,
-        status: "pending",
-        payment_status: "pending",
-        payment_method: payment_method || "paypal",
-        total_amount: quote.total_due_now || 0,
-        notes: `Créé depuis soumission ${quote.quote_number}`,
-        internal_notes: `Source: Quote ${quote.quote_number} (${quote.id})`,
-        shipping_address: checkout_data.address || null,
-        shipping_city: checkout_data.city || null,
-        shipping_province: checkout_data.province || "QC",
-        shipping_postal_code: checkout_data.postal_code || null,
-        client_first_name: checkout_data.first_name,
-        client_last_name: checkout_data.last_name,
-        client_email: checkout_data.email,
-        client_phone: checkout_data.phone,
-        environment: "live",
-      })
-      .select()
-      .single();
+    if (!order) {
+      const orderNumber = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
-    if (orderErr) throw new Error(`Order creation failed: ${orderErr.message}`);
-    console.log("[quote-checkout-finalize] Order created:", order.id, orderNumber);
+      const { data: newOrder, error: orderErr } = await supabase
+        .from("orders")
+        .insert({
+          user_id: quote.customer_user_id || "00000000-0000-0000-0000-000000000000",
+          account_id: "00000000-0000-0000-0000-000000000000",
+          service_type: "combo",
+          order_number: orderNumber,
+          status: "pending",
+          payment_status: "pending",
+          payment_method: payment_method || "paypal",
+          total_amount: quote.total_due_now || 0,
+          notes: `Créé depuis soumission ${quote.quote_number}`,
+          internal_notes: `Source: Quote ${quote.quote_number} (${quote.id})`,
+          shipping_address: checkout_data.address || null,
+          shipping_city: checkout_data.city || null,
+          shipping_province: checkout_data.province || "QC",
+          shipping_postal_code: checkout_data.postal_code || null,
+          client_first_name: checkout_data.first_name,
+          client_last_name: checkout_data.last_name,
+          client_email: checkout_data.email,
+          client_phone: checkout_data.phone,
+          environment: "live",
+        })
+        .select()
+        .single();
 
-    // Link quote to order
-    await supabase
-      .from("quotes")
-      .update({ converted_order_id: order.id })
-      .eq("id", quote_id);
+      if (orderErr) throw new Error(`Order creation failed: ${orderErr.message}`);
+      order = newOrder;
+      console.log("[quote-checkout-finalize] Order created:", order.id, orderNumber);
+
+      await supabase
+        .from("quotes")
+        .update({ converted_order_id: order.id })
+        .eq("id", quote_id);
+    }
+
+    const orderNumber = order.order_number;
 
     // 5. Get or create billing customer
     let customerId: string;
