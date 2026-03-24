@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Tv, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Monitor, Wifi, Package, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,8 @@ const TVPlans = () => {
   const [addressDetails, setAddressDetails] = useState<AddressValue | null>(null);
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
+
+  useEffect(() => { trackLiveActivity("plan_view", "Consultation: Forfaits TV", { metadata: { category: "tv" } }); }, []);
 
   // Fetch plans from database
   const { standardPlans, gigaPlans, isLoading: isLoadingPlans } = useTVPlans(isFrench);
@@ -57,6 +60,7 @@ const TVPlans = () => {
   };
 
   const handleGetStarted = (planId: string) => {
+    trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "tv" } });
     const state = {
       validatedAddress: addressText,
       addressDetails,

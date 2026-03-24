@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Smartphone, Check, Shield, Zap, ArrowRight, Phone, MessageSquare, Globe, Wifi, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,8 @@ const MobilePlans = () => {
   const navigate = useNavigate();
   const isFrench = language === 'fr';
   
+  useEffect(() => { trackLiveActivity("plan_view", "Consultation: Forfaits Mobile", { metadata: { category: "mobile" } }); }, []);
+
   // Fetch plans from database
   const { plans, isLoading: isLoadingPlans } = useMobilePlans(isFrench);
   const { simPrice, esimPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
@@ -42,6 +45,7 @@ const MobilePlans = () => {
   );
 
   const handleGetStarted = (planId: string) => {
+    trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "mobile" } });
     if (user) {
       navigate('/portal/new-order');
     } else {

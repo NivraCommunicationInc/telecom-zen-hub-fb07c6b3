@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Wifi, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,8 @@ const InternetPlans = () => {
   const [addressDetails, setAddressDetails] = useState<AddressValue | null>(null);
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
+
+  useEffect(() => { trackLiveActivity("plan_view", "Consultation: Forfaits Internet", { metadata: { category: "internet" } }); }, []);
 
   // Fetch plans from database
   const { plans, isLoading: isLoadingPlans } = useInternetPlans(isFrench);
@@ -53,6 +56,7 @@ const InternetPlans = () => {
   };
 
   const handleGetStarted = (planId: string) => {
+    trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "internet" } });
     navigate(`/commander?plan=${planId}`);
   };
 

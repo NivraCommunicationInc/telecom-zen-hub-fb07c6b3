@@ -160,7 +160,10 @@ const GuestCheckout = () => {
   }, [searchParams, services]);
 
   // ── Live activity tracking for funnel steps ──
+  const lastTrackedStep = useRef<number>(0);
   useEffect(() => {
+    if (step === lastTrackedStep.current) return;
+    lastTrackedStep.current = step;
     const stepLabels: Record<number, { type: "checkout_started" | "checkout_step_completed" | "payment_started" | "order_completed"; label: string }> = {
       1: { type: "checkout_started", label: "Guest Checkout: Sélection forfait" },
       2: { type: "checkout_step_completed", label: "Guest Checkout: Adresse" },
