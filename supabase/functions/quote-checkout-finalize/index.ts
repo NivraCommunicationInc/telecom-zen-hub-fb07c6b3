@@ -45,7 +45,7 @@ serve(async (req) => {
 
     if (qErr || !quote) throw new Error("Quote not found");
 
-    if (!["accepted_pending_checkout", "checkout_in_progress"].includes(quote.status)) {
+    if (!["accepted_pending_checkout", "checkout_in_progress", "checkout_completed"].includes(quote.status)) {
       throw new Error(`Quote status '${quote.status}' does not allow checkout finalization`);
     }
 
