@@ -1,10 +1,15 @@
 import { useEffect, useCallback, useRef } from "react";
-import { portalClient } from "@/integrations/backend/portalClient";
-import { useClientAuth } from "@/hooks/useClientAuth";
-import { findCityCoordinates, getRandomQuebecCoordinates } from "@/data/quebecCities";
+import { supabase } from "@/integrations/supabase/client";
+import { useLocation } from "react-router-dom";
 
-type ActivityType = 
+export type ActivityType =
   | "page_view"
+  | "plan_view"
+  | "add_to_cart"
+  | "checkout_started"
+  | "checkout_step_completed"
+  | "payment_started"
+  | "order_submitted"
   | "order_started"
   | "order_completed"
   | "signup"
@@ -29,82 +34,6 @@ const getSessionId = (): string => {
   return sessionId;
 };
 
-export const useLiveActivityTracker = () => {
-  const { user } = useClientAuth();
-  const lastTrackedRef = useRef<string>("");
-
-  // Get user's city from their profile
-  const getUserCity = useCallback(async (): Promise<string | null> => {
-    if (!user) return null;
-    
-    try {
-      const { data: profile } = await portalClient
-        .from("profiles")
-        .select("service_city")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      
-      return profile?.service_city || null;
-    } catch {
-      return null;
-    }
-  }, [user]);
-
-  const trackActivity = useCallback(async (
-    activityType: ActivityType,
-    label?: string,
-    options?: TrackActivityOptions
-  ) => {
-    // Prevent duplicate tracking in quick succession
-    const trackKey = `${activityType}_${label}_${Date.now()}`;
-    if (lastTrackedRef.current === trackKey) return;
-    lastTrackedRef.current = trackKey;
-
-    try {
-      // Determine city
-      let city = options?.city;
-      if (!city && user) {
-        city = await getUserCity() || undefined;
-      }
-
-      // Get coordinates
-      let coordinates = city ? findCityCoordinates(city) : null;
-      if (!coordinates) {
-        coordinates = {
-          name: city || "Québec",
-          lat: getRandomQuebecCoordinates().lat,
-          lng: getRandomQuebecCoordinates().lng,
-        };
-      }
-
-      await portalClient.from("live_activity_logs").insert({
-        user_id: user?.id || null,
-        session_id: getSessionId(),
-        activity_type: activityType,
-        activity_label: label || getActivityLabel(activityType),
-        city: city || coordinates?.name || null,
-        province: "QC",
-        postal_code: options?.postalCode || null,
-        latitude: coordinates?.lat || null,
-        longitude: coordinates?.lng || null,
-        metadata: options?.metadata || {},
-      });
-    } catch (error) {
-      console.error("Failed to track activity:", error);
-    }
-  }, [user, getUserCity]);
-
-  // Track page view on mount
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path.includes("/client")) {
-      trackActivity("page_view", `Visite: ${getPageName(path)}`);
-    }
-  }, [trackActivity]);
-
-  return { trackActivity };
-};
-
 // Standalone function for tracking from outside React components
 export const trackLiveActivity = async (
   activityType: ActivityType,
@@ -112,17 +41,7 @@ export const trackLiveActivity = async (
   options?: TrackActivityOptions & { userId?: string }
 ) => {
   try {
-    let coordinates = options?.city ? findCityCoordinates(options.city) : null;
-    if (!coordinates) {
-      const randomCoords = getRandomQuebecCoordinates();
-      coordinates = {
-        name: options?.city || "Québec",
-        lat: randomCoords.lat,
-        lng: randomCoords.lng,
-      };
-    }
-
-    await portalClient.from("live_activity_logs").insert({
+    await supabase.from("live_activity_logs").insert({
       user_id: options?.userId || null,
       session_id: getSessionId(),
       activity_type: activityType,
@@ -130,18 +49,79 @@ export const trackLiveActivity = async (
       city: options?.city || null,
       province: "QC",
       postal_code: options?.postalCode || null,
-      latitude: coordinates?.lat || null,
-      longitude: coordinates?.lng || null,
+      latitude: null,
+      longitude: null,
       metadata: options?.metadata || {},
     });
   } catch (error) {
-    console.error("Failed to track live activity:", error);
+    // Silent fail — tracking should never break UX
+    console.error("[LiveTracker] Failed:", error);
   }
+};
+
+export const useLiveActivityTracker = () => {
+  const lastTrackedPage = useRef<string>("");
+  const location = useLocation();
+
+  const trackActivity = useCallback(async (
+    activityType: ActivityType,
+    label?: string,
+    options?: TrackActivityOptions
+  ) => {
+    try {
+      // Get current user if authenticated (non-blocking)
+      let userId: string | null = null;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id || null;
+      } catch {
+        // Anonymous visitor
+      }
+
+      await supabase.from("live_activity_logs").insert({
+        user_id: userId,
+        session_id: getSessionId(),
+        activity_type: activityType,
+        activity_label: label || getActivityLabel(activityType),
+        city: options?.city || null,
+        province: "QC",
+        postal_code: options?.postalCode || null,
+        latitude: null,
+        longitude: null,
+        metadata: {
+          ...options?.metadata,
+          page: window.location.pathname,
+          referrer: document.referrer || null,
+        },
+      });
+    } catch (error) {
+      // Silent fail
+      console.error("[LiveTracker] Failed:", error);
+    }
+  }, []);
+
+  // Auto-track page views on route change
+  useEffect(() => {
+    const path = location.pathname;
+    // Avoid duplicate tracking of same page
+    if (lastTrackedPage.current === path) return;
+    lastTrackedPage.current = path;
+
+    trackActivity("page_view", `Visite: ${getPageName(path)}`);
+  }, [location.pathname, trackActivity]);
+
+  return { trackActivity };
 };
 
 function getActivityLabel(type: ActivityType): string {
   const labels: Record<ActivityType, string> = {
     page_view: "Visite de page",
+    plan_view: "Consultation de forfait",
+    add_to_cart: "Ajout au panier",
+    checkout_started: "Checkout débuté",
+    checkout_step_completed: "Étape checkout complétée",
+    payment_started: "Paiement initié",
+    order_submitted: "Commande soumise",
     order_started: "Commande débutée",
     order_completed: "Commande complétée",
     signup: "Nouvelle inscription",
@@ -154,13 +134,29 @@ function getActivityLabel(type: ActivityType): string {
 }
 
 function getPageName(path: string): string {
-  if (path.includes("/dashboard")) return "Tableau de bord";
-  if (path.includes("/new-order")) return "Nouvelle commande";
-  if (path.includes("/orders")) return "Mes commandes";
-  if (path.includes("/profile")) return "Mon profil";
-  if (path.includes("/billing")) return "Facturation";
-  if (path.includes("/services")) return "Mes services";
-  if (path.includes("/tv")) return "Télévision";
-  if (path.includes("/support")) return "Support";
-  return "Page client";
+  if (path === "/") return "Accueil";
+  if (path.includes("/internet")) return "Internet";
+  if (path.includes("/mobile")) return "Mobile";
+  if (path.includes("/tv") || path.includes("/television")) return "Télévision";
+  if (path.includes("/streaming")) return "Streaming";
+  if (path.includes("/compare")) return "Comparateur";
+  if (path.includes("/services")) return "Services";
+  if (path.includes("/contact")) return "Contact";
+  if (path.includes("/faq") || path.includes("/aide")) return "FAQ / Aide";
+  if (path.includes("/about") || path.includes("/a-propos")) return "À propos";
+  if (path.includes("/careers") || path.includes("/apply")) return "Carrières";
+  if (path.includes("/concours")) return "Concours";
+  if (path.includes("/client/new-order")) return "Nouvelle commande";
+  if (path.includes("/client/dashboard")) return "Tableau de bord";
+  if (path.includes("/client/orders")) return "Mes commandes";
+  if (path.includes("/client/profile")) return "Mon profil";
+  if (path.includes("/client/billing") || path.includes("/client/invoices")) return "Facturation";
+  if (path.includes("/client/services")) return "Mes services";
+  if (path.includes("/client/tv")) return "Télévision";
+  if (path.includes("/client/support")) return "Support";
+  if (path.includes("/client")) return "Portail client";
+  if (path.includes("/login") || path.includes("/auth")) return "Connexion";
+  return path.replace(/\//g, " › ").trim() || "Page";
 }
+
+export default useLiveActivityTracker;

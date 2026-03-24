@@ -23,6 +23,7 @@ import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { useOverdueCount } from "@/hooks/useOverdueCount";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
+import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
 import { Badge } from "@/components/ui/badge";
 
 interface ClientLayoutProps {
