@@ -79,14 +79,41 @@ serve(async (req) => {
       })
       .eq("id", quote_id);
 
-    // 4. Check if order already exists (idempotency for retries)
+    // 4. Resolve canonical user/account for order creation
+    const orderUserId = quote.customer_user_id;
+    if (!orderUserId) {
+      throw new Error("Quote is missing customer_user_id; cannot create order");
+    }
+
+    let resolvedAccountId: string | null = quote.account_id || null;
+    if (!resolvedAccountId) {
+      const { data: existingAccount, error: accountErr } = await supabase
+        .from("accounts")
+        .select("id")
+        .eq("client_id", orderUserId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (accountErr) {
+        throw new Error(`Account lookup failed: ${accountErr.message}`);
+      }
+
+      resolvedAccountId = existingAccount?.id || null;
+    }
+
+    if (!resolvedAccountId) {
+      throw new Error("No account found for this quote's client; cannot create order");
+    }
+
+    // 5. Check if order already exists (idempotency for retries)
     let order: any;
     if (quote.converted_order_id) {
       const { data: existingOrder } = await supabase
         .from("orders")
         .select("*")
         .eq("id", quote.converted_order_id)
-        .single();
+        .maybeSingle();
       if (existingOrder) {
         order = existingOrder;
         console.log("[quote-checkout-finalize] Reusing existing order:", order.id);
@@ -99,8 +126,8 @@ serve(async (req) => {
       const { data: newOrder, error: orderErr } = await supabase
         .from("orders")
         .insert({
-          user_id: quote.customer_user_id || "00000000-0000-0000-0000-000000000000",
-          account_id: "00000000-0000-0000-0000-000000000000",
+          user_id: orderUserId,
+          account_id: resolvedAccountId,
           service_type: "combo",
           order_number: orderNumber,
           status: "pending",
@@ -134,7 +161,7 @@ serve(async (req) => {
 
     const orderNumber = order.order_number;
 
-    // 5. Get or create billing customer
+    // 6. Get or create billing customer
     let customerId: string;
     const { data: existingCustomer } = await supabase
       .from("billing_customers")
@@ -161,7 +188,7 @@ serve(async (req) => {
       customerId = newCustomer.id;
     }
 
-    // 6. Create subscription + invoice from quote financials
+    // 7. Create subscription + invoice from quote financials
     const cycleStart = new Date().toISOString().split("T")[0];
     const cycleEndDate = new Date();
     cycleEndDate.setDate(cycleEndDate.getDate() + 30);
