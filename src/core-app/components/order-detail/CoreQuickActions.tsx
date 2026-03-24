@@ -30,6 +30,7 @@ interface QuickAction {
 export function CoreQuickActions({ proc }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
+  const [editOrderOpen, setEditOrderOpen] = useState(false);
 
   const order = proc.order;
   const isTerminal = ["cancelled", "activated"].includes(order?.status);
