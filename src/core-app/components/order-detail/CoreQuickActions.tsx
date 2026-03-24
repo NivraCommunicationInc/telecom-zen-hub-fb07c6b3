@@ -8,8 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Wrench, Calendar, FileText, Wifi, Headphones, Ban,
   Loader2, CreditCard, Package, Send, CheckCircle2,
-  RotateCcw, AlertTriangle
+  RotateCcw, AlertTriangle, Pencil
 } from "lucide-react";
+import { EditOrderDialog } from "@/core-app/components/account-actions/EditOrderDialog";
 
 interface Props {
   proc: any;
