@@ -1,0 +1,1 @@
+UPDATE quotes SET status = 'accepted_pending_checkout', converted_order_id = NULL WHERE id = '55210d68-cbe7-46d4-a4a4-e5c266c13cbe';
