@@ -294,7 +294,7 @@ serve(async (req) => {
     // Enqueue via Lovable pgmq pipeline
     const { error: enqueueError } = await supabase.rpc("enqueue_email", {
       queue_name: "transactional_emails",
-      msg: {
+      payload: {
         to: recipientEmail,
         from: `Nivra Telecom <notify@notify.nivra-telecom.ca>`,
         sender_domain: "notify.nivra-telecom.ca",
