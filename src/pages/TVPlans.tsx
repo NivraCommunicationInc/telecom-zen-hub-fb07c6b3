@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Tv, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Monitor, Wifi, Package, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
