@@ -20,6 +20,8 @@ const MobilePlans = () => {
   const navigate = useNavigate();
   const isFrench = language === 'fr';
   
+  useEffect(() => { trackLiveActivity("plan_view", "Consultation: Forfaits Mobile", { metadata: { category: "mobile" } }); }, []);
+
   // Fetch plans from database
   const { plans, isLoading: isLoadingPlans } = useMobilePlans(isFrench);
   const { simPrice, esimPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();

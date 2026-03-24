@@ -25,6 +25,8 @@ const InternetPlans = () => {
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
 
+  useEffect(() => { trackLiveActivity("plan_view", "Consultation: Forfaits Internet", { metadata: { category: "internet" } }); }, []);
+
   // Fetch plans from database
   const { plans, isLoading: isLoadingPlans } = useInternetPlans(isFrench);
   const { routerPrice, isLoading: isLoadingEquipment } = useEquipmentPrices();
