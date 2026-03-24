@@ -1,11 +1,10 @@
 /**
  * send-quote-email — Professional transactional email for quote delivery.
- * Builds Nivra-branded HTML and enqueues via ResendProxy.
+ * Builds Nivra-branded HTML and enqueues via Lovable email pipeline (pgmq).
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import {
   emailDocument, header, contentWrapper, footer, statusBanner,
   sectionHeader, infoRow, button, amountBox, greeting, bodyText, divider,
@@ -239,22 +238,38 @@ serve(async (req) => {
 
     const html = emailDocument(subject, preheader, emailContent);
 
-    // Enqueue email
-    const result = await enqueueEmail({
-      to: recipientEmail,
-      subject,
-      html,
-      templateKey: "custom_html",
-      eventKey: `quote_sent_${quoteId}_${Date.now()}`,
-      entityType: "quote",
-      entityId: quoteId,
-      fromEmail: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      messageType: "transactional",
+    // Generate unique message ID for deduplication
+    const messageId = `quote_sent_${quoteId}_${Date.now()}`;
+
+    // Enqueue via Lovable pgmq pipeline
+    const { error: enqueueError } = await supabase.rpc("enqueue_email", {
+      queue_name: "transactional_emails",
+      msg: {
+        to: recipientEmail,
+        from: `Nivra Telecom <notify@notify.nivra-telecom.ca>`,
+        sender_domain: "notify.nivra-telecom.ca",
+        subject,
+        html,
+        purpose: "transactional",
+        label: "quote_sent",
+        idempotency_key: messageId,
+        message_id: messageId,
+        queued_at: new Date().toISOString(),
+      },
     });
 
-    if (!result.success) {
-      throw new Error(result.error || "Failed to enqueue email");
+    if (enqueueError) {
+      console.error("[send-quote-email] Enqueue error:", enqueueError);
+      throw new Error(`Erreur d'envoi: ${enqueueError.message}`);
     }
+
+    // Log pending in email_send_log
+    await supabase.from("email_send_log").insert({
+      message_id: messageId,
+      template_name: "quote_sent",
+      recipient_email: recipientEmail,
+      status: "pending",
+    });
 
     // Update quote timestamps
     await supabase
@@ -269,10 +284,10 @@ serve(async (req) => {
       actor_user_id: user.id,
       actor_role: "staff",
       message: `Courriel envoyé à ${recipientEmail}`,
-      metadata: { recipient: recipientEmail, email_queue_id: result.id },
+      metadata: { recipient: recipientEmail, message_id: messageId },
     });
 
-    console.log(`[send-quote-email] Sent quote ${quote.quote_number} to ${recipientEmail}`);
+    console.log(`[send-quote-email] Enqueued quote ${quote.quote_number} to ${recipientEmail}`);
 
     return new Response(JSON.stringify({ success: true, recipientEmail }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
