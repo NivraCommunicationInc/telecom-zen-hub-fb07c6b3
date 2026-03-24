@@ -17,6 +17,7 @@ const corsHeaders = {
 
 const TPS_RATE = 0.05;
 const TVQ_RATE = 0.09975;
+const BILLABLE_ORDER_STATUSES = new Set(["submitted", "pending_admin_review", "confirmed", "completed"]);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -130,7 +131,7 @@ serve(async (req) => {
           account_id: resolvedAccountId,
           service_type: "combo",
           order_number: orderNumber,
-          status: "pending",
+          status: "submitted",
           payment_status: "pending",
           payment_method: payment_method || "paypal",
           total_amount: quote.total_due_now || 0,
@@ -161,6 +162,22 @@ serve(async (req) => {
 
     const orderNumber = order.order_number;
 
+    // Ensure order status is billable for billing_invoices guard trigger
+    if (!BILLABLE_ORDER_STATUSES.has(order.status)) {
+      const { data: patchedOrder, error: patchOrderErr } = await supabase
+        .from("orders")
+        .update({ status: "submitted" })
+        .eq("id", order.id)
+        .select("*")
+        .single();
+
+      if (patchOrderErr) {
+        throw new Error(`Failed to patch order status for billing: ${patchOrderErr.message}`);
+      }
+
+      order = patchedOrder;
+    }
+
     // 6. Get or create billing customer
     let customerId: string;
     const { data: existingCustomer } = await supabase
@@ -188,7 +205,7 @@ serve(async (req) => {
       customerId = newCustomer.id;
     }
 
-    // 7. Create subscription + invoice from quote financials
+    // 7. Get or create subscription + invoice from quote financials
     const cycleStart = new Date().toISOString().split("T")[0];
     const cycleEndDate = new Date();
     cycleEndDate.setDate(cycleEndDate.getDate() + 30);
@@ -200,65 +217,97 @@ serve(async (req) => {
     const planName = recurringLines.map((l: any) => l.label).join(" + ") || "Services Nivra";
     const planPrice = recurringLines.reduce((sum: number, l: any) => sum + (l.unit_price * l.quantity), 0);
 
-    // Create subscription
-    const { data: subscription, error: subErr } = await supabase
+    let subscription: any;
+    const { data: existingSubscription, error: existingSubErr } = await supabase
       .from("billing_subscriptions")
-      .insert({
-        customer_id: customerId,
-        plan_code: `quote-${quote.quote_number}`,
-        plan_name: planName,
-        plan_price: planPrice,
-        service_category: "combo",
-        cycle_start_date: cycleStart,
-        cycle_end_date: cycleEnd,
-        status: "pending",
-        order_id: order.id,
-      })
-      .select()
-      .single();
+      .select("*")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (subErr) throw new Error(`Subscription creation failed: ${subErr.message}`);
+    if (existingSubErr) throw new Error(`Subscription lookup failed: ${existingSubErr.message}`);
 
-    // Generate invoice number
-    const { data: invoiceNumberData } = await supabase.rpc("generate_billing_invoice_number");
-    const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
+    if (existingSubscription) {
+      subscription = existingSubscription;
+    } else {
+      const { data: createdSubscription, error: subErr } = await supabase
+        .from("billing_subscriptions")
+        .insert({
+          customer_id: customerId,
+          plan_code: `quote-${quote.quote_number}`,
+          plan_name: planName,
+          plan_price: planPrice,
+          service_category: "combo",
+          cycle_start_date: cycleStart,
+          cycle_end_date: cycleEnd,
+          status: "pending",
+          order_id: order.id,
+        })
+        .select()
+        .single();
+
+      if (subErr) throw new Error(`Subscription creation failed: ${subErr.message}`);
+      subscription = createdSubscription;
+    }
 
     // Use quote's calculated totals
     const subtotal = quote.subtotal || 0;
     const tpsAmount = quote.tps_amount || Math.round(subtotal * TPS_RATE * 100) / 100;
     const tvqAmount = quote.tvq_amount || Math.round(subtotal * TVQ_RATE * 100) / 100;
     const total = quote.total_due_now || Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
-
-    const { data: invoice, error: invErr } = await supabase
+    let invoice: any;
+    const { data: existingInvoice, error: existingInvErr } = await supabase
       .from("billing_invoices")
-      .insert({
-        subscription_id: subscription.id,
-        customer_id: customerId,
-        invoice_number: invoiceNumber,
-        type: "initial",
-        subtotal,
-        tps_amount: tpsAmount,
-        tvq_amount: tvqAmount,
-        total,
-        currency: "CAD",
-        payment_method: payment_method || "paypal",
-        status: "pending",
-        cycle_start_date: cycleStart,
-        cycle_end_date: cycleEnd,
-        due_date: cycleEnd,
-        order_id: order.id,
-        billing_snapshot_client: {
-          first_name: checkout_data.first_name,
-          last_name: checkout_data.last_name,
-          email: checkout_data.email,
-          phone: checkout_data.phone,
-        },
-        notes: `Soumission: ${quote.quote_number}`,
-      })
-      .select()
-      .single();
+      .select("*")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (invErr) throw new Error(`Invoice creation failed: ${invErr.message}`);
+    if (existingInvErr) throw new Error(`Invoice lookup failed: ${existingInvErr.message}`);
+
+    if (existingInvoice) {
+      invoice = existingInvoice;
+    } else {
+      // Generate invoice number
+      const { data: invoiceNumberData } = await supabase.rpc("generate_billing_invoice_number");
+      const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
+
+      const { data: createdInvoice, error: invErr } = await supabase
+        .from("billing_invoices")
+        .insert({
+          subscription_id: subscription.id,
+          customer_id: customerId,
+          invoice_number: invoiceNumber,
+          type: "initial",
+          subtotal,
+          tps_amount: tpsAmount,
+          tvq_amount: tvqAmount,
+          total,
+          currency: "CAD",
+          payment_method: payment_method || "paypal",
+          status: "pending",
+          cycle_start_date: cycleStart,
+          cycle_end_date: cycleEnd,
+          due_date: cycleEnd,
+          order_id: order.id,
+          billing_snapshot_client: {
+            first_name: checkout_data.first_name,
+            last_name: checkout_data.last_name,
+            email: checkout_data.email,
+            phone: checkout_data.phone,
+          },
+          notes: `Soumission: ${quote.quote_number}`,
+        })
+        .select()
+        .single();
+
+      if (invErr) throw new Error(`Invoice creation failed: ${invErr.message}`);
+      invoice = createdInvoice;
+    }
+
+    const invoiceNumber = invoice.invoice_number;
 
     // Create invoice lines from quote lines
     const invoiceLines = lines.map((line: any) => ({
@@ -270,7 +319,16 @@ serve(async (req) => {
       line_type: line.billing_frequency === "monthly" ? "service" : "fee",
     }));
 
-    await supabase.from("billing_invoice_lines").insert(invoiceLines);
+    const { count: existingInvoiceLineCount, error: lineCountErr } = await supabase
+      .from("billing_invoice_lines")
+      .select("id", { head: true, count: "exact" })
+      .eq("invoice_id", invoice.id);
+
+    if (lineCountErr) throw new Error(`Invoice lines lookup failed: ${lineCountErr.message}`);
+
+    if (!existingInvoiceLineCount) {
+      await supabase.from("billing_invoice_lines").insert(invoiceLines);
+    }
 
     // Log events
     await supabase.from("quote_events").insert({
