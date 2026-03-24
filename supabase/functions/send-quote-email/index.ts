@@ -1,11 +1,10 @@
 /**
  * send-quote-email — Professional transactional email for quote delivery.
- * Builds Nivra-branded HTML and enqueues via ResendProxy.
+ * Builds Nivra-branded HTML and enqueues via Lovable email pipeline (pgmq).
  */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
-import { enqueueEmail } from "../_shared/ResendProxy.ts";
 import {
   emailDocument, header, contentWrapper, footer, statusBanner,
   sectionHeader, infoRow, button, amountBox, greeting, bodyText, divider,
@@ -14,6 +13,7 @@ import {
 
 interface QuoteEmailRequest {
   quoteId: string;
+  mode?: "quote" | "checkout_link";
 }
 
 serve(async (req) => {
@@ -45,7 +45,7 @@ serve(async (req) => {
       });
     }
 
-    const { quoteId }: QuoteEmailRequest = await req.json();
+    const { quoteId, mode = "quote" }: QuoteEmailRequest = await req.json();
     if (!quoteId) {
       return new Response(JSON.stringify({ error: "quoteId required" }), {
         status: 400,
@@ -56,7 +56,7 @@ serve(async (req) => {
     // Fetch quote
     const { data: quote, error: qErr } = await supabase
       .from("quotes")
-      .select("*")
+      .select("*, checkout_token")
       .eq("id", quoteId)
       .single();
 
@@ -234,27 +234,92 @@ serve(async (req) => {
       ${footer("support@nivra-telecom.ca")}
     `;
 
-    const subject = `Soumission ${quote.quote_number} — Nivra Telecom`;
-    const preheader = `Votre soumission ${quote.quote_number} est prête. Total : ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
+    let finalSubject: string;
+    let finalHtml: string;
+    let label: string;
+    let eventType: string;
 
-    const html = emailDocument(subject, preheader, emailContent);
+    if (mode === "checkout_link") {
+      // Build checkout link email
+      let checkoutToken = quote.checkout_token;
+      if (!checkoutToken) {
+        checkoutToken = crypto.randomUUID();
+        await supabase.from("quotes").update({ checkout_token: checkoutToken }).eq("id", quoteId);
+      }
+      const checkoutUrl = `${appBaseUrl}/quote-checkout?token=${checkoutToken}`;
 
-    // Enqueue email
-    const result = await enqueueEmail({
-      to: recipientEmail,
-      subject,
-      html,
-      templateKey: "custom_html",
-      eventKey: `quote_sent_${quoteId}_${Date.now()}`,
-      entityType: "quote",
-      entityId: quoteId,
-      fromEmail: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      messageType: "transactional",
+      finalSubject = `Finalisez votre commande — Soumission ${quote.quote_number || ""}`;
+      const preheader = `Complétez votre soumission ${quote.quote_number} pour activer vos services.`;
+      
+      const checkoutContent = `
+        ${header()}
+        ${statusBanner("info", "✅", "Soumission acceptée", `Soumission ${escapeHtml(quote.quote_number)}`)}
+        ${contentWrapper(`
+          ${greeting(clientName)}
+          ${bodyText("Votre soumission a été acceptée! Pour compléter votre commande, veuillez remplir le formulaire de finalisation ci-dessous.")}
+          
+          ${sectionHeader("Résumé")}
+          ${amountBox("Total dû maintenant", formatCurrencySimple(Number(quote.total_due_now || 0)))}
+          <div style="margin-top: 12px; padding: 12px 16px; background-color: ${colors.primaryLight}; border-radius: 6px; text-align: center;">
+            <span style="color: ${colors.primary}; font-size: 14px; font-weight: 600;">
+              Mensuel récurrent : ${formatCurrencySimple(Number(quote.total_monthly || 0))} /mois
+            </span>
+          </div>
+          
+          <div style="margin-top: 32px; text-align: center;">
+            ${button("Compléter ma commande", checkoutUrl)}
+            <p style="color: ${colors.textMuted}; font-size: 12px; margin: 12px 0 0 0;">
+              Ou copiez ce lien : <a href="${checkoutUrl}" style="color: ${colors.primary}; word-break: break-all;">${checkoutUrl}</a>
+            </p>
+          </div>
+        `)}
+        ${footer("support@nivra-telecom.ca")}
+      `;
+
+      finalHtml = emailDocument(finalSubject, preheader, checkoutContent);
+      label = "quote_checkout_link";
+      eventType = "checkout_link_sent";
+    } else {
+      // Standard quote email
+      finalSubject = `Soumission ${quote.quote_number} — Nivra Telecom`;
+      const preheader = `Votre soumission ${quote.quote_number} est prête. Total : ${formatCurrencySimple(Number(quote.total_due_now || 0))}`;
+      finalHtml = emailDocument(finalSubject, preheader, emailContent);
+      label = "quote_sent";
+      eventType = "email_sent";
+    }
+
+    // Generate unique message ID for deduplication
+    const messageId = `${label}_${quoteId}_${Date.now()}`;
+
+    // Enqueue via Lovable pgmq pipeline
+    const { error: enqueueError } = await supabase.rpc("enqueue_email", {
+      queue_name: "transactional_emails",
+      msg: {
+        to: recipientEmail,
+        from: `Nivra Telecom <notify@notify.nivra-telecom.ca>`,
+        sender_domain: "notify.nivra-telecom.ca",
+        subject: finalSubject,
+        html: finalHtml,
+        purpose: "transactional",
+        label,
+        idempotency_key: messageId,
+        message_id: messageId,
+        queued_at: new Date().toISOString(),
+      },
     });
 
-    if (!result.success) {
-      throw new Error(result.error || "Failed to enqueue email");
+    if (enqueueError) {
+      console.error("[send-quote-email] Enqueue error:", enqueueError);
+      throw new Error(`Erreur d'envoi: ${enqueueError.message}`);
     }
+
+    // Log pending in email_send_log
+    await supabase.from("email_send_log").insert({
+      message_id: messageId,
+      template_name: label,
+      recipient_email: recipientEmail,
+      status: "pending",
+    });
 
     // Update quote timestamps
     await supabase
@@ -265,14 +330,14 @@ serve(async (req) => {
     // Log event
     await supabase.from("quote_events").insert({
       quote_id: quoteId,
-      event_type: "email_sent",
+      event_type: eventType,
       actor_user_id: user.id,
       actor_role: "staff",
       message: `Courriel envoyé à ${recipientEmail}`,
-      metadata: { recipient: recipientEmail, email_queue_id: result.id },
+      metadata: { recipient: recipientEmail, message_id: messageId },
     });
 
-    console.log(`[send-quote-email] Sent quote ${quote.quote_number} to ${recipientEmail}`);
+    console.log(`[send-quote-email] Enqueued ${label} for ${quote.quote_number} to ${recipientEmail}`);
 
     return new Response(JSON.stringify({ success: true, recipientEmail }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

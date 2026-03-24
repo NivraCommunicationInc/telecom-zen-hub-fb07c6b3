@@ -590,39 +590,15 @@ export async function sendCheckoutLink(quoteId: string, actorUserId: string, act
     throw new Error("Aucun courriel client trouvé pour envoyer le lien de finalisation.");
   }
 
-  // Send real transactional email via email_queue (custom_html passthrough)
-  const emailHtml = buildCheckoutEmailHtml({
-    quoteNumber: quote.quote_number || quoteId,
-    checkoutUrl,
-    totalDueNow: Number(quote.total_due_now || 0),
-    totalMonthly: Number(quote.total_monthly || 0),
+  // Send checkout link email via send-quote-email edge function (pgmq pipeline)
+  const { data: emailData, error: emailErr } = await supabase.functions.invoke("send-quote-email", {
+    body: { quoteId, mode: "checkout_link" },
   });
 
-  const { error: emailErr } = await supabase
-    .from("email_queue" as any)
-    .insert({
-      event_key: `quote_checkout_${quoteId}_${Date.now()}`,
-      to_email: recipientEmail,
-      template_key: "custom_html",
-      template_vars: {
-        _html: emailHtml,
-        _subject: `Finalisez votre commande — Soumission ${quote.quote_number || ""}`,
-        _from_email: "Nivra Télécom <Support@nivra-telecom.ca>",
-        _reply_to: "Support@nivra-telecom.ca",
-      },
-      from_email: "Nivra Télécom <Support@nivra-telecom.ca>",
-      subject: `Finalisez votre commande — Soumission ${quote.quote_number || ""}`,
-      message_type: "quote_checkout_link",
-      entity_type: "quote",
-      entity_id: quoteId,
-      status: "queued",
-      attempts: 0,
-      max_attempts: 5,
-    });
-
-  if (emailErr) {
-    console.error("[sendCheckoutLink] Email queue error:", emailErr);
-    throw new Error(`Erreur d'envoi du courriel: ${emailErr.message}`);
+  if (emailErr || emailData?.error) {
+    const errMsg = emailErr?.message || emailData?.error || "Erreur inconnue";
+    console.error("[sendCheckoutLink] Email error:", errMsg);
+    throw new Error(`Erreur d'envoi du courriel: ${errMsg}`);
   }
 
   await logQuoteEvent(quoteId, "checkout_link_sent", actorUserId, actorRole, `Lien de finalisation envoyé à ${recipientEmail}`);
