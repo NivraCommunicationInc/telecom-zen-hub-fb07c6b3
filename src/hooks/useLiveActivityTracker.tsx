@@ -8,6 +8,7 @@ export type ActivityType =
   | "add_to_cart"
   | "checkout_started"
   | "checkout_step_completed"
+  | "checkout_abandoned"
   | "payment_started"
   | "order_submitted"
   | "order_started"
