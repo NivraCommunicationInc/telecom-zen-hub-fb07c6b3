@@ -40,6 +40,15 @@ export function CoreQuickActions({ proc }: Props) {
   const hasContract = proc.contracts?.length > 0;
 
   const actions: QuickAction[] = [
+    // Edit order
+    {
+      id: "edit_order",
+      label: "Modifier commande",
+      icon: Pencil,
+      variant: "primary",
+      hidden: isTerminal,
+      handler: async () => { setEditOrderOpen(true); },
+    },
     // Payment - show when not paid
     {
       id: "confirm_payment",
