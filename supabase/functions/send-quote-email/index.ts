@@ -56,7 +56,7 @@ serve(async (req) => {
     // Fetch quote
     const { data: quote, error: qErr } = await supabase
       .from("quotes")
-      .select("*")
+      .select("*, checkout_token")
       .eq("id", quoteId)
       .single();
 
