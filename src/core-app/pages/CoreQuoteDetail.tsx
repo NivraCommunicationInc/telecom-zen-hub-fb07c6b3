@@ -162,8 +162,7 @@ export default function CoreQuoteDetail() {
     setProcessing(true);
     try {
       const result = await sendCheckoutLink(quote.id, session.user.id, "admin");
-      navigator.clipboard.writeText(result.checkoutUrl);
-      toast.success("Lien de finalisation copié");
+      toast.success(`Lien de finalisation envoyé à ${result.recipientEmail}`);
       refetchAll();
     } catch (err: any) {
       toast.error(err.message);

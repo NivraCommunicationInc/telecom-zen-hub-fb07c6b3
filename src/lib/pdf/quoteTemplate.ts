@@ -359,12 +359,16 @@ function drawClientNote(doc: jsPDF, margin: number, contentW: number, note: stri
 function drawFooter(doc: jsPDF, W: number, margin: number, contentW: number) {
   const footerY = 265;
 
+  // Light background footer — NO dark navy to keep text readable
+  doc.setFillColor(...C.lightBg);
+  doc.rect(0, footerY - 2, W, 35, "F");
+
   // Footer separator
   doc.setDrawColor(...C.teal);
   doc.setLineWidth(0.5);
   doc.line(margin, footerY, margin + contentW, footerY);
 
-  doc.setTextColor(...C.textMuted);
+  doc.setTextColor(...C.text);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
 
@@ -376,7 +380,7 @@ function drawFooter(doc: jsPDF, W: number, margin: number, contentW: number) {
   doc.setFont("helvetica", "bold");
   doc.text(NIVRA.website, W - margin, footerY + 5, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...C.textMuted);
+  doc.setTextColor(...C.text);
   doc.text(NIVRA.email, W - margin, footerY + 9, { align: "right" });
 
   // Legal disclaimer
