@@ -45,7 +45,7 @@ serve(async (req) => {
       });
     }
 
-    const { quoteId }: QuoteEmailRequest = await req.json();
+    const { quoteId, mode = "quote" }: QuoteEmailRequest = await req.json();
     if (!quoteId) {
       return new Response(JSON.stringify({ error: "quoteId required" }), {
         status: 400,
