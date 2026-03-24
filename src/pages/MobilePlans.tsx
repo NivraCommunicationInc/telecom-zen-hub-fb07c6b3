@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Smartphone, Check, Shield, Zap, ArrowRight, Phone, MessageSquare, Globe, Wifi, CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,8 @@ const MobilePlans = () => {
   const navigate = useNavigate();
   const isFrench = language === 'fr';
   
-  useEffect(() => { trackLiveActivity("plan_view", "Consultation: Forfaits Mobile", { metadata: { category: "mobile" } }); }, []);
+  const planViewTracked = useRef(false);
+  useEffect(() => { if (planViewTracked.current) return; planViewTracked.current = true; trackLiveActivity("plan_view", "Consultation: Forfaits Mobile", { metadata: { category: "mobile" } }); }, []);
 
   // Fetch plans from database
   const { plans, isLoading: isLoadingPlans } = useMobilePlans(isFrench);
