@@ -27,7 +27,8 @@ const TVPlans = () => {
   const [addressValidated, setAddressValidated] = useState(false);
   const [addressError, setAddressError] = useState("");
 
-  useEffect(() => { trackLiveActivity("plan_view", "Consultation: Forfaits TV", { metadata: { category: "tv" } }); }, []);
+  const planViewTracked = useRef(false);
+  useEffect(() => { if (planViewTracked.current) return; planViewTracked.current = true; trackLiveActivity("plan_view", "Consultation: Forfaits TV", { metadata: { category: "tv" } }); }, []);
 
   // Fetch plans from database
   const { standardPlans, gigaPlans, isLoading: isLoadingPlans } = useTVPlans(isFrench);
