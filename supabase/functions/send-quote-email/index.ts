@@ -67,13 +67,15 @@ serve(async (req) => {
       });
     }
 
-    // Determine recipient
+    // Determine recipient — mask PII for anonymous/unreliable identity quotes
     let recipientEmail: string | null = null;
     let clientName = "Client";
+    const isAnonymous = quote.requires_identity_capture === true;
 
     if (quote.is_prospect) {
       recipientEmail = quote.prospect_email;
-      clientName = quote.prospect_name || "Client";
+      // For anonymous quotes, hide name in email greeting
+      clientName = isAnonymous ? "Client" : (quote.prospect_name || "Client");
     } else if (quote.customer_user_id) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -294,7 +296,7 @@ serve(async (req) => {
     // Enqueue via Lovable pgmq pipeline
     const { error: enqueueError } = await supabase.rpc("enqueue_email", {
       queue_name: "transactional_emails",
-      msg: {
+      payload: {
         to: recipientEmail,
         from: `Nivra Telecom <notify@notify.nivra-telecom.ca>`,
         sender_domain: "notify.nivra-telecom.ca",

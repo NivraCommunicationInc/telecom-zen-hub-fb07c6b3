@@ -1,6 +1,7 @@
 /**
  * Public Quote Page — Accessible via token link without login.
  * Clients can view, accept, and be redirected to the quote checkout form.
+ * If requires_identity_capture is true, the client must fill identity fields before accepting.
  */
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -11,10 +12,13 @@ import { NIVRA } from "@/lib/pdf/companyInfo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, Download, FileText, Clock, XCircle, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CheckCircle, Download, FileText, Clock, XCircle, ShieldCheck, ArrowRight, Loader2, User, Phone, Mail, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { validateCanadianPhone, formatCanadianPhone } from "@/components/checkout/CheckoutPhoneField";
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any; canAccept: boolean }> = {
   sent: { label: "En attente de réponse", color: "text-blue-600", icon: Clock, canAccept: true },
@@ -28,9 +32,16 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any; canA
   converted: { label: "Commande confirmée", color: "text-emerald-600", icon: CheckCircle, canAccept: false },
   draft: { label: "Brouillon", color: "text-muted-foreground", icon: FileText, canAccept: false },
   pending_review: { label: "En révision", color: "text-muted-foreground", icon: Clock, canAccept: false },
-  // Legacy fallback
   accepted: { label: "Acceptée", color: "text-emerald-600", icon: CheckCircle, canAccept: false },
 };
+
+interface IdentityForm {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  serviceAddress: string;
+}
 
 export default function PublicQuote() {
   const [searchParams] = useSearchParams();
@@ -43,6 +54,13 @@ export default function PublicQuote() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
+
+  // Identity capture for anonymous quotes
+  const [identityForm, setIdentityForm] = useState<IdentityForm>({
+    firstName: "", lastName: "", phone: "", email: "", serviceAddress: "",
+  });
+  const [identityErrors, setIdentityErrors] = useState<Record<string, string>>({});
+  const [identitySaved, setIdentitySaved] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -79,6 +97,18 @@ export default function PublicQuote() {
         q.status = "viewed";
       }
 
+      // Pre-fill identity form with any existing prospect data
+      if (q.prospect_name) {
+        const parts = (q.prospect_name || "").split(" ");
+        setIdentityForm(prev => ({
+          ...prev,
+          firstName: parts[0] || "",
+          lastName: parts.slice(1).join(" ") || "",
+          email: q.prospect_email || "",
+          phone: q.prospect_phone || "",
+        }));
+      }
+
       setQuote(q);
 
       const { data: l } = await supabase
@@ -102,6 +132,55 @@ export default function PublicQuote() {
     }
   };
 
+  const needsIdentityCapture = quote?.requires_identity_capture && !identitySaved;
+
+  const validateIdentity = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!identityForm.firstName.trim()) errs.firstName = "Requis";
+    if (!identityForm.lastName.trim()) errs.lastName = "Requis";
+    if (!identityForm.email.trim() || !/\S+@\S+\.\S+/.test(identityForm.email)) errs.email = "Courriel invalide";
+    if (!validateCanadianPhone(identityForm.phone)) errs.phone = "Téléphone invalide (10 chiffres)";
+    if (!identityForm.serviceAddress.trim()) errs.serviceAddress = "Requis";
+    setIdentityErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSaveIdentity = async () => {
+    if (!validateIdentity() || !quote) return;
+    try {
+      const fullName = `${identityForm.firstName} ${identityForm.lastName}`.trim();
+      await supabase.from("quotes" as any).update({
+        prospect_name: fullName,
+        prospect_email: identityForm.email,
+        prospect_phone: formatCanadianPhone(identityForm.phone),
+        checkout_data: {
+          ...(quote.checkout_data || {}),
+          identity_captured: true,
+          first_name: identityForm.firstName,
+          last_name: identityForm.lastName,
+          email: identityForm.email,
+          phone: formatCanadianPhone(identityForm.phone),
+          service_address: identityForm.serviceAddress,
+          captured_at: new Date().toISOString(),
+        },
+      }).eq("id", quote.id);
+
+      await supabase.from("quote_events" as any).insert({
+        quote_id: quote.id,
+        event_type: "identity_captured",
+        actor_role: "client",
+        message: `Identité capturée: ${fullName} (${identityForm.email})`,
+        metadata: { name: fullName, email: identityForm.email, phone: formatCanadianPhone(identityForm.phone) },
+      });
+
+      setIdentitySaved(true);
+      setQuote({ ...quote, prospect_name: fullName, prospect_email: identityForm.email, prospect_phone: formatCanadianPhone(identityForm.phone) });
+      toast.success("Vos informations ont été enregistrées.");
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de la sauvegarde");
+    }
+  };
+
   const handleAccept = async () => {
     if (!quote || !token) return;
     setAccepting(true);
@@ -109,7 +188,6 @@ export default function PublicQuote() {
       const { checkoutToken } = await acceptQuoteByClient(quote.id, token);
       setQuote({ ...quote, status: "accepted_pending_checkout", checkout_token: checkoutToken });
       toast.success("Soumission acceptée !");
-      // Redirect to quote checkout form
       navigate(`/quote-checkout?token=${encodeURIComponent(checkoutToken)}`);
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de l'acceptation");
@@ -126,13 +204,12 @@ export default function PublicQuote() {
 
   const handleDownloadPDF = () => {
     if (!quote) return;
+    const showAnonymous = quote.requires_identity_capture && !identitySaved;
     const pdfData: QuotePDFData = {
       quoteNumber: quote.quote_number || "—",
-      clientName: quote.is_prospect
-        ? ((quote.prospect_name?.trim() && quote.prospect_name !== "Prospect") ? quote.prospect_name : "En attente d'identification")
-        : "Client",
-      clientEmail: quote.is_prospect ? quote.prospect_email : undefined,
-      clientPhone: quote.is_prospect ? undefined : undefined, // Don't show phone for unverified prospects
+      clientName: showAnonymous ? "En attente d'identification" : (quote.prospect_name || quote.is_prospect ? (quote.prospect_name || "En attente d'identification") : "Client"),
+      clientEmail: showAnonymous ? undefined : (quote.is_prospect ? quote.prospect_email : undefined),
+      clientPhone: showAnonymous ? undefined : undefined,
       isProspect: quote.is_prospect || false,
       validUntil: quote.valid_until,
       clientNote: quote.client_note,
@@ -191,7 +268,7 @@ export default function PublicQuote() {
   const st = STATUS_MAP[quote.status] || STATUS_MAP.draft;
   const StatusIcon = st.icon;
   const isExpired = quote.valid_until && new Date(quote.valid_until) < new Date() && !["accepted_pending_checkout", "checkout_in_progress", "checkout_completed", "converted"].includes(quote.status);
-  const canAccept = st.canAccept && !isExpired;
+  const canAccept = st.canAccept && !isExpired && !needsIdentityCapture;
   const needsCheckout = ["accepted_pending_checkout", "checkout_in_progress"].includes(quote.status);
 
   const monthlyLines = lines.filter((l: any) => l.billing_frequency === "monthly");
@@ -232,12 +309,86 @@ export default function PublicQuote() {
             </p>
             <p className="text-xs text-muted-foreground">
               {needsCheckout && "Complétez vos informations pour démarrer votre commande."}
-              {quote.valid_until && !isExpired && canAccept && `Valide jusqu'au ${format(new Date(quote.valid_until), "d MMMM yyyy", { locale: fr })}`}
+              {quote.valid_until && !isExpired && st.canAccept && `Valide jusqu'au ${format(new Date(quote.valid_until), "d MMMM yyyy", { locale: fr })}`}
               {isExpired && "Cette soumission n'est plus valide."}
             </p>
           </div>
           <ShieldCheck className="h-5 w-5 text-muted-foreground/30" />
         </div>
+
+        {/* ═══ IDENTITY CAPTURE GATE ═══ */}
+        {needsIdentityCapture && st.canAccept && !isExpired && (
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="h-5 w-5 text-amber-600" />
+                <h3 className="text-base font-bold text-amber-600">Identification requise</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Avant d'accepter cette soumission, veuillez remplir vos informations. Ces données serviront à créer votre dossier client.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Prénom <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={identityForm.firstName}
+                    onChange={e => { setIdentityForm(p => ({ ...p, firstName: e.target.value })); setIdentityErrors(p => ({ ...p, firstName: "" })); }}
+                    placeholder="Prénom"
+                    className={identityErrors.firstName ? "border-destructive" : ""}
+                  />
+                  {identityErrors.firstName && <p className="text-[10px] text-destructive">{identityErrors.firstName}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Nom <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={identityForm.lastName}
+                    onChange={e => { setIdentityForm(p => ({ ...p, lastName: e.target.value })); setIdentityErrors(p => ({ ...p, lastName: "" })); }}
+                    placeholder="Nom"
+                    className={identityErrors.lastName ? "border-destructive" : ""}
+                  />
+                  {identityErrors.lastName && <p className="text-[10px] text-destructive">{identityErrors.lastName}</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium flex items-center gap-1"><Mail className="h-3 w-3" /> Courriel <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="email"
+                    value={identityForm.email}
+                    onChange={e => { setIdentityForm(p => ({ ...p, email: e.target.value })); setIdentityErrors(p => ({ ...p, email: "" })); }}
+                    placeholder="email@exemple.com"
+                    className={identityErrors.email ? "border-destructive" : ""}
+                  />
+                  {identityErrors.email && <p className="text-[10px] text-destructive">{identityErrors.email}</p>}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium flex items-center gap-1"><Phone className="h-3 w-3" /> Téléphone <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={identityForm.phone}
+                    onChange={e => { setIdentityForm(p => ({ ...p, phone: e.target.value })); setIdentityErrors(p => ({ ...p, phone: "" })); }}
+                    placeholder="514-000-0000"
+                    className={identityErrors.phone ? "border-destructive" : ""}
+                  />
+                  {identityErrors.phone && <p className="text-[10px] text-destructive">{identityErrors.phone}</p>}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium flex items-center gap-1"><MapPin className="h-3 w-3" /> Adresse de service <span className="text-destructive">*</span></Label>
+                <Input
+                  value={identityForm.serviceAddress}
+                  onChange={e => { setIdentityForm(p => ({ ...p, serviceAddress: e.target.value })); setIdentityErrors(p => ({ ...p, serviceAddress: "" })); }}
+                  placeholder="123 rue Exemple, Montréal, QC"
+                  className={identityErrors.serviceAddress ? "border-destructive" : ""}
+                />
+                {identityErrors.serviceAddress && <p className="text-[10px] text-destructive">{identityErrors.serviceAddress}</p>}
+              </div>
+              <Button onClick={handleSaveIdentity} className="w-full gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Confirmer mes informations
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Services */}
         <Card>
@@ -327,7 +478,7 @@ export default function PublicQuote() {
           </Card>
         )}
 
-        {/* Accept CTA — only if not yet accepted */}
+        {/* Accept CTA — only if not yet accepted AND identity captured (if required) */}
         {canAccept && (
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6 text-center">
@@ -335,6 +486,21 @@ export default function PublicQuote() {
               <p className="text-sm text-muted-foreground mb-4">
                 Acceptez cette soumission pour compléter vos informations et finaliser votre commande.
               </p>
+              <Button size="lg" onClick={handleAccept} disabled={accepting} className="gap-2">
+                {accepting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                {accepting ? "Traitement..." : "Accepter et continuer"}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Identity saved confirmation — show accept button */}
+        {identitySaved && st.canAccept && !isExpired && (
+          <Card className="border-emerald-500/20 bg-emerald-500/5">
+            <CardContent className="pt-6 text-center space-y-3">
+              <CheckCircle className="h-8 w-8 text-emerald-600 mx-auto" />
+              <p className="text-sm font-medium text-emerald-600">Informations enregistrées</p>
               <Button size="lg" onClick={handleAccept} disabled={accepting} className="gap-2">
                 {accepting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                 {accepting ? "Traitement..." : "Accepter et continuer"}
