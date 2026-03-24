@@ -57,6 +57,7 @@ const TVPlans = () => {
   };
 
   const handleGetStarted = (planId: string) => {
+    trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "tv" } });
     const state = {
       validatedAddress: addressText,
       addressDetails,

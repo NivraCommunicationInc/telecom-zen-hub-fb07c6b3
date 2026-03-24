@@ -121,6 +121,7 @@ function getActivityLabel(type: ActivityType): string {
     add_to_cart: "Ajout au panier",
     checkout_started: "Checkout débuté",
     checkout_step_completed: "Étape checkout complétée",
+    checkout_abandoned: "Checkout abandonné",
     payment_started: "Paiement initié",
     order_submitted: "Commande soumise",
     order_started: "Commande débutée",

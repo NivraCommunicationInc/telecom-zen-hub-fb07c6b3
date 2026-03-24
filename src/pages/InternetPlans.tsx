@@ -53,6 +53,7 @@ const InternetPlans = () => {
   };
 
   const handleGetStarted = (planId: string) => {
+    trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "internet" } });
     navigate(`/commander?plan=${planId}`);
   };
 
