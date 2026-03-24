@@ -13,6 +13,7 @@ import {
 
 interface QuoteEmailRequest {
   quoteId: string;
+  mode?: "quote" | "checkout_link";
 }
 
 serve(async (req) => {
