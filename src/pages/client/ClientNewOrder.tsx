@@ -25,6 +25,7 @@ import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, find
 import { fallbackCheckout } from "@/lib/checkoutFallback";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
+import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { 
