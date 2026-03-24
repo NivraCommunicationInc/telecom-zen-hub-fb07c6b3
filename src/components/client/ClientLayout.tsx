@@ -23,6 +23,7 @@ import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { useOverdueCount } from "@/hooks/useOverdueCount";
 import { portalClient } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
+import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
 import { Badge } from "@/components/ui/badge";
 
 interface ClientLayoutProps {
@@ -83,6 +84,8 @@ const navGroups = [
 ];
 
 const ClientLayout = ({ children }: ClientLayoutProps) => {
+  // Activate live tracking for all client portal pages
+  useLiveActivityTracker();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useClientAuth();

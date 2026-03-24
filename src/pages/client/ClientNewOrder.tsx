@@ -25,6 +25,7 @@ import { fetchNivraProducts, submitNivraCheckout, mapProductTypeToCategory, find
 import { fallbackCheckout } from "@/lib/checkoutFallback";
 import { notifyNivraCorePaid } from "@/lib/nivraCore";
 import { useTransactionTraceability } from "@/hooks/useTransactionTraceability";
+import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { CheckoutProgress } from "@/components/checkout/CheckoutProgress";
 import { SecurityTrustBox } from "@/components/checkout/SecurityTrustBox";
 import { 
@@ -925,6 +926,21 @@ const ClientNewOrder = () => {
     setIsHydrated(true);
     isInitialMount.current = false;
   }, []);
+  // Live activity tracking — track checkout step changes (non-intrusive)
+  useEffect(() => {
+    if (!isHydrated) return;
+    const stepLabels: Record<number, { type: "checkout_started" | "checkout_step_completed" | "payment_started"; label: string }> = {
+      1: { type: "checkout_started", label: "Checkout: Sélection de services" },
+      2: { type: "checkout_step_completed", label: "Checkout: Informations personnelles" },
+      3: { type: "checkout_step_completed", label: "Checkout: Configuration mobile" },
+      4: { type: "checkout_step_completed", label: "Checkout: Vérification" },
+      5: { type: "payment_started", label: "Checkout: Paiement" },
+    };
+    const info = stepLabels[step];
+    if (info) {
+      trackLiveActivity(info.type, info.label, { metadata: { step, userId: user?.id } });
+    }
+  }, [step, isHydrated]);
 
   // Restore appointment hold from localStorage on mount (validates against DB)
   useEffect(() => {
