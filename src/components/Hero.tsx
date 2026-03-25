@@ -68,7 +68,7 @@ const Hero = () => {
               </Button>
               <Button
                 variant="outline"
-                className="rounded-full h-13 px-8 text-base font-bold w-full sm:w-auto border-2"
+                className="rounded-full h-14 px-10 text-base font-bold w-full sm:w-auto border-2 hover:shadow-md transition-all duration-200"
                 asChild
               >
                 <Link to="/commander">
