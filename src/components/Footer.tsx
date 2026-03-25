@@ -152,10 +152,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Legal */}
           <div>
-            <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white">
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-white">
               {isFr ? "Légal" : "Legal"}
             </h4>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               {links.legal.map((link) => (
                 <li key={link.href}>
                   <Link to={link.href} className="text-slate-400 hover:text-white transition-colors text-sm">
