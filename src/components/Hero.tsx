@@ -15,11 +15,11 @@ const Hero = () => {
 
   return (
     <section className="bg-background">
-      <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] py-14 sm:py-18 lg:py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+      <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] py-20 sm:py-24 lg:py-32">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Left — text content */}
           <div className="text-center lg:text-left">
-            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold leading-[1.1] text-foreground mb-4 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-[3rem] font-extrabold leading-[1.08] text-foreground mb-5 tracking-[-0.03em]">
               Internet résidentiel simple et fiable —{" "}
               <span className="text-primary">sans contrat</span>
             </h1>
