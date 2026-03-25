@@ -24,12 +24,12 @@ const Hero = () => {
               <span className="text-primary">sans contrat</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-muted-foreground mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
+            <p className="text-base sm:text-lg text-muted-foreground mb-10 leading-[1.7] max-w-lg mx-auto lg:mx-0">
               Forfaits transparents • Activation rapide • Support local
             </p>
 
             {/* Price block */}
-            <div className="mb-8 inline-flex items-baseline gap-2">
+            <div className="mb-10 inline-flex items-baseline gap-2.5">
               <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">À partir de</span>
               {isLoading || internetPrice === null ? (
                 <Skeleton className="h-12 w-24 rounded-lg" />
