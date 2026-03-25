@@ -49,8 +49,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
     <footer ref={ref} className="bg-slate-900 text-white" data-testid="footer">
       {/* Main Content Grid */}
-      <div className="container mx-auto px-4 sm:px-6 py-10 lg:py-16 max-w-[1320px]">
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+      <div className="container mx-auto px-4 sm:px-6 py-14 lg:py-20 max-w-[1320px]">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14">
           
           {/* Brand — full width on mobile */}
           <div className="col-span-2 lg:col-span-1">
@@ -120,10 +120,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Services */}
           <div>
-            <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white">
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-white">
               Services
             </h4>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               {links.services.map((link) => (
                 <li key={link.href}>
                   <Link to={link.href} className="text-slate-400 hover:text-white transition-colors text-sm">
@@ -136,10 +136,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Support */}
           <div>
-            <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white">
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-white">
               Support
             </h4>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               {links.support.map((link) => (
                 <li key={link.href}>
                   <Link to={link.href} className="text-slate-400 hover:text-white transition-colors text-sm">
@@ -152,10 +152,10 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Legal */}
           <div>
-            <h4 className="font-semibold text-xs uppercase tracking-widest mb-4 text-white">
+            <h4 className="font-semibold text-xs uppercase tracking-widest mb-5 text-white">
               {isFr ? "Légal" : "Legal"}
             </h4>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               {links.legal.map((link) => (
                 <li key={link.href}>
                   <Link to={link.href} className="text-slate-400 hover:text-white transition-colors text-sm">
@@ -169,8 +169,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       </div>
 
       {/* Payment & Security */}
-      <div className="border-t border-white/10">
-        <div className="container mx-auto px-4 sm:px-6 py-5 max-w-[1320px]">
+      <div className="border-t border-white/8">
+        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-[1320px]">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex flex-col items-center sm:items-start gap-2">
               <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">

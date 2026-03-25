@@ -30,7 +30,7 @@ const steps = [
 
 const ReferralProgram = () => {
   return (
-    <section className="py-20 bg-secondary/40 relative overflow-hidden">
+    <section className="py-20 lg:py-28 bg-secondary/30 relative overflow-hidden">
       {/* Subtle decorative elements */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/3 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-500/3 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
@@ -45,8 +45,8 @@ const ReferralProgram = () => {
         </div>
 
         {/* Headline */}
-        <div className="text-center max-w-2xl mx-auto mb-14">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground mb-5 tracking-[-0.025em]">
             Parrainez un proche, recevez <span className="text-emerald-600">25$</span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
@@ -55,10 +55,10 @@ const ReferralProgram = () => {
         </div>
 
         {/* Steps */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-7 mb-16">
           {steps.map((step, i) => (
             <div key={i} className="relative group">
-              <div className="bg-card rounded-2xl border border-border p-7 h-full hover:shadow-lg hover:border-emerald-500/25 transition-all duration-300">
+              <div className="bg-card rounded-2xl border border-border p-8 h-full hover:shadow-elevated hover:border-emerald-500/25 transition-all duration-300">
                 {/* Step number */}
                 <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-md">
                   {i + 1}
@@ -80,7 +80,7 @@ const ReferralProgram = () => {
         </div>
 
         {/* Reward highlight */}
-        <div className="bg-primary rounded-2xl p-8 md:p-12 text-center shadow-xl relative overflow-hidden">
+        <div className="bg-primary rounded-3xl p-10 md:p-14 text-center shadow-xl relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/5 to-transparent" />
           </div>

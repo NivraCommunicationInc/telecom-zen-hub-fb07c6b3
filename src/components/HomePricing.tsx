@@ -55,10 +55,10 @@ const HomePricing = () => {
   if (plans.length === 0) return null;
 
   return (
-    <section id="forfaits" className="py-16 lg:py-20 bg-secondary/40">
+    <section id="forfaits" className="py-20 lg:py-28 bg-secondary/30">
       <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground mb-4 tracking-[-0.025em]">
             Choisissez votre forfait
           </h2>
           <p className="text-muted-foreground text-lg">
@@ -66,15 +66,15 @@ const HomePricing = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 items-stretch mb-6 max-w-[960px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-7 items-stretch mb-8 max-w-[960px] mx-auto">
           {plans.map((plan) => (
             <Link
               key={plan.id}
               to={`/commander?plan=${plan.id}`}
-              className={`group relative bg-card rounded-2xl overflow-hidden transition-all duration-200 block ${
+              className={`group relative bg-card rounded-2xl overflow-hidden transition-all duration-300 block ${
                 plan.recommended
-                  ? "border-2 border-primary shadow-lg md:scale-[1.03] z-10"
-                  : "border border-border hover:border-primary/30 shadow-sm hover:shadow-md"
+                  ? "border-2 border-primary shadow-premium md:scale-[1.03] z-10"
+                  : "border border-border hover:border-primary/30 shadow-card hover:shadow-elevated"
               }`}
             >
               <div className={`h-1 w-full ${plan.recommended ? "bg-primary" : "bg-transparent"}`} />
@@ -88,7 +88,7 @@ const HomePricing = () => {
                 </div>
               )}
 
-              <div className="p-6 lg:p-7 flex flex-col h-full">
+              <div className="p-7 lg:p-8 flex flex-col h-full">
                 <h3 className="text-lg font-bold text-foreground mb-1 pr-20 group-hover:text-primary transition-colors">
                   {plan.name}
                 </h3>
@@ -105,7 +105,7 @@ const HomePricing = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2.5 mb-6 flex-1">
+                <div className="space-y-3 mb-7 flex-1">
                   {plan.features.map((f, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-sm">
                       <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
