@@ -8,22 +8,19 @@ const points = [
 ];
 
 const WhyNivra = () => (
-  <section className="py-24 lg:py-36 bg-secondary/20">
+  <section className="py-20 lg:py-28 bg-secondary/30">
     <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-      <h2 className="text-3xl md:text-[2.75rem] font-bold text-foreground text-center mb-6 tracking-[-0.03em]">
+      <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground text-center mb-14 tracking-[-0.025em]">
         Pourquoi choisir Nivra
       </h2>
-      <p className="text-muted-foreground text-lg text-center mb-16 lg:mb-20 max-w-lg mx-auto">
-        Des avantages concrets pour votre quotidien
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-10 max-w-[960px] mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-7 max-w-[920px] mx-auto">
         {points.map((p) => (
-          <div key={p.title} className="bg-card rounded-3xl p-10 border border-border hover:border-primary/20 hover:shadow-xl transition-all duration-300 group hover:-translate-y-1">
-            <div className="w-14 h-14 rounded-2xl bg-primary/8 flex items-center justify-center mb-6 group-hover:bg-primary/12 transition-colors duration-300">
-              <p.icon className="w-7 h-7 text-primary" />
+          <div key={p.title} className="bg-card rounded-2xl p-8 border border-border hover:border-primary/20 hover:shadow-elevated transition-all duration-300 group">
+            <div className="w-13 h-13 rounded-xl bg-primary/8 flex items-center justify-center mb-5 group-hover:bg-primary/12 transition-colors">
+              <p.icon className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="font-bold text-foreground mb-3 text-lg">{p.title}</h3>
-            <p className="text-muted-foreground leading-relaxed">{p.text}</p>
+            <h3 className="font-bold text-foreground mb-2">{p.title}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{p.text}</p>
           </div>
         ))}
       </div>

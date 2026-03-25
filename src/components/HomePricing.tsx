@@ -40,12 +40,12 @@ const HomePricing = () => {
 
   if (isLoading) {
     return (
-      <section className="py-24 lg:py-32 bg-secondary/30">
+      <section className="py-16 lg:py-20 bg-secondary/30">
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-          <Skeleton className="h-10 w-64 mx-auto mb-4" />
-          <Skeleton className="h-6 w-80 mx-auto mb-14" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[440px] rounded-3xl" />)}
+          <Skeleton className="h-8 w-56 mx-auto mb-3" />
+          <Skeleton className="h-5 w-72 mx-auto mb-10" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[380px] rounded-2xl" />)}
           </div>
         </div>
       </section>
@@ -55,81 +55,81 @@ const HomePricing = () => {
   if (plans.length === 0) return null;
 
   return (
-    <section id="forfaits" className="py-24 lg:py-36 bg-secondary/30">
+    <section id="forfaits" className="py-20 lg:py-28 bg-secondary/30">
       <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-        <div className="text-center mb-16 lg:mb-20">
-          <h2 className="text-3xl md:text-[2.75rem] font-bold text-foreground mb-5 tracking-[-0.03em]">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground mb-4 tracking-[-0.025em]">
             Choisissez votre forfait
           </h2>
-          <p className="text-muted-foreground text-lg max-w-md mx-auto">
+          <p className="text-muted-foreground text-lg">
             Internet illimité, sans contrat
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10 items-stretch mb-10 max-w-[1020px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-7 items-stretch mb-8 max-w-[960px] mx-auto">
           {plans.map((plan) => (
             <Link
               key={plan.id}
               to={`/commander?plan=${plan.id}`}
-              className={`group relative bg-card rounded-3xl overflow-hidden transition-all duration-300 block hover:-translate-y-1 ${
+              className={`group relative bg-card rounded-3xl overflow-hidden transition-all duration-300 block ${
                 plan.recommended
-                  ? "border-2 border-primary shadow-xl md:scale-[1.04] z-10 ring-4 ring-primary/10"
-                  : "border border-border hover:border-primary/30 shadow-md hover:shadow-xl"
+                  ? "border-2 border-primary shadow-lg md:scale-[1.02] z-10"
+                  : "border border-border hover:border-primary/30 shadow-card hover:shadow-elevated"
               }`}
             >
-              <div className={`h-1.5 w-full ${plan.recommended ? "bg-primary" : "bg-transparent"}`} />
+              <div className={`h-1 w-full ${plan.recommended ? "bg-primary" : "bg-transparent"}`} />
 
               {plan.recommended && (
-                <div className="absolute top-5 right-5 z-10">
-                  <div className="flex items-center gap-1.5 bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-full shadow-md">
-                    <Star className="w-3.5 h-3.5 fill-current" />
+                <div className="absolute top-4 right-4 z-10">
+                  <div className="flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full">
+                    <Star className="w-3 h-3 fill-current" />
                     Recommandé
                   </div>
                 </div>
               )}
 
-              <div className="p-8 lg:p-10 flex flex-col h-full">
-                <h3 className="text-xl font-bold text-foreground mb-1.5 pr-24 group-hover:text-primary transition-colors duration-200">
+              <div className="p-7 lg:p-8 flex flex-col h-full">
+                <h3 className="text-lg font-bold text-foreground mb-1 pr-20 group-hover:text-primary transition-colors">
                   {plan.name}
                 </h3>
                 {plan.speed && (
-                  <p className="text-sm text-muted-foreground mb-6 font-medium">{plan.speed}</p>
+                  <p className="text-xs text-muted-foreground mb-5">{plan.speed}</p>
                 )}
 
-                <div className="mb-8">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className={`font-black text-foreground leading-none ${plan.recommended ? "text-6xl" : "text-5xl"}`}>
+                <div className="mb-5">
+                  <div className="flex items-baseline gap-1">
+                    <span className={`font-black text-foreground leading-none ${plan.recommended ? "text-5xl" : "text-4xl"}`}>
                       {plan.price.toFixed(0)}$
                     </span>
-                    <span className="text-muted-foreground text-base font-medium">/mois</span>
+                    <span className="text-muted-foreground text-sm font-medium">/mois</span>
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-8 flex-1">
+                <div className="space-y-3 mb-7 flex-1">
                   {plan.features.map((f, i) => (
-                    <div key={i} className="flex items-start gap-3 text-sm">
+                    <div key={i} className="flex items-start gap-2.5 text-sm">
                       <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                         <Check className="w-3 h-3 text-emerald-600" />
                       </div>
-                      <span className="text-muted-foreground leading-snug">{f}</span>
+                      <span className="text-muted-foreground">{f}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className={`w-full rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-300 ${
+                <div className={`w-full rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-200 ${
                   plan.recommended
-                    ? "h-14 bg-primary text-primary-foreground shadow-md"
-                    : "h-12 bg-secondary text-foreground group-hover:bg-primary group-hover:text-primary-foreground"
+                    ? "h-12 bg-primary text-primary-foreground"
+                    : "h-10 bg-secondary text-foreground group-hover:bg-primary group-hover:text-primary-foreground"
                 }`}>
                   Choisir
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               </div>
             </Link>
           ))}
         </div>
 
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground">
           Taxes en sus • Équipement en option si applicable
         </p>
       </div>
