@@ -81,7 +81,7 @@ const Hero = () => {
 
           {/* Right — lifestyle image */}
           <div className="hidden lg:block">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/3]">
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/3]">
               <img
                 src={heroImage}
                 alt="Famille profitant d'Internet à la maison avec Nivra"

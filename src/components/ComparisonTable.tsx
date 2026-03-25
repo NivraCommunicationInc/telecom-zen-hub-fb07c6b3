@@ -7,12 +7,12 @@ const rows = [
 ];
 
 const ComparisonTable = () => (
-  <section className="py-16 lg:py-20 bg-secondary/40">
+  <section className="py-20 lg:py-28 bg-secondary/30">
     <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-      <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-10">
+      <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground text-center mb-14 tracking-[-0.025em]">
         Une approche plus simple
       </h2>
-      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm max-w-[800px] mx-auto">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-card max-w-[800px] mx-auto">
         <div className="grid grid-cols-3 border-b border-border">
           <div className="p-4" />
           <div className="p-4 text-center font-bold text-primary text-sm border-l border-border bg-primary/5">Nivra</div>

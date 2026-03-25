@@ -8,18 +8,18 @@ const points = [
 ];
 
 const WhyNivra = () => (
-  <section className="py-16 lg:py-20 bg-secondary/40">
+  <section className="py-20 lg:py-28 bg-secondary/30">
     <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-      <h2 className="text-3xl md:text-4xl font-bold text-foreground text-center mb-12">
+      <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground text-center mb-14 tracking-[-0.025em]">
         Pourquoi choisir Nivra
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-[900px] mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-7 max-w-[920px] mx-auto">
         {points.map((p) => (
-          <div key={p.title} className="bg-card rounded-2xl p-7 border border-border hover:border-primary/20 hover:shadow-md transition-all duration-200 group">
-            <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center mb-4 group-hover:bg-primary/12 transition-colors">
+          <div key={p.title} className="bg-card rounded-2xl p-8 border border-border hover:border-primary/20 hover:shadow-elevated transition-all duration-300 group">
+            <div className="w-13 h-13 rounded-xl bg-primary/8 flex items-center justify-center mb-5 group-hover:bg-primary/12 transition-colors">
               <p.icon className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="font-bold text-foreground mb-1.5">{p.title}</h3>
+            <h3 className="font-bold text-foreground mb-2">{p.title}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{p.text}</p>
           </div>
         ))}

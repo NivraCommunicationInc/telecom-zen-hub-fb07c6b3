@@ -169,8 +169,8 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       </div>
 
       {/* Payment & Security */}
-      <div className="border-t border-white/10">
-        <div className="container mx-auto px-4 sm:px-6 py-5 max-w-[1320px]">
+      <div className="border-t border-white/8">
+        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-[1320px]">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex flex-col items-center sm:items-start gap-2">
               <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">

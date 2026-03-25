@@ -105,7 +105,7 @@ const HomePricing = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2.5 mb-6 flex-1">
+                <div className="space-y-3 mb-7 flex-1">
                   {plan.features.map((f, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-sm">
                       <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />

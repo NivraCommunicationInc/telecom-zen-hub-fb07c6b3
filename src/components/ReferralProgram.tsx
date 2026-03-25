@@ -80,7 +80,7 @@ const ReferralProgram = () => {
         </div>
 
         {/* Reward highlight */}
-        <div className="bg-primary rounded-2xl p-8 md:p-12 text-center shadow-xl relative overflow-hidden">
+        <div className="bg-primary rounded-3xl p-10 md:p-14 text-center shadow-xl relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/5 to-transparent" />
           </div>

@@ -21,7 +21,7 @@ const FinalCTA = () => (
           ))}
         </ul>
         <Button
-          className="bg-white text-primary hover:bg-white/90 rounded-full px-10 h-13 text-base font-bold shadow-lg transition-all duration-200"
+          className="bg-white text-primary hover:bg-white/90 rounded-full px-12 h-14 text-base font-bold shadow-lg hover:shadow-xl transition-all duration-200"
           asChild
         >
           <Link to="/commander">
