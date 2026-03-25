@@ -42,7 +42,7 @@ const Hero = () => {
             </div>
 
             {/* Bullet points */}
-            <ul className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-8 justify-center lg:justify-start">
+            <ul className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-10 justify-center lg:justify-start">
               {[
                 "Sans engagement",
                 "Installation rapide",
