@@ -56,9 +56,9 @@ const Hero = () => {
             </ul>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4">
               <Button
-                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-13 px-8 text-base font-bold w-full sm:w-auto shadow-lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-14 px-10 text-base font-bold w-full sm:w-auto shadow-lg hover:shadow-xl transition-all duration-200"
                 asChild
               >
                 <Link to="/#forfaits">
