@@ -88,7 +88,7 @@ const HomePricing = () => {
                 </div>
               )}
 
-              <div className="p-6 lg:p-7 flex flex-col h-full">
+              <div className="p-7 lg:p-8 flex flex-col h-full">
                 <h3 className="text-lg font-bold text-foreground mb-1 pr-20 group-hover:text-primary transition-colors">
                   {plan.name}
                 </h3>
