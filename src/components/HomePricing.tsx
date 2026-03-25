@@ -66,15 +66,15 @@ const HomePricing = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 items-stretch mb-6 max-w-[960px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-7 items-stretch mb-8 max-w-[960px] mx-auto">
           {plans.map((plan) => (
             <Link
               key={plan.id}
               to={`/commander?plan=${plan.id}`}
-              className={`group relative bg-card rounded-2xl overflow-hidden transition-all duration-200 block ${
+              className={`group relative bg-card rounded-2xl overflow-hidden transition-all duration-300 block ${
                 plan.recommended
-                  ? "border-2 border-primary shadow-lg md:scale-[1.03] z-10"
-                  : "border border-border hover:border-primary/30 shadow-sm hover:shadow-md"
+                  ? "border-2 border-primary shadow-premium md:scale-[1.03] z-10"
+                  : "border border-border hover:border-primary/30 shadow-card hover:shadow-elevated"
               }`}
             >
               <div className={`h-1 w-full ${plan.recommended ? "bg-primary" : "bg-transparent"}`} />
