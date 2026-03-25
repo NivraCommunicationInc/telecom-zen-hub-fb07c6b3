@@ -55,10 +55,10 @@ const ReferralProgram = () => {
         </div>
 
         {/* Steps */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-7 mb-16">
           {steps.map((step, i) => (
             <div key={i} className="relative group">
-              <div className="bg-card rounded-2xl border border-border p-7 h-full hover:shadow-lg hover:border-emerald-500/25 transition-all duration-300">
+              <div className="bg-card rounded-2xl border border-border p-8 h-full hover:shadow-elevated hover:border-emerald-500/25 transition-all duration-300">
                 {/* Step number */}
                 <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-md">
                   {i + 1}
