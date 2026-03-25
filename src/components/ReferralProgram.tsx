@@ -30,7 +30,7 @@ const steps = [
 
 const ReferralProgram = () => {
   return (
-    <section className="py-20 bg-secondary/40 relative overflow-hidden">
+    <section className="py-20 lg:py-28 bg-secondary/30 relative overflow-hidden">
       {/* Subtle decorative elements */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/3 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-500/3 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
