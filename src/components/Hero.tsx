@@ -14,48 +14,43 @@ const Hero = () => {
   })();
 
   return (
-    <section className="bg-gradient-to-b from-secondary/40 to-background">
-      <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] py-24 sm:py-32 lg:py-40">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+    <section className="bg-gradient-to-b from-secondary/20 to-background">
+      <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] py-20 sm:py-24 lg:py-32">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Left — text content */}
           <div className="text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/8 border border-primary/15 text-primary text-sm font-semibold mb-8">
-              <Check className="w-3.5 h-3.5" />
-              Sans contrat · Sans surprise
-            </div>
-
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold leading-[1.05] text-foreground mb-6 tracking-[-0.035em]">
+            <h1 className="text-3xl sm:text-4xl lg:text-[3rem] font-extrabold leading-[1.08] text-foreground mb-5 tracking-[-0.03em]">
               Internet résidentiel simple et fiable —{" "}
               <span className="text-primary">sans contrat</span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-muted-foreground mb-12 leading-[1.75] max-w-lg mx-auto lg:mx-0">
+            <p className="text-base sm:text-lg text-muted-foreground mb-10 leading-[1.7] max-w-lg mx-auto lg:mx-0">
               Forfaits transparents • Activation rapide • Support local
             </p>
 
             {/* Price block */}
-            <div className="mb-12 inline-flex items-baseline gap-3 bg-card border border-border rounded-2xl px-8 py-5 shadow-sm">
+            <div className="mb-10 inline-flex items-baseline gap-2.5 bg-card border border-border rounded-2xl px-6 py-4 shadow-sm">
               <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">À partir de</span>
               {isLoading || internetPrice === null ? (
-                <Skeleton className="h-14 w-28 rounded-lg" />
+                <Skeleton className="h-12 w-24 rounded-lg" />
               ) : (
-                <span className="text-6xl sm:text-7xl font-black text-foreground leading-none tracking-tight">
+                <span className="text-5xl sm:text-6xl font-black text-foreground leading-none">
                   {internetPrice}$
                 </span>
               )}
-              <span className="text-lg text-muted-foreground font-medium">/mois</span>
+              <span className="text-base text-muted-foreground font-medium">/mois</span>
             </div>
 
             {/* Bullet points */}
-            <ul className="flex flex-col sm:flex-row gap-4 sm:gap-8 mb-12 justify-center lg:justify-start">
+            <ul className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-10 justify-center lg:justify-start">
               {[
                 "Sans engagement",
                 "Installation rapide",
                 "Support basé au Québec",
               ].map((text) => (
-                <li key={text} className="flex items-center gap-2.5 text-sm text-foreground font-medium">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                <li key={text} className="flex items-center gap-2 text-sm text-foreground font-medium">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-emerald-600" />
                   </div>
                   {text}
                 </li>
@@ -63,9 +58,9 @@ const Hero = () => {
             </ul>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
+            <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4">
               <Button
-                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl h-16 px-12 text-base font-bold w-full sm:w-auto shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl h-14 px-10 text-base font-bold w-full sm:w-auto shadow-md hover:shadow-lg transition-all duration-200"
                 asChild
               >
                 <Link to="/#forfaits">
@@ -75,7 +70,7 @@ const Hero = () => {
               </Button>
               <Button
                 variant="outline"
-                className="rounded-2xl h-16 px-12 text-base font-bold w-full sm:w-auto border-2 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                className="rounded-2xl h-14 px-10 text-base font-bold w-full sm:w-auto border-2 hover:shadow-md transition-all duration-200 bg-card"
                 asChild
               >
                 <Link to="/commander">
@@ -88,7 +83,7 @@ const Hero = () => {
 
           {/* Right — lifestyle image */}
           <div className="hidden lg:block">
-            <div className="relative rounded-[2rem] overflow-hidden shadow-2xl aspect-[4/3] ring-1 ring-border">
+            <div className="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3] ring-1 ring-border bg-card">
               <img
                 src={heroImage}
                 alt="Famille profitant d'Internet à la maison avec Nivra"
@@ -96,7 +91,7 @@ const Hero = () => {
                 loading="eager"
               />
               {/* Subtle overlay gradient for depth */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
             </div>
           </div>
         </div>
