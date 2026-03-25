@@ -55,10 +55,10 @@ const HomePricing = () => {
   if (plans.length === 0) return null;
 
   return (
-    <section id="forfaits" className="py-16 lg:py-20 bg-secondary/40">
+    <section id="forfaits" className="py-20 lg:py-28 bg-secondary/30">
       <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground mb-4 tracking-[-0.025em]">
             Choisissez votre forfait
           </h2>
           <p className="text-muted-foreground text-lg">
