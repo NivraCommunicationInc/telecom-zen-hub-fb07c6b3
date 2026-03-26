@@ -152,9 +152,14 @@ const ClientsPage = () => {
             Répertoire CRM complet · {counts.total} personne{counts.total !== 1 ? "s" : ""}
           </p>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setCsvImportOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-colors">
+            <Upload className="h-3.5 w-3.5" /> Importer CSV
+          </button>
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+          </button>
+        </div>
       </div>
 
       {/* KPI strip */}
