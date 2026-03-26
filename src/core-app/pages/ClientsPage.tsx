@@ -136,26 +136,48 @@ const ClientsPage = () => {
     };
   }, [clients]);
 
-  // Dedup sets: real clients + existing CRM contacts
+  // Normalize phone to 10-digit canonical form for dedup
+  const normPhone = (p: string | null): string | null => {
+    if (!p) return null;
+    let d = p.replace(/\D/g, "");
+    if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+    return d.length === 10 ? d : null;
+  };
+
+  // Dedup sets: real clients + existing CRM contacts (no 1000-row limit)
   const { data: crmContacts } = useQuery({
     queryKey: ["crm-contacts-dedup"],
     queryFn: async () => {
-      const { data } = await supabase.from("crm_contacts" as any).select("email, phone");
-      return (data || []) as Array<{ email: string | null; phone: string | null }>;
+      const all: Array<{ email: string | null; phone: string | null }> = [];
+      let from = 0;
+      const PAGE = 1000;
+      while (true) {
+        const { data } = await supabase
+          .from("crm_contacts" as any)
+          .select("email, phone")
+          .range(from, from + PAGE - 1);
+        if (!data || data.length === 0) break;
+        all.push(...(data as any[]));
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
     },
     staleTime: 2 * 60 * 1000,
     enabled: csvImportOpen,
   });
 
   const existingEmails = useMemo(() => {
-    const set = new Set((clients || []).filter(c => c.email).map(c => c.email!.toLowerCase()));
+    const set = new Set<string>();
+    (clients || []).forEach(c => { if (c.email) set.add(c.email.toLowerCase()); });
     (crmContacts || []).forEach(c => { if (c.email) set.add(c.email.toLowerCase()); });
     return set;
   }, [clients, crmContacts]);
 
   const existingPhones = useMemo(() => {
-    const set = new Set((clients || []).filter(c => c.phone).map(c => c.phone!.replace(/\D/g, "")));
-    (crmContacts || []).forEach(c => { if (c.phone) set.add(c.phone.replace(/\D/g, "")); });
+    const set = new Set<string>();
+    (clients || []).forEach(c => { const n = normPhone(c.phone); if (n) set.add(n); });
+    (crmContacts || []).forEach(c => { const n = normPhone(c.phone); if (n) set.add(n); });
     return set;
   }, [clients, crmContacts]);
 

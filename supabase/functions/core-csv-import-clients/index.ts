@@ -37,17 +37,39 @@ Deno.serve(async (req) => {
     const fileName: string = body.file_name || "unknown.csv";
     if (!clients?.length) return json({ error: "Liste vide" }, 400);
 
-    // Load existing data for dedup: profiles (real clients) + crm_contacts
-    const [{ data: profiles }, { data: crmContacts }] = await Promise.all([
-      admin.from("profiles").select("email, phone"),
-      admin.from("crm_contacts").select("email, phone"),
+    // Load ALL existing data for dedup (paginate past 1000-row limit)
+    const fetchAll = async (table: string) => {
+      const all: any[] = [];
+      let from = 0;
+      const PAGE = 1000;
+      while (true) {
+        const { data } = await admin.from(table).select("email, phone").range(from, from + PAGE - 1);
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    };
+    const [profiles, crmContactsExisting] = await Promise.all([
+      fetchAll("profiles"),
+      fetchAll("crm_contacts"),
     ]);
+
+    // Normalize phone to 10-digit canonical form (same as frontend)
+    const normPhoneForDedup = (p: string | null): string | null => {
+      if (!p) return null;
+      let d = p.replace(/\D/g, "");
+      if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+      return d.length === 10 ? d : null;
+    };
 
     const existingEmails = new Set<string>();
     const existingPhones = new Set<string>();
-    for (const p of [...(profiles || []), ...(crmContacts || [])]) {
+    for (const p of [...profiles, ...crmContactsExisting]) {
       if (p.email) existingEmails.add(p.email.toLowerCase());
-      if (p.phone) existingPhones.add(p.phone.replace(/\D/g, ""));
+      const np = normPhoneForDedup(p.phone);
+      if (np) existingPhones.add(np);
     }
 
     const cleanPhone = (p: string | null): string | null => {
