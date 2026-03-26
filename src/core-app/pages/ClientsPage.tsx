@@ -8,10 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Link, useNavigate } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Search, Users, RefreshCw, UserPlus, ShoppingCart, UserCircle, ExternalLink, Loader2 } from "lucide-react";
+import { Search, Users, RefreshCw, UserPlus, ShoppingCart, UserCircle, ExternalLink, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CsvImportDialog } from "@/core-app/components/clients/CsvImportDialog";
 
 interface ClientRow {
   user_id: string;
