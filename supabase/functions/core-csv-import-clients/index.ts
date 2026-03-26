@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     // Generate a batch ID for this import
     const batchId = crypto.randomUUID();
 
-    const results: Array<{ name: string; status: "imported" | "duplicate" | "invalid" | "failed"; reason?: string }> = [];
+    const results: Array<{ name: string; status: "imported" | "duplicate" | "invalid" | "failed"; reason?: string; rejection_code?: string }> = [];
     let imported = 0, duplicates = 0, invalid = 0, failed = 0;
     const toInsert: Array<Record<string, unknown>> = [];
 
@@ -96,12 +96,16 @@ Deno.serve(async (req) => {
       const email = cleanEmail(client.email);
       const phone = cleanPhone(client.phone);
 
-      if (!email && !phone) { results.push({ name: name || "—", status: "invalid", reason: "Aucun contact valide" }); invalid++; continue; }
-      if (!name || name.length < 2) { results.push({ name: name || "—", status: "invalid", reason: "Nom invalide" }); invalid++; continue; }
+      if (!email && !phone) { results.push({ name: name || "—", status: "invalid", reason: "Aucun contact valide", rejection_code: "invalid_format" }); invalid++; continue; }
+      if (!name || name.length < 2) { results.push({ name: name || "—", status: "invalid", reason: "Nom invalide", rejection_code: "invalid_format" }); invalid++; continue; }
 
       const dupE = email && existingEmails.has(email);
       const dupP = phone && existingPhones.has(phone);
-      if (dupE || dupP) { results.push({ name, status: "duplicate", reason: dupE ? `Courriel existant` : `Téléphone existant` }); duplicates++; continue; }
+      if (dupE || dupP) {
+        results.push({ name, status: "duplicate", reason: dupE ? `Courriel existant: ${email}` : `Téléphone existant: ${phone}`, rejection_code: dupE ? "duplicate_email" : "duplicate_phone" });
+        duplicates++;
+        continue;
+      }
 
       // Track for in-batch dedup
       if (email) existingEmails.add(email);
