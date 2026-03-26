@@ -1,26 +1,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Shield, Lock, AlertCircle, Info, Banknote, Wrench, Mail, Copy, Check as CheckIcon, Gift } from "lucide-react";
+import { Lock, AlertCircle, Banknote, Mail, Copy, Check as CheckIcon, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { ETRANSFER_CONFIG } from "@/config/company";
 
 import PayPalButton from "@/components/payment/PayPalButton";
 import PayPalSubscriptionButton from "@/components/payment/PayPalSubscriptionButton";
-
-interface SavedCard {
-  id: string;
-  card_type: string;
-  last_four: string;
-  expiry_month: number;
-  expiry_year: number;
-  is_default: boolean;
-  is_preauthorized?: boolean;
-}
 
 interface ServiceItem {
   plan_code: string;
@@ -31,23 +20,33 @@ interface ServiceItem {
 
 interface CheckoutPaymentSectionProps {
   isFrench: boolean;
-  savedCards: SavedCard[];
-  selectedPaymentMethod: "saved" | "new" | "etransfer" | "paypal";
-  onPaymentMethodChange: (method: "saved" | "new" | "etransfer" | "paypal") => void;
-  selectedCardId: string;
-  onSelectedCardChange: (cardId: string) => void;
-  cvv: string;
-  onCvvChange: (cvv: string) => void;
-  newCardData: {
+  /** @deprecated Card payments are permanently disabled. This prop is ignored. */
+  savedCards?: any[];
+  selectedPaymentMethod: "etransfer" | "paypal";
+  onPaymentMethodChange: (method: "etransfer" | "paypal") => void;
+  /** @deprecated Card payments disabled */
+  selectedCardId?: string;
+  /** @deprecated Card payments disabled */
+  onSelectedCardChange?: (cardId: string) => void;
+  /** @deprecated Card payments disabled */
+  cvv?: string;
+  /** @deprecated Card payments disabled */
+  onCvvChange?: (cvv: string) => void;
+  /** @deprecated Card payments disabled */
+  newCardData?: {
     cardNumber: string;
     cardName: string;
     expiry: string;
     cvv: string;
   };
-  onNewCardChange: (data: { cardNumber: string; cardName: string; expiry: string; cvv: string }) => void;
-  saveNewCard: boolean;
-  onSaveNewCardChange: (save: boolean) => void;
+  /** @deprecated Card payments disabled */
+  onNewCardChange?: (data: { cardNumber: string; cardName: string; expiry: string; cvv: string }) => void;
+  /** @deprecated Card payments disabled */
+  saveNewCard?: boolean;
+  /** @deprecated Card payments disabled */
+  onSaveNewCardChange?: (save: boolean) => void;
   totalAmount: number;
+  /** @deprecated Card payments disabled */
   cvvError?: string;
   onPayPalSuccess?: (captureId: string) => void;
   // Auto-billing subscription props
@@ -65,19 +64,9 @@ interface CheckoutPaymentSectionProps {
 
 export const CheckoutPaymentSection = ({
   isFrench,
-  savedCards,
   selectedPaymentMethod,
   onPaymentMethodChange,
-  selectedCardId,
-  onSelectedCardChange,
-  cvv,
-  onCvvChange,
-  newCardData,
-  onNewCardChange,
-  saveNewCard,
-  onSaveNewCardChange,
   totalAmount,
-  cvvError,
   onPayPalSuccess,
   enableAutoBilling = false,
   subscriptionServices,
@@ -85,7 +74,6 @@ export const CheckoutPaymentSection = ({
   discountAmount = 5,
 }: CheckoutPaymentSectionProps) => {
   const [copied, setCopied] = useState(false);
-  const hasSavedCards = savedCards && savedCards.length > 0;
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(ETRANSFER_CONFIG.email);
@@ -110,63 +98,9 @@ export const CheckoutPaymentSection = ({
       <CardContent className="space-y-6">
         <RadioGroup 
           value={selectedPaymentMethod} 
-          onValueChange={(v) => onPaymentMethodChange(v as "saved" | "new" | "etransfer" | "paypal")}
+          onValueChange={(v) => onPaymentMethodChange(v as "etransfer" | "paypal")}
         >
-          {/* ── 1. Credit Card (Stripe) — PRIMARY ── */}
-          {/* New Card */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-              selectedPaymentMethod === "new" 
-                ? "border-primary bg-primary/5" 
-                : "border-border hover:border-primary/50"
-            }`}
-            onClick={() => onPaymentMethodChange("new")}
-          >
-            <div className="flex items-start gap-3">
-              <RadioGroupItem value="new" id="payment-new" className="mt-1" />
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="payment-new" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    {isFrench ? "Carte de crédit" : "Credit Card"}
-                  </Label>
-                  <Badge className="bg-emerald-500/20 text-emerald-600 border-0">
-                    {isFrench ? "Recommandé" : "Recommended"}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isFrench 
-                    ? "Visa, Mastercard, Amex — paiement sécurisé via Stripe"
-                    : "Visa, Mastercard, Amex — secure payment via Stripe"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Saved Card */}
-          {hasSavedCards && (
-            <div 
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                selectedPaymentMethod === "saved" 
-                  ? "border-primary bg-primary/5" 
-                  : "border-border hover:border-primary/50"
-              }`}
-              onClick={() => onPaymentMethodChange("saved")}
-            >
-              <div className="flex items-start gap-3">
-                <RadioGroupItem value="saved" id="payment-saved" className="mt-1" />
-                <div className="flex-1">
-                  <Label htmlFor="payment-saved" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    {isFrench ? "Carte enregistrée" : "Saved Card"}
-                    <span className="text-xs text-muted-foreground">({savedCards.length})</span>
-                  </Label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── 2. PayPal ── */}
+          {/* ── 1. PayPal — PRIMARY (Recommended) ── */}
           <div 
             className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
               selectedPaymentMethod === "paypal" 
@@ -187,6 +121,9 @@ export const CheckoutPaymentSection = ({
                     </svg>
                     PayPal
                   </Label>
+                  <Badge className="bg-emerald-500/20 text-emerald-600 border-0">
+                    {isFrench ? "Recommandé" : "Recommended"}
+                  </Badge>
                 </div>
 
                 {selectedPaymentMethod === "paypal" && (
@@ -230,7 +167,7 @@ export const CheckoutPaymentSection = ({
             </div>
           </div>
 
-          {/* ── 3. Interac E-Transfer ── */}
+          {/* ── 2. Interac E-Transfer — SECONDARY ── */}
           <div 
             className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
               selectedPaymentMethod === "etransfer" 
