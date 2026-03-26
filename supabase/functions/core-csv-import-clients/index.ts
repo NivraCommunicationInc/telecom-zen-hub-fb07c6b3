@@ -134,10 +134,10 @@ Deno.serve(async (req) => {
         const { error: insertErr } = await admin.from("crm_contacts").insert(chunk);
         if (insertErr) {
           console.error("Batch insert error:", insertErr);
-          // Mark these as failed
+          const code = insertErr.code === "23505" ? "constraint_violation" : "db_error";
           for (let j = i; j < i + chunk.length; j++) {
             const idx = results.findIndex((r, ri) => ri >= j && r.status === "imported");
-            if (idx >= 0) { results[idx].status = "failed"; results[idx].reason = insertErr.message; imported--; failed++; }
+            if (idx >= 0) { results[idx].status = "failed"; results[idx].reason = insertErr.message; results[idx].rejection_code = code; imported--; failed++; }
           }
         }
       }
