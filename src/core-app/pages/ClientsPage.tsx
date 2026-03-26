@@ -336,6 +336,12 @@ const ClientsPage = () => {
           {(search || filter !== "all") && ` sur ${counts.total}`}
         </p>
       )}
+      <CsvImportDialog
+        open={csvImportOpen}
+        onClose={() => setCsvImportOpen(false)}
+        existingEmails={existingEmails}
+        existingPhones={existingPhones}
+      />
     </div>
   );
 };
