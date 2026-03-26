@@ -37,17 +37,39 @@ Deno.serve(async (req) => {
     const fileName: string = body.file_name || "unknown.csv";
     if (!clients?.length) return json({ error: "Liste vide" }, 400);
 
-    // Load existing data for dedup: profiles (real clients) + crm_contacts
-    const [{ data: profiles }, { data: crmContacts }] = await Promise.all([
-      admin.from("profiles").select("email, phone"),
-      admin.from("crm_contacts").select("email, phone"),
+    // Load ALL existing data for dedup (paginate past 1000-row limit)
+    const fetchAll = async (table: string) => {
+      const all: any[] = [];
+      let from = 0;
+      const PAGE = 1000;
+      while (true) {
+        const { data } = await admin.from(table).select("email, phone").range(from, from + PAGE - 1);
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    };
+    const [profiles, crmContactsExisting] = await Promise.all([
+      fetchAll("profiles"),
+      fetchAll("crm_contacts"),
     ]);
+
+    // Normalize phone to 10-digit canonical form (same as frontend)
+    const normPhoneForDedup = (p: string | null): string | null => {
+      if (!p) return null;
+      let d = p.replace(/\D/g, "");
+      if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+      return d.length === 10 ? d : null;
+    };
 
     const existingEmails = new Set<string>();
     const existingPhones = new Set<string>();
-    for (const p of [...(profiles || []), ...(crmContacts || [])]) {
+    for (const p of [...profiles, ...crmContactsExisting]) {
       if (p.email) existingEmails.add(p.email.toLowerCase());
-      if (p.phone) existingPhones.add(p.phone.replace(/\D/g, ""));
+      const np = normPhoneForDedup(p.phone);
+      if (np) existingPhones.add(np);
     }
 
     const cleanPhone = (p: string | null): string | null => {
@@ -65,7 +87,7 @@ Deno.serve(async (req) => {
     // Generate a batch ID for this import
     const batchId = crypto.randomUUID();
 
-    const results: Array<{ name: string; status: "imported" | "duplicate" | "invalid" | "failed"; reason?: string }> = [];
+    const results: Array<{ name: string; status: "imported" | "duplicate" | "invalid" | "failed"; reason?: string; rejection_code?: string }> = [];
     let imported = 0, duplicates = 0, invalid = 0, failed = 0;
     const toInsert: Array<Record<string, unknown>> = [];
 
@@ -74,12 +96,16 @@ Deno.serve(async (req) => {
       const email = cleanEmail(client.email);
       const phone = cleanPhone(client.phone);
 
-      if (!email && !phone) { results.push({ name: name || "—", status: "invalid", reason: "Aucun contact valide" }); invalid++; continue; }
-      if (!name || name.length < 2) { results.push({ name: name || "—", status: "invalid", reason: "Nom invalide" }); invalid++; continue; }
+      if (!email && !phone) { results.push({ name: name || "—", status: "invalid", reason: "Aucun contact valide", rejection_code: "invalid_format" }); invalid++; continue; }
+      if (!name || name.length < 2) { results.push({ name: name || "—", status: "invalid", reason: "Nom invalide", rejection_code: "invalid_format" }); invalid++; continue; }
 
       const dupE = email && existingEmails.has(email);
       const dupP = phone && existingPhones.has(phone);
-      if (dupE || dupP) { results.push({ name, status: "duplicate", reason: dupE ? `Courriel existant` : `Téléphone existant` }); duplicates++; continue; }
+      if (dupE || dupP) {
+        results.push({ name, status: "duplicate", reason: dupE ? `Courriel existant: ${email}` : `Téléphone existant: ${phone}`, rejection_code: dupE ? "duplicate_email" : "duplicate_phone" });
+        duplicates++;
+        continue;
+      }
 
       // Track for in-batch dedup
       if (email) existingEmails.add(email);
@@ -108,10 +134,10 @@ Deno.serve(async (req) => {
         const { error: insertErr } = await admin.from("crm_contacts").insert(chunk);
         if (insertErr) {
           console.error("Batch insert error:", insertErr);
-          // Mark these as failed
+          const code = insertErr.code === "23505" ? "constraint_violation" : "db_error";
           for (let j = i; j < i + chunk.length; j++) {
             const idx = results.findIndex((r, ri) => ri >= j && r.status === "imported");
-            if (idx >= 0) { results[idx].status = "failed"; results[idx].reason = insertErr.message; imported--; failed++; }
+            if (idx >= 0) { results[idx].status = "failed"; results[idx].reason = insertErr.message; results[idx].rejection_code = code; imported--; failed++; }
           }
         }
       }

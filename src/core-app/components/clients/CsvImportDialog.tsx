@@ -177,6 +177,10 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
 
   const processRawRows = useCallback(
     (rawRows: Record<string, string>[]) => {
+      // Clone dedup sets so we can track in-batch duplicates
+      const seenEmails = new Set(existingEmails);
+      const seenPhones = new Set(existingPhones);
+
       const parsed: ParsedRow[] = rawRows.map((raw) => {
         const r = mapColumns(raw);
 
@@ -216,8 +220,25 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
           };
         }
 
-        const dupEmail = cleanedEmail && existingEmails.has(cleanedEmail);
-        const dupPhone = cleanedPhone && existingPhones.has(cleanedPhone);
+        const dupEmail = cleanedEmail && seenEmails.has(cleanedEmail);
+        const dupPhone = cleanedPhone && seenPhones.has(cleanedPhone);
+
+        if (dupEmail || dupPhone) {
+          return {
+            name: name.trim(),
+            first_name: firstName || undefined,
+            last_name: lastName || undefined,
+            email: cleanedEmail,
+            phone: cleanedPhone,
+            _valid: false,
+            _duplicate: true,
+            _reason: dupEmail ? "Courriel déjà existant" : "Téléphone déjà existant",
+          };
+        }
+
+        // Track for in-batch dedup
+        if (cleanedEmail) seenEmails.add(cleanedEmail);
+        if (cleanedPhone) seenPhones.add(cleanedPhone);
 
         return {
           name: name.trim(),
@@ -230,13 +251,8 @@ export function CsvImportDialog({ open, onClose, existingEmails, existingPhones 
           city: r.city || undefined,
           province: r.province || undefined,
           postal_code: r.postal_code || undefined,
-          _valid: !dupEmail && !dupPhone,
-          _duplicate: !!(dupEmail || dupPhone),
-          _reason: dupEmail
-            ? "Courriel déjà existant"
-            : dupPhone
-              ? "Téléphone déjà existant"
-              : undefined,
+          _valid: true,
+          _duplicate: false,
         };
       });
 
