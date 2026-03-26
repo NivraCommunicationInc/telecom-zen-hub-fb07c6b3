@@ -136,8 +136,28 @@ const ClientsPage = () => {
     };
   }, [clients]);
 
-  const existingEmails = useMemo(() => new Set((clients || []).filter(c => c.email).map(c => c.email!.toLowerCase())), [clients]);
-  const existingPhones = useMemo(() => new Set((clients || []).filter(c => c.phone).map(c => c.phone!.replace(/\D/g, ""))), [clients]);
+  // Dedup sets: real clients + existing CRM contacts
+  const { data: crmContacts } = useQuery({
+    queryKey: ["crm-contacts-dedup"],
+    queryFn: async () => {
+      const { data } = await supabase.from("crm_contacts" as any).select("email, phone");
+      return (data || []) as Array<{ email: string | null; phone: string | null }>;
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: csvImportOpen,
+  });
+
+  const existingEmails = useMemo(() => {
+    const set = new Set((clients || []).filter(c => c.email).map(c => c.email!.toLowerCase()));
+    (crmContacts || []).forEach(c => { if (c.email) set.add(c.email.toLowerCase()); });
+    return set;
+  }, [clients, crmContacts]);
+
+  const existingPhones = useMemo(() => {
+    const set = new Set((clients || []).filter(c => c.phone).map(c => c.phone!.replace(/\D/g, "")));
+    (crmContacts || []).forEach(c => { if (c.phone) set.add(c.phone.replace(/\D/g, "")); });
+    return set;
+  }, [clients, crmContacts]);
 
   const getDisplayName = (c: ClientRow) =>
     c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "—";

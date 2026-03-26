@@ -3423,6 +3423,63 @@ export type Database = {
           },
         ]
       }
+      crm_contacts: {
+        Row: {
+          converted_at: string | null
+          converted_to_user_id: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          full_name: string
+          id: string
+          import_batch_id: string | null
+          imported_by: string | null
+          last_name: string | null
+          notes: string | null
+          phone: string | null
+          source: string
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          converted_at?: string | null
+          converted_to_user_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          full_name: string
+          id?: string
+          import_batch_id?: string | null
+          imported_by?: string | null
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          converted_at?: string | null
+          converted_to_user_id?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          full_name?: string
+          id?: string
+          import_batch_id?: string | null
+          imported_by?: string | null
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crypto_ipn_logs: {
         Row: {
           created_at: string
@@ -3578,6 +3635,7 @@ export type Database = {
           imported_by: string
           imported_count: number
           invalid_count: number
+          target_table: string
           total_rows: number
         }
         Insert: {
@@ -3590,6 +3648,7 @@ export type Database = {
           imported_by: string
           imported_count?: number
           invalid_count?: number
+          target_table?: string
           total_rows?: number
         }
         Update: {
@@ -3602,6 +3661,7 @@ export type Database = {
           imported_by?: string
           imported_count?: number
           invalid_count?: number
+          target_table?: string
           total_rows?: number
         }
         Relationships: []
