@@ -32,6 +32,7 @@ const ClientsPage = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "with_account" | "without_account">("all");
   const [creatingAccountFor, setCreatingAccountFor] = useState<string | null>(null);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
 
   const { data: clients, isLoading, refetch } = useQuery<ClientRow[]>({
     queryKey: ["core-clients-all"],
