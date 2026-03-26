@@ -3567,6 +3567,45 @@ export type Database = {
           },
         ]
       }
+      csv_import_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          duplicate_count: number
+          failed_count: number
+          file_name: string
+          id: string
+          imported_by: string
+          imported_count: number
+          invalid_count: number
+          total_rows: number
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          duplicate_count?: number
+          failed_count?: number
+          file_name: string
+          id?: string
+          imported_by: string
+          imported_count?: number
+          invalid_count?: number
+          total_rows?: number
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          duplicate_count?: number
+          failed_count?: number
+          file_name?: string
+          id?: string
+          imported_by?: string
+          imported_count?: number
+          invalid_count?: number
+          total_rows?: number
+        }
+        Relationships: []
+      }
       customer_access_sessions: {
         Row: {
           created_at: string

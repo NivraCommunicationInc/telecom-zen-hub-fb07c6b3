@@ -8,10 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { Link, useNavigate } from "react-router-dom";
 import { corePath } from "@/core-app/lib/corePaths";
-import { Search, Users, RefreshCw, UserPlus, ShoppingCart, UserCircle, ExternalLink, Loader2 } from "lucide-react";
+import { Search, Users, RefreshCw, UserPlus, ShoppingCart, UserCircle, ExternalLink, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CsvImportDialog } from "@/core-app/components/clients/CsvImportDialog";
 
 interface ClientRow {
   user_id: string;
@@ -31,6 +32,7 @@ const ClientsPage = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "with_account" | "without_account">("all");
   const [creatingAccountFor, setCreatingAccountFor] = useState<string | null>(null);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
 
   const { data: clients, isLoading, refetch } = useQuery<ClientRow[]>({
     queryKey: ["core-clients-all"],
@@ -134,6 +136,9 @@ const ClientsPage = () => {
     };
   }, [clients]);
 
+  const existingEmails = useMemo(() => new Set((clients || []).filter(c => c.email).map(c => c.email!.toLowerCase())), [clients]);
+  const existingPhones = useMemo(() => new Set((clients || []).filter(c => c.phone).map(c => c.phone!.replace(/\D/g, ""))), [clients]);
+
   const getDisplayName = (c: ClientRow) =>
     c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "—";
 
@@ -147,9 +152,14 @@ const ClientsPage = () => {
             Répertoire CRM complet · {counts.total} personne{counts.total !== 1 ? "s" : ""}
           </p>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setCsvImportOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-colors">
+            <Upload className="h-3.5 w-3.5" /> Importer CSV
+          </button>
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+          </button>
+        </div>
       </div>
 
       {/* KPI strip */}
@@ -326,6 +336,12 @@ const ClientsPage = () => {
           {(search || filter !== "all") && ` sur ${counts.total}`}
         </p>
       )}
+      <CsvImportDialog
+        open={csvImportOpen}
+        onClose={() => setCsvImportOpen(false)}
+        existingEmails={existingEmails}
+        existingPhones={existingPhones}
+      />
     </div>
   );
 };
