@@ -136,6 +136,9 @@ const ClientsPage = () => {
     };
   }, [clients]);
 
+  const existingEmails = useMemo(() => new Set((clients || []).filter(c => c.email).map(c => c.email!.toLowerCase())), [clients]);
+  const existingPhones = useMemo(() => new Set((clients || []).filter(c => c.phone).map(c => c.phone!.replace(/\D/g, ""))), [clients]);
+
   const getDisplayName = (c: ClientRow) =>
     c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "—";
 
