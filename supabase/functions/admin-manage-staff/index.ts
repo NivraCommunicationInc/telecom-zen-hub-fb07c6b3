@@ -1011,18 +1011,10 @@ serve(async (req: Request) => {
 
               const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
               const staffLoginLink = `${appBaseUrl}/staff`;
-              const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
-              if (!resendApiKey) {
-                throw new Error("RESEND_API_KEY manquant");
-              }
-
-              const resend = new Resend(resendApiKey);
-              await resend.emails.send({
-                from: "Nivra Telecom <support@nivra-telecom.ca>",
-                reply_to: "support@nivra-telecom.ca",
-                to: [email],
+              await sendStaffEmail(adminClient, {
+                to: email,
                 subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
+                idempotencyKey: `staff_invite_${userId}_${Date.now()}`,
                 html: `
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
