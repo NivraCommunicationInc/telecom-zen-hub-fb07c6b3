@@ -1973,12 +1973,10 @@ serve(async (req: Request) => {
         const loginPath = targetRole === "employee" ? "/employee/login" : "/technician/auth";
         const loginLink = `${appBaseUrl}${loginPath}`;
         
-        const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-        await resend.emails.send({
-          from: "Nivra Telecom <support@nivra-telecom.ca>",
-          reply_to: "support@nivra-telecom.ca",
-          to: [normalizedEmail],
+        await sendStaffEmail(adminClient, {
+          to: normalizedEmail,
           subject: "Configuration de votre PIN - Nivra",
+          idempotencyKey: `staff_pin_setup_${profile.user_id}_${Date.now()}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
