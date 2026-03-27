@@ -1255,15 +1255,6 @@ serve(async (req: Request) => {
         }
 
         if (shouldSendEmail) {
-          const resendApiKey = Deno.env.get("RESEND_API_KEY");
-          if (!resendApiKey) {
-            return json(500, {
-              ok: false,
-              request_id: requestId,
-              message: "Configuration email manquante",
-            });
-          }
-
           const appBaseUrl = getAppBaseUrl();
           const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
           const displayName =
@@ -1284,12 +1275,10 @@ serve(async (req: Request) => {
             kyc_agent: "Agent KYC",
           };
 
-          const resend = new Resend(resendApiKey);
-          await resend.emails.send({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            reply_to: "support@nivra-telecom.ca",
-            to: [targetEmail],
+          await sendStaffEmail(adminClient, {
+            to: targetEmail,
             subject: "Invitation interne Nivra — Activez votre compte",
+            idempotencyKey: `staff_invite_${user_id}_${Date.now()}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background:#0f172a;padding:24px;text-align:center;">
