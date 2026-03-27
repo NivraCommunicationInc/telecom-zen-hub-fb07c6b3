@@ -1826,12 +1826,10 @@ serve(async (req: Request) => {
 
           const resetLink = linkData.properties.action_link;
 
-          const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-          const resendResult = await resend.emails.send({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            reply_to: "support@nivra-telecom.ca",
-            to: [email],
+          await sendStaffEmail(adminClient, {
+            to: email,
             subject: "Réinitialisation de votre mot de passe - Nivra",
+            idempotencyKey: `staff_reset_admin_${email}_${Date.now()}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
@@ -1850,7 +1848,7 @@ serve(async (req: Request) => {
             `,
           });
 
-          console.log("[admin-manage-staff] send_reset resendResult:", resendResult);
+          console.log("[admin-manage-staff] send_reset email enqueued to pgmq");
 
           await logAction(
             "staff_password_reset_sent",
