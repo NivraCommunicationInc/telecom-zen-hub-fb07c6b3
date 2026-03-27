@@ -1,8 +1,46 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Resend } from "../_shared/ResendProxy.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+
+const SENDER_DOMAIN = "notify.nivra-telecom.ca";
+const FROM_ADDRESS = "Nivra Telecom <noreply@nivra-telecom.ca>";
+
+/**
+ * Send email via pgmq transactional queue (replaces dead ResendProxy/email_queue table).
+ * Emails are picked up by process-email-queue cron worker and sent via Lovable Email API.
+ */
+async function sendStaffEmail(
+  adminClient: ReturnType<typeof createClient>,
+  params: { to: string; subject: string; html: string; replyTo?: string; idempotencyKey?: string }
+): Promise<void> {
+  const messageId = params.idempotencyKey || `staff_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const payload = {
+    to: params.to,
+    from: FROM_ADDRESS,
+    sender_domain: SENDER_DOMAIN,
+    subject: params.subject,
+    html: params.html,
+    text: params.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+    purpose: "transactional",
+    label: "staff_email",
+    message_id: messageId,
+    queued_at: new Date().toISOString(),
+    idempotency_key: messageId,
+  };
+
+  const { error } = await adminClient.rpc("enqueue_email", {
+    queue_name: "transactional_emails",
+    payload,
+  });
+
+  if (error) {
+    console.error("[admin-manage-staff] enqueue_email error:", error);
+    throw new Error(`Email enqueue failed: ${error.message}`);
+  }
+
+  console.log(`[admin-manage-staff] Email enqueued to pgmq: to=${params.to} subject="${params.subject}" msg_id=${messageId}`);
+}
 
 type StaffRole =
   | "admin"
