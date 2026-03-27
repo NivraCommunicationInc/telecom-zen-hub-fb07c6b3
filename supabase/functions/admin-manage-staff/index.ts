@@ -1,8 +1,46 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Resend } from "../_shared/ResendProxy.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+
+const SENDER_DOMAIN = "notify.nivra-telecom.ca";
+const FROM_ADDRESS = "Nivra Telecom <noreply@nivra-telecom.ca>";
+
+/**
+ * Send email via pgmq transactional queue (replaces dead ResendProxy/email_queue table).
+ * Emails are picked up by process-email-queue cron worker and sent via Lovable Email API.
+ */
+async function sendStaffEmail(
+  adminClient: ReturnType<typeof createClient>,
+  params: { to: string; subject: string; html: string; replyTo?: string; idempotencyKey?: string }
+): Promise<void> {
+  const messageId = params.idempotencyKey || `staff_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const payload = {
+    to: params.to,
+    from: FROM_ADDRESS,
+    sender_domain: SENDER_DOMAIN,
+    subject: params.subject,
+    html: params.html,
+    text: params.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+    purpose: "transactional",
+    label: "staff_email",
+    message_id: messageId,
+    queued_at: new Date().toISOString(),
+    idempotency_key: messageId,
+  };
+
+  const { error } = await adminClient.rpc("enqueue_email", {
+    queue_name: "transactional_emails",
+    payload,
+  });
+
+  if (error) {
+    console.error("[admin-manage-staff] enqueue_email error:", error);
+    throw new Error(`Email enqueue failed: ${error.message}`);
+  }
+
+  console.log(`[admin-manage-staff] Email enqueued to pgmq: to=${params.to} subject="${params.subject}" msg_id=${messageId}`);
+}
 
 type StaffRole =
   | "admin"
@@ -973,18 +1011,10 @@ serve(async (req: Request) => {
 
               const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
               const staffLoginLink = `${appBaseUrl}/staff`;
-              const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
-              if (!resendApiKey) {
-                throw new Error("RESEND_API_KEY manquant");
-              }
-
-              const resend = new Resend(resendApiKey);
-              await resend.emails.send({
-                from: "Nivra Telecom <support@nivra-telecom.ca>",
-                reply_to: "support@nivra-telecom.ca",
-                to: [email],
+              await sendStaffEmail(adminClient, {
+                to: email,
                 subject: `Bienvenue chez Nivra - Configurez votre profil ${role === "employee" ? "employé" : "technicien"}`,
+                idempotencyKey: `staff_invite_${userId}_${Date.now()}`,
                 html: `
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
@@ -1225,15 +1255,6 @@ serve(async (req: Request) => {
         }
 
         if (shouldSendEmail) {
-          const resendApiKey = Deno.env.get("RESEND_API_KEY");
-          if (!resendApiKey) {
-            return json(500, {
-              ok: false,
-              request_id: requestId,
-              message: "Configuration email manquante",
-            });
-          }
-
           const appBaseUrl = getAppBaseUrl();
           const setupLink = `${appBaseUrl}/staff/setup?token=${token}`;
           const displayName =
@@ -1254,12 +1275,10 @@ serve(async (req: Request) => {
             kyc_agent: "Agent KYC",
           };
 
-          const resend = new Resend(resendApiKey);
-          await resend.emails.send({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            reply_to: "support@nivra-telecom.ca",
-            to: [targetEmail],
+          await sendStaffEmail(adminClient, {
+            to: targetEmail,
             subject: "Invitation interne Nivra — Activez votre compte",
+            idempotencyKey: `staff_invite_${user_id}_${Date.now()}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background:#0f172a;padding:24px;text-align:center;">
@@ -1624,7 +1643,6 @@ serve(async (req: Request) => {
         const missingSecrets = [
           ...(isMissingSecret("SUPABASE_URL") ? ["SUPABASE_URL"] : []),
           ...(isMissingSecret("SUPABASE_SERVICE_ROLE_KEY") ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
-          ...(isMissingSecret("RESEND_API_KEY") ? ["RESEND_API_KEY"] : []),
           ...(isMissingSecret("APP_BASE_URL") ? ["APP_BASE_URL"] : []),
         ];
 
@@ -1718,12 +1736,10 @@ serve(async (req: Request) => {
           const loginPath = targetRole === "employee" ? "/employee/login" : "/technician/auth";
           const loginLink = `${appBaseUrl}${loginPath}`;
           
-          const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-          await resend.emails.send({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            reply_to: "support@nivra-telecom.ca",
-            to: [normalizedTargetEmail],
+          await sendStaffEmail(adminClient, {
+            to: normalizedTargetEmail,
             subject: "Configuration de votre PIN - Nivra",
+            idempotencyKey: `staff_pin_invite_${targetProfile.user_id}_${Date.now()}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
@@ -1799,12 +1815,10 @@ serve(async (req: Request) => {
 
           const resetLink = linkData.properties.action_link;
 
-          const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-          const resendResult = await resend.emails.send({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            reply_to: "support@nivra-telecom.ca",
-            to: [email],
+          await sendStaffEmail(adminClient, {
+            to: email,
             subject: "Réinitialisation de votre mot de passe - Nivra",
+            idempotencyKey: `staff_reset_admin_${email}_${Date.now()}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
@@ -1823,7 +1837,7 @@ serve(async (req: Request) => {
             `,
           });
 
-          console.log("[admin-manage-staff] send_reset resendResult:", resendResult);
+          console.log("[admin-manage-staff] send_reset email enqueued to pgmq");
 
           await logAction(
             "staff_password_reset_sent",
@@ -1948,12 +1962,10 @@ serve(async (req: Request) => {
         const loginPath = targetRole === "employee" ? "/employee/login" : "/technician/auth";
         const loginLink = `${appBaseUrl}${loginPath}`;
         
-        const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-        await resend.emails.send({
-          from: "Nivra Telecom <support@nivra-telecom.ca>",
-          reply_to: "support@nivra-telecom.ca",
-          to: [normalizedEmail],
+        await sendStaffEmail(adminClient, {
+          to: normalizedEmail,
           subject: "Configuration de votre PIN - Nivra",
+          idempotencyKey: `staff_pin_setup_${profile.user_id}_${Date.now()}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
@@ -3129,12 +3141,10 @@ serve(async (req: Request) => {
           const loginLink = joinUrl(appBaseUrl, loginPath);
           const portalName = targetRole === "admin" ? "Administrateur" : targetRole === "employee" ? "Employé" : "Technicien";
 
-          const resend = new Resend(Deno.env.get("RESEND_API_KEY") as string);
-          await resend.emails.send({
-            from: "Nivra Telecom <support@nivra-telecom.ca>",
-            reply_to: "support@nivra-telecom.ca",
-            to: [normalizedEmail],
+          await sendStaffEmail(adminClient, {
+            to: normalizedEmail,
             subject: "Réinitialisation de votre mot de passe - Nivra",
+            idempotencyKey: `staff_reset_${profile.user_id}_${Date.now()}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: linear-gradient(135deg, #0891b2, #06b6d4); padding: 30px; text-align: center;">
