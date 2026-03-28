@@ -68,11 +68,11 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
       const { data, error } = await supabase
         .from("employment_letters")
         .insert({
-          employee_id: selectedAgent,
+          user_id: selectedAgent,
           letter_type: letterType,
           status: "draft",
           notes,
-          generated_by: (await supabase.auth.getUser()).data.user?.id || "",
+          created_by: (await supabase.auth.getUser()).data.user?.id || "",
         })
         .select()
         .single();
