@@ -438,11 +438,20 @@ export default function FieldMyPay() {
                   <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
                 </div>
                 {td.notes && <p className="text-xs text-muted-foreground">{td.notes}</p>}
-                {td.status === "sent" && (
-                  <Button size="sm" variant="outline" onClick={() => acknowledgeTaxDoc.mutate(td.id)}>
-                    <Check className="h-3 w-3 mr-1" /> Confirmer réception
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {td.pdf_url && (
+                    <Button size="sm" variant="outline" className="text-blue-600 border-blue-200" onClick={async () => {
+                      const { data } = await supabase.storage.from("payslips").createSignedUrl(td.pdf_url, 3600);
+                      if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                      else toast.error("Impossible d'ouvrir le document");
+                    }}><Download className="h-3 w-3 mr-1" /> Télécharger PDF</Button>
+                  )}
+                  {td.status === "sent" && (
+                    <Button size="sm" variant="outline" onClick={() => acknowledgeTaxDoc.mutate(td.id)}>
+                      <Check className="h-3 w-3 mr-1" /> Confirmer réception
+                    </Button>
+                  )}
+                </div>
               </div>
             );
           })}

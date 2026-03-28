@@ -367,8 +367,20 @@ export default function CoreFieldAgentsPage() {
     onSuccess: () => { invalidateAll(); toast.success("Paie approuvée"); },
   });
   const markPayrollPaid = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("payroll_entries").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée"); },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("payroll_entries").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      // Auto-generate PDF
+      try {
+        await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: id } });
+      } catch (e) { console.error("PDF auto-gen failed:", e); }
+      // Notify employee
+      const entry = payrollEntries.find((pe: any) => pe.id === id);
+      if (entry) {
+        await supabase.from("staff_notifications").insert({ user_id: entry.user_id, title: "Paie versée", message: `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`, type: "payroll_paid" as any, priority: "high" } as any).single();
+      }
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
   });
 
   // Auto-aggregate payroll for a period
@@ -829,6 +841,22 @@ export default function CoreFieldAgentsPage() {
                           <Zap className="h-3 w-3 mr-1" /> Auto-générer fiches
                         </Button>
                       )}
+                      {(pp.status === "closed" || pp.status === "paid") && (
+                        <Button size="sm" variant="outline" className="text-blue-600" onClick={async () => {
+                          const entries = payrollEntries.filter((pe: any) => pe.pay_period_id === pp.id);
+                          if (!entries.length) { toast.error("Aucune fiche pour cette période"); return; }
+                          toast.info(`Génération batch: ${entries.length} PDF(s)…`);
+                          let ok = 0;
+                          for (const pe of entries) {
+                            try {
+                              const { error } = await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: pe.id } });
+                              if (!error) ok++;
+                            } catch {}
+                          }
+                          toast.success(`${ok}/${entries.length} PDF(s) générés`);
+                          invalidateAll();
+                        }}><Download className="h-3 w-3 mr-1" /> Batch PDF</Button>
+                      )}
                       {pp.status === "open" && <Button size="sm" variant="outline" onClick={() => closePayPeriod.mutate(pp.id)}>Fermer</Button>}
                       {pp.status === "closed" && <Button size="sm" variant="outline" onClick={() => markPeriodPaid.mutate(pp.id)}>Marquer payé</Button>}
                     </div>
@@ -966,8 +994,19 @@ export default function CoreFieldAgentsPage() {
                     <td className="py-2.5 text-muted-foreground text-xs">{td.notes || "—"}</td>
                     <td className="py-2.5 text-right">
                       <div className="flex gap-1 justify-end">
-                        {td.status === "draft" && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "generated" })}>Générer</Button>}
+                        {td.status === "draft" && <Button size="sm" variant="ghost" onClick={async () => {
+                          toast.info("Génération du document fiscal…");
+                          try {
+                            const { data, error } = await supabase.functions.invoke("generate-tax-document-pdf", { body: { tax_document_id: td.id } });
+                            if (error) throw error;
+                            if (data?.pdf_url) { window.open(data.pdf_url, "_blank"); invalidateAll(); toast.success(`${data.doc_ref} généré`); }
+                          } catch (e: any) { toast.error("Erreur: " + (e.message || "échec")); }
+                        }}>Générer PDF</Button>}
                         {td.status === "generated" && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "sent" })}>Envoyer</Button>}
+                        {td.pdf_url && <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {
+                          const { data } = await supabase.storage.from("payslips").createSignedUrl(td.pdf_url, 3600);
+                          if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                        }}><Download className="h-3 w-3" /></Button>}
                       </div>
                     </td>
                   </tr>
