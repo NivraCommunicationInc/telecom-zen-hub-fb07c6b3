@@ -64,7 +64,7 @@ function useBadges() {
   });
 }
 
-function NavSection({ title, items, isActive, badges }: { title: string; items: typeof salesNav; isActive: (h: string) => boolean; badges: Record<string, number> }) {
+function NavSection({ title, items, isActive, badges }: { title: string; items: { label: string; href: string; icon: any; badgeKey?: string }[]; isActive: (h: string) => boolean; badges: Record<string, number> }) {
   return (
     <div className="space-y-0.5">
       <p className="px-3 pt-3 pb-1 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">{title}</p>
