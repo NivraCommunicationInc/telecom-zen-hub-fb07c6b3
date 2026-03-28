@@ -243,7 +243,7 @@ function buildPayslipPDF(d: {
         doc.setTextColor(...TEXT);
         doc.text(adj.label, ml + 4, y + 5);
         doc.text(ADJ_TYPE_LABELS[adj.type] || adj.type, 120, y + 5);
-        const sign = adj.type === "bonus" || adj.type === "correction" ? "+" : "\u2212";
+        const sign = adj.type === "bonus" || adj.type === "correction" ? "+" : "-";
         doc.setFont("helvetica", "bold");
         doc.setTextColor(adj.type === "bonus" ? 22 : 239, adj.type === "bonus" ? 163 : 68, adj.type === "bonus" ? 74 : 68);
         doc.text(`${sign} ${fmt(Math.abs(adj.amount))}`, mr - 4, y + 5, { align: "right" });
