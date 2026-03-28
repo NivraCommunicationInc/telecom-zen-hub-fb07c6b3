@@ -600,8 +600,8 @@ export default function CoreFieldAgentsPage() {
         data_json: dataJson, generated_by: user?.id, generated_at: new Date().toISOString(), status: "generated",
       });
       if (error) throw error;
-      // Notify employee
-      await supabase.from("staff_notifications").insert({ notification_type: "tax_document", title: "Document fiscal disponible", message: `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.` } as any);
+      await notifyEmployee(taxDocForm.user_id, "tax_document", "Document fiscal disponible", `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.`);
+      await logAudit("create_tax_document", "tax_documents", taxDocForm.user_id, { details: { type: taxDocForm.document_type, year: taxDocForm.tax_year } });
     },
     onSuccess: () => { invalidateAll(); setTaxDocDialog(false); toast.success("Document fiscal créé"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
