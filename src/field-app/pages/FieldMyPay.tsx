@@ -224,7 +224,7 @@ export default function FieldMyPay() {
     { key: "disputes", label: "Contestations", icon: MessageSquare },
     { key: "time", label: "Temps", icon: Timer },
     { key: "schedule", label: "Horaire", icon: ClipboardList },
-    { key: "grids", label: "Ma grille", icon: DollarSign },
+    { key: "grids", label: "Ma grille", icon: Grid3X3 },
     { key: "tax_docs", label: "Documents fiscaux", icon: FileSpreadsheet },
   ];
 

@@ -10,7 +10,7 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import {
   LayoutDashboard, UserPlus, Package, Send, TrendingUp,
   DollarSign, User, Lock, LogOut, MapPin, ShoppingCart,
-  BarChart3, Bell, Search, BookOpen, Calendar, ChevronDown,
+  BarChart3, Bell, Search, BookOpen, Calendar, ChevronDown, Banknote,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
