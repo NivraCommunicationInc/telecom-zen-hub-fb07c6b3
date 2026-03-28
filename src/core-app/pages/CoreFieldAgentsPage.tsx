@@ -135,19 +135,19 @@ export default function CoreFieldAgentsPage() {
       const { data } = await supabase.from("sales_commissions").select("*, field_sales_orders!sales_commissions_field_order_id_fkey(customer_name, customer_email)").order("created_at", { ascending: false }).limit(200);
       return data || [];
     },
-    enabled: tab === "commissions",
+    enabled: tab === "commissions" || !!selectedAgent,
   });
 
   const { data: rules = [] } = useQuery({
     queryKey: ["core-field", "rules"],
     queryFn: async () => { const { data } = await supabase.from("field_sales_commission_rules").select("*").order("min_sales"); return data || []; },
-    enabled: tab === "grids" || tab === "assignments",
+    enabled: tab === "grids" || tab === "assignments" || !!selectedAgent,
   });
 
   const { data: assignments = [] } = useQuery({
     queryKey: ["core-field", "assignments"],
     queryFn: async () => { const { data } = await supabase.from("commission_grid_assignments").select("*").order("created_at", { ascending: false }); return data || []; },
-    enabled: tab === "assignments",
+    enabled: tab === "assignments" || !!selectedAgent,
   });
 
   const { data: withdrawals = [] } = useQuery({
@@ -200,7 +200,7 @@ export default function CoreFieldAgentsPage() {
       // Notification
       const comm = allCommissions.find((c: any) => c.id === id);
       if (comm) {
-        await supabase.from("staff_notifications").insert({ user_id: comm.salesperson_id, title: "Commission approuvée", message: `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.`, type: "commission_approved", priority: "normal" } as any).single();
+        await supabase.from("staff_notifications").insert({ notification_type: "commission_approved", title: "Commission approuvée", message: `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.` } as any);
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission approuvée"); },
@@ -293,7 +293,7 @@ export default function CoreFieldAgentsPage() {
           : status === "paid" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été payé.`
           : status === "rejected" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été rejeté.${note ? ` Raison: ${note}` : ""}`
           : `Votre retrait a été mis à jour: ${status}`;
-        await supabase.from("staff_notifications").insert({ user_id: w.agent_id, title: `Retrait ${status}`, message: msg, type: "withdrawal_update", priority: status === "paid" ? "high" : "normal" } as any).single();
+        await supabase.from("staff_notifications").insert({ notification_type: "withdrawal_update", title: `Retrait ${status}`, message: msg } as any);
       }
     },
     onSuccess: () => { invalidateAll(); setWithdrawalDetail(null); setWithdrawalAdminNote(""); toast.success("Retrait mis à jour"); },
@@ -335,7 +335,7 @@ export default function CoreFieldAgentsPage() {
       // Notify all employees with payroll entries in this period
       const entries = payrollEntries.filter((pe: any) => pe.pay_period_id === id);
       for (const pe of entries) {
-        await supabase.from("staff_notifications").insert({ user_id: pe.user_id, title: "Paie disponible", message: `Votre fiche de paie est prête. Net: ${fmtMoney(Number(pe.net_pay))}`, type: "payroll_ready", priority: "high" } as any).single();
+        await supabase.from("staff_notifications").insert({ notification_type: "payroll_ready", title: "Paie disponible", message: `Votre fiche de paie est prête. Net: ${fmtMoney(Number(pe.net_pay))}` } as any);
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Période marquée payée"); },
@@ -377,7 +377,7 @@ export default function CoreFieldAgentsPage() {
       // Notify employee
       const entry = payrollEntries.find((pe: any) => pe.id === id);
       if (entry) {
-        await supabase.from("staff_notifications").insert({ user_id: entry.user_id, title: "Paie versée", message: `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`, type: "payroll_paid" as any, priority: "high" } as any).single();
+        await supabase.from("staff_notifications").insert({ notification_type: "payroll_paid", title: "Paie versée", message: `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.` } as any);
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
@@ -512,7 +512,7 @@ export default function CoreFieldAgentsPage() {
       });
       if (error) throw error;
       // Notify employee
-      await supabase.from("staff_notifications").insert({ user_id: taxDocForm.user_id, title: "Document fiscal disponible", message: `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.`, type: "tax_document", priority: "normal" } as any).single();
+      await supabase.from("staff_notifications").insert({ notification_type: "tax_document", title: "Document fiscal disponible", message: `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.` } as any);
     },
     onSuccess: () => { invalidateAll(); setTaxDocDialog(false); toast.success("Document fiscal créé"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),

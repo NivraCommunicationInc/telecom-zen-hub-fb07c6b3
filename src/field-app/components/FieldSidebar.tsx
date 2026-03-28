@@ -26,6 +26,7 @@ const salesNav = [
   { label: "Mes commandes", href: `${FIELD_BASE}/submissions`, icon: Send, badgeKey: "orders" as const },
   { label: "Suivi pipeline", href: `${FIELD_BASE}/tracking`, icon: TrendingUp },
   { label: "Commissions", href: `${FIELD_BASE}/commissions`, icon: DollarSign },
+  { label: "Ma paie", href: `${FIELD_BASE}/my-pay`, icon: DollarSign },
 ];
 
 const prospectNav = [
