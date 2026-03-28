@@ -142,7 +142,17 @@ export default function FieldMyPay() {
     enabled: tab === "tax_docs",
   });
 
-  // ═══ COMPUTED ═══
+  const { data: myLetters = [] } = useQuery({
+    queryKey: ["my-letters"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data } = await supabase.from("employment_letters").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: tab === "letters",
+  });
+
   const totalEarned = myCommissions.reduce((s, c: any) => s + Number(c.commission_amount), 0);
   const totalPending = myCommissions.filter((c: any) => c.status === "pending" || c.status === "pending_activation").reduce((s, c: any) => s + Number(c.commission_amount), 0);
   const totalApproved = myCommissions.filter((c: any) => c.status === "validated" || c.status === "approved").reduce((s, c: any) => s + Number(c.commission_amount), 0);
