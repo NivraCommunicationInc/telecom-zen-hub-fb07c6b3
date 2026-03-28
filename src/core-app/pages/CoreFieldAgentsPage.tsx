@@ -101,9 +101,33 @@ export default function CoreFieldAgentsPage() {
   const [taxDocDialog, setTaxDocDialog] = useState(false);
   const [taxDocForm, setTaxDocForm] = useState({ user_id: "", document_type: "t4", tax_year: String(new Date().getFullYear() - 1), notes: "", data_json: "{}" });
 
-  const invalidateAll = () => { qc.invalidateQueries({ queryKey: ["core-field"] }); };
+  // Filter states per tab
+  const [commFilters, setCommFilters] = useState(defaultFilters);
+  const [payrollFilters, setPayrollFilters] = useState(defaultFilters);
+  const [timeFilters, setTimeFilters] = useState(defaultFilters);
+  const [withdrawalFilters, setWithdrawalFilters] = useState(defaultFilters);
 
-  // ═══ QUERIES ═══
+  // Pagination
+  const PAGE_SIZE = 25;
+  const [commPage, setCommPage] = useState(1);
+  const [payrollPage, setPayrollPage] = useState(1);
+  const [timePage, setTimePage] = useState(1);
+  const [withdrawalPage, setWithdrawalPage] = useState(1);
+
+  // Delete confirm
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null);
+
+  // Payroll detail dialog
+  const [payrollDetail, setPayrollDetail] = useState<any>(null);
+
+  // Edit schedule
+  const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
+
+  // Edit assignment
+  const [editAssignId, setEditAssignId] = useState<string | null>(null);
+  const [editAssignForm, setEditAssignForm] = useState({ notes: "", is_active: true });
+
+  const invalidateAll = () => { qc.invalidateQueries({ queryKey: ["core-field"] }); };
   const { data: agents = [], isLoading: loadingAgents } = useQuery({
     queryKey: ["core-field", "agents"],
     queryFn: async () => {
