@@ -3933,16 +3933,26 @@ serve(async (req: Request) => {
           });
         }
 
-        // Also upsert into field_sales_commission_rules for backward compatibility
+        // Also update field_sales_commission_rules for backward compatibility
         try {
-          await adminClient.from("field_sales_commission_rules").upsert({
-            salesperson_id: user_id,
+          // Use insert with conflict handling — avoid upsert on potentially missing constraint
+          const rulePayload: Record<string, unknown> = {
             rule_type: commission_type,
-            value: numericValue,
             is_active: true,
-          }, { onConflict: "salesperson_id,rule_type" });
+          };
+          if (commission_type === "percentage" || commission_type === "base_percentage") {
+            rulePayload.bonus_percentage = numericValue;
+          } else if (commission_type === "flat_bonus" || commission_type === "flat") {
+            rulePayload.bonus_amount = numericValue;
+          } else if (commission_type === "tiered") {
+            rulePayload.bonus_percentage = numericValue;
+          }
+          rulePayload.label = `Commission ${commission_type} — ${user_id.slice(0, 8)}`;
+          rulePayload.min_sales = 0;
+          
+          await adminClient.from("field_sales_commission_rules").insert(rulePayload);
         } catch (e) {
-          console.warn(`[admin-manage-staff] ${stepBase} commission_rules upsert warning:`, e);
+          console.warn(`[admin-manage-staff] ${stepBase} commission_rules insert warning:`, e);
         }
 
         await logAction("staff_commission_updated", {
