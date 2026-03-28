@@ -68,11 +68,11 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
       const { data, error } = await supabase
         .from("employment_letters")
         .insert({
-          employee_id: selectedAgent,
+          user_id: selectedAgent,
           letter_type: letterType,
           status: "draft",
           notes,
-          generated_by: (await supabase.auth.getUser()).data.user?.id || "",
+          created_by: (await supabase.auth.getUser()).data.user?.id || "",
         })
         .select()
         .single();
@@ -95,7 +95,7 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke("generate-employment-letter-pdf", {
-        body: { letter_id: letter.id },
+        body: { employment_letter_id: letter.id },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
@@ -122,7 +122,7 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
     }
 
     notifyEmployee(
-      letter.employee_id,
+      letter.user_id,
       "Nouvelle lettre d'emploi",
       `Une lettre de type "${LETTER_TYPES[letter.letter_type] || letter.letter_type}" est disponible dans votre portail.`,
       "document"
@@ -167,7 +167,7 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
                 const badge = STATUS_BADGE[letter.status] || STATUS_BADGE.draft;
                 return (
                   <tr key={letter.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">{getName(letter.employee_id)}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">{getName(letter.user_id)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{LETTER_TYPES[letter.letter_type] || letter.letter_type}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs border ${badge.cls}`}>{badge.label}</span>
