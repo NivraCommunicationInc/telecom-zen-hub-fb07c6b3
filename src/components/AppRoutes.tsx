@@ -30,6 +30,11 @@ const FieldProfile = lazy(() => import("@/field-app/pages/FieldProfile"));
 const FieldSecurity = lazy(() => import("@/field-app/pages/FieldSecurity"));
 const FieldNewSale = lazy(() => import("@/field-app/pages/FieldNewSale"));
 const FieldSaleSuccess = lazy(() => import("@/field-app/pages/FieldSaleSuccess"));
+const FieldPerformance = lazy(() => import("@/field-app/pages/FieldPerformance"));
+const FieldDailyReport = lazy(() => import("@/field-app/pages/FieldDailyReport"));
+const FieldNotifications = lazy(() => import("@/field-app/pages/FieldNotifications"));
+const FieldClientLookup = lazy(() => import("@/field-app/pages/FieldClientLookup"));
+const FieldResources = lazy(() => import("@/field-app/pages/FieldResources"));
 const EmployeeDashboard = lazy(() => import("@/employee-app/pages/EmployeeDashboard"));
 const EmployeeWorkQueue = lazy(() => import("@/employee-app/pages/EmployeeWorkQueue"));
 const EmployeeOrders = lazy(() => import("@/employee-app/pages/EmployeeOrders"));
@@ -840,6 +845,11 @@ const AppRoutes = () => {
           <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><FieldProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><FieldSecurity /></Suspense>} />
+          <Route path="performance" element={<Suspense fallback={null}><FieldPerformance /></Suspense>} />
+          <Route path="daily-report" element={<Suspense fallback={null}><FieldDailyReport /></Suspense>} />
+          <Route path="notifications" element={<Suspense fallback={null}><FieldNotifications /></Suspense>} />
+          <Route path="address-lookup" element={<Suspense fallback={null}><FieldClientLookup /></Suspense>} />
+          <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
