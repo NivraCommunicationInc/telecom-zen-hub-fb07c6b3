@@ -190,6 +190,10 @@ export default function CoreStaffPage() {
   const [emailEditTarget, setEmailEditTarget] = useState<any>(null);
   const [newEmail, setNewEmail] = useState("");
 
+  // Edit profile dialog
+  const [editTarget, setEditTarget] = useState<any>(null);
+  const [editForm, setEditForm] = useState<EditProfileData>({ full_name: "", email: "", phone: "", job_title: "", badge_number: "" });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
     queryClient.invalidateQueries({ queryKey: ["core-staff-invitations"] });
