@@ -141,7 +141,7 @@ export default function CoreFieldAgentsPage() {
   const { data: rules = [] } = useQuery({
     queryKey: ["core-field", "rules"],
     queryFn: async () => { const { data } = await supabase.from("field_sales_commission_rules").select("*").order("min_sales"); return data || []; },
-    enabled: tab === "grids" || tab === "assignments",
+    enabled: tab === "grids" || tab === "assignments" || !!selectedAgent,
   });
 
   const { data: assignments = [] } = useQuery({
