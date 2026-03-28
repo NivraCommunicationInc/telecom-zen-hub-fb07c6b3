@@ -1,5 +1,5 @@
 /**
- * FieldMyPay — Employee-facing portal for commissions, payslips, disputes, time tracking, and schedules.
+ * FieldMyPay — Employee-facing portal for commissions, payslips, withdrawals, disputes, time tracking, schedules, grids, and tax docs.
  */
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,12 +10,15 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
   DollarSign, Loader2, Clock, Receipt, MessageSquare, Timer, ClipboardList,
-  Banknote, Plus, ArrowRight, Check, X, AlertTriangle, Calendar,
+  Banknote, Plus, ArrowRight, Check, X, AlertTriangle, Calendar, FileSpreadsheet,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending: { label: "En attente", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800" },
@@ -30,12 +33,16 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   draft: { label: "Brouillon", cls: "bg-muted text-muted-foreground border-border" },
   closed: { label: "Fermé", cls: "bg-muted text-muted-foreground border-border" },
   cancelled: { label: "Annulé", cls: "bg-muted text-muted-foreground border-border" },
+  generated: { label: "Généré", cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800" },
+  sent: { label: "Envoyé", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800" },
+  acknowledged: { label: "Reçu", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800" },
 };
 
-type Tab = "commissions" | "payslips" | "withdrawals" | "disputes" | "time" | "schedule" | "grids";
+type Tab = "commissions" | "payslips" | "withdrawals" | "disputes" | "time" | "schedule" | "grids" | "tax_docs";
 
 const fmtMoney = (n: number) => `${n.toFixed(2)} $`;
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const DOC_TYPES: Record<string, string> = { t4: "T4", rl1: "Relevé 1", releve1: "Relevé 1", summary: "Sommaire", other: "Autre" };
 
 export default function FieldMyPay() {
   const qc = useQueryClient();
@@ -124,6 +131,17 @@ export default function FieldMyPay() {
     enabled: tab === "grids",
   });
 
+  const { data: myTaxDocs = [] } = useQuery({
+    queryKey: ["my-tax-docs"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data } = await supabase.from("tax_documents").select("*").eq("user_id", user.id).order("tax_year", { ascending: false });
+      return data || [];
+    },
+    enabled: tab === "tax_docs",
+  });
+
   // ═══ COMPUTED ═══
   const totalEarned = myCommissions.reduce((s, c: any) => s + Number(c.commission_amount), 0);
   const totalPending = myCommissions.filter((c: any) => c.status === "pending" || c.status === "pending_activation").reduce((s, c: any) => s + Number(c.commission_amount), 0);
@@ -144,6 +162,14 @@ export default function FieldMyPay() {
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-withdrawals"] }); setWithdrawDialog(false); setWithdrawAmount(""); setWithdrawNotes(""); toast.success("Demande de retrait soumise"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+
+  const cancelWithdrawal = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("commission_withdrawal_requests").update({ status: "cancelled" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-withdrawals"] }); toast.success("Retrait annulé"); },
   });
 
   const createDispute = useMutation({
@@ -172,7 +198,6 @@ export default function FieldMyPay() {
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
-      // Find latest open punch
       const { data: openPunches } = await supabase.from("time_entries").select("id, punch_in").eq("user_id", user.id).is("punch_out", null).order("punch_in", { ascending: false }).limit(1);
       if (!openPunches?.length) throw new Error("Aucun punch in ouvert");
       const entry = openPunches[0];
@@ -184,6 +209,14 @@ export default function FieldMyPay() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-time"] }); toast.success("Punch Out enregistré"); },
   });
 
+  const acknowledgeTaxDoc = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("tax_documents").update({ status: "acknowledged" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-tax-docs"] }); toast.success("Document marqué comme reçu"); },
+  });
+
   const TABS: { key: Tab; label: string; icon: typeof DollarSign }[] = [
     { key: "commissions", label: "Commissions", icon: DollarSign },
     { key: "payslips", label: "Fiches de paie", icon: Receipt },
@@ -192,13 +225,14 @@ export default function FieldMyPay() {
     { key: "time", label: "Temps", icon: Timer },
     { key: "schedule", label: "Horaire", icon: ClipboardList },
     { key: "grids", label: "Ma grille", icon: DollarSign },
+    { key: "tax_docs", label: "Documents fiscaux", icon: FileSpreadsheet },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-foreground">Ma paie & commissions</h1>
-        <p className="text-sm text-muted-foreground">Suivi complet de vos revenus, temps et documents</p>
+        <p className="text-sm text-muted-foreground">Suivi complet de vos revenus, temps, documents fiscaux</p>
       </div>
 
       {/* KPIs */}
@@ -269,12 +303,13 @@ export default function FieldMyPay() {
                 <div><span className="text-muted-foreground">Retenues: </span><span className="font-bold text-destructive">{fmtMoney(Number(pe.deductions_total))}</span></div>
                 <div><span className="text-muted-foreground">Net: </span><span className="font-bold text-emerald-600">{fmtMoney(Number(pe.net_pay))}</span></div>
               </div>
+              {pe.notes && <p className="text-[10px] text-muted-foreground italic">{pe.notes}</p>}
             </div>
           );
         })}</div>
       )}
 
-      {/* ═══ WITHDRAWALS ═══ */}
+      {/* ═══ WITHDRAWALS — Enhanced ═══ */}
       {tab === "withdrawals" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -284,9 +319,23 @@ export default function FieldMyPay() {
           {myWithdrawals.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune demande</p> : myWithdrawals.map((w: any) => {
             const b = STATUS_BADGE[w.status] || STATUS_BADGE.pending;
             return (
-              <div key={w.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
-                <div><span className="text-sm font-semibold text-foreground">{fmtMoney(Number(w.amount))}</span> <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1", b.cls)}>{b.label}</span>{w.notes && <p className="text-xs text-muted-foreground mt-0.5">{w.notes}</p>}{w.admin_notes && <p className="text-xs text-amber-600 mt-0.5">Admin: {w.admin_notes}</p>}</div>
-                <span className="text-[10px] text-muted-foreground">{format(new Date(w.created_at), "dd/MM/yy")}</span>
+              <div key={w.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">{fmtMoney(Number(w.amount))}</span>
+                    <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{format(new Date(w.created_at), "dd/MM/yyyy HH:mm")}</span>
+                </div>
+                {w.notes && <p className="text-xs text-muted-foreground">Note: {w.notes}</p>}
+                {w.admin_notes && <p className="text-xs text-amber-600">Réponse admin: {w.admin_notes}</p>}
+                <div className="flex gap-2 text-xs text-muted-foreground">
+                  {w.reviewed_at && <span>Revu: {format(new Date(w.reviewed_at), "dd/MM/yy")}</span>}
+                  {w.paid_at && <span className="text-emerald-600 font-medium">Payé: {format(new Date(w.paid_at), "dd/MM/yy")}</span>}
+                </div>
+                {w.status === "pending" && (
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => cancelWithdrawal.mutate(w.id)}><X className="h-3 w-3 mr-1" /> Annuler</Button>
+                )}
               </div>
             );
           })}
@@ -349,7 +398,7 @@ export default function FieldMyPay() {
           return (
             <div key={g.id} className="p-4 rounded-xl border border-border bg-card">
               <p className="text-sm font-semibold text-foreground">{r?.rule_name || "—"}</p>
-              <p className="text-xs text-muted-foreground mt-1">{r?.rule_type === "base_rate" ? "Taux de base" : r?.rule_type === "volume_bonus" ? "Bonus volume" : r?.rule_type === "service_bonus" ? "Bonus service" : r?.rule_type}</p>
+              <p className="text-xs text-muted-foreground mt-1">{r?.rule_type === "base_rate" ? "Taux de base" : r?.rule_type === "volume_bonus" ? "Bonus volume" : r?.rule_type === "service_bonus" ? "Bonus service" : r?.rule_type === "territory_bonus" ? "Bonus territoire" : r?.rule_type}</p>
               <div className="flex gap-4 mt-2 text-xs">
                 {Number(r?.bonus_amount) > 0 && <span>Bonus: <span className="font-bold text-emerald-600">{fmtMoney(Number(r.bonus_amount))}</span></span>}
                 {Number(r?.bonus_percentage) > 0 && <span>Taux: <span className="font-bold text-blue-600">{r.bonus_percentage}%</span></span>}
@@ -362,13 +411,40 @@ export default function FieldMyPay() {
         })}</div>
       )}
 
+      {/* ═══ TAX DOCUMENTS ═══ */}
+      {tab === "tax_docs" && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /> Mes documents fiscaux</h3>
+          {myTaxDocs.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun document fiscal disponible</p> : myTaxDocs.map((td: any) => {
+            const b = STATUS_BADGE[td.status] || STATUS_BADGE.draft;
+            return (
+              <div key={td.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{DOC_TYPES[td.document_type] || td.document_type} — {td.tax_year}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{td.generated_at ? `Généré le ${format(new Date(td.generated_at), "dd/MM/yyyy")}` : "Non généré"}</p>
+                  </div>
+                  <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
+                </div>
+                {td.notes && <p className="text-xs text-muted-foreground">{td.notes}</p>}
+                {td.status === "sent" && (
+                  <Button size="sm" variant="outline" onClick={() => acknowledgeTaxDoc.mutate(td.id)}>
+                    <Check className="h-3 w-3 mr-1" /> Confirmer réception
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* ═══ DIALOGS ═══ */}
       <Dialog open={withdrawDialog} onOpenChange={setWithdrawDialog}>
         <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Demander un retrait</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">Disponible: <span className="font-bold text-primary">{fmtMoney(available)}</span></p>
             <div><Label className="text-xs">Montant ($)</Label><Input type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} max={available} /></div>
-            <div><Label className="text-xs">Notes</Label><Input value={withdrawNotes} onChange={(e) => setWithdrawNotes(e.target.value)} /></div>
+            <div><Label className="text-xs">Notes</Label><Textarea value={withdrawNotes} onChange={(e) => setWithdrawNotes(e.target.value)} placeholder="Raison ou détails…" /></div>
           </div>
           <DialogFooter><Button onClick={() => requestWithdrawal.mutate()} disabled={requestWithdrawal.isPending || !withdrawAmount}>{requestWithdrawal.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Soumettre"}</Button></DialogFooter>
         </DialogContent>
@@ -376,7 +452,7 @@ export default function FieldMyPay() {
 
       <Dialog open={!!disputeDialog} onOpenChange={(o) => !o && setDisputeDialog(null)}>
         <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Contester une commission</DialogTitle></DialogHeader>
-          <div><Label className="text-xs">Raison</Label><Input value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder="Expliquez…" /></div>
+          <div><Label className="text-xs">Raison</Label><Textarea value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder="Expliquez votre contestation…" /></div>
           <DialogFooter><Button onClick={() => createDispute.mutate()} disabled={createDispute.isPending || !disputeReason}>{createDispute.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Soumettre"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
