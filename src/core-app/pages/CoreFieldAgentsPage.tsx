@@ -535,8 +535,27 @@ export default function CoreFieldAgentsPage() {
   });
   const deleteSchedule = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("staff_schedules").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Horaire supprimé"); },
+    onSuccess: () => { invalidateAll(); setDeleteConfirm(null); toast.success("Horaire supprimé"); },
   });
+  const updateSchedule = useMutation({
+    mutationFn: async () => {
+      if (!editScheduleId) return;
+      const { error } = await supabase.from("staff_schedules").update({
+        day_of_week: parseInt(schForm.day_of_week), start_time: schForm.start_time, end_time: schForm.end_time, notes: schForm.notes || null,
+      }).eq("id", editScheduleId);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setScheduleDialog(false); setEditScheduleId(null); toast.success("Horaire modifié"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+  // Confirmed delete handler
+  const handleConfirmedDelete = () => {
+    if (!deleteConfirm) return;
+    const { type, id } = deleteConfirm;
+    if (type === "grid") deleteGrid.mutate(id);
+    else if (type === "assignment") removeAssignment.mutate(id);
+    else if (type === "schedule") deleteSchedule.mutate(id);
+  };
 
   // Tax Documents
   const createTaxDoc = useMutation({
