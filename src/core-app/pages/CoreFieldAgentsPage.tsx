@@ -28,6 +28,7 @@ import { downloadCSV, COMMISSION_COLUMNS, PAYROLL_COLUMNS, TIME_COLUMNS, WITHDRA
 import DeleteConfirmDialog from "@/core-app/components/field-agents/DeleteConfirmDialog";
 import PayrollDetailDialog from "@/core-app/components/field-agents/PayrollDetailDialog";
 import WithdrawalTimeline from "@/core-app/components/field-agents/WithdrawalTimeline";
+import LettersTab from "@/core-app/components/field-agents/LettersTab";
 
 type TabView = "agents" | "commissions" | "grids" | "assignments" | "withdrawals" | "disputes" | "payroll" | "time" | "schedules" | "tax_docs" | "letters";
 
