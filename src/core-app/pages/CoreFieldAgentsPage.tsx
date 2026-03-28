@@ -856,11 +856,14 @@ export default function CoreFieldAgentsPage() {
         </div>
       )}
 
-      {/* ═══ WITHDRAWALS TAB — Enhanced ═══ */}
-      {tab === "withdrawals" && (
+      {/* ═══ WITHDRAWALS TAB — Enhanced with Timeline ═══ */}
+      {tab === "withdrawals" && (() => {
+        const { items: pageWith, totalPages: withTotalPages, total: withTotal } = paginate(filteredWithdrawals, withdrawalPage);
+        return (
         <div className="space-y-3">
-          <h3 className="text-sm font-bold text-foreground">Demandes de retrait de commission</h3>
-          {withdrawals.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun retrait</p> : withdrawals.map((w: any) => {
+          <FilterBar filters={withdrawalFilters} onChange={(f) => { setWithdrawalFilters(f); setWithdrawalPage(1); }} config={{ statusOptions: withdrawalStatusOpts, agentOptions: agentOptions, showDateRange: true, onExport: () => downloadCSV(filteredWithdrawals.map((w: any) => ({ ...w, agent_name: getName(w.agent_id) })), "retraits", WITHDRAWAL_COLUMNS) }} />
+          <p className="text-[10px] text-muted-foreground">{withTotal} résultat(s)</p>
+          {pageWith.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun retrait</p> : pageWith.map((w: any) => {
             const b = STATUS_BADGE[w.status] || STATUS_BADGE.pending;
             return (
               <div key={w.id} className="p-4 rounded-xl border border-border bg-card space-y-3">
