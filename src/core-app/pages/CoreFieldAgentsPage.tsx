@@ -370,7 +370,7 @@ export default function CoreFieldAgentsPage() {
           : status === "paid" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été payé.`
           : status === "rejected" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été rejeté.${note ? ` Raison: ${note}` : ""}`
           : `Votre retrait a été mis à jour: ${status}`;
-        await notifyEmployee(w.influencer_id || w.user_id, "withdrawal_update", `Retrait ${status}`, msg);
+        await notifyEmployee(w.agent_id, "withdrawal_update", `Retrait ${status}`, msg);
         await logAudit(`withdrawal_${status}`, "commission_withdrawal_requests", id, { field_changed: "status", old_value: w.status, new_value: status });
       }
     },
