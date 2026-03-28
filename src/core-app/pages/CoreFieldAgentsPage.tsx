@@ -937,7 +937,7 @@ export default function CoreFieldAgentsPage() {
                 const b = STATUS_BADGE[pp.status] || STATUS_BADGE.draft;
                 return (
                   <div key={pp.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                    <div><p className="text-sm font-medium text-foreground">{pp.period_name}</p><p className="text-xs text-muted-foreground">{pp.start_date} → {pp.end_date}</p></div>
+                    <div><p className="text-sm font-medium text-foreground">{pp.period_name}</p><p className="text-xs text-muted-foreground">{format(new Date(pp.start_date), "dd/MM/yyyy")} → {format(new Date(pp.end_date), "dd/MM/yyyy")}</p></div>
                     <div className="flex items-center gap-2">
                       <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
                       {(pp.status === "open" || pp.status === "closed") && (
