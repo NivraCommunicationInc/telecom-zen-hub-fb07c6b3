@@ -3123,7 +3123,6 @@ serve(async (req: Request) => {
         const missingSecrets = [
           ...(isMissingSecret("SUPABASE_URL") ? ["SUPABASE_URL"] : []),
           ...(isMissingSecret("SUPABASE_SERVICE_ROLE_KEY") ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
-          ...(isMissingSecret("RESEND_API_KEY") ? ["RESEND_API_KEY"] : []),
         ];
 
         if (missingSecrets.length > 0) {
