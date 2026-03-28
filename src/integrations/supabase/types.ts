@@ -2992,6 +2992,94 @@ export type Database = {
           },
         ]
       }
+      commission_disputes: {
+        Row: {
+          admin_response: string | null
+          agent_id: string
+          commission_id: string
+          created_at: string
+          id: string
+          reason: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_response?: string | null
+          agent_id: string
+          commission_id: string
+          created_at?: string
+          id?: string
+          reason: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_response?: string | null
+          agent_id?: string
+          commission_id?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_disputes_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "sales_commissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_grid_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          rule_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rule_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rule_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_grid_assignments_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "field_sales_commission_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_ledger_entries: {
         Row: {
           amount: number
@@ -8519,6 +8607,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pay_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          end_date: string
+          id: string
+          notes: string | null
+          period_name: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          period_name: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          period_name?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_disputes: {
         Row: {
           client_message: string | null
@@ -9016,6 +9143,118 @@ export type Database = {
           tax_percentage?: string
         }
         Relationships: []
+      }
+      payroll_adjustments: {
+        Row: {
+          adjustment_type: string
+          amount: number
+          applied_by: string | null
+          created_at: string
+          id: string
+          label: string
+          notes: string | null
+          payroll_entry_id: string
+        }
+        Insert: {
+          adjustment_type: string
+          amount: number
+          applied_by?: string | null
+          created_at?: string
+          id?: string
+          label: string
+          notes?: string | null
+          payroll_entry_id: string
+        }
+        Update: {
+          adjustment_type?: string
+          amount?: number
+          applied_by?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          payroll_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_adjustments_payroll_entry_id_fkey"
+            columns: ["payroll_entry_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_entries: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          base_salary: number
+          bonus_total: number
+          commission_total: number
+          created_at: string
+          deductions_total: number
+          gross_pay: number
+          hours_worked: number
+          id: string
+          net_pay: number
+          notes: string | null
+          overtime_hours: number
+          paid_at: string | null
+          pay_period_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          base_salary?: number
+          bonus_total?: number
+          commission_total?: number
+          created_at?: string
+          deductions_total?: number
+          gross_pay?: number
+          hours_worked?: number
+          id?: string
+          net_pay?: number
+          notes?: string | null
+          overtime_hours?: number
+          paid_at?: string | null
+          pay_period_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          base_salary?: number
+          bonus_total?: number
+          commission_total?: number
+          created_at?: string
+          deductions_total?: number
+          gross_pay?: number
+          hours_worked?: number
+          id?: string
+          net_pay?: number
+          notes?: string | null
+          overtime_hours?: number
+          paid_at?: string | null
+          pay_period_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_entries_pay_period_id_fkey"
+            columns: ["pay_period_id"]
+            isOneToOne: false
+            referencedRelation: "pay_periods"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pdf_generation_logs: {
         Row: {
@@ -12031,6 +12270,51 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_schedules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          effective_from: string | null
+          effective_until: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          effective_from?: string | null
+          effective_until?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          effective_from?: string | null
+          effective_until?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       step_up_sessions: {
         Row: {
           expires_at: string
@@ -12626,6 +12910,51 @@ export type Database = {
         }
         Relationships: []
       }
+      tax_documents: {
+        Row: {
+          created_at: string
+          data_json: Json | null
+          document_type: string
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          notes: string | null
+          sent_at: string | null
+          status: string
+          tax_year: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_json?: Json | null
+          document_type: string
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          notes?: string | null
+          sent_at?: string | null
+          status?: string
+          tax_year: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data_json?: Json | null
+          document_type?: string
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          notes?: string | null
+          sent_at?: string | null
+          status?: string
+          tax_year?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       technician_slot_bookings: {
         Row: {
           client_id: string
@@ -13042,6 +13371,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      time_entries: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          break_minutes: number
+          created_at: string
+          entry_type: string
+          id: string
+          notes: string | null
+          punch_in: string
+          punch_out: string | null
+          status: string
+          total_hours: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          break_minutes?: number
+          created_at?: string
+          entry_type?: string
+          id?: string
+          notes?: string | null
+          punch_in: string
+          punch_out?: string | null
+          status?: string
+          total_hours?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          break_minutes?: number
+          created_at?: string
+          entry_type?: string
+          id?: string
+          notes?: string | null
+          punch_in?: string
+          punch_out?: string | null
+          status?: string
+          total_hours?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       transaction_events: {
         Row: {
