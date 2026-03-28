@@ -1058,10 +1058,10 @@ export default function CoreFieldAgentsPage() {
         </div>);
       })()}
 
-      {/* ═══ SCHEDULES TAB ═══ */}
+      {/* ═══ SCHEDULES TAB — with Edit ═══ */}
       {tab === "schedules" && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Horaires</h3><Button size="sm" onClick={() => { setSchForm({ user_id: "", day_of_week: "1", start_time: "09:00", end_time: "17:00", notes: "" }); setScheduleDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajouter</Button></div>
+          <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Horaires</h3><Button size="sm" onClick={() => { setEditScheduleId(null); setSchForm({ user_id: "", day_of_week: "1", start_time: "09:00", end_time: "17:00", notes: "" }); setScheduleDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajouter</Button></div>
           {schedules.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun horaire</p> : (
             <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Jour</th><th className="pb-2 font-medium">Début</th><th className="pb-2 font-medium">Fin</th><th className="pb-2 font-medium">Notes</th><th className="pb-2"></th></tr></thead><tbody>
               {schedules.map((s: any) => (
@@ -1071,7 +1071,12 @@ export default function CoreFieldAgentsPage() {
                   <td className="py-2.5 text-foreground">{s.start_time}</td>
                   <td className="py-2.5 text-foreground">{s.end_time}</td>
                   <td className="py-2.5 text-muted-foreground text-xs">{s.notes || "—"}</td>
-                  <td className="py-2.5 text-right"><Button size="icon" variant="ghost" onClick={() => deleteSchedule.mutate(s.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button></td>
+                  <td className="py-2.5 text-right">
+                    <div className="flex gap-1 justify-end">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditScheduleId(s.id); setSchForm({ user_id: s.user_id, day_of_week: String(s.day_of_week), start_time: s.start_time, end_time: s.end_time, notes: s.notes || "" }); setScheduleDialog(true); }}><Edit3 className="h-3 w-3" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ type: "schedule", id: s.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody></table></div>
