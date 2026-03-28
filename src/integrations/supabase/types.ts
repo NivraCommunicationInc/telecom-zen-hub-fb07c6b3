@@ -5187,6 +5187,72 @@ export type Database = {
         }
         Relationships: []
       }
+      employment_letters: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          created_by: string | null
+          custom_content: string | null
+          employee_address: string | null
+          employment_type: string | null
+          generated_at: string | null
+          id: string
+          job_title: string | null
+          letter_number: string | null
+          letter_type: string
+          notes: string | null
+          pdf_url: string | null
+          salary_info: string | null
+          sent_at: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_content?: string | null
+          employee_address?: string | null
+          employment_type?: string | null
+          generated_at?: string | null
+          id?: string
+          job_title?: string | null
+          letter_number?: string | null
+          letter_type?: string
+          notes?: string | null
+          pdf_url?: string | null
+          salary_info?: string | null
+          sent_at?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_content?: string | null
+          employee_address?: string | null
+          employment_type?: string | null
+          generated_at?: string | null
+          id?: string
+          job_title?: string | null
+          letter_number?: string | null
+          letter_type?: string
+          notes?: string | null
+          pdf_url?: string | null
+          salary_info?: string | null
+          sent_at?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       equipment_audit_log: {
         Row: {
           action: string
@@ -9506,8 +9572,11 @@ export type Database = {
           email: string | null
           employer_discount: string | null
           employer_sector: string | null
+          employment_type: string | null
           first_name: string | null
           full_name: string | null
+          hire_date: string | null
+          hourly_rate: number | null
           id: string
           id_expiration: string | null
           id_number: string | null
@@ -9516,6 +9585,7 @@ export type Database = {
           identity_verified: boolean
           identity_verified_at: string | null
           internal_notes: string | null
+          job_title: string | null
           last_auth_check_at: string | null
           last_login_at: string | null
           last_name: string | null
@@ -9533,6 +9603,7 @@ export type Database = {
           pin_lockout_until: string | null
           preferred_language: string | null
           referral_code: string | null
+          salary_type: string | null
           sector_tags: string[] | null
           security_alert_level: string | null
           security_flagged_at: string | null
@@ -9566,8 +9637,11 @@ export type Database = {
           email?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
+          employment_type?: string | null
           first_name?: string | null
           full_name?: string | null
+          hire_date?: string | null
+          hourly_rate?: number | null
           id?: string
           id_expiration?: string | null
           id_number?: string | null
@@ -9576,6 +9650,7 @@ export type Database = {
           identity_verified?: boolean
           identity_verified_at?: string | null
           internal_notes?: string | null
+          job_title?: string | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
           last_name?: string | null
@@ -9593,6 +9668,7 @@ export type Database = {
           pin_lockout_until?: string | null
           preferred_language?: string | null
           referral_code?: string | null
+          salary_type?: string | null
           sector_tags?: string[] | null
           security_alert_level?: string | null
           security_flagged_at?: string | null
@@ -9626,8 +9702,11 @@ export type Database = {
           email?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
+          employment_type?: string | null
           first_name?: string | null
           full_name?: string | null
+          hire_date?: string | null
+          hourly_rate?: number | null
           id?: string
           id_expiration?: string | null
           id_number?: string | null
@@ -9636,6 +9715,7 @@ export type Database = {
           identity_verified?: boolean
           identity_verified_at?: string | null
           internal_notes?: string | null
+          job_title?: string | null
           last_auth_check_at?: string | null
           last_login_at?: string | null
           last_name?: string | null
@@ -9653,6 +9733,7 @@ export type Database = {
           pin_lockout_until?: string | null
           preferred_language?: string | null
           referral_code?: string | null
+          salary_type?: string | null
           sector_tags?: string[] | null
           security_alert_level?: string | null
           security_flagged_at?: string | null
