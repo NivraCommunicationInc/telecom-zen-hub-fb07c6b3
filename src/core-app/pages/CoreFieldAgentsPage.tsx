@@ -304,9 +304,11 @@ export default function CoreFieldAgentsPage() {
       if (editGridId) {
         const { error } = await supabase.from("field_sales_commission_rules").update(payload).eq("id", editGridId);
         if (error) throw error;
+        await logAudit("update_grid", "field_sales_commission_rules", editGridId, { details: payload });
       } else {
-        const { error } = await supabase.from("field_sales_commission_rules").insert(payload);
+        const { data, error } = await supabase.from("field_sales_commission_rules").insert(payload).select("id").single();
         if (error) throw error;
+        await logAudit("create_grid", "field_sales_commission_rules", data?.id || "", { details: payload });
       }
     },
     onSuccess: () => { invalidateAll(); setGridDialog(false); setEditGridId(null); toast.success(editGridId ? "Grille modifiée" : "Grille créée"); },
