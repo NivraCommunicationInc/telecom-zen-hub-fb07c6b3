@@ -135,7 +135,7 @@ export default function CoreFieldAgentsPage() {
       const { data } = await supabase.from("sales_commissions").select("*, field_sales_orders!sales_commissions_field_order_id_fkey(customer_name, customer_email)").order("created_at", { ascending: false }).limit(200);
       return data || [];
     },
-    enabled: tab === "commissions",
+    enabled: tab === "commissions" || !!selectedAgent,
   });
 
   const { data: rules = [] } = useQuery({
