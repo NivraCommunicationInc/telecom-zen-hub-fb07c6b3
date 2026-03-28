@@ -824,7 +824,7 @@ export default function CoreFieldAgentsPage() {
                   <td className="py-2.5 text-right">
                     <div className="flex gap-1 justify-end">
                       <Button size="icon" variant="ghost" onClick={() => openEditGrid(r)}><Edit3 className="h-3 w-3" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => deleteGrid.mutate(r.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ type: "grid", id: r.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                     </div>
                   </td>
                 </tr>
