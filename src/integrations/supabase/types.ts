@@ -12925,6 +12925,7 @@ export type Database = {
           generated_by: string | null
           id: string
           notes: string | null
+          pdf_url: string | null
           sent_at: string | null
           status: string
           tax_year: number
@@ -12939,6 +12940,7 @@ export type Database = {
           generated_by?: string | null
           id?: string
           notes?: string | null
+          pdf_url?: string | null
           sent_at?: string | null
           status?: string
           tax_year: number
@@ -12953,6 +12955,7 @@ export type Database = {
           generated_by?: string | null
           id?: string
           notes?: string | null
+          pdf_url?: string | null
           sent_at?: string | null
           status?: string
           tax_year?: number
@@ -15776,6 +15779,11 @@ export type Database = {
         | "payment_received"
         | "service_suspended"
         | "service_cancelled"
+        | "payroll_paid"
+        | "payroll_ready"
+        | "commission_approved"
+        | "withdrawal_update"
+        | "tax_document"
       staff_role: "admin" | "employee" | "technician"
       technician_level: "level_1" | "level_2"
       work_order_status:
@@ -16285,6 +16293,11 @@ export const Constants = {
         "payment_received",
         "service_suspended",
         "service_cancelled",
+        "payroll_paid",
+        "payroll_ready",
+        "commission_approved",
+        "withdrawal_update",
+        "tax_document",
       ],
       staff_role: ["admin", "employee", "technician"],
       technician_level: ["level_1", "level_2"],
