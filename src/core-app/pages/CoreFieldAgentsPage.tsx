@@ -1028,12 +1028,15 @@ export default function CoreFieldAgentsPage() {
       )}
 
       {/* ═══ TIME TRACKING TAB ═══ */}
-      {tab === "time" && (
+      {tab === "time" && (() => {
+        const { items: pageTime, totalPages: timeTotalPages, total: timeTotal } = paginate(filteredTime, timePage);
+        return (
         <div className="space-y-4">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Timer className="h-4 w-4" /> Entrées de temps</h3>
-          {timeEntries.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune entrée</p> : (
+          <FilterBar filters={timeFilters} onChange={(f) => { setTimeFilters(f); setTimePage(1); }} config={{ statusOptions: timeStatusOpts, agentOptions: agentOptions, showDateRange: true, onExport: () => downloadCSV(filteredTime.map((te: any) => ({ ...te, employee_name: getName(te.user_id) })), "temps", TIME_COLUMNS) }} />
+          <p className="text-[10px] text-muted-foreground">{timeTotal} résultat(s)</p>
+          {pageTime.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune entrée</p> : (
             <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Punch In</th><th className="pb-2 font-medium">Punch Out</th><th className="pb-2 font-medium text-right">Heures</th><th className="pb-2 font-medium">Type</th><th className="pb-2 font-medium">Statut</th><th className="pb-2"></th></tr></thead><tbody>
-              {timeEntries.map((te: any) => {
+              {pageTime.map((te: any) => {
                 const b = STATUS_BADGE[te.status] || STATUS_BADGE.pending;
                 return (
                   <tr key={te.id} className="border-b border-border/50 hover:bg-muted/30">
@@ -1051,8 +1054,9 @@ export default function CoreFieldAgentsPage() {
               })}
             </tbody></table></div>
           )}
-        </div>
-      )}
+          {timeTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={timePage === 1} onClick={() => setTimePage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{timePage}/{timeTotalPages}</span><Button size="sm" variant="outline" disabled={timePage === timeTotalPages} onClick={() => setTimePage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+        </div>);
+      })()}
 
       {/* ═══ SCHEDULES TAB ═══ */}
       {tab === "schedules" && (
