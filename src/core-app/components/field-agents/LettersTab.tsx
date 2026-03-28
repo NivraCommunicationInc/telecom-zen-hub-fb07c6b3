@@ -122,7 +122,7 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
     }
 
     notifyEmployee(
-      letter.employee_id,
+      letter.user_id,
       "Nouvelle lettre d'emploi",
       `Une lettre de type "${LETTER_TYPES[letter.letter_type] || letter.letter_type}" est disponible dans votre portail.`,
       "document"
