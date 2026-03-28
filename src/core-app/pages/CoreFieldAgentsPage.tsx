@@ -1189,6 +1189,11 @@ export default function CoreFieldAgentsPage() {
         </div>
       )}
 
+      {/* ═══ EMPLOYMENT LETTERS TAB ═══ */}
+      {tab === "letters" && (
+        <LettersTab agents={agents} getName={getName} invalidateAll={invalidateAll} logAudit={logAudit} notifyEmployee={notifyEmployee} />
+      )}
+
       {/* ═══ DIALOGS ═══ */}
 
       {/* Edit Agent */}
