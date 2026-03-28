@@ -1228,6 +1228,7 @@ serve(async (req: Request) => {
       case "send_invitation":
       case "resend_invitation": {
         const { user_id } = body as GenerateInvitationRequest | SendInvitationRequest | ResendInvitationRequest;
+        const stepBase = body.action;
 
         if (!user_id) {
           return json(400, {
@@ -1265,6 +1266,18 @@ serve(async (req: Request) => {
             ok: false,
             request_id: requestId,
             message: "Email introuvable pour cet employé",
+          });
+        }
+
+        if (shouldSendEmail && !isValidEmail(targetEmail)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: {
+              code: "INVALID_EMAIL",
+              message: `Format d'email invalide: ${targetEmail}`,
+              step: `${stepBase}.validate_email`,
+            } satisfies ApiError,
           });
         }
 
@@ -1329,31 +1342,57 @@ serve(async (req: Request) => {
             kyc_agent: "Agent KYC",
           };
 
-          await sendStaffEmail(adminClient, {
-            to: targetEmail,
-            subject: "Invitation interne Nivra — Activez votre compte",
-            idempotencyKey: `staff_invite_${user_id}_${Date.now()}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background:#0f172a;padding:24px;text-align:center;">
-                  <h1 style="color:#ffffff;margin:0;font-size:24px;">Nivra Core</h1>
-                  <p style="color:#cbd5e1;margin:8px 0 0;font-size:13px;">Invitation d'accès interne</p>
+          try {
+            await sendStaffEmail(adminClient, {
+              to: targetEmail,
+              subject: "Invitation interne Nivra — Activez votre compte",
+              idempotencyKey: `staff_invite_${user_id}_${Date.now()}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <div style="background:#0f172a;padding:24px;text-align:center;">
+                    <h1 style="color:#ffffff;margin:0;font-size:24px;">Nivra Core</h1>
+                    <p style="color:#cbd5e1;margin:8px 0 0;font-size:13px;">Invitation d'accès interne</p>
+                  </div>
+                  <div style="padding:24px;background:#ffffff;border:1px solid #e2e8f0;">
+                    <p style="margin:0 0 16px;color:#0f172a;">Bonjour ${displayName},</p>
+                    <p style="margin:0 0 16px;color:#334155;line-height:1.6;">
+                      Vous avez été invité à activer votre compte interne avec le rôle <strong>${roleLabels[roleData.role] || roleData.role}</strong>.
+                    </p>
+                    <p style="text-align:center;margin:24px 0;">
+                      <a href="${setupLink}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">
+                        Activer mon compte
+                      </a>
+                    </p>
+                    <p style="margin:0;color:#64748b;font-size:12px;">Ce lien expire dans 48 heures.</p>
+                  </div>
                 </div>
-                <div style="padding:24px;background:#ffffff;border:1px solid #e2e8f0;">
-                  <p style="margin:0 0 16px;color:#0f172a;">Bonjour ${displayName},</p>
-                  <p style="margin:0 0 16px;color:#334155;line-height:1.6;">
-                    Vous avez été invité à activer votre compte interne avec le rôle <strong>${roleLabels[roleData.role] || roleData.role}</strong>.
-                  </p>
-                  <p style="text-align:center;margin:24px 0;">
-                    <a href="${setupLink}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">
-                      Activer mon compte
-                    </a>
-                  </p>
-                  <p style="margin:0;color:#64748b;font-size:12px;">Ce lien expire dans 48 heures.</p>
-                </div>
-              </div>
-            `,
-          });
+              `,
+            });
+          } catch (e: unknown) {
+            const err = e as Error;
+            await logAction(
+              "staff_invitation_send_failed",
+              {
+                request_id: requestId,
+                step: `${stepBase}.send_email`,
+                user_id,
+                email: targetEmail,
+                error_message: err.message,
+                stack: err.stack || null,
+              },
+              { type: "user", id: user_id, email: targetEmail }
+            );
+
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: {
+                code: "SEND_FAILED",
+                message: err.message,
+                step: `${stepBase}.send_email`,
+              } satisfies ApiError,
+            });
+          }
         }
 
         await logAction(
@@ -1727,6 +1766,13 @@ serve(async (req: Request) => {
 
         // Determine target user's role
         const normalizedTargetEmail = email.trim().toLowerCase();
+        if (!isValidEmail(normalizedTargetEmail)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "INVALID_EMAIL", message: `Format d'email invalide: ${normalizedTargetEmail}`, step: `${stepBase}.validate_email` } satisfies ApiError,
+          });
+        }
         const { data: targetProfile } = await adminClient
           .from("profiles")
           .select("user_id")
@@ -1949,6 +1995,13 @@ serve(async (req: Request) => {
         }
 
         const normalizedEmail = email.trim().toLowerCase();
+        if (!isValidEmail(normalizedEmail)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "INVALID_EMAIL", message: `Format d'email invalide: ${normalizedEmail}`, step: `${stepBase}.validate_email` } satisfies ApiError,
+          });
+        }
         console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
 
         // Find user
@@ -3118,6 +3171,13 @@ serve(async (req: Request) => {
         }
 
         const normalizedEmail = email.trim().toLowerCase();
+        if (!isValidEmail(normalizedEmail)) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "INVALID_EMAIL", message: `Format d'email invalide: ${normalizedEmail}`, step: `${stepBase}.validate_email` } satisfies ApiError,
+          });
+        }
         console.log(`[admin-manage-staff] ${stepBase} email=${normalizedEmail} request_id=${requestId}`);
 
         const missingSecrets = [
