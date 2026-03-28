@@ -969,18 +969,35 @@ export default function CoreFieldAgentsPage() {
           </div>
 
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Receipt className="h-4 w-4" /> Fiches de paie</h3>
+            <div className="flex justify-between items-center flex-wrap gap-2">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Receipt className="h-4 w-4" /> Fiches de paie</h3>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => { setAdjForm({ payroll_entry_id: "", adjustment_type: "deduction", label: "", amount: "0", notes: "" }); setAdjustDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajustement</Button>
                 <Button size="sm" onClick={() => { setPeForm({ pay_period_id: "", user_id: "", base_salary: "0", commission_total: "0", bonus_total: "0", hours_worked: "0", overtime_hours: "0", deductions_total: "0", notes: "" }); setPayrollEntryDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Nouvelle fiche</Button>
               </div>
             </div>
-            {payrollEntries.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Aucune fiche de paie</p> : (
+            <FilterBar
+              filters={payrollFilters}
+              onChange={(f) => { setPayrollFilters(f); setPayrollPage(1); }}
+              config={{
+                statusOptions: payrollStatusOpts,
+                agentOptions: agentOptions,
+                onExport: () => downloadCSV(
+                  filteredPayroll.map((pe: any) => ({ ...pe, employee_name: getName(pe.user_id), period_name: pe.pay_periods?.period_name || "—" })),
+                  "fiches-paie",
+                  PAYROLL_COLUMNS
+                ),
+              }}
+            />
+            {(() => {
+              const { items: pagePE, totalPages: peTotalPages } = paginate(filteredPayroll, payrollPage);
+              return pagePE.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Aucune fiche de paie</p> : (
+              <>
               <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Période</th><th className="pb-2 font-medium text-right">Comm.</th><th className="pb-2 font-medium text-right">Bonus</th><th className="pb-2 font-medium text-right">Heures</th><th className="pb-2 font-medium text-right">Brut</th><th className="pb-2 font-medium text-right">Retenues</th><th className="pb-2 font-medium text-right">Net</th><th className="pb-2 font-medium">Statut</th><th className="pb-2"></th></tr></thead><tbody>
-                {payrollEntries.map((pe: any) => {
+                {pagePE.map((pe: any) => {
                   const b = STATUS_BADGE[pe.status] || STATUS_BADGE.draft;
                   return (
-                    <tr key={pe.id} className="border-b border-border/50 hover:bg-muted/30">
+                    <tr key={pe.id} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer" onClick={() => setPayrollDetail(pe)}>
                       <td className="py-2.5 font-medium text-foreground">{getName(pe.user_id)}</td>
                       <td className="py-2.5 text-muted-foreground text-xs">{pe.pay_periods?.period_name || "—"}</td>
                       <td className="py-2.5 text-right">{fmtMoney(Number(pe.commission_total))}</td>
@@ -990,7 +1007,7 @@ export default function CoreFieldAgentsPage() {
                       <td className="py-2.5 text-right text-destructive">{fmtMoney(Number(pe.deductions_total))}</td>
                       <td className="py-2.5 text-right font-bold text-emerald-600">{fmtMoney(Number(pe.net_pay))}</td>
                       <td className="py-2.5"><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span></td>
-                      <td className="py-2.5 text-right">
+                      <td className="py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                         {pe.status === "draft" && <Button size="sm" variant="ghost" onClick={() => approvePayroll.mutate(pe.id)}>Approuver</Button>}
                         {pe.status === "approved" && <Button size="sm" variant="ghost" onClick={() => markPayrollPaid.mutate(pe.id)}>Payer</Button>}
                         <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {
@@ -1006,7 +1023,9 @@ export default function CoreFieldAgentsPage() {
                   );
                 })}
               </tbody></table></div>
-            )}
+              {peTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={payrollPage === 1} onClick={() => setPayrollPage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{payrollPage}/{peTotalPages}</span><Button size="sm" variant="outline" disabled={payrollPage === peTotalPages} onClick={() => setPayrollPage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+              </>);
+            })()}
           </div>
 
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
