@@ -1,9 +1,8 @@
 /**
- * CoreFieldAgentsPage — Full admin management console for field sales agents.
- * Tabs: Vendeurs (profile/edit), Commissions (approve/reject/dispute), Retraits (approve/reject/mark paid),
- *       Paie (pay tracking/PDF), Contestations, Règles
+ * CoreFieldAgentsPage — Enterprise-grade HR/Commission/Payroll management for Nivra Core.
+ * 9 Tabs: Agents, Commissions, Commission Grids, Grid Assignments, Withdrawals, Disputes, Payroll, Time Tracking, Schedules
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,10 +13,16 @@ import {
   Users, DollarSign, TrendingUp, Loader2, Search, Check, X, AlertTriangle,
   Clock, Banknote, BarChart3, UserCheck, UserX, Edit3, Eye, FileText,
   ChevronRight, ArrowLeft, Phone, Mail, Calendar, Shield, Save,
-  MessageSquare, Download, CreditCard, Receipt,
+  MessageSquare, Download, CreditCard, Receipt, Plus, Trash2,
+  Timer, ClipboardList, Grid3X3, Link2, Briefcase,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type TabView = "agents" | "commissions" | "withdrawals" | "pay" | "disputes" | "rules";
+type TabView = "agents" | "commissions" | "grids" | "assignments" | "withdrawals" | "disputes" | "payroll" | "time" | "schedules";
 
 interface AgentRow {
   user_id: string;
@@ -42,343 +47,420 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   rejected: { label: "Rejeté", cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800" },
   clawback: { label: "Récupéré", cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800" },
   disputed: { label: "Contesté", cls: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-800" },
-  processing: { label: "En traitement", cls: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-800" },
+  open: { label: "Ouvert", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800" },
+  under_review: { label: "En révision", cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800" },
+  accepted: { label: "Accepté", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800" },
+  closed: { label: "Fermé", cls: "bg-muted text-muted-foreground border-border" },
   cancelled: { label: "Annulé", cls: "bg-muted text-muted-foreground border-border" },
+  draft: { label: "Brouillon", cls: "bg-muted text-muted-foreground border-border" },
+  processing: { label: "En traitement", cls: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-800" },
 };
 
+const fmtMoney = (n: number) => `${n.toFixed(2)} $`;
+
 export default function CoreFieldAgentsPage() {
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<TabView>("agents");
-  const [searchQuery, setSearchQuery] = useState("");
+  const qc = useQueryClient();
+  const [tab, setTab] = useState<TabView>("agents");
+  const [search, setSearch] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<AgentRow | null>(null);
-  const [editingAgent, setEditingAgent] = useState<AgentRow | null>(null);
+
+  // Dialogs
+  const [editAgent, setEditAgent] = useState<AgentRow | null>(null);
   const [editForm, setEditForm] = useState({ full_name: "", email: "", phone: "" });
+  const [gridDialog, setGridDialog] = useState(false);
+  const [gridForm, setGridForm] = useState({ rule_name: "", rule_type: "base_rate", service_type: "", min_sales: "0", max_sales: "", bonus_amount: "0", bonus_percentage: "0" });
+  const [assignDialog, setAssignDialog] = useState(false);
+  const [assignForm, setAssignForm] = useState({ user_id: "", rule_id: "", notes: "" });
+  const [payPeriodDialog, setPayPeriodDialog] = useState(false);
+  const [ppForm, setPpForm] = useState({ period_name: "", start_date: "", end_date: "" });
+  const [payrollEntryDialog, setPayrollEntryDialog] = useState(false);
+  const [peForm, setPeForm] = useState({ pay_period_id: "", user_id: "", base_salary: "0", commission_total: "0", bonus_total: "0", hours_worked: "0", overtime_hours: "0", deductions_total: "0", notes: "" });
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [adjForm, setAdjForm] = useState({ payroll_entry_id: "", adjustment_type: "deduction", label: "", amount: "0", notes: "" });
+  const [scheduleDialog, setScheduleDialog] = useState(false);
+  const [schForm, setSchForm] = useState({ user_id: "", day_of_week: "1", start_time: "09:00", end_time: "17:00", notes: "" });
+  const [disputeResolution, setDisputeResolution] = useState<{ id: string; action: string } | null>(null);
+  const [disputeNote, setDisputeNote] = useState("");
 
-  // ═══ LOAD ALL FIELD AGENTS ═══
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["core-field"] });
+  };
+
+  // ═══ QUERIES ═══
   const { data: agents = [], isLoading: loadingAgents } = useQuery({
-    queryKey: ["core-field-agents"],
+    queryKey: ["core-field", "agents"],
     queryFn: async () => {
-      const { data: roles, error: rolesErr } = await supabase
-        .from("user_roles")
-        .select("user_id, is_active, created_at, permissions")
-        .eq("role", "field_sales" as any);
-      if (rolesErr) throw rolesErr;
+      const { data: roles } = await supabase.from("user_roles").select("user_id, is_active, created_at, permissions").eq("role", "field_sales" as any);
       if (!roles?.length) return [];
-
       const userIds = roles.map((r: any) => r.user_id);
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, email, phone").in("user_id", userIds);
-      const { data: salesOrders } = await supabase.from("field_sales_orders").select("salesperson_id, total_amount").in("salesperson_id", userIds);
-      const { data: commissions } = await supabase.from("sales_commissions").select("salesperson_id, commission_amount, status").in("salesperson_id", userIds);
-
-      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
-      const salesMap = new Map<string, number>();
-      const commMap = new Map<string, { total: number; pending: number; approved: number; paid: number }>();
-
-      for (const s of salesOrders || []) salesMap.set(s.salesperson_id, (salesMap.get(s.salesperson_id) || 0) + 1);
+      const [{ data: profiles }, { data: salesOrders }, { data: commissions }] = await Promise.all([
+        supabase.from("profiles").select("user_id, full_name, email, phone").in("user_id", userIds),
+        supabase.from("field_sales_orders").select("salesperson_id, total_amount").in("salesperson_id", userIds),
+        supabase.from("sales_commissions").select("salesperson_id, commission_amount, status").in("salesperson_id", userIds),
+      ]);
+      const pm = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      const sm = new Map<string, number>();
+      const cm = new Map<string, { total: number; pending: number; approved: number; paid: number }>();
+      for (const s of salesOrders || []) sm.set(s.salesperson_id, (sm.get(s.salesperson_id) || 0) + 1);
       for (const c of commissions || []) {
-        const existing = commMap.get(c.salesperson_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
-        existing.total += Number(c.commission_amount);
-        if (c.status === "pending" || c.status === "pending_activation") existing.pending += Number(c.commission_amount);
-        if (c.status === "approved" || c.status === "validated") existing.approved += Number(c.commission_amount);
-        if (c.status === "paid") existing.paid += Number(c.commission_amount);
-        commMap.set(c.salesperson_id, existing);
+        const e = cm.get(c.salesperson_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
+        e.total += Number(c.commission_amount);
+        if (c.status === "pending" || c.status === "pending_activation") e.pending += Number(c.commission_amount);
+        if (c.status === "approved" || c.status === "validated") e.approved += Number(c.commission_amount);
+        if (c.status === "paid") e.paid += Number(c.commission_amount);
+        cm.set(c.salesperson_id, e);
       }
-
       return roles.map((r: any): AgentRow => {
-        const profile = profileMap.get(r.user_id) as any;
-        const comm = commMap.get(r.user_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
-        return {
-          user_id: r.user_id, full_name: profile?.full_name || null, email: profile?.email || null,
-          phone: profile?.phone || null, is_active: r.is_active !== false, created_at: r.created_at,
-          total_sales: salesMap.get(r.user_id) || 0, total_commission: comm.total,
-          pending_commission: comm.pending, approved_commission: comm.approved, paid_commission: comm.paid,
-        };
+        const p = pm.get(r.user_id) as any;
+        const c = cm.get(r.user_id) || { total: 0, pending: 0, approved: 0, paid: 0 };
+        return { user_id: r.user_id, full_name: p?.full_name, email: p?.email, phone: p?.phone, is_active: r.is_active !== false, created_at: r.created_at, total_sales: sm.get(r.user_id) || 0, total_commission: c.total, pending_commission: c.pending, approved_commission: c.approved, paid_commission: c.paid };
       });
     },
   });
 
-  // ═══ ALL COMMISSIONS ═══
-  const { data: allCommissions = [], isLoading: loadingCommissions } = useQuery({
-    queryKey: ["core-all-commissions"],
+  const { data: allCommissions = [] } = useQuery({
+    queryKey: ["core-field", "commissions"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_commissions")
-        .select("*, field_sales_orders!sales_commissions_field_order_id_fkey(customer_name, customer_email)")
-        .order("created_at", { ascending: false }).limit(200);
-      if (error) throw error;
+      const { data } = await supabase.from("sales_commissions").select("*, field_sales_orders!sales_commissions_field_order_id_fkey(customer_name, customer_email)").order("created_at", { ascending: false }).limit(200);
       return data || [];
     },
-    enabled: activeTab === "commissions",
+    enabled: tab === "commissions",
   });
 
-  // ═══ WITHDRAWALS ═══
-  const { data: withdrawals = [], isLoading: loadingWithdrawals } = useQuery({
-    queryKey: ["core-field-withdrawals"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("field_sales_cashout_requests").select("*").order("created_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: activeTab === "withdrawals" || activeTab === "pay",
+  const { data: rules = [] } = useQuery({
+    queryKey: ["core-field", "rules"],
+    queryFn: async () => { const { data } = await supabase.from("field_sales_commission_rules").select("*").order("min_sales"); return data || []; },
+    enabled: tab === "grids" || tab === "assignments",
   });
 
-  // ═══ DISPUTED COMMISSIONS ═══
-  const { data: disputes = [], isLoading: loadingDisputes } = useQuery({
-    queryKey: ["core-field-disputes"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_commissions")
-        .select("*, field_sales_orders!sales_commissions_field_order_id_fkey(customer_name)")
-        .in("status", ["disputed"] as any)
-        .order("created_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: activeTab === "disputes",
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["core-field", "assignments"],
+    queryFn: async () => { const { data } = await supabase.from("commission_grid_assignments").select("*").order("created_at", { ascending: false }); return data || []; },
+    enabled: tab === "assignments",
   });
 
-  // ═══ COMMISSION RULES ═══
-  const { data: rules = [], isLoading: loadingRules } = useQuery({
-    queryKey: ["core-commission-rules"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("field_sales_commission_rules").select("*").order("min_sales", { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: activeTab === "rules",
+  const { data: withdrawals = [] } = useQuery({
+    queryKey: ["core-field", "withdrawals"],
+    queryFn: async () => { const { data } = await supabase.from("commission_withdrawal_requests").select("*").order("created_at", { ascending: false }).limit(200); return data || []; },
+    enabled: tab === "withdrawals",
+  });
+
+  const { data: disputes = [] } = useQuery({
+    queryKey: ["core-field", "disputes"],
+    queryFn: async () => { const { data } = await supabase.from("commission_disputes").select("*, sales_commissions(commission_amount, sale_amount, status)").order("created_at", { ascending: false }).limit(200); return data || []; },
+    enabled: tab === "disputes",
+  });
+
+  const { data: payPeriods = [] } = useQuery({
+    queryKey: ["core-field", "pay-periods"],
+    queryFn: async () => { const { data } = await supabase.from("pay_periods").select("*").order("start_date", { ascending: false }); return data || []; },
+    enabled: tab === "payroll",
+  });
+
+  const { data: payrollEntries = [] } = useQuery({
+    queryKey: ["core-field", "payroll-entries"],
+    queryFn: async () => { const { data } = await supabase.from("payroll_entries").select("*, pay_periods(period_name, start_date, end_date), payroll_adjustments(*)").order("created_at", { ascending: false }).limit(200); return data || []; },
+    enabled: tab === "payroll",
+  });
+
+  const { data: timeEntries = [] } = useQuery({
+    queryKey: ["core-field", "time-entries"],
+    queryFn: async () => { const { data } = await supabase.from("time_entries").select("*").order("punch_in", { ascending: false }).limit(200); return data || []; },
+    enabled: tab === "time",
+  });
+
+  const { data: schedules = [] } = useQuery({
+    queryKey: ["core-field", "schedules"],
+    queryFn: async () => { const { data } = await supabase.from("staff_schedules").select("*").order("user_id").order("day_of_week"); return data || []; },
+    enabled: tab === "schedules",
   });
 
   // ═══ MUTATIONS ═══
   const approveCommission = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("sales_commissions").update({ status: "validated", validated_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-all-commissions"] }); queryClient.invalidateQueries({ queryKey: ["core-field-agents"] }); toast.success("Commission approuvée"); },
+    mutationFn: async (id: string) => { const { error } = await supabase.from("sales_commissions").update({ status: "validated", validated_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Commission approuvée"); },
   });
-
   const rejectCommission = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const { error } = await supabase.from("sales_commissions").update({ status: "rejected", rejection_reason: reason }).eq("id", id);
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => { const { error } = await supabase.from("sales_commissions").update({ status: "rejected" as any, rejection_reason: reason }).eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Commission rejetée"); },
+  });
+  const markCommissionPaid = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("sales_commissions").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Commission marquée payée"); },
+  });
+  const toggleAgentStatus = useMutation({
+    mutationFn: async ({ userId, activate }: { userId: string; activate: boolean }) => { const { error } = await supabase.from("user_roles").update({ is_active: activate }).eq("user_id", userId).eq("role", "field_sales" as any); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Statut mis à jour"); },
+  });
+  const saveAgentProfile = useMutation({
+    mutationFn: async () => {
+      if (!editAgent) return;
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: { action: "update_profile", user_id: editAgent.user_id, full_name: editForm.full_name.trim() || undefined, email: editForm.email.trim() || undefined, phone: editForm.phone.trim() || undefined },
+      });
       if (error) throw error;
+      const r = typeof data === "string" ? JSON.parse(data) : data;
+      if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-all-commissions"] }); toast.success("Commission rejetée"); },
+    onSuccess: () => { invalidateAll(); setEditAgent(null); toast.success("Profil sauvegardé"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
+  // Commission Grid CRUD
+  const createGrid = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("field_sales_commission_rules").insert({
+        rule_name: gridForm.rule_name, rule_type: gridForm.rule_type as any,
+        service_type: gridForm.service_type || null, min_sales: parseInt(gridForm.min_sales) || 0,
+        max_sales: gridForm.max_sales ? parseInt(gridForm.max_sales) : null,
+        bonus_amount: parseFloat(gridForm.bonus_amount) || 0, bonus_percentage: parseFloat(gridForm.bonus_percentage) || 0,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setGridDialog(false); toast.success("Grille créée"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+  const deleteGrid = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("field_sales_commission_rules").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Grille supprimée"); },
+  });
+
+  // Grid Assignment
+  const createAssignment = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("commission_grid_assignments").insert({
+        user_id: assignForm.user_id, rule_id: assignForm.rule_id, notes: assignForm.notes || null, assigned_by: user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setAssignDialog(false); toast.success("Grille assignée"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+  const removeAssignment = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("commission_grid_assignments").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Assignation retirée"); },
+  });
+
+  // Withdrawals
+  const updateWithdrawal = useMutation({
+    mutationFn: async ({ id, status, note }: { id: string; status: string; note?: string }) => {
+      const u: any = { status, reviewed_at: new Date().toISOString() };
+      if (note) u.admin_notes = note;
+      if (status === "paid") u.paid_at = new Date().toISOString();
+      const { error } = await supabase.from("commission_withdrawal_requests").update(u).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Retrait mis à jour"); },
+  });
+
+  // Disputes
   const resolveDispute = useMutation({
-    mutationFn: async ({ id, action, note }: { id: string; action: "validated" | "rejected"; note: string }) => {
-      const { error } = await supabase.from("sales_commissions").update({
-        status: action,
-        ...(action === "validated" ? { validated_at: new Date().toISOString() } : { rejection_reason: note }),
+    mutationFn: async ({ id, action, note }: { id: string; action: string; note: string }) => {
+      const { error } = await supabase.from("commission_disputes").update({
+        status: action, admin_response: note, resolved_at: new Date().toISOString(),
       }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-field-disputes"] }); queryClient.invalidateQueries({ queryKey: ["core-all-commissions"] }); toast.success("Contestation traitée"); },
+    onSuccess: () => { invalidateAll(); setDisputeResolution(null); setDisputeNote(""); toast.success("Contestation traitée"); },
   });
 
-  const updateWithdrawalStatus = useMutation({
-    mutationFn: async ({ id, status, note }: { id: string; status: string; note?: string }) => {
-      const update: any = { status, reviewed_at: new Date().toISOString() };
-      if (note) update.admin_note = note;
-      if (status === "paid") update.paid_at = new Date().toISOString();
-      const { error } = await supabase.from("field_sales_cashout_requests").update(update).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-field-withdrawals"] }); toast.success("Statut mis à jour"); },
-  });
-
-  const markCommissionPaid = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("sales_commissions").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-all-commissions"] }); queryClient.invalidateQueries({ queryKey: ["core-field-agents"] }); toast.success("Commission marquée payée"); },
-  });
-
-  const toggleAgentStatus = useMutation({
-    mutationFn: async ({ userId, activate }: { userId: string; activate: boolean }) => {
-      const { error } = await supabase.from("user_roles").update({ is_active: activate }).eq("user_id", userId).eq("role", "field_sales" as any);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-field-agents"] }); toast.success("Statut mis à jour"); },
-  });
-
-  const saveAgentProfile = useMutation({
+  // Pay Periods
+  const createPayPeriod = useMutation({
     mutationFn: async () => {
-      if (!editingAgent) return;
-      // Use edge function for real persistence (adminClient + auth sync)
-      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
-        body: {
-          action: "update_profile",
-          user_id: editingAgent.user_id,
-          full_name: editForm.full_name.trim() || undefined,
-          email: editForm.email.trim() || undefined,
-          phone: editForm.phone.trim() || undefined,
-        },
+      const { error } = await supabase.from("pay_periods").insert({ period_name: ppForm.period_name, start_date: ppForm.start_date, end_date: ppForm.end_date });
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setPayPeriodDialog(false); toast.success("Période de paie créée"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+  const closePayPeriod = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("pay_periods").update({ status: "closed", closed_by: user?.id, closed_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Période fermée"); },
+  });
+  const markPeriodPaid = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("pay_periods").update({ status: "paid" }).eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Période marquée payée"); },
+  });
+
+  // Payroll Entries
+  const createPayrollEntry = useMutation({
+    mutationFn: async () => {
+      const gross = parseFloat(peForm.base_salary) + parseFloat(peForm.commission_total) + parseFloat(peForm.bonus_total);
+      const net = gross - parseFloat(peForm.deductions_total);
+      const { error } = await supabase.from("payroll_entries").insert({
+        pay_period_id: peForm.pay_period_id, user_id: peForm.user_id,
+        base_salary: parseFloat(peForm.base_salary), commission_total: parseFloat(peForm.commission_total),
+        bonus_total: parseFloat(peForm.bonus_total), hours_worked: parseFloat(peForm.hours_worked),
+        overtime_hours: parseFloat(peForm.overtime_hours), deductions_total: parseFloat(peForm.deductions_total),
+        gross_pay: gross, net_pay: net, notes: peForm.notes || null,
       });
       if (error) throw error;
-      const result = typeof data === "string" ? JSON.parse(data) : data;
-      if (!result?.ok && !result?.success) {
-        throw new Error(result?.error?.message || result?.message || "Échec de la mise à jour");
-      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["core-field-agents"] });
-      setEditingAgent(null);
-      toast.success("Profil mis à jour avec succès");
+    onSuccess: () => { invalidateAll(); setPayrollEntryDialog(false); toast.success("Entrée de paie créée"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+  const approvePayroll = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("payroll_entries").update({ status: "approved", approved_by: user?.id, approved_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur de sauvegarde"),
+    onSuccess: () => { invalidateAll(); toast.success("Paie approuvée"); },
+  });
+  const markPayrollPaid = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("payroll_entries").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée"); },
   });
 
-  const filteredAgents = agents.filter((a) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (a.full_name || "").toLowerCase().includes(q) || (a.email || "").toLowerCase().includes(q);
+  // Adjustments
+  const createAdjustment = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("payroll_adjustments").insert({
+        payroll_entry_id: adjForm.payroll_entry_id, adjustment_type: adjForm.adjustment_type as any,
+        label: adjForm.label, amount: parseFloat(adjForm.amount), applied_by: user?.id, notes: adjForm.notes || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setAdjustDialog(false); toast.success("Ajustement ajouté"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
-  const totalSales = agents.reduce((s, a) => s + a.total_sales, 0);
-  const totalCommission = agents.reduce((s, a) => s + a.total_commission, 0);
-  const totalPending = agents.reduce((s, a) => s + a.pending_commission, 0);
-  const totalPaid = agents.reduce((s, a) => s + a.paid_commission, 0);
-  const activeAgents = agents.filter((a) => a.is_active).length;
+  // Time Entries
+  const approveTimeEntry = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("time_entries").update({ status: "approved", approved_by: user?.id, approved_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Temps approuvé"); },
+  });
+  const rejectTimeEntry = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("time_entries").update({ status: "rejected" }).eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Temps rejeté"); },
+  });
+
+  // Schedules
+  const createSchedule = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("staff_schedules").insert({
+        user_id: schForm.user_id, day_of_week: parseInt(schForm.day_of_week),
+        start_time: schForm.start_time, end_time: schForm.end_time, notes: schForm.notes || null, created_by: user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setScheduleDialog(false); toast.success("Horaire ajouté"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+  const deleteSchedule = useMutation({
+    mutationFn: async (id: string) => { const { error } = await supabase.from("staff_schedules").delete().eq("id", id); if (error) throw error; },
+    onSuccess: () => { invalidateAll(); toast.success("Horaire supprimé"); },
+  });
+
+  // ═══ COMPUTED ═══
+  const filtered = useMemo(() => {
+    if (!search.trim()) return agents;
+    const q = search.toLowerCase();
+    return agents.filter((a) => (a.full_name || "").toLowerCase().includes(q) || (a.email || "").toLowerCase().includes(q));
+  }, [agents, search]);
+
+  const profileMap = useMemo(() => new Map(agents.map((a) => [a.user_id, a])), [agents]);
+  const getName = (uid: string) => profileMap.get(uid)?.full_name || uid.slice(0, 8);
+
+  const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  const RULE_TYPES: Record<string, string> = { base_rate: "Taux de base", volume_bonus: "Bonus volume", service_bonus: "Bonus service", territory_bonus: "Bonus territoire" };
+  const ADJ_TYPES: Record<string, string> = { deduction: "Retenue", bonus: "Bonus", correction: "Correction", clawback: "Récupération", tax_withholding: "Impôt retenu", other: "Autre" };
+
+  const totalStats = useMemo(() => ({
+    active: agents.filter((a) => a.is_active).length,
+    sales: agents.reduce((s, a) => s + a.total_sales, 0),
+    commission: agents.reduce((s, a) => s + a.total_commission, 0),
+    pending: agents.reduce((s, a) => s + a.pending_commission, 0),
+    paid: agents.reduce((s, a) => s + a.paid_commission, 0),
+    owed: agents.reduce((s, a) => s + a.approved_commission, 0),
+  }), [agents]);
+
   const pendingWithdrawals = withdrawals.filter((w: any) => w.status === "pending").length;
-  const pendingDisputes = disputes.length;
+  const openDisputes = disputes.filter((d: any) => d.status === "open" || d.status === "under_review").length;
 
   const TABS: { key: TabView; label: string; icon: typeof Users; badge?: number }[] = [
     { key: "agents", label: "Vendeurs", icon: Users },
     { key: "commissions", label: "Commissions", icon: DollarSign },
+    { key: "grids", label: "Grilles", icon: Grid3X3 },
+    { key: "assignments", label: "Assignations", icon: Link2 },
     { key: "withdrawals", label: "Retraits", icon: Banknote, badge: pendingWithdrawals },
-    { key: "pay", label: "Paie", icon: CreditCard },
-    { key: "disputes", label: "Contestations", icon: MessageSquare, badge: pendingDisputes },
-    { key: "rules", label: "Règles", icon: BarChart3 },
+    { key: "disputes", label: "Contestations", icon: MessageSquare, badge: openDisputes },
+    { key: "payroll", label: "Paie", icon: Briefcase },
+    { key: "time", label: "Temps", icon: Timer },
+    { key: "schedules", label: "Horaires", icon: ClipboardList },
   ];
 
-  // ═══ AGENT DETAIL VIEW ═══
+  // ═══ AGENT DETAIL ═══
   if (selectedAgent) {
-    const agent = selectedAgent;
-    const agentCommissions = allCommissions.filter((c: any) => c.salesperson_id === agent.user_id);
-    const agentWithdrawals = withdrawals.filter((w: any) => w.salesperson_id === agent.user_id);
+    const a = selectedAgent;
+    const ac = allCommissions.filter((c: any) => c.salesperson_id === a.user_id);
     return (
       <div className="space-y-6">
-        <button onClick={() => setSelectedAgent(null)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Retour aux vendeurs
-        </button>
+        <button onClick={() => setSelectedAgent(null)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Retour</button>
         <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-4">
-              <div className={cn("h-14 w-14 rounded-full flex items-center justify-center text-lg font-bold", agent.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300")}>
-                {(agent.full_name || "?")[0]?.toUpperCase()}
-              </div>
+              <div className={cn("h-14 w-14 rounded-full flex items-center justify-center text-lg font-bold", a.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300")}>{(a.full_name || "?")[0]?.toUpperCase()}</div>
               <div>
-                <h2 className="text-lg font-bold text-foreground">{agent.full_name || "Sans nom"}</h2>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                  <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{agent.email || "—"}</span>
-                  <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{agent.phone || "—"}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", agent.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>
-                    {agent.is_active ? "Actif" : "Suspendu"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" />Depuis {format(new Date(agent.created_at), "dd MMM yyyy", { locale: fr })}</span>
-                </div>
+                <h2 className="text-lg font-bold text-foreground">{a.full_name || "Sans nom"}</h2>
+                <p className="text-xs text-muted-foreground">{a.email} · {a.phone || "—"}</p>
+                <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border mt-1 inline-block", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Suspendu"}</span>
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => { setEditingAgent(agent); setEditForm({ full_name: agent.full_name || "", email: agent.email || "", phone: agent.phone || "" }); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                <Edit3 className="h-3 w-3" /> Modifier
-              </button>
-              <button onClick={() => toggleAgentStatus.mutate({ userId: agent.user_id, activate: !agent.is_active })}
-                className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors", agent.is_active ? "bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-400" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400")}>
-                {agent.is_active ? <><UserX className="h-3 w-3" /> Suspendre</> : <><UserCheck className="h-3 w-3" /> Réactiver</>}
-              </button>
+              <Button size="sm" variant="outline" onClick={() => { setEditAgent(a); setEditForm({ full_name: a.full_name || "", email: a.email || "", phone: a.phone || "" }); }}><Edit3 className="h-3 w-3 mr-1" /> Modifier</Button>
+              <Button size="sm" variant={a.is_active ? "destructive" : "default"} onClick={() => toggleAgentStatus.mutate({ userId: a.user_id, activate: !a.is_active })}>
+                {a.is_active ? <><UserX className="h-3 w-3 mr-1" /> Suspendre</> : <><UserCheck className="h-3 w-3 mr-1" /> Réactiver</>}
+              </Button>
             </div>
           </div>
-
-          {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-4 border-t border-border">
-            {[
-              { label: "Ventes", value: agent.total_sales, color: "text-foreground" },
-              { label: "Commission totale", value: `${agent.total_commission.toFixed(2)} $`, color: "text-foreground" },
-              { label: "En attente", value: `${agent.pending_commission.toFixed(2)} $`, color: "text-amber-600" },
-              { label: "Approuvé", value: `${agent.approved_commission.toFixed(2)} $`, color: "text-blue-600" },
-              { label: "Payé", value: `${agent.paid_commission.toFixed(2)} $`, color: "text-emerald-600" },
-            ].map((kpi) => (
-              <div key={kpi.label} className="text-center">
-                <p className="text-[10px] text-muted-foreground">{kpi.label}</p>
-                <p className={cn("text-sm font-bold mt-0.5", kpi.color)}>{kpi.value}</p>
-              </div>
+            {[{ l: "Ventes", v: a.total_sales }, { l: "Total comm.", v: fmtMoney(a.total_commission) }, { l: "Attente", v: fmtMoney(a.pending_commission), c: "text-amber-600" }, { l: "Approuvé", v: fmtMoney(a.approved_commission), c: "text-blue-600" }, { l: "Payé", v: fmtMoney(a.paid_commission), c: "text-emerald-600" }].map((k) => (
+              <div key={k.l} className="text-center"><p className="text-[10px] text-muted-foreground">{k.l}</p><p className={cn("text-sm font-bold mt-0.5", k.c || "text-foreground")}>{k.v}</p></div>
             ))}
           </div>
         </div>
-
-        {/* Agent's commissions */}
-        <div>
-          <h3 className="text-sm font-bold text-foreground mb-3">Historique des commissions</h3>
-          {agentCommissions.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Aucune commission</p>
-          ) : (
-            <div className="space-y-2">
-              {agentCommissions.slice(0, 50).map((c: any) => {
-                const badge = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
-                return (
-                  <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground">{Number(c.commission_amount).toFixed(2)} $</span>
-                        <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", badge.cls)}>{badge.label}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{Number(c.sale_amount).toFixed(2)} $ @ {(Number(c.commission_rate) * 100).toFixed(0)}%</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {c.status === "validated" && (
-                        <button onClick={() => markCommissionPaid.mutate(c.id)} className="text-[10px] font-medium px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400">
-                          Marquer payé
-                        </button>
-                      )}
-                      <span className="text-[10px] text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yy")}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ═══ EDIT AGENT DIALOG ═══
-  if (editingAgent) {
-    return (
-      <div className="space-y-6">
-        <button onClick={() => setEditingAgent(null)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Annuler
-        </button>
-        <div className="bg-card border border-border rounded-xl p-6 space-y-5 max-w-lg">
-          <h2 className="text-lg font-bold text-foreground">Modifier le profil vendeur</h2>
-          {[
-            { label: "Nom complet", key: "full_name", icon: Users },
-            { label: "Courriel", key: "email", icon: Mail },
-            { label: "Téléphone", key: "phone", icon: Phone },
-          ].map((field) => (
-            <div key={field.key}>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">{field.label}</label>
-              <div className="relative">
-                <field.icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  value={(editForm as any)[field.key]}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
+        {/* Assigned Grids */}
+        <div className="bg-card border border-border rounded-xl p-4">
+          <h3 className="text-sm font-bold text-foreground mb-2">Grilles assignées</h3>
+          {assignments.filter((as: any) => as.user_id === a.user_id && as.is_active).length === 0 ? (
+            <p className="text-xs text-muted-foreground py-4 text-center">Aucune grille assignée</p>
+          ) : assignments.filter((as: any) => as.user_id === a.user_id && as.is_active).map((as: any) => {
+            const rule = rules.find((r: any) => r.id === as.rule_id);
+            return (
+              <div key={as.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
+                <div><p className="text-sm font-medium text-foreground">{rule?.rule_name || "—"}</p><p className="text-[10px] text-muted-foreground">{RULE_TYPES[rule?.rule_type] || rule?.rule_type} · {rule?.bonus_amount > 0 ? `${rule.bonus_amount}$` : `${rule?.bonus_percentage}%`}</p></div>
+                <Button size="sm" variant="ghost" onClick={() => removeAssignment.mutate(as.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
               </div>
-            </div>
-          ))}
-          <button onClick={() => saveAgentProfile.mutate()} disabled={saveAgentProfile.isPending}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 transition-colors">
-            {saveAgentProfile.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Sauvegarder
-          </button>
+            );
+          })}
+        </div>
+        {/* Commission history */}
+        <div className="bg-card border border-border rounded-xl p-4">
+          <h3 className="text-sm font-bold text-foreground mb-2">Historique commissions</h3>
+          {ac.length === 0 ? <p className="text-xs text-muted-foreground py-4 text-center">Aucune</p> : ac.slice(0, 30).map((c: any) => {
+            const b = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
+            return (
+              <div key={c.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
+                <div><span className="text-sm font-semibold text-foreground">{fmtMoney(Number(c.commission_amount))}</span> <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1", b.cls)}>{b.label}</span><p className="text-[10px] text-muted-foreground">{fmtMoney(Number(c.sale_amount))} @ {(Number(c.commission_rate) * 100).toFixed(0)}%</p></div>
+                <div className="flex items-center gap-1">
+                  {c.status === "validated" && <Button size="sm" variant="outline" onClick={() => markCommissionPaid.mutate(c.id)}>Payer</Button>}
+                  <span className="text-[10px] text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yy")}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -387,23 +469,23 @@ export default function CoreFieldAgentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Vendeurs terrain</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Gestion complète des agents, commissions, paie et retraits</p>
+        <h1 className="text-xl font-bold text-foreground">Vendeurs terrain — RH & Paie</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Agents, commissions, grilles, paie, temps, horaires</p>
       </div>
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
-          { label: "Agents actifs", value: `${activeAgents} / ${agents.length}`, color: "text-foreground" },
-          { label: "Ventes totales", value: totalSales, color: "text-foreground" },
-          { label: "Commissions totales", value: `${totalCommission.toFixed(2)} $`, color: "text-emerald-600" },
-          { label: "En attente", value: `${totalPending.toFixed(2)} $`, color: "text-amber-600" },
-          { label: "Payé", value: `${totalPaid.toFixed(2)} $`, color: "text-blue-600" },
-          { label: "Contestations", value: pendingDisputes, color: pendingDisputes > 0 ? "text-red-600" : "text-muted-foreground" },
-        ].map((kpi) => (
-          <div key={kpi.label} className="bg-card border border-border rounded-xl p-4">
-            <p className="text-[11px] text-muted-foreground font-medium">{kpi.label}</p>
-            <p className={cn("text-lg font-bold mt-1", kpi.color)}>{kpi.value}</p>
+          { l: "Agents actifs", v: `${totalStats.active}/${agents.length}` },
+          { l: "Ventes totales", v: totalStats.sales },
+          { l: "Commissions", v: fmtMoney(totalStats.commission), c: "text-emerald-600" },
+          { l: "En attente", v: fmtMoney(totalStats.pending), c: "text-amber-600" },
+          { l: "Payé", v: fmtMoney(totalStats.paid), c: "text-blue-600" },
+          { l: "Solde dû", v: fmtMoney(totalStats.owed), c: "text-red-600" },
+        ].map((k) => (
+          <div key={k.l} className="bg-card border border-border rounded-xl p-4">
+            <p className="text-[11px] text-muted-foreground font-medium">{k.l}</p>
+            <p className={cn("text-lg font-bold mt-1", k.c || "text-foreground")}>{k.v}</p>
           </div>
         ))}
       </div>
@@ -411,314 +493,379 @@ export default function CoreFieldAgentsPage() {
       {/* Tabs */}
       <div className="flex border-b border-border overflow-x-auto">
         {TABS.map((t) => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={cn("flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-              activeTab === t.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            <t.icon className="h-4 w-4" />
-            {t.label}
-            {t.badge !== undefined && t.badge > 0 && (
-              <span className="ml-1 text-[10px] font-bold bg-red-500 text-white rounded-full h-4 min-w-[16px] flex items-center justify-center px-1">{t.badge}</span>
-            )}
+          <button key={t.key} onClick={() => setTab(t.key)} className={cn("flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap", tab === t.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            <t.icon className="h-4 w-4" />{t.label}
+            {t.badge !== undefined && t.badge > 0 && <span className="ml-1 text-[10px] font-bold bg-destructive text-destructive-foreground rounded-full h-4 min-w-[16px] flex items-center justify-center px-1">{t.badge}</span>}
           </button>
         ))}
       </div>
 
       {/* ═══ AGENTS TAB ═══ */}
-      {activeTab === "agents" && (
+      {tab === "agents" && (
         <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher par nom ou courriel…"
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-          </div>
-          {loadingAgents ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
-          ) : filteredAgents.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-12">Aucun vendeur trouvé</p>
-          ) : (
-            <div className="space-y-2">
-              {filteredAgents.map((agent) => (
-                <div key={agent.user_id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={() => { setSelectedAgent(agent); setActiveTab("commissions"); }}>
-                    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
-                      agent.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300")}>
-                      {(agent.full_name || "?")[0]?.toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground truncate">{agent.full_name || "Sans nom"}</p>
-                        <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border", agent.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>
-                          {agent.is_active ? "Actif" : "Suspendu"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">{agent.email || "—"} · {agent.phone || "—"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-xs text-muted-foreground">{agent.total_sales} ventes</p>
-                      <p className="text-sm font-bold text-emerald-600">{agent.total_commission.toFixed(2)} $</p>
-                      <p className="text-[10px] text-blue-600">Payé: {agent.paid_commission.toFixed(2)} $</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => setSelectedAgent(agent)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground" title="Voir profil">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => { setEditingAgent(agent); setEditForm({ full_name: agent.full_name || "", email: agent.email || "", phone: agent.phone || "" }); }}
-                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground" title="Modifier">
-                        <Edit3 className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => toggleAgentStatus.mutate({ userId: agent.user_id, activate: !agent.is_active })}
-                        className={cn("p-1.5 rounded-lg transition-colors", agent.is_active ? "hover:bg-red-50 text-red-500 dark:hover:bg-red-950" : "hover:bg-emerald-50 text-emerald-500 dark:hover:bg-emerald-950")}
-                        title={agent.is_active ? "Suspendre" : "Réactiver"}>
-                        {agent.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm" /></div>
+          {loadingAgents ? <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" /> : filtered.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun vendeur</p> : (
+            <div className="space-y-2">{filtered.map((a) => (
+              <div key={a.user_id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-muted/30">
+                <div className="flex items-center gap-3 cursor-pointer min-w-0" onClick={() => setSelectedAgent(a)}>
+                  <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0", a.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300")}>{(a.full_name || "?")[0]?.toUpperCase()}</div>
+                  <div className="min-w-0"><p className="text-sm font-semibold text-foreground truncate">{a.full_name || "Sans nom"} <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border ml-1", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Suspendu"}</span></p><p className="text-xs text-muted-foreground truncate">{a.email} · {a.total_sales} ventes · {fmtMoney(a.total_commission)}</p></div>
                 </div>
-              ))}
-            </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" onClick={() => setSelectedAgent(a)}><Eye className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => { setEditAgent(a); setEditForm({ full_name: a.full_name || "", email: a.email || "", phone: a.phone || "" }); }}><Edit3 className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => toggleAgentStatus.mutate({ userId: a.user_id, activate: !a.is_active })} className={a.is_active ? "text-destructive" : "text-emerald-600"}>{a.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}</Button>
+                </div>
+              </div>
+            ))}</div>
           )}
         </div>
       )}
 
       {/* ═══ COMMISSIONS TAB ═══ */}
-      {activeTab === "commissions" && (
-        <div className="space-y-3">
-          {loadingCommissions ? <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : allCommissions.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-12">Aucune commission</p>
-          ) : allCommissions.map((c: any) => {
-            const badge = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
-            const agentProfile = agents.find((a) => a.user_id === c.salesperson_id);
-            return (
-              <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{Number(c.commission_amount).toFixed(2)} $</span>
-                    <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", badge.cls)}>{badge.label}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {agentProfile?.full_name || c.salesperson_id?.slice(0, 8)} — {Number(c.sale_amount).toFixed(2)} $ @ {(Number(c.commission_rate) * 100).toFixed(0)}%
-                  </p>
-                  {c.field_sales_orders?.customer_name && <p className="text-xs text-muted-foreground">Client: {c.field_sales_orders.customer_name}</p>}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {(c.status === "pending" || c.status === "pending_activation") && (
-                    <>
-                      <button onClick={() => approveCommission.mutate(c.id)} className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400" title="Approuver"><Check className="h-4 w-4" /></button>
-                      <button onClick={() => { const r = prompt("Raison du rejet:"); if (r) rejectCommission.mutate({ id: c.id, reason: r }); }} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950 dark:text-red-400" title="Rejeter"><X className="h-4 w-4" /></button>
-                    </>
-                  )}
-                  {c.status === "validated" && (
-                    <button onClick={() => markCommissionPaid.mutate(c.id)} className="text-[10px] font-medium px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400">
-                      Marquer payé
-                    </button>
-                  )}
-                  <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: fr })}</span>
-                </div>
+      {tab === "commissions" && (
+        <div className="space-y-2">{allCommissions.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune commission</p> : allCommissions.map((c: any) => {
+          const b = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
+          return (
+            <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+              <div><div className="flex items-center gap-2"><span className="text-sm font-semibold text-foreground">{fmtMoney(Number(c.commission_amount))}</span><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span></div><p className="text-xs text-muted-foreground mt-0.5">{getName(c.salesperson_id)} · {fmtMoney(Number(c.sale_amount))} @ {(Number(c.commission_rate)*100).toFixed(0)}%{c.bonus_amount > 0 ? ` + ${fmtMoney(Number(c.bonus_amount))} bonus` : ""}</p></div>
+              <div className="flex items-center gap-2 shrink-0">
+                {(c.status === "pending" || c.status === "pending_activation") && <><Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => approveCommission.mutate(c.id)}><Check className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => { const r = prompt("Raison:"); if (r) rejectCommission.mutate({ id: c.id, reason: r }); }}><X className="h-4 w-4" /></Button></>}
+                {c.status === "validated" && <Button size="sm" variant="outline" onClick={() => markCommissionPaid.mutate(c.id)}>Payer</Button>}
+                <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: fr })}</span>
               </div>
-            );
-          })}
+            </div>
+          );
+        })}</div>
+      )}
+
+      {/* ═══ GRIDS TAB ═══ */}
+      {tab === "grids" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground">Grilles de commission</h3><Button size="sm" onClick={() => { setGridForm({ rule_name: "", rule_type: "base_rate", service_type: "", min_sales: "0", max_sales: "", bonus_amount: "0", bonus_percentage: "0" }); setGridDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Nouvelle grille</Button></div>
+          {rules.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune grille</p> : (
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Nom</th><th className="pb-2 font-medium">Type</th><th className="pb-2 font-medium">Service</th><th className="pb-2 font-medium text-right">Ventes min</th><th className="pb-2 font-medium text-right">Ventes max</th><th className="pb-2 font-medium text-right">Bonus $</th><th className="pb-2 font-medium text-right">Bonus %</th><th className="pb-2 font-medium text-center">Actif</th><th className="pb-2"></th></tr></thead><tbody>
+              {rules.map((r: any) => (
+                <tr key={r.id} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="py-2.5 font-medium text-foreground">{r.rule_name}</td>
+                  <td className="py-2.5 text-muted-foreground">{RULE_TYPES[r.rule_type] || r.rule_type}</td>
+                  <td className="py-2.5 text-muted-foreground">{r.service_type || "—"}</td>
+                  <td className="py-2.5 text-right text-foreground">{r.min_sales}</td>
+                  <td className="py-2.5 text-right text-foreground">{r.max_sales ?? "∞"}</td>
+                  <td className="py-2.5 text-right text-foreground">{Number(r.bonus_amount).toFixed(2)} $</td>
+                  <td className="py-2.5 text-right text-foreground">{Number(r.bonus_percentage).toFixed(1)}%</td>
+                  <td className="py-2.5 text-center">{r.is_active ? <Check className="h-4 w-4 text-emerald-600 mx-auto" /> : <X className="h-4 w-4 text-destructive mx-auto" />}</td>
+                  <td className="py-2.5 text-right"><Button size="icon" variant="ghost" onClick={() => deleteGrid.mutate(r.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button></td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ ASSIGNMENTS TAB ═══ */}
+      {tab === "assignments" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground">Grilles assignées aux vendeurs</h3><Button size="sm" onClick={() => { setAssignForm({ user_id: "", rule_id: "", notes: "" }); setAssignDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Assigner</Button></div>
+          {assignments.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune assignation</p> : (
+            <div className="space-y-2">{assignments.map((a: any) => {
+              const rule = rules.find((r: any) => r.id === a.rule_id);
+              return (
+                <div key={a.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
+                  <div><p className="text-sm font-medium text-foreground">{getName(a.user_id)}</p><p className="text-xs text-muted-foreground">{rule?.rule_name || "—"} · {RULE_TYPES[rule?.rule_type] || "?"}{a.notes && ` · ${a.notes}`}</p></div>
+                  <div className="flex items-center gap-2"><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Inactif"}</span><Button size="icon" variant="ghost" onClick={() => removeAssignment.mutate(a.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                </div>
+              );
+            })}</div>
+          )}
         </div>
       )}
 
       {/* ═══ WITHDRAWALS TAB ═══ */}
-      {activeTab === "withdrawals" && (
-        <div className="space-y-3">
-          {loadingWithdrawals ? <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : withdrawals.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-12">Aucune demande de retrait</p>
-          ) : withdrawals.map((w: any) => {
-            const badge = STATUS_BADGE[w.status] || STATUS_BADGE.pending;
-            const agentProfile = agents.find((a) => a.user_id === w.salesperson_id);
-            return (
-              <div key={w.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{Number(w.amount).toFixed(2)} $</span>
-                    <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", badge.cls)}>{badge.label}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {agentProfile?.full_name || w.salesperson_id?.slice(0, 8)} — {w.method || "Virement"} → {w.destination || "—"}
-                  </p>
-                  {w.request_number && <p className="text-xs font-mono text-muted-foreground">{w.request_number}</p>}
-                  {w.admin_note && <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">Admin: {w.admin_note}</p>}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {w.status === "pending" && (
-                    <>
-                      <button onClick={() => updateWithdrawalStatus.mutate({ id: w.id, status: "approved" })} className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400" title="Approuver"><Check className="h-4 w-4" /></button>
-                      <button onClick={() => { const n = prompt("Raison du refus:"); if (n) updateWithdrawalStatus.mutate({ id: w.id, status: "rejected", note: n }); }} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950 dark:text-red-400" title="Refuser"><X className="h-4 w-4" /></button>
-                    </>
-                  )}
-                  {w.status === "approved" && (
-                    <button onClick={() => updateWithdrawalStatus.mutate({ id: w.id, status: "paid" })} className="text-[10px] font-medium px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400">
-                      Marquer payé
-                    </button>
-                  )}
-                  <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(w.created_at), { addSuffix: true, locale: fr })}</span>
-                </div>
+      {tab === "withdrawals" && (
+        <div className="space-y-2">{withdrawals.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun retrait</p> : withdrawals.map((w: any) => {
+          const b = STATUS_BADGE[w.status] || STATUS_BADGE.pending;
+          return (
+            <div key={w.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+              <div><div className="flex items-center gap-2"><span className="text-sm font-semibold text-foreground">{fmtMoney(Number(w.amount))}</span><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span></div><p className="text-xs text-muted-foreground mt-0.5">{getName(w.agent_id)}{w.notes && ` · ${w.notes}`}</p>{w.admin_notes && <p className="text-xs text-amber-600 mt-0.5">Admin: {w.admin_notes}</p>}</div>
+              <div className="flex items-center gap-2 shrink-0">
+                {w.status === "pending" && <><Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => updateWithdrawal.mutate({ id: w.id, status: "approved" })}><Check className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => { const n = prompt("Raison:"); if (n) updateWithdrawal.mutate({ id: w.id, status: "rejected", note: n }); }}><X className="h-4 w-4" /></Button></>}
+                {w.status === "approved" && <Button size="sm" variant="outline" onClick={() => updateWithdrawal.mutate({ id: w.id, status: "paid" })}>Payer</Button>}
+                <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(w.created_at), { addSuffix: true, locale: fr })}</span>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ═══ PAY TAB ═══ */}
-      {activeTab === "pay" && (
-        <div className="space-y-5">
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Receipt className="h-4 w-4" /> Suivi de paie des vendeurs</h3>
-            <p className="text-xs text-muted-foreground mb-4">Résumé des commissions validées, payées et en attente par agent.</p>
-            {agents.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Aucun agent</p> : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-[11px] text-muted-foreground border-b border-border">
-                      <th className="pb-2 font-medium">Agent</th>
-                      <th className="pb-2 font-medium text-right">Ventes</th>
-                      <th className="pb-2 font-medium text-right">Commission totale</th>
-                      <th className="pb-2 font-medium text-right">En attente</th>
-                      <th className="pb-2 font-medium text-right">Approuvé</th>
-                      <th className="pb-2 font-medium text-right">Payé</th>
-                      <th className="pb-2 font-medium text-right">Solde dû</th>
-                      <th className="pb-2 font-medium text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agents.map((agent) => {
-                      const solde = agent.approved_commission; // What's owed
-                      return (
-                        <tr key={agent.user_id} className="border-b border-border/50 hover:bg-muted/30">
-                          <td className="py-3">
-                            <p className="font-medium text-foreground">{agent.full_name || "Sans nom"}</p>
-                            <p className="text-[10px] text-muted-foreground">{agent.email}</p>
-                          </td>
-                          <td className="py-3 text-right text-foreground">{agent.total_sales}</td>
-                          <td className="py-3 text-right text-foreground">{agent.total_commission.toFixed(2)} $</td>
-                          <td className="py-3 text-right text-amber-600">{agent.pending_commission.toFixed(2)} $</td>
-                          <td className="py-3 text-right text-blue-600">{agent.approved_commission.toFixed(2)} $</td>
-                          <td className="py-3 text-right text-emerald-600">{agent.paid_commission.toFixed(2)} $</td>
-                          <td className="py-3 text-right font-bold text-foreground">{solde.toFixed(2)} $</td>
-                          <td className="py-3 text-center">
-                            <button onClick={() => setSelectedAgent(agent)} className="text-[10px] font-medium px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                              Détails
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="font-bold text-foreground border-t-2 border-border">
-                      <td className="pt-3">Total</td>
-                      <td className="pt-3 text-right">{totalSales}</td>
-                      <td className="pt-3 text-right">{totalCommission.toFixed(2)} $</td>
-                      <td className="pt-3 text-right text-amber-600">{totalPending.toFixed(2)} $</td>
-                      <td className="pt-3 text-right text-blue-600">{agents.reduce((s, a) => s + a.approved_commission, 0).toFixed(2)} $</td>
-                      <td className="pt-3 text-right text-emerald-600">{totalPaid.toFixed(2)} $</td>
-                      <td className="pt-3 text-right">{agents.reduce((s, a) => s + a.approved_commission, 0).toFixed(2)} $</td>
-                      <td className="pt-3"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Paid withdrawals history */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><Banknote className="h-4 w-4" /> Historique des paiements effectués</h3>
-            {(() => {
-              const paidW = withdrawals.filter((w: any) => w.status === "paid");
-              return paidW.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">Aucun paiement effectué</p>
-              ) : (
-                <div className="space-y-2">
-                  {paidW.map((w: any) => {
-                    const agentProfile = agents.find((a) => a.user_id === w.salesperson_id);
-                    return (
-                      <div key={w.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                        <div>
-                          <span className="text-sm font-semibold text-foreground">{Number(w.amount).toFixed(2)} $</span>
-                          <span className="text-xs text-muted-foreground ml-2">{agentProfile?.full_name || "—"}</span>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground">{w.paid_at ? format(new Date(w.paid_at), "dd/MM/yyyy") : w.reviewed_at ? format(new Date(w.reviewed_at), "dd/MM/yyyy") : "—"}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
+            </div>
+          );
+        })}</div>
       )}
 
       {/* ═══ DISPUTES TAB ═══ */}
-      {activeTab === "disputes" && (
-        <div className="space-y-3">
-          {loadingDisputes ? <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : disputes.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-12">Aucune contestation en cours</p>
-          ) : disputes.map((d: any) => {
-            const agentProfile = agents.find((a) => a.user_id === d.salesperson_id);
-            return (
-              <div key={d.id} className="p-4 rounded-xl border border-yellow-200 bg-yellow-50/50 dark:border-yellow-800 dark:bg-yellow-950/30 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-yellow-600" />
-                      <span className="text-sm font-semibold text-foreground">{Number(d.commission_amount).toFixed(2)} $ — Commission contestée</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Agent: {agentProfile?.full_name || d.salesperson_id?.slice(0, 8)}</p>
-                    {d.rejection_reason && <p className="text-xs text-foreground mt-1 bg-muted rounded p-2">« {d.rejection_reason} »</p>}
-                    {d.field_sales_orders?.customer_name && <p className="text-xs text-muted-foreground">Client: {d.field_sales_orders.customer_name}</p>}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(d.created_at), { addSuffix: true, locale: fr })}</span>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => resolveDispute.mutate({ id: d.id, action: "validated", note: "" })}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 transition-colors">
-                    <Check className="h-3 w-3" /> Accepter (valider commission)
-                  </button>
-                  <button onClick={() => { const n = prompt("Note de rejet:"); if (n) resolveDispute.mutate({ id: d.id, action: "rejected", note: n }); }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950 dark:text-red-400 transition-colors">
-                    <X className="h-3 w-3" /> Maintenir rejet
-                  </button>
-                </div>
+      {tab === "disputes" && (
+        <div className="space-y-2">{disputes.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune contestation</p> : disputes.map((d: any) => {
+          const b = STATUS_BADGE[d.status] || STATUS_BADGE.open;
+          return (
+            <div key={d.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
+              <div className="flex items-center justify-between">
+                <div><span className="text-sm font-semibold text-foreground">{getName(d.agent_id)}</span> <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1", b.cls)}>{b.label}</span></div>
+                <span className="text-[10px] text-muted-foreground">{format(new Date(d.created_at), "dd/MM/yyyy")}</span>
               </div>
-            );
-          })}
+              <p className="text-xs text-muted-foreground">{d.reason}</p>
+              {d.admin_response && <p className="text-xs text-blue-600">Réponse: {d.admin_response}</p>}
+              {d.sales_commissions && <p className="text-[10px] text-muted-foreground">Commission: {fmtMoney(Number(d.sales_commissions.commission_amount))}</p>}
+              {(d.status === "open" || d.status === "under_review") && (
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => { setDisputeResolution({ id: d.id, action: "accepted" }); setDisputeNote(""); }}>Accepter</Button>
+                  <Button size="sm" variant="outline" className="text-destructive" onClick={() => { setDisputeResolution({ id: d.id, action: "rejected" }); setDisputeNote(""); }}>Rejeter</Button>
+                </div>
+              )}
+            </div>
+          );
+        })}</div>
+      )}
+
+      {/* ═══ PAYROLL TAB ═══ */}
+      {tab === "payroll" && (
+        <div className="space-y-6">
+          {/* Pay Periods */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Calendar className="h-4 w-4" /> Périodes de paie</h3><Button size="sm" onClick={() => { setPpForm({ period_name: "", start_date: "", end_date: "" }); setPayPeriodDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Nouvelle période</Button></div>
+            {payPeriods.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Aucune période</p> : (
+              <div className="space-y-2">{payPeriods.map((pp: any) => {
+                const b = STATUS_BADGE[pp.status] || STATUS_BADGE.draft;
+                return (
+                  <div key={pp.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div><p className="text-sm font-medium text-foreground">{pp.period_name}</p><p className="text-xs text-muted-foreground">{pp.start_date} → {pp.end_date}</p></div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
+                      {pp.status === "open" && <Button size="sm" variant="outline" onClick={() => closePayPeriod.mutate(pp.id)}>Fermer</Button>}
+                      {pp.status === "closed" && <Button size="sm" variant="outline" onClick={() => markPeriodPaid.mutate(pp.id)}>Marquer payé</Button>}
+                    </div>
+                  </div>
+                );
+              })}</div>
+            )}
+          </div>
+
+          {/* Payroll Entries */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Receipt className="h-4 w-4" /> Fiches de paie</h3>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setAdjForm({ payroll_entry_id: "", adjustment_type: "deduction", label: "", amount: "0", notes: "" }); setAdjustDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajustement</Button>
+                <Button size="sm" onClick={() => { setPeForm({ pay_period_id: "", user_id: "", base_salary: "0", commission_total: "0", bonus_total: "0", hours_worked: "0", overtime_hours: "0", deductions_total: "0", notes: "" }); setPayrollEntryDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Nouvelle fiche</Button>
+              </div>
+            </div>
+            {payrollEntries.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Aucune fiche de paie</p> : (
+              <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Période</th><th className="pb-2 font-medium text-right">Base</th><th className="pb-2 font-medium text-right">Commission</th><th className="pb-2 font-medium text-right">Bonus</th><th className="pb-2 font-medium text-right">Heures</th><th className="pb-2 font-medium text-right">Retenues</th><th className="pb-2 font-medium text-right">Brut</th><th className="pb-2 font-medium text-right">Net</th><th className="pb-2 font-medium">Statut</th><th className="pb-2"></th></tr></thead><tbody>
+                {payrollEntries.map((pe: any) => {
+                  const b = STATUS_BADGE[pe.status] || STATUS_BADGE.draft;
+                  const adjs = pe.payroll_adjustments || [];
+                  return (
+                    <tr key={pe.id} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="py-2.5"><p className="font-medium text-foreground">{getName(pe.user_id)}</p></td>
+                      <td className="py-2.5 text-muted-foreground text-xs">{pe.pay_periods?.period_name || "—"}</td>
+                      <td className="py-2.5 text-right">{fmtMoney(Number(pe.base_salary))}</td>
+                      <td className="py-2.5 text-right">{fmtMoney(Number(pe.commission_total))}</td>
+                      <td className="py-2.5 text-right">{fmtMoney(Number(pe.bonus_total))}</td>
+                      <td className="py-2.5 text-right">{Number(pe.hours_worked)}h{Number(pe.overtime_hours) > 0 ? ` (+${pe.overtime_hours}h OT)` : ""}</td>
+                      <td className="py-2.5 text-right text-destructive">{fmtMoney(Number(pe.deductions_total))}</td>
+                      <td className="py-2.5 text-right font-medium">{fmtMoney(Number(pe.gross_pay))}</td>
+                      <td className="py-2.5 text-right font-bold text-emerald-600">{fmtMoney(Number(pe.net_pay))}</td>
+                      <td className="py-2.5"><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span></td>
+                      <td className="py-2.5 text-right">
+                        {pe.status === "draft" && <Button size="sm" variant="ghost" onClick={() => approvePayroll.mutate(pe.id)}>Approuver</Button>}
+                        {pe.status === "approved" && <Button size="sm" variant="ghost" onClick={() => markPayrollPaid.mutate(pe.id)}>Payer</Button>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody></table></div>
+            )}
+          </div>
+
+          {/* Agent pay summary */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Résumé par agent</h3>
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Agent</th><th className="pb-2 font-medium text-right">Ventes</th><th className="pb-2 font-medium text-right">Commission</th><th className="pb-2 font-medium text-right">Attente</th><th className="pb-2 font-medium text-right">Approuvé</th><th className="pb-2 font-medium text-right">Payé</th><th className="pb-2 font-medium text-right">Solde dû</th></tr></thead><tbody>
+              {agents.map((a) => (
+                <tr key={a.user_id} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedAgent(a)}>
+                  <td className="py-2.5"><p className="font-medium text-foreground">{a.full_name || "—"}</p><p className="text-[10px] text-muted-foreground">{a.email}</p></td>
+                  <td className="py-2.5 text-right">{a.total_sales}</td>
+                  <td className="py-2.5 text-right">{fmtMoney(a.total_commission)}</td>
+                  <td className="py-2.5 text-right text-amber-600">{fmtMoney(a.pending_commission)}</td>
+                  <td className="py-2.5 text-right text-blue-600">{fmtMoney(a.approved_commission)}</td>
+                  <td className="py-2.5 text-right text-emerald-600">{fmtMoney(a.paid_commission)}</td>
+                  <td className="py-2.5 text-right font-bold">{fmtMoney(a.approved_commission)}</td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          </div>
         </div>
       )}
 
-      {/* ═══ RULES TAB ═══ */}
-      {activeTab === "rules" && (
+      {/* ═══ TIME TRACKING TAB ═══ */}
+      {tab === "time" && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">Les commissions sont calculées automatiquement et débloquées à l'activation du service.</p>
-          {loadingRules ? <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div> : rules.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-12">Aucune règle configurée</p>
-          ) : (
-            <div className="space-y-2">
-              {rules.map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{r.rule_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Type: {r.rule_type} —
-                      {r.bonus_percentage ? ` ${r.bonus_percentage}%` : ""}
-                      {r.bonus_amount ? ` ${r.bonus_amount} $ fixe` : ""}
-                      {r.min_sales != null ? ` — Min: ${r.min_sales} ventes` : ""}
-                      {r.max_sales != null ? ` — Max: ${r.max_sales} ventes` : ""}
-                    </p>
-                  </div>
-                  <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", r.is_active ? STATUS_BADGE.approved.cls : "bg-muted text-muted-foreground border-border")}>
-                    {r.is_active ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Timer className="h-4 w-4" /> Entrées de temps</h3>
+          {timeEntries.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune entrée</p> : (
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Punch In</th><th className="pb-2 font-medium">Punch Out</th><th className="pb-2 font-medium text-right">Heures</th><th className="pb-2 font-medium">Type</th><th className="pb-2 font-medium">Statut</th><th className="pb-2"></th></tr></thead><tbody>
+              {timeEntries.map((te: any) => {
+                const b = STATUS_BADGE[te.status] || STATUS_BADGE.pending;
+                return (
+                  <tr key={te.id} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="py-2.5 font-medium text-foreground">{getName(te.user_id)}</td>
+                    <td className="py-2.5 text-muted-foreground text-xs">{format(new Date(te.punch_in), "dd/MM HH:mm")}</td>
+                    <td className="py-2.5 text-muted-foreground text-xs">{te.punch_out ? format(new Date(te.punch_out), "dd/MM HH:mm") : "—"}</td>
+                    <td className="py-2.5 text-right">{te.total_hours ? `${te.total_hours}h` : "—"}</td>
+                    <td className="py-2.5 text-muted-foreground">{te.entry_type}</td>
+                    <td className="py-2.5"><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span></td>
+                    <td className="py-2.5 text-right">
+                      {te.status === "pending" && <div className="flex gap-1 justify-end"><Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => approveTimeEntry.mutate(te.id)}><Check className="h-3 w-3" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => rejectTimeEntry.mutate(te.id)}><X className="h-3 w-3" /></Button></div>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody></table></div>
           )}
         </div>
       )}
+
+      {/* ═══ SCHEDULES TAB ═══ */}
+      {tab === "schedules" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Horaires</h3><Button size="sm" onClick={() => { setSchForm({ user_id: "", day_of_week: "1", start_time: "09:00", end_time: "17:00", notes: "" }); setScheduleDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajouter</Button></div>
+          {schedules.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun horaire</p> : (
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Jour</th><th className="pb-2 font-medium">Début</th><th className="pb-2 font-medium">Fin</th><th className="pb-2 font-medium">Notes</th><th className="pb-2"></th></tr></thead><tbody>
+              {schedules.map((s: any) => (
+                <tr key={s.id} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="py-2.5 font-medium text-foreground">{getName(s.user_id)}</td>
+                  <td className="py-2.5 text-muted-foreground">{DAYS[s.day_of_week]}</td>
+                  <td className="py-2.5 text-foreground">{s.start_time}</td>
+                  <td className="py-2.5 text-foreground">{s.end_time}</td>
+                  <td className="py-2.5 text-muted-foreground text-xs">{s.notes || "—"}</td>
+                  <td className="py-2.5 text-right"><Button size="icon" variant="ghost" onClick={() => deleteSchedule.mutate(s.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button></td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ DIALOGS ═══ */}
+
+      {/* Edit Agent */}
+      <Dialog open={!!editAgent} onOpenChange={(o) => !o && setEditAgent(null)}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Modifier vendeur</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {[{ l: "Nom", k: "full_name" }, { l: "Courriel", k: "email" }, { l: "Téléphone", k: "phone" }].map((f) => (<div key={f.k}><Label className="text-xs">{f.l}</Label><Input value={(editForm as any)[f.k]} onChange={(e) => setEditForm((p) => ({ ...p, [f.k]: e.target.value }))} /></div>))}
+          </div>
+          <DialogFooter><Button onClick={() => saveAgentProfile.mutate()} disabled={saveAgentProfile.isPending}>{saveAgentProfile.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Grid */}
+      <Dialog open={gridDialog} onOpenChange={setGridDialog}>
+        <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Nouvelle grille de commission</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Nom</Label><Input value={gridForm.rule_name} onChange={(e) => setGridForm((p) => ({ ...p, rule_name: e.target.value }))} /></div>
+            <div><Label className="text-xs">Type</Label><Select value={gridForm.rule_type} onValueChange={(v) => setGridForm((p) => ({ ...p, rule_type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(RULE_TYPES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Service</Label><Input value={gridForm.service_type} onChange={(e) => setGridForm((p) => ({ ...p, service_type: e.target.value }))} placeholder="internet, tv…" /></div>
+              <div><Label className="text-xs">Ventes min</Label><Input type="number" value={gridForm.min_sales} onChange={(e) => setGridForm((p) => ({ ...p, min_sales: e.target.value }))} /></div>
+              <div><Label className="text-xs">Ventes max</Label><Input type="number" value={gridForm.max_sales} onChange={(e) => setGridForm((p) => ({ ...p, max_sales: e.target.value }))} placeholder="∞" /></div>
+              <div><Label className="text-xs">Bonus ($)</Label><Input type="number" value={gridForm.bonus_amount} onChange={(e) => setGridForm((p) => ({ ...p, bonus_amount: e.target.value }))} /></div>
+              <div><Label className="text-xs">Bonus (%)</Label><Input type="number" value={gridForm.bonus_percentage} onChange={(e) => setGridForm((p) => ({ ...p, bonus_percentage: e.target.value }))} /></div>
+            </div>
+          </div>
+          <DialogFooter><Button onClick={() => createGrid.mutate()} disabled={createGrid.isPending || !gridForm.rule_name}>{createGrid.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Grid */}
+      <Dialog open={assignDialog} onOpenChange={setAssignDialog}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Assigner une grille</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Vendeur</Label><Select value={assignForm.user_id} onValueChange={(v) => setAssignForm((p) => ({ ...p, user_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{agents.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name || a.email || a.user_id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Grille</Label><Select value={assignForm.rule_id} onValueChange={(v) => setAssignForm((p) => ({ ...p, rule_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{rules.map((r: any) => <SelectItem key={r.id} value={r.id}>{r.rule_name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Notes</Label><Input value={assignForm.notes} onChange={(e) => setAssignForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+          </div>
+          <DialogFooter><Button onClick={() => createAssignment.mutate()} disabled={createAssignment.isPending || !assignForm.user_id || !assignForm.rule_id}>{createAssignment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assigner"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pay Period */}
+      <Dialog open={payPeriodDialog} onOpenChange={setPayPeriodDialog}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Nouvelle période de paie</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Nom</Label><Input value={ppForm.period_name} onChange={(e) => setPpForm((p) => ({ ...p, period_name: e.target.value }))} placeholder="Paie Mars 2026" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Début</Label><Input type="date" value={ppForm.start_date} onChange={(e) => setPpForm((p) => ({ ...p, start_date: e.target.value }))} /></div>
+              <div><Label className="text-xs">Fin</Label><Input type="date" value={ppForm.end_date} onChange={(e) => setPpForm((p) => ({ ...p, end_date: e.target.value }))} /></div>
+            </div>
+          </div>
+          <DialogFooter><Button onClick={() => createPayPeriod.mutate()} disabled={createPayPeriod.isPending || !ppForm.period_name || !ppForm.start_date || !ppForm.end_date}>{createPayPeriod.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payroll Entry */}
+      <Dialog open={payrollEntryDialog} onOpenChange={setPayrollEntryDialog}>
+        <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Nouvelle fiche de paie</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Période</Label><Select value={peForm.pay_period_id} onValueChange={(v) => setPeForm((p) => ({ ...p, pay_period_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{payPeriods.map((pp: any) => <SelectItem key={pp.id} value={pp.id}>{pp.period_name}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label className="text-xs">Employé</Label><Select value={peForm.user_id} onValueChange={(v) => setPeForm((p) => ({ ...p, user_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{agents.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name || a.email || a.user_id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><Label className="text-xs">Salaire base ($)</Label><Input type="number" value={peForm.base_salary} onChange={(e) => setPeForm((p) => ({ ...p, base_salary: e.target.value }))} /></div>
+              <div><Label className="text-xs">Commission ($)</Label><Input type="number" value={peForm.commission_total} onChange={(e) => setPeForm((p) => ({ ...p, commission_total: e.target.value }))} /></div>
+              <div><Label className="text-xs">Bonus ($)</Label><Input type="number" value={peForm.bonus_total} onChange={(e) => setPeForm((p) => ({ ...p, bonus_total: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div><Label className="text-xs">Heures</Label><Input type="number" value={peForm.hours_worked} onChange={(e) => setPeForm((p) => ({ ...p, hours_worked: e.target.value }))} /></div>
+              <div><Label className="text-xs">Heures supp.</Label><Input type="number" value={peForm.overtime_hours} onChange={(e) => setPeForm((p) => ({ ...p, overtime_hours: e.target.value }))} /></div>
+              <div><Label className="text-xs">Retenues ($)</Label><Input type="number" value={peForm.deductions_total} onChange={(e) => setPeForm((p) => ({ ...p, deductions_total: e.target.value }))} /></div>
+            </div>
+            <div><Label className="text-xs">Notes</Label><Input value={peForm.notes} onChange={(e) => setPeForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+          </div>
+          <DialogFooter><Button onClick={() => createPayrollEntry.mutate()} disabled={createPayrollEntry.isPending || !peForm.pay_period_id || !peForm.user_id}>{createPayrollEntry.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjustment */}
+      <Dialog open={adjustDialog} onOpenChange={setAdjustDialog}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Ajustement de paie</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Fiche de paie</Label><Select value={adjForm.payroll_entry_id} onValueChange={(v) => setAdjForm((p) => ({ ...p, payroll_entry_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{payrollEntries.map((pe: any) => <SelectItem key={pe.id} value={pe.id}>{getName(pe.user_id)} — {pe.pay_periods?.period_name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Type</Label><Select value={adjForm.adjustment_type} onValueChange={(v) => setAdjForm((p) => ({ ...p, adjustment_type: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(ADJ_TYPES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Libellé</Label><Input value={adjForm.label} onChange={(e) => setAdjForm((p) => ({ ...p, label: e.target.value }))} /></div>
+            <div><Label className="text-xs">Montant ($)</Label><Input type="number" value={adjForm.amount} onChange={(e) => setAdjForm((p) => ({ ...p, amount: e.target.value }))} /></div>
+            <div><Label className="text-xs">Notes</Label><Input value={adjForm.notes} onChange={(e) => setAdjForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+          </div>
+          <DialogFooter><Button onClick={() => createAdjustment.mutate()} disabled={createAdjustment.isPending || !adjForm.payroll_entry_id || !adjForm.label}>{createAdjustment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ajouter"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule */}
+      <Dialog open={scheduleDialog} onOpenChange={setScheduleDialog}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Ajouter un horaire</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Employé</Label><Select value={schForm.user_id} onValueChange={(v) => setSchForm((p) => ({ ...p, user_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{agents.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name || a.email || a.user_id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Jour</Label><Select value={schForm.day_of_week} onValueChange={(v) => setSchForm((p) => ({ ...p, day_of_week: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Début</Label><Input type="time" value={schForm.start_time} onChange={(e) => setSchForm((p) => ({ ...p, start_time: e.target.value }))} /></div>
+              <div><Label className="text-xs">Fin</Label><Input type="time" value={schForm.end_time} onChange={(e) => setSchForm((p) => ({ ...p, end_time: e.target.value }))} /></div>
+            </div>
+            <div><Label className="text-xs">Notes</Label><Input value={schForm.notes} onChange={(e) => setSchForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+          </div>
+          <DialogFooter><Button onClick={() => createSchedule.mutate()} disabled={createSchedule.isPending || !schForm.user_id}>{createSchedule.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ajouter"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute Resolution */}
+      <Dialog open={!!disputeResolution} onOpenChange={(o) => !o && setDisputeResolution(null)}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{disputeResolution?.action === "accepted" ? "Accepter" : "Rejeter"} la contestation</DialogTitle></DialogHeader>
+          <div><Label className="text-xs">Note / réponse</Label><Input value={disputeNote} onChange={(e) => setDisputeNote(e.target.value)} placeholder="Justification…" /></div>
+          <DialogFooter><Button onClick={() => { if (disputeResolution) resolveDispute.mutate({ id: disputeResolution.id, action: disputeResolution.action, note: disputeNote }); }} disabled={resolveDispute.isPending}>{resolveDispute.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmer"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

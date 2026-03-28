@@ -26,6 +26,7 @@ const FieldSubmissions = lazy(() => import("@/field-app/pages/FieldSubmissions")
 const FieldOrderDetail = lazy(() => import("@/field-app/pages/FieldOrderDetail"));
 const FieldTracking = lazy(() => import("@/field-app/pages/FieldTracking"));
 const FieldCommissions = lazy(() => import("@/field-app/pages/FieldCommissions"));
+const FieldMyPay = lazy(() => import("@/field-app/pages/FieldMyPay"));
 const FieldProfile = lazy(() => import("@/field-app/pages/FieldProfile"));
 const FieldSecurity = lazy(() => import("@/field-app/pages/FieldSecurity"));
 const FieldNewSale = lazy(() => import("@/field-app/pages/FieldNewSale"));
@@ -845,6 +846,7 @@ const AppRoutes = () => {
           <Route path="orders/:orderId" element={<Suspense fallback={null}><FieldOrderDetail /></Suspense>} />
           <Route path="tracking" element={<Suspense fallback={null}><FieldTracking /></Suspense>} />
           <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />
+          <Route path="my-pay" element={<Suspense fallback={null}><FieldMyPay /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><FieldProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><FieldSecurity /></Suspense>} />
           <Route path="performance" element={<Suspense fallback={null}><FieldPerformance /></Suspense>} />
