@@ -141,6 +141,16 @@ Deno.serve(async (req) => {
           throw new Error(errorMsg);
         }
 
+        // Get salesperson profile for rep info
+        const { data: repProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('full_name, email, phone')
+          .eq('user_id', sale.salesperson_id)
+          .maybeSingle();
+
+        // Resolve / create a real client user_id (orders.user_id is NOT NULL)
+        const customerEmail = String(sale.customer_email || "").trim().toLowerCase();
+
         let clientUserId: string | null = null;
 
         const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
