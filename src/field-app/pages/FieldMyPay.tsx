@@ -469,6 +469,50 @@ export default function FieldMyPay() {
         </div>
       )}
 
+      {/* ═══ EMPLOYMENT LETTERS ═══ */}
+      {tab === "letters" && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4" /> Mes lettres d'emploi</h3>
+          {myLetters.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune lettre d'emploi disponible</p> : myLetters.map((lt: any) => {
+            const b = STATUS_BADGE[lt.status] || STATUS_BADGE.draft;
+            const LETTER_TYPES: Record<string, string> = { confirmation: "Confirmation d'emploi", offer: "Offre d'emploi", reference: "Lettre de référence", termination: "Fin d'emploi", promotion: "Promotion" };
+            return (
+              <div key={lt.id} className="p-4 rounded-xl border border-border bg-card space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{LETTER_TYPES[lt.letter_type] || lt.letter_type}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {lt.generated_at ? `Générée le ${format(new Date(lt.generated_at), "dd/MM/yyyy")}` : "Non générée"}
+                      {lt.letter_number ? ` — ${lt.letter_number}` : ""}
+                    </p>
+                  </div>
+                  <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
+                </div>
+                {lt.notes && <p className="text-xs text-muted-foreground">{lt.notes}</p>}
+                <div className="flex gap-2">
+                  {lt.pdf_url && (
+                    <Button size="sm" variant="outline" className="text-blue-600 border-blue-200" onClick={async () => {
+                      const { data } = await supabase.storage.from("payslips").createSignedUrl(lt.pdf_url, 3600);
+                      if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                      else toast.error("Impossible d'ouvrir le document");
+                    }}><Download className="h-3 w-3 mr-1" /> Télécharger PDF</Button>
+                  )}
+                  {lt.status === "sent" && (
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      const { error } = await supabase.from("employment_letters").update({ status: "acknowledged", acknowledged_at: new Date().toISOString() }).eq("id", lt.id);
+                      if (error) toast.error("Erreur");
+                      else { toast.success("Réception confirmée"); qc.invalidateQueries({ queryKey: ["my-letters"] }); }
+                    }}>
+                      <Check className="h-3 w-3 mr-1" /> Confirmer réception
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* ═══ DIALOGS ═══ */}
       <Dialog open={withdrawDialog} onOpenChange={setWithdrawDialog}>
         <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Demander un retrait</DialogTitle></DialogHeader>
