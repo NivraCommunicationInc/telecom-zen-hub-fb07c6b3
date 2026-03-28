@@ -271,7 +271,7 @@ function buildPayslipPDF(d: {
     doc.setFontSize(9);
     doc.setTextColor(...WHITE);
     doc.text("TOTAL RETENUES", ml + 4, y + 5.5);
-    doc.text(`\u2212 ${fmt(d.deductionsTotal)}`, mr - 4, y + 5.5, { align: "right" });
+    doc.text(`- ${fmt(d.deductionsTotal)}`, mr - 4, y + 5.5, { align: "right" });
     y += 14;
   }
 
