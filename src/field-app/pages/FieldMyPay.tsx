@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   DollarSign, Loader2, Clock, Receipt, MessageSquare, Timer, ClipboardList,
   Banknote, Plus, ArrowRight, Check, X, AlertTriangle, Calendar, FileSpreadsheet,
-  Download,
+  Download, Grid3X3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
