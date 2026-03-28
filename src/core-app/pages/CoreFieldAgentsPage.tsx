@@ -688,7 +688,7 @@ export default function CoreFieldAgentsPage() {
             return (
               <div key={as.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
                 <div><p className="text-sm font-medium text-foreground">{rule?.rule_name || "—"}</p><p className="text-[10px] text-muted-foreground">{RULE_TYPES[rule?.rule_type] || rule?.rule_type} · {rule?.bonus_amount > 0 ? `${rule.bonus_amount}$` : `${rule?.bonus_percentage}%`}</p></div>
-                <Button size="sm" variant="ghost" onClick={() => removeAssignment.mutate(as.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "assignment", id: as.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
               </div>
             );
           })}
