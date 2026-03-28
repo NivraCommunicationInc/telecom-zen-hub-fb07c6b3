@@ -293,7 +293,7 @@ export default function CoreFieldAgentsPage() {
           : status === "paid" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été payé.`
           : status === "rejected" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été rejeté.${note ? ` Raison: ${note}` : ""}`
           : `Votre retrait a été mis à jour: ${status}`;
-        await supabase.from("staff_notifications").insert({ user_id: w.agent_id, title: `Retrait ${status}`, message: msg, type: "withdrawal_update", priority: status === "paid" ? "high" : "normal" } as any).single();
+        await supabase.from("staff_notifications").insert({ notification_type: "withdrawal_update", title: `Retrait ${status}`, message: msg } as any);
       }
     },
     onSuccess: () => { invalidateAll(); setWithdrawalDetail(null); setWithdrawalAdminNote(""); toast.success("Retrait mis à jour"); },
