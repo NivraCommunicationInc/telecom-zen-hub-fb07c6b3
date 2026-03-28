@@ -1,13 +1,14 @@
 /**
  * FieldMyPay — Employee-facing portal for commissions, payslips, withdrawals, disputes, time tracking, schedules, grids, and tax docs.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { getAutoSafeErrorMessage } from "@/lib/errorUtils";
 import {
   DollarSign, Loader2, Clock, Receipt, MessageSquare, Timer, ClipboardList,
   Banknote, Plus, ArrowRight, Check, X, AlertTriangle, Calendar, FileSpreadsheet,
@@ -43,6 +44,13 @@ type Tab = "commissions" | "payslips" | "withdrawals" | "disputes" | "time" | "s
 const fmtMoney = (n: number) => `${n.toFixed(2)} $`;
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 const DOC_TYPES: Record<string, string> = { t4: "T4", rl1: "Relevé 1", releve1: "Relevé 1", summary: "Sommaire", other: "Autre" };
+const formatActionError = (error: unknown, fallback: string) => {
+  const message = getAutoSafeErrorMessage(error) || fallback;
+  if (error && typeof error === "object" && "code" in error) {
+    return `${message} (code ${String((error as { code?: unknown }).code ?? "n/a")})`;
+  }
+  return message;
+};
 
 export default function FieldMyPay() {
   const qc = useQueryClient();
@@ -53,6 +61,42 @@ export default function FieldMyPay() {
   const [disputeDialog, setDisputeDialog] = useState<string | null>(null);
   const [disputeReason, setDisputeReason] = useState("");
   const [punchNote, setPunchNote] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!isMounted || !user?.id) return;
+
+      const uid = user.id;
+      channel = supabase
+        .channel(`field-my-pay-sync-${uid}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "sales_commissions", filter: `salesperson_id=eq.${uid}` }, () => {
+          qc.invalidateQueries({ queryKey: ["my-commissions"] });
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "payroll_entries", filter: `user_id=eq.${uid}` }, () => {
+          qc.invalidateQueries({ queryKey: ["my-payroll"] });
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "commission_withdrawal_requests", filter: `agent_id=eq.${uid}` }, () => {
+          qc.invalidateQueries({ queryKey: ["my-withdrawals"] });
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "tax_documents", filter: `user_id=eq.${uid}` }, () => {
+          qc.invalidateQueries({ queryKey: ["my-tax-docs"] });
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "employment_letters", filter: `user_id=eq.${uid}` }, () => {
+          qc.invalidateQueries({ queryKey: ["my-letters"] });
+        })
+        .subscribe();
+    };
+
+    setupRealtime();
+    return () => {
+      isMounted = false;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   // ═══ QUERIES — refetchOnWindowFocus ensures cross-portal visibility ═══
   const queryOpts = { refetchOnWindowFocus: true, staleTime: 30_000 }; // 30s stale, auto-refetch on focus
@@ -181,16 +225,30 @@ export default function FieldMyPay() {
       const { error } = await supabase.from("commission_withdrawal_requests").insert({ agent_id: user.id, amount: amt, notes: withdrawNotes || null });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-withdrawals"] }); setWithdrawDialog(false); setWithdrawAmount(""); setWithdrawNotes(""); toast.success("Demande de retrait soumise"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-withdrawals"] });
+      qc.invalidateQueries({ queryKey: ["my-commissions"] });
+      setWithdrawDialog(false);
+      setWithdrawAmount("");
+      setWithdrawNotes("");
+      toast.success("Demande de retrait soumise");
+    },
+    onError: (e) => toast.error(`Échec demande retrait: ${formatActionError(e, "Action impossible")}`),
   });
 
   const cancelWithdrawal = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("commission_withdrawal_requests").update({ status: "cancelled" }).eq("id", id);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+      const { error } = await supabase.from("commission_withdrawal_requests").update({ status: "cancelled" }).eq("id", id).eq("agent_id", user.id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-withdrawals"] }); toast.success("Retrait annulé"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-withdrawals"] });
+      qc.invalidateQueries({ queryKey: ["my-commissions"] });
+      toast.success("Retrait annulé");
+    },
+    onError: (e) => toast.error(`Échec annulation retrait: ${formatActionError(e, "Action impossible")}`),
   });
 
   const createDispute = useMutation({
@@ -201,8 +259,14 @@ export default function FieldMyPay() {
       const { error } = await supabase.from("commission_disputes").insert({ commission_id: disputeDialog, agent_id: user.id, reason: disputeReason });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-disputes"] }); setDisputeDialog(null); setDisputeReason(""); toast.success("Contestation soumise"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-disputes"] });
+      qc.invalidateQueries({ queryKey: ["my-commissions"] });
+      setDisputeDialog(null);
+      setDisputeReason("");
+      toast.success("Contestation soumise");
+    },
+    onError: (e) => toast.error(`Échec contestation: ${formatActionError(e, "Action impossible")}`),
   });
 
   const punchIn = useMutation({
@@ -213,6 +277,7 @@ export default function FieldMyPay() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-time"] }); setPunchNote(""); toast.success("Punch In enregistré"); },
+    onError: (e) => toast.error(`Échec Punch In: ${formatActionError(e, "Action impossible")}`),
   });
 
   const punchOut = useMutation({
@@ -228,6 +293,7 @@ export default function FieldMyPay() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-time"] }); toast.success("Punch Out enregistré"); },
+    onError: (e) => toast.error(`Échec Punch Out: ${formatActionError(e, "Action impossible")}`),
   });
 
   const acknowledgeTaxDoc = useMutation({
@@ -236,6 +302,7 @@ export default function FieldMyPay() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-tax-docs"] }); toast.success("Document marqué comme reçu"); },
+    onError: (e) => toast.error(`Échec accusé réception document: ${formatActionError(e, "Action impossible")}`),
   });
 
   const TABS: { key: Tab; label: string; icon: typeof DollarSign }[] = [
