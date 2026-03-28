@@ -844,7 +844,11 @@ export default function CoreFieldAgentsPage() {
               return (
                 <div key={a.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
                   <div><p className="text-sm font-medium text-foreground">{getName(a.user_id)}</p><p className="text-xs text-muted-foreground">{rule?.rule_name || "—"} · {RULE_TYPES[rule?.rule_type] || "?"}{a.notes && ` · ${a.notes}`}</p></div>
-                  <div className="flex items-center gap-2"><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Inactif"}</span><Button size="icon" variant="ghost" onClick={() => removeAssignment.mutate(a.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Inactif"}</span>
+                    <Button size="icon" variant="ghost" onClick={() => { setEditAssignId(a.id); setEditAssignForm({ notes: a.notes || "", is_active: a.is_active !== false }); }}><Edit3 className="h-3 w-3" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ type: "assignment", id: a.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                  </div>
                 </div>
               );
             })}</div>
