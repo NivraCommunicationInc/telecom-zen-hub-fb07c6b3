@@ -2501,7 +2501,7 @@ serve(async (req: Request) => {
       }
 
       case "update_profile": {
-        const { user_id, full_name, phone, badge_number, job_title } = body as UpdateProfileRequest;
+        const { user_id, full_name, phone, badge_number, job_title, email: newEmail } = body as UpdateProfileRequest;
         const stepBase = "update_profile";
 
         if (!user_id) {
@@ -2510,6 +2510,18 @@ serve(async (req: Request) => {
             request_id: requestId,
             error: { code: "VALIDATION", message: "user_id requis", step: `${stepBase}.validate` } satisfies ApiError,
           });
+        }
+
+        // Validate new email if provided
+        if (newEmail !== undefined && newEmail !== null) {
+          const trimmedEmail = newEmail.trim().toLowerCase();
+          if (!isValidEmail(trimmedEmail)) {
+            return json(400, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "INVALID_EMAIL", message: `Format d'email invalide: ${trimmedEmail}`, step: `${stepBase}.validate_email` } satisfies ApiError,
+            });
+          }
         }
 
         console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} request_id=${requestId}`);
@@ -2543,10 +2555,15 @@ serve(async (req: Request) => {
         if (badge_number !== undefined) updateData.badge_number = badge_number;
         if (job_title !== undefined) updateData.job_title = job_title;
 
-        if (full_name !== undefined) {
+        // Update profile fields (full_name + email)
+        const profilePatch: Record<string, unknown> = {};
+        if (full_name !== undefined) profilePatch.full_name = full_name;
+        if (newEmail !== undefined) profilePatch.email = newEmail.trim().toLowerCase();
+
+        if (Object.keys(profilePatch).length > 0) {
           await adminClient
             .from("profiles")
-            .update({ full_name })
+            .update(profilePatch)
             .eq("user_id", user_id);
         }
 
