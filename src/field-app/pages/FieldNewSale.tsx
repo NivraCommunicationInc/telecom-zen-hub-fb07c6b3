@@ -123,11 +123,12 @@ export default function FieldNewSale() {
         .insert({
           salesperson_id: user.id,
           customer_name: `${draft.customer.first_name} ${draft.customer.last_name}`.trim(),
-          customer_email: draft.customer.email,
+          customer_email: draft.customer.email.trim().toLowerCase(),
           customer_phone: draft.customer.phone,
           customer_address: draft.customer.address,
           customer_city: draft.customer.city,
           customer_postal_code: draft.customer.postal_code,
+          customer_date_of_birth: draft.customer.date_of_birth || null,
           services: servicesPayload,
           total_amount: totalDueToday,
           payment_method: paymentMethodMap[draft.payment.method] || "deferred",
