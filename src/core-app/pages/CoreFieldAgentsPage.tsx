@@ -263,7 +263,11 @@ export default function CoreFieldAgentsPage() {
     onSuccess: () => { invalidateAll(); toast.success("Commission approuvée"); },
   });
   const rejectCommission = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => { const { error } = await supabase.from("sales_commissions").update({ status: "rejected" as any, rejection_reason: reason }).eq("id", id); if (error) throw error; },
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { error } = await supabase.from("sales_commissions").update({ status: "rejected" as any, rejection_reason: reason }).eq("id", id);
+      if (error) throw error;
+      await logAudit("reject_commission", "sales_commissions", id, { field_changed: "status", new_value: "rejected", details: { reason } });
+    },
     onSuccess: () => { invalidateAll(); toast.success("Commission rejetée"); },
   });
   const markCommissionPaid = useMutation({
