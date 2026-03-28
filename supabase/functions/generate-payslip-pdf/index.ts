@@ -243,7 +243,7 @@ function buildPayslipPDF(d: {
         doc.setTextColor(...TEXT);
         doc.text(adj.label, ml + 4, y + 5);
         doc.text(ADJ_TYPE_LABELS[adj.type] || adj.type, 120, y + 5);
-        const sign = adj.type === "bonus" || adj.type === "correction" ? "+" : "\u2212";
+        const sign = adj.type === "bonus" || adj.type === "correction" ? "+" : "-";
         doc.setFont("helvetica", "bold");
         doc.setTextColor(adj.type === "bonus" ? 22 : 239, adj.type === "bonus" ? 163 : 68, adj.type === "bonus" ? 74 : 68);
         doc.text(`${sign} ${fmt(Math.abs(adj.amount))}`, mr - 4, y + 5, { align: "right" });
@@ -260,7 +260,7 @@ function buildPayslipPDF(d: {
       doc.text("Retenue", 120, y + 5);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(239, 68, 68);
-      doc.text(`\u2212 ${fmt(d.deductionsTotal)}`, mr - 4, y + 5, { align: "right" });
+      doc.text(`- ${fmt(d.deductionsTotal)}`, mr - 4, y + 5, { align: "right" });
       y += 7;
     }
 
@@ -271,7 +271,7 @@ function buildPayslipPDF(d: {
     doc.setFontSize(9);
     doc.setTextColor(...WHITE);
     doc.text("TOTAL RETENUES", ml + 4, y + 5.5);
-    doc.text(`\u2212 ${fmt(d.deductionsTotal)}`, mr - 4, y + 5.5, { align: "right" });
+    doc.text(`- ${fmt(d.deductionsTotal)}`, mr - 4, y + 5.5, { align: "right" });
     y += 14;
   }
 
@@ -298,7 +298,7 @@ function buildPayslipPDF(d: {
 
   const cols = [
     { label: "Brut", value: fmt(d.grossPay) },
-    { label: "Retenues", value: `\u2212 ${fmt(d.deductionsTotal)}` },
+    { label: "Retenues", value: `- ${fmt(d.deductionsTotal)}` },
     { label: "Net", value: fmt(d.netPay) },
     { label: "Heures", value: `${d.hoursWorked.toFixed(1)} h` },
   ];
