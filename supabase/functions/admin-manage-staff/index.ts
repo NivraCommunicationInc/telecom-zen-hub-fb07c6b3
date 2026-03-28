@@ -2503,6 +2503,7 @@ serve(async (req: Request) => {
       case "update_profile": {
         const { user_id, full_name, phone, badge_number, job_title, email: newEmail } = body as UpdateProfileRequest;
         const stepBase = "update_profile";
+        const normalizedNewEmail = newEmail !== undefined ? newEmail.trim().toLowerCase() : undefined;
 
         if (!user_id) {
           return json(400, {
@@ -2513,13 +2514,12 @@ serve(async (req: Request) => {
         }
 
         // Validate new email if provided
-        if (newEmail !== undefined && newEmail !== null) {
-          const trimmedEmail = newEmail.trim().toLowerCase();
-          if (!isValidEmail(trimmedEmail)) {
+        if (normalizedNewEmail !== undefined && normalizedNewEmail !== null) {
+          if (!isValidEmail(normalizedNewEmail)) {
             return json(400, {
               ok: false,
               request_id: requestId,
-              error: { code: "INVALID_EMAIL", message: `Format d'email invalide: ${trimmedEmail}`, step: `${stepBase}.validate_email` } satisfies ApiError,
+              error: { code: "INVALID_EMAIL", message: `Format d'email invalide: ${normalizedNewEmail}`, step: `${stepBase}.validate_email` } satisfies ApiError,
             });
           }
         }
@@ -2543,14 +2543,56 @@ serve(async (req: Request) => {
           }
         }
 
-        const { data: profile } = await adminClient
+        const { data: profile, error: profileFetchError } = await adminClient
           .from("profiles")
           .select("email")
           .eq("user_id", user_id)
           .maybeSingle();
 
+        if (profileFetchError) {
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "DB_ERROR", message: profileFetchError.message, step: `${stepBase}.fetch_profile` } satisfies ApiError,
+          });
+        }
+
+        if (!profile) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Profil introuvable", step: `${stepBase}.fetch_profile` } satisfies ApiError,
+          });
+        }
+
+        if (normalizedNewEmail && normalizedNewEmail !== (profile.email || "").trim().toLowerCase()) {
+          const { data: existingEmailOwner, error: duplicateCheckError } = await adminClient
+            .from("profiles")
+            .select("user_id")
+            .ilike("email", normalizedNewEmail)
+            .neq("user_id", user_id)
+            .maybeSingle();
+
+          if (duplicateCheckError) {
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "DB_ERROR", message: duplicateCheckError.message, step: `${stepBase}.check_duplicate_email` } satisfies ApiError,
+            });
+          }
+
+          if (existingEmailOwner) {
+            return json(409, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "DUPLICATE_EMAIL", message: "Cet email est déjà utilisé", step: `${stepBase}.check_duplicate_email` } satisfies ApiError,
+            });
+          }
+        }
+
         const updateData: Record<string, unknown> = {};
         if (full_name !== undefined) updateData.full_name = full_name;
+        if (normalizedNewEmail !== undefined) updateData.email = normalizedNewEmail;
         if (phone !== undefined) updateData.phone = phone;
         if (badge_number !== undefined) updateData.badge_number = badge_number;
         if (job_title !== undefined) updateData.job_title = job_title;
@@ -2558,25 +2600,81 @@ serve(async (req: Request) => {
         // Update profile fields (full_name + email)
         const profilePatch: Record<string, unknown> = {};
         if (full_name !== undefined) profilePatch.full_name = full_name;
-        if (newEmail !== undefined) profilePatch.email = newEmail.trim().toLowerCase();
+        if (normalizedNewEmail !== undefined) profilePatch.email = normalizedNewEmail;
 
         if (Object.keys(profilePatch).length > 0) {
-          await adminClient
+          const { error: profileUpdateError } = await userClient
             .from("profiles")
             .update(profilePatch)
             .eq("user_id", user_id);
-        }
 
-        if (Object.keys(updateData).length > 0 && profile?.email) {
-          const { error: empError } = await adminClient
-            .from("employees")
-            .update(updateData)
-            .eq("email", profile.email);
-
-          if (empError) {
-            console.error(`[admin-manage-staff] ${stepBase} employees error:`, empError);
+          if (profileUpdateError) {
+            console.error(`[admin-manage-staff] ${stepBase} profiles error:`, profileUpdateError);
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "PROFILE_UPDATE_FAILED", message: profileUpdateError.message, step: `${stepBase}.update_profile` } satisfies ApiError,
+            });
           }
         }
+
+        if (normalizedNewEmail !== undefined && normalizedNewEmail !== (profile.email || "").trim().toLowerCase()) {
+          const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(user_id, {
+            email: normalizedNewEmail,
+            email_confirm: true,
+          });
+
+          if (authUpdateError) {
+            console.error(`[admin-manage-staff] ${stepBase} auth email sync error:`, authUpdateError);
+            if (profile.email) {
+              await userClient
+                .from("profiles")
+                .update({ email: profile.email })
+                .eq("user_id", user_id);
+            }
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "AUTH_EMAIL_UPDATE_FAILED", message: authUpdateError.message, step: `${stepBase}.sync_auth_email` } satisfies ApiError,
+            });
+          }
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          const { error: employeeUpdateByUserIdError } = await adminClient
+            .from("employees")
+            .update(updateData)
+            .eq("user_id", user_id);
+
+          if (employeeUpdateByUserIdError) {
+            console.error(`[admin-manage-staff] ${stepBase} employees(user_id) error:`, employeeUpdateByUserIdError);
+            return json(500, {
+              ok: false,
+              request_id: requestId,
+              error: { code: "EMPLOYEE_UPDATE_FAILED", message: employeeUpdateByUserIdError.message, step: `${stepBase}.update_employee_user_id` } satisfies ApiError,
+            });
+          }
+
+          if (profile.email) {
+            const { error: employeeUpdateByEmailError } = await adminClient
+              .from("employees")
+              .update(updateData)
+              .eq("email", profile.email);
+
+            if (employeeUpdateByEmailError) {
+              console.error(`[admin-manage-staff] ${stepBase} employees(email) error:`, employeeUpdateByEmailError);
+              return json(500, {
+                ok: false,
+                request_id: requestId,
+                error: { code: "EMPLOYEE_UPDATE_FAILED", message: employeeUpdateByEmailError.message, step: `${stepBase}.update_employee_email` } satisfies ApiError,
+              });
+            }
+          }
+        }
+
+        console.log(
+          `[admin-manage-staff] ${stepBase} success user_id=${user_id} fields=${JSON.stringify(Object.keys({ ...updateData, ...profilePatch }))} request_id=${requestId}`,
+        );
 
         await logAction(
           "staff_profile_updated",

@@ -75,6 +75,15 @@ type EditProfileData = {
   badge_number: string;
 };
 
+type UpdateProfileMutationInput = {
+  userId: string;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  job_title?: string;
+  badge_number?: string;
+};
+
 const ROLE_OPTIONS = [
   { value: "admin", label: "Administrateur" },
   { value: "employee", label: "Employé" },
@@ -398,9 +407,65 @@ export default function CoreStaffPage() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: ({ userId, ...fields }: { userId: string; [key: string]: any }) =>
+    mutationFn: ({ userId, ...fields }: UpdateProfileMutationInput) =>
       invokeStaffAction({ action: "update_profile", user_id: userId, ...fields }),
-    onSuccess: () => {
+    onSuccess: (_res, variables) => {
+      const normalizedEmail =
+        typeof variables.email === "string" && variables.email.trim()
+          ? variables.email.trim().toLowerCase()
+          : undefined;
+      const normalizedFullName =
+        typeof variables.full_name === "string" && variables.full_name.trim()
+          ? variables.full_name.trim()
+          : undefined;
+
+      setSelected((current: any) => {
+        if (!current || current.user_id !== variables.userId) return current;
+        return {
+          ...current,
+          displayName: normalizedFullName ?? current.displayName,
+          profile: {
+            ...current.profile,
+            full_name: normalizedFullName ?? current.profile?.full_name,
+            email: normalizedEmail ?? current.profile?.email,
+            phone: variables.phone ?? current.profile?.phone,
+          },
+          employee: {
+            ...current.employee,
+            full_name: normalizedFullName ?? current.employee?.full_name,
+            email: normalizedEmail ?? current.employee?.email,
+            phone: variables.phone ?? current.employee?.phone,
+            job_title: variables.job_title ?? current.employee?.job_title,
+            badge_number: variables.badge_number ?? current.employee?.badge_number,
+          },
+        };
+      });
+
+      queryClient.setQueryData(["core-staff-list"], (current: any) => {
+        if (!Array.isArray(current)) return current;
+        return current.map((staff: any) => {
+          if (staff.user_id !== variables.userId) return staff;
+          return {
+            ...staff,
+            displayName: normalizedFullName ?? staff.displayName,
+            profile: {
+              ...staff.profile,
+              full_name: normalizedFullName ?? staff.profile?.full_name,
+              email: normalizedEmail ?? staff.profile?.email,
+              phone: variables.phone ?? staff.profile?.phone,
+            },
+            employee: {
+              ...staff.employee,
+              full_name: normalizedFullName ?? staff.employee?.full_name,
+              email: normalizedEmail ?? staff.employee?.email,
+              phone: variables.phone ?? staff.employee?.phone,
+              job_title: variables.job_title ?? staff.employee?.job_title,
+              badge_number: variables.badge_number ?? staff.employee?.badge_number,
+            },
+          };
+        });
+      });
+
       toast.success("Profil mis à jour");
       setEmailEditTarget(null);
       setNewEmail("");
