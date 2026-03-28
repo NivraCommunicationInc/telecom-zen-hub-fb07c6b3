@@ -134,6 +134,15 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: "field",
+    label: "Field Sales",
+    icon: Send,
+    items: [
+      { icon: Users, label: "Agents terrain", href: "/field-agents" },
+      { icon: DollarSign, label: "Retraits commissions", href: "/commission-withdrawals" },
+    ],
+  },
+  {
     id: "partners",
     label: "Partners",
     icon: Handshake,
