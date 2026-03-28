@@ -267,12 +267,24 @@ export default function CoreFieldAgentsPage() {
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const { error } = await supabase.from("sales_commissions").update({ status: "rejected" as any, rejection_reason: reason }).eq("id", id);
       if (error) throw error;
+      const comm = allCommissions.find((c: any) => c.id === id);
+      if (comm) {
+        await notifyEmployee(comm.salesperson_id, "commission_rejected", "Commission rejetée", `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été rejetée.${reason ? ` Raison: ${reason}` : ""}`);
+      }
       await logAudit("reject_commission", "sales_commissions", id, { field_changed: "status", new_value: "rejected", details: { reason } });
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission rejetée"); },
   });
   const markCommissionPaid = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("sales_commissions").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales_commissions").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      const comm = allCommissions.find((c: any) => c.id === id);
+      if (comm) {
+        await notifyEmployee(comm.salesperson_id, "commission_paid", "Commission payée", `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été payée.`);
+        await logAudit("mark_commission_paid", "sales_commissions", id, { field_changed: "status", new_value: "paid" });
+      }
+    },
     onSuccess: () => { invalidateAll(); toast.success("Commission marquée payée"); },
   });
   const toggleAgentStatus = useMutation({
