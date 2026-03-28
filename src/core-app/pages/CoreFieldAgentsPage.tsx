@@ -890,7 +890,7 @@ export default function CoreFieldAgentsPage() {
                       <>
                         <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => { setWithdrawalDetail(w); setWithdrawalAdminNote(""); }}><Eye className="h-3 w-3 mr-1" /> Détails & action</Button>
                         <Button size="sm" variant="ghost" className="text-emerald-600" onClick={() => updateWithdrawal.mutate({ id: w.id, status: "approved" })}><Check className="h-3 w-3 mr-1" /> Approuver</Button>
-                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { const n = prompt("Raison du rejet:"); if (n) updateWithdrawal.mutate({ id: w.id, status: "rejected", note: n }); }}><X className="h-3 w-3 mr-1" /> Rejeter</Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { setWithdrawalDetail(w); setWithdrawalAdminNote(""); }}><X className="h-3 w-3 mr-1" /> Rejeter</Button>
                       </>
                     )}
                     {w.status === "approved" && <Button size="sm" onClick={() => updateWithdrawal.mutate({ id: w.id, status: "paid" })}><CreditCard className="h-3 w-3 mr-1" /> Marquer payé</Button>}
