@@ -167,7 +167,7 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
                 const badge = STATUS_BADGE[letter.status] || STATUS_BADGE.draft;
                 return (
                   <tr key={letter.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">{getName(letter.employee_id)}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">{getName(letter.user_id)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{LETTER_TYPES[letter.letter_type] || letter.letter_type}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs border ${badge.cls}`}>{badge.label}</span>
