@@ -1900,7 +1900,6 @@ serve(async (req: Request) => {
               redirect_to: redirectTo,
               provider_response: {
                 link: { verification_type: linkData.properties.verification_type, redirect_to: linkData.properties.redirect_to },
-                resend: resendResult,
               },
             },
             { type: "staff_user", email }
@@ -3124,7 +3123,6 @@ serve(async (req: Request) => {
         const missingSecrets = [
           ...(isMissingSecret("SUPABASE_URL") ? ["SUPABASE_URL"] : []),
           ...(isMissingSecret("SUPABASE_SERVICE_ROLE_KEY") ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
-          ...(isMissingSecret("RESEND_API_KEY") ? ["RESEND_API_KEY"] : []),
         ];
 
         if (missingSecrets.length > 0) {
@@ -3683,6 +3681,107 @@ serve(async (req: Request) => {
           message: "Représentant terrain créé avec succès",
           user_id: userId,
           mode,
+        });
+      }
+
+      case "set_staff_commission": {
+        const { user_id, commission_type, value } = body as SetStaffCommissionRequest;
+        const stepBase = "set_staff_commission";
+
+        if (!user_id || !commission_type || value === undefined || value === null) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "user_id, commission_type et value requis", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        const numericValue = Number(value);
+        if (isNaN(numericValue) || numericValue < 0) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "VALIDATION", message: "La valeur de commission doit être un nombre positif", step: `${stepBase}.validate` } satisfies ApiError,
+          });
+        }
+
+        // Self-guard
+        if (user_id === callingUser.id) {
+          return json(400, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "SELF_MODIFY", message: "Vous ne pouvez pas modifier votre propre commission", step: stepBase } satisfies ApiError,
+          });
+        }
+
+        console.log(`[admin-manage-staff] ${stepBase} user_id=${user_id} type=${commission_type} value=${numericValue}`);
+
+        // Get current role and permissions
+        const { data: currentRole, error: currentRoleError } = await adminClient
+          .from("user_roles")
+          .select("role, permissions")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        if (currentRoleError || !currentRole) {
+          return json(404, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "NOT_FOUND", message: "Utilisateur introuvable", step: `${stepBase}.find_user` } satisfies ApiError,
+          });
+        }
+
+        const permissionsBase = (currentRole.permissions as Record<string, any>) || {};
+        const nextCommission = {
+          type: commission_type,
+          value: numericValue,
+          updated_at: new Date().toISOString(),
+          updated_by: callingUser.id,
+        };
+
+        const { error: updateError } = await adminClient
+          .from("user_roles")
+          .update({
+            permissions: { ...permissionsBase, commission: nextCommission },
+          })
+          .eq("user_id", user_id);
+
+        if (updateError) {
+          console.error(`[admin-manage-staff] ${stepBase} update error:`, updateError);
+          return json(500, {
+            ok: false,
+            request_id: requestId,
+            error: { code: "UPDATE_FAILED", message: updateError.message, step: `${stepBase}.update` } satisfies ApiError,
+          });
+        }
+
+        // Also upsert into field_sales_commission_rules for backward compatibility
+        try {
+          await adminClient.from("field_sales_commission_rules").upsert({
+            salesperson_id: user_id,
+            rule_type: commission_type,
+            value: numericValue,
+            is_active: true,
+          }, { onConflict: "salesperson_id,rule_type" });
+        } catch (e) {
+          console.warn(`[admin-manage-staff] ${stepBase} commission_rules upsert warning:`, e);
+        }
+
+        await logAction("staff_commission_updated", {
+          request_id: requestId,
+          user_id,
+          commission_type,
+          value: numericValue,
+        }, { type: "user", id: user_id });
+
+        console.log(`[admin-manage-staff] ${stepBase} SUCCESS`);
+
+        return json(200, {
+          ok: true,
+          request_id: requestId,
+          success: true,
+          message: "Commission mise à jour avec succès",
+          commission: nextCommission,
         });
       }
 
