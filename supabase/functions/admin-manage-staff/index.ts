@@ -1900,7 +1900,6 @@ serve(async (req: Request) => {
               redirect_to: redirectTo,
               provider_response: {
                 link: { verification_type: linkData.properties.verification_type, redirect_to: linkData.properties.redirect_to },
-                resend: resendResult,
               },
             },
             { type: "staff_user", email }
