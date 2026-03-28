@@ -512,7 +512,7 @@ export default function CoreFieldAgentsPage() {
       });
       if (error) throw error;
       // Notify employee
-      await supabase.from("staff_notifications").insert({ user_id: taxDocForm.user_id, title: "Document fiscal disponible", message: `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.`, type: "tax_document", priority: "normal" } as any).single();
+      await supabase.from("staff_notifications").insert({ notification_type: "tax_document", title: "Document fiscal disponible", message: `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.` } as any);
     },
     onSuccess: () => { invalidateAll(); setTaxDocDialog(false); toast.success("Document fiscal créé"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
