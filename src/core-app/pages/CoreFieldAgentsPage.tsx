@@ -304,7 +304,16 @@ export default function CoreFieldAgentsPage() {
   });
   const removeAssignment = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("commission_grid_assignments").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Assignation retirée"); },
+    onSuccess: () => { invalidateAll(); setDeleteConfirm(null); toast.success("Assignation retirée"); },
+  });
+  const updateAssignment = useMutation({
+    mutationFn: async () => {
+      if (!editAssignId) return;
+      const { error } = await supabase.from("commission_grid_assignments").update({ notes: editAssignForm.notes || null, is_active: editAssignForm.is_active }).eq("id", editAssignId);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setEditAssignId(null); toast.success("Assignation modifiée"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
   // Withdrawals — enhanced
