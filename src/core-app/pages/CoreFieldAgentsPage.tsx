@@ -98,6 +98,8 @@ export default function CoreFieldAgentsPage() {
   const [disputeNote, setDisputeNote] = useState("");
   const [withdrawalDetail, setWithdrawalDetail] = useState<any>(null);
   const [withdrawalAdminNote, setWithdrawalAdminNote] = useState("");
+  const [rejectCommDialog, setRejectCommDialog] = useState<string | null>(null);
+  const [rejectCommReason, setRejectCommReason] = useState("");
   const [taxDocDialog, setTaxDocDialog] = useState(false);
   const [taxDocForm, setTaxDocForm] = useState({ user_id: "", document_type: "t4", tax_year: String(new Date().getFullYear() - 1), notes: "", data_json: "{}" });
 
@@ -686,7 +688,7 @@ export default function CoreFieldAgentsPage() {
             return (
               <div key={as.id} className="flex items-center justify-between p-2 rounded border border-border mb-1">
                 <div><p className="text-sm font-medium text-foreground">{rule?.rule_name || "—"}</p><p className="text-[10px] text-muted-foreground">{RULE_TYPES[rule?.rule_type] || rule?.rule_type} · {rule?.bonus_amount > 0 ? `${rule.bonus_amount}$` : `${rule?.bonus_percentage}%`}</p></div>
-                <Button size="sm" variant="ghost" onClick={() => removeAssignment.mutate(as.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm({ type: "assignment", id: as.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
               </div>
             );
           })}
@@ -791,7 +793,7 @@ export default function CoreFieldAgentsPage() {
             <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
               <div><div className="flex items-center gap-2"><span className="text-sm font-semibold text-foreground">{fmtMoney(Number(c.commission_amount))}</span><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span></div><p className="text-xs text-muted-foreground mt-0.5">{getName(c.salesperson_id)} · {fmtMoney(Number(c.sale_amount))} @ {(Number(c.commission_rate)*100).toFixed(0)}%{c.bonus_amount > 0 ? ` + ${fmtMoney(Number(c.bonus_amount))} bonus` : ""}</p></div>
               <div className="flex items-center gap-2 shrink-0">
-                {(c.status === "pending" || c.status === "pending_activation") && <><Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => approveCommission.mutate(c.id)}><Check className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => { const r = prompt("Raison:"); if (r) rejectCommission.mutate({ id: c.id, reason: r }); }}><X className="h-4 w-4" /></Button></>}
+                {(c.status === "pending" || c.status === "pending_activation") && <><Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => approveCommission.mutate(c.id)}><Check className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => { setRejectCommDialog(c.id); setRejectCommReason(""); }}><X className="h-4 w-4" /></Button></>}
                 {c.status === "validated" && <Button size="sm" variant="outline" onClick={() => markCommissionPaid.mutate(c.id)}>Payer</Button>}
                 <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: fr })}</span>
               </div>
@@ -888,7 +890,7 @@ export default function CoreFieldAgentsPage() {
                       <>
                         <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => { setWithdrawalDetail(w); setWithdrawalAdminNote(""); }}><Eye className="h-3 w-3 mr-1" /> Détails & action</Button>
                         <Button size="sm" variant="ghost" className="text-emerald-600" onClick={() => updateWithdrawal.mutate({ id: w.id, status: "approved" })}><Check className="h-3 w-3 mr-1" /> Approuver</Button>
-                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { const n = prompt("Raison du rejet:"); if (n) updateWithdrawal.mutate({ id: w.id, status: "rejected", note: n }); }}><X className="h-3 w-3 mr-1" /> Rejeter</Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { setWithdrawalDetail(w); setWithdrawalAdminNote(""); }}><X className="h-3 w-3 mr-1" /> Rejeter</Button>
                       </>
                     )}
                     {w.status === "approved" && <Button size="sm" onClick={() => updateWithdrawal.mutate({ id: w.id, status: "paid" })}><CreditCard className="h-3 w-3 mr-1" /> Marquer payé</Button>}
@@ -935,7 +937,7 @@ export default function CoreFieldAgentsPage() {
                 const b = STATUS_BADGE[pp.status] || STATUS_BADGE.draft;
                 return (
                   <div key={pp.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                    <div><p className="text-sm font-medium text-foreground">{pp.period_name}</p><p className="text-xs text-muted-foreground">{pp.start_date} → {pp.end_date}</p></div>
+                    <div><p className="text-sm font-medium text-foreground">{pp.period_name}</p><p className="text-xs text-muted-foreground">{format(new Date(pp.start_date), "dd/MM/yyyy")} → {format(new Date(pp.end_date), "dd/MM/yyyy")}</p></div>
                     <div className="flex items-center gap-2">
                       <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
                       {(pp.status === "open" || pp.status === "closed") && (
@@ -1317,6 +1319,16 @@ export default function CoreFieldAgentsPage() {
 
       {/* Payroll Detail */}
       <PayrollDetailDialog entry={payrollDetail} agentName={payrollDetail ? getName(payrollDetail.user_id) : ""} open={!!payrollDetail} onClose={() => setPayrollDetail(null)} />
+
+      {/* Reject Commission */}
+      <Dialog open={!!rejectCommDialog} onOpenChange={(o) => !o && setRejectCommDialog(null)}>
+        <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Rejeter la commission</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Raison du rejet</Label><Textarea value={rejectCommReason} onChange={(e) => setRejectCommReason(e.target.value)} placeholder="Expliquez la raison…" /></div>
+          </div>
+          <DialogFooter><Button variant="destructive" onClick={() => { if (rejectCommDialog && rejectCommReason.trim()) { rejectCommission.mutate({ id: rejectCommDialog, reason: rejectCommReason }); setRejectCommDialog(null); } }} disabled={!rejectCommReason.trim() || rejectCommission.isPending}>{rejectCommission.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rejeter"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   DollarSign, Loader2, Clock, Receipt, MessageSquare, Timer, ClipboardList,
   Banknote, Plus, ArrowRight, Check, X, AlertTriangle, Calendar, FileSpreadsheet,
-  Download,
+  Download, Grid3X3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -224,7 +224,7 @@ export default function FieldMyPay() {
     { key: "disputes", label: "Contestations", icon: MessageSquare },
     { key: "time", label: "Temps", icon: Timer },
     { key: "schedule", label: "Horaire", icon: ClipboardList },
-    { key: "grids", label: "Ma grille", icon: DollarSign },
+    { key: "grids", label: "Ma grille", icon: Grid3X3 },
     { key: "tax_docs", label: "Documents fiscaux", icon: FileSpreadsheet },
   ];
 
@@ -284,7 +284,7 @@ export default function FieldMyPay() {
           return (
             <div key={pe.id} className="p-4 rounded-xl border border-border bg-card space-y-3">
               <div className="flex items-center justify-between">
-                <div><p className="text-sm font-semibold text-foreground">{pe.pay_periods?.period_name || "—"}</p><p className="text-xs text-muted-foreground">{pe.pay_periods?.start_date} → {pe.pay_periods?.end_date}</p></div>
+                <div><p className="text-sm font-semibold text-foreground">{pe.pay_periods?.period_name || "—"}</p><p className="text-xs text-muted-foreground">{pe.pay_periods?.start_date ? format(new Date(pe.pay_periods.start_date), "dd/MM/yyyy") : "—"} → {pe.pay_periods?.end_date ? format(new Date(pe.pay_periods.end_date), "dd/MM/yyyy") : "—"}</p></div>
                 <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
