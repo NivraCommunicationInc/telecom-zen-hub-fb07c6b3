@@ -766,8 +766,13 @@ export default function CoreFieldAgentsPage() {
       )}
 
       {/* ═══ COMMISSIONS TAB ═══ */}
-      {tab === "commissions" && (
-        <div className="space-y-2">{allCommissions.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune commission</p> : allCommissions.map((c: any) => {
+      {tab === "commissions" && (() => {
+        const { items: pageComms, totalPages: commTotalPages, total: commTotal } = paginate(filteredComms, commPage);
+        return (
+        <div className="space-y-3">
+          <FilterBar filters={commFilters} onChange={(f) => { setCommFilters(f); setCommPage(1); }} config={{ statusOptions: commStatusOpts, agentOptions: agentOptions, showDateRange: true, onExport: () => downloadCSV(filteredComms.map((c: any) => ({ ...c, agent_name: getName(c.salesperson_id) })), "commissions", COMMISSION_COLUMNS) }} />
+          <p className="text-[10px] text-muted-foreground">{commTotal} résultat(s)</p>
+          {pageComms.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune commission</p> : pageComms.map((c: any) => {
           const b = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
           return (
             <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
