@@ -607,6 +607,22 @@ export default function CoreFieldAgentsPage() {
   const pendingWithdrawalsCount = withdrawals.filter((w: any) => w.status === "pending").length;
   const openDisputes = disputes.filter((d: any) => d.status === "open" || d.status === "under_review").length;
 
+  // Agent options for filter dropdowns
+  const agentOptions = useMemo(() => agents.map((a) => ({ value: a.user_id, label: a.full_name || a.email || a.user_id.slice(0, 8) })), [agents]);
+  const commStatusOpts = [{ value: "pending", label: "En attente" }, { value: "pending_activation", label: "Att. activation" }, { value: "validated", label: "Validée" }, { value: "paid", label: "Payé" }, { value: "rejected", label: "Rejeté" }];
+  const payrollStatusOpts = [{ value: "draft", label: "Brouillon" }, { value: "approved", label: "Approuvé" }, { value: "paid", label: "Payé" }];
+  const timeStatusOpts = [{ value: "pending", label: "En attente" }, { value: "approved", label: "Approuvé" }, { value: "rejected", label: "Rejeté" }];
+  const withdrawalStatusOpts = [{ value: "pending", label: "En attente" }, { value: "approved", label: "Approuvé" }, { value: "paid", label: "Payé" }, { value: "rejected", label: "Rejeté" }, { value: "cancelled", label: "Annulé" }];
+
+  // Filtered data
+  const filteredComms = useMemo(() => applyFilters(allCommissions, commFilters, { statusKey: "status", agentKey: "salesperson_id", dateKey: "created_at" }), [allCommissions, commFilters]);
+  const filteredPayroll = useMemo(() => applyFilters(payrollEntries, payrollFilters, { statusKey: "status", agentKey: "user_id", dateKey: "created_at" }), [payrollEntries, payrollFilters]);
+  const filteredTime = useMemo(() => applyFilters(timeEntries, timeFilters, { statusKey: "status", agentKey: "user_id", dateKey: "punch_in" }), [timeEntries, timeFilters]);
+  const filteredWithdrawals = useMemo(() => applyFilters(withdrawals, withdrawalFilters, { statusKey: "status", agentKey: "agent_id", dateKey: "created_at" }), [withdrawals, withdrawalFilters]);
+
+  // Paginate helper
+  const paginate = <T,>(data: T[], page: number) => ({ items: data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), totalPages: Math.max(1, Math.ceil(data.length / PAGE_SIZE)), total: data.length });
+
   const TABS: { key: TabView; label: string; icon: typeof Users; badge?: number }[] = [
     { key: "agents", label: "Vendeurs", icon: Users },
     { key: "commissions", label: "Commissions", icon: DollarSign },
