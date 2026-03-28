@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +35,11 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
+  AlertTriangle,
   Ban,
   CheckCircle2,
   DollarSign,
+  Edit,
   Eye,
   KeyRound,
   Loader2,
@@ -88,6 +90,12 @@ const INVITATION_LABELS: Record<string, string> = {
   expired: "Expirée",
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email.trim());
+}
+
 const defaultForm: StaffFormData = {
   first_name: "",
   last_name: "",
@@ -115,16 +123,15 @@ async function invokeStaffAction(payload: Record<string, unknown>) {
 
   if (error) {
     console.error("[CoreStaffPage] invoke error:", error);
-    // Try to extract backend message from FunctionsHttpError context
     let msg = error.message || "Erreur edge function";
     try {
       const ctx = (error as any)?.context;
       if (ctx) {
-        const bodyText = typeof ctx.text === "function" ? await ctx.text() : "";
+        const bodyText = typeof ctx.text === "function" ? await ctx.text() : typeof ctx.json === "function" ? JSON.stringify(await ctx.json()) : "";
         if (bodyText) {
           try {
             const body = JSON.parse(bodyText);
-            msg = body?.message || body?.error?.message || body?.error || msg;
+            msg = body?.error?.message || body?.message || body?.error || msg;
           } catch {
             msg = bodyText || msg;
           }
@@ -135,12 +142,19 @@ async function invokeStaffAction(payload: Record<string, unknown>) {
   }
 
   if (data?.ok === false) {
-    throw new Error(data?.message || data?.error?.message || "Erreur inattendue");
+    const errMsg = data?.error?.message || data?.message || "Erreur inattendue";
+    throw new Error(errMsg);
   }
 
-  console.log("[CoreStaffPage] response ok:", payload.action, "staff count:", data?.staff?.length);
+  console.log("[CoreStaffPage] response ok:", payload.action);
   return data;
 }
+
+const COMMISSION_TYPE_LABELS: Record<string, string> = {
+  base_percentage: "Pourcentage de base (%)",
+  flat_bonus: "Bonus fixe ($)",
+  tiered: "Par palier",
+};
 
 export default function CoreStaffPage() {
   const queryClient = useQueryClient();
@@ -163,6 +177,10 @@ export default function CoreStaffPage() {
   const [commissionTarget, setCommissionTarget] = useState<any>(null);
   const [commissionRate, setCommissionRate] = useState("");
   const [commissionType, setCommissionType] = useState("base_percentage");
+
+  // Email edit dialog
+  const [emailEditTarget, setEmailEditTarget] = useState<any>(null);
+  const [newEmail, setNewEmail] = useState("");
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
@@ -218,6 +236,20 @@ export default function CoreStaffPage() {
       );
     });
   }, [staffList, roleFilter, statusFilter, search]);
+
+  // Load existing commission when commission dialog opens
+  useEffect(() => {
+    if (commissionTarget) {
+      const existing = commissionTarget.permissions?.commission;
+      if (existing) {
+        setCommissionType(existing.type || "base_percentage");
+        setCommissionRate(String(existing.value ?? ""));
+      } else {
+        setCommissionType("base_percentage");
+        setCommissionRate("");
+      }
+    }
+  }, [commissionTarget]);
 
   // ─── Mutations ───
   const createMutation = useMutation({
@@ -331,15 +363,43 @@ export default function CoreStaffPage() {
         value: rate,
       }),
     onSuccess: () => {
-      toast.success("Commission mise à jour");
+      toast.success("Commission mise à jour avec succès");
       setCommissionTarget(null);
       setCommissionRate("");
       setCommissionType("base_percentage");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: ({ userId, ...fields }: { userId: string; [key: string]: any }) =>
+      invokeStaffAction({ action: "update_profile", user_id: userId, ...fields }),
+    onSuccess: () => {
+      toast.success("Profil mis à jour");
+      setEmailEditTarget(null);
+      setNewEmail("");
+      invalidate();
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const activeCount = staffList.filter((s: any) => (s.status || "active") === "active").length;
+
+  // Helper: check if a staff member has an invalid email
+  const hasInvalidEmail = (staff: any) => {
+    const email = staff?.profile?.email;
+    return !email || !isValidEmail(email);
+  };
+
+  // Helper: safely perform email action with validation
+  const handleEmailAction = (email: string, actionFn: () => void) => {
+    if (!email || !isValidEmail(email)) {
+      toast.error(`Email invalide: "${email || "(vide)"}". Corrigez l'email avant d'envoyer.`);
+      return;
+    }
+    actionFn();
+  };
 
   return (
     <div className="space-y-4">
@@ -368,6 +428,20 @@ export default function CoreStaffPage() {
           {staffList.filter((s: any) => { const inv = invitationByUser.get(s.user_id); return inv?.status === "generated" || inv?.status === "sent"; }).length}
         </p></CardContent></Card>
       </div>
+
+      {/* ─── Invalid email warning ─── */}
+      {staffList.some(hasInvalidEmail) && (
+        <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-sm text-yellow-700 dark:text-yellow-400">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Emails invalides détectés</p>
+            <p className="text-xs opacity-80">
+              {staffList.filter(hasInvalidEmail).map((s: any) => `${s.displayName} (${s.profile?.email || "vide"})`).join(", ")}
+              — Les emails (invitations, réinitialisation) ne seront pas livrés. Corrigez l'email dans le dossier de l'employé.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ─── Error banner ─── */}
       {listError && (
@@ -436,11 +510,19 @@ export default function CoreStaffPage() {
                   staff.can_access_field && "Field",
                   staff.can_access_technician && "Technician",
                 ].filter(Boolean);
+                const emailInvalid = hasInvalidEmail(staff);
 
                 return (
                   <tr key={staff.id} className="hover:bg-muted/30">
                     <td className="px-3 py-2.5 font-medium text-foreground">{staff.displayName}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{staff.profile?.email || "—"}</td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1">
+                        <span className={emailInvalid ? "text-destructive" : "text-muted-foreground"}>
+                          {staff.profile?.email || "—"}
+                        </span>
+                        {emailInvalid && <AlertTriangle className="h-3 w-3 text-yellow-500" title="Email invalide" />}
+                      </div>
+                    </td>
                     <td className="px-3 py-2.5"><Badge variant="outline">{ROLE_LABELS[staff.role] || staff.role}</Badge></td>
                     <td className="px-3 py-2.5"><Badge variant={isActive ? "default" : "destructive"}>{isActive ? "Actif" : "Désactivé"}</Badge></td>
                     <td className="px-3 py-2.5">
@@ -470,8 +552,8 @@ export default function CoreStaffPage() {
                         <Button size="icon" variant="ghost" onClick={() => { setPinResetTarget(staff); setNewPin(""); }} title="Reset PIN">
                           <KeyRound className="h-4 w-4" />
                         </Button>
-                        {(staff.role === "field_sales" || staff.role === "sales") && (
-                          <Button size="icon" variant="ghost" onClick={() => { setCommissionTarget(staff); setCommissionRate(""); }} title="Commission">
+                        {(staff.role === "field_sales" || staff.role === "sales" || staff.role === "employee") && (
+                          <Button size="icon" variant="ghost" onClick={() => setCommissionTarget(staff)} title="Commission">
                             <DollarSign className="h-4 w-4" />
                           </Button>
                         )}
@@ -496,10 +578,43 @@ export default function CoreStaffPage() {
             <div className="mt-4 space-y-4">
               <Card><CardContent className="space-y-2 p-4 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Nom</span><span className="text-foreground">{selected.displayName}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="text-foreground">{selected.profile?.email || "—"}</span></div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Email</span>
+                  <div className="flex items-center gap-2">
+                    <span className={hasInvalidEmail(selected) ? "text-destructive font-medium" : "text-foreground"}>
+                      {selected.profile?.email || "—"}
+                    </span>
+                    {hasInvalidEmail(selected) && (
+                      <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-medium text-yellow-600 dark:text-yellow-400">INVALIDE</span>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        setEmailEditTarget(selected);
+                        setNewEmail(selected.profile?.email || "");
+                      }}
+                      title="Modifier l'email"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Rôle</span><span className="text-foreground">{ROLE_LABELS[selected.role] || selected.role}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Dernière connexion</span><span className="text-foreground">{selected.lastLoginAt ? format(new Date(selected.lastLoginAt), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}</span></div>
               </CardContent></Card>
+
+              {/* Invalid email warning in detail */}
+              {hasInvalidEmail(selected) && (
+                <div className="flex items-start gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3 text-xs text-yellow-700 dark:text-yellow-400">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Email invalide — les actions email ne fonctionneront pas</p>
+                    <p>L'email « {selected.profile?.email || "(vide)"} » est invalide (il manque probablement le domaine complet, ex: .ca). Cliquez sur l'icône ✏️ à côté de l'email pour le corriger.</p>
+                  </div>
+                </div>
+              )}
 
               <Card><CardContent className="space-y-3 p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Accès portails</p>
@@ -567,7 +682,13 @@ export default function CoreStaffPage() {
                   >
                     {(selected.status || "active") === "active" ? <><Ban className="mr-1 h-3.5 w-3.5" /> Désactiver</> : <><CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Activer</>}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => selected.profile?.email && resetPwMutation.mutate(selected.profile.email)} disabled={!selected.profile?.email}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!selected.profile?.email || hasInvalidEmail(selected)}
+                    onClick={() => handleEmailAction(selected.profile?.email, () => resetPwMutation.mutate(selected.profile.email))}
+                    title={hasInvalidEmail(selected) ? "Corrigez l'email d'abord" : ""}
+                  >
                     <Mail className="mr-1 h-3.5 w-3.5" /> Réinit. mot de passe
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setPinResetTarget(selected); setNewPin(""); }}>
@@ -583,6 +704,7 @@ export default function CoreStaffPage() {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Invitation</p>
                 {(() => {
                   const inv = invitationByUser.get(selected.user_id);
+                  const emailOk = !hasInvalidEmail(selected);
                   return (
                     <>
                       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -595,10 +717,29 @@ export default function CoreStaffPage() {
                           <p className="font-medium text-foreground">{inv?.expires_at ? format(new Date(inv.expires_at), "dd MMM yyyy HH:mm", { locale: fr }) : "—"}</p>
                         </div>
                       </div>
+                      {!emailOk && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" /> Corrigez l'email avant d'envoyer des invitations
+                        </p>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <Button variant="outline" size="sm" onClick={() => invitationMutation.mutate({ action: "generate_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Générer</Button>
-                        <Button variant="outline" size="sm" onClick={() => invitationMutation.mutate({ action: "send_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Envoyer</Button>
-                        <Button variant="outline" size="sm" onClick={() => invitationMutation.mutate({ action: "resend_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Renvoyer</Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={invitationMutation.isPending || !emailOk}
+                          onClick={() => handleEmailAction(selected.profile?.email, () => invitationMutation.mutate({ action: "send_invitation", userId: selected.user_id }))}
+                        >
+                          Envoyer
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={invitationMutation.isPending || !emailOk}
+                          onClick={() => handleEmailAction(selected.profile?.email, () => invitationMutation.mutate({ action: "resend_invitation", userId: selected.user_id }))}
+                        >
+                          Renvoyer
+                        </Button>
                         <Button variant="destructive" size="sm" onClick={() => invitationMutation.mutate({ action: "revoke_invitation", userId: selected.user_id })} disabled={invitationMutation.isPending}>Révoquer</Button>
                       </div>
                     </>
@@ -606,12 +747,37 @@ export default function CoreStaffPage() {
                 })()}
               </CardContent></Card>
 
-              {/* Commission section for applicable roles */}
-              {(selected.role === "field_sales" || selected.role === "sales") && (
+              {/* Commission section - expanded for all applicable roles */}
+              {(selected.role === "field_sales" || selected.role === "sales" || selected.role === "employee") && (
                 <Card><CardContent className="space-y-3 p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Commission</p>
-                  <Button variant="outline" size="sm" onClick={() => { setCommissionTarget(selected); setCommissionRate(""); }}>
-                    <DollarSign className="mr-1 h-3.5 w-3.5" /> Gérer la commission
+                  {selected.permissions?.commission ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded border border-border p-2">
+                          <p className="text-muted-foreground">Type</p>
+                          <p className="font-medium text-foreground">{COMMISSION_TYPE_LABELS[selected.permissions.commission.type] || selected.permissions.commission.type}</p>
+                        </div>
+                        <div className="rounded border border-border p-2">
+                          <p className="text-muted-foreground">Valeur</p>
+                          <p className="font-medium text-foreground">
+                            {selected.permissions.commission.type === "flat_bonus"
+                              ? `${selected.permissions.commission.value} $`
+                              : `${selected.permissions.commission.value}%`}
+                          </p>
+                        </div>
+                      </div>
+                      {selected.permissions.commission.updated_at && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Dernière mise à jour: {format(new Date(selected.permissions.commission.updated_at), "dd MMM yyyy HH:mm", { locale: fr })}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Aucune commission configurée</p>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setCommissionTarget(selected)}>
+                    <DollarSign className="mr-1 h-3.5 w-3.5" /> {selected.permissions?.commission ? "Modifier" : "Configurer"} la commission
                   </Button>
                 </CardContent></Card>
               )}
@@ -639,6 +805,11 @@ export default function CoreStaffPage() {
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs">Email *</Label>
               <Input type="email" placeholder="prenom.nom@nivra-telecom.ca" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+              {form.email && !isValidEmail(form.email) && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Format d'email invalide (ex: nom@domaine.ca)
+                </p>
+              )}
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs">Rôle *</Label>
@@ -679,7 +850,16 @@ export default function CoreStaffPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
-            <Button onClick={() => createMutation.mutate(form)} disabled={!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || createMutation.isPending}>
+            <Button
+              onClick={() => {
+                if (!isValidEmail(form.email)) {
+                  toast.error("Format d'email invalide. Vérifiez que l'email contient un domaine valide (ex: nom@nivra-telecom.ca)");
+                  return;
+                }
+                createMutation.mutate(form);
+              }}
+              disabled={!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || createMutation.isPending}
+            >
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Créer l'employé
             </Button>
@@ -766,39 +946,67 @@ export default function CoreStaffPage() {
 
       {/* ─── Commission Dialog ─── */}
       <Dialog open={!!commissionTarget} onOpenChange={(open) => !open && setCommissionTarget(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" /> Gestion commission
             </DialogTitle>
             <DialogDescription>
-              Assignez le taux de commission pour <strong>{commissionTarget?.displayName}</strong>
+              Configurez le taux de commission pour <strong>{commissionTarget?.displayName}</strong>
+              {commissionTarget?.role && (
+                <span className="ml-1">({ROLE_LABELS[commissionTarget.role] || commissionTarget.role})</span>
+              )}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Show existing commission */}
+          {commissionTarget?.permissions?.commission && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs">
+              <p className="font-medium text-muted-foreground mb-1">Commission actuelle</p>
+              <div className="flex gap-4">
+                <span>Type: <strong>{COMMISSION_TYPE_LABELS[commissionTarget.permissions.commission.type] || commissionTarget.permissions.commission.type}</strong></span>
+                <span>Valeur: <strong>
+                  {commissionTarget.permissions.commission.type === "flat_bonus"
+                    ? `${commissionTarget.permissions.commission.value} $`
+                    : `${commissionTarget.permissions.commission.value}%`}
+                </strong></span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Type de commission</Label>
               <Select value={commissionType} onValueChange={setCommissionType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="base_percentage">Pourcentage de base</SelectItem>
-                  <SelectItem value="flat_bonus">Bonus fixe</SelectItem>
+                  <SelectItem value="base_percentage">Pourcentage de base (%)</SelectItem>
+                  <SelectItem value="flat_bonus">Bonus fixe ($)</SelectItem>
                   <SelectItem value="tiered">Par palier</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground">
+                {commissionType === "base_percentage" && "Pourcentage appliqué sur chaque vente activée"}
+                {commissionType === "flat_bonus" && "Montant fixe en dollars par vente"}
+                {commissionType === "tiered" && "Pourcentage qui augmente par palier de ventes"}
+              </p>
             </div>
             <div className="space-y-1.5">
-              <Label>Taux / Montant (%)</Label>
+              <Label>{commissionType === "flat_bonus" ? "Montant ($)" : "Taux (%)"}</Label>
               <Input
                 type="number"
                 min={0}
-                max={100}
-                step={0.5}
+                max={commissionType === "flat_bonus" ? 10000 : 100}
+                step={commissionType === "flat_bonus" ? 1 : 0.5}
                 value={commissionRate}
                 onChange={(e) => setCommissionRate(e.target.value)}
-                placeholder="10"
+                placeholder={commissionType === "flat_bonus" ? "50" : "10"}
               />
-              <p className="text-xs text-muted-foreground">Ex: 10 = 10% par vente activée</p>
+              <p className="text-xs text-muted-foreground">
+                {commissionType === "flat_bonus"
+                  ? `Ex: 50 = 50$ par vente activée`
+                  : `Ex: 10 = 10% par vente activée`}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -806,13 +1014,66 @@ export default function CoreStaffPage() {
             <Button
               onClick={() => {
                 const rate = parseFloat(commissionRate);
-                if (isNaN(rate) || rate < 0) { toast.error("Taux invalide"); return; }
+                if (isNaN(rate) || rate < 0) { toast.error("Valeur de commission invalide"); return; }
                 commissionTarget && commissionMutation.mutate({ userId: commissionTarget.user_id, rate, type: commissionType });
               }}
               disabled={!commissionRate || commissionMutation.isPending}
             >
               {commissionMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Enregistrer
+              Enregistrer la commission
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Email Edit Dialog ─── */}
+      <Dialog open={!!emailEditTarget} onOpenChange={(open) => !open && setEmailEditTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" /> Modifier l'email
+            </DialogTitle>
+            <DialogDescription>
+              Changez l'email de <strong>{emailEditTarget?.displayName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Email actuel</Label>
+              <p className="text-sm text-muted-foreground">{emailEditTarget?.profile?.email || "(vide)"}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nouvel email</Label>
+              <Input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="prenom.nom@nivra-telecom.ca"
+              />
+              {newEmail && !isValidEmail(newEmail) && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Format invalide — vérifiez le domaine (ex: .ca, .com)
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailEditTarget(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (!isValidEmail(newEmail)) {
+                  toast.error("Format d'email invalide");
+                  return;
+                }
+                emailEditTarget && updateProfileMutation.mutate({
+                  userId: emailEditTarget.user_id,
+                  email: newEmail.trim().toLowerCase(),
+                });
+              }}
+              disabled={!newEmail || !isValidEmail(newEmail) || updateProfileMutation.isPending}
+            >
+              {updateProfileMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Mettre à jour
             </Button>
           </DialogFooter>
         </DialogContent>
