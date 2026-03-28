@@ -7,16 +7,53 @@ const SENDER_DOMAIN = "notify.nivra-telecom.ca";
 const FROM_ADDRESS = "Nivra Telecom <noreply@nivra-telecom.ca>";
 
 /**
- * Send email via pgmq transactional queue (replaces dead ResendProxy/email_queue table).
- * Emails are picked up by process-email-queue cron worker and sent via Lovable Email API.
+ * Ensure an unsubscribe token exists for the given email (required by Lovable Email API).
+ */
+async function ensureUnsubscribeToken(
+  client: ReturnType<typeof createClient>,
+  email: string
+): Promise<string> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: existing } = await client
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (existing?.token) return existing.token;
+
+  const generatedToken = crypto.randomUUID();
+  const { error: insertError } = await client
+    .from("email_unsubscribe_tokens")
+    .insert({ email: normalizedEmail, token: generatedToken });
+
+  if (!insertError) return generatedToken;
+
+  // Race condition fallback
+  const { data: raced } = await client
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (raced?.token) return raced.token;
+  throw new Error("Failed to generate unsubscribe token");
+}
+
+/**
+ * Send email via pgmq transactional queue.
+ * Now includes unsubscribe_token required by Lovable Email API.
  */
 async function sendStaffEmail(
   adminClient: ReturnType<typeof createClient>,
   params: { to: string; subject: string; html: string; replyTo?: string; idempotencyKey?: string }
 ): Promise<void> {
+  const normalizedTo = params.to.trim().toLowerCase();
+  const unsubscribeToken = await ensureUnsubscribeToken(adminClient, normalizedTo);
   const messageId = params.idempotencyKey || `staff_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const payload = {
-    to: params.to,
+    to: normalizedTo,
     from: FROM_ADDRESS,
     sender_domain: SENDER_DOMAIN,
     subject: params.subject,
@@ -27,6 +64,7 @@ async function sendStaffEmail(
     message_id: messageId,
     queued_at: new Date().toISOString(),
     idempotency_key: messageId,
+    unsubscribe_token: unsubscribeToken,
   };
 
   const { error } = await adminClient.rpc("enqueue_email", {
@@ -39,7 +77,7 @@ async function sendStaffEmail(
     throw new Error(`Email enqueue failed: ${error.message}`);
   }
 
-  console.log(`[admin-manage-staff] Email enqueued to pgmq: to=${params.to} subject="${params.subject}" msg_id=${messageId}`);
+  console.log(`[admin-manage-staff] Email enqueued to pgmq: to=${normalizedTo} subject="${params.subject}" msg_id=${messageId}`);
 }
 
 type StaffRole =
