@@ -67,6 +67,14 @@ type StaffFormData = {
   can_access_technician: boolean;
 };
 
+type EditProfileData = {
+  full_name: string;
+  email: string;
+  phone: string;
+  job_title: string;
+  badge_number: string;
+};
+
 const ROLE_OPTIONS = [
   { value: "admin", label: "Administrateur" },
   { value: "employee", label: "Employé" },
