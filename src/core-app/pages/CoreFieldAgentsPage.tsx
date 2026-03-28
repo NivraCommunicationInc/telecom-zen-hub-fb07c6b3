@@ -224,15 +224,40 @@ export default function CoreFieldAgentsPage() {
     enabled: tab === "tax_docs",
   });
 
+  // ═══ HELPERS ═══
+  const logAudit = async (action: string, entityType: string, entityId: string, extra?: { field_changed?: string; old_value?: string; new_value?: string; details?: any }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).single();
+    await supabase.from("hr_audit_log").insert({
+      actor_user_id: user.id,
+      actor_name: (profile as any)?.full_name || user.email,
+      actor_role: "admin",
+      action,
+      entity_type: entityType,
+      entity_id: entityId,
+      ...(extra || {}),
+    } as any);
+  };
+
+  const notifyEmployee = async (userId: string, notificationType: string, title: string, message: string) => {
+    await supabase.from("staff_notifications").insert({
+      user_id: userId,
+      notification_type: notificationType,
+      title,
+      message,
+    } as any);
+  };
+
   // ═══ MUTATIONS ═══
   const approveCommission = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("sales_commissions").update({ status: "validated", validated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
-      // Notification
       const comm = allCommissions.find((c: any) => c.id === id);
       if (comm) {
-        await supabase.from("staff_notifications").insert({ notification_type: "commission_approved", title: "Commission approuvée", message: `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.` } as any);
+        await notifyEmployee(comm.salesperson_id, "commission_approved", "Commission approuvée", `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.`);
+        await logAudit("approve_commission", "sales_commissions", id, { field_changed: "status", old_value: "pending", new_value: "validated" });
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission approuvée"); },
