@@ -267,12 +267,24 @@ export default function CoreFieldAgentsPage() {
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const { error } = await supabase.from("sales_commissions").update({ status: "rejected" as any, rejection_reason: reason }).eq("id", id);
       if (error) throw error;
+      const comm = allCommissions.find((c: any) => c.id === id);
+      if (comm) {
+        await notifyEmployee(comm.salesperson_id, "commission_rejected", "Commission rejetée", `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été rejetée.${reason ? ` Raison: ${reason}` : ""}`);
+      }
       await logAudit("reject_commission", "sales_commissions", id, { field_changed: "status", new_value: "rejected", details: { reason } });
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission rejetée"); },
   });
   const markCommissionPaid = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("sales_commissions").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales_commissions").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      const comm = allCommissions.find((c: any) => c.id === id);
+      if (comm) {
+        await notifyEmployee(comm.salesperson_id, "commission_paid", "Commission payée", `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été payée.`);
+        await logAudit("mark_commission_paid", "sales_commissions", id, { field_changed: "status", new_value: "paid" });
+      }
+    },
     onSuccess: () => { invalidateAll(); toast.success("Commission marquée payée"); },
   });
   const toggleAgentStatus = useMutation({
@@ -370,7 +382,7 @@ export default function CoreFieldAgentsPage() {
           : status === "paid" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été payé.`
           : status === "rejected" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été rejeté.${note ? ` Raison: ${note}` : ""}`
           : `Votre retrait a été mis à jour: ${status}`;
-        await notifyEmployee(w.influencer_id || w.user_id, "withdrawal_update", `Retrait ${status}`, msg);
+        await notifyEmployee(w.agent_id, "withdrawal_update", `Retrait ${status}`, msg);
         await logAudit(`withdrawal_${status}`, "commission_withdrawal_requests", id, { field_changed: "status", old_value: w.status, new_value: status });
       }
     },
@@ -623,6 +635,12 @@ export default function CoreFieldAgentsPage() {
       if (status === "sent") u.sent_at = new Date().toISOString();
       const { error } = await supabase.from("tax_documents").update(u).eq("id", id);
       if (error) throw error;
+      // Notify employee on status change
+      const doc = taxDocs.find((d: any) => d.id === id);
+      if (doc && status === "sent") {
+        await notifyEmployee(doc.user_id, "tax_document_sent", "Document fiscal envoyé", `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`);
+        await logAudit("send_tax_document", "tax_documents", id, { field_changed: "status", new_value: "sent" });
+      }
     },
     onSuccess: () => { invalidateAll(); toast.success("Statut mis à jour"); },
   });

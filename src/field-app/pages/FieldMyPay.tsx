@@ -54,7 +54,9 @@ export default function FieldMyPay() {
   const [disputeReason, setDisputeReason] = useState("");
   const [punchNote, setPunchNote] = useState("");
 
-  // ═══ QUERIES ═══
+  // ═══ QUERIES — refetchOnWindowFocus ensures cross-portal visibility ═══
+  const queryOpts = { refetchOnWindowFocus: true, staleTime: 30_000 }; // 30s stale, auto-refetch on focus
+
   const { data: myCommissions = [] } = useQuery({
     queryKey: ["my-commissions"],
     queryFn: async () => {
@@ -63,6 +65,7 @@ export default function FieldMyPay() {
       const { data } = await supabase.from("sales_commissions").select("*").eq("salesperson_id", user.id).order("created_at", { ascending: false }).limit(100);
       return data || [];
     },
+    ...queryOpts,
   });
 
   const { data: myPayroll = [] } = useQuery({
@@ -74,6 +77,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "payslips",
+    ...queryOpts,
   });
 
   const { data: myWithdrawals = [] } = useQuery({
@@ -85,6 +89,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "withdrawals",
+    ...queryOpts,
   });
 
   const { data: myDisputes = [] } = useQuery({
@@ -96,6 +101,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "disputes",
+    ...queryOpts,
   });
 
   const { data: myTime = [] } = useQuery({
@@ -107,6 +113,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "time",
+    ...queryOpts,
   });
 
   const { data: mySchedule = [] } = useQuery({
@@ -118,6 +125,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "schedule",
+    ...queryOpts,
   });
 
   const { data: myGrids = [] } = useQuery({
@@ -129,6 +137,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "grids",
+    ...queryOpts,
   });
 
   const { data: myTaxDocs = [] } = useQuery({
@@ -140,6 +149,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "tax_docs",
+    ...queryOpts,
   });
 
   const { data: myLetters = [] } = useQuery({
@@ -151,6 +161,7 @@ export default function FieldMyPay() {
       return data || [];
     },
     enabled: tab === "letters",
+    ...queryOpts,
   });
 
   const totalEarned = myCommissions.reduce((s, c: any) => s + Number(c.commission_amount), 0);
