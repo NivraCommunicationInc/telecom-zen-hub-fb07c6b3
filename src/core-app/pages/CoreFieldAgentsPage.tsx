@@ -15,6 +15,7 @@ import {
   ChevronRight, ArrowLeft, Phone, Mail, Calendar, Shield, Save,
   MessageSquare, Download, CreditCard, Receipt, Plus, Trash2,
   Timer, ClipboardList, Grid3X3, Link2, Briefcase, Zap, FileSpreadsheet,
+  ChevronLeft,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import FilterBar, { defaultFilters, applyFilters, type FilterConfig } from "@/core-app/components/field-agents/FilterBar";
+import { downloadCSV, COMMISSION_COLUMNS, PAYROLL_COLUMNS, TIME_COLUMNS, WITHDRAWAL_COLUMNS } from "@/core-app/components/field-agents/ExportUtils";
+import DeleteConfirmDialog from "@/core-app/components/field-agents/DeleteConfirmDialog";
+import PayrollDetailDialog from "@/core-app/components/field-agents/PayrollDetailDialog";
+import WithdrawalTimeline from "@/core-app/components/field-agents/WithdrawalTimeline";
 
 type TabView = "agents" | "commissions" | "grids" | "assignments" | "withdrawals" | "disputes" | "payroll" | "time" | "schedules" | "tax_docs";
 
@@ -95,9 +101,33 @@ export default function CoreFieldAgentsPage() {
   const [taxDocDialog, setTaxDocDialog] = useState(false);
   const [taxDocForm, setTaxDocForm] = useState({ user_id: "", document_type: "t4", tax_year: String(new Date().getFullYear() - 1), notes: "", data_json: "{}" });
 
-  const invalidateAll = () => { qc.invalidateQueries({ queryKey: ["core-field"] }); };
+  // Filter states per tab
+  const [commFilters, setCommFilters] = useState(defaultFilters);
+  const [payrollFilters, setPayrollFilters] = useState(defaultFilters);
+  const [timeFilters, setTimeFilters] = useState(defaultFilters);
+  const [withdrawalFilters, setWithdrawalFilters] = useState(defaultFilters);
 
-  // ═══ QUERIES ═══
+  // Pagination
+  const PAGE_SIZE = 25;
+  const [commPage, setCommPage] = useState(1);
+  const [payrollPage, setPayrollPage] = useState(1);
+  const [timePage, setTimePage] = useState(1);
+  const [withdrawalPage, setWithdrawalPage] = useState(1);
+
+  // Delete confirm
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null);
+
+  // Payroll detail dialog
+  const [payrollDetail, setPayrollDetail] = useState<any>(null);
+
+  // Edit schedule
+  const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
+
+  // Edit assignment
+  const [editAssignId, setEditAssignId] = useState<string | null>(null);
+  const [editAssignForm, setEditAssignForm] = useState({ notes: "", is_active: true });
+
+  const invalidateAll = () => { qc.invalidateQueries({ queryKey: ["core-field"] }); };
   const { data: agents = [], isLoading: loadingAgents } = useQuery({
     queryKey: ["core-field", "agents"],
     queryFn: async () => {
@@ -274,7 +304,16 @@ export default function CoreFieldAgentsPage() {
   });
   const removeAssignment = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("commission_grid_assignments").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Assignation retirée"); },
+    onSuccess: () => { invalidateAll(); setDeleteConfirm(null); toast.success("Assignation retirée"); },
+  });
+  const updateAssignment = useMutation({
+    mutationFn: async () => {
+      if (!editAssignId) return;
+      const { error } = await supabase.from("commission_grid_assignments").update({ notes: editAssignForm.notes || null, is_active: editAssignForm.is_active }).eq("id", editAssignId);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setEditAssignId(null); toast.success("Assignation modifiée"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
 
   // Withdrawals — enhanced
@@ -496,8 +535,27 @@ export default function CoreFieldAgentsPage() {
   });
   const deleteSchedule = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("staff_schedules").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Horaire supprimé"); },
+    onSuccess: () => { invalidateAll(); setDeleteConfirm(null); toast.success("Horaire supprimé"); },
   });
+  const updateSchedule = useMutation({
+    mutationFn: async () => {
+      if (!editScheduleId) return;
+      const { error } = await supabase.from("staff_schedules").update({
+        day_of_week: parseInt(schForm.day_of_week), start_time: schForm.start_time, end_time: schForm.end_time, notes: schForm.notes || null,
+      }).eq("id", editScheduleId);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); setScheduleDialog(false); setEditScheduleId(null); toast.success("Horaire modifié"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+  });
+  // Confirmed delete handler
+  const handleConfirmedDelete = () => {
+    if (!deleteConfirm) return;
+    const { type, id } = deleteConfirm;
+    if (type === "grid") deleteGrid.mutate(id);
+    else if (type === "assignment") removeAssignment.mutate(id);
+    else if (type === "schedule") deleteSchedule.mutate(id);
+  };
 
   // Tax Documents
   const createTaxDoc = useMutation({
@@ -548,6 +606,22 @@ export default function CoreFieldAgentsPage() {
 
   const pendingWithdrawalsCount = withdrawals.filter((w: any) => w.status === "pending").length;
   const openDisputes = disputes.filter((d: any) => d.status === "open" || d.status === "under_review").length;
+
+  // Agent options for filter dropdowns
+  const agentOptions = useMemo(() => agents.map((a) => ({ value: a.user_id, label: a.full_name || a.email || a.user_id.slice(0, 8) })), [agents]);
+  const commStatusOpts = [{ value: "pending", label: "En attente" }, { value: "pending_activation", label: "Att. activation" }, { value: "validated", label: "Validée" }, { value: "paid", label: "Payé" }, { value: "rejected", label: "Rejeté" }];
+  const payrollStatusOpts = [{ value: "draft", label: "Brouillon" }, { value: "approved", label: "Approuvé" }, { value: "paid", label: "Payé" }];
+  const timeStatusOpts = [{ value: "pending", label: "En attente" }, { value: "approved", label: "Approuvé" }, { value: "rejected", label: "Rejeté" }];
+  const withdrawalStatusOpts = [{ value: "pending", label: "En attente" }, { value: "approved", label: "Approuvé" }, { value: "paid", label: "Payé" }, { value: "rejected", label: "Rejeté" }, { value: "cancelled", label: "Annulé" }];
+
+  // Filtered data
+  const filteredComms = useMemo(() => applyFilters(allCommissions, commFilters, { statusKey: "status", agentKey: "salesperson_id", dateKey: "created_at" }), [allCommissions, commFilters]);
+  const filteredPayroll = useMemo(() => applyFilters(payrollEntries, payrollFilters, { statusKey: "status", agentKey: "user_id", dateKey: "created_at" }), [payrollEntries, payrollFilters]);
+  const filteredTime = useMemo(() => applyFilters(timeEntries, timeFilters, { statusKey: "status", agentKey: "user_id", dateKey: "punch_in" }), [timeEntries, timeFilters]);
+  const filteredWithdrawals = useMemo(() => applyFilters(withdrawals, withdrawalFilters, { statusKey: "status", agentKey: "agent_id", dateKey: "created_at" }), [withdrawals, withdrawalFilters]);
+
+  // Paginate helper
+  const paginate = <T,>(data: T[], page: number) => ({ items: data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), totalPages: Math.max(1, Math.ceil(data.length / PAGE_SIZE)), total: data.length });
 
   const TABS: { key: TabView; label: string; icon: typeof Users; badge?: number }[] = [
     { key: "agents", label: "Vendeurs", icon: Users },
@@ -692,8 +766,26 @@ export default function CoreFieldAgentsPage() {
       )}
 
       {/* ═══ COMMISSIONS TAB ═══ */}
-      {tab === "commissions" && (
-        <div className="space-y-2">{allCommissions.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune commission</p> : allCommissions.map((c: any) => {
+      {tab === "commissions" && (() => {
+        const { items: pageComms, totalPages: commTotalPages, total: commTotal } = paginate(filteredComms, commPage);
+        return (
+        <div className="space-y-3">
+          <FilterBar
+            filters={commFilters}
+            onChange={(f) => { setCommFilters(f); setCommPage(1); }}
+            config={{
+              statusOptions: commStatusOpts,
+              agentOptions: agentOptions,
+              showDateRange: true,
+              onExport: () => downloadCSV(
+                filteredComms.map((c: any) => ({ ...c, agent_name: getName(c.salesperson_id) })),
+                "commissions",
+                COMMISSION_COLUMNS
+              ),
+            }}
+          />
+          <p className="text-[10px] text-muted-foreground">{commTotal} résultat(s)</p>
+          {pageComms.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune commission</p> : pageComms.map((c: any) => {
           const b = STATUS_BADGE[c.status] || STATUS_BADGE.pending;
           return (
             <div key={c.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
@@ -705,8 +797,9 @@ export default function CoreFieldAgentsPage() {
               </div>
             </div>
           );
-        })}</div>
-      )}
+        })}{commTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={commPage === 1} onClick={() => setCommPage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{commPage}/{commTotalPages}</span><Button size="sm" variant="outline" disabled={commPage === commTotalPages} onClick={() => setCommPage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+        </div>);
+      })()}
 
       {/* ═══ GRIDS TAB — with EDIT ═══ */}
       {tab === "grids" && (
@@ -731,7 +824,7 @@ export default function CoreFieldAgentsPage() {
                   <td className="py-2.5 text-right">
                     <div className="flex gap-1 justify-end">
                       <Button size="icon" variant="ghost" onClick={() => openEditGrid(r)}><Edit3 className="h-3 w-3" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => deleteGrid.mutate(r.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ type: "grid", id: r.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                     </div>
                   </td>
                 </tr>
@@ -751,7 +844,11 @@ export default function CoreFieldAgentsPage() {
               return (
                 <div key={a.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
                   <div><p className="text-sm font-medium text-foreground">{getName(a.user_id)}</p><p className="text-xs text-muted-foreground">{rule?.rule_name || "—"} · {RULE_TYPES[rule?.rule_type] || "?"}{a.notes && ` · ${a.notes}`}</p></div>
-                  <div className="flex items-center gap-2"><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Inactif"}</span><Button size="icon" variant="ghost" onClick={() => removeAssignment.mutate(a.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button></div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", a.is_active ? STATUS_BADGE.approved.cls : STATUS_BADGE.rejected.cls)}>{a.is_active ? "Actif" : "Inactif"}</span>
+                    <Button size="icon" variant="ghost" onClick={() => { setEditAssignId(a.id); setEditAssignForm({ notes: a.notes || "", is_active: a.is_active !== false }); }}><Edit3 className="h-3 w-3" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ type: "assignment", id: a.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                  </div>
                 </div>
               );
             })}</div>
@@ -759,11 +856,14 @@ export default function CoreFieldAgentsPage() {
         </div>
       )}
 
-      {/* ═══ WITHDRAWALS TAB — Enhanced ═══ */}
-      {tab === "withdrawals" && (
+      {/* ═══ WITHDRAWALS TAB — Enhanced with Timeline ═══ */}
+      {tab === "withdrawals" && (() => {
+        const { items: pageWith, totalPages: withTotalPages, total: withTotal } = paginate(filteredWithdrawals, withdrawalPage);
+        return (
         <div className="space-y-3">
-          <h3 className="text-sm font-bold text-foreground">Demandes de retrait de commission</h3>
-          {withdrawals.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun retrait</p> : withdrawals.map((w: any) => {
+          <FilterBar filters={withdrawalFilters} onChange={(f) => { setWithdrawalFilters(f); setWithdrawalPage(1); }} config={{ statusOptions: withdrawalStatusOpts, agentOptions: agentOptions, showDateRange: true, onExport: () => downloadCSV(filteredWithdrawals.map((w: any) => ({ ...w, agent_name: getName(w.agent_id) })), "retraits", WITHDRAWAL_COLUMNS) }} />
+          <p className="text-[10px] text-muted-foreground">{withTotal} résultat(s)</p>
+          {pageWith.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun retrait</p> : pageWith.map((w: any) => {
             const b = STATUS_BADGE[w.status] || STATUS_BADGE.pending;
             return (
               <div key={w.id} className="p-4 rounded-xl border border-border bg-card space-y-3">
@@ -774,6 +874,7 @@ export default function CoreFieldAgentsPage() {
                   </div>
                   <span className="text-[10px] text-muted-foreground">{format(new Date(w.created_at), "dd/MM/yyyy HH:mm")}</span>
                 </div>
+                <WithdrawalTimeline withdrawal={w} />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Agent:</span> <span className="font-medium text-foreground">{getName(w.agent_id)}</span></div>
                   {w.reviewed_at && <div><span className="text-muted-foreground">Revu:</span> <span className="text-foreground">{format(new Date(w.reviewed_at), "dd/MM/yy HH:mm")}</span></div>}
@@ -796,8 +897,9 @@ export default function CoreFieldAgentsPage() {
               </div>
             );
           })}
-        </div>
-      )}
+          {withTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={withdrawalPage === 1} onClick={() => setWithdrawalPage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{withdrawalPage}/{withTotalPages}</span><Button size="sm" variant="outline" disabled={withdrawalPage === withTotalPages} onClick={() => setWithdrawalPage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+        </div>);
+      })()}
 
       {/* ═══ DISPUTES TAB ═══ */}
       {tab === "disputes" && (
@@ -867,18 +969,35 @@ export default function CoreFieldAgentsPage() {
           </div>
 
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Receipt className="h-4 w-4" /> Fiches de paie</h3>
+            <div className="flex justify-between items-center flex-wrap gap-2">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Receipt className="h-4 w-4" /> Fiches de paie</h3>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => { setAdjForm({ payroll_entry_id: "", adjustment_type: "deduction", label: "", amount: "0", notes: "" }); setAdjustDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajustement</Button>
                 <Button size="sm" onClick={() => { setPeForm({ pay_period_id: "", user_id: "", base_salary: "0", commission_total: "0", bonus_total: "0", hours_worked: "0", overtime_hours: "0", deductions_total: "0", notes: "" }); setPayrollEntryDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Nouvelle fiche</Button>
               </div>
             </div>
-            {payrollEntries.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Aucune fiche de paie</p> : (
+            <FilterBar
+              filters={payrollFilters}
+              onChange={(f) => { setPayrollFilters(f); setPayrollPage(1); }}
+              config={{
+                statusOptions: payrollStatusOpts,
+                agentOptions: agentOptions,
+                onExport: () => downloadCSV(
+                  filteredPayroll.map((pe: any) => ({ ...pe, employee_name: getName(pe.user_id), period_name: pe.pay_periods?.period_name || "—" })),
+                  "fiches-paie",
+                  PAYROLL_COLUMNS
+                ),
+              }}
+            />
+            {(() => {
+              const { items: pagePE, totalPages: peTotalPages } = paginate(filteredPayroll, payrollPage);
+              return pagePE.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Aucune fiche de paie</p> : (
+              <>
               <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Période</th><th className="pb-2 font-medium text-right">Comm.</th><th className="pb-2 font-medium text-right">Bonus</th><th className="pb-2 font-medium text-right">Heures</th><th className="pb-2 font-medium text-right">Brut</th><th className="pb-2 font-medium text-right">Retenues</th><th className="pb-2 font-medium text-right">Net</th><th className="pb-2 font-medium">Statut</th><th className="pb-2"></th></tr></thead><tbody>
-                {payrollEntries.map((pe: any) => {
+                {pagePE.map((pe: any) => {
                   const b = STATUS_BADGE[pe.status] || STATUS_BADGE.draft;
                   return (
-                    <tr key={pe.id} className="border-b border-border/50 hover:bg-muted/30">
+                    <tr key={pe.id} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer" onClick={() => setPayrollDetail(pe)}>
                       <td className="py-2.5 font-medium text-foreground">{getName(pe.user_id)}</td>
                       <td className="py-2.5 text-muted-foreground text-xs">{pe.pay_periods?.period_name || "—"}</td>
                       <td className="py-2.5 text-right">{fmtMoney(Number(pe.commission_total))}</td>
@@ -888,7 +1007,7 @@ export default function CoreFieldAgentsPage() {
                       <td className="py-2.5 text-right text-destructive">{fmtMoney(Number(pe.deductions_total))}</td>
                       <td className="py-2.5 text-right font-bold text-emerald-600">{fmtMoney(Number(pe.net_pay))}</td>
                       <td className="py-2.5"><span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", b.cls)}>{b.label}</span></td>
-                      <td className="py-2.5 text-right">
+                      <td className="py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                         {pe.status === "draft" && <Button size="sm" variant="ghost" onClick={() => approvePayroll.mutate(pe.id)}>Approuver</Button>}
                         {pe.status === "approved" && <Button size="sm" variant="ghost" onClick={() => markPayrollPaid.mutate(pe.id)}>Payer</Button>}
                         <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {
@@ -904,7 +1023,9 @@ export default function CoreFieldAgentsPage() {
                   );
                 })}
               </tbody></table></div>
-            )}
+              {peTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={payrollPage === 1} onClick={() => setPayrollPage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{payrollPage}/{peTotalPages}</span><Button size="sm" variant="outline" disabled={payrollPage === peTotalPages} onClick={() => setPayrollPage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+              </>);
+            })()}
           </div>
 
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
@@ -926,12 +1047,15 @@ export default function CoreFieldAgentsPage() {
       )}
 
       {/* ═══ TIME TRACKING TAB ═══ */}
-      {tab === "time" && (
+      {tab === "time" && (() => {
+        const { items: pageTime, totalPages: timeTotalPages, total: timeTotal } = paginate(filteredTime, timePage);
+        return (
         <div className="space-y-4">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Timer className="h-4 w-4" /> Entrées de temps</h3>
-          {timeEntries.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune entrée</p> : (
+          <FilterBar filters={timeFilters} onChange={(f) => { setTimeFilters(f); setTimePage(1); }} config={{ statusOptions: timeStatusOpts, agentOptions: agentOptions, showDateRange: true, onExport: () => downloadCSV(filteredTime.map((te: any) => ({ ...te, employee_name: getName(te.user_id) })), "temps", TIME_COLUMNS) }} />
+          <p className="text-[10px] text-muted-foreground">{timeTotal} résultat(s)</p>
+          {pageTime.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucune entrée</p> : (
             <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Punch In</th><th className="pb-2 font-medium">Punch Out</th><th className="pb-2 font-medium text-right">Heures</th><th className="pb-2 font-medium">Type</th><th className="pb-2 font-medium">Statut</th><th className="pb-2"></th></tr></thead><tbody>
-              {timeEntries.map((te: any) => {
+              {pageTime.map((te: any) => {
                 const b = STATUS_BADGE[te.status] || STATUS_BADGE.pending;
                 return (
                   <tr key={te.id} className="border-b border-border/50 hover:bg-muted/30">
@@ -949,13 +1073,14 @@ export default function CoreFieldAgentsPage() {
               })}
             </tbody></table></div>
           )}
-        </div>
-      )}
+          {timeTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={timePage === 1} onClick={() => setTimePage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{timePage}/{timeTotalPages}</span><Button size="sm" variant="outline" disabled={timePage === timeTotalPages} onClick={() => setTimePage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+        </div>);
+      })()}
 
-      {/* ═══ SCHEDULES TAB ═══ */}
+      {/* ═══ SCHEDULES TAB — with Edit ═══ */}
       {tab === "schedules" && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Horaires</h3><Button size="sm" onClick={() => { setSchForm({ user_id: "", day_of_week: "1", start_time: "09:00", end_time: "17:00", notes: "" }); setScheduleDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajouter</Button></div>
+          <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-foreground flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Horaires</h3><Button size="sm" onClick={() => { setEditScheduleId(null); setSchForm({ user_id: "", day_of_week: "1", start_time: "09:00", end_time: "17:00", notes: "" }); setScheduleDialog(true); }}><Plus className="h-3 w-3 mr-1" /> Ajouter</Button></div>
           {schedules.length === 0 ? <p className="text-center text-sm text-muted-foreground py-12">Aucun horaire</p> : (
             <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left text-[11px] text-muted-foreground"><th className="pb-2 font-medium">Employé</th><th className="pb-2 font-medium">Jour</th><th className="pb-2 font-medium">Début</th><th className="pb-2 font-medium">Fin</th><th className="pb-2 font-medium">Notes</th><th className="pb-2"></th></tr></thead><tbody>
               {schedules.map((s: any) => (
@@ -965,7 +1090,12 @@ export default function CoreFieldAgentsPage() {
                   <td className="py-2.5 text-foreground">{s.start_time}</td>
                   <td className="py-2.5 text-foreground">{s.end_time}</td>
                   <td className="py-2.5 text-muted-foreground text-xs">{s.notes || "—"}</td>
-                  <td className="py-2.5 text-right"><Button size="icon" variant="ghost" onClick={() => deleteSchedule.mutate(s.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button></td>
+                  <td className="py-2.5 text-right">
+                    <div className="flex gap-1 justify-end">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditScheduleId(s.id); setSchForm({ user_id: s.user_id, day_of_week: String(s.day_of_week), start_time: s.start_time, end_time: s.end_time, notes: s.notes || "" }); setScheduleDialog(true); }}><Edit3 className="h-3 w-3" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDeleteConfirm({ type: "schedule", id: s.id })}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody></table></div>
@@ -1112,10 +1242,10 @@ export default function CoreFieldAgentsPage() {
       </Dialog>
 
       {/* Schedule */}
-      <Dialog open={scheduleDialog} onOpenChange={setScheduleDialog}>
-        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Ajouter un horaire</DialogTitle></DialogHeader>
+      <Dialog open={scheduleDialog} onOpenChange={(o) => { if (!o) { setScheduleDialog(false); setEditScheduleId(null); } }}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{editScheduleId ? "Modifier l'horaire" : "Ajouter un horaire"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Employé</Label><Select value={schForm.user_id} onValueChange={(v) => setSchForm((p) => ({ ...p, user_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{agents.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name || a.email || a.user_id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>
+            {!editScheduleId && <div><Label className="text-xs">Employé</Label><Select value={schForm.user_id} onValueChange={(v) => setSchForm((p) => ({ ...p, user_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{agents.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name || a.email || a.user_id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>}
             <div><Label className="text-xs">Jour</Label><Select value={schForm.day_of_week} onValueChange={(v) => setSchForm((p) => ({ ...p, day_of_week: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">Début</Label><Input type="time" value={schForm.start_time} onChange={(e) => setSchForm((p) => ({ ...p, start_time: e.target.value }))} /></div>
@@ -1123,7 +1253,7 @@ export default function CoreFieldAgentsPage() {
             </div>
             <div><Label className="text-xs">Notes</Label><Input value={schForm.notes} onChange={(e) => setSchForm((p) => ({ ...p, notes: e.target.value }))} /></div>
           </div>
-          <DialogFooter><Button onClick={() => createSchedule.mutate()} disabled={createSchedule.isPending || !schForm.user_id}>{createSchedule.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ajouter"}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => editScheduleId ? updateSchedule.mutate() : createSchedule.mutate()} disabled={createSchedule.isPending || updateSchedule.isPending || (!editScheduleId && !schForm.user_id)}>{(createSchedule.isPending || updateSchedule.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : editScheduleId ? "Sauvegarder" : "Ajouter"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1171,6 +1301,22 @@ export default function CoreFieldAgentsPage() {
           <DialogFooter><Button onClick={() => createTaxDoc.mutate()} disabled={createTaxDoc.isPending || !taxDocForm.user_id}>{createTaxDoc.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Edit Assignment Dialog */}
+      <Dialog open={!!editAssignId} onOpenChange={(o) => !o && setEditAssignId(null)}>
+        <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Modifier l'assignation</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Notes</Label><Input value={editAssignForm.notes} onChange={(e) => setEditAssignForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+            <div className="flex items-center gap-2"><Label className="text-xs">Actif</Label><input type="checkbox" checked={editAssignForm.is_active} onChange={(e) => setEditAssignForm((p) => ({ ...p, is_active: e.target.checked }))} /></div>
+          </div>
+          <DialogFooter><Button onClick={() => updateAssignment.mutate()} disabled={updateAssignment.isPending}>{updateAssignment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <DeleteConfirmDialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} onConfirm={handleConfirmedDelete} />
+
+      {/* Payroll Detail */}
+      <PayrollDetailDialog entry={payrollDetail} agentName={payrollDetail ? getName(payrollDetail.user_id) : ""} open={!!payrollDetail} onClose={() => setPayrollDetail(null)} />
     </div>
   );
 }
