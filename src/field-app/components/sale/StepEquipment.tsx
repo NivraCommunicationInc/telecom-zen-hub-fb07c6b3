@@ -24,10 +24,17 @@ interface EquipmentOption {
 }
 
 const EQUIPMENT_CATALOG: EquipmentOption[] = [
-  { id: "eq-router", name: "Routeur Wi-Fi", price: 60, category: "router", requiredServiceCategory: "internet", maxQty: 1, icon: Router },
-  { id: "eq-tv-terminal", name: "Terminal TV", price: 50, category: "terminal", requiredServiceCategory: "tv", maxQty: 3, icon: Tv },
-  { id: "eq-sim", name: "Carte SIM", price: 25, category: "sim", requiredServiceCategory: "mobile", maxQty: 1, icon: Smartphone },
-  { id: "eq-esim", name: "eSIM (activation)", price: 25, category: "esim", requiredServiceCategory: "mobile", maxQty: 1, icon: Smartphone },
+  // Internet
+  { id: "eq-router", name: "Routeur Wi-Fi 6", price: 99.99, category: "router", requiredServiceCategory: "internet", maxQty: 1, icon: Router },
+  { id: "eq-borne", name: "Borne Wi-Fi (extension)", price: 79.99, category: "borne", requiredServiceCategory: "internet", maxQty: 3, icon: Router },
+  { id: "eq-modem", name: "Modem câble", price: 0, category: "modem", requiredServiceCategory: "internet", maxQty: 1, icon: Package },
+  { id: "eq-mesh", name: "Kit Mesh Wi-Fi (2 bornes)", price: 149.99, category: "mesh", requiredServiceCategory: "internet", maxQty: 1, icon: Router },
+  // TV
+  { id: "eq-tv-terminal", name: "Terminal IPTV", price: 75, category: "terminal", requiredServiceCategory: "tv", maxQty: 5, icon: Tv },
+  { id: "eq-tv-hdmi", name: "Câble HDMI (inclus)", price: 0, category: "accessoire", requiredServiceCategory: "tv", maxQty: 5, icon: Tv },
+  // Mobile
+  { id: "eq-sim", name: "Carte SIM physique", price: 10, category: "sim", requiredServiceCategory: "mobile", maxQty: 5, icon: Smartphone },
+  { id: "eq-esim", name: "eSIM (activation)", price: 0, category: "esim", requiredServiceCategory: "mobile", maxQty: 5, icon: Smartphone },
 ];
 
 export default function StepEquipment({ services, equipment, onChange, onNext, onBack }: Props) {
