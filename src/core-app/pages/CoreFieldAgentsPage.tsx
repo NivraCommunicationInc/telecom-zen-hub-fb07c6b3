@@ -784,7 +784,9 @@ export default function CoreFieldAgentsPage() {
               </div>
             </div>
           );
-        })}</div>
+        })}{commTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={commPage === 1} onClick={() => setCommPage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{commPage}/{commTotalPages}</span><Button size="sm" variant="outline" disabled={commPage === commTotalPages} onClick={() => setCommPage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+        </div>);
+      })()}
       )}
 
       {/* ═══ GRIDS TAB — with EDIT ═══ */}
