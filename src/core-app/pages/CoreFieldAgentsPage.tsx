@@ -367,8 +367,20 @@ export default function CoreFieldAgentsPage() {
     onSuccess: () => { invalidateAll(); toast.success("Paie approuvée"); },
   });
   const markPayrollPaid = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("payroll_entries").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
-    onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée"); },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("payroll_entries").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      // Auto-generate PDF
+      try {
+        await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: id } });
+      } catch (e) { console.error("PDF auto-gen failed:", e); }
+      // Notify employee
+      const entry = payrollEntries.find((pe: any) => pe.id === id);
+      if (entry) {
+        await supabase.from("staff_notifications").insert({ user_id: entry.user_id, title: "Paie versée", message: `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`, type: "payroll_paid" as any, priority: "high" } as any).single();
+      }
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
   });
 
   // Auto-aggregate payroll for a period
