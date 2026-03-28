@@ -38,7 +38,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   acknowledged: { label: "Reçu", cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800" },
 };
 
-type Tab = "commissions" | "payslips" | "withdrawals" | "disputes" | "time" | "schedule" | "grids" | "tax_docs";
+type Tab = "commissions" | "payslips" | "withdrawals" | "disputes" | "time" | "schedule" | "grids" | "tax_docs" | "letters";
 
 const fmtMoney = (n: number) => `${n.toFixed(2)} $`;
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
