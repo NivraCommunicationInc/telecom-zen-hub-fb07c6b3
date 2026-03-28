@@ -874,6 +874,7 @@ export default function CoreFieldAgentsPage() {
                   </div>
                   <span className="text-[10px] text-muted-foreground">{format(new Date(w.created_at), "dd/MM/yyyy HH:mm")}</span>
                 </div>
+                <WithdrawalTimeline withdrawal={w} />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Agent:</span> <span className="font-medium text-foreground">{getName(w.agent_id)}</span></div>
                   {w.reviewed_at && <div><span className="text-muted-foreground">Revu:</span> <span className="text-foreground">{format(new Date(w.reviewed_at), "dd/MM/yy HH:mm")}</span></div>}
@@ -896,8 +897,9 @@ export default function CoreFieldAgentsPage() {
               </div>
             );
           })}
-        </div>
-      )}
+          {withTotalPages > 1 && <div className="flex items-center justify-center gap-2 pt-2"><Button size="sm" variant="outline" disabled={withdrawalPage === 1} onClick={() => setWithdrawalPage(p => p - 1)}><ChevronLeft className="h-3 w-3" /></Button><span className="text-xs text-muted-foreground">{withdrawalPage}/{withTotalPages}</span><Button size="sm" variant="outline" disabled={withdrawalPage === withTotalPages} onClick={() => setWithdrawalPage(p => p + 1)}><ChevronRight className="h-3 w-3" /></Button></div>}
+        </div>);
+      })()}
 
       {/* ═══ DISPUTES TAB ═══ */}
       {tab === "disputes" && (
