@@ -575,6 +575,9 @@ export default function CoreStaffPage() {
                         <Button size="icon" variant="ghost" onClick={() => setSelected(staff)} title="Détails">
                           <Eye className="h-4 w-4" />
                         </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setEditTarget(staff)} title="Modifier le profil">
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => { setPinResetTarget(staff); setNewPin(""); }} title="Reset PIN">
                           <KeyRound className="h-4 w-4" />
                         </Button>
