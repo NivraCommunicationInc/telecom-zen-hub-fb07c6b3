@@ -2603,7 +2603,9 @@ serve(async (req: Request) => {
         if (normalizedNewEmail !== undefined) profilePatch.email = normalizedNewEmail;
 
         if (Object.keys(profilePatch).length > 0) {
-          const { error: profileUpdateError } = await userClient
+          // CRITICAL: Use adminClient (service_role) — userClient (caller's JWT) is blocked by RLS
+          // when updating another user's profile row.
+          const { error: profileUpdateError } = await adminClient
             .from("profiles")
             .update(profilePatch)
             .eq("user_id", user_id);
