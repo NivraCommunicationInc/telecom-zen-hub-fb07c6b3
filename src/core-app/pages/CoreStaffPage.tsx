@@ -115,13 +115,20 @@ async function invokeStaffAction(payload: Record<string, unknown>) {
 
   if (error) {
     console.error("[CoreStaffPage] invoke error:", error);
-    // Try to extract message from the error context (FunctionsHttpError)
+    // Try to extract backend message from FunctionsHttpError context
     let msg = error.message || "Erreur edge function";
     try {
       const ctx = (error as any)?.context;
-      if (ctx && typeof ctx.json === "function") {
-        const body = await ctx.json();
-        msg = body?.message || body?.error?.message || msg;
+      if (ctx) {
+        const bodyText = typeof ctx.text === "function" ? await ctx.text() : "";
+        if (bodyText) {
+          try {
+            const body = JSON.parse(bodyText);
+            msg = body?.message || body?.error?.message || body?.error || msg;
+          } catch {
+            msg = bodyText || msg;
+          }
+        }
       }
     } catch { /* ignore */ }
     throw new Error(msg);
