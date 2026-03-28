@@ -95,7 +95,7 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke("generate-employment-letter-pdf", {
-        body: { letter_id: letter.id },
+        body: { employment_letter_id: letter.id },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
 
