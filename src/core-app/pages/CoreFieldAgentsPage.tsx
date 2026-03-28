@@ -1301,6 +1301,22 @@ export default function CoreFieldAgentsPage() {
           <DialogFooter><Button onClick={() => createTaxDoc.mutate()} disabled={createTaxDoc.isPending || !taxDocForm.user_id}>{createTaxDoc.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Edit Assignment Dialog */}
+      <Dialog open={!!editAssignId} onOpenChange={(o) => !o && setEditAssignId(null)}>
+        <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Modifier l'assignation</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Notes</Label><Input value={editAssignForm.notes} onChange={(e) => setEditAssignForm((p) => ({ ...p, notes: e.target.value }))} /></div>
+            <div className="flex items-center gap-2"><Label className="text-xs">Actif</Label><input type="checkbox" checked={editAssignForm.is_active} onChange={(e) => setEditAssignForm((p) => ({ ...p, is_active: e.target.checked }))} /></div>
+          </div>
+          <DialogFooter><Button onClick={() => updateAssignment.mutate()} disabled={updateAssignment.isPending}>{updateAssignment.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sauvegarder"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <DeleteConfirmDialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} onConfirm={handleConfirmedDelete} />
+
+      {/* Payroll Detail */}
+      <PayrollDetailDialog entry={payrollDetail} agentName={payrollDetail ? getName(payrollDetail.user_id) : ""} open={!!payrollDetail} onClose={() => setPayrollDetail(null)} />
     </div>
   );
 }
