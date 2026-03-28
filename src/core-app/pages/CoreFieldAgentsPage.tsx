@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { getAutoSafeErrorMessage } from "@/lib/errorUtils";
 import {
   Users, DollarSign, TrendingUp, Loader2, Search, Check, X, AlertTriangle,
   Clock, Banknote, BarChart3, UserCheck, UserX, Edit3, Eye, FileText,
@@ -72,6 +73,33 @@ const RULE_TYPES: Record<string, string> = { base_rate: "Taux de base", volume_b
 const ADJ_TYPES: Record<string, string> = { deduction: "Retenue", bonus: "Bonus", correction: "Correction", clawback: "Récupération", tax_withholding: "Impôt retenu", other: "Autre" };
 const DOC_TYPES: Record<string, string> = { t4: "T4", rl1: "Relevé 1", releve1: "Relevé 1", summary: "Sommaire", other: "Autre" };
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+const getMutationErrorMessage = (error: unknown, fallback: string) => {
+  const base = getAutoSafeErrorMessage(error);
+  if (error && typeof error === "object") {
+    const err = error as { details?: unknown; hint?: unknown; code?: unknown };
+    const details = [err.details, err.hint, err.code ? `Code: ${String(err.code)}` : null]
+      .filter(Boolean)
+      .map(String)
+      .join(" • ");
+    if (details) return `${base} • ${details}`;
+  }
+  return base || fallback;
+};
+
+const normalizeStaffNotificationType = (type: string) => {
+  const map: Record<string, string> = {
+    payroll_paid: "payroll_paid",
+    payroll_ready: "payroll_ready",
+    commission_approved: "commission_approved",
+    commission_paid: "commission_approved",
+    commission_rejected: "commission_approved",
+    withdrawal_update: "withdrawal_update",
+    tax_document: "tax_document",
+    tax_document_sent: "tax_document",
+  };
+  return map[type] ?? "service_cancelled";
+};
 
 export default function CoreFieldAgentsPage() {
   const qc = useQueryClient();
@@ -242,12 +270,31 @@ export default function CoreFieldAgentsPage() {
   };
 
   const notifyEmployee = async (userId: string, notificationType: string, title: string, message: string) => {
-    await supabase.from("staff_notifications").insert({
-      user_id: userId,
-      notification_type: notificationType,
-      title,
-      message,
-    } as any);
+    const normalizedType = normalizeStaffNotificationType(notificationType);
+
+    const [{ error: staffError }, { error: employeeError }] = await Promise.all([
+      supabase.from("staff_notifications").insert({
+        user_id: userId,
+        notification_type: normalizedType as any,
+        title,
+        message,
+      } as any),
+      supabase.from("employee_notifications").insert({
+        user_id: userId,
+        notification_type: "system",
+        title,
+        message,
+      } as any),
+    ]);
+
+    if (staffError || employeeError) {
+      const details = [staffError, employeeError]
+        .filter(Boolean)
+        .map((e) => getMutationErrorMessage(e, "Erreur notification"))
+        .join(" | ");
+      console.error("[notifyEmployee] Notification error", { normalizedType, details, staffError, employeeError });
+      toast.warning(`Action enregistrée, notification incomplète: ${details}`);
+    }
   };
 
   // ═══ MUTATIONS ═══
@@ -262,6 +309,7 @@ export default function CoreFieldAgentsPage() {
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission approuvée"); },
+    onError: (e) => toast.error(`Échec approbation commission: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const rejectCommission = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
@@ -274,6 +322,7 @@ export default function CoreFieldAgentsPage() {
       await logAudit("reject_commission", "sales_commissions", id, { field_changed: "status", new_value: "rejected", details: { reason } });
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission rejetée"); },
+    onError: (e) => toast.error(`Échec rejet commission: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const markCommissionPaid = useMutation({
     mutationFn: async (id: string) => {
@@ -286,10 +335,12 @@ export default function CoreFieldAgentsPage() {
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission marquée payée"); },
+    onError: (e) => toast.error(`Échec paiement commission: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const toggleAgentStatus = useMutation({
     mutationFn: async ({ userId, activate }: { userId: string; activate: boolean }) => { const { error } = await supabase.from("user_roles").update({ is_active: activate }).eq("user_id", userId).eq("role", "field_sales" as any); if (error) throw error; },
     onSuccess: () => { invalidateAll(); toast.success("Statut mis à jour"); },
+    onError: (e) => toast.error(`Échec mise à jour statut: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const saveAgentProfile = useMutation({
     mutationFn: async () => {
@@ -302,7 +353,7 @@ export default function CoreFieldAgentsPage() {
       if (!r?.ok && !r?.success) throw new Error(r?.error?.message || r?.message || "Échec");
     },
     onSuccess: () => { invalidateAll(); setEditAgent(null); toast.success("Profil sauvegardé"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec sauvegarde profil: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Commission Grid CRUD + EDIT
@@ -325,7 +376,7 @@ export default function CoreFieldAgentsPage() {
       }
     },
     onSuccess: () => { invalidateAll(); setGridDialog(false); setEditGridId(null); toast.success(editGridId ? "Grille modifiée" : "Grille créée"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec sauvegarde grille: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const deleteGrid = useMutation({
     mutationFn: async (id: string) => {
@@ -334,10 +385,12 @@ export default function CoreFieldAgentsPage() {
       await logAudit("delete_grid", "field_sales_commission_rules", id);
     },
     onSuccess: () => { invalidateAll(); toast.success("Grille supprimée"); },
+    onError: (e) => toast.error(`Échec suppression grille: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const toggleGridActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => { const { error } = await supabase.from("field_sales_commission_rules").update({ is_active: active }).eq("id", id); if (error) throw error; },
     onSuccess: () => { invalidateAll(); toast.success("Statut grille mis à jour"); },
+    onError: (e) => toast.error(`Échec mise à jour grille: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Grid Assignment
@@ -350,11 +403,12 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setAssignDialog(false); toast.success("Grille assignée"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec assignation grille: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const removeAssignment = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("commission_grid_assignments").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { invalidateAll(); setDeleteConfirm(null); toast.success("Assignation retirée"); },
+    onError: (e) => toast.error(`Échec retrait assignation: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const updateAssignment = useMutation({
     mutationFn: async () => {
@@ -363,7 +417,7 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setEditAssignId(null); toast.success("Assignation modifiée"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec modification assignation: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Withdrawals — enhanced
@@ -387,6 +441,7 @@ export default function CoreFieldAgentsPage() {
       }
     },
     onSuccess: () => { invalidateAll(); setWithdrawalDetail(null); setWithdrawalAdminNote(""); toast.success("Retrait mis à jour"); },
+    onError: (e) => toast.error(`Échec mise à jour retrait: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Disputes
@@ -400,6 +455,7 @@ export default function CoreFieldAgentsPage() {
       await logAudit(`dispute_${action}`, "commission_disputes", id, { new_value: action, details: { note } });
     },
     onSuccess: () => { invalidateAll(); setDisputeResolution(null); setDisputeNote(""); toast.success("Contestation traitée"); },
+    onError: (e) => toast.error(`Échec traitement contestation: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Pay Periods
@@ -409,7 +465,7 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setPayPeriodDialog(false); toast.success("Période de paie créée"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec création période: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const closePayPeriod = useMutation({
     mutationFn: async (id: string) => {
@@ -418,6 +474,7 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); toast.success("Période fermée"); },
+    onError: (e) => toast.error(`Échec fermeture période: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const markPeriodPaid = useMutation({
     mutationFn: async (id: string) => {
@@ -431,24 +488,52 @@ export default function CoreFieldAgentsPage() {
       await logAudit("mark_period_paid", "pay_periods", id, { field_changed: "status", new_value: "paid" });
     },
     onSuccess: () => { invalidateAll(); toast.success("Période marquée payée"); },
+    onError: (e) => toast.error(`Échec paiement période: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Payroll Entries
   const createPayrollEntry = useMutation({
     mutationFn: async () => {
-      const gross = parseFloat(peForm.base_salary) + parseFloat(peForm.commission_total) + parseFloat(peForm.bonus_total);
-      const net = gross - parseFloat(peForm.deductions_total);
+      if (!peForm.pay_period_id || !peForm.user_id) {
+        throw new Error("Période et employé obligatoires");
+      }
+
+      const baseSalary = Number(peForm.base_salary || 0);
+      const commissionTotal = Number(peForm.commission_total || 0);
+      const bonusTotal = Number(peForm.bonus_total || 0);
+      const hoursWorked = Number(peForm.hours_worked || 0);
+      const overtimeHours = Number(peForm.overtime_hours || 0);
+      const deductionsTotal = Number(peForm.deductions_total || 0);
+
+      if ([baseSalary, commissionTotal, bonusTotal, hoursWorked, overtimeHours, deductionsTotal].some((v) => Number.isNaN(v))) {
+        throw new Error("Un ou plusieurs montants sont invalides");
+      }
+
+      const { data: existing, error: checkError } = await supabase
+        .from("payroll_entries")
+        .select("id")
+        .eq("pay_period_id", peForm.pay_period_id)
+        .eq("user_id", peForm.user_id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+      if (existing?.id) {
+        throw new Error("Une fiche de paie existe déjà pour cet employé sur cette période.");
+      }
+
+      const gross = baseSalary + commissionTotal + bonusTotal;
+      const net = gross - deductionsTotal;
       const { error } = await supabase.from("payroll_entries").insert({
         pay_period_id: peForm.pay_period_id, user_id: peForm.user_id,
-        base_salary: parseFloat(peForm.base_salary), commission_total: parseFloat(peForm.commission_total),
-        bonus_total: parseFloat(peForm.bonus_total), hours_worked: parseFloat(peForm.hours_worked),
-        overtime_hours: parseFloat(peForm.overtime_hours), deductions_total: parseFloat(peForm.deductions_total),
+        base_salary: baseSalary, commission_total: commissionTotal,
+        bonus_total: bonusTotal, hours_worked: hoursWorked,
+        overtime_hours: overtimeHours, deductions_total: deductionsTotal,
         gross_pay: gross, net_pay: net, notes: peForm.notes || null,
       });
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setPayrollEntryDialog(false); toast.success("Entrée de paie créée"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec création fiche de paie: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const approvePayroll = useMutation({
     mutationFn: async (id: string) => {
@@ -457,6 +542,7 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); toast.success("Paie approuvée"); },
+    onError: (e) => toast.error(`Échec approbation paie: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const markPayrollPaid = useMutation({
     mutationFn: async (id: string) => {
@@ -474,6 +560,7 @@ export default function CoreFieldAgentsPage() {
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
+    onError: (e) => toast.error(`Échec paiement paie: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Auto-aggregate payroll for a period
@@ -543,7 +630,7 @@ export default function CoreFieldAgentsPage() {
       return created;
     },
     onSuccess: (count) => { invalidateAll(); toast.success(`${count} fiche(s) de paie auto-générée(s)`); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec auto-génération paie: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Adjustments
@@ -557,7 +644,7 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setAdjustDialog(false); toast.success("Ajustement ajouté"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec ajout ajustement: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Time Entries
@@ -568,10 +655,12 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); toast.success("Temps approuvé"); },
+    onError: (e) => toast.error(`Échec approbation temps: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const rejectTimeEntry = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("time_entries").update({ status: "rejected" }).eq("id", id); if (error) throw error; },
     onSuccess: () => { invalidateAll(); toast.success("Temps rejeté"); },
+    onError: (e) => toast.error(`Échec rejet temps: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // Schedules
@@ -585,11 +674,12 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setScheduleDialog(false); toast.success("Horaire ajouté"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec ajout horaire: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const deleteSchedule = useMutation({
     mutationFn: async (id: string) => { const { error } = await supabase.from("staff_schedules").delete().eq("id", id); if (error) throw error; },
     onSuccess: () => { invalidateAll(); setDeleteConfirm(null); toast.success("Horaire supprimé"); },
+    onError: (e) => toast.error(`Échec suppression horaire: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const updateSchedule = useMutation({
     mutationFn: async () => {
@@ -600,7 +690,7 @@ export default function CoreFieldAgentsPage() {
       if (error) throw error;
     },
     onSuccess: () => { invalidateAll(); setScheduleDialog(false); setEditScheduleId(null); toast.success("Horaire modifié"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec modification horaire: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   // Confirmed delete handler
   const handleConfirmedDelete = () => {
@@ -617,17 +707,17 @@ export default function CoreFieldAgentsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       let dataJson = {};
       try { dataJson = JSON.parse(taxDocForm.data_json); } catch {}
-      const { error } = await supabase.from("tax_documents").insert({
+      const { data: createdDoc, error } = await supabase.from("tax_documents").insert({
         user_id: taxDocForm.user_id, document_type: taxDocForm.document_type as any,
         tax_year: parseInt(taxDocForm.tax_year), notes: taxDocForm.notes || null,
         data_json: dataJson, generated_by: user?.id, generated_at: new Date().toISOString(), status: "generated",
-      });
+      }).select("id").single();
       if (error) throw error;
       await notifyEmployee(taxDocForm.user_id, "tax_document", "Document fiscal disponible", `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.`);
-      await logAudit("create_tax_document", "tax_documents", taxDocForm.user_id, { details: { type: taxDocForm.document_type, year: taxDocForm.tax_year } });
+      await logAudit("create_tax_document", "tax_documents", createdDoc?.id || taxDocForm.user_id, { details: { type: taxDocForm.document_type, year: taxDocForm.tax_year } });
     },
     onSuccess: () => { invalidateAll(); setTaxDocDialog(false); toast.success("Document fiscal créé"); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
+    onError: (e) => toast.error(`Échec création document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
   const updateTaxDocStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -638,11 +728,12 @@ export default function CoreFieldAgentsPage() {
       // Notify employee on status change
       const doc = taxDocs.find((d: any) => d.id === id);
       if (doc && status === "sent") {
-        await notifyEmployee(doc.user_id, "tax_document_sent", "Document fiscal envoyé", `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`);
+        await notifyEmployee(doc.user_id, "tax_document", "Document fiscal envoyé", `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`);
         await logAudit("send_tax_document", "tax_documents", id, { field_changed: "status", new_value: "sent" });
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Statut mis à jour"); },
+    onError: (e) => toast.error(`Échec mise à jour document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
   // ═══ COMPUTED ═══
