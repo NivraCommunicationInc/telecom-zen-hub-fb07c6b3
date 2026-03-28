@@ -224,21 +224,50 @@ export default function CoreFieldAgentsPage() {
     enabled: tab === "tax_docs",
   });
 
+  // ═══ HELPERS ═══
+  const logAudit = async (action: string, entityType: string, entityId: string, extra?: { field_changed?: string; old_value?: string; new_value?: string; details?: any }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).single();
+    await supabase.from("hr_audit_log").insert({
+      actor_user_id: user.id,
+      actor_name: (profile as any)?.full_name || user.email,
+      actor_role: "admin",
+      action,
+      entity_type: entityType,
+      entity_id: entityId,
+      ...(extra || {}),
+    } as any);
+  };
+
+  const notifyEmployee = async (userId: string, notificationType: string, title: string, message: string) => {
+    await supabase.from("staff_notifications").insert({
+      user_id: userId,
+      notification_type: notificationType,
+      title,
+      message,
+    } as any);
+  };
+
   // ═══ MUTATIONS ═══
   const approveCommission = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("sales_commissions").update({ status: "validated", validated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
-      // Notification
       const comm = allCommissions.find((c: any) => c.id === id);
       if (comm) {
-        await supabase.from("staff_notifications").insert({ notification_type: "commission_approved", title: "Commission approuvée", message: `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.` } as any);
+        await notifyEmployee(comm.salesperson_id, "commission_approved", "Commission approuvée", `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.`);
+        await logAudit("approve_commission", "sales_commissions", id, { field_changed: "status", old_value: "pending", new_value: "validated" });
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission approuvée"); },
   });
   const rejectCommission = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => { const { error } = await supabase.from("sales_commissions").update({ status: "rejected" as any, rejection_reason: reason }).eq("id", id); if (error) throw error; },
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { error } = await supabase.from("sales_commissions").update({ status: "rejected" as any, rejection_reason: reason }).eq("id", id);
+      if (error) throw error;
+      await logAudit("reject_commission", "sales_commissions", id, { field_changed: "status", new_value: "rejected", details: { reason } });
+    },
     onSuccess: () => { invalidateAll(); toast.success("Commission rejetée"); },
   });
   const markCommissionPaid = useMutation({
@@ -275,16 +304,22 @@ export default function CoreFieldAgentsPage() {
       if (editGridId) {
         const { error } = await supabase.from("field_sales_commission_rules").update(payload).eq("id", editGridId);
         if (error) throw error;
+        await logAudit("update_grid", "field_sales_commission_rules", editGridId, { details: payload });
       } else {
-        const { error } = await supabase.from("field_sales_commission_rules").insert(payload);
+        const { data, error } = await supabase.from("field_sales_commission_rules").insert(payload).select("id").single();
         if (error) throw error;
+        await logAudit("create_grid", "field_sales_commission_rules", data?.id || "", { details: payload });
       }
     },
     onSuccess: () => { invalidateAll(); setGridDialog(false); setEditGridId(null); toast.success(editGridId ? "Grille modifiée" : "Grille créée"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
   const deleteGrid = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("field_sales_commission_rules").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("field_sales_commission_rules").delete().eq("id", id);
+      if (error) throw error;
+      await logAudit("delete_grid", "field_sales_commission_rules", id);
+    },
     onSuccess: () => { invalidateAll(); toast.success("Grille supprimée"); },
   });
   const toggleGridActive = useMutation({
@@ -334,7 +369,8 @@ export default function CoreFieldAgentsPage() {
           : status === "paid" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été payé.`
           : status === "rejected" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été rejeté.${note ? ` Raison: ${note}` : ""}`
           : `Votre retrait a été mis à jour: ${status}`;
-        await supabase.from("staff_notifications").insert({ notification_type: "withdrawal_update", title: `Retrait ${status}`, message: msg } as any);
+        await notifyEmployee(w.influencer_id || w.user_id, "withdrawal_update", `Retrait ${status}`, msg);
+        await logAudit(`withdrawal_${status}`, "commission_withdrawal_requests", id, { field_changed: "status", old_value: w.status, new_value: status });
       }
     },
     onSuccess: () => { invalidateAll(); setWithdrawalDetail(null); setWithdrawalAdminNote(""); toast.success("Retrait mis à jour"); },
@@ -348,6 +384,7 @@ export default function CoreFieldAgentsPage() {
         status: action, admin_response: note, resolved_at: new Date().toISOString(), resolved_by: user?.id,
       }).eq("id", id);
       if (error) throw error;
+      await logAudit(`dispute_${action}`, "commission_disputes", id, { new_value: action, details: { note } });
     },
     onSuccess: () => { invalidateAll(); setDisputeResolution(null); setDisputeNote(""); toast.success("Contestation traitée"); },
   });
@@ -376,8 +413,9 @@ export default function CoreFieldAgentsPage() {
       // Notify all employees with payroll entries in this period
       const entries = payrollEntries.filter((pe: any) => pe.pay_period_id === id);
       for (const pe of entries) {
-        await supabase.from("staff_notifications").insert({ notification_type: "payroll_ready", title: "Paie disponible", message: `Votre fiche de paie est prête. Net: ${fmtMoney(Number(pe.net_pay))}` } as any);
+        await notifyEmployee(pe.user_id, "payroll_ready", "Paie disponible", `Votre fiche de paie est prête. Net: ${fmtMoney(Number(pe.net_pay))}`);
       }
+      await logAudit("mark_period_paid", "pay_periods", id, { field_changed: "status", new_value: "paid" });
     },
     onSuccess: () => { invalidateAll(); toast.success("Période marquée payée"); },
   });
@@ -418,7 +456,8 @@ export default function CoreFieldAgentsPage() {
       // Notify employee
       const entry = payrollEntries.find((pe: any) => pe.id === id);
       if (entry) {
-        await supabase.from("staff_notifications").insert({ notification_type: "payroll_paid", title: "Paie versée", message: `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.` } as any);
+        await notifyEmployee(entry.user_id, "payroll_paid", "Paie versée", `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`);
+        await logAudit("mark_payroll_paid", "payroll_entries", id, { field_changed: "status", new_value: "paid" });
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
@@ -571,8 +610,8 @@ export default function CoreFieldAgentsPage() {
         data_json: dataJson, generated_by: user?.id, generated_at: new Date().toISOString(), status: "generated",
       });
       if (error) throw error;
-      // Notify employee
-      await supabase.from("staff_notifications").insert({ notification_type: "tax_document", title: "Document fiscal disponible", message: `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.` } as any);
+      await notifyEmployee(taxDocForm.user_id, "tax_document", "Document fiscal disponible", `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.`);
+      await logAudit("create_tax_document", "tax_documents", taxDocForm.user_id, { details: { type: taxDocForm.document_type, year: taxDocForm.tax_year } });
     },
     onSuccess: () => { invalidateAll(); setTaxDocDialog(false); toast.success("Document fiscal créé"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
