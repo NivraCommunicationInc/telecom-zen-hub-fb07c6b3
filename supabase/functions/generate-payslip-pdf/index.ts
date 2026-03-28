@@ -298,7 +298,7 @@ function buildPayslipPDF(d: {
 
   const cols = [
     { label: "Brut", value: fmt(d.grossPay) },
-    { label: "Retenues", value: `\u2212 ${fmt(d.deductionsTotal)}` },
+    { label: "Retenues", value: `- ${fmt(d.deductionsTotal)}` },
     { label: "Net", value: fmt(d.netPay) },
     { label: "Heures", value: `${d.hoursWorked.toFixed(1)} h` },
   ];
