@@ -147,10 +147,16 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
     setMode("form");
   };
 
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim());
+  const isValidPhone = customer.phone.replace(/\D/g, "").length >= 10;
+  const isValidDOB = /^\d{4}-\d{2}-\d{2}$/.test(customer.date_of_birth) && new Date(customer.date_of_birth) < new Date();
+
   const canContinue =
     customer.first_name.trim() &&
     customer.last_name.trim() &&
-    customer.phone.trim() &&
+    isValidPhone &&
+    isValidEmail &&
+    isValidDOB &&
     customer.address.trim() &&
     customer.city.trim() &&
     customer.postal_code.trim() &&
