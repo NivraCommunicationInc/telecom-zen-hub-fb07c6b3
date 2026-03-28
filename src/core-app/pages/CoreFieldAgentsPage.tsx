@@ -1242,10 +1242,10 @@ export default function CoreFieldAgentsPage() {
       </Dialog>
 
       {/* Schedule */}
-      <Dialog open={scheduleDialog} onOpenChange={setScheduleDialog}>
-        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Ajouter un horaire</DialogTitle></DialogHeader>
+      <Dialog open={scheduleDialog} onOpenChange={(o) => { if (!o) { setScheduleDialog(false); setEditScheduleId(null); } }}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>{editScheduleId ? "Modifier l'horaire" : "Ajouter un horaire"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Employé</Label><Select value={schForm.user_id} onValueChange={(v) => setSchForm((p) => ({ ...p, user_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{agents.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name || a.email || a.user_id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>
+            {!editScheduleId && <div><Label className="text-xs">Employé</Label><Select value={schForm.user_id} onValueChange={(v) => setSchForm((p) => ({ ...p, user_id: v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent>{agents.map((a) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name || a.email || a.user_id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>}
             <div><Label className="text-xs">Jour</Label><Select value={schForm.day_of_week} onValueChange={(v) => setSchForm((p) => ({ ...p, day_of_week: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label className="text-xs">Début</Label><Input type="time" value={schForm.start_time} onChange={(e) => setSchForm((p) => ({ ...p, start_time: e.target.value }))} /></div>
@@ -1253,7 +1253,7 @@ export default function CoreFieldAgentsPage() {
             </div>
             <div><Label className="text-xs">Notes</Label><Input value={schForm.notes} onChange={(e) => setSchForm((p) => ({ ...p, notes: e.target.value }))} /></div>
           </div>
-          <DialogFooter><Button onClick={() => createSchedule.mutate()} disabled={createSchedule.isPending || !schForm.user_id}>{createSchedule.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ajouter"}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => editScheduleId ? updateSchedule.mutate() : createSchedule.mutate()} disabled={createSchedule.isPending || updateSchedule.isPending || (!editScheduleId && !schForm.user_id)}>{(createSchedule.isPending || updateSchedule.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : editScheduleId ? "Sauvegarder" : "Ajouter"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
