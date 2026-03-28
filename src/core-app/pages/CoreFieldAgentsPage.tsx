@@ -1319,6 +1319,16 @@ export default function CoreFieldAgentsPage() {
 
       {/* Payroll Detail */}
       <PayrollDetailDialog entry={payrollDetail} agentName={payrollDetail ? getName(payrollDetail.user_id) : ""} open={!!payrollDetail} onClose={() => setPayrollDetail(null)} />
+
+      {/* Reject Commission */}
+      <Dialog open={!!rejectCommDialog} onOpenChange={(o) => !o && setRejectCommDialog(null)}>
+        <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Rejeter la commission</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Raison du rejet</Label><Textarea value={rejectCommReason} onChange={(e) => setRejectCommReason(e.target.value)} placeholder="Expliquez la raison…" /></div>
+          </div>
+          <DialogFooter><Button variant="destructive" onClick={() => { if (rejectCommDialog && rejectCommReason.trim()) { rejectCommission.mutate({ id: rejectCommDialog, reason: rejectCommReason }); setRejectCommDialog(null); } }} disabled={!rejectCommReason.trim() || rejectCommission.isPending}>{rejectCommission.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rejeter"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
