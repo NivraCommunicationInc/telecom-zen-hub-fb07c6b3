@@ -15,6 +15,7 @@ import {
   ChevronRight, ArrowLeft, Phone, Mail, Calendar, Shield, Save,
   MessageSquare, Download, CreditCard, Receipt, Plus, Trash2,
   Timer, ClipboardList, Grid3X3, Link2, Briefcase, Zap, FileSpreadsheet,
+  ChevronLeft,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import FilterBar, { defaultFilters, applyFilters, type FilterConfig } from "@/core-app/components/field-agents/FilterBar";
+import { downloadCSV, COMMISSION_COLUMNS, PAYROLL_COLUMNS, TIME_COLUMNS, WITHDRAWAL_COLUMNS } from "@/core-app/components/field-agents/ExportUtils";
+import DeleteConfirmDialog from "@/core-app/components/field-agents/DeleteConfirmDialog";
+import PayrollDetailDialog from "@/core-app/components/field-agents/PayrollDetailDialog";
+import WithdrawalTimeline from "@/core-app/components/field-agents/WithdrawalTimeline";
 
 type TabView = "agents" | "commissions" | "grids" | "assignments" | "withdrawals" | "disputes" | "payroll" | "time" | "schedules" | "tax_docs";
 
