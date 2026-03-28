@@ -199,6 +199,7 @@ interface UpdateProfileRequest {
   phone?: string;
   badge_number?: string;
   job_title?: string;
+  email?: string;
 }
 
 interface ForcePasswordChangeRequest {
