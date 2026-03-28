@@ -446,7 +446,8 @@ export default function CoreFieldAgentsPage() {
       // Notify employee
       const entry = payrollEntries.find((pe: any) => pe.id === id);
       if (entry) {
-        await supabase.from("staff_notifications").insert({ notification_type: "payroll_paid", title: "Paie versée", message: `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.` } as any);
+        await notifyEmployee(entry.user_id, "payroll_paid", "Paie versée", `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`);
+        await logAudit("mark_payroll_paid", "payroll_entries", id, { field_changed: "status", new_value: "paid" });
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
