@@ -304,6 +304,17 @@ export default function FieldMyPay() {
                 <div><span className="text-muted-foreground">Net: </span><span className="font-bold text-emerald-600">{fmtMoney(Number(pe.net_pay))}</span></div>
               </div>
               {pe.notes && <p className="text-[10px] text-muted-foreground italic">{pe.notes}</p>}
+              <div className="flex gap-2 pt-1">
+                {pe.pdf_url ? (
+                  <Button size="sm" variant="outline" className="text-blue-600 border-blue-200" onClick={async () => {
+                    const { data } = await supabase.storage.from("payslips").createSignedUrl(pe.pdf_url, 3600);
+                    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                    else toast.error("Impossible d'ouvrir le PDF");
+                  }}><Download className="h-3 w-3 mr-1" /> Télécharger PDF</Button>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground italic">PDF non encore généré</p>
+                )}
+              </div>
             </div>
           );
         })}</div>

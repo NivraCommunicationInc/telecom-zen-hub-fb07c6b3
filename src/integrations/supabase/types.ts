@@ -9202,6 +9202,8 @@ export type Database = {
           overtime_hours: number
           paid_at: string | null
           pay_period_id: string
+          payroll_number: string | null
+          pdf_url: string | null
           status: string
           updated_at: string
           user_id: string
@@ -9222,6 +9224,8 @@ export type Database = {
           overtime_hours?: number
           paid_at?: string | null
           pay_period_id: string
+          payroll_number?: string | null
+          pdf_url?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -9242,6 +9246,8 @@ export type Database = {
           overtime_hours?: number
           paid_at?: string | null
           pay_period_id?: string
+          payroll_number?: string | null
+          pdf_url?: string | null
           status?: string
           updated_at?: string
           user_id?: string

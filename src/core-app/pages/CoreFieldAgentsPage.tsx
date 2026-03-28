@@ -863,6 +863,14 @@ export default function CoreFieldAgentsPage() {
                       <td className="py-2.5 text-right">
                         {pe.status === "draft" && <Button size="sm" variant="ghost" onClick={() => approvePayroll.mutate(pe.id)}>Approuver</Button>}
                         {pe.status === "approved" && <Button size="sm" variant="ghost" onClick={() => markPayrollPaid.mutate(pe.id)}>Payer</Button>}
+                        <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {
+                          toast.info("Génération du PDF en cours…");
+                          try {
+                            const { data, error } = await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: pe.id } });
+                            if (error) throw error;
+                            if (data?.pdf_url) { window.open(data.pdf_url, "_blank"); toast.success(`PDF ${data.payroll_number} généré`); qc.invalidateQueries({ queryKey: ["core-field", "payroll-entries"] }); }
+                          } catch (e: any) { toast.error("Erreur PDF: " + (e.message || "échec")); }
+                        }}><Download className="h-3 w-3 mr-1" /> PDF</Button>
                       </td>
                     </tr>
                   );
