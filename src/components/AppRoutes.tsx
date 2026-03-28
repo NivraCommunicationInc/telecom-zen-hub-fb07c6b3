@@ -846,6 +846,7 @@ const AppRoutes = () => {
           <Route path="orders/:orderId" element={<Suspense fallback={null}><FieldOrderDetail /></Suspense>} />
           <Route path="tracking" element={<Suspense fallback={null}><FieldTracking /></Suspense>} />
           <Route path="commissions" element={<Suspense fallback={null}><FieldCommissions /></Suspense>} />
+          <Route path="my-pay" element={<Suspense fallback={null}><FieldMyPay /></Suspense>} />
           <Route path="profile" element={<Suspense fallback={null}><FieldProfile /></Suspense>} />
           <Route path="security" element={<Suspense fallback={null}><FieldSecurity /></Suspense>} />
           <Route path="performance" element={<Suspense fallback={null}><FieldPerformance /></Suspense>} />
