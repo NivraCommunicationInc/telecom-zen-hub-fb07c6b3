@@ -635,6 +635,12 @@ export default function CoreFieldAgentsPage() {
       if (status === "sent") u.sent_at = new Date().toISOString();
       const { error } = await supabase.from("tax_documents").update(u).eq("id", id);
       if (error) throw error;
+      // Notify employee on status change
+      const doc = taxDocs.find((d: any) => d.id === id);
+      if (doc && status === "sent") {
+        await notifyEmployee(doc.user_id, "tax_document_sent", "Document fiscal envoyé", `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`);
+        await logAudit("send_tax_document", "tax_documents", id, { field_changed: "status", new_value: "sent" });
+      }
     },
     onSuccess: () => { invalidateAll(); toast.success("Statut mis à jour"); },
   });
