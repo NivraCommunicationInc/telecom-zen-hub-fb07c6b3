@@ -155,6 +155,7 @@ export default function CoreStaffPage() {
   // Commission dialog
   const [commissionTarget, setCommissionTarget] = useState<any>(null);
   const [commissionRate, setCommissionRate] = useState("");
+  const [commissionType, setCommissionType] = useState("base_percentage");
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
@@ -315,19 +316,18 @@ export default function CoreStaffPage() {
   });
 
   const commissionMutation = useMutation({
-    mutationFn: async ({ userId, rate }: { userId: string; rate: number }) => {
-      const { error } = await supabase
-        .from("field_sales_commission_rules" as any)
-        .upsert(
-          { salesperson_id: userId, rule_type: "base_percentage", value: rate, is_active: true },
-          { onConflict: "salesperson_id,rule_type" }
-        );
-      if (error) throw new Error(error.message);
-    },
+    mutationFn: ({ userId, rate, type }: { userId: string; rate: number; type: string }) =>
+      invokeStaffAction({
+        action: "set_staff_commission",
+        user_id: userId,
+        commission_type: type,
+        value: rate,
+      }),
     onSuccess: () => {
       toast.success("Commission mise à jour");
       setCommissionTarget(null);
       setCommissionRate("");
+      setCommissionType("base_percentage");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -771,7 +771,7 @@ export default function CoreStaffPage() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Type de commission</Label>
-              <Select defaultValue="base_percentage">
+              <Select value={commissionType} onValueChange={setCommissionType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="base_percentage">Pourcentage de base</SelectItem>
@@ -800,7 +800,7 @@ export default function CoreStaffPage() {
               onClick={() => {
                 const rate = parseFloat(commissionRate);
                 if (isNaN(rate) || rate < 0) { toast.error("Taux invalide"); return; }
-                commissionTarget && commissionMutation.mutate({ userId: commissionTarget.user_id, rate: rate / 100 });
+                commissionTarget && commissionMutation.mutate({ userId: commissionTarget.user_id, rate, type: commissionType });
               }}
               disabled={!commissionRate || commissionMutation.isPending}
             >
