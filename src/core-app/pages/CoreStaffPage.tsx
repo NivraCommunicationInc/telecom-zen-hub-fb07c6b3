@@ -700,6 +700,9 @@ export default function CoreStaffPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setEditTarget(selected)}>
+                    <Edit className="mr-1 h-3.5 w-3.5" /> Modifier le profil
+                  </Button>
                   <Button
                     size="sm"
                     variant={(selected.status || "active") === "active" ? "destructive" : "default"}
