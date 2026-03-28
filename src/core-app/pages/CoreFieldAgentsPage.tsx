@@ -359,7 +359,8 @@ export default function CoreFieldAgentsPage() {
           : status === "paid" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été payé.`
           : status === "rejected" ? `Votre retrait de ${fmtMoney(Number(w.amount))} a été rejeté.${note ? ` Raison: ${note}` : ""}`
           : `Votre retrait a été mis à jour: ${status}`;
-        await supabase.from("staff_notifications").insert({ notification_type: "withdrawal_update", title: `Retrait ${status}`, message: msg } as any);
+        await notifyEmployee(w.influencer_id || w.user_id, "withdrawal_update", `Retrait ${status}`, msg);
+        await logAudit(`withdrawal_${status}`, "commission_withdrawal_requests", id, { field_changed: "status", old_value: w.status, new_value: status });
       }
     },
     onSuccess: () => { invalidateAll(); setWithdrawalDetail(null); setWithdrawalAdminNote(""); toast.success("Retrait mis à jour"); },
@@ -373,6 +374,7 @@ export default function CoreFieldAgentsPage() {
         status: action, admin_response: note, resolved_at: new Date().toISOString(), resolved_by: user?.id,
       }).eq("id", id);
       if (error) throw error;
+      await logAudit(`dispute_${action}`, "commission_disputes", id, { new_value: action, details: { note } });
     },
     onSuccess: () => { invalidateAll(); setDisputeResolution(null); setDisputeNote(""); toast.success("Contestation traitée"); },
   });
