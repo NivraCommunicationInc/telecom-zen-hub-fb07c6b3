@@ -200,7 +200,7 @@ export default function CoreFieldAgentsPage() {
       // Notification
       const comm = allCommissions.find((c: any) => c.id === id);
       if (comm) {
-        await supabase.from("staff_notifications").insert({ user_id: comm.salesperson_id, title: "Commission approuvée", message: `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.`, type: "commission_approved", priority: "normal" } as any).single();
+        await supabase.from("staff_notifications").insert({ notification_type: "commission_approved", title: "Commission approuvée", message: `Votre commission de ${fmtMoney(Number(comm.commission_amount))} a été approuvée.` } as any);
       }
     },
     onSuccess: () => { invalidateAll(); toast.success("Commission approuvée"); },
