@@ -29,7 +29,7 @@ import DeleteConfirmDialog from "@/core-app/components/field-agents/DeleteConfir
 import PayrollDetailDialog from "@/core-app/components/field-agents/PayrollDetailDialog";
 import WithdrawalTimeline from "@/core-app/components/field-agents/WithdrawalTimeline";
 
-type TabView = "agents" | "commissions" | "grids" | "assignments" | "withdrawals" | "disputes" | "payroll" | "time" | "schedules" | "tax_docs";
+type TabView = "agents" | "commissions" | "grids" | "assignments" | "withdrawals" | "disputes" | "payroll" | "time" | "schedules" | "tax_docs" | "letters";
 
 interface AgentRow {
   user_id: string;
