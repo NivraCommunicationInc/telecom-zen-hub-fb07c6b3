@@ -5930,6 +5930,51 @@ export type Database = {
           },
         ]
       }
+      hr_audit_log: {
+        Row: {
+          action: string
+          actor_name: string | null
+          actor_role: string | null
+          actor_user_id: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          field_changed: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+        }
+        Insert: {
+          action: string
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Update: {
+          action?: string
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Relationships: []
+      }
       hub_login_audit: {
         Row: {
           created_at: string
@@ -12122,6 +12167,7 @@ export type Database = {
           read_at: string | null
           read_by: string | null
           title: string
+          user_id: string | null
         }
         Insert: {
           amount?: number | null
@@ -12139,6 +12185,7 @@ export type Database = {
           read_at?: string | null
           read_by?: string | null
           title: string
+          user_id?: string | null
         }
         Update: {
           amount?: number | null
@@ -12156,6 +12203,7 @@ export type Database = {
           read_at?: string | null
           read_by?: string | null
           title?: string
+          user_id?: string | null
         }
         Relationships: []
       }
