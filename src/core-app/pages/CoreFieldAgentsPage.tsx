@@ -403,8 +403,9 @@ export default function CoreFieldAgentsPage() {
       // Notify all employees with payroll entries in this period
       const entries = payrollEntries.filter((pe: any) => pe.pay_period_id === id);
       for (const pe of entries) {
-        await supabase.from("staff_notifications").insert({ notification_type: "payroll_ready", title: "Paie disponible", message: `Votre fiche de paie est prête. Net: ${fmtMoney(Number(pe.net_pay))}` } as any);
+        await notifyEmployee(pe.user_id, "payroll_ready", "Paie disponible", `Votre fiche de paie est prête. Net: ${fmtMoney(Number(pe.net_pay))}`);
       }
+      await logAudit("mark_period_paid", "pay_periods", id, { field_changed: "status", new_value: "paid" });
     },
     onSuccess: () => { invalidateAll(); toast.success("Période marquée payée"); },
   });
