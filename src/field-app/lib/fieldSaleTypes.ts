@@ -8,6 +8,7 @@ export interface FieldSaleCustomer {
   last_name: string;
   email: string;
   phone: string;
+  date_of_birth: string;
   address: string;
   city: string;
   postal_code: string;
