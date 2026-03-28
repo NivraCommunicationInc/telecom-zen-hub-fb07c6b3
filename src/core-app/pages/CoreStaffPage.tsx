@@ -263,6 +263,19 @@ export default function CoreStaffPage() {
     }
   }, [commissionTarget]);
 
+  // Load existing data when edit profile dialog opens
+  useEffect(() => {
+    if (editTarget) {
+      setEditForm({
+        full_name: editTarget.displayName || "",
+        email: editTarget.profile?.email || "",
+        phone: editTarget.profile?.phone || "",
+        job_title: editTarget.profile?.job_title || editTarget.job_title || "",
+        badge_number: editTarget.profile?.badge_number || editTarget.badge_number || "",
+      });
+    }
+  }, [editTarget]);
+
   // ─── Mutations ───
   const createMutation = useMutation({
     mutationFn: (payload: StaffFormData) => {
