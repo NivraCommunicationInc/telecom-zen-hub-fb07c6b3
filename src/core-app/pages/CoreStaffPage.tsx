@@ -520,7 +520,7 @@ export default function CoreStaffPage() {
                         <span className={emailInvalid ? "text-destructive" : "text-muted-foreground"}>
                           {staff.profile?.email || "—"}
                         </span>
-                        {emailInvalid && <AlertTriangle className="h-3 w-3 text-yellow-500" title="Email invalide" />}
+                        {emailInvalid && <span className="text-yellow-500" aria-label="Email invalide"><AlertTriangle className="h-3 w-3" /></span>}
                       </div>
                     </td>
                     <td className="px-3 py-2.5"><Badge variant="outline">{ROLE_LABELS[staff.role] || staff.role}</Badge></td>
