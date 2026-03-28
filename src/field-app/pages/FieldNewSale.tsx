@@ -173,7 +173,7 @@ export default function FieldNewSale() {
 
       // ═══ STEP 3: Also create field_leads record (legacy / CRM tracking) ═══
       try {
-        const { data: lead } = await supabase.from("field_leads").insert({
+        await supabase.from("field_leads").insert({
           agent_id: user.id,
           agent_name: profile?.full_name || "Agent",
           first_name: draft.customer.first_name,
@@ -196,41 +196,9 @@ export default function FieldNewSale() {
           ].filter(Boolean).join(". ").trim(),
           status: "submitted",
           submitted_at: new Date().toISOString(),
-        }).select("id").single();
-
-        // Auto-create commission record
-        if (lead) {
-          try {
-            const { data: rules } = await supabase
-              .from("field_sales_commission_rules")
-              .select("*")
-              .eq("is_active", true)
-              .limit(1);
-
-            const rule = rules?.[0];
-            let commissionAmount = 0;
-
-            if (rule) {
-              if (rule.rule_type === "percentage" && rule.bonus_percentage) {
-                commissionAmount = Math.round((taxes.total * rule.bonus_percentage / 100) * 100) / 100;
-              } else if (rule.bonus_amount) {
-                commissionAmount = rule.bonus_amount;
-              }
-            }
-
-            if (commissionAmount <= 0) commissionAmount = 10;
-
-            await supabase.from("field_commissions").insert({
-              agent_id: user.id,
-              lead_id: lead.id,
-              amount: commissionAmount,
-              status: "pending",
-              notes: `Auto-commission: ${draft.services.map((s) => s.name).join(", ")} — ${taxes.total.toFixed(2)} $`,
-            });
-          } catch (commErr) {
-            console.error("[FieldNewSale] Commission creation failed (non-blocking):", commErr);
-          }
-        }
+        });
+        // Commission is now created server-side by field-sales-sync at sync time
+        // and unlocked only when the order reaches "activated" status
       } catch (leadErr) {
         console.error("[FieldNewSale] Lead creation failed (non-blocking):", leadErr);
       }

@@ -333,10 +333,17 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
         <div>
           <label className={labelClass}>Téléphone *</label>
           <input type="tel" value={customer.phone} onChange={(e) => update("phone", e.target.value)} className={inputClass} placeholder="514-555-0123" />
+          {customer.phone && !isValidPhone && <p className="text-[10px] text-red-500 mt-0.5">Minimum 10 chiffres</p>}
         </div>
         <div>
-          <label className={labelClass}>Courriel</label>
+          <label className={labelClass}>Courriel *</label>
           <input type="email" value={customer.email} onChange={(e) => update("email", e.target.value)} className={inputClass} placeholder="client@example.com" />
+          {customer.email && !isValidEmail && <p className="text-[10px] text-red-500 mt-0.5">Courriel invalide</p>}
+        </div>
+        <div>
+          <label className={labelClass}>Date de naissance *</label>
+          <input type="date" value={customer.date_of_birth} onChange={(e) => update("date_of_birth", e.target.value)} className={inputClass} max={new Date().toISOString().split("T")[0]} />
+          {customer.date_of_birth && !isValidDOB && <p className="text-[10px] text-red-500 mt-0.5">Date invalide</p>}
         </div>
       </div>
 
