@@ -841,6 +841,22 @@ export default function CoreFieldAgentsPage() {
                           <Zap className="h-3 w-3 mr-1" /> Auto-générer fiches
                         </Button>
                       )}
+                      {(pp.status === "closed" || pp.status === "paid") && (
+                        <Button size="sm" variant="outline" className="text-blue-600" onClick={async () => {
+                          const entries = payrollEntries.filter((pe: any) => pe.pay_period_id === pp.id);
+                          if (!entries.length) { toast.error("Aucune fiche pour cette période"); return; }
+                          toast.info(`Génération batch: ${entries.length} PDF(s)…`);
+                          let ok = 0;
+                          for (const pe of entries) {
+                            try {
+                              const { error } = await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: pe.id } });
+                              if (!error) ok++;
+                            } catch {}
+                          }
+                          toast.success(`${ok}/${entries.length} PDF(s) générés`);
+                          invalidateAll();
+                        }}><Download className="h-3 w-3 mr-1" /> Batch PDF</Button>
+                      )}
                       {pp.status === "open" && <Button size="sm" variant="outline" onClick={() => closePayPeriod.mutate(pp.id)}>Fermer</Button>}
                       {pp.status === "closed" && <Button size="sm" variant="outline" onClick={() => markPeriodPaid.mutate(pp.id)}>Marquer payé</Button>}
                     </div>
