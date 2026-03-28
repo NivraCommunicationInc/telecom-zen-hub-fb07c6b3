@@ -147,7 +147,7 @@ export default function CoreFieldAgentsPage() {
   const { data: assignments = [] } = useQuery({
     queryKey: ["core-field", "assignments"],
     queryFn: async () => { const { data } = await supabase.from("commission_grid_assignments").select("*").order("created_at", { ascending: false }); return data || []; },
-    enabled: tab === "assignments",
+    enabled: tab === "assignments" || !!selectedAgent,
   });
 
   const { data: withdrawals = [] } = useQuery({
