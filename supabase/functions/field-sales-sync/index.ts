@@ -127,17 +127,18 @@ Deno.serve(async (req) => {
           return { success: true, orderId: sale.converted_order_id };
         }
 
-        // Get salesperson profile for rep info
-        const { data: repProfile } = await supabaseAdmin
-          .from('profiles')
-          .select('full_name, email, phone')
-          .eq('user_id', sale.salesperson_id)
-          .maybeSingle();
-
-        // Resolve / create a real client user_id (orders.user_id is NOT NULL)
-        const customerEmail = String(sale.customer_email || "").trim().toLowerCase();
-        if (!customerEmail) {
-          throw new Error("Email client manquant sur la vente terrain");
+        // ═══ SERVER-SIDE VALIDATION — Block incomplete submissions ═══
+        const validationErrors: string[] = [];
+        if (!sale.customer_name?.trim()) validationErrors.push("Nom du client manquant");
+        if (!sale.customer_email?.trim()) validationErrors.push("Courriel du client manquant");
+        if (!sale.customer_phone?.trim()) validationErrors.push("Téléphone du client manquant");
+        if (!sale.customer_address?.trim()) validationErrors.push("Adresse du client manquante");
+        if (!Array.isArray(sale.services) || sale.services.length === 0) validationErrors.push("Aucun service sélectionné");
+        
+        if (validationErrors.length > 0) {
+          const errorMsg = `Validation échouée: ${validationErrors.join(", ")}`;
+          console.error(`[field-sales-sync] ${errorMsg}`);
+          throw new Error(errorMsg);
         }
 
         let clientUserId: string | null = null;
