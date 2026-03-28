@@ -315,7 +315,11 @@ export default function CoreFieldAgentsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erreur"),
   });
   const deleteGrid = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("field_sales_commission_rules").delete().eq("id", id); if (error) throw error; },
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("field_sales_commission_rules").delete().eq("id", id);
+      if (error) throw error;
+      await logAudit("delete_grid", "field_sales_commission_rules", id);
+    },
     onSuccess: () => { invalidateAll(); toast.success("Grille supprimée"); },
   });
   const toggleGridActive = useMutation({
