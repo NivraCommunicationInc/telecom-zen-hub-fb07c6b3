@@ -98,6 +98,8 @@ export default function CoreFieldAgentsPage() {
   const [disputeNote, setDisputeNote] = useState("");
   const [withdrawalDetail, setWithdrawalDetail] = useState<any>(null);
   const [withdrawalAdminNote, setWithdrawalAdminNote] = useState("");
+  const [rejectCommDialog, setRejectCommDialog] = useState<string | null>(null);
+  const [rejectCommReason, setRejectCommReason] = useState("");
   const [taxDocDialog, setTaxDocDialog] = useState(false);
   const [taxDocForm, setTaxDocForm] = useState({ user_id: "", document_type: "t4", tax_year: String(new Date().getFullYear() - 1), notes: "", data_json: "{}" });
 
