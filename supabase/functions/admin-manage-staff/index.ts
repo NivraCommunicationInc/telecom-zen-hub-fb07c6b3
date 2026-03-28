@@ -2629,7 +2629,7 @@ serve(async (req: Request) => {
           if (authUpdateError) {
             console.error(`[admin-manage-staff] ${stepBase} auth email sync error:`, authUpdateError);
             if (profile.email) {
-              await userClient
+              await adminClient
                 .from("profiles")
                 .update({ email: profile.email })
                 .eq("user_id", user_id);
