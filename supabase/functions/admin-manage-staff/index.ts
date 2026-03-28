@@ -5,6 +5,11 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateL
 
 const SENDER_DOMAIN = "notify.nivra-telecom.ca";
 const FROM_ADDRESS = "Nivra Telecom <noreply@nivra-telecom.ca>";
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email.trim());
+}
 
 /**
  * Ensure an unsubscribe token exists for the given email (required by Lovable Email API).
@@ -50,6 +55,9 @@ async function sendStaffEmail(
   params: { to: string; subject: string; html: string; replyTo?: string; idempotencyKey?: string }
 ): Promise<void> {
   const normalizedTo = params.to.trim().toLowerCase();
+  if (!isValidEmail(normalizedTo)) {
+    throw new Error(`Format d'email invalide: ${normalizedTo}`);
+  }
   const unsubscribeToken = await ensureUnsubscribeToken(adminClient, normalizedTo);
   const messageId = params.idempotencyKey || `staff_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const payload = {
@@ -310,6 +318,13 @@ interface ListStaffRequest {
   action: "list_staff";
 }
 
+interface SetStaffCommissionRequest {
+  action: "set_staff_commission";
+  user_id: string;
+  commission_type: "base_percentage" | "flat_bonus" | "tiered";
+  value: number;
+}
+
 type RequestBody =
   | CreateStaffRequest
   | DisableEnableRequest
@@ -337,7 +352,8 @@ type RequestBody =
   | ResendInvitationRequest
   | RevokeInvitationRequest
   | ListInvitationStatusesRequest
-  | ListStaffRequest;
+  | ListStaffRequest
+  | SetStaffCommissionRequest;
 
 // Generate cryptographically secure salt
 function generateSalt(): string {
