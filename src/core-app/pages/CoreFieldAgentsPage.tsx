@@ -675,6 +675,7 @@ export default function CoreFieldAgentsPage() {
     { key: "time", label: "Temps", icon: Timer },
     { key: "schedules", label: "Horaires", icon: ClipboardList },
     { key: "tax_docs", label: "Documents fiscaux", icon: FileSpreadsheet },
+    { key: "letters", label: "Lettres", icon: FileText },
   ];
 
   // Helper: open edit grid dialog
