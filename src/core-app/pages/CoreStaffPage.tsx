@@ -67,6 +67,14 @@ type StaffFormData = {
   can_access_technician: boolean;
 };
 
+type EditProfileData = {
+  full_name: string;
+  email: string;
+  phone: string;
+  job_title: string;
+  badge_number: string;
+};
+
 const ROLE_OPTIONS = [
   { value: "admin", label: "Administrateur" },
   { value: "employee", label: "Employé" },
@@ -182,6 +190,10 @@ export default function CoreStaffPage() {
   const [emailEditTarget, setEmailEditTarget] = useState<any>(null);
   const [newEmail, setNewEmail] = useState("");
 
+  // Edit profile dialog
+  const [editTarget, setEditTarget] = useState<any>(null);
+  const [editForm, setEditForm] = useState<EditProfileData>({ full_name: "", email: "", phone: "", job_title: "", badge_number: "" });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["core-staff-list"] });
     queryClient.invalidateQueries({ queryKey: ["core-staff-invitations"] });
@@ -250,6 +262,19 @@ export default function CoreStaffPage() {
       }
     }
   }, [commissionTarget]);
+
+  // Load existing data when edit profile dialog opens
+  useEffect(() => {
+    if (editTarget) {
+      setEditForm({
+        full_name: editTarget.displayName || "",
+        email: editTarget.profile?.email || "",
+        phone: editTarget.profile?.phone || "",
+        job_title: editTarget.profile?.job_title || editTarget.job_title || "",
+        badge_number: editTarget.profile?.badge_number || editTarget.badge_number || "",
+      });
+    }
+  }, [editTarget]);
 
   // ─── Mutations ───
   const createMutation = useMutation({
@@ -379,6 +404,7 @@ export default function CoreStaffPage() {
       toast.success("Profil mis à jour");
       setEmailEditTarget(null);
       setNewEmail("");
+      setEditTarget(null);
       invalidate();
     },
     onError: (e: any) => toast.error(e.message),
@@ -549,6 +575,9 @@ export default function CoreStaffPage() {
                         <Button size="icon" variant="ghost" onClick={() => setSelected(staff)} title="Détails">
                           <Eye className="h-4 w-4" />
                         </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setEditTarget(staff)} title="Modifier le profil">
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => { setPinResetTarget(staff); setNewPin(""); }} title="Reset PIN">
                           <KeyRound className="h-4 w-4" />
                         </Button>
@@ -671,6 +700,9 @@ export default function CoreStaffPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setEditTarget(selected)}>
+                    <Edit className="mr-1 h-3.5 w-3.5" /> Modifier le profil
+                  </Button>
                   <Button
                     size="sm"
                     variant={(selected.status || "active") === "active" ? "destructive" : "default"}
@@ -1074,6 +1106,97 @@ export default function CoreStaffPage() {
             >
               {updateProfileMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Mettre à jour
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Edit Profile Dialog ─── */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-primary" /> Modifier le profil
+            </DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de <strong>{editTarget?.displayName}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Nom complet *</Label>
+              <Input
+                value={editForm.full_name}
+                onChange={(e) => setEditForm((p) => ({ ...p, full_name: e.target.value }))}
+                placeholder="Jean Dupont"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
+                placeholder="prenom.nom@nivra-telecom.ca"
+              />
+              {editForm.email && !isValidEmail(editForm.email) && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Format d'email invalide
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Téléphone</Label>
+              <Input
+                value={editForm.phone}
+                onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
+                placeholder="514-555-1234"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Titre du poste</Label>
+                <Input
+                  value={editForm.job_title}
+                  onChange={(e) => setEditForm((p) => ({ ...p, job_title: e.target.value }))}
+                  placeholder="Administrateur système"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Numéro de badge</Label>
+                <Input
+                  value={editForm.badge_number}
+                  onChange={(e) => setEditForm((p) => ({ ...p, badge_number: e.target.value }))}
+                  placeholder="ADM-0001"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (!editForm.full_name.trim()) {
+                  toast.error("Le nom complet est requis");
+                  return;
+                }
+                if (editForm.email && !isValidEmail(editForm.email)) {
+                  toast.error("Format d'email invalide");
+                  return;
+                }
+                editTarget && updateProfileMutation.mutate({
+                  userId: editTarget.user_id,
+                  full_name: editForm.full_name.trim(),
+                  email: editForm.email.trim().toLowerCase() || undefined,
+                  phone: editForm.phone.trim() || undefined,
+                  job_title: editForm.job_title.trim() || undefined,
+                  badge_number: editForm.badge_number.trim() || undefined,
+                });
+              }}
+              disabled={!editForm.full_name.trim() || updateProfileMutation.isPending}
+            >
+              {updateProfileMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>
