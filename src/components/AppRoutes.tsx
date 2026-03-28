@@ -112,6 +112,7 @@ const CoreEmailMarketingPage = lazy(() => import("@/core-app/pages/CoreEmailMark
 const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommunicationEmailPage"));
 const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
 // Field Management
+const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreCommissionWithdrawalsPage = lazy(() => import("@/core-app/pages/CoreCommissionWithdrawalsPage"));
 // Partners
 const CoreReferralsPage = lazy(() => import("@/core-app/pages/CoreReferralsPage"));
@@ -756,6 +757,7 @@ const AppRoutes = () => {
           <Route path="communication-email" element={<Suspense fallback={null}><CoreCommunicationEmailPage /></Suspense>} />
           <Route path="communication-sms" element={<Suspense fallback={null}><CoreCommunicationSMSPage /></Suspense>} />
           {/* Field Management */}
+          <Route path="field-agents" element={<Suspense fallback={null}><CoreFieldAgentsPage /></Suspense>} />
           <Route path="commission-withdrawals" element={<Suspense fallback={null}><CoreCommissionWithdrawalsPage /></Suspense>} />
           {/* Partners */}
           <Route path="referrals" element={<Suspense fallback={null}><CoreReferralsPage /></Suspense>} />

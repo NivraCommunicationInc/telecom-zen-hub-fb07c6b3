@@ -127,6 +127,20 @@ Deno.serve(async (req) => {
           return { success: true, orderId: sale.converted_order_id };
         }
 
+        // ═══ SERVER-SIDE VALIDATION — Block incomplete submissions ═══
+        const validationErrors: string[] = [];
+        if (!sale.customer_name?.trim()) validationErrors.push("Nom du client manquant");
+        if (!sale.customer_email?.trim()) validationErrors.push("Courriel du client manquant");
+        if (!sale.customer_phone?.trim()) validationErrors.push("Téléphone du client manquant");
+        if (!sale.customer_address?.trim()) validationErrors.push("Adresse du client manquante");
+        if (!Array.isArray(sale.services) || sale.services.length === 0) validationErrors.push("Aucun service sélectionné");
+        
+        if (validationErrors.length > 0) {
+          const errorMsg = `Validation échouée: ${validationErrors.join(", ")}`;
+          console.error(`[field-sales-sync] ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+
         // Get salesperson profile for rep info
         const { data: repProfile } = await supabaseAdmin
           .from('profiles')
@@ -136,9 +150,6 @@ Deno.serve(async (req) => {
 
         // Resolve / create a real client user_id (orders.user_id is NOT NULL)
         const customerEmail = String(sale.customer_email || "").trim().toLowerCase();
-        if (!customerEmail) {
-          throw new Error("Email client manquant sur la vente terrain");
-        }
 
         let clientUserId: string | null = null;
 
@@ -519,25 +530,78 @@ Deno.serve(async (req) => {
           console.error(`[field-sales-sync] Error updating sale status:`, updateError);
         }
 
-        // Calculate and record commission (10% of monthly)
-        const commissionAmount = monthlyTotal * 0.10;
-        
-        if (commissionAmount > 0) {
-          await supabaseAdmin
-            .from('sales_commissions')
-            .upsert({
-              salesperson_id: sale.salesperson_id,
-              field_order_id: sale.id,
-              converted_order_id: newOrder.id,
-              sale_amount: monthlyTotal,
-              commission_rate: 0.10,
-              commission_amount: commissionAmount,
-              status: 'pending',
-              created_at: new Date().toISOString(),
-            }, {
-              onConflict: 'field_order_id',
-              ignoreDuplicates: false,
-            });
+        // ═══ COMMISSION ENGINE — Base % + tier lookup ═══
+        // Commission is created with status 'pending_activation' — only unlocked when order reaches 'activated'
+        try {
+          // Look up active commission rules (tiered by sales count)
+          const { data: commRules } = await supabaseAdmin
+            .from("field_sales_commission_rules")
+            .select("*")
+            .eq("is_active", true)
+            .order("min_sales", { ascending: true });
+
+          // Count agent's total completed sales for tier resolution
+          const { count: agentSalesCount } = await supabaseAdmin
+            .from("field_sales_orders")
+            .select("id", { count: "exact", head: true })
+            .eq("salesperson_id", sale.salesperson_id)
+            .eq("sync_status", "synced");
+
+          const salesCount = agentSalesCount || 0;
+
+          // Find the matching tier rule
+          let commissionRate = 0.10; // Default 10%
+          let bonusAmount = 0;
+          let bonusType: string | null = null;
+
+          if (commRules && commRules.length > 0) {
+            // Find the highest tier the agent qualifies for
+            for (const rule of commRules) {
+              const minOk = rule.min_sales == null || salesCount >= rule.min_sales;
+              const maxOk = rule.max_sales == null || salesCount <= rule.max_sales;
+              if (minOk && maxOk) {
+                if (rule.rule_type === "percentage" && rule.bonus_percentage) {
+                  commissionRate = rule.bonus_percentage / 100;
+                } else if (rule.rule_type === "flat" && rule.bonus_amount) {
+                  commissionRate = 0;
+                  bonusAmount = rule.bonus_amount;
+                  bonusType = "flat";
+                } else if (rule.rule_type === "tiered" && rule.bonus_percentage) {
+                  commissionRate = rule.bonus_percentage / 100;
+                  bonusAmount = rule.bonus_amount || 0;
+                  bonusType = "tiered";
+                }
+              }
+            }
+          }
+
+          const baseCommission = monthlyTotal * commissionRate;
+          const totalCommission = baseCommission + bonusAmount;
+
+          if (totalCommission > 0) {
+            await supabaseAdmin
+              .from("sales_commissions")
+              .upsert({
+                salesperson_id: sale.salesperson_id,
+                field_order_id: sale.id,
+                converted_order_id: newOrder.id,
+                sale_amount: monthlyTotal,
+                commission_rate: commissionRate,
+                commission_amount: totalCommission,
+                bonus_amount: bonusAmount > 0 ? bonusAmount : null,
+                bonus_type: bonusType,
+                status: "pending_activation",
+                notes: `Auto: ${(commissionRate * 100).toFixed(0)}% × ${monthlyTotal.toFixed(2)}$ = ${baseCommission.toFixed(2)}$${bonusAmount > 0 ? ` + bonus ${bonusAmount.toFixed(2)}$` : ""} | Tier: ${salesCount} ventes`,
+                created_at: new Date().toISOString(),
+              }, {
+                onConflict: "field_order_id",
+                ignoreDuplicates: false,
+              });
+
+            console.log(`[field-sales-sync] Commission created: ${totalCommission.toFixed(2)}$ (rate: ${(commissionRate * 100).toFixed(0)}%, bonus: ${bonusAmount}) for agent ${sale.salesperson_id}`);
+          }
+        } catch (commErr: any) {
+          console.error("[field-sales-sync] Commission engine error (non-blocking):", commErr);
         }
 
         return { 

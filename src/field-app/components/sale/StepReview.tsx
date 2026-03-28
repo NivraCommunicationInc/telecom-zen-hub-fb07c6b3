@@ -70,8 +70,9 @@ export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmi
 
       <Section icon={User} title="Client">
         <Row label="Nom" value={`${customer.first_name} ${customer.last_name}`} />
+        <Row label="Date de naissance" value={customer.date_of_birth ? new Date(customer.date_of_birth + "T12:00:00").toLocaleDateString("fr-CA") : "—"} />
         <Row label="Téléphone" value={customer.phone} />
-        {customer.email && <Row label="Courriel" value={customer.email} />}
+        <Row label="Courriel" value={customer.email} />
         <Row label="Adresse" value={`${customer.address}, ${customer.city} ${customer.postal_code}`} />
       </Section>
 
