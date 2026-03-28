@@ -25,9 +25,9 @@ interface EquipmentOption {
 
 const EQUIPMENT_CATALOG: EquipmentOption[] = [
   // Internet
+  { id: "eq-modem", name: "Modem câble", price: 0, category: "modem", requiredServiceCategory: "internet", maxQty: 1, icon: Package },
   { id: "eq-router", name: "Routeur Wi-Fi 6", price: 99.99, category: "router", requiredServiceCategory: "internet", maxQty: 1, icon: Router },
   { id: "eq-borne", name: "Borne Wi-Fi (extension)", price: 79.99, category: "borne", requiredServiceCategory: "internet", maxQty: 3, icon: Router },
-  { id: "eq-modem", name: "Modem câble", price: 0, category: "modem", requiredServiceCategory: "internet", maxQty: 1, icon: Package },
   { id: "eq-mesh", name: "Kit Mesh Wi-Fi (2 bornes)", price: 149.99, category: "mesh", requiredServiceCategory: "internet", maxQty: 1, icon: Router },
   // TV
   { id: "eq-tv-terminal", name: "Terminal IPTV", price: 75, category: "terminal", requiredServiceCategory: "tv", maxQty: 5, icon: Tv },
@@ -35,6 +35,11 @@ const EQUIPMENT_CATALOG: EquipmentOption[] = [
   // Mobile
   { id: "eq-sim", name: "Carte SIM physique", price: 10, category: "sim", requiredServiceCategory: "mobile", maxQty: 5, icon: Smartphone },
   { id: "eq-esim", name: "eSIM (activation)", price: 0, category: "esim", requiredServiceCategory: "mobile", maxQty: 5, icon: Smartphone },
+  // Security
+  { id: "eq-cam-int", name: "Caméra intérieure Wi-Fi", price: 89.99, category: "camera", requiredServiceCategory: "security", maxQty: 4, icon: Package },
+  { id: "eq-cam-ext", name: "Caméra extérieure PoE", price: 129.99, category: "camera", requiredServiceCategory: "security", maxQty: 4, icon: Package },
+  { id: "eq-sensor", name: "Détecteur mouvement", price: 29.99, category: "sensor", requiredServiceCategory: "security", maxQty: 6, icon: Package },
+  { id: "eq-panel", name: "Panneau de contrôle", price: 199.99, category: "panel", requiredServiceCategory: "security", maxQty: 1, icon: Package },
 ];
 
 export default function StepEquipment({ services, equipment, onChange, onNext, onBack }: Props) {

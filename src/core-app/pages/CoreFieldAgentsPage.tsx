@@ -206,18 +206,28 @@ export default function CoreFieldAgentsPage() {
   const saveAgentProfile = useMutation({
     mutationFn: async () => {
       if (!editingAgent) return;
-      const { error } = await supabase.from("profiles").update({
-        full_name: editForm.full_name.trim() || null,
-        email: editForm.email.trim() || null,
-        phone: editForm.phone.trim() || null,
-      }).eq("user_id", editingAgent.user_id);
+      // Use edge function for real persistence (adminClient + auth sync)
+      const { data, error } = await supabase.functions.invoke("admin-manage-staff", {
+        body: {
+          action: "update_profile",
+          user_id: editingAgent.user_id,
+          full_name: editForm.full_name.trim() || undefined,
+          email: editForm.email.trim() || undefined,
+          phone: editForm.phone.trim() || undefined,
+        },
+      });
       if (error) throw error;
+      const result = typeof data === "string" ? JSON.parse(data) : data;
+      if (!result?.ok && !result?.success) {
+        throw new Error(result?.error?.message || result?.message || "Échec de la mise à jour");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["core-field-agents"] });
       setEditingAgent(null);
-      toast.success("Profil mis à jour");
+      toast.success("Profil mis à jour avec succès");
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur de sauvegarde"),
   });
 
   const filteredAgents = agents.filter((a) => {
