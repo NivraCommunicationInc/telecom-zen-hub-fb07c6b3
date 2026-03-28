@@ -404,6 +404,7 @@ export default function CoreStaffPage() {
       toast.success("Profil mis à jour");
       setEmailEditTarget(null);
       setNewEmail("");
+      setEditTarget(null);
       invalidate();
     },
     onError: (e: any) => toast.error(e.message),
