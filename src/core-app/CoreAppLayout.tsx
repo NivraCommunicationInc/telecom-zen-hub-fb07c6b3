@@ -154,7 +154,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: "hr",
-    label: "HR",
+    label: "HR & Payroll",
     icon: Briefcase,
     items: [
       { icon: Users, label: "Staff", href: "/staff" },
