@@ -611,7 +611,7 @@ export default function CoreStaffPage() {
                   <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                   <div>
                     <p className="font-medium">Email invalide — les actions email ne fonctionneront pas</p>
-                    <p>L'email « {selected.profile?.email || "(vide)"} » est invalide (il manque probablement le domaine complet, ex: .ca). Cliquez sur l'icône ✏️ à côté de l'email pour le corriger.</p>
+                    <p>L'email « {selected.profile?.email || "(vide)"} » est invalide (il manque probablement le domaine complet, ex: .ca). Cliquez sur l'icône de modification à côté de l'email pour le corriger.</p>
                   </div>
                 </div>
               )}
