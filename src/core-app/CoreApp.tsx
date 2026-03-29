@@ -189,7 +189,23 @@ const CoreApp = () => {
                 <Route path="internal-tickets" element={<S><CoreInternalTicketsPage /></S>} />
                 <Route path="web-forms" element={<S><CoreWebFormsPage /></S>} />
                 <Route path="telephony" element={<S><CoreTelephonyPage /></S>} />
-                {/* HR */}
+                {/* HR & Payroll */}
+                <Route path="hr" element={<S><HrDashboardPage /></S>} />
+                <Route path="hr/employees" element={<S><HrEmployeesPage /></S>} />
+                <Route path="hr/employees/new" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/employees/:id" element={<S><CoreEmployee360 /></S>} />
+                <Route path="hr/onboarding" element={<S><HrOnboardingPage /></S>} />
+                <Route path="hr/payroll" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/commissions" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/time" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/schedules" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/documents" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/tax-documents" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/requests" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/careers" element={<S><CoreCareersPage /></S>} />
+                <Route path="hr/applications" element={<S><CoreApplicationsPage /></S>} />
+                <Route path="hr/audit" element={<S><HrPlaceholderPage /></S>} />
+                {/* Legacy HR */}
                 <Route path="careers" element={<S><CoreCareersPage /></S>} />
                 <Route path="applications" element={<S><CoreApplicationsPage /></S>} />
                 {/* System */}
