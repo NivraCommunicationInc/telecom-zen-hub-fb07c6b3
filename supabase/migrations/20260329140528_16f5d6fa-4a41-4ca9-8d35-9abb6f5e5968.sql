@@ -1,0 +1,1 @@
+ALTER TABLE public.payroll_entries ADD COLUMN IF NOT EXISTS acknowledged_at timestamptz DEFAULT NULL;

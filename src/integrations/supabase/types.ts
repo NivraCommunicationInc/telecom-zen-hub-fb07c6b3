@@ -9298,6 +9298,7 @@ export type Database = {
       }
       payroll_entries: {
         Row: {
+          acknowledged_at: string | null
           approved_at: string | null
           approved_by: string | null
           base_salary: number
@@ -9320,6 +9321,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          acknowledged_at?: string | null
           approved_at?: string | null
           approved_by?: string | null
           base_salary?: number
@@ -9342,6 +9344,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          acknowledged_at?: string | null
           approved_at?: string | null
           approved_by?: string | null
           base_salary?: number
