@@ -1,0 +1,1 @@
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS can_access_rh boolean NOT NULL DEFAULT true;

@@ -13844,6 +13844,7 @@ export type Database = {
           can_access_core: boolean
           can_access_employee: boolean
           can_access_field: boolean
+          can_access_rh: boolean
           can_access_technician: boolean
           created_at: string
           id: string
@@ -13876,6 +13877,7 @@ export type Database = {
           can_access_core?: boolean
           can_access_employee?: boolean
           can_access_field?: boolean
+          can_access_rh?: boolean
           can_access_technician?: boolean
           created_at?: string
           id?: string
@@ -13908,6 +13910,7 @@ export type Database = {
           can_access_core?: boolean
           can_access_employee?: boolean
           can_access_field?: boolean
+          can_access_rh?: boolean
           can_access_technician?: boolean
           created_at?: string
           id?: string
