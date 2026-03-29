@@ -27,9 +27,9 @@ export default function FieldDailyReport() {
           .select("id, first_name, last_name, status, service_need, created_at")
           .eq("agent_id", user!.id).gte("created_at", startOfDay)
           .order("created_at", { ascending: false }),
-        supabase.from("field_commissions")
-          .select("amount, status")
-          .eq("agent_id", user!.id).gte("created_at", startOfDay),
+        supabase.from("sales_commissions")
+          .select("commission_amount, status")
+          .eq("salesperson_id", user!.id).gte("created_at", startOfDay),
         supabase.from("profiles").select("full_name").eq("user_id", user!.id).maybeSingle(),
       ]);
 
@@ -38,7 +38,7 @@ export default function FieldDailyReport() {
       const comms = commissionsToday.data || [];
 
       const totalRevenue = sales.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0);
-      const totalCommissions = comms.reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+      const totalCommissions = comms.reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
       const paidSales = sales.filter((s: any) => s.payment_status === "confirmed").length;
       const syncedSales = sales.filter((s: any) => s.sync_status === "synced").length;
 
