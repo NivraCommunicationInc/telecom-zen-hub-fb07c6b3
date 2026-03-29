@@ -176,6 +176,7 @@ const COMMISSION_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function CoreStaffPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
