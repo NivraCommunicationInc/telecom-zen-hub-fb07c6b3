@@ -9457,6 +9457,41 @@ export type Database = {
           },
         ]
       }
+      payroll_commission_links: {
+        Row: {
+          amount: number
+          commission_id: string
+          commission_source: string
+          created_at: string
+          id: string
+          payroll_entry_id: string
+        }
+        Insert: {
+          amount?: number
+          commission_id: string
+          commission_source: string
+          created_at?: string
+          id?: string
+          payroll_entry_id: string
+        }
+        Update: {
+          amount?: number
+          commission_id?: string
+          commission_source?: string
+          created_at?: string
+          id?: string
+          payroll_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_commission_links_payroll_entry_id_fkey"
+            columns: ["payroll_entry_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_entries: {
         Row: {
           acknowledged_at: string | null
