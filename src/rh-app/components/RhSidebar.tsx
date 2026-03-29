@@ -28,6 +28,7 @@ const navGroups = [
     items: [
       { label: "Fiches de paie", href: `${RH_BASE}/paie`, icon: Receipt },
       { label: "Commissions", href: `${RH_BASE}/commissions`, icon: DollarSign },
+      { label: "Objectifs", href: `${RH_BASE}/objectifs`, icon: Target },
     ],
   },
   {
