@@ -1362,7 +1362,7 @@ export default function CoreFieldAgentsPage() {
                     <td className="py-2.5 text-muted-foreground text-xs">{td.notes || "—"}</td>
                     <td className="py-2.5 text-right">
                       <div className="flex gap-1 justify-end">
-                        {td.status === "draft" && <Button size="sm" variant="ghost" onClick={async () => {
+                        {(!td.pdf_url || td.status === "draft") && <Button size="sm" variant="ghost" onClick={async () => {
                           toast.info("Génération du document fiscal…");
                           try {
                             const { data, error } = await supabase.functions.invoke("generate-tax-document-pdf", { body: { tax_document_id: td.id } });
@@ -1375,7 +1375,7 @@ export default function CoreFieldAgentsPage() {
                             toast.error(`Échec génération document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`);
                           }
                         }}>Générer PDF</Button>}
-                        {td.status === "generated" && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "sent" })}>Envoyer</Button>}
+                        {(td.status === "generated" || (td.status === "draft" && !!td.pdf_url)) && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "sent" })}>Envoyer</Button>}
                         {td.pdf_url && <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {
                           const { data } = await supabase.storage.from("payslips").createSignedUrl(td.pdf_url, 3600);
                           if (data?.signedUrl) window.open(data.signedUrl, "_blank");
