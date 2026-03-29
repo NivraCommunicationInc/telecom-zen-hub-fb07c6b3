@@ -735,33 +735,85 @@ export default function CoreFieldAgentsPage() {
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       let dataJson = {};
-      try { dataJson = JSON.parse(taxDocForm.data_json); } catch {}
-      const { data: createdDoc, error } = await supabase.from("tax_documents").insert({
-        user_id: taxDocForm.user_id, document_type: taxDocForm.document_type as any,
-        tax_year: parseInt(taxDocForm.tax_year), notes: taxDocForm.notes || null,
-        data_json: dataJson, generated_by: user?.id, generated_at: new Date().toISOString(), status: "generated",
-      }).select("id").single();
+      try {
+        dataJson = JSON.parse(taxDocForm.data_json);
+      } catch {
+        throw new Error("JSON de données fiscales invalide");
+      }
+
+      const { data: createdDoc, error } = await supabase
+        .from("tax_documents")
+        .insert({
+          user_id: taxDocForm.user_id,
+          document_type: taxDocForm.document_type as any,
+          tax_year: parseInt(taxDocForm.tax_year),
+          notes: taxDocForm.notes || null,
+          data_json: dataJson,
+          generated_by: user?.id,
+          status: "draft",
+        })
+        .select("id")
+        .single();
       if (error) throw error;
-      await notifyEmployee(taxDocForm.user_id, "tax_document", "Document fiscal disponible", `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.`);
-      await logAudit("create_tax_document", "tax_documents", createdDoc?.id || taxDocForm.user_id, { details: { type: taxDocForm.document_type, year: taxDocForm.tax_year } });
+
+      await logAudit("create_tax_document", "tax_documents", createdDoc?.id || taxDocForm.user_id, {
+        details: { type: taxDocForm.document_type, year: taxDocForm.tax_year },
+      });
     },
-    onSuccess: () => { invalidateAll(); setTaxDocDialog(false); toast.success("Document fiscal créé"); },
+    onSuccess: () => {
+      invalidateAll();
+      setTaxDocDialog(false);
+      toast.success("Document fiscal créé (brouillon)");
+    },
     onError: (e) => toast.error(`Échec création document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
+
   const updateTaxDocStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const doc = taxDocs.find((d: any) => d.id === id);
+      if (!doc) throw new Error("Document fiscal introuvable");
+
+      // No fake success: when sending, PDF must exist and be persisted
+      if (status === "sent" && !doc.pdf_url) {
+        const { data: genData, error: genError } = await supabase.functions.invoke("generate-tax-document-pdf", {
+          body: { tax_document_id: id },
+        });
+        if (genError) throw new Error(`Génération PDF fiscal échouée: ${getMutationErrorMessage(genError, "Action impossible")}`);
+
+        const { data: checkDoc, error: checkError } = await supabase
+          .from("tax_documents")
+          .select("pdf_url")
+          .eq("id", id)
+          .single();
+        if (checkError) throw checkError;
+        if (!checkDoc?.pdf_url && !genData?.storage_path && !genData?.pdf_url) {
+          throw new Error("Le document fiscal n'a pas été persisté (pdf_url manquant)");
+        }
+      }
+
       const u: any = { status };
       if (status === "sent") u.sent_at = new Date().toISOString();
       const { error } = await supabase.from("tax_documents").update(u).eq("id", id);
       if (error) throw error;
-      // Notify employee on status change
-      const doc = taxDocs.find((d: any) => d.id === id);
-      if (doc && status === "sent") {
-        await notifyEmployee(doc.user_id, "tax_document", "Document fiscal envoyé", `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`);
-        await logAudit("send_tax_document", "tax_documents", id, { field_changed: "status", new_value: "sent" });
+
+      if (status === "sent") {
+        await notifyEmployee(
+          doc.user_id,
+          "tax_document",
+          "Document fiscal envoyé",
+          `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`
+        );
+        await logAudit("send_tax_document", "tax_documents", id, {
+          field_changed: "status",
+          old_value: doc.status,
+          new_value: "sent",
+        });
       }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Statut mis à jour"); },
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Statut document fiscal mis à jour");
+    },
     onError: (e) => toast.error(`Échec mise à jour document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
