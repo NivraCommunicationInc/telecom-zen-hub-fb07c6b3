@@ -35,9 +35,9 @@ export default function FieldPerformance() {
         .eq("agent_id", user!.id);
       if (startDate) leadsQ = leadsQ.gte("created_at", startDate);
 
-      let commissionsQ = supabase.from("field_commissions")
-        .select("amount, status, created_at")
-        .eq("agent_id", user!.id);
+      let commissionsQ = supabase.from("sales_commissions")
+        .select("commission_amount, status, created_at")
+        .eq("salesperson_id", user!.id);
       if (startDate) commissionsQ = commissionsQ.gte("created_at", startDate);
 
       const [ordersRes, leadsRes, commissionsRes] = await Promise.all([ordersQ, leadsQ, commissionsQ]);
@@ -47,7 +47,7 @@ export default function FieldPerformance() {
       const commissions = commissionsRes.data || [];
 
       const totalRevenue = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
-      const totalCommissions = commissions.reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+      const totalCommissions = commissions.reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
       const paidOrders = orders.filter((o: any) => o.payment_status === "confirmed").length;
       const syncedOrders = orders.filter((o: any) => o.sync_status === "synced").length;
 
