@@ -804,13 +804,13 @@ const AppRoutes = () => {
           <Route path="hr/payroll" element={<Suspense fallback={null}><HrPayrollPage /></Suspense>} />
           <Route path="hr/commissions" element={<Suspense fallback={null}><HrCommissionsPage /></Suspense>} />
           <Route path="hr/time" element={<Suspense fallback={null}><HrTimePage /></Suspense>} />
-          <Route path="hr/schedules" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
-          <Route path="hr/documents" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
-          <Route path="hr/tax-documents" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
-          <Route path="hr/requests" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/schedules" element={<Suspense fallback={null}><HrSchedulesPage /></Suspense>} />
+          <Route path="hr/documents" element={<Suspense fallback={null}><HrDocumentsPage /></Suspense>} />
+          <Route path="hr/tax-documents" element={<Suspense fallback={null}><HrTaxDocumentsPage /></Suspense>} />
+          <Route path="hr/requests" element={<Suspense fallback={null}><HrRequestsPage /></Suspense>} />
           <Route path="hr/careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
           <Route path="hr/applications" element={<Suspense fallback={null}><CoreApplicationsPage /></Suspense>} />
-          <Route path="hr/audit" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/audit" element={<Suspense fallback={null}><HrAuditPage /></Suspense>} />
           {/* Legacy HR routes */}
           <Route path="careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
           <Route path="applications" element={<Suspense fallback={null}><CoreApplicationsPage /></Suspense>} />

@@ -206,13 +206,13 @@ const CoreApp = () => {
                 <Route path="hr/payroll" element={<S><HrPayrollPage /></S>} />
                 <Route path="hr/commissions" element={<S><HrCommissionsPage /></S>} />
                 <Route path="hr/time" element={<S><HrTimePage /></S>} />
-                <Route path="hr/schedules" element={<S><HrPlaceholderPage /></S>} />
-                <Route path="hr/documents" element={<S><HrPlaceholderPage /></S>} />
-                <Route path="hr/tax-documents" element={<S><HrPlaceholderPage /></S>} />
-                <Route path="hr/requests" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/schedules" element={<S><HrSchedulesPage /></S>} />
+                <Route path="hr/documents" element={<S><HrDocumentsPage /></S>} />
+                <Route path="hr/tax-documents" element={<S><HrTaxDocumentsPage /></S>} />
+                <Route path="hr/requests" element={<S><HrRequestsPage /></S>} />
                 <Route path="hr/careers" element={<S><CoreCareersPage /></S>} />
                 <Route path="hr/applications" element={<S><CoreApplicationsPage /></S>} />
-                <Route path="hr/audit" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/audit" element={<S><HrAuditPage /></S>} />
                 {/* Legacy HR */}
                 <Route path="careers" element={<S><CoreCareersPage /></S>} />
                 <Route path="applications" element={<S><CoreApplicationsPage /></S>} />
