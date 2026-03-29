@@ -79,6 +79,20 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
   const [acknowledging, setAcknowledging] = useState(false);
   const queryClient = useQueryClient();
 
+  // Fetch linked commissions for this payroll entry
+  const { data: linkedCommissions } = useQuery({
+    queryKey: ["payroll-commission-links", entry?.id],
+    queryFn: async () => {
+      if (!entry) return [];
+      const { data } = await supabase
+        .from("payroll_commission_links" as any)
+        .select("id, commission_id, commission_source, amount, created_at")
+        .eq("payroll_entry_id", entry.id);
+      return (data as any[]) ?? [];
+    },
+    enabled: !!entry?.id && open,
+  });
+
   const handleDownload = useCallback(async () => {
     if (!entry?.pdf_url) return;
     setDownloading(true);
