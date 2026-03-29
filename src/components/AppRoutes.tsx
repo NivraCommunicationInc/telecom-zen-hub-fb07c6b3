@@ -16,6 +16,18 @@ const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/Empl
 
 // Field Portal (lazy-loaded, fully isolated)
 const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
+
+// RH Portal (lazy-loaded, fully isolated)
+const RhAppLayout = lazy(() => import("@/rh-app/RhAppLayout"));
+const RhProtectedRoute = lazy(() => import("@/rh-app/components/RhProtectedRoute"));
+const RhDashboard = lazy(() => import("@/rh-app/pages/RhDashboard"));
+const RhPayslips = lazy(() => import("@/rh-app/pages/RhPayslips"));
+const RhTaxDocuments = lazy(() => import("@/rh-app/pages/RhTaxDocuments"));
+const RhEmploymentLetters = lazy(() => import("@/rh-app/pages/RhEmploymentLetters"));
+const RhSchedule = lazy(() => import("@/rh-app/pages/RhSchedule"));
+const RhCommissions = lazy(() => import("@/rh-app/pages/RhCommissions"));
+const RhNotifications = lazy(() => import("@/rh-app/pages/RhNotifications"));
+const RhProfile = lazy(() => import("@/rh-app/pages/RhProfile"));
 const FieldProtectedRoute = lazy(() => import("@/field-app/components/FieldProtectedRoute"));
 const FieldDashboard = lazy(() => import("@/field-app/pages/FieldDashboard"));
 const FieldLeads = lazy(() => import("@/field-app/pages/FieldLeads"));
