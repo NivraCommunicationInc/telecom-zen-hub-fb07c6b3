@@ -152,12 +152,15 @@ export default function HrTimePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {Object.entries(byEmployee).map(([uid, info]) => (
-              <div key={uid} className="p-2 rounded-md border text-xs">
-                <p className="font-medium truncate">{info.name}</p>
-                <p className="text-muted-foreground">{info.hours.toFixed(1)}h · {info.count} entrées</p>
-              </div>
-            ))}
+            {Object.entries(byEmployee).map(([uid, info]) => {
+              const emp = info as { name: string; hours: number; count: number };
+              return (
+                <div key={uid} className="p-2 rounded-md border text-xs">
+                  <p className="font-medium truncate">{emp.name}</p>
+                  <p className="text-muted-foreground">{emp.hours.toFixed(1)}h · {emp.count} entrées</p>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
