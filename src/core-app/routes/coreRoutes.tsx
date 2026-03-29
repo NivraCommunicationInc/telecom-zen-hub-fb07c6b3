@@ -160,7 +160,7 @@ export const coreRoutes: RouteObject = {
     // HR & Payroll
     { path: "hr", element: <HrDashboardPage /> },
     { path: "hr/employees", element: <HrEmployeesPage /> },
-    { path: "hr/employees/new", element: <HrPlaceholderPage /> },
+    { path: "hr/employees/new", element: <HrCreateEmployeePage /> },
     { path: "hr/employees/:id", element: <CoreEmployee360 /> },
     { path: "hr/onboarding", element: <HrOnboardingPage /> },
     { path: "hr/payroll", element: <HrPlaceholderPage /> },
