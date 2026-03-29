@@ -137,7 +137,13 @@ const CoreSupportPage = lazy(() => import("@/core-app/pages/CoreSupportPage"));
 const CoreInternalTicketsPage = lazy(() => import("@/core-app/pages/CoreInternalTicketsPage"));
 const CoreWebFormsPage = lazy(() => import("@/core-app/pages/CoreWebFormsPage"));
 const CoreTelephonyPage = lazy(() => import("@/core-app/pages/CoreTelephonyPage"));
-// HR
+// HR & Payroll
+const HrDashboardPage = lazy(() => import("@/core-app/pages/hr/HrDashboardPage"));
+const HrEmployeesPage = lazy(() => import("@/core-app/pages/hr/HrEmployeesPage"));
+const HrCreateEmployeePage = lazy(() => import("@/core-app/pages/hr/HrCreateEmployeePage"));
+const HrOnboardingPage = lazy(() => import("@/core-app/pages/hr/HrOnboardingPage"));
+const HrPlaceholderPage = lazy(() => import("@/core-app/pages/hr/HrPlaceholderPage"));
+const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
 // System
@@ -782,7 +788,23 @@ const AppRoutes = () => {
           <Route path="internal-tickets" element={<Suspense fallback={null}><CoreInternalTicketsPage /></Suspense>} />
           <Route path="web-forms" element={<Suspense fallback={null}><CoreWebFormsPage /></Suspense>} />
           <Route path="telephony" element={<Suspense fallback={null}><CoreTelephonyPage /></Suspense>} />
-          {/* HR */}
+          {/* HR & Payroll */}
+          <Route path="hr" element={<Suspense fallback={null}><HrDashboardPage /></Suspense>} />
+          <Route path="hr/employees" element={<Suspense fallback={null}><HrEmployeesPage /></Suspense>} />
+          <Route path="hr/employees/new" element={<Suspense fallback={null}><HrCreateEmployeePage /></Suspense>} />
+          <Route path="hr/employees/:id" element={<Suspense fallback={null}><CoreEmployee360 /></Suspense>} />
+          <Route path="hr/onboarding" element={<Suspense fallback={null}><HrOnboardingPage /></Suspense>} />
+          <Route path="hr/payroll" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/commissions" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/time" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/schedules" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/documents" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/tax-documents" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/requests" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
+          <Route path="hr/applications" element={<Suspense fallback={null}><CoreApplicationsPage /></Suspense>} />
+          <Route path="hr/audit" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          {/* Legacy HR routes */}
           <Route path="careers" element={<Suspense fallback={null}><CoreCareersPage /></Suspense>} />
           <Route path="applications" element={<Suspense fallback={null}><CoreApplicationsPage /></Suspense>} />
           {/* System */}
