@@ -43,7 +43,7 @@ type Tab = "commissions" | "payslips" | "withdrawals" | "disputes" | "time" | "s
 
 const fmtMoney = (n: number) => `${n.toFixed(2)} $`;
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-const DOC_TYPES: Record<string, string> = { t4: "T4", rl1: "Relevé 1", releve1: "Relevé 1", summary: "Sommaire", other: "Autre" };
+const DOC_TYPES: Record<string, string> = { t4: "Sommaire fédéral (T4)", rl1: "Sommaire provincial (RL-1)", releve1: "Sommaire provincial (RL-1)", summary: "Sommaire annuel", other: "Autre" };
 const formatActionError = (error: unknown, fallback: string) => {
   const message = getAutoSafeErrorMessage(error) || fallback;
   if (error && typeof error === "object" && "code" in error) {
