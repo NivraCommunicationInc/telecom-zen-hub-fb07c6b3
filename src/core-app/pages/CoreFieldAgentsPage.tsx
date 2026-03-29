@@ -71,7 +71,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 const fmtMoney = (n: number) => `${n.toFixed(2)} $`;
 const RULE_TYPES: Record<string, string> = { base_rate: "Taux de base", volume_bonus: "Bonus volume", service_bonus: "Bonus service", territory_bonus: "Bonus territoire" };
 const ADJ_TYPES: Record<string, string> = { deduction: "Retenue", bonus: "Bonus", correction: "Correction", clawback: "Récupération", tax_withholding: "Impôt retenu", other: "Autre" };
-const DOC_TYPES: Record<string, string> = { t4: "T4", rl1: "Relevé 1", releve1: "Relevé 1", summary: "Sommaire", other: "Autre" };
+const DOC_TYPES: Record<string, string> = { t4: "Sommaire fédéral (T4)", rl1: "Sommaire provincial (RL-1)", releve1: "Sommaire provincial (RL-1)", summary: "Sommaire annuel", other: "Autre" };
 const DAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
 const getMutationErrorMessage = (error: unknown, fallback: string) => {
