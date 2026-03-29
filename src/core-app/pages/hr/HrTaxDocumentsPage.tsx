@@ -42,14 +42,14 @@ export default function HrTaxDocumentsPage() {
         .limit(200);
       if (error) throw error;
 
-      const empIds = [...new Set(data.map((d: any) => d.employee_id))];
+      const empIds = [...new Set(data.map((d: any) => d.user_id))];
       if (empIds.length) {
         const { data: records } = await supabase
           .from("employee_records")
           .select("id, first_name, last_name, employee_number, user_id")
           .in("user_id", empIds);
         const map = Object.fromEntries((records || []).map((r: any) => [r.user_id, r]));
-        return data.map((d: any) => ({ ...d, _emp: map[d.employee_id] || null }));
+        return data.map((d: any) => ({ ...d, _emp: map[d.user_id] || null }));
       }
       return data;
     },
@@ -148,12 +148,12 @@ export default function HrTaxDocumentsPage() {
                   return (
                     <TableRow key={d.id}>
                       <TableCell className="text-xs">
-                        {d._emp ? `${d._emp.first_name} ${d._emp.last_name}` : d.employee_id.slice(0, 8)}
+                        {d._emp ? `${d._emp.first_name} ${d._emp.last_name}` : (d.user_id || "—").slice(0, 8)}
                       </TableCell>
                       <TableCell className="text-xs font-mono">{d.document_type}</TableCell>
                       <TableCell className="text-xs">{d.tax_year}</TableCell>
-                      <TableCell className="text-xs">{d.total_income ? `${Number(d.total_income).toFixed(2)} $` : "—"}</TableCell>
-                      <TableCell className="text-xs">{d.total_deductions ? `${Number(d.total_deductions).toFixed(2)} $` : "—"}</TableCell>
+                      <TableCell className="text-xs">{d.data_json?.total_income ? `${Number(d.data_json.total_income).toFixed(2)} $` : "—"}</TableCell>
+                      <TableCell className="text-xs">{d.data_json?.total_deductions ? `${Number(d.data_json.total_deductions).toFixed(2)} $` : "—"}</TableCell>
                       <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
                       <TableCell>
                         {d.pdf_url ? (

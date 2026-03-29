@@ -41,11 +41,11 @@ export default function HrRequestsPage() {
         .limit(100);
       if (error) throw error;
 
-      const ids = [...new Set(data.map((w: any) => w.employee_id))];
+      const ids = [...new Set(data.map((w: any) => w.agent_id))];
       if (ids.length) {
         const { data: recs } = await supabase.from("employee_records").select("user_id, first_name, last_name, employee_number").in("user_id", ids);
         const map = Object.fromEntries((recs || []).map((r: any) => [r.user_id, r]));
-        return data.map((w: any) => ({ ...w, _emp: map[w.employee_id] || null }));
+        return data.map((w: any) => ({ ...w, _emp: map[w.agent_id] || null }));
       }
       return data;
     },
@@ -62,11 +62,11 @@ export default function HrRequestsPage() {
         .limit(100);
       if (error) throw error;
 
-      const ids = [...new Set(data.map((d: any) => d.employee_id))];
+      const ids = [...new Set(data.map((d: any) => d.agent_id))];
       if (ids.length) {
         const { data: recs } = await supabase.from("employee_records").select("user_id, first_name, last_name, employee_number").in("user_id", ids);
         const map = Object.fromEntries((recs || []).map((r: any) => [r.user_id, r]));
-        return data.map((d: any) => ({ ...d, _emp: map[d.employee_id] || null }));
+        return data.map((d: any) => ({ ...d, _emp: map[d.agent_id] || null }));
       }
       return data;
     },
@@ -84,11 +84,11 @@ export default function HrRequestsPage() {
         .limit(50);
       if (error) throw error;
 
-      const ids = [...new Set(data.map((l: any) => l.employee_id))];
+      const ids = [...new Set(data.map((l: any) => l.user_id))];
       if (ids.length) {
         const { data: recs } = await supabase.from("employee_records").select("user_id, first_name, last_name, employee_number").in("user_id", ids);
         const map = Object.fromEntries((recs || []).map((r: any) => [r.user_id, r]));
-        return data.map((l: any) => ({ ...l, _emp: map[l.employee_id] || null }));
+        return data.map((l: any) => ({ ...l, _emp: map[l.user_id] || null }));
       }
       return data;
     },
@@ -196,7 +196,7 @@ export default function HrRequestsPage() {
                       <TableRow key={w.id}>
                         <TableCell className="text-xs">{empName(w)}</TableCell>
                         <TableCell className="text-xs font-medium">{(w.amount ?? 0).toFixed(2)} $</TableCell>
-                        <TableCell className="text-xs">{w.payment_method || "—"}</TableCell>
+                        <TableCell className="text-xs">{w.notes || "—"}</TableCell>
                         <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
                         <TableCell className="text-[10px]">{format(new Date(w.created_at), "d MMM yyyy", { locale: fr })}</TableCell>
                         <TableCell>
