@@ -70,9 +70,14 @@ const CoreInternalTicketsPage = lazy(() => import("@/core-app/pages/CoreInternal
 const CoreWebFormsPage = lazy(() => import("@/core-app/pages/CoreWebFormsPage"));
 const CoreTelephonyPage = lazy(() => import("@/core-app/pages/CoreTelephonyPage"));
 
-// HR
+// HR & Payroll
+const HrDashboardPage = lazy(() => import("@/core-app/pages/hr/HrDashboardPage"));
+const HrEmployeesPage = lazy(() => import("@/core-app/pages/hr/HrEmployeesPage"));
+const HrOnboardingPage = lazy(() => import("@/core-app/pages/hr/HrOnboardingPage"));
+const HrPlaceholderPage = lazy(() => import("@/core-app/pages/hr/HrPlaceholderPage"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
+const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 
 // System
 const CoreNotificationsPage = lazy(() => import("@/core-app/pages/CoreNotificationsPage"));
@@ -85,7 +90,6 @@ const CoreSecurityEventsPage = lazy(() => import("@/core-app/pages/CoreSecurityE
 const CoreSecurityGuardianPage = lazy(() => import("@/core-app/pages/CoreSecurityGuardianPage"));
 const CoreSystemAuditPage = lazy(() => import("@/core-app/pages/CoreSystemAuditPage"));
 const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
-const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 const CoreMyAccountPage = lazy(() => import("@/core-app/pages/CoreMyAccountPage"));
 const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
@@ -152,7 +156,23 @@ export const coreRoutes: RouteObject = {
     { path: "internal-tickets", element: <CoreInternalTicketsPage /> },
     { path: "web-forms", element: <CoreWebFormsPage /> },
     { path: "telephony", element: <CoreTelephonyPage /> },
-    // HR
+    // HR & Payroll
+    { path: "hr", element: <HrDashboardPage /> },
+    { path: "hr/employees", element: <HrEmployeesPage /> },
+    { path: "hr/employees/new", element: <HrPlaceholderPage /> },
+    { path: "hr/employees/:id", element: <CoreEmployee360 /> },
+    { path: "hr/onboarding", element: <HrOnboardingPage /> },
+    { path: "hr/payroll", element: <HrPlaceholderPage /> },
+    { path: "hr/commissions", element: <HrPlaceholderPage /> },
+    { path: "hr/time", element: <HrPlaceholderPage /> },
+    { path: "hr/schedules", element: <HrPlaceholderPage /> },
+    { path: "hr/documents", element: <HrPlaceholderPage /> },
+    { path: "hr/tax-documents", element: <HrPlaceholderPage /> },
+    { path: "hr/requests", element: <HrPlaceholderPage /> },
+    { path: "hr/careers", element: <CoreCareersPage /> },
+    { path: "hr/applications", element: <CoreApplicationsPage /> },
+    { path: "hr/audit", element: <HrPlaceholderPage /> },
+    // Legacy redirects
     { path: "careers", element: <CoreCareersPage /> },
     { path: "applications", element: <CoreApplicationsPage /> },
     // System

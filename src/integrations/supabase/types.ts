@@ -5147,6 +5147,119 @@ export type Database = {
           },
         ]
       }
+      employee_records: {
+        Row: {
+          base_salary: number | null
+          commission_enabled: boolean
+          commission_grid_id: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
+          employee_number: string
+          employment_type: string
+          first_name: string
+          hire_date: string | null
+          hourly_rate: number | null
+          id: string
+          invitation_accepted_at: string | null
+          invitation_sent_at: string | null
+          job_title: string | null
+          last_name: string
+          notes: string | null
+          onboarding_checklist: Json | null
+          onboarding_completed_at: string | null
+          payment_method: string
+          personal_email: string | null
+          phone: string | null
+          probation_end_date: string | null
+          salary_type: string
+          status: string
+          termination_date: string | null
+          updated_at: string
+          user_id: string | null
+          work_email: string | null
+        }
+        Insert: {
+          base_salary?: number | null
+          commission_enabled?: boolean
+          commission_grid_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          employee_number?: string
+          employment_type?: string
+          first_name: string
+          hire_date?: string | null
+          hourly_rate?: number | null
+          id?: string
+          invitation_accepted_at?: string | null
+          invitation_sent_at?: string | null
+          job_title?: string | null
+          last_name: string
+          notes?: string | null
+          onboarding_checklist?: Json | null
+          onboarding_completed_at?: string | null
+          payment_method?: string
+          personal_email?: string | null
+          phone?: string | null
+          probation_end_date?: string | null
+          salary_type?: string
+          status?: string
+          termination_date?: string | null
+          updated_at?: string
+          user_id?: string | null
+          work_email?: string | null
+        }
+        Update: {
+          base_salary?: number | null
+          commission_enabled?: boolean
+          commission_grid_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          employee_number?: string
+          employment_type?: string
+          first_name?: string
+          hire_date?: string | null
+          hourly_rate?: number | null
+          id?: string
+          invitation_accepted_at?: string | null
+          invitation_sent_at?: string | null
+          job_title?: string | null
+          last_name?: string
+          notes?: string | null
+          onboarding_checklist?: Json | null
+          onboarding_completed_at?: string | null
+          payment_method?: string
+          personal_email?: string | null
+          phone?: string | null
+          probation_end_date?: string | null
+          salary_type?: string
+          status?: string
+          termination_date?: string | null
+          updated_at?: string
+          user_id?: string | null
+          work_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       employee_search_rate_limits: {
         Row: {
           created_at: string

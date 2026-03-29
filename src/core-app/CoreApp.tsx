@@ -74,9 +74,14 @@ const CoreInternalTicketsPage = lazy(() => import("./pages/CoreInternalTicketsPa
 const CoreWebFormsPage = lazy(() => import("./pages/CoreWebFormsPage"));
 const CoreTelephonyPage = lazy(() => import("./pages/CoreTelephonyPage"));
 
-// HR
+// HR & Payroll
+const HrDashboardPage = lazy(() => import("./pages/hr/HrDashboardPage"));
+const HrEmployeesPage = lazy(() => import("./pages/hr/HrEmployeesPage"));
+const HrOnboardingPage = lazy(() => import("./pages/hr/HrOnboardingPage"));
+const HrPlaceholderPage = lazy(() => import("./pages/hr/HrPlaceholderPage"));
 const CoreCareersPage = lazy(() => import("./pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("./pages/CoreApplicationsPage"));
+const CoreEmployee360 = lazy(() => import("./pages/CoreEmployee360"));
 
 // System
 const CoreNotificationsPage = lazy(() => import("./pages/CoreNotificationsPage"));
@@ -184,7 +189,23 @@ const CoreApp = () => {
                 <Route path="internal-tickets" element={<S><CoreInternalTicketsPage /></S>} />
                 <Route path="web-forms" element={<S><CoreWebFormsPage /></S>} />
                 <Route path="telephony" element={<S><CoreTelephonyPage /></S>} />
-                {/* HR */}
+                {/* HR & Payroll */}
+                <Route path="hr" element={<S><HrDashboardPage /></S>} />
+                <Route path="hr/employees" element={<S><HrEmployeesPage /></S>} />
+                <Route path="hr/employees/new" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/employees/:id" element={<S><CoreEmployee360 /></S>} />
+                <Route path="hr/onboarding" element={<S><HrOnboardingPage /></S>} />
+                <Route path="hr/payroll" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/commissions" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/time" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/schedules" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/documents" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/tax-documents" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/requests" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/careers" element={<S><CoreCareersPage /></S>} />
+                <Route path="hr/applications" element={<S><CoreApplicationsPage /></S>} />
+                <Route path="hr/audit" element={<S><HrPlaceholderPage /></S>} />
+                {/* Legacy HR */}
                 <Route path="careers" element={<S><CoreCareersPage /></S>} />
                 <Route path="applications" element={<S><CoreApplicationsPage /></S>} />
                 {/* System */}
