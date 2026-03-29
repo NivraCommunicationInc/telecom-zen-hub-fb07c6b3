@@ -86,7 +86,7 @@ export default function RhDashboard() {
           {walletLoading ? (
             <div className="h-20 flex items-center justify-center text-muted-foreground text-sm">Chargement…</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
                 <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                   <DollarSign className="h-3 w-3" /> Disponible
@@ -101,6 +101,22 @@ export default function RhDashboard() {
                 </p>
                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                   {fmtCAD(w.pending_balance)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Banknote className="h-3 w-3" /> Payable
+                </p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {fmtCAD(w.payable_balance)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Inclus en paie
+                </p>
+                <p className="text-2xl font-bold text-violet-600 dark:text-violet-400 mt-1">
+                  {fmtCAD(w.in_payroll_balance)}
                 </p>
               </div>
               <div>
