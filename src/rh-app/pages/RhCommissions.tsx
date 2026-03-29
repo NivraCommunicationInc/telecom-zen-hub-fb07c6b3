@@ -34,9 +34,11 @@ const fmt = (n: number) =>
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
   pending: { label: "En attente", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400", icon: <Clock className="h-3 w-3" /> },
-  pending_activation: { label: "En attente d'activation", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400", icon: <Clock className="h-3 w-3" /> },
+  pending_activation: { label: "Activation en attente", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400", icon: <Clock className="h-3 w-3" /> },
   validated: { label: "Validée", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400", icon: <CheckCircle2 className="h-3 w-3" /> },
   approved: { label: "Approuvée", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400", icon: <CheckCircle2 className="h-3 w-3" /> },
+  payable: { label: "Payable", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400", icon: <Banknote className="h-3 w-3" /> },
+  included_in_payroll: { label: "Incluse dans paie", cls: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400", icon: <Receipt className="h-3 w-3" /> },
   paid: { label: "Payée", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400", icon: <DollarSign className="h-3 w-3" /> },
   rejected: { label: "Rejetée", cls: "bg-destructive/10 text-destructive", icon: <XCircle className="h-3 w-3" /> },
   clawback: { label: "Récupération", cls: "bg-destructive/10 text-destructive", icon: <RotateCcw className="h-3 w-3" /> },

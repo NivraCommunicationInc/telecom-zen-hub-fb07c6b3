@@ -14693,9 +14693,11 @@ export type Database = {
       employee_financial_summary: {
         Row: {
           available_balance: number | null
+          in_payroll_balance: number | null
           locked_balance: number | null
           lost_total: number | null
           paid_via_payroll: number | null
+          payable_balance: number | null
           pending_balance: number | null
           total_earned: number | null
           user_id: string | null
