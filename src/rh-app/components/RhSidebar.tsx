@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
-  Briefcase,
+  Briefcase, Target,
 } from "lucide-react";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
