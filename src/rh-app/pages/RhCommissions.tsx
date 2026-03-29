@@ -56,6 +56,7 @@ interface UnifiedCommission {
   clawbackReason: string | null;
   paidAt: string | null;
   createdAt: string;
+  linkedToPayroll?: boolean;
 }
 
 export default function RhCommissions() {
