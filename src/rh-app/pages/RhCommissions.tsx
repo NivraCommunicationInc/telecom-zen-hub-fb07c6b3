@@ -133,15 +133,25 @@ export default function RhCommissions() {
     enabled: !!userId,
   });
 
+  const { data: wallet } = useEmployeeWallet(userId);
+
   const withdrawMutation = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Non authentifié");
       const amt = parseFloat(withdrawAmount);
       if (isNaN(amt) || amt <= 0) throw new Error("Montant invalide");
+      // Client-side balance check (DB trigger is the real guard)
+      if (wallet && amt > wallet.available_balance) {
+        throw new Error(`Solde insuffisant. Disponible: ${fmtCAD(wallet.available_balance)}`);
+      }
       const { error } = await supabase
         .from("commission_withdrawal_requests")
         .insert({ agent_id: userId, amount: amt, status: "pending", notes: withdrawNotes || null });
-      if (error) throw error;
+      if (error) {
+        // Parse DB trigger error for friendly message
+        if (error.message?.includes("Solde insuffisant")) throw new Error(error.message);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Demande de retrait soumise");
@@ -149,6 +159,7 @@ export default function RhCommissions() {
       setWithdrawAmount("");
       setWithdrawNotes("");
       queryClient.invalidateQueries({ queryKey: ["rh-withdrawals"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-wallet"] });
     },
     onError: (e: any) => toast.error(e.message || "Erreur lors de la demande"),
   });
