@@ -212,6 +212,40 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
             </div>
           </div>
 
+          {/* COMMISSIONS LIÉES */}
+          {linkedCommissions && linkedCommissions.length > 0 && (
+            <div>
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-3">
+                <Link2 className="h-4 w-4 text-primary" />
+                Commissions incluses ({linkedCommissions.length})
+              </h3>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {linkedCommissions.map((lc: any) => (
+                      <tr key={lc.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2.5 w-8 text-muted-foreground">
+                          <DollarSign className="h-3.5 w-3.5" />
+                        </td>
+                        <td className="py-2.5">
+                          <span className="text-sm text-foreground">
+                            Commission {lc.commission_source === "sales" ? "vente" : "terrain"}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground">
+                            ID: {lc.commission_id.slice(0, 8)}…
+                          </p>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-emerald-600">
+                          {fmtMoney(Number(lc.amount))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* RETENUES */}
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-3">
