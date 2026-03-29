@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Trash2,
+  FolderOpen,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -174,6 +176,7 @@ const COMMISSION_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function CoreStaffPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -637,6 +640,9 @@ export default function CoreStaffPage() {
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => navigate(`/core/staff/${staff.user_id}`)} title="Dossier 360°">
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => setSelected(staff)} title="Détails">
                           <Eye className="h-4 w-4" />
                         </Button>

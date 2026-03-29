@@ -9766,6 +9766,7 @@ export type Database = {
           account_status: string | null
           avatar_url: string | null
           balance: number | null
+          base_salary: number | null
           blocked_at: string | null
           blocked_by: string | null
           blocked_by_role: string | null
@@ -9776,7 +9777,11 @@ export type Database = {
           client_type: string | null
           created_at: string
           date_of_birth: string | null
+          department: string | null
           email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          employee_number: string | null
           employer_discount: string | null
           employer_sector: string | null
           employment_type: string | null
@@ -9801,6 +9806,7 @@ export type Database = {
           mfa_verified_at: string | null
           notification_channel: string | null
           online_access_status: string | null
+          payment_method: string | null
           pending_email: string | null
           pending_email_expires_at: string | null
           pending_email_token: string | null
@@ -9831,6 +9837,7 @@ export type Database = {
           account_status?: string | null
           avatar_url?: string | null
           balance?: number | null
+          base_salary?: number | null
           blocked_at?: string | null
           blocked_by?: string | null
           blocked_by_role?: string | null
@@ -9841,7 +9848,11 @@ export type Database = {
           client_type?: string | null
           created_at?: string
           date_of_birth?: string | null
+          department?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employee_number?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
           employment_type?: string | null
@@ -9866,6 +9877,7 @@ export type Database = {
           mfa_verified_at?: string | null
           notification_channel?: string | null
           online_access_status?: string | null
+          payment_method?: string | null
           pending_email?: string | null
           pending_email_expires_at?: string | null
           pending_email_token?: string | null
@@ -9896,6 +9908,7 @@ export type Database = {
           account_status?: string | null
           avatar_url?: string | null
           balance?: number | null
+          base_salary?: number | null
           blocked_at?: string | null
           blocked_by?: string | null
           blocked_by_role?: string | null
@@ -9906,7 +9919,11 @@ export type Database = {
           client_type?: string | null
           created_at?: string
           date_of_birth?: string | null
+          department?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          employee_number?: string | null
           employer_discount?: string | null
           employer_sector?: string | null
           employment_type?: string | null
@@ -9931,6 +9948,7 @@ export type Database = {
           mfa_verified_at?: string | null
           notification_channel?: string | null
           online_access_status?: string | null
+          payment_method?: string | null
           pending_email?: string | null
           pending_email_expires_at?: string | null
           pending_email_token?: string | null
