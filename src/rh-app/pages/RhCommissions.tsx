@@ -56,6 +56,7 @@ interface UnifiedCommission {
   clawbackReason: string | null;
   paidAt: string | null;
   createdAt: string;
+  linkedToPayroll?: boolean;
 }
 
 export default function RhCommissions() {
@@ -76,8 +77,31 @@ export default function RhCommissions() {
     },
   });
 
+  // Fetch payroll links to know which commissions are already in a payslip
+  const { data: payrollLinks } = useQuery({
+    queryKey: ["rh-payroll-commission-links", userId],
+    queryFn: async () => {
+      if (!userId) return new Set<string>();
+      // Get all payroll_entry ids for this user, then get links
+      const { data: entries } = await supabase
+        .from("payroll_entries")
+        .select("id")
+        .eq("user_id", userId!);
+      if (!entries?.length) return new Set<string>();
+      const entryIds = entries.map((e: any) => e.id);
+      const { data: links } = await supabase
+        .from("payroll_commission_links" as any)
+        .select("commission_id, commission_source")
+        .in("payroll_entry_id", entryIds);
+      const set = new Set<string>();
+      (links as any[] ?? []).forEach((l: any) => set.add(`${l.commission_source}:${l.commission_id}`));
+      return set;
+    },
+    enabled: !!userId,
+  });
+
   const { data: commissions, isLoading } = useQuery({
-    queryKey: ["rh-commissions", userId],
+    queryKey: ["rh-commissions", userId, payrollLinks ? "ready" : "waiting"],
     queryFn: async () => {
       if (!userId) return [];
       const [salesRes, fieldRes] = await Promise.all([
@@ -93,6 +117,7 @@ export default function RhCommissions() {
           .order("created_at", { ascending: false }),
       ]);
 
+      const linked = payrollLinks ?? new Set<string>();
       const unified: UnifiedCommission[] = [];
       (salesRes.data ?? []).forEach((c: any) => {
         unified.push({
@@ -101,6 +126,7 @@ export default function RhCommissions() {
           bonusAmount: Number(c.bonus_amount || 0), bonusType: c.bonus_type || null,
           status: c.status, notes: c.notes || null, rejectionReason: c.rejection_reason || null,
           clawbackReason: null, paidAt: c.paid_at, createdAt: c.created_at,
+          linkedToPayroll: linked.has(`sales:${c.id}`),
         });
       });
       (fieldRes.data ?? []).forEach((c: any) => {
@@ -109,6 +135,7 @@ export default function RhCommissions() {
           saleAmount: 0, rate: 0, bonusAmount: 0, bonusType: null,
           status: c.status, notes: c.notes || null, rejectionReason: null,
           clawbackReason: c.clawback_reason || null, paidAt: c.paid_at, createdAt: c.created_at,
+          linkedToPayroll: linked.has(`field:${c.id}`),
         });
       });
       unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -319,6 +346,11 @@ export default function RhCommissions() {
                       <span className="text-sm font-semibold text-foreground">{fmt(c.amount)}</span>
                       <Badge className={cn("text-[10px] font-semibold gap-1", cfg.cls)}>{cfg.icon}{cfg.label}</Badge>
                       <Badge variant="outline" className="text-[10px]">{c.source === "sales" ? "Vente" : "Terrain"}</Badge>
+                      {c.linkedToPayroll && (
+                        <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400 gap-1">
+                          <Receipt className="h-2.5 w-2.5" /> Incluse dans paie
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                       <span>{format(new Date(c.createdAt), "d MMM yyyy", { locale: fr })}</span>

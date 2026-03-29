@@ -1,8 +1,9 @@
 /**
  * PayslipDetailDialog — Detailed payslip view for RH portal.
- * Shows full breakdown: revenues, deductions, adjustments, commissions link, PDF download, acknowledgment.
+ * Shows full breakdown: revenues, deductions, adjustments, linked commissions, PDF download, acknowledgment.
  */
 import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +13,10 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   DollarSign, Clock, FileText, Receipt, Download, CheckCircle2,
-  Loader2, TrendingUp, TrendingDown, AlertCircle,
+  Loader2, TrendingUp, TrendingDown, AlertCircle, Link2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
@@ -78,6 +78,20 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
   const queryClient = useQueryClient();
+
+  // Fetch linked commissions for this payroll entry
+  const { data: linkedCommissions } = useQuery({
+    queryKey: ["payroll-commission-links", entry?.id],
+    queryFn: async () => {
+      if (!entry) return [];
+      const { data } = await supabase
+        .from("payroll_commission_links" as any)
+        .select("id, commission_id, commission_source, amount, created_at")
+        .eq("payroll_entry_id", entry.id);
+      return (data as any[]) ?? [];
+    },
+    enabled: !!entry?.id && open,
+  });
 
   const handleDownload = useCallback(async () => {
     if (!entry?.pdf_url) return;
@@ -197,6 +211,40 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
               </table>
             </div>
           </div>
+
+          {/* COMMISSIONS LIÉES */}
+          {linkedCommissions && linkedCommissions.length > 0 && (
+            <div>
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-3">
+                <Link2 className="h-4 w-4 text-primary" />
+                Commissions incluses ({linkedCommissions.length})
+              </h3>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {linkedCommissions.map((lc: any) => (
+                      <tr key={lc.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2.5 w-8 text-muted-foreground">
+                          <DollarSign className="h-3.5 w-3.5" />
+                        </td>
+                        <td className="py-2.5">
+                          <span className="text-sm text-foreground">
+                            Commission {lc.commission_source === "sales" ? "vente" : "terrain"}
+                          </span>
+                          <p className="text-[10px] text-muted-foreground">
+                            ID: {lc.commission_id.slice(0, 8)}…
+                          </p>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-emerald-600">
+                          {fmtMoney(Number(lc.amount))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* RETENUES */}
           <div>
