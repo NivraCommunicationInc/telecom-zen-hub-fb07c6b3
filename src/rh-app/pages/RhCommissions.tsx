@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { useEmployeeWallet, fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
@@ -132,15 +133,25 @@ export default function RhCommissions() {
     enabled: !!userId,
   });
 
+  const { data: wallet } = useEmployeeWallet(userId);
+
   const withdrawMutation = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Non authentifié");
       const amt = parseFloat(withdrawAmount);
       if (isNaN(amt) || amt <= 0) throw new Error("Montant invalide");
+      // Client-side balance check (DB trigger is the real guard)
+      if (wallet && amt > wallet.available_balance) {
+        throw new Error(`Solde insuffisant. Disponible: ${fmtCAD(wallet.available_balance)}`);
+      }
       const { error } = await supabase
         .from("commission_withdrawal_requests")
         .insert({ agent_id: userId, amount: amt, status: "pending", notes: withdrawNotes || null });
-      if (error) throw error;
+      if (error) {
+        // Parse DB trigger error for friendly message
+        if (error.message?.includes("Solde insuffisant")) throw new Error(error.message);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Demande de retrait soumise");
@@ -148,6 +159,7 @@ export default function RhCommissions() {
       setWithdrawAmount("");
       setWithdrawNotes("");
       queryClient.invalidateQueries({ queryKey: ["rh-withdrawals"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-wallet"] });
     },
     onError: (e: any) => toast.error(e.message || "Erreur lors de la demande"),
   });
@@ -346,6 +358,13 @@ export default function RhCommissions() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Show available balance */}
+            <div className="p-3 rounded-lg bg-muted/50 border border-border">
+              <p className="text-xs text-muted-foreground">Solde disponible</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                {wallet ? fmtCAD(wallet.available_balance) : "—"}
+              </p>
+            </div>
             <div>
               <Label htmlFor="withdraw-amount">Montant ($)</Label>
               <Input
@@ -353,10 +372,14 @@ export default function RhCommissions() {
                 type="number"
                 min="1"
                 step="0.01"
+                max={wallet?.available_balance || 0}
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
                 placeholder="0.00"
               />
+              {withdrawAmount && wallet && parseFloat(withdrawAmount) > wallet.available_balance && (
+                <p className="text-xs text-destructive mt-1">Montant supérieur au solde disponible</p>
+              )}
             </div>
             <div>
               <Label htmlFor="withdraw-notes">Notes (optionnel)</Label>

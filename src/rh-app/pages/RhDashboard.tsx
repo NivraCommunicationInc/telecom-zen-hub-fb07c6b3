@@ -1,12 +1,12 @@
 /**
- * RhDashboard — Employee RH home page.
- * Shows summary cards: latest payslip, pending documents, upcoming schedule.
+ * RhDashboard — Employee RH home page with financial wallet.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Receipt, FileText, Clock, DollarSign, Bell } from "lucide-react";
+import { Receipt, FileText, DollarSign, Bell, Wallet, Clock, Lock, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEmployeeWallet, fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
 
 export default function RhDashboard() {
   const { data: user } = useQuery({
@@ -29,6 +29,8 @@ export default function RhDashboard() {
     },
     enabled: !!user?.id,
   });
+
+  const { data: wallet, isLoading: walletLoading } = useEmployeeWallet(user?.id);
 
   const { data: latestPayslip } = useQuery({
     queryKey: ["rh-latest-payslip", user?.id],
@@ -58,11 +60,11 @@ export default function RhDashboard() {
     enabled: !!user?.id,
   });
 
-  const fmt = (n: number) =>
-    new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
+  const w = wallet ?? { available_balance: 0, pending_balance: 0, locked_balance: 0, total_earned: 0 };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">
           Bonjour{profile?.first_name ? `, ${profile.first_name}` : ""} 👋
@@ -72,6 +74,57 @@ export default function RhDashboard() {
         </p>
       </div>
 
+      {/* Wallet Section — Stripe/PayPal style */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+            <Wallet className="h-5 w-5 text-primary" />
+            Mon portefeuille
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {walletLoading ? (
+            <div className="h-20 flex items-center justify-center text-muted-foreground text-sm">Chargement…</div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <DollarSign className="h-3 w-3" /> Disponible
+                </p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {fmtCAD(w.available_balance)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> En attente
+                </p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                  {fmtCAD(w.pending_balance)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Retraits en cours
+                </p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                  {fmtCAD(w.locked_balance)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> Total gagné
+                </p>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {fmtCAD(w.total_earned)}
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick access cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link to="/rh/paie">
           <Card className="hover:shadow-md transition-shadow cursor-pointer border-violet-200 dark:border-violet-800">
@@ -83,7 +136,7 @@ export default function RhDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-xl font-bold text-foreground">
-                {latestPayslip ? fmt(Number(latestPayslip.net_pay)) : "—"}
+                {latestPayslip ? fmtCAD(Number(latestPayslip.net_pay)) : "—"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {latestPayslip?.payroll_number || "Aucune fiche"}
@@ -101,7 +154,9 @@ export default function RhDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xl font-bold text-foreground">Voir détails</p>
+              <p className="text-xl font-bold text-foreground">
+                {wallet ? fmtCAD(w.available_balance + w.pending_balance) : "Voir détails"}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">Historique et solde</p>
             </CardContent>
           </Card>
