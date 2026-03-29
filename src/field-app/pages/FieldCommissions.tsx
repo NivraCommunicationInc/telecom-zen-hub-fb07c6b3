@@ -2,7 +2,7 @@
  * FieldCommissions — Agent-facing commission center.
  * Tabs: Commissions, Retraits, Contestations, Objectifs, Fiches de paie
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { getAutoSafeErrorMessage } from "@/lib/errorUtils";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof Clock }> = {
   pending: { label: "En attente", color: "text-amber-600", bg: "bg-amber-100 dark:bg-amber-900", icon: Clock },
@@ -38,6 +39,14 @@ const WITHDRAWAL_STATUS: Record<string, { label: string; color: string; bg: stri
 
 type TabView = "commissions" | "withdrawals" | "disputes" | "objectives" | "payslips";
 
+const formatActionError = (error: unknown, fallback: string) => {
+  const message = getAutoSafeErrorMessage(error) || fallback;
+  if (error && typeof error === "object" && "code" in error) {
+    return `${message} (code ${String((error as { code?: unknown }).code ?? "n/a")})`;
+  }
+  return message;
+};
+
 export default function FieldCommissions() {
   const { user } = useStaffUser();
   const queryClient = useQueryClient();
@@ -50,6 +59,28 @@ export default function FieldCommissions() {
   const [disputeCommissionId, setDisputeCommissionId] = useState<string | null>(null);
   const [disputeReason, setDisputeReason] = useState("");
   const [commissionFilter, setCommissionFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`field-commissions-live-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sales_commissions", filter: `salesperson_id=eq.${user.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ["field-commissions", user.id] })
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "commission_withdrawal_requests", filter: `agent_id=eq.${user.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ["field-withdrawals", user.id] })
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.id]);
 
   const { data: commissions = [], isLoading: loadingCommissions } = useQuery({
     queryKey: ["field-commissions", user?.id],
@@ -69,9 +100,9 @@ export default function FieldCommissions() {
     queryKey: ["field-withdrawals", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("field_sales_cashout_requests")
+        .from("commission_withdrawal_requests")
         .select("*")
-        .eq("salesperson_id", user!.id)
+        .eq("agent_id", user!.id)
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
       return data || [];
@@ -121,12 +152,16 @@ export default function FieldCommissions() {
       const amount = parseFloat(withdrawAmount);
       if (!amount || amount <= 0 || amount > effectiveAvailable) throw new Error("Montant invalide");
       if (!withdrawDestination.trim()) throw new Error("Destination requise");
-      const { error } = await supabase.from("field_sales_cashout_requests").insert({
-        salesperson_id: user!.id,
+      const notes = [
+        `Méthode: ${withdrawMethod}`,
+        `Destination: ${withdrawDestination.trim()}`,
+        withdrawNotes.trim() || null,
+      ].filter(Boolean).join(" | ");
+
+      const { error } = await supabase.from("commission_withdrawal_requests").insert({
+        agent_id: user!.id,
         amount,
-        method: withdrawMethod,
-        destination: withdrawDestination.trim(),
-        admin_note: withdrawNotes.trim() || null,
+        notes,
       } as any);
       if (error) throw error;
     },
@@ -136,7 +171,7 @@ export default function FieldCommissions() {
       setWithdrawAmount(""); setWithdrawDestination(""); setWithdrawNotes("");
       queryClient.invalidateQueries({ queryKey: ["field-withdrawals"] });
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
+    onError: (err) => toast.error(`Échec demande retrait: ${formatActionError(err, "Action impossible")}`),
   });
 
   const submitDispute = useMutation({
@@ -154,7 +189,7 @@ export default function FieldCommissions() {
       setDisputeCommissionId(null); setDisputeReason("");
       queryClient.invalidateQueries({ queryKey: ["field-commissions"] });
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Erreur"),
+    onError: (err) => toast.error(`Échec contestation: ${formatActionError(err, "Action impossible")}`),
   });
 
   const isLoading = loadingCommissions || loadingWithdrawals;
@@ -349,9 +384,8 @@ export default function FieldCommissions() {
                             <span className="text-sm font-semibold text-foreground">{Number(w.amount).toFixed(2)} $</span>
                             <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded", ws.color, ws.bg)}>{ws.label}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{w.method || "Virement"} → {w.destination || "—"}</p>
-                          {w.request_number && <p className="text-xs font-mono text-muted-foreground">{w.request_number}</p>}
-                          {w.admin_note && <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">Admin: {w.admin_note}</p>}
+                          <p className="text-xs text-muted-foreground mt-0.5">{w.notes || "Demande de retrait"}</p>
+                          {w.admin_notes && <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">Admin: {w.admin_notes}</p>}
                         </div>
                         <div className="text-right">
                           <span className="text-[10px] text-muted-foreground block">{formatDistanceToNow(new Date(w.created_at), { addSuffix: true, locale: fr })}</span>
@@ -564,7 +598,7 @@ export default function FieldCommissions() {
                           </div>
                           <div>
                             <span className="text-sm font-semibold text-foreground">{Number(w.amount).toFixed(2)} $</span>
-                            <p className="text-xs text-muted-foreground">{w.method || "Virement"} → {w.destination || "—"}</p>
+                            <p className="text-xs text-muted-foreground">{w.notes || "Retrait"}</p>
                           </div>
                         </div>
                         <span className="text-[10px] text-muted-foreground">{w.paid_at ? format(new Date(w.paid_at), "dd/MM/yyyy") : format(new Date(w.reviewed_at || w.created_at), "dd/MM/yyyy")}</span>
