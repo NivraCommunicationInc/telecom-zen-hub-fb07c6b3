@@ -4,7 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Receipt, FileText, DollarSign, Bell, Wallet, Clock, Lock, TrendingUp } from "lucide-react";
+import { Receipt, FileText, DollarSign, Bell, Wallet, Clock, Lock, TrendingUp, Banknote, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEmployeeWallet, fmtCAD } from "@/rh-app/hooks/useEmployeeWallet";
 
