@@ -90,7 +90,6 @@ const CoreSecurityEventsPage = lazy(() => import("@/core-app/pages/CoreSecurityE
 const CoreSecurityGuardianPage = lazy(() => import("@/core-app/pages/CoreSecurityGuardianPage"));
 const CoreSystemAuditPage = lazy(() => import("@/core-app/pages/CoreSystemAuditPage"));
 const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
-const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 const CoreMyAccountPage = lazy(() => import("@/core-app/pages/CoreMyAccountPage"));
 const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
