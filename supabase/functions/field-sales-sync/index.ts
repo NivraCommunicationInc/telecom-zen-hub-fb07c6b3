@@ -511,29 +511,32 @@ Deno.serve(async (req) => {
               : sale.payment_method === "card" ? "card"
               : "interac"; // default for deferred
 
-            // Create canonical payment record
-            const { data: newPayment, error: payErr } = await supabaseAdmin
-              .from("billing_payments")
-              .insert({
-                invoice_id: invoiceId,
-                customer_id: billingCustomerId,
-                amount: totalAmount,
-                method: billingPaymentMethod,
-                provider: sale.payment_method || "manual",
-                reference: sale.payment_reference || null,
-                payment_number: paymentNumber,
-                status: isConfirmedPayment ? "confirmed" : "pending",
-                source: "field_sales",
-              })
-              .select("id")
-              .single();
+            // Create canonical payment record only when payment is confirmed.
+            // billing_payments.status enum does not allow "pending".
+            if (isConfirmedPayment) {
+              const { data: newPayment, error: payErr } = await supabaseAdmin
+                .from("billing_payments")
+                .insert({
+                  invoice_id: invoiceId,
+                  customer_id: billingCustomerId,
+                  amount: totalAmount,
+                  method: billingPaymentMethod,
+                  provider: sale.payment_method || "manual",
+                  reference: sale.payment_reference || null,
+                  payment_number: paymentNumber,
+                  status: "confirmed",
+                  source: "field_sales",
+                })
+                .select("id")
+                .single();
 
-            if (payErr) {
-              console.error("[field-sales-sync] Payment creation error:", payErr);
-              throw new Error(`Payment creation failed: ${payErr.message}`);
-            } else {
-              paymentId = newPayment.id;
-              console.log(`[field-sales-sync] Created payment ${paymentNumber} for invoice ${invoiceNum}`);
+              if (payErr) {
+                console.error("[field-sales-sync] Payment creation error:", payErr);
+                throw new Error(`Payment creation failed: ${payErr.message}`);
+              } else {
+                paymentId = newPayment.id;
+                console.log(`[field-sales-sync] Created payment ${paymentNumber} for invoice ${invoiceNum}`);
+              }
             }
 
             // Ensure a canonical contract exists for this canonical order
