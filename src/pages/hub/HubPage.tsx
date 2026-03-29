@@ -41,6 +41,14 @@ const PORTALS: PortalOption[] = [
     iconColor: "text-foreground",
     iconBg: "bg-secondary",
   },
+  {
+    id: "rh",
+    label: "Nivra RH",
+    description: "Dossier employé — Fiches de paie, documents fiscaux, horaires, lettres d'emploi.",
+    icon: UserCheck,
+    iconColor: "text-foreground",
+    iconBg: "bg-secondary",
+  },
 ];
 
 export default function HubPage() {
