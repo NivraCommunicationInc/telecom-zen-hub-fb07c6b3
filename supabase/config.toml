@@ -220,16 +220,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.stripe-create-payment-intent]
-verify_jwt = false
+verify_jwt = true
 
 [functions.stripe-webhook]
-verify_jwt = false
+verify_jwt = true
 
 [functions.stripe-admin-actions]
-verify_jwt = false
+verify_jwt = true
 
 [functions.stripe-setup-autopay]
-verify_jwt = false
+verify_jwt = true
 
 [functions.employee-work-engine]
 verify_jwt = false
