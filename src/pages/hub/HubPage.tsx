@@ -2,7 +2,7 @@
  * HubPage — Secure Internal Access Hub — Portal Selection (Public).
  */
 import { useNavigate } from "react-router-dom";
-import { Terminal, Briefcase, MapPin, Shield, ChevronRight } from "lucide-react";
+import { Terminal, Briefcase, MapPin, Shield, ChevronRight, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
