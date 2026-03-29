@@ -546,20 +546,49 @@ export default function CoreFieldAgentsPage() {
   });
   const markPayrollPaid = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payroll_entries").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
-      // Auto-generate PDF
-      try {
-        await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: id } });
-      } catch (e) { console.error("PDF auto-gen failed:", e); }
-      // Notify employee
       const entry = payrollEntries.find((pe: any) => pe.id === id);
-      if (entry) {
-        await notifyEmployee(entry.user_id, "payroll_paid", "Paie versée", `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`);
-        await logAudit("mark_payroll_paid", "payroll_entries", id, { field_changed: "status", new_value: "paid" });
+      if (!entry) throw new Error("Fiche de paie introuvable");
+
+      // 1) Generate PDF first (no fake success)
+      const { data: pdfData, error: pdfError } = await supabase.functions.invoke("generate-payslip-pdf", {
+        body: { payroll_entry_id: id },
+      });
+      if (pdfError) throw new Error(`Génération PDF échouée: ${getMutationErrorMessage(pdfError, "Action impossible")}`);
+
+      const { data: refreshed, error: refreshedError } = await supabase
+        .from("payroll_entries")
+        .select("pdf_url")
+        .eq("id", id)
+        .single();
+      if (refreshedError) throw refreshedError;
+      if (!refreshed?.pdf_url && !pdfData?.storage_path && !pdfData?.pdf_url) {
+        throw new Error("Le PDF de paie n'a pas été persisté (pdf_url manquant)");
       }
+
+      // 2) Mark paid only after PDF is persisted
+      const { error } = await supabase
+        .from("payroll_entries")
+        .update({ status: "paid", paid_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+
+      // 3) Notify + audit
+      await notifyEmployee(
+        entry.user_id,
+        "payroll_paid",
+        "Paie versée",
+        `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`
+      );
+      await logAudit("mark_payroll_paid", "payroll_entries", id, {
+        field_changed: "status",
+        old_value: entry.status,
+        new_value: "paid",
+      });
     },
-    onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Paie payée et PDF généré avec succès");
+    },
     onError: (e) => toast.error(`Échec paiement paie: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
@@ -706,33 +735,85 @@ export default function CoreFieldAgentsPage() {
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       let dataJson = {};
-      try { dataJson = JSON.parse(taxDocForm.data_json); } catch {}
-      const { data: createdDoc, error } = await supabase.from("tax_documents").insert({
-        user_id: taxDocForm.user_id, document_type: taxDocForm.document_type as any,
-        tax_year: parseInt(taxDocForm.tax_year), notes: taxDocForm.notes || null,
-        data_json: dataJson, generated_by: user?.id, generated_at: new Date().toISOString(), status: "generated",
-      }).select("id").single();
+      try {
+        dataJson = JSON.parse(taxDocForm.data_json);
+      } catch {
+        throw new Error("JSON de données fiscales invalide");
+      }
+
+      const { data: createdDoc, error } = await supabase
+        .from("tax_documents")
+        .insert({
+          user_id: taxDocForm.user_id,
+          document_type: taxDocForm.document_type as any,
+          tax_year: parseInt(taxDocForm.tax_year),
+          notes: taxDocForm.notes || null,
+          data_json: dataJson,
+          generated_by: user?.id,
+          status: "draft",
+        })
+        .select("id")
+        .single();
       if (error) throw error;
-      await notifyEmployee(taxDocForm.user_id, "tax_document", "Document fiscal disponible", `Votre ${DOC_TYPES[taxDocForm.document_type] || taxDocForm.document_type} ${taxDocForm.tax_year} est disponible.`);
-      await logAudit("create_tax_document", "tax_documents", createdDoc?.id || taxDocForm.user_id, { details: { type: taxDocForm.document_type, year: taxDocForm.tax_year } });
+
+      await logAudit("create_tax_document", "tax_documents", createdDoc?.id || taxDocForm.user_id, {
+        details: { type: taxDocForm.document_type, year: taxDocForm.tax_year },
+      });
     },
-    onSuccess: () => { invalidateAll(); setTaxDocDialog(false); toast.success("Document fiscal créé"); },
+    onSuccess: () => {
+      invalidateAll();
+      setTaxDocDialog(false);
+      toast.success("Document fiscal créé (brouillon)");
+    },
     onError: (e) => toast.error(`Échec création document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
+
   const updateTaxDocStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const doc = taxDocs.find((d: any) => d.id === id);
+      if (!doc) throw new Error("Document fiscal introuvable");
+
+      // No fake success: when sending, PDF must exist and be persisted
+      if (status === "sent" && !doc.pdf_url) {
+        const { data: genData, error: genError } = await supabase.functions.invoke("generate-tax-document-pdf", {
+          body: { tax_document_id: id },
+        });
+        if (genError) throw new Error(`Génération PDF fiscal échouée: ${getMutationErrorMessage(genError, "Action impossible")}`);
+
+        const { data: checkDoc, error: checkError } = await supabase
+          .from("tax_documents")
+          .select("pdf_url")
+          .eq("id", id)
+          .single();
+        if (checkError) throw checkError;
+        if (!checkDoc?.pdf_url && !genData?.storage_path && !genData?.pdf_url) {
+          throw new Error("Le document fiscal n'a pas été persisté (pdf_url manquant)");
+        }
+      }
+
       const u: any = { status };
       if (status === "sent") u.sent_at = new Date().toISOString();
       const { error } = await supabase.from("tax_documents").update(u).eq("id", id);
       if (error) throw error;
-      // Notify employee on status change
-      const doc = taxDocs.find((d: any) => d.id === id);
-      if (doc && status === "sent") {
-        await notifyEmployee(doc.user_id, "tax_document", "Document fiscal envoyé", `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`);
-        await logAudit("send_tax_document", "tax_documents", id, { field_changed: "status", new_value: "sent" });
+
+      if (status === "sent") {
+        await notifyEmployee(
+          doc.user_id,
+          "tax_document",
+          "Document fiscal envoyé",
+          `Votre ${DOC_TYPES[doc.document_type] || doc.document_type} ${doc.tax_year} a été envoyé. Consultez votre portail.`
+        );
+        await logAudit("send_tax_document", "tax_documents", id, {
+          field_changed: "status",
+          old_value: doc.status,
+          new_value: "sent",
+        });
       }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Statut mis à jour"); },
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Statut document fiscal mis à jour");
+    },
     onError: (e) => toast.error(`Échec mise à jour document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
@@ -1281,7 +1362,7 @@ export default function CoreFieldAgentsPage() {
                     <td className="py-2.5 text-muted-foreground text-xs">{td.notes || "—"}</td>
                     <td className="py-2.5 text-right">
                       <div className="flex gap-1 justify-end">
-                        {td.status === "draft" && <Button size="sm" variant="ghost" onClick={async () => {
+                        {(!td.pdf_url || td.status === "draft") && <Button size="sm" variant="ghost" onClick={async () => {
                           toast.info("Génération du document fiscal…");
                           try {
                             const { data, error } = await supabase.functions.invoke("generate-tax-document-pdf", { body: { tax_document_id: td.id } });
@@ -1294,7 +1375,7 @@ export default function CoreFieldAgentsPage() {
                             toast.error(`Échec génération document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`);
                           }
                         }}>Générer PDF</Button>}
-                        {td.status === "generated" && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "sent" })}>Envoyer</Button>}
+                        {(td.status === "generated" || (td.status === "draft" && !!td.pdf_url)) && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "sent" })}>Envoyer</Button>}
                         {td.pdf_url && <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {
                           const { data } = await supabase.storage.from("payslips").createSignedUrl(td.pdf_url, 3600);
                           if (data?.signedUrl) window.open(data.signedUrl, "_blank");
