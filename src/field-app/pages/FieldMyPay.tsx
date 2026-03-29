@@ -577,9 +577,16 @@ export default function FieldMyPay() {
                   )}
                   {lt.status === "sent" && (
                     <Button size="sm" variant="outline" onClick={async () => {
-                      const { error } = await supabase.from("employment_letters").update({ status: "acknowledged", acknowledged_at: new Date().toISOString() }).eq("id", lt.id);
-                      if (error) toast.error("Erreur");
-                      else { toast.success("Réception confirmée"); qc.invalidateQueries({ queryKey: ["my-letters"] }); }
+                      const { error } = await supabase
+                        .from("employment_letters")
+                        .update({ status: "acknowledged", acknowledged_at: new Date().toISOString() })
+                        .eq("id", lt.id);
+                      if (error) {
+                        toast.error(`Échec confirmation réception lettre: ${formatActionError(error, "Action impossible")}`);
+                      } else {
+                        toast.success("Réception confirmée");
+                        qc.invalidateQueries({ queryKey: ["my-letters"] });
+                      }
                     }}>
                       <Check className="h-3 w-3 mr-1" /> Confirmer réception
                     </Button>
