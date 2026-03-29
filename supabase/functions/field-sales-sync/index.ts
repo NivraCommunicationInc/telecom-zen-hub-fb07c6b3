@@ -650,7 +650,7 @@ Deno.serve(async (req) => {
                 commission_amount: totalCommission,
                 bonus_amount: bonusAmount > 0 ? bonusAmount : null,
                 bonus_type: bonusType,
-                status: "pending_activation",
+                  status: "pending",
                 notes: `Auto: ${(commissionRate * 100).toFixed(0)}% × ${monthlyTotal.toFixed(2)}$ = ${baseCommission.toFixed(2)}$${bonusAmount > 0 ? ` + bonus ${bonusAmount.toFixed(2)}$` : ""} | Tier: ${salesCount} ventes`,
                 created_at: new Date().toISOString(),
               }, {
