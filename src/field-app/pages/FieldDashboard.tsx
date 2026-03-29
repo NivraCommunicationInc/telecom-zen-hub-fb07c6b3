@@ -39,8 +39,8 @@ function useFieldDashboard() {
           .eq("salesperson_id", user!.id).gte("created_at", startOfWeekISO),
         supabase.from("field_sales_orders").select("id, total_amount", { count: "exact" })
           .eq("salesperson_id", user!.id).gte("created_at", startOfMonth),
-        supabase.from("field_commissions").select("amount, status")
-          .eq("agent_id", user!.id),
+        supabase.from("sales_commissions").select("commission_amount, status")
+          .eq("salesperson_id", user!.id),
         supabase.from("profiles").select("full_name, phone, job_title").eq("user_id", user!.id).maybeSingle(),
         supabase.from("field_sales_orders")
           .select("id, customer_name, payment_status, sync_status, total_amount, created_at, services, customer_address")
@@ -57,9 +57,15 @@ function useFieldDashboard() {
       ]);
 
       const commissions = commissionsRes.data || [];
-      const pendingCommissions = commissions.filter((c: any) => c.status === "pending").reduce((sum: number, c: any) => sum + Number(c.amount), 0);
-      const approvedCommissions = commissions.filter((c: any) => c.status === "approved").reduce((sum: number, c: any) => sum + Number(c.amount), 0);
-      const paidCommissions = commissions.filter((c: any) => c.status === "paid").reduce((sum: number, c: any) => sum + Number(c.amount), 0);
+      const pendingCommissions = commissions
+        .filter((c: any) => ["pending", "pending_activation"].includes(c.status))
+        .reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
+      const approvedCommissions = commissions
+        .filter((c: any) => ["approved", "validated"].includes(c.status))
+        .reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
+      const paidCommissions = commissions
+        .filter((c: any) => c.status === "paid")
+        .reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
       const totalEarned = approvedCommissions + paidCommissions;
 
       const allOrders = ordersAll.data || [];
