@@ -50,6 +50,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Trash2,
+  FolderOpen,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
