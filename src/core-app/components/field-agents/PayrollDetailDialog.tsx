@@ -95,7 +95,7 @@ export default function PayrollDetailDialog({ entry, agentName, open, onClose }:
                       <p className="text-[10px] text-muted-foreground">{ADJ_TYPES[adj.adjustment_type] || adj.adjustment_type}{adj.notes ? ` · ${adj.notes}` : ""}</p>
                     </div>
                     <span className={cn("text-sm font-bold", adj.adjustment_type === "deduction" || adj.adjustment_type === "clawback" || adj.adjustment_type === "tax_withholding" ? "text-destructive" : "text-emerald-600")}>
-                      {adj.adjustment_type === "deduction" || adj.adjustment_type === "clawback" || adj.adjustment_type === "tax_withholding" ? "−" : "+"}{fmtMoney(Number(adj.amount))}
+                      {adj.adjustment_type === "deduction" || adj.adjustment_type === "clawback" || adj.adjustment_type === "tax_withholding" ? "-" : "+"}{fmtMoney(Number(adj.amount))}
                     </span>
                   </div>
                 ))}
