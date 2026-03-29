@@ -1,6 +1,6 @@
 /**
- * FieldCommissions — Agent-facing commission center.
- * Tabs: Commissions, Retraits, Contestations, Objectifs, Fiches de paie
+ * FieldCommissions — Agent-facing commission center (sales-focused).
+ * Tabs: Commissions, Retraits, Contestations, Objectifs
  */
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
