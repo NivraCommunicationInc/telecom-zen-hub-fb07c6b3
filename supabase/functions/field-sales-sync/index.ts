@@ -121,10 +121,30 @@ Deno.serve(async (req) => {
       console.log(`[field-sales-sync] Syncing sale ${sale.id} to orders table`);
 
       try {
-        // Check if this sale was already synced to orders
+        let canonicalOrder: { id: string; order_number: string | null } | null = null;
+
+        // Check if this sale was already synced to orders and has a complete billing chain
         if (sale.converted_order_id) {
-          console.log(`[field-sales-sync] Sale ${sale.id} already has converted_order_id: ${sale.converted_order_id}`);
-          return { success: true, orderId: sale.converted_order_id };
+          const { data: existingOrder } = await supabaseAdmin
+            .from("orders")
+            .select("id, order_number")
+            .eq("id", sale.converted_order_id)
+            .maybeSingle();
+
+          if (existingOrder) {
+            const { count: existingInvoiceCount, error: invoiceCheckError } = await supabaseAdmin
+              .from("billing_invoices")
+              .select("id", { count: "exact", head: true })
+              .eq("order_id", existingOrder.id);
+
+            if (!invoiceCheckError && (existingInvoiceCount ?? 0) > 0) {
+              console.log(`[field-sales-sync] Sale ${sale.id} already fully synced (order + invoice): ${existingOrder.id}`);
+              return { success: true, orderId: existingOrder.id, order_number: existingOrder.order_number || undefined };
+            }
+
+            console.warn(`[field-sales-sync] Sale ${sale.id} has order ${existingOrder.id} but no invoice yet — resuming billing pipeline`);
+            canonicalOrder = existingOrder;
+          }
         }
 
         // ═══ SERVER-SIDE VALIDATION — Block incomplete submissions ═══
@@ -313,66 +333,68 @@ Deno.serve(async (req) => {
             .eq("user_id", clientUserId!);
         }
 
-        // Generate order number from DB sequence — Core is sole source of truth
-        const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
+        if (!canonicalOrder) {
+          // Generate order number from DB sequence — Core is sole source of truth
+          const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
+          const serviceTypeLabel = normalizeServiceTypeLabel(services);
+          const { firstName, lastName } = splitName(sale.customer_name);
 
-        const serviceTypeLabel = normalizeServiceTypeLabel(services);
-        const { firstName, lastName } = splitName(sale.customer_name);
+          // Create order in main orders table (match actual schema)
+          const { data: newOrder, error: orderError } = await supabaseAdmin
+            .from('orders')
+            .insert({
+              user_id: clientUserId,
+              account_id: accountId,
+              order_number: orderNumber,
+              created_by: 'field_sales',
 
-        // Create order in main orders table (match actual schema)
-        const { data: newOrder, error: orderError } = await supabaseAdmin
-          .from('orders')
-          .insert({
-            user_id: clientUserId,
-            account_id: accountId,
-            order_number: orderNumber,
-            created_by: 'field_sales',
+              client_email: customerEmail,
+              client_phone: sale.customer_phone || null,
+              client_first_name: firstName || null,
+              client_last_name: lastName || null,
+              client_dob: sale.customer_date_of_birth || null,
 
-            client_email: customerEmail,
-            client_phone: sale.customer_phone || null,
-            client_first_name: firstName || null,
-            client_last_name: lastName || null,
-            client_dob: sale.customer_date_of_birth || null,
+              service_type: serviceTypeLabel,
+              category: sale.services?.[0]?.category || 'Field Sales',
 
-            service_type: serviceTypeLabel,
-            category: sale.services?.[0]?.category || 'Field Sales',
+              subtotal: subtotal,
+              activation_fee: activationFee,
+              delivery_fee: deliveryFee,
+              installation_fee: installationFee,
+              tps_amount: tpsAmount,
+              tvq_amount: tvqAmount,
+              total_amount: totalAmount,
 
-            subtotal: subtotal,
-            activation_fee: activationFee,
-            delivery_fee: deliveryFee,
-            installation_fee: installationFee,
-            tps_amount: tpsAmount,
-            tvq_amount: tvqAmount,
-            total_amount: totalAmount,
+              status: sale.payment_status === 'confirmed' ? 'confirmed' : 'pending',
+              payment_status: sale.payment_status || 'pending',
+              payment_method: normalizeOrdersPaymentMethod(sale.payment_method),
+              payment_reference: sale.payment_reference || null,
+              amount_paid: sale.payment_status === 'confirmed' ? totalAmount : 0,
 
-            status: sale.payment_status === 'confirmed' ? 'confirmed' : 'pending',
-            payment_status: sale.payment_status || 'pending',
-            payment_method: normalizeOrdersPaymentMethod(sale.payment_method),
-            payment_reference: sale.payment_reference || null,
-            amount_paid: sale.payment_status === 'confirmed' ? totalAmount : 0,
+              appointment_date: sale.appointment_date || null,
+              appointment_notes: sale.appointment_notes || null,
 
-            appointment_date: sale.appointment_date || null,
-            appointment_notes: sale.appointment_notes || null,
+              shipping_address: sale.customer_address || null,
+              shipping_city: sale.customer_city || null,
+              shipping_postal_code: sale.customer_postal_code || null,
 
-            shipping_address: sale.customer_address || null,
-            shipping_city: sale.customer_city || null,
-            shipping_postal_code: sale.customer_postal_code || null,
+              selected_channels: sale.selected_channels || [],
+              equipment_details: wrapLineItemsForOrder(lineItems),
 
-            selected_channels: sale.selected_channels || [],
-            equipment_details: wrapLineItemsForOrder(lineItems),
+              notes: `Vente terrain (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
+              internal_notes: `[VENTE TERRAIN]\nPar: ${repProfile?.full_name || 'Vendeur'} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
+            })
+            .select('id, order_number')
+            .single();
 
-            notes: `Vente terrain (ID: ${sale.id})\nClient: ${sale.customer_name || customerEmail}\nTéléphone: ${sale.customer_phone || '—'}\nAdresse: ${sale.customer_address || '—'}, ${sale.customer_city || ''} ${sale.customer_postal_code || ''}`.trim(),
-            internal_notes: `[VENTE TERRAIN]\nPar: ${repProfile?.full_name || 'Vendeur'} (${repProfile?.email || '—'})\n${sale.internal_notes || ''}`.trim(),
-          })
-          .select('id, order_number')
-          .single();
+          if (orderError) {
+            console.error(`[field-sales-sync] Error creating order:`, orderError);
+            throw orderError;
+          }
 
-        if (orderError) {
-          console.error(`[field-sales-sync] Error creating order:`, orderError);
-          throw orderError;
+          canonicalOrder = newOrder;
+          console.log(`[field-sales-sync] Created order ${canonicalOrder.order_number} for sale ${sale.id}`);
         }
-
-        console.log(`[field-sales-sync] Created order ${newOrder.order_number} for sale ${sale.id}`);
 
         // ═══ CANONICAL INVOICE + PAYMENT CREATION ═══
         // Field orders must enter the same billing pipeline as website orders
@@ -434,8 +456,8 @@ Deno.serve(async (req) => {
             .insert({
               customer_id: billingCustomerId,
               invoice_number: String(invoiceNum),
-              order_id: newOrder.id,
-              type: "one_time",
+               order_id: canonicalOrder.id,
+               type: "initial",
               status: invoiceStatus,
               subtotal: subtotal + activationFee,
               tps_amount: tpsAmount,
@@ -509,9 +531,40 @@ Deno.serve(async (req) => {
               paymentId = newPayment.id;
               console.log(`[field-sales-sync] Created payment ${paymentNumber} for invoice ${invoiceNum}`);
             }
+
+            // Ensure a canonical contract exists for this canonical order
+            const { data: existingContract } = await supabaseAdmin
+              .from("contracts")
+              .select("id")
+              .eq("order_id", canonicalOrder.id)
+              .maybeSingle();
+
+            if (!existingContract) {
+              const { data: contractNum, error: contractNumErr } = await supabaseAdmin.rpc("generate_contract_number");
+              if (contractNumErr || !contractNum) {
+                throw new Error(`generate_contract_number failed: ${contractNumErr?.message}`);
+              }
+
+              const { error: contractErr } = await supabaseAdmin
+                .from("contracts")
+                .insert({
+                  user_id: clientUserId,
+                  owner_user_id: clientUserId,
+                  order_id: canonicalOrder.id,
+                  contract_name: `Contrat de Service - Commande #${canonicalOrder.order_number || canonicalOrder.id.slice(0, 8)}`,
+                  contract_url: "",
+                  contract_number: String(contractNum),
+                  status: "draft",
+                });
+
+              if (contractErr) {
+                throw new Error(`Contract creation failed: ${contractErr.message}`);
+              }
+            }
           }
         } catch (billingErr: any) {
-          console.error("[field-sales-sync] Billing pipeline error (non-blocking):", billingErr);
+          console.error("[field-sales-sync] Billing pipeline error:", billingErr);
+          throw new Error(`Billing pipeline failed: ${billingErr?.message || String(billingErr)}`);
         }
 
         // Update field_sales_orders with converted_order_id and sync status
@@ -606,8 +659,8 @@ Deno.serve(async (req) => {
 
         return { 
           success: true, 
-          orderId: newOrder.id, 
-          order_number: newOrder.order_number,
+          orderId: canonicalOrder.id, 
+          order_number: canonicalOrder.order_number || undefined,
           invoice_id: invoiceId,
           payment_id: paymentId,
         };

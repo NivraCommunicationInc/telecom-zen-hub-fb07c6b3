@@ -24,13 +24,13 @@ export default function FieldProfile() {
         supabase.from("profiles").select("*").eq("user_id", user!.id).maybeSingle(),
         supabase.from("user_roles").select("role, status").eq("user_id", user!.id).eq("status", "active").maybeSingle(),
         supabase.from("field_sales_orders").select("id, total_amount", { count: "exact" }).eq("salesperson_id", user!.id),
-        supabase.from("field_commissions").select("amount, status").eq("agent_id", user!.id),
+        supabase.from("sales_commissions").select("commission_amount, status").eq("salesperson_id", user!.id),
       ]);
 
       const totalSales = statsRes.count ?? 0;
       const totalRevenue = (statsRes.data || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
-      const totalCommissions = (commissionsRes.data || []).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
-      const paidCommissions = (commissionsRes.data || []).filter((c: any) => c.status === "paid").reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+      const totalCommissions = (commissionsRes.data || []).reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
+      const paidCommissions = (commissionsRes.data || []).filter((c: any) => c.status === "paid").reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
 
       return {
         name: profileRes.data?.full_name ?? "Agent",
