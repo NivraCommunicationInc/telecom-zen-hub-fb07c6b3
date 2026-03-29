@@ -188,7 +188,7 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
                     <Row
                       key={adj.id}
                       label={`${ADJ_LABELS[adj.adjustment_type] || adj.adjustment_type}: ${adj.label}`}
-                      value={`+ ${fmtMoney(Number(adj.amount))}`}
+                      value={`+ ${fmtMoney(Math.abs(Number(adj.amount)))}`}
                       icon={<FileText className="h-3.5 w-3.5" />}
                       highlight
                     />
@@ -217,7 +217,7 @@ export default function PayslipDetailDialog({ entry, open, onClose }: Props) {
                     <Row
                       key={adj.id}
                       label={`${ADJ_LABELS[adj.adjustment_type] || adj.adjustment_type}: ${adj.label}`}
-                      value={`- ${fmtMoney(Number(adj.amount))}`}
+                      value={`- ${fmtMoney(Math.abs(Number(adj.amount)))}`}
                       icon={<FileText className="h-3.5 w-3.5" />}
                       destructive
                       sublabel={adj.notes || undefined}
