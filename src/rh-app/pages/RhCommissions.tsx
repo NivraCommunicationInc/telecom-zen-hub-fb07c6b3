@@ -1,10 +1,9 @@
 /**
- * RhCommissions — Employee commission history for RH portal.
- * Queries BOTH sales_commissions (salesperson_id, commission_amount)
- * and field_commissions (agent_id, amount) to show a unified view.
+ * RhCommissions — Employee commission history with actions.
+ * Features: withdrawal requests, dispute, filters, KPI, sale link.
  */
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,14 +11,22 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   DollarSign, Loader2, Filter, AlertCircle, TrendingUp,
   Clock, CheckCircle2, XCircle, RotateCcw, Receipt,
+  Banknote, AlertTriangle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
@@ -53,68 +60,118 @@ interface UnifiedCommission {
 export default function RhCommissions() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawNotes, setWithdrawNotes] = useState("");
+  const [disputeOpen, setDisputeOpen] = useState<UnifiedCommission | null>(null);
+  const [disputeReason, setDisputeReason] = useState("");
+  const queryClient = useQueryClient();
 
-  const { data: commissions, isLoading } = useQuery({
-    queryKey: ["rh-commissions"],
+  const { data: userId } = useQuery({
+    queryKey: ["rh-user-id"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      return user?.id ?? null;
+    },
+  });
 
-      // Fetch from both tables in parallel
+  const { data: commissions, isLoading } = useQuery({
+    queryKey: ["rh-commissions", userId],
+    queryFn: async () => {
+      if (!userId) return [];
       const [salesRes, fieldRes] = await Promise.all([
         supabase
           .from("sales_commissions")
           .select("id, commission_amount, sale_amount, commission_rate, bonus_amount, bonus_type, status, notes, rejection_reason, paid_at, created_at")
-          .eq("salesperson_id", user.id)
+          .eq("salesperson_id", userId)
           .order("created_at", { ascending: false }),
         supabase
           .from("field_commissions")
           .select("id, amount, status, notes, clawback_reason, paid_at, created_at")
-          .eq("agent_id", user.id)
+          .eq("agent_id", userId)
           .order("created_at", { ascending: false }),
       ]);
 
       const unified: UnifiedCommission[] = [];
-
       (salesRes.data ?? []).forEach((c: any) => {
         unified.push({
-          id: c.id,
-          source: "sales",
-          amount: Number(c.commission_amount || 0),
-          saleAmount: Number(c.sale_amount || 0),
-          rate: Number(c.commission_rate || 0),
-          bonusAmount: Number(c.bonus_amount || 0),
-          bonusType: c.bonus_type || null,
-          status: c.status,
-          notes: c.notes || null,
-          rejectionReason: c.rejection_reason || null,
-          clawbackReason: null,
-          paidAt: c.paid_at,
-          createdAt: c.created_at,
+          id: c.id, source: "sales", amount: Number(c.commission_amount || 0),
+          saleAmount: Number(c.sale_amount || 0), rate: Number(c.commission_rate || 0),
+          bonusAmount: Number(c.bonus_amount || 0), bonusType: c.bonus_type || null,
+          status: c.status, notes: c.notes || null, rejectionReason: c.rejection_reason || null,
+          clawbackReason: null, paidAt: c.paid_at, createdAt: c.created_at,
         });
       });
-
       (fieldRes.data ?? []).forEach((c: any) => {
         unified.push({
-          id: c.id,
-          source: "field",
-          amount: Number(c.amount || 0),
-          saleAmount: 0,
-          rate: 0,
-          bonusAmount: 0,
-          bonusType: null,
-          status: c.status,
-          notes: c.notes || null,
-          rejectionReason: null,
-          clawbackReason: c.clawback_reason || null,
-          paidAt: c.paid_at,
-          createdAt: c.created_at,
+          id: c.id, source: "field", amount: Number(c.amount || 0),
+          saleAmount: 0, rate: 0, bonusAmount: 0, bonusType: null,
+          status: c.status, notes: c.notes || null, rejectionReason: null,
+          clawbackReason: c.clawback_reason || null, paidAt: c.paid_at, createdAt: c.created_at,
         });
       });
-
       unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       return unified;
     },
+    enabled: !!userId,
+  });
+
+  // Withdrawal requests
+  const { data: withdrawals } = useQuery({
+    queryKey: ["rh-withdrawals", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data } = await supabase
+        .from("commission_withdrawal_requests")
+        .select("*")
+        .eq("agent_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data ?? [];
+    },
+    enabled: !!userId,
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: async () => {
+      if (!userId) throw new Error("Non authentifié");
+      const amt = parseFloat(withdrawAmount);
+      if (isNaN(amt) || amt <= 0) throw new Error("Montant invalide");
+      const { error } = await supabase
+        .from("commission_withdrawal_requests")
+        .insert({ agent_id: userId, amount: amt, status: "pending", notes: withdrawNotes || null });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Demande de retrait soumise");
+      setWithdrawOpen(false);
+      setWithdrawAmount("");
+      setWithdrawNotes("");
+      queryClient.invalidateQueries({ queryKey: ["rh-withdrawals"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Erreur lors de la demande"),
+  });
+
+  const disputeMutation = useMutation({
+    mutationFn: async () => {
+      if (!userId || !disputeOpen) throw new Error("Données manquantes");
+      if (!disputeReason.trim()) throw new Error("La raison est obligatoire");
+      const { error } = await supabase
+        .from("commission_disputes")
+        .insert({
+          commission_id: disputeOpen.id,
+          agent_id: userId,
+          reason: disputeReason.trim(),
+          status: "pending",
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Contestation soumise");
+      setDisputeOpen(null);
+      setDisputeReason("");
+    },
+    onError: (e: any) => toast.error(e.message || "Erreur lors de la contestation"),
   });
 
   const years = useMemo(() => {
@@ -157,17 +214,21 @@ export default function RhCommissions() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <DollarSign className="h-6 w-6 text-primary" />
-          Mes commissions
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Historique complet de vos commissions sur ventes
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <DollarSign className="h-6 w-6 text-primary" />
+            Mes commissions
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Historique, retraits et contestations</p>
+        </div>
+        <Button size="sm" onClick={() => setWithdrawOpen(true)}>
+          <Banknote className="h-4 w-4 mr-2" />
+          Demander un retrait
+        </Button>
       </div>
 
-      {/* KPI cards */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KpiCard icon={<TrendingUp className="h-4 w-4 text-primary" />} label="Total gagné" value={fmt(stats.total)} />
         <KpiCard icon={<Clock className="h-4 w-4 text-amber-600" />} label="En attente" value={fmt(stats.pending)} />
@@ -176,48 +237,52 @@ export default function RhCommissions() {
         <KpiCard icon={<XCircle className="h-4 w-4 text-destructive" />} label="Rejetées/Récup." value={fmt(stats.lost)} />
       </div>
 
+      {/* Withdrawal requests status */}
+      {withdrawals && withdrawals.length > 0 && (
+        <Card>
+          <CardContent className="py-3 px-5">
+            <p className="text-xs font-bold text-foreground mb-2">Demandes de retrait récentes</p>
+            <div className="space-y-1.5">
+              {withdrawals.map((w: any) => (
+                <div key={w.id} className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{format(new Date(w.created_at), "d MMM yyyy", { locale: fr })}</span>
+                  <span className="font-semibold text-foreground">{fmt(Number(w.amount))}</span>
+                  <Badge variant="outline" className="text-[10px]">
+                    {w.status === "pending" ? "En attente" : w.status === "approved" ? "Approuvé" : w.status === "paid" ? "Payé" : w.status === "rejected" ? "Refusé" : w.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Link to payslips */}
       <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
         <Receipt className="h-4 w-4 text-muted-foreground" />
-        <p className="text-xs text-muted-foreground">
-          Les commissions payées sont incluses dans vos fiches de paie.
-        </p>
-        <Link to="/rh/paie" className="text-xs font-medium text-primary hover:underline ml-auto">
-          Voir mes fiches →
-        </Link>
+        <p className="text-xs text-muted-foreground">Les commissions payées sont incluses dans vos fiches de paie.</p>
+        <Link to="/rh/paie" className="text-xs font-medium text-primary hover:underline ml-auto">Voir mes fiches →</Link>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[180px] h-9 text-sm">
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[180px] h-9 text-sm"><SelectValue placeholder="Statut" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
-            {allStatuses.map((s) => (
-              <SelectItem key={s} value={s}>
-                {STATUS_CONFIG[s]?.label || s}
-              </SelectItem>
-            ))}
+            {allStatuses.map((s) => <SelectItem key={s} value={s}>{STATUS_CONFIG[s]?.label || s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterYear} onValueChange={setFilterYear}>
-          <SelectTrigger className="w-[120px] h-9 text-sm">
-            <SelectValue placeholder="Année" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[120px] h-9 text-sm"><SelectValue placeholder="Année" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes</SelectItem>
-            {years.map((y) => (
-              <SelectItem key={y} value={y}>{y}</SelectItem>
-            ))}
+            {years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
         {(filterStatus !== "all" || filterYear !== "all") && (
-          <Button variant="ghost" size="sm" onClick={() => { setFilterStatus("all"); setFilterYear("all"); }} className="text-xs">
-            Réinitialiser
-          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { setFilterStatus("all"); setFilterYear("all"); }} className="text-xs">Réinitialiser</Button>
         )}
       </div>
 
@@ -226,57 +291,136 @@ export default function RhCommissions() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <AlertCircle className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
-            <p>Aucune commission trouvée{filterStatus !== "all" || filterYear !== "all" ? " avec ces filtres" : ""}.</p>
+            <p>Aucune commission trouvée.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-2">
           {filtered.map((c) => {
             const cfg = STATUS_CONFIG[c.status] || { label: c.status, cls: "bg-muted text-muted-foreground", icon: null };
+            const canDispute = ["pending", "validated", "approved", "rejected"].includes(c.status);
             return (
               <Card key={c.id} className="hover:shadow-sm transition-shadow">
-                <CardContent className="flex items-center justify-between py-3.5 px-5">
+                <CardContent className="flex items-center justify-between py-3.5 px-5 gap-3">
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-foreground">
-                        {fmt(c.amount)}
-                      </span>
-                      <Badge className={cn("text-[10px] font-semibold gap-1", cfg.cls)}>
-                        {cfg.icon}{cfg.label}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px]">
-                        {c.source === "sales" ? "Vente" : "Terrain"}
-                      </Badge>
+                      <span className="text-sm font-semibold text-foreground">{fmt(c.amount)}</span>
+                      <Badge className={cn("text-[10px] font-semibold gap-1", cfg.cls)}>{cfg.icon}{cfg.label}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{c.source === "sales" ? "Vente" : "Terrain"}</Badge>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                       <span>{format(new Date(c.createdAt), "d MMM yyyy", { locale: fr })}</span>
-                      {c.saleAmount > 0 && (
-                        <span>Vente: {fmt(c.saleAmount)} × {(c.rate * 100).toFixed(0)}%</span>
-                      )}
-                      {c.bonusAmount > 0 && (
-                        <span className="text-emerald-600">Bonus: {fmt(c.bonusAmount)}{c.bonusType ? ` (${c.bonusType})` : ""}</span>
-                      )}
-                      {c.paidAt && (
-                        <span className="text-emerald-600">Payée le {format(new Date(c.paidAt), "d MMM yyyy", { locale: fr })}</span>
-                      )}
+                      {c.saleAmount > 0 && <span>Vente: {fmt(c.saleAmount)} × {(c.rate * 100).toFixed(0)}%</span>}
+                      {c.bonusAmount > 0 && <span className="text-emerald-600">Bonus: {fmt(c.bonusAmount)}</span>}
+                      {c.paidAt && <span className="text-emerald-600">Payée le {format(new Date(c.paidAt), "d MMM yyyy", { locale: fr })}</span>}
                     </div>
-                    {/* Reason displays */}
-                    {c.rejectionReason && (
-                      <p className="text-xs text-destructive">Raison: {c.rejectionReason}</p>
-                    )}
-                    {c.clawbackReason && (
-                      <p className="text-xs text-destructive">Récupération: {c.clawbackReason}</p>
-                    )}
-                    {c.notes && (
-                      <p className="text-xs text-muted-foreground italic truncate max-w-md">{c.notes}</p>
-                    )}
+                    {c.rejectionReason && <p className="text-xs text-destructive">Raison: {c.rejectionReason}</p>}
+                    {c.clawbackReason && <p className="text-xs text-destructive">Récupération: {c.clawbackReason}</p>}
+                    {c.notes && <p className="text-xs text-muted-foreground italic truncate max-w-md">{c.notes}</p>}
                   </div>
+                  {canDispute && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 text-xs text-amber-600 hover:text-amber-700"
+                      onClick={() => { setDisputeOpen(c); setDisputeReason(""); }}
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                      Contester
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
           })}
         </div>
       )}
+
+      {/* Withdrawal dialog */}
+      <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5" />
+              Demander un retrait
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="withdraw-amount">Montant ($)</Label>
+              <Input
+                id="withdraw-amount"
+                type="number"
+                min="1"
+                step="0.01"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="withdraw-notes">Notes (optionnel)</Label>
+              <Textarea
+                id="withdraw-notes"
+                value={withdrawNotes}
+                onChange={(e) => setWithdrawNotes(e.target.value)}
+                placeholder="Raison du retrait..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWithdrawOpen(false)}>Annuler</Button>
+            <Button onClick={() => withdrawMutation.mutate()} disabled={withdrawMutation.isPending || !withdrawAmount}>
+              {withdrawMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Soumettre
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute dialog */}
+      <Dialog open={!!disputeOpen} onOpenChange={(o) => !o && setDisputeOpen(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Contester une commission
+            </DialogTitle>
+          </DialogHeader>
+          {disputeOpen && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                <p>Commission: <strong>{fmt(disputeOpen.amount)}</strong></p>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(disputeOpen.createdAt), "d MMMM yyyy", { locale: fr })} · {disputeOpen.source === "sales" ? "Vente" : "Terrain"}
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="dispute-reason">Raison de la contestation *</Label>
+                <Textarea
+                  id="dispute-reason"
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  placeholder="Expliquez pourquoi vous contestez cette commission..."
+                  rows={4}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisputeOpen(null)}>Annuler</Button>
+            <Button
+              variant="destructive"
+              onClick={() => disputeMutation.mutate()}
+              disabled={disputeMutation.isPending || !disputeReason.trim()}
+            >
+              {disputeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Soumettre la contestation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -285,10 +429,7 @@ function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string;
   return (
     <Card>
       <CardContent className="py-3 px-4">
-        <div className="flex items-center gap-2 mb-1">
-          {icon}
-          <span className="text-xs text-muted-foreground">{label}</span>
-        </div>
+        <div className="flex items-center gap-2 mb-1">{icon}<span className="text-xs text-muted-foreground">{label}</span></div>
         <p className="text-lg font-bold text-foreground">{value}</p>
       </CardContent>
     </Card>
