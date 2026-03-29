@@ -526,88 +526,12 @@ export default function FieldCommissions() {
             </div>
           )}
 
-          {/* ═══ PAYSLIPS TAB ═══ */}
-          {activeTab === "payslips" && (
-            <div className="space-y-4">
-              <div className="bg-card border border-border rounded-xl p-5">
-                <h3 className="text-sm font-bold text-foreground mb-1 flex items-center gap-2"><Receipt className="h-4 w-4" /> Historique de paie</h3>
-                <p className="text-xs text-muted-foreground">Résumé de tous vos paiements reçus et commissions payées.</p>
-              </div>
-
-              {/* Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <p className="text-[11px] text-muted-foreground">Commissions payées</p>
-                  <p className="text-lg font-bold text-emerald-600 mt-1">{totalPaid.toFixed(2)} $</p>
-                  <p className="text-[10px] text-muted-foreground">{commissions.filter((c: any) => c.status === "paid").length} transactions</p>
-                </div>
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <p className="text-[11px] text-muted-foreground">Retraits payés</p>
-                  <p className="text-lg font-bold text-blue-600 mt-1">{paidWithdrawals.reduce((s, w: any) => s + Number(w.amount), 0).toFixed(2)} $</p>
-                  <p className="text-[10px] text-muted-foreground">{paidWithdrawals.length} retraits</p>
-                </div>
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <p className="text-[11px] text-muted-foreground">Retenues / récupérations</p>
-                  <p className="text-lg font-bold text-red-600 mt-1">
-                    {commissions.filter((c: any) => c.status === "clawback").reduce((s: number, c: any) => s + Number(c.commission_amount || c.amount || 0), 0).toFixed(2)} $
-                  </p>
-                </div>
-              </div>
-
-              {/* Paid commissions list */}
-              <div>
-                <h4 className="text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Commissions payées</h4>
-                {(() => {
-                  const paid = commissions.filter((c: any) => c.status === "paid");
-                  return paid.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">Aucune commission payée</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {paid.map((c: any) => (
-                        <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-100 dark:bg-emerald-900">
-                              <Check className="h-4 w-4 text-emerald-600" />
-                            </div>
-                            <div>
-                              <span className="text-sm font-semibold text-foreground">{Number(c.commission_amount || c.amount || 0).toFixed(2)} $</span>
-                              {c.field_sales_orders?.customer_name && <p className="text-xs text-muted-foreground">{c.field_sales_orders.customer_name}</p>}
-                            </div>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">{c.paid_at ? format(new Date(c.paid_at), "dd/MM/yyyy") : format(new Date(c.created_at), "dd/MM/yyyy")}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Paid withdrawals list */}
-              <div>
-                <h4 className="text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Retraits complétés</h4>
-                {paidWithdrawals.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Aucun retrait complété</p>
-                ) : (
-                  <div className="space-y-2">
-                    {paidWithdrawals.map((w: any) => (
-                      <div key={w.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-blue-100 dark:bg-blue-900">
-                            <ArrowDownToLine className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <div>
-                            <span className="text-sm font-semibold text-foreground">{Number(w.amount).toFixed(2)} $</span>
-                            <p className="text-xs text-muted-foreground">{w.notes || "Retrait"}</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground">{w.paid_at ? format(new Date(w.paid_at), "dd/MM/yyyy") : format(new Date(w.reviewed_at || w.created_at), "dd/MM/yyyy")}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Link to RH for full pay details */}
+          <div className="mt-4 text-center">
+            <a href="/rh/paie" className="inline-flex items-center gap-2 text-sm text-primary font-medium hover:underline">
+              Voir mon dossier paie complet dans Nivra RH →
+            </a>
+          </div>
         </>
       )}
     </div>
