@@ -84,11 +84,11 @@ export default function HrRequestsPage() {
         .limit(50);
       if (error) throw error;
 
-      const ids = [...new Set(data.map((l: any) => l.employee_id))];
+      const ids = [...new Set(data.map((l: any) => l.user_id))];
       if (ids.length) {
         const { data: recs } = await supabase.from("employee_records").select("user_id, first_name, last_name, employee_number").in("user_id", ids);
         const map = Object.fromEntries((recs || []).map((r: any) => [r.user_id, r]));
-        return data.map((l: any) => ({ ...l, _emp: map[l.employee_id] || null }));
+        return data.map((l: any) => ({ ...l, _emp: map[l.user_id] || null }));
       }
       return data;
     },
