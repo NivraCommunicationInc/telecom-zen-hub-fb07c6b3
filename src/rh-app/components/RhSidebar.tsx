@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
-  Briefcase,
+  Briefcase, Target,
 } from "lucide-react";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,6 +28,7 @@ const navGroups = [
     items: [
       { label: "Fiches de paie", href: `${RH_BASE}/paie`, icon: Receipt },
       { label: "Commissions", href: `${RH_BASE}/commissions`, icon: DollarSign },
+      { label: "Objectifs", href: `${RH_BASE}/objectifs`, icon: Target },
     ],
   },
   {

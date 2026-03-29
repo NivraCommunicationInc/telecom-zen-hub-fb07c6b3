@@ -52,7 +52,7 @@ export default function RhDashboard() {
         .from("employee_notifications")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user!.id)
-        .eq("read", false);
+        .eq("is_read", false);
       return count ?? 0;
     },
     enabled: !!user?.id,
