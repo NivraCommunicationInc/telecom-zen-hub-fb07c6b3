@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
       console.log(`[field-sales-sync] Syncing sale ${sale.id} to orders table`);
 
       try {
+        const { firstName: customerFirstName, lastName: customerLastName } = splitName(sale.customer_name);
         let canonicalOrder: { id: string; order_number: string | null } | null = null;
 
         // Check if this sale was already synced to orders and has a complete billing chain
@@ -337,7 +338,6 @@ Deno.serve(async (req) => {
           // Generate order number from DB sequence — Core is sole source of truth
           const orderNumber = await generateOrderNumberFromDB(supabaseAdmin);
           const serviceTypeLabel = normalizeServiceTypeLabel(services);
-          const { firstName, lastName } = splitName(sale.customer_name);
 
           // Create order in main orders table (match actual schema)
           const { data: newOrder, error: orderError } = await supabaseAdmin
@@ -350,8 +350,8 @@ Deno.serve(async (req) => {
 
               client_email: customerEmail,
               client_phone: sale.customer_phone || null,
-              client_first_name: firstName || null,
-              client_last_name: lastName || null,
+              client_first_name: customerFirstName || null,
+              client_last_name: customerLastName || null,
               client_dob: sale.customer_date_of_birth || null,
 
               service_type: serviceTypeLabel,
@@ -424,13 +424,12 @@ Deno.serve(async (req) => {
                 .is("user_id", null);
             }
           } else {
-            const { firstName: fn, lastName: ln } = splitName(sale.customer_name);
             const { data: newBillingCust, error: bcErr } = await supabaseAdmin
               .from("billing_customers")
               .insert({
                 user_id: clientUserId,
-                first_name: fn || "Client",
-                last_name: ln || "Terrain",
+                first_name: customerFirstName || "Client",
+                last_name: customerLastName || "Terrain",
                 email: customerEmail,
                 phone: sale.customer_phone || "",
                 status: "active",
@@ -456,8 +455,8 @@ Deno.serve(async (req) => {
             .insert({
               customer_id: billingCustomerId,
               invoice_number: String(invoiceNum),
-               order_id: canonicalOrder.id,
-               type: "initial",
+              order_id: canonicalOrder.id,
+              type: "initial",
               status: invoiceStatus,
               subtotal: subtotal + activationFee,
               tps_amount: tpsAmount,
@@ -471,8 +470,8 @@ Deno.serve(async (req) => {
               paid_at: isConfirmedPayment ? now.toISOString() : null,
               environment: "production",
               billing_snapshot_client: {
-                first_name: firstName || null,
-                last_name: lastName || null,
+                first_name: customerFirstName || null,
+                last_name: customerLastName || null,
                 email: customerEmail,
                 phone: sale.customer_phone || null,
               },
@@ -482,13 +481,14 @@ Deno.serve(async (req) => {
 
           if (invErr) {
             console.error("[field-sales-sync] Invoice creation error:", invErr);
+            throw new Error(`Invoice creation failed: ${invErr.message}`);
           } else {
             invoiceId = newInvoice.id;
-            console.log(`[field-sales-sync] Created invoice ${invoiceNum} for order ${newOrder.order_number}`);
+            console.log(`[field-sales-sync] Created invoice ${invoiceNum} for order ${canonicalOrder.order_number || canonicalOrder.id}`);
 
             // Create invoice lines
             for (const li of lineItems) {
-              await supabaseAdmin.from("billing_invoice_lines").insert({
+              const { error: lineErr } = await supabaseAdmin.from("billing_invoice_lines").insert({
                 invoice_id: invoiceId,
                 description: li.name,
                 unit_price: li.unit_price,
@@ -496,6 +496,9 @@ Deno.serve(async (req) => {
                 line_total: li.unit_price * li.qty,
                 line_type: li.category === "fee" ? "fee" : "service",
               });
+              if (lineErr) {
+                throw new Error(`Invoice line creation failed: ${lineErr.message}`);
+              }
             }
 
             // Generate payment number
@@ -527,6 +530,7 @@ Deno.serve(async (req) => {
 
             if (payErr) {
               console.error("[field-sales-sync] Payment creation error:", payErr);
+              throw new Error(`Payment creation failed: ${payErr.message}`);
             } else {
               paymentId = newPayment.id;
               console.log(`[field-sales-sync] Created payment ${paymentNumber} for invoice ${invoiceNum}`);
@@ -571,7 +575,7 @@ Deno.serve(async (req) => {
         const { error: updateError } = await supabaseAdmin
           .from('field_sales_orders')
           .update({
-            converted_order_id: newOrder.id,
+            converted_order_id: canonicalOrder.id,
             converted_at: new Date().toISOString(),
             sync_status: 'synced',
             synced_at: new Date().toISOString(),
@@ -637,7 +641,7 @@ Deno.serve(async (req) => {
               .upsert({
                 salesperson_id: sale.salesperson_id,
                 field_order_id: sale.id,
-                converted_order_id: newOrder.id,
+                  converted_order_id: canonicalOrder.id,
                 sale_amount: monthlyTotal,
                 commission_rate: commissionRate,
                 commission_amount: totalCommission,
