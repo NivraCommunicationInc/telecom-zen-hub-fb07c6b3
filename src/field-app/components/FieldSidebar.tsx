@@ -44,6 +44,7 @@ const toolsNav = [
 ];
 
 const bottomItems = [
+  { label: "Mon dossier RH", href: "/rh", icon: Briefcase, external: true },
   { label: "Mon profil", href: `${FIELD_BASE}/profile`, icon: User },
   { label: "Sécurité", href: `${FIELD_BASE}/security`, icon: Lock },
 ];
