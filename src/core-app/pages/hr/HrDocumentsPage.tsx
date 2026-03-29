@@ -42,14 +42,14 @@ export default function HrDocumentsPage() {
         .limit(200);
       if (error) throw error;
 
-      const empIds = [...new Set(data.map((l: any) => l.employee_id))];
+      const empIds = [...new Set(data.map((l: any) => l.user_id))];
       if (empIds.length) {
         const { data: records } = await supabase
           .from("employee_records")
           .select("id, first_name, last_name, employee_number, user_id")
           .in("user_id", empIds);
         const map = Object.fromEntries((records || []).map((r: any) => [r.user_id, r]));
-        return data.map((l: any) => ({ ...l, _emp: map[l.employee_id] || null }));
+        return data.map((l: any) => ({ ...l, _emp: map[l.user_id] || null }));
       }
       return data;
     },
