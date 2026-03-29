@@ -203,7 +203,6 @@ export default function FieldCommissions() {
     { key: "withdrawals", label: "Retraits", icon: ArrowDownToLine, badge: withdrawals.length },
     { key: "disputes", label: "Contestations", icon: MessageSquare, badge: disputedCount || undefined },
     { key: "objectives", label: "Objectifs", icon: Target },
-    { key: "payslips", label: "Fiches de paie", icon: Receipt, badge: paidWithdrawals.length || undefined },
   ];
 
   return (
