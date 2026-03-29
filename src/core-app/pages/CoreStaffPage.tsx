@@ -640,6 +640,9 @@ export default function CoreStaffPage() {
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => navigate(`/core/staff/${staff.user_id}`)} title="Dossier 360°">
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => setSelected(staff)} title="Détails">
                           <Eye className="h-4 w-4" />
                         </Button>
