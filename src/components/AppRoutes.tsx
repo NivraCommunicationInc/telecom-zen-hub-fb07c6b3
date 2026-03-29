@@ -885,6 +885,7 @@ const AppRoutes = () => {
           <Route path="commissions" element={<Suspense fallback={null}><RhCommissions /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={null}><RhNotifications /></Suspense>} />
           <Route path="profil" element={<Suspense fallback={null}><RhProfile /></Suspense>} />
+          <Route path="objectifs" element={<Suspense fallback={null}><RhObjectives /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
