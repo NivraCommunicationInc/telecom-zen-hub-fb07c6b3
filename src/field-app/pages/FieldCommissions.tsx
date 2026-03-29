@@ -37,7 +37,7 @@ const WITHDRAWAL_STATUS: Record<string, { label: string; color: string; bg: stri
   cancelled: { label: "Annulé", color: "text-muted-foreground", bg: "bg-muted" },
 };
 
-type TabView = "commissions" | "withdrawals" | "disputes" | "objectives" | "payslips";
+type TabView = "commissions" | "withdrawals" | "disputes" | "objectives";
 
 const formatActionError = (error: unknown, fallback: string) => {
   const message = getAutoSafeErrorMessage(error) || fallback;
