@@ -1,8 +1,9 @@
 /**
  * PayslipDetailDialog — Detailed payslip view for RH portal.
- * Shows full breakdown: revenues, deductions, adjustments, commissions link, PDF download, acknowledgment.
+ * Shows full breakdown: revenues, deductions, adjustments, linked commissions, PDF download, acknowledgment.
  */
 import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +13,10 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   DollarSign, Clock, FileText, Receipt, Download, CheckCircle2,
-  Loader2, TrendingUp, TrendingDown, AlertCircle,
+  Loader2, TrendingUp, TrendingDown, AlertCircle, Link2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n || 0);
