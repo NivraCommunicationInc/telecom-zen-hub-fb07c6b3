@@ -70,9 +70,14 @@ const CoreInternalTicketsPage = lazy(() => import("@/core-app/pages/CoreInternal
 const CoreWebFormsPage = lazy(() => import("@/core-app/pages/CoreWebFormsPage"));
 const CoreTelephonyPage = lazy(() => import("@/core-app/pages/CoreTelephonyPage"));
 
-// HR
+// HR & Payroll
+const HrDashboardPage = lazy(() => import("@/core-app/pages/hr/HrDashboardPage"));
+const HrEmployeesPage = lazy(() => import("@/core-app/pages/hr/HrEmployeesPage"));
+const HrOnboardingPage = lazy(() => import("@/core-app/pages/hr/HrOnboardingPage"));
+const HrPlaceholderPage = lazy(() => import("@/core-app/pages/hr/HrPlaceholderPage"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
+const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 
 // System
 const CoreNotificationsPage = lazy(() => import("@/core-app/pages/CoreNotificationsPage"));
