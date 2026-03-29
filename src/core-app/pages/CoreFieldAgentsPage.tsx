@@ -1168,7 +1168,12 @@ export default function CoreFieldAgentsPage() {
                             const { data, error } = await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: pe.id } });
                             if (error) throw error;
                             if (data?.pdf_url) { window.open(data.pdf_url, "_blank"); toast.success(`PDF ${data.payroll_number} généré`); qc.invalidateQueries({ queryKey: ["core-field", "payroll-entries"] }); }
-                          } catch (e: any) { toast.error("Erreur PDF: " + (e.message || "échec")); }
+                            else {
+                              throw new Error("Le PDF n'a pas été généré (aucune URL retournée)");
+                            }
+                          } catch (e: unknown) {
+                            toast.error(`Échec génération PDF paie: ${getMutationErrorMessage(e, "Action impossible")}`);
+                          }
                         }}><Download className="h-3 w-3 mr-1" /> PDF</Button>
                       </td>
                     </tr>
@@ -1282,7 +1287,12 @@ export default function CoreFieldAgentsPage() {
                             const { data, error } = await supabase.functions.invoke("generate-tax-document-pdf", { body: { tax_document_id: td.id } });
                             if (error) throw error;
                             if (data?.pdf_url) { window.open(data.pdf_url, "_blank"); invalidateAll(); toast.success(`${data.doc_ref} généré`); }
-                          } catch (e: any) { toast.error("Erreur: " + (e.message || "échec")); }
+                            else {
+                              throw new Error("Le PDF fiscal n'a pas été généré (aucune URL retournée)");
+                            }
+                          } catch (e: unknown) {
+                            toast.error(`Échec génération document fiscal: ${getMutationErrorMessage(e, "Action impossible")}`);
+                          }
                         }}>Générer PDF</Button>}
                         {td.status === "generated" && <Button size="sm" variant="ghost" onClick={() => updateTaxDocStatus.mutate({ id: td.id, status: "sent" })}>Envoyer</Button>}
                         {td.pdf_url && <Button size="sm" variant="ghost" className="text-blue-600" onClick={async () => {
