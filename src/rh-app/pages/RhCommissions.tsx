@@ -358,6 +358,13 @@ export default function RhCommissions() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Show available balance */}
+            <div className="p-3 rounded-lg bg-muted/50 border border-border">
+              <p className="text-xs text-muted-foreground">Solde disponible</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                {wallet ? fmtCAD(wallet.available_balance) : "—"}
+              </p>
+            </div>
             <div>
               <Label htmlFor="withdraw-amount">Montant ($)</Label>
               <Input
@@ -365,10 +372,14 @@ export default function RhCommissions() {
                 type="number"
                 min="1"
                 step="0.01"
+                max={wallet?.available_balance || 0}
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
                 placeholder="0.00"
               />
+              {withdrawAmount && wallet && parseFloat(withdrawAmount) > wallet.available_balance && (
+                <p className="text-xs text-destructive mt-1">Montant supérieur au solde disponible</p>
+              )}
             </div>
             <div>
               <Label htmlFor="withdraw-notes">Notes (optionnel)</Label>
