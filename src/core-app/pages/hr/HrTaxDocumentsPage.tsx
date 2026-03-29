@@ -148,11 +148,11 @@ export default function HrTaxDocumentsPage() {
                   return (
                     <TableRow key={d.id}>
                       <TableCell className="text-xs">
-                        {d._emp ? `${d._emp.first_name} ${d._emp.last_name}` : d.employee_id.slice(0, 8)}
+                        {d._emp ? `${d._emp.first_name} ${d._emp.last_name}` : (d.user_id || "—").slice(0, 8)}
                       </TableCell>
                       <TableCell className="text-xs font-mono">{d.document_type}</TableCell>
                       <TableCell className="text-xs">{d.tax_year}</TableCell>
-                      <TableCell className="text-xs">{d.total_income ? `${Number(d.total_income).toFixed(2)} $` : "—"}</TableCell>
+                      <TableCell className="text-xs">{d.data_json?.total_income ? `${Number(d.data_json.total_income).toFixed(2)} $` : "—"}</TableCell>
                       <TableCell className="text-xs">{d.total_deductions ? `${Number(d.total_deductions).toFixed(2)} $` : "—"}</TableCell>
                       <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
                       <TableCell>
