@@ -236,15 +236,42 @@ Deno.serve(async (req) => {
 
     console.log(`Employee record created: ${empRecord.employee_number}`);
 
-    // ── Step 4: Assign roles (upsert to handle existing) ──
-    for (const role of body.roles) {
+    // ── Step 4: Assign role (user_roles has UNIQUE(user_id) = one role per user) ──
+    // Use the primary role: admin > employee > field_sales
+    const primaryRole = body.roles.includes("admin")
+      ? "admin"
+      : body.roles.includes("employee")
+        ? "employee"
+        : body.roles[0];
+
+    const portalAccess = {
+      can_access_core: primaryRole === "admin",
+      can_access_employee: ["employee", "admin"].includes(primaryRole),
+      can_access_field: body.roles.includes("field_sales"),
+      can_access_rh: true,
+      require_onboarding: true,
+    };
+
+    // Try update first (row may exist from auth trigger), then insert
+    const { data: existingRole } = await adminClient
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1);
+
+    if (existingRole?.length) {
       const { error: roleErr } = await adminClient
         .from("user_roles")
-        .upsert(
-          { user_id: userId, role },
-          { onConflict: "user_id,role" }
-        );
-      if (roleErr) console.error(`Role insert error for ${role}:`, roleErr);
+        .update({ role: primaryRole, ...portalAccess })
+        .eq("user_id", userId);
+      if (roleErr) console.error("Role update error:", roleErr);
+      else console.log(`Role updated to ${primaryRole} for ${userId}`);
+    } else {
+      const { error: roleErr } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: userId, role: primaryRole, ...portalAccess });
+      if (roleErr) console.error("Role insert error:", roleErr);
+      else console.log(`Role inserted ${primaryRole} for ${userId}`);
     }
 
     // ── Step 5: Send invitation email (magic link) ──
