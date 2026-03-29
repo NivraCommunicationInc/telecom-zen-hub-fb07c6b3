@@ -9,7 +9,7 @@ import {
   LayoutDashboard, ListTodo, ShoppingCart, Users, CreditCard,
   ShieldCheck, Zap, Headphones, ScrollText, User, LogOut,
   Briefcase, ChevronLeft, ChevronRight, Calendar, FileText,
-  Package, Settings,
+  Package, Settings, UserCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -58,6 +58,7 @@ const navGroups = [
 ];
 
 const bottomItems = [
+  { label: "Mon dossier RH", href: "/rh", icon: UserCheck },
   { label: "Mon profil", href: `${EMP_BASE}/profile`, icon: User },
 ];
 

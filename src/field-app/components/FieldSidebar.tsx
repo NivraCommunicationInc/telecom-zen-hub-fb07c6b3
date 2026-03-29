@@ -10,7 +10,7 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import {
   LayoutDashboard, UserPlus, Package, Send, TrendingUp,
   DollarSign, User, Lock, LogOut, MapPin, ShoppingCart,
-  BarChart3, Bell, Search, BookOpen, Calendar, ChevronDown, Banknote,
+  BarChart3, Bell, Search, BookOpen, Calendar, ChevronDown,
   Briefcase,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,7 +27,6 @@ const salesNav = [
   { label: "Mes commandes", href: `${FIELD_BASE}/submissions`, icon: Send, badgeKey: "orders" as const },
   { label: "Suivi pipeline", href: `${FIELD_BASE}/tracking`, icon: TrendingUp },
   { label: "Commissions", href: `${FIELD_BASE}/commissions`, icon: DollarSign },
-  { label: "Ma paie", href: `${FIELD_BASE}/my-pay`, icon: Banknote },
 ];
 
 const prospectNav = [
