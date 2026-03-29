@@ -58,6 +58,7 @@ const navGroups = [
 ];
 
 const bottomItems = [
+  { label: "Mon dossier RH", href: "/rh", icon: UserCheck },
   { label: "Mon profil", href: `${EMP_BASE}/profile`, icon: User },
 ];
 
