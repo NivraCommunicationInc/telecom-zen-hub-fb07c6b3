@@ -60,7 +60,7 @@ export default function RhDashboard() {
     enabled: !!user?.id,
   });
 
-  const w = wallet ?? { available_balance: 0, pending_balance: 0, locked_balance: 0, total_earned: 0 };
+  const w = wallet ?? { available_balance: 0, pending_balance: 0, validated_balance: 0, payable_balance: 0, in_payroll_balance: 0, locked_balance: 0, total_earned: 0, paid_via_payroll: 0, lost_total: 0, withdrawals_paid: 0 };
 
   return (
     <div className="space-y-6">
