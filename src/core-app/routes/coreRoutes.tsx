@@ -77,7 +77,11 @@ const HrOnboardingPage = lazy(() => import("@/core-app/pages/hr/HrOnboardingPage
 const HrPayrollPage = lazy(() => import("@/core-app/pages/hr/HrPayrollPage"));
 const HrCommissionsPage = lazy(() => import("@/core-app/pages/hr/HrCommissionsPage"));
 const HrTimePage = lazy(() => import("@/core-app/pages/hr/HrTimePage"));
-const HrPlaceholderPage = lazy(() => import("@/core-app/pages/hr/HrPlaceholderPage"));
+const HrSchedulesPage = lazy(() => import("@/core-app/pages/hr/HrSchedulesPage"));
+const HrDocumentsPage = lazy(() => import("@/core-app/pages/hr/HrDocumentsPage"));
+const HrTaxDocumentsPage = lazy(() => import("@/core-app/pages/hr/HrTaxDocumentsPage"));
+const HrRequestsPage = lazy(() => import("@/core-app/pages/hr/HrRequestsPage"));
+const HrAuditPage = lazy(() => import("@/core-app/pages/hr/HrAuditPage"));
 const HrCreateEmployeePage = lazy(() => import("@/core-app/pages/hr/HrCreateEmployeePage"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("@/core-app/pages/CoreApplicationsPage"));
