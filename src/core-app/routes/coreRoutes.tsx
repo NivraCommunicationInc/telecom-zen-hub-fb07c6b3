@@ -166,6 +166,7 @@ export const coreRoutes: RouteObject = {
     { path: "security-guardian", element: <CoreSecurityGuardianPage /> },
     { path: "system-audit", element: <CoreSystemAuditPage /> },
     { path: "staff", element: <CoreStaffPage /> },
+    { path: "staff/:userId", element: <CoreEmployee360 /> },
     { path: "my-account", element: <CoreMyAccountPage /> },
     { path: "settings", element: <CoreSettingsPage /> },
     { path: "stock", element: <CoreStockPage /> },
