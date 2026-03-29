@@ -157,7 +157,23 @@ export const coreRoutes: RouteObject = {
     { path: "internal-tickets", element: <CoreInternalTicketsPage /> },
     { path: "web-forms", element: <CoreWebFormsPage /> },
     { path: "telephony", element: <CoreTelephonyPage /> },
-    // HR
+    // HR & Payroll
+    { path: "hr", element: <HrDashboardPage /> },
+    { path: "hr/employees", element: <HrEmployeesPage /> },
+    { path: "hr/employees/new", element: <HrPlaceholderPage /> },
+    { path: "hr/employees/:id", element: <CoreEmployee360 /> },
+    { path: "hr/onboarding", element: <HrOnboardingPage /> },
+    { path: "hr/payroll", element: <HrPlaceholderPage /> },
+    { path: "hr/commissions", element: <HrPlaceholderPage /> },
+    { path: "hr/time", element: <HrPlaceholderPage /> },
+    { path: "hr/schedules", element: <HrPlaceholderPage /> },
+    { path: "hr/documents", element: <HrPlaceholderPage /> },
+    { path: "hr/tax-documents", element: <HrPlaceholderPage /> },
+    { path: "hr/requests", element: <HrPlaceholderPage /> },
+    { path: "hr/careers", element: <CoreCareersPage /> },
+    { path: "hr/applications", element: <CoreApplicationsPage /> },
+    { path: "hr/audit", element: <HrPlaceholderPage /> },
+    // Legacy redirects
     { path: "careers", element: <CoreCareersPage /> },
     { path: "applications", element: <CoreApplicationsPage /> },
     // System

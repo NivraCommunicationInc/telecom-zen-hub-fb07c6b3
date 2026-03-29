@@ -139,17 +139,6 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Send,
     items: [
       { icon: Users, label: "Agents terrain", href: "/field-agents" },
-      { icon: DollarSign, label: "Retraits commissions", href: "/commission-withdrawals" },
-    ],
-  },
-  {
-    id: "partners",
-    label: "Partners",
-    icon: Handshake,
-    items: [
-      { icon: Handshake, label: "Referrals", href: "/referrals" },
-      { icon: Gift, label: "Referral Rewards", href: "/referral-rewards" },
-      { icon: FileText, label: "Terms", href: "/referral-terms" },
     ],
   },
   {
@@ -157,9 +146,18 @@ const NAV_GROUPS: NavGroup[] = [
     label: "HR & Payroll",
     icon: Briefcase,
     items: [
-      { icon: Users, label: "Staff", href: "/staff" },
-      { icon: Briefcase, label: "Careers", href: "/careers" },
-      { icon: UserPlus, label: "Applications", href: "/applications" },
+      { icon: LayoutDashboard, label: "Dashboard RH", href: "/hr" },
+      { icon: Users, label: "Employés", href: "/hr/employees" },
+      { icon: UserPlus, label: "Onboarding", href: "/hr/onboarding" },
+      { icon: DollarSign, label: "Paie", href: "/hr/payroll" },
+      { icon: Tag, label: "Commissions", href: "/hr/commissions" },
+      { icon: Activity, label: "Temps & Punch", href: "/hr/time" },
+      { icon: Calendar, label: "Horaires", href: "/hr/schedules" },
+      { icon: FileText, label: "Documents RH", href: "/hr/documents" },
+      { icon: FileText, label: "Docs fiscaux", href: "/hr/tax-documents" },
+      { icon: MessageSquare, label: "Demandes RH", href: "/hr/requests" },
+      { icon: Briefcase, label: "Recrutement", href: "/hr/careers" },
+      { icon: History, label: "Audit RH", href: "/hr/audit" },
     ],
   },
   {
