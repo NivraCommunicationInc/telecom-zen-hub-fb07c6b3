@@ -346,6 +346,11 @@ export default function RhCommissions() {
                       <span className="text-sm font-semibold text-foreground">{fmt(c.amount)}</span>
                       <Badge className={cn("text-[10px] font-semibold gap-1", cfg.cls)}>{cfg.icon}{cfg.label}</Badge>
                       <Badge variant="outline" className="text-[10px]">{c.source === "sales" ? "Vente" : "Terrain"}</Badge>
+                      {c.linkedToPayroll && (
+                        <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400 gap-1">
+                          <Receipt className="h-2.5 w-2.5" /> Incluse dans paie
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                       <span>{format(new Date(c.createdAt), "d MMM yyyy", { locale: fr })}</span>
