@@ -870,6 +870,24 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
+      {/* ============================================ */}
+      {/* NIVRA RH — Employee HR Portal                 */}
+      {/* ============================================ */}
+      <Route path="/rh" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><RhProtectedRoute /></Suspense>}>
+        <Route element={<Suspense fallback={null}><RhAppLayout /></Suspense>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={null}><RhDashboard /></Suspense>} />
+          <Route path="paie" element={<Suspense fallback={null}><RhPayslips /></Suspense>} />
+          <Route path="documents-fiscaux" element={<Suspense fallback={null}><RhTaxDocuments /></Suspense>} />
+          <Route path="lettres" element={<Suspense fallback={null}><RhEmploymentLetters /></Suspense>} />
+          <Route path="horaire" element={<Suspense fallback={null}><RhSchedule /></Suspense>} />
+          <Route path="commissions" element={<Suspense fallback={null}><RhCommissions /></Suspense>} />
+          <Route path="notifications" element={<Suspense fallback={null}><RhNotifications /></Suspense>} />
+          <Route path="profil" element={<Suspense fallback={null}><RhProfile /></Suspense>} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
+        </Route>
+      </Route>
+
       {/* Catch-all redirect (no visible 404 page) */}
       <Route path="*" element={<Navigate to="/hub" replace />} />
     </Routes>
