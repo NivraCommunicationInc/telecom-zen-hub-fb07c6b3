@@ -64,7 +64,7 @@ export default function CoreSettingsPage() {
       }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-site-settings"] }); toast.success("Paramètre mis à jour"); },
-    onError: () => toast.error("Erreur"),
+    onError: (err: any) => toast.error(err?.message || "Échec de la sauvegarde du paramètre"),
   });
 
   const toggleNotifMutation = useMutation({

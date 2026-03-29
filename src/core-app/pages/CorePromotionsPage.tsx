@@ -126,7 +126,7 @@ export default function CorePromotionsPage() {
   const handleToggle = async (promo: Promotion) => {
     const newStatus = promo.status === "active" ? "inactive" : "active";
     const { error } = await supabase.from("promotions").update({ status: newStatus }).eq("id", promo.id);
-    if (error) { toast.error("Erreur"); return; }
+    if (error) { toast.error(error.message || "Échec du changement de statut de la promotion"); return; }
     toast.success(`Promotion ${newStatus === "active" ? "activée" : "désactivée"}`);
     refetch();
   };

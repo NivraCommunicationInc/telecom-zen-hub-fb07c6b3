@@ -197,7 +197,7 @@ export default function CoreChannelsPage() {
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-tv-channels"] }); toast.success("Chaîne mise à jour"); setEditChannelDialog(null); },
-    onError: () => toast.error("Erreur"),
+    onError: (err: any) => toast.error(err?.message || "Échec de la mise à jour de la chaîne"),
   });
 
   const createChannelMutation = useMutation({

@@ -94,7 +94,7 @@ export default function CoreMyAccountPage() {
       toast.success("Profil mis à jour");
       queryClient.invalidateQueries({ queryKey: ["core-my-profile"] });
     },
-    onError: () => toast.error("Erreur"),
+    onError: (err: any) => toast.error(err?.message || "Échec de la mise à jour du profil"),
   });
 
   const changePasswordMutation = useMutation({
