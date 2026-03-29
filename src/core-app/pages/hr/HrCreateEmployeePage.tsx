@@ -112,8 +112,14 @@ export default function HrCreateEmployeePage() {
         body: payload,
       });
 
-      if (error) throw new Error(error.message || "Erreur de création");
+      // supabase.functions.invoke returns error for non-2xx, but we now always return 200
+      if (error) {
+        // Try to parse the error body for our custom message
+        const msg = typeof error === "object" && "message" in error ? error.message : String(error);
+        throw new Error(msg || "Erreur de création");
+      }
       if (data?.error) throw new Error(data.error);
+      if (!data?.success) throw new Error("Réponse inattendue du serveur");
       return data;
     },
     onSuccess: (data) => {
