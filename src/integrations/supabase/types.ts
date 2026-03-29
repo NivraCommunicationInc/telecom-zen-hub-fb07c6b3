@@ -4730,6 +4730,7 @@ export type Database = {
           created_at: string
           id: string
           is_read: boolean
+          link_url: string | null
           message: string | null
           notification_type: string
           read_at: string | null
@@ -4741,6 +4742,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean
+          link_url?: string | null
           message?: string | null
           notification_type: string
           read_at?: string | null
@@ -4752,6 +4754,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean
+          link_url?: string | null
           message?: string | null
           notification_type?: string
           read_at?: string | null
@@ -4768,6 +4771,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      employee_objectives: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_revenue: number
+          current_sales: number
+          estimated_commission: number
+          id: string
+          month: string
+          notes: string | null
+          target_revenue: number
+          target_sales: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_revenue?: number
+          current_sales?: number
+          estimated_commission?: number
+          id?: string
+          month: string
+          notes?: string | null
+          target_revenue?: number
+          target_sales?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_revenue?: number
+          current_sales?: number
+          estimated_commission?: number
+          id?: string
+          month?: string
+          notes?: string | null
+          target_revenue?: number
+          target_sales?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       employee_operations_audit: {
         Row: {
