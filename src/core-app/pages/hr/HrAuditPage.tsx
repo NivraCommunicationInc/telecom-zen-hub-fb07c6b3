@@ -48,9 +48,9 @@ export default function HrAuditPage() {
       const s = search.toLowerCase();
       if (
         !(l.action || "").toLowerCase().includes(s) &&
-        !(l.actor_name || "").toLowerCase().includes(s) &&
+        !((l as any).actor_name || "").toLowerCase().includes(s) &&
         !(l.entity_type || "").toLowerCase().includes(s) &&
-        !(l.field_changed || "").toLowerCase().includes(s)
+        !((l as any).field_changed || "").toLowerCase().includes(s)
       ) return false;
     }
     return true;

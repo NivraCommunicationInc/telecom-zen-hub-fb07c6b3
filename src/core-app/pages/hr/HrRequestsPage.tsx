@@ -196,7 +196,7 @@ export default function HrRequestsPage() {
                       <TableRow key={w.id}>
                         <TableCell className="text-xs">{empName(w)}</TableCell>
                         <TableCell className="text-xs font-medium">{(w.amount ?? 0).toFixed(2)} $</TableCell>
-                        <TableCell className="text-xs">{w.payment_method || "—"}</TableCell>
+                        <TableCell className="text-xs">{w.notes || "—"}</TableCell>
                         <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
                         <TableCell className="text-[10px]">{format(new Date(w.created_at), "d MMM yyyy", { locale: fr })}</TableCell>
                         <TableCell>
