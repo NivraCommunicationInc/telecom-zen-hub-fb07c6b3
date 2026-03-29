@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getAutoSafeErrorMessage } from "@/lib/errorUtils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +23,7 @@ interface LettersTabProps {
   getName: (id: string) => string;
   invalidateAll: () => void;
   logAudit: (action: string, entityType: string, entityId: string, details?: Record<string, unknown>) => void;
-  notifyEmployee: (userId: string, title: string, message: string, type?: string) => void;
+  notifyEmployee: (userId: string, notificationType: string, title: string, message: string) => Promise<void> | void;
 }
 
 const LETTER_TYPES: Record<string, string> = {
@@ -42,6 +43,13 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 
 export default function LettersTab({ agents, getName, invalidateAll, logAudit, notifyEmployee }: LettersTabProps) {
   const queryClient = useQueryClient();
+  const formatError = (error: unknown, fallback: string) => {
+    const message = getAutoSafeErrorMessage(error) || fallback;
+    if (error && typeof error === "object" && "code" in error) {
+      return `${message} (code ${String((error as { code?: unknown }).code ?? "n/a")})`;
+    }
+    return message;
+  };
   const [showCreate, setShowCreate] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState("");
   const [letterType, setLetterType] = useState("confirmation");
@@ -87,7 +95,7 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
       setSelectedAgent("");
       setNotes("");
     },
-    onError: () => toast.error("Erreur lors de la création"),
+    onError: (e) => toast.error(`Échec création lettre: ${formatError(e, "Action impossible")}`),
   });
 
   const handleGeneratePdf = async (letter: any) => {
@@ -103,8 +111,8 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
       toast.success("PDF généré avec succès");
       logAudit("generate_letter_pdf", "employment_letter", letter.id);
       queryClient.invalidateQueries({ queryKey: ["employment-letters"] });
-    } catch (e: any) {
-      toast.error("Erreur génération PDF: " + (e.message || "inconnue"));
+    } catch (e: unknown) {
+      toast.error(`Échec génération PDF lettre: ${formatError(e, "Action impossible")}`);
     } finally {
       setGenerating(null);
     }
@@ -117,15 +125,15 @@ export default function LettersTab({ agents, getName, invalidateAll, logAudit, n
       .eq("id", letter.id);
 
     if (error) {
-      toast.error("Erreur lors de l'envoi");
+      toast.error(`Échec envoi lettre: ${formatError(error, "Action impossible")}`);
       return;
     }
 
-    notifyEmployee(
+    await notifyEmployee(
       letter.user_id,
+      "tax_document",
       "Nouvelle lettre d'emploi",
-      `Une lettre de type "${LETTER_TYPES[letter.letter_type] || letter.letter_type}" est disponible dans votre portail.`,
-      "document"
+      `Une lettre de type "${LETTER_TYPES[letter.letter_type] || letter.letter_type}" est disponible dans votre portail.`
     );
     logAudit("send_employment_letter", "employment_letter", letter.id);
     toast.success("Lettre envoyée et employé notifié");
