@@ -74,6 +74,9 @@ const CoreTelephonyPage = lazy(() => import("@/core-app/pages/CoreTelephonyPage"
 const HrDashboardPage = lazy(() => import("@/core-app/pages/hr/HrDashboardPage"));
 const HrEmployeesPage = lazy(() => import("@/core-app/pages/hr/HrEmployeesPage"));
 const HrOnboardingPage = lazy(() => import("@/core-app/pages/hr/HrOnboardingPage"));
+const HrPayrollPage = lazy(() => import("@/core-app/pages/hr/HrPayrollPage"));
+const HrCommissionsPage = lazy(() => import("@/core-app/pages/hr/HrCommissionsPage"));
+const HrTimePage = lazy(() => import("@/core-app/pages/hr/HrTimePage"));
 const HrPlaceholderPage = lazy(() => import("@/core-app/pages/hr/HrPlaceholderPage"));
 const HrCreateEmployeePage = lazy(() => import("@/core-app/pages/hr/HrCreateEmployeePage"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
@@ -163,9 +166,9 @@ export const coreRoutes: RouteObject = {
     { path: "hr/employees/new", element: <HrCreateEmployeePage /> },
     { path: "hr/employees/:id", element: <CoreEmployee360 /> },
     { path: "hr/onboarding", element: <HrOnboardingPage /> },
-    { path: "hr/payroll", element: <HrPlaceholderPage /> },
-    { path: "hr/commissions", element: <HrPlaceholderPage /> },
-    { path: "hr/time", element: <HrPlaceholderPage /> },
+    { path: "hr/payroll", element: <HrPayrollPage /> },
+    { path: "hr/commissions", element: <HrCommissionsPage /> },
+    { path: "hr/time", element: <HrTimePage /> },
     { path: "hr/schedules", element: <HrPlaceholderPage /> },
     { path: "hr/documents", element: <HrPlaceholderPage /> },
     { path: "hr/tax-documents", element: <HrPlaceholderPage /> },

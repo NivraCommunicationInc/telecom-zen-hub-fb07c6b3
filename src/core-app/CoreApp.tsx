@@ -78,6 +78,10 @@ const CoreTelephonyPage = lazy(() => import("./pages/CoreTelephonyPage"));
 const HrDashboardPage = lazy(() => import("./pages/hr/HrDashboardPage"));
 const HrEmployeesPage = lazy(() => import("./pages/hr/HrEmployeesPage"));
 const HrOnboardingPage = lazy(() => import("./pages/hr/HrOnboardingPage"));
+const HrPayrollPage = lazy(() => import("./pages/hr/HrPayrollPage"));
+const HrCommissionsPage = lazy(() => import("./pages/hr/HrCommissionsPage"));
+const HrTimePage = lazy(() => import("./pages/hr/HrTimePage"));
+const HrCreateEmployeePage = lazy(() => import("./pages/hr/HrCreateEmployeePage"));
 const HrPlaceholderPage = lazy(() => import("./pages/hr/HrPlaceholderPage"));
 const CoreCareersPage = lazy(() => import("./pages/CoreCareersPage"));
 const CoreApplicationsPage = lazy(() => import("./pages/CoreApplicationsPage"));
@@ -192,12 +196,12 @@ const CoreApp = () => {
                 {/* HR & Payroll */}
                 <Route path="hr" element={<S><HrDashboardPage /></S>} />
                 <Route path="hr/employees" element={<S><HrEmployeesPage /></S>} />
-                <Route path="hr/employees/new" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/employees/new" element={<S><HrCreateEmployeePage /></S>} />
                 <Route path="hr/employees/:id" element={<S><CoreEmployee360 /></S>} />
                 <Route path="hr/onboarding" element={<S><HrOnboardingPage /></S>} />
-                <Route path="hr/payroll" element={<S><HrPlaceholderPage /></S>} />
-                <Route path="hr/commissions" element={<S><HrPlaceholderPage /></S>} />
-                <Route path="hr/time" element={<S><HrPlaceholderPage /></S>} />
+                <Route path="hr/payroll" element={<S><HrPayrollPage /></S>} />
+                <Route path="hr/commissions" element={<S><HrCommissionsPage /></S>} />
+                <Route path="hr/time" element={<S><HrTimePage /></S>} />
                 <Route path="hr/schedules" element={<S><HrPlaceholderPage /></S>} />
                 <Route path="hr/documents" element={<S><HrPlaceholderPage /></S>} />
                 <Route path="hr/tax-documents" element={<S><HrPlaceholderPage /></S>} />

@@ -142,6 +142,9 @@ const HrDashboardPage = lazy(() => import("@/core-app/pages/hr/HrDashboardPage")
 const HrEmployeesPage = lazy(() => import("@/core-app/pages/hr/HrEmployeesPage"));
 const HrCreateEmployeePage = lazy(() => import("@/core-app/pages/hr/HrCreateEmployeePage"));
 const HrOnboardingPage = lazy(() => import("@/core-app/pages/hr/HrOnboardingPage"));
+const HrPayrollPage = lazy(() => import("@/core-app/pages/hr/HrPayrollPage"));
+const HrCommissionsPage = lazy(() => import("@/core-app/pages/hr/HrCommissionsPage"));
+const HrTimePage = lazy(() => import("@/core-app/pages/hr/HrTimePage"));
 const HrPlaceholderPage = lazy(() => import("@/core-app/pages/hr/HrPlaceholderPage"));
 const CoreEmployee360 = lazy(() => import("@/core-app/pages/CoreEmployee360"));
 const CoreCareersPage = lazy(() => import("@/core-app/pages/CoreCareersPage"));
@@ -794,9 +797,9 @@ const AppRoutes = () => {
           <Route path="hr/employees/new" element={<Suspense fallback={null}><HrCreateEmployeePage /></Suspense>} />
           <Route path="hr/employees/:id" element={<Suspense fallback={null}><CoreEmployee360 /></Suspense>} />
           <Route path="hr/onboarding" element={<Suspense fallback={null}><HrOnboardingPage /></Suspense>} />
-          <Route path="hr/payroll" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
-          <Route path="hr/commissions" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
-          <Route path="hr/time" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
+          <Route path="hr/payroll" element={<Suspense fallback={null}><HrPayrollPage /></Suspense>} />
+          <Route path="hr/commissions" element={<Suspense fallback={null}><HrCommissionsPage /></Suspense>} />
+          <Route path="hr/time" element={<Suspense fallback={null}><HrTimePage /></Suspense>} />
           <Route path="hr/schedules" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
           <Route path="hr/documents" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />
           <Route path="hr/tax-documents" element={<Suspense fallback={null}><HrPlaceholderPage /></Suspense>} />

@@ -18,7 +18,7 @@ interface CreateEmployeeRequest {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relation?: string;
-  roles: string[]; // e.g. ["employee"], ["field_sales"], ["employee","field_sales"]
+  roles: string[];
   notes?: string;
 }
 
@@ -53,7 +53,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Session invalide" }), { status: 401, headers });
     }
 
-    // Must be admin
     const { data: adminRoles } = await adminClient
       .from("user_roles")
       .select("role")
@@ -62,7 +61,6 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (!adminRoles?.length) {
-      // Fallback admin_users
       const { data: au } = await adminClient
         .from("admin_users")
         .select("id")
@@ -106,10 +104,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Step 1: Create auth user with invite (magic link) ──
+    // ── Check if employee_records already exists for this email ──
+    const { data: existingEmp } = await adminClient
+      .from("employee_records")
+      .select("id, employee_number")
+      .eq("work_email", body.work_email.trim().toLowerCase())
+      .limit(1);
+
+    if (existingEmp?.length) {
+      return new Response(
+        JSON.stringify({ error: "Un dossier employé existe déjà pour cet email" }),
+        { status: 200, headers }  // Return 200 so supabase.functions.invoke parses it
+      );
+    }
+
+    // ── Step 1: Create or find auth user ──
+    let userId: string;
+    let isNewAuthUser = false;
+
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email: body.work_email,
-      email_confirm: false, // They must confirm via invitation link
+      email: body.work_email.trim().toLowerCase(),
+      email_confirm: false,
       user_metadata: {
         full_name: `${body.first_name} ${body.last_name}`,
         is_employee: true,
@@ -117,18 +132,54 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
-      console.error("Auth create error:", authError);
-      if (authError.message?.includes("already registered") || authError.message?.includes("duplicate")) {
-        return new Response(
-          JSON.stringify({ error: "Un utilisateur avec cet email existe déjà" }),
-          { status: 409, headers }
-        );
-      }
-      return new Response(JSON.stringify({ error: authError.message }), { status: 400, headers });
-    }
+      if (authError.message?.includes("already registered") || (authError as any).code === "email_exists") {
+        // User exists in auth — look them up and link as employee
+        console.log(`Auth user already exists for ${body.work_email}, linking as employee`);
+        const { data: existingUsers, error: listErr } = await adminClient.auth.admin.listUsers({
+          page: 1,
+          perPage: 1,
+        });
+        
+        // Use a more targeted approach - get by email
+        const { data: userByEmail } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .eq("email", body.work_email.trim().toLowerCase())
+          .limit(1);
 
-    const userId = authData.user!.id;
-    console.log(`Auth user created: ${userId} for ${body.work_email}`);
+        if (!userByEmail?.length) {
+          // Try auth admin API to find user
+          // listUsers doesn't filter by email, so we search profiles
+          // If not in profiles, check auth directly
+          const allUsersResp = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=50`, {
+            headers: {
+              Authorization: `Bearer ${supabaseServiceKey}`,
+              apikey: supabaseServiceKey,
+            },
+          });
+          const allUsersData = await allUsersResp.json();
+          const foundUser = allUsersData?.users?.find(
+            (u: any) => u.email?.toLowerCase() === body.work_email.trim().toLowerCase()
+          );
+          if (!foundUser) {
+            return new Response(
+              JSON.stringify({ error: "Utilisateur existant introuvable. Contactez le support." }),
+              { status: 200, headers }
+            );
+          }
+          userId = foundUser.id;
+        } else {
+          userId = userByEmail[0].user_id;
+        }
+      } else {
+        console.error("Auth create error:", authError);
+        return new Response(JSON.stringify({ error: authError.message }), { status: 200, headers });
+      }
+    } else {
+      userId = authData.user!.id;
+      isNewAuthUser = true;
+      console.log(`Auth user created: ${userId} for ${body.work_email}`);
+    }
 
     // ── Step 2: Update profile ──
     const { error: profileErr } = await adminClient
@@ -139,7 +190,6 @@ Deno.serve(async (req) => {
         full_name: `${body.first_name} ${body.last_name}`,
         phone: body.phone || null,
         department: body.department || null,
-        employee_number: null, // Will be set from employee_records trigger
       })
       .eq("user_id", userId);
 
@@ -152,7 +202,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         first_name: body.first_name,
         last_name: body.last_name,
-        work_email: body.work_email,
+        work_email: body.work_email.trim().toLowerCase(),
         phone: body.phone || null,
         department: body.department || null,
         job_title: body.job_title || null,
@@ -175,38 +225,38 @@ Deno.serve(async (req) => {
 
     if (empErr) {
       console.error("Employee record create error:", empErr);
-      // Rollback: delete auth user
-      await adminClient.auth.admin.deleteUser(userId);
+      if (isNewAuthUser) {
+        await adminClient.auth.admin.deleteUser(userId);
+      }
       return new Response(
         JSON.stringify({ error: "Erreur création dossier employé: " + empErr.message }),
-        { status: 500, headers }
+        { status: 200, headers }
       );
     }
 
     console.log(`Employee record created: ${empRecord.employee_number}`);
 
-    // ── Step 4: Assign roles ──
-    const roleInserts = body.roles.map((role) => ({
-      user_id: userId,
-      role,
-    }));
-
-    const { error: rolesErr } = await adminClient.from("user_roles").insert(roleInserts);
-    if (rolesErr) {
-      console.error("Roles insert error:", rolesErr);
-      // Non-fatal, log but continue
+    // ── Step 4: Assign roles (upsert to handle existing) ──
+    for (const role of body.roles) {
+      const { error: roleErr } = await adminClient
+        .from("user_roles")
+        .upsert(
+          { user_id: userId, role },
+          { onConflict: "user_id,role" }
+        );
+      if (roleErr) console.error(`Role insert error for ${role}:`, roleErr);
     }
 
     // ── Step 5: Send invitation email (magic link) ──
+    const baseUrl = Deno.env.get("APP_BASE_URL") || "https://telecom-zen-hub.lovable.app";
     const { error: inviteErr } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
-      email: body.work_email,
+      email: body.work_email.trim().toLowerCase(),
       options: {
-        redirectTo: `${Deno.env.get("APP_BASE_URL") || "https://telecom-zen-hub.lovable.app"}/hub`,
+        redirectTo: `${baseUrl}/hub`,
       },
     });
 
-    // Update invitation_sent_at
     const now = new Date().toISOString();
     await adminClient
       .from("employee_records")
@@ -215,7 +265,6 @@ Deno.serve(async (req) => {
 
     if (inviteErr) {
       console.error("Invitation generation error:", inviteErr);
-      // Non-fatal — employee is created, invitation can be resent
     }
 
     // ── Step 6: Audit log ──
@@ -229,6 +278,7 @@ Deno.serve(async (req) => {
         email: body.work_email,
         name: `${body.first_name} ${body.last_name}`,
         roles: body.roles,
+        linked_existing_user: !isNewAuthUser,
       }),
       reason: "Nouvel employé créé via HR & Payroll",
       actor_email: caller.email,
@@ -251,7 +301,7 @@ Deno.serve(async (req) => {
     console.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: "Erreur serveur inattendue" }),
-      { status: 500, headers: { ...getCorsHeaders(req.headers.get("origin")), "Content-Type": "application/json" } }
+      { status: 200, headers: { ...getCorsHeaders(req.headers.get("origin")), "Content-Type": "application/json" } }
     );
   }
 });
