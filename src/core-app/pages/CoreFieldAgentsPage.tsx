@@ -546,20 +546,49 @@ export default function CoreFieldAgentsPage() {
   });
   const markPayrollPaid = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payroll_entries").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
-      // Auto-generate PDF
-      try {
-        await supabase.functions.invoke("generate-payslip-pdf", { body: { payroll_entry_id: id } });
-      } catch (e) { console.error("PDF auto-gen failed:", e); }
-      // Notify employee
       const entry = payrollEntries.find((pe: any) => pe.id === id);
-      if (entry) {
-        await notifyEmployee(entry.user_id, "payroll_paid", "Paie versée", `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`);
-        await logAudit("mark_payroll_paid", "payroll_entries", id, { field_changed: "status", new_value: "paid" });
+      if (!entry) throw new Error("Fiche de paie introuvable");
+
+      // 1) Generate PDF first (no fake success)
+      const { data: pdfData, error: pdfError } = await supabase.functions.invoke("generate-payslip-pdf", {
+        body: { payroll_entry_id: id },
+      });
+      if (pdfError) throw new Error(`Génération PDF échouée: ${getMutationErrorMessage(pdfError, "Action impossible")}`);
+
+      const { data: refreshed, error: refreshedError } = await supabase
+        .from("payroll_entries")
+        .select("pdf_url")
+        .eq("id", id)
+        .single();
+      if (refreshedError) throw refreshedError;
+      if (!refreshed?.pdf_url && !pdfData?.storage_path && !pdfData?.pdf_url) {
+        throw new Error("Le PDF de paie n'a pas été persisté (pdf_url manquant)");
       }
+
+      // 2) Mark paid only after PDF is persisted
+      const { error } = await supabase
+        .from("payroll_entries")
+        .update({ status: "paid", paid_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+
+      // 3) Notify + audit
+      await notifyEmployee(
+        entry.user_id,
+        "payroll_paid",
+        "Paie versée",
+        `Votre paie de ${fmtMoney(Number(entry.net_pay))} a été versée. Le PDF est disponible dans votre portail.`
+      );
+      await logAudit("mark_payroll_paid", "payroll_entries", id, {
+        field_changed: "status",
+        old_value: entry.status,
+        new_value: "paid",
+      });
     },
-    onSuccess: () => { invalidateAll(); toast.success("Paie marquée payée + PDF généré + employé notifié"); },
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Paie payée et PDF généré avec succès");
+    },
     onError: (e) => toast.error(`Échec paiement paie: ${getMutationErrorMessage(e, "Action impossible")}`),
   });
 
