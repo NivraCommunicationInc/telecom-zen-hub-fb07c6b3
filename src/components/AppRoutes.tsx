@@ -16,6 +16,18 @@ const EmployeeProtectedRoute = lazy(() => import("@/employee-app/components/Empl
 
 // Field Portal (lazy-loaded, fully isolated)
 const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
+
+// RH Portal (lazy-loaded, fully isolated)
+const RhAppLayout = lazy(() => import("@/rh-app/RhAppLayout"));
+const RhProtectedRoute = lazy(() => import("@/rh-app/components/RhProtectedRoute"));
+const RhDashboard = lazy(() => import("@/rh-app/pages/RhDashboard"));
+const RhPayslips = lazy(() => import("@/rh-app/pages/RhPayslips"));
+const RhTaxDocuments = lazy(() => import("@/rh-app/pages/RhTaxDocuments"));
+const RhEmploymentLetters = lazy(() => import("@/rh-app/pages/RhEmploymentLetters"));
+const RhSchedule = lazy(() => import("@/rh-app/pages/RhSchedule"));
+const RhCommissions = lazy(() => import("@/rh-app/pages/RhCommissions"));
+const RhNotifications = lazy(() => import("@/rh-app/pages/RhNotifications"));
+const RhProfile = lazy(() => import("@/rh-app/pages/RhProfile"));
 const FieldProtectedRoute = lazy(() => import("@/field-app/components/FieldProtectedRoute"));
 const FieldDashboard = lazy(() => import("@/field-app/pages/FieldDashboard"));
 const FieldLeads = lazy(() => import("@/field-app/pages/FieldLeads"));
@@ -854,6 +866,24 @@ const AppRoutes = () => {
           <Route path="notifications" element={<Suspense fallback={null}><FieldNotifications /></Suspense>} />
           <Route path="address-lookup" element={<Suspense fallback={null}><FieldClientLookup /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
+        </Route>
+      </Route>
+
+      {/* ============================================ */}
+      {/* NIVRA RH — Employee HR Portal                 */}
+      {/* ============================================ */}
+      <Route path="/rh" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><RhProtectedRoute /></Suspense>}>
+        <Route element={<Suspense fallback={null}><RhAppLayout /></Suspense>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={null}><RhDashboard /></Suspense>} />
+          <Route path="paie" element={<Suspense fallback={null}><RhPayslips /></Suspense>} />
+          <Route path="documents-fiscaux" element={<Suspense fallback={null}><RhTaxDocuments /></Suspense>} />
+          <Route path="lettres" element={<Suspense fallback={null}><RhEmploymentLetters /></Suspense>} />
+          <Route path="horaire" element={<Suspense fallback={null}><RhSchedule /></Suspense>} />
+          <Route path="commissions" element={<Suspense fallback={null}><RhCommissions /></Suspense>} />
+          <Route path="notifications" element={<Suspense fallback={null}><RhNotifications /></Suspense>} />
+          <Route path="profil" element={<Suspense fallback={null}><RhProfile /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>

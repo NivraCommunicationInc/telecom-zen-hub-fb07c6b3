@@ -15,7 +15,7 @@ const isStandalonePwa = () => {
 };
 
 // Staff PWA is allowed to access both /staff/* and /admin/*
-const isStaffAreaPath = (path: string) => path.startsWith("/staff") || path.startsWith("/admin");
+const isStaffAreaPath = (path: string) => path.startsWith("/staff") || path.startsWith("/admin") || path.startsWith("/rh");
 
 interface AppModeGateProps {
   children?: ReactNode;
