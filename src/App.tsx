@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import AppRoutes from "@/components/AppRoutes";
-import ChatbotWidget from "@/components/chatbot/ChatbotWidget";
+import NivraChat from "@/components/chatbot/NivraChat";
 import { DevOverflowDetector } from "@/components/DevOverflowDetector";
 import { AppModeGate, InstallPrompt, NotificationPrompt, SWUpdateHandler } from "@/components/pwa";
 import LockdownGuard from "@/components/LockdownGuard";
@@ -40,7 +40,7 @@ const App = () => (
             {/* AppModeGate wraps routes to block rendering until PWA mode is determined */}
             <AppModeGate>
               <AppRoutes />
-              <ChatbotWidget />
+              <NivraChat />
             </AppModeGate>
           </LockdownGuard>
           <InstallPrompt />
