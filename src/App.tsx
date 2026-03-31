@@ -40,7 +40,7 @@ const App = () => (
             {/* AppModeGate wraps routes to block rendering until PWA mode is determined */}
             <AppModeGate>
               <AppRoutes />
-              <ChatbotWidget />
+              <NivraChat />
             </AppModeGate>
           </LockdownGuard>
           <InstallPrompt />
