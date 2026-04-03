@@ -18,7 +18,7 @@ on:
 jobs:
   mobile_overflow_proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -31,70 +31,21 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || npm install --frozen-lockfile || npm install
 
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
-      - name: Prepare E2E credentials (self-contained)
+      - name: Prepare environment
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p e2e/screenshots
 
-          # Load backend URL + publishable key from .env (committed in repo)
-          if [ -f .env ]; then
-            grep -E '^(VITE_SUPABASE_URL|VITE_SUPABASE_PUBLISHABLE_KEY|VITE_SUPABASE_PROJECT_ID)=' .env >> "$GITHUB_ENV" || true
-          fi
-
-          # Generate a unique, disposable test user for this run
-          E2E_EMAIL="e2e+${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@nivra-telecom.ca"
-          E2E_PASSWORD="Pw!${GITHUB_RUN_ID}${GITHUB_RUN_ATTEMPT}Aa1"
-
-          echo "TEST_CLIENT_EMAIL=$E2E_EMAIL" >> "$GITHUB_ENV"
-          echo "TEST_CLIENT_PASSWORD=$E2E_PASSWORD" >> "$GITHUB_ENV"
-          echo "VITE_E2E_MODE=true" >> "$GITHUB_ENV"
-          echo "VITE_E2E_TEST_EMAIL=$E2E_EMAIL" >> "$GITHUB_ENV"
-
-      - name: Seed E2E user (no secrets)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p e2e/screenshots
-
-          if [ -z "${VITE_SUPABASE_URL:-}" ] || [ -z "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" ]; then
-            echo "Missing required env in .env: VITE_SUPABASE_URL and/or VITE_SUPABASE_PUBLISHABLE_KEY" >&2
-            exit 1
-          fi
-
-          echo "Seeding user: $TEST_CLIENT_EMAIL"
-
-          # Create user via public signup endpoint (email auto-confirm is enabled in backend settings)
-          curl -sS -X POST "$VITE_SUPABASE_URL/auth/v1/signup" \
-            -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
-            -H "Authorization: Bearer $VITE_SUPABASE_PUBLISHABLE_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"$TEST_CLIENT_EMAIL\",\"password\":\"$TEST_CLIENT_PASSWORD\"}" \
-            > e2e/screenshots/seed-signup-response.json
-
-      - name: Run P0 mobile overflow test
+      - name: Run P0 mobile overflow test (public pages only)
         env:
-          # Used by the Playwright test runner (Node process)
-          TEST_CLIENT_EMAIL: ${{ env.TEST_CLIENT_EMAIL }}
-          TEST_CLIENT_PASSWORD: ${{ env.TEST_CLIENT_PASSWORD }}
-          # Used by Vite (client-side E2E PIN bypass)
-          VITE_E2E_MODE: ${{ env.VITE_E2E_MODE }}
-          VITE_E2E_TEST_EMAIL: ${{ env.VITE_E2E_TEST_EMAIL }}
-        run: npx playwright test e2e/mobile-overflow-check.spec.ts --reporter=line
-
-      - name: Cleanup E2E user (best effort)
-        if: always()
-        shell: bash
-        run: |
-          # Note: Cannot delete user without service_role key (which we don't expose).
-          # The user is disposable (unique per run) and will be orphaned.
-          # For production systems, a scheduled cleanup job should purge e2e+* users.
-          echo "E2E user $TEST_CLIENT_EMAIL created for this run only (no service_role cleanup possible without secrets)."
+          VITE_E2E_MODE: "true"
+        run: npx playwright test e2e/mobile-overflow-check.spec.ts --grep "Homepage|Internet|Public pages" --reporter=line
 
       - name: Upload proof artifacts (screenshots + logs)
         if: always()

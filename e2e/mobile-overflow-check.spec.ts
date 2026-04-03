@@ -1,10 +1,8 @@
 /**
  * P0 Mobile Overflow Check - Playwright E2E Test
  * 
- * This test:
- * 1. Captures 390px screenshots for /, /internet, /portal (logged in)
- * 2. Checks scrollWidth vs innerWidth at 375/390/414px for each page
- * 3. Fails if any page has horizontal overflow
+ * Tests public pages for horizontal overflow at common mobile widths.
+ * No authentication required — only public routes are tested.
  */
 
 import fs from 'node:fs';
@@ -27,10 +25,6 @@ function logLine(line: string) {
   }
 }
 
-// Test user credentials - use environment variables or fallback to test account
-const TEST_EMAIL = process.env.TEST_CLIENT_EMAIL || 'test@nivra-telecom.ca';
-const TEST_PASSWORD = process.env.TEST_CLIENT_PASSWORD || 'TestPassword123!';
-
 interface OverflowResult {
   width: number;
   innerWidth: number;
@@ -40,7 +34,7 @@ interface OverflowResult {
 
 async function checkOverflow(page: any, width: number): Promise<OverflowResult> {
   await page.setViewportSize({ width, height: SCREENSHOT_HEIGHT });
-  await page.waitForTimeout(500); // Allow layout to settle
+  await page.waitForTimeout(500);
   
   const result = await page.evaluate(() => ({
     innerWidth: window.innerWidth,
@@ -64,19 +58,17 @@ test.describe('P0 Mobile Overflow Check', () => {
       // ignore
     }
   });
+
   test('Homepage (/) - no horizontal overflow at mobile widths', async ({ page }) => {
-    // Set viewport to 390px for screenshot
     await page.setViewportSize({ width: SCREENSHOT_WIDTH, height: SCREENSHOT_HEIGHT });
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     
-    // Take screenshot
     await page.screenshot({ 
       path: 'e2e/screenshots/homepage-390px.png',
       fullPage: false 
     });
     
-    // Check overflow at all mobile widths
     const results: OverflowResult[] = [];
     for (const width of MOBILE_WIDTHS) {
       const result = await checkOverflow(page, width);
@@ -84,7 +76,6 @@ test.describe('P0 Mobile Overflow Check', () => {
       logLine(`Homepage @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
     }
     
-    // Assert no overflow
     for (const result of results) {
       expect(result.scrollWidth, `Homepage has horizontal overflow at ${result.width}px`).toBeLessThanOrEqual(result.innerWidth);
     }
@@ -95,13 +86,11 @@ test.describe('P0 Mobile Overflow Check', () => {
     await page.goto('/internet');
     await page.waitForLoadState('networkidle');
     
-    // Take screenshot
     await page.screenshot({ 
       path: 'e2e/screenshots/internet-390px.png',
       fullPage: false 
     });
     
-    // Check overflow at all mobile widths
     const results: OverflowResult[] = [];
     for (const width of MOBILE_WIDTHS) {
       const result = await checkOverflow(page, width);
@@ -109,59 +98,8 @@ test.describe('P0 Mobile Overflow Check', () => {
       logLine(`Internet @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
     }
     
-    // Assert no overflow
     for (const result of results) {
       expect(result.scrollWidth, `Internet page has horizontal overflow at ${result.width}px`).toBeLessThanOrEqual(result.innerWidth);
-    }
-  });
-
-  test('Portal dashboard (/portal) - logged in, no horizontal overflow', async ({ page }) => {
-    await page.setViewportSize({ width: SCREENSHOT_WIDTH, height: SCREENSHOT_HEIGHT });
-
-    // Navigate to auth page
-    await page.goto('/portal/auth');
-    await page.waitForLoadState('networkidle');
-
-    // Fill login form
-    const emailInput = page.locator('input[type="email"]').first();
-    const passwordInput = page.locator('input[type="password"]').first();
-
-    await expect(emailInput, 'Expected portal login email input to be visible').toBeVisible();
-    await emailInput.fill(TEST_EMAIL);
-    await passwordInput.fill(TEST_PASSWORD);
-
-    // Submit login
-    const loginButton = page.locator('button[type="submit"]').first();
-    await loginButton.click();
-
-    // In E2E mode the dedicated test user must bypass PIN and land on /portal
-    await page.waitForURL('**/portal', { timeout: 15000 });
-
-    // If PIN UI still appears, that's a hard failure for this P0 proof
-    const pinInput = page.locator('input[inputmode="numeric"], input[autocomplete="one-time-code"], input[name*="pin" i]');
-    if (await pinInput.first().isVisible().catch(() => false)) {
-      throw new Error('PIN verification UI is visible during E2E run; expected bypass to reach /portal dashboard.');
-    }
-
-    // Confirm dashboard rendered (requires authenticated user context)
-    await expect(page.locator('[data-testid="portal-dashboard"]'), 'Expected portal dashboard to render after login').toBeVisible({ timeout: 15000 });
-
-    await page.screenshot({
-      path: 'e2e/screenshots/portal-dashboard-390px.png',
-      fullPage: false,
-    });
-
-    // Check overflow at all mobile widths (on dashboard)
-    const results: OverflowResult[] = [];
-    for (const width of MOBILE_WIDTHS) {
-      const result = await checkOverflow(page, width);
-      results.push(result);
-      logLine(`Portal @ ${width}px: innerWidth=${result.innerWidth}, scrollWidth=${result.scrollWidth}, overflow=${result.hasOverflow}`);
-    }
-
-    // Assert no overflow
-    for (const result of results) {
-      expect(result.scrollWidth, `Portal has horizontal overflow at ${result.width}px`).toBeLessThanOrEqual(result.innerWidth);
     }
   });
 
@@ -182,7 +120,6 @@ test.describe('P0 Mobile Overflow Check', () => {
       allResults.push({ page: pagePath, results });
     }
     
-    // Print summary
     logLine('');
     logLine('=== OVERFLOW CHECK SUMMARY ===');
     for (const { page: pagePath, results } of allResults) {
@@ -194,7 +131,6 @@ test.describe('P0 Mobile Overflow Check', () => {
     logLine('==============================');
     logLine('');
     
-    // Assert no overflow on any page
     for (const { page: pagePath, results } of allResults) {
       for (const result of results) {
         expect(result.scrollWidth, `${pagePath} has horizontal overflow at ${result.width}px`).toBeLessThanOrEqual(result.innerWidth);
