@@ -5737,6 +5737,56 @@ export type Database = {
           },
         ]
       }
+      field_agent_discounts: {
+        Row: {
+          agent_id: string
+          applied_per_bill: boolean
+          created_at: string
+          customer_name: string | null
+          discount_amount: number
+          duration_months: number
+          field_order_id: string | null
+          id: string
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          applied_per_bill?: boolean
+          created_at?: string
+          customer_name?: string | null
+          discount_amount?: number
+          duration_months?: number
+          field_order_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          applied_per_bill?: boolean
+          created_at?: string
+          customer_name?: string | null
+          discount_amount?: number
+          duration_months?: number
+          field_order_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_agent_discounts_field_order_id_fkey"
+            columns: ["field_order_id"]
+            isOneToOne: false
+            referencedRelation: "field_sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_commissions: {
         Row: {
           agent_id: string
@@ -6141,6 +6191,57 @@ export type Database = {
           name?: string
           promo_type?: string
           requires_approval?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      field_territory_streets: {
+        Row: {
+          agent_id: string
+          city: string | null
+          completed_at: string | null
+          created_at: string
+          doors_answered: number | null
+          doors_knocked: number | null
+          doors_sold: number | null
+          id: string
+          notes: string | null
+          postal_code: string | null
+          status: string
+          street_name: string
+          total_doors: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          city?: string | null
+          completed_at?: string | null
+          created_at?: string
+          doors_answered?: number | null
+          doors_knocked?: number | null
+          doors_sold?: number | null
+          id?: string
+          notes?: string | null
+          postal_code?: string | null
+          status?: string
+          street_name: string
+          total_doors?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          city?: string | null
+          completed_at?: string | null
+          created_at?: string
+          doors_answered?: number | null
+          doors_knocked?: number | null
+          doors_sold?: number | null
+          id?: string
+          notes?: string | null
+          postal_code?: string | null
+          status?: string
+          street_name?: string
+          total_doors?: number | null
           updated_at?: string
         }
         Relationships: []
