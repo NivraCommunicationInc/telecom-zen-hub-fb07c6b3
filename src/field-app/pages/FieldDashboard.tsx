@@ -263,10 +263,10 @@ export default function FieldDashboard() {
           { label: "Nouvelle vente", icon: ShoppingCart, path: "/sale/new", primary: true },
           { label: "Nouveau lead", icon: UserPlus, path: "/leads/new" },
           { label: "Mes commandes", icon: ArrowRight, path: "/submissions" },
-          { label: "Mes leads", icon: UserPlus, path: "/leads" },
+          { label: "Territoire", icon: MapPin, path: "/territory" },
           { label: "Catalogue", icon: Star, path: "/offers" },
-          { label: "Suivi pipeline", icon: BarChart3, path: "/tracking" },
           { label: "Commissions", icon: DollarSign, path: "/commissions" },
+          { label: "Objectifs", icon: Target, path: "/objectives" },
           { label: "Rapport du jour", icon: Calendar, path: "/daily-report" },
         ].map((a) => (
           <button
