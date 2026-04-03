@@ -42,12 +42,22 @@ const EQUIPMENT_CATALOG: EquipmentOption[] = [
   { id: "eq-panel", name: "Panneau de contrôle", price: 199.99, category: "panel", requiredServiceCategory: "security", maxQty: 1, icon: Package },
 ];
 
+const SERVICE_CATEGORY_LABELS: Record<string, string> = {
+  internet: "Internet",
+  tv: "Télévision",
+  mobile: "Mobile",
+  security: "Sécurité",
+};
+
 export default function StepEquipment({ services, equipment, onChange, onNext, onBack }: Props) {
   const selectedCategories = new Set(services.map((s) => s.category));
 
-  const availableEquipment = EQUIPMENT_CATALOG.filter((eq) =>
-    selectedCategories.has(eq.requiredServiceCategory)
-  );
+  // Show ALL equipment, grouped by category — highlight relevant ones
+  const groupedEquipment = EQUIPMENT_CATALOG.reduce<Record<string, EquipmentOption[]>>((acc, eq) => {
+    if (!acc[eq.requiredServiceCategory]) acc[eq.requiredServiceCategory] = [];
+    acc[eq.requiredServiceCategory].push(eq);
+    return acc;
+  }, {});
 
   const getQty = (id: string) => equipment.find((e) => e.id === id)?.quantity ?? 0;
 
