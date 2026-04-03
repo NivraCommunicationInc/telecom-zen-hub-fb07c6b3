@@ -10,7 +10,7 @@ import {
   TrendingUp, DollarSign, UserPlus, Plus, BarChart3, Clock,
   CheckCircle2, AlertCircle, Loader2, ArrowUpRight, Target,
   Zap, Trophy, ChevronRight, Bell, MapPin, Calendar,
-  ShoppingCart, Flame, Star, ArrowRight, RefreshCw,
+  ShoppingCart, Flame, Star, ArrowRight, RefreshCw, Search,
 } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
