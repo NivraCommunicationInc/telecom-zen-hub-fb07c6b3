@@ -162,23 +162,31 @@ export default function FieldDashboard() {
   return (
     <div className="space-y-6">
       {/* ═══ HEADER ═══ */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#000000] tracking-tight">
             {greeting()}{data?.userName ? `, ${data.userName.split(" ")[0]}` : ""} 👋
           </h1>
           <p className="text-sm text-[#6B7280] mt-0.5">
-            {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })}
+            {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })} · {data?.jobTitle}
           </p>
-          <p className="text-xs text-[#9CA3AF] mt-0.5">{data?.jobTitle}</p>
         </div>
-        <button
-          onClick={() => navigate(fieldPath("/sale/new"))}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] transition-all shadow-md hover:shadow-lg"
-        >
-          <Plus className="h-4 w-4" />
-          Nouvelle vente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate(fieldPath("/address-lookup"))}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[#374151] text-sm font-semibold hover:bg-[#F9FAFB] transition-all"
+          >
+            <Search className="h-4 w-4" />
+            Rechercher
+          </button>
+          <button
+            onClick={() => navigate(fieldPath("/sale/new"))}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] transition-all shadow-md hover:shadow-lg"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle vente
+          </button>
+        </div>
       </div>
 
       {/* ═══ DAILY GOAL PROGRESS ═══ */}
