@@ -898,6 +898,9 @@ const AppRoutes = () => {
           <Route path="daily-report" element={<Suspense fallback={null}><FieldDailyReport /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={null}><FieldNotifications /></Suspense>} />
           <Route path="address-lookup" element={<Suspense fallback={null}><FieldClientLookup /></Suspense>} />
+          <Route path="territory" element={<Suspense fallback={null}><FieldTerritory /></Suspense>} />
+          <Route path="clients" element={<Suspense fallback={null}><FieldClients /></Suspense>} />
+          <Route path="objectives" element={<Suspense fallback={null}><FieldObjectives /></Suspense>} />
           <Route path="resources" element={<Suspense fallback={null}><FieldResources /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
