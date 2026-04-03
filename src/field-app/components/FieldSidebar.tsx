@@ -10,11 +10,10 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import {
   LayoutDashboard, UserPlus, Package, Send, TrendingUp,
   DollarSign, User, Lock, LogOut, MapPin, ShoppingCart,
-  BarChart3, Bell, Search, BookOpen, Calendar, ChevronDown,
-  Briefcase,
+  BarChart3, Bell, Search, BookOpen, Calendar, Target,
+  Briefcase, Users, Map,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useState } from "react";
 
 const FIELD_BASE = "/field";
 
@@ -30,20 +29,18 @@ const salesNav = [
 ];
 
 const prospectNav = [
+  { label: "Clients", href: `${FIELD_BASE}/clients`, icon: Users, badgeKey: "clients" as const },
+  { label: "Territoire & Rues", href: `${FIELD_BASE}/territory`, icon: Map },
   { label: "Leads", href: `${FIELD_BASE}/leads`, icon: UserPlus, badgeKey: "leads" as const },
-  { label: "Recherche adresse", href: `${FIELD_BASE}/address-lookup`, icon: Search },
 ];
 
 const toolsNav = [
-  { label: "Offres approuvées", href: `${FIELD_BASE}/offers`, icon: Package },
-  { label: "Performance", href: `${FIELD_BASE}/performance`, icon: BarChart3 },
+  { label: "Catalogue offres", href: `${FIELD_BASE}/offers`, icon: Package },
+  { label: "Objectifs & cibles", href: `${FIELD_BASE}/objectives`, icon: Target },
   { label: "Rapport du jour", href: `${FIELD_BASE}/daily-report`, icon: Calendar },
-  { label: "Notifications", href: `${FIELD_BASE}/notifications`, icon: Bell },
-  { label: "Ressources", href: `${FIELD_BASE}/resources`, icon: BookOpen },
 ];
 
 const bottomItems = [
-  { label: "Mon dossier RH", href: "/rh", icon: Briefcase, external: true },
   { label: "Mon profil", href: `${FIELD_BASE}/profile`, icon: User },
   { label: "Sécurité", href: `${FIELD_BASE}/security`, icon: Lock },
 ];
@@ -53,13 +50,15 @@ function useBadges() {
   return useQuery({
     queryKey: ["field-sidebar-badges", user?.id],
     queryFn: async () => {
-      const [ordersRes, leadsRes] = await Promise.all([
+      const [ordersRes, leadsRes, clientsRes] = await Promise.all([
         supabase.from("field_sales_orders").select("id", { count: "exact", head: true })
           .eq("salesperson_id", user!.id).eq("payment_status", "pending"),
         supabase.from("field_leads").select("id", { count: "exact", head: true })
           .eq("agent_id", user!.id).not("status", "in", '("won","lost")'),
+        supabase.from("field_sales_orders").select("id", { count: "exact", head: true })
+          .eq("salesperson_id", user!.id),
       ]);
-      return { orders: ordersRes.count ?? 0, leads: leadsRes.count ?? 0 };
+      return { orders: ordersRes.count ?? 0, leads: leadsRes.count ?? 0, clients: clientsRes.count ?? 0 };
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 3,
@@ -103,7 +102,7 @@ export default function FieldSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: badges } = useBadges();
-  const badgeCounts = { orders: badges?.orders ?? 0, leads: badges?.leads ?? 0 };
+  const badgeCounts = { orders: badges?.orders ?? 0, leads: badges?.leads ?? 0, clients: badges?.clients ?? 0 };
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(href + "/");
@@ -183,7 +182,7 @@ export default function FieldSidebar() {
         </div>
       </aside>
 
-      {/* Mobile bottom nav — expanded with key actions */}
+      {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[#E5E7EB] bg-white px-1 py-1 safe-bottom">
         <div className="flex items-center justify-around">
           {[
@@ -191,7 +190,7 @@ export default function FieldSidebar() {
             { href: `${FIELD_BASE}/submissions`, icon: Send, label: "Commandes" },
             { href: `${FIELD_BASE}/sale/new`, icon: ShoppingCart, label: "Vendre", primary: true },
             { href: `${FIELD_BASE}/leads`, icon: UserPlus, label: "Leads" },
-            { href: `${FIELD_BASE}/performance`, icon: BarChart3, label: "Stats" },
+            { href: `${FIELD_BASE}/objectives`, icon: Target, label: "Objectifs" },
           ].map((item) => (
             <Link
               key={item.href}
