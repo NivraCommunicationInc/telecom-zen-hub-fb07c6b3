@@ -16113,7 +16113,6 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: string
       }
-      unaccent: { Args: { "": string }; Returns: string }
       update_template_last_used_at: {
         Args: { p_template_key: string }
         Returns: undefined
