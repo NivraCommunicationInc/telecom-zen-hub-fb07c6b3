@@ -81,64 +81,77 @@ export default function StepEquipment({ services, equipment, onChange, onNext, o
         </p>
       </div>
 
-      {availableEquipment.length === 0 ? (
-        <div className="bg-[#F3F4F6] rounded-xl p-6 text-center">
-          <Package className="h-8 w-8 mx-auto mb-2 text-[#9CA3AF]" />
-          <p className="text-sm text-[#6B7280]">Aucun équipement requis pour les services sélectionnés.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {availableEquipment.map((eq) => {
-            const qty = getQty(eq.id);
-            const Icon = eq.icon;
-            return (
-              <div
-                key={eq.id}
-                className={cn(
-                  "p-4 rounded-xl border-2 transition-all",
-                  qty > 0 ? "border-[#22C55E] bg-[#F0FDF4]" : "border-[#E5E7EB] bg-white"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "h-10 w-10 rounded-lg flex items-center justify-center",
-                      qty > 0 ? "bg-[#DCFCE7]" : "bg-[#F3F4F6]"
-                    )}>
-                      <Icon className={cn("h-5 w-5", qty > 0 ? "text-[#16A34A]" : "text-[#6B7280]")} />
+      {Object.entries(groupedEquipment).map(([categoryKey, items]) => {
+        const isRelevant = selectedCategories.has(categoryKey);
+        return (
+          <div key={categoryKey} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-[#374151]">
+                {SERVICE_CATEGORY_LABELS[categoryKey] || categoryKey}
+              </h3>
+              {isRelevant && (
+                <span className="text-[10px] font-medium bg-[#DCFCE7] text-[#16A34A] px-1.5 py-0.5 rounded">
+                  Service sélectionné
+                </span>
+              )}
+              {!isRelevant && (
+                <span className="text-[10px] font-medium bg-[#F3F4F6] text-[#9CA3AF] px-1.5 py-0.5 rounded">
+                  Optionnel
+                </span>
+              )}
+            </div>
+            {items.map((eq) => {
+              const qty = getQty(eq.id);
+              const Icon = eq.icon;
+              return (
+                <div
+                  key={eq.id}
+                  className={cn(
+                    "p-4 rounded-xl border-2 transition-all",
+                    qty > 0 ? "border-[#22C55E] bg-[#F0FDF4]" : "border-[#E5E7EB] bg-white"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "h-10 w-10 rounded-lg flex items-center justify-center",
+                        qty > 0 ? "bg-[#DCFCE7]" : "bg-[#F3F4F6]"
+                      )}>
+                        <Icon className={cn("h-5 w-5", qty > 0 ? "text-[#16A34A]" : "text-[#6B7280]")} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#000000]">{eq.name}</p>
+                        <p className="text-xs text-[#6B7280]">
+                          {eq.price === 0 ? "Gratuit" : `${eq.price.toFixed(2)} $`} · Frais unique · Max {eq.maxQty}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#000000]">{eq.name}</p>
-                      <p className="text-xs text-[#6B7280]">
-                        {eq.price.toFixed(2)} $ · Frais unique · Max {eq.maxQty}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQty(eq, qty - 1)}
+                        disabled={qty === 0}
+                        className="h-8 w-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#374151] hover:bg-[#F3F4F6] disabled:opacity-30 transition-colors"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="w-8 text-center text-sm font-bold text-[#000000]">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQty(eq, qty + 1)}
+                        disabled={qty >= eq.maxQty}
+                        className="h-8 w-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#374151] hover:bg-[#F3F4F6] disabled:opacity-30 transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setQty(eq, qty - 1)}
-                      disabled={qty === 0}
-                      className="h-8 w-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#374151] hover:bg-[#F3F4F6] disabled:opacity-30 transition-colors"
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="w-8 text-center text-sm font-bold text-[#000000]">{qty}</span>
-                    <button
-                      type="button"
-                      onClick={() => setQty(eq, qty + 1)}
-                      disabled={qty >= eq.maxQty}
-                      className="h-8 w-8 rounded-lg border border-[#E5E7EB] flex items-center justify-center text-[#374151] hover:bg-[#F3F4F6] disabled:opacity-30 transition-colors"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        );
+      })}
 
       {/* Equipment total */}
       {totalEquipment > 0 && (
