@@ -265,30 +265,35 @@ export default function FieldDashboard() {
         </div>
       )}
 
-      {/* ═══ QUICK ACTIONS — Grid ═══ */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {/* ═══ QUICK ACTIONS — Card Grid ═══ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Nouvelle vente", icon: ShoppingCart, path: "/sale/new", primary: true },
-          { label: "Nouveau lead", icon: UserPlus, path: "/leads/new" },
-          { label: "Mes commandes", icon: ArrowRight, path: "/submissions" },
-          { label: "Territoire", icon: MapPin, path: "/territory" },
-          { label: "Catalogue", icon: Star, path: "/offers" },
-          { label: "Commissions", icon: DollarSign, path: "/commissions" },
-          { label: "Objectifs", icon: Target, path: "/objectives" },
-          { label: "Rapport du jour", icon: Calendar, path: "/daily-report" },
+          { label: "Nouvelle vente", sub: "Placer une commande", icon: ShoppingCart, path: "/sale/new", primary: true, iconBg: "bg-[#DCFCE7]", iconColor: "text-[#16A34A]" },
+          { label: "Nouveau lead", sub: "Ajouter un prospect", icon: UserPlus, path: "/leads/new", iconBg: "bg-[#FCE7F3]", iconColor: "text-[#EC4899]" },
+          { label: "Mes commandes", sub: `${data?.pendingPayment ?? 0} en attente`, icon: ArrowRight, path: "/submissions", iconBg: "bg-[#DBEAFE]", iconColor: "text-[#3B82F6]" },
+          { label: "Territoire", sub: "Marquer rue faite", icon: MapPin, path: "/territory", iconBg: "bg-[#E0F2FE]", iconColor: "text-[#0EA5E9]" },
+          { label: "Catalogue", sub: "Voir les offres", icon: Star, path: "/offers", iconBg: "bg-[#FEF3C7]", iconColor: "text-[#D97706]" },
+          { label: "Commissions", sub: `${(data?.totalEarned ?? 0).toFixed(0)} $ gagnés`, icon: DollarSign, path: "/commissions", iconBg: "bg-[#FEF3C7]", iconColor: "text-[#F59E0B]" },
+          { label: "Objectifs", sub: "Voir mes cibles", icon: Target, path: "/objectives", iconBg: "bg-[#FCE7F3]", iconColor: "text-[#EC4899]" },
+          { label: "Rapport du jour", sub: "Générer", icon: Calendar, path: "/daily-report", iconBg: "bg-[#EDE9FE]", iconColor: "text-[#8B5CF6]" },
         ].map((a) => (
           <button
             key={a.label}
             onClick={() => navigate(fieldPath(a.path))}
             className={cn(
-              "flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition-all",
+              "flex flex-col items-center gap-2 p-4 rounded-2xl border text-center transition-all hover:shadow-sm",
               a.primary
-                ? "bg-[#F0FDF4] border-[#BBF7D0] text-[#16A34A] hover:bg-[#DCFCE7] hover:shadow-sm"
-                : "bg-white border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB] hover:border-[#D1D5DB]"
+                ? "bg-[#F0FDF4] border-[#BBF7D0] hover:bg-[#DCFCE7]"
+                : "bg-white border-[#E5E7EB] hover:bg-[#F9FAFB] hover:border-[#D1D5DB]"
             )}
           >
-            <a.icon className="h-4.5 w-4.5 shrink-0" />
-            <span className="text-[13px] font-medium">{a.label}</span>
+            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", a.iconBg)}>
+              <a.icon className={cn("h-5 w-5", a.iconColor)} />
+            </div>
+            <div>
+              <p className="text-[13px] font-bold text-[#000000]">{a.label}</p>
+              <p className="text-[10px] text-[#9CA3AF]">{a.sub}</p>
+            </div>
           </button>
         ))}
       </div>
