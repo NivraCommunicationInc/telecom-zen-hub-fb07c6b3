@@ -6,6 +6,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { sendSmsNotification, SMS_TEMPLATES, toE164, fetchClientPhone } from "../_shared/smsHelper.ts";
+import { queueRenderedEmail } from "../_shared/templateRenderer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,26 +117,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Queue email for professional template processing
-    const { error: queueError } = await supabase
-      .from("email_queue")
-      .insert({
-        event_key: eventKey,
-        template_key: templateKey,
-        to_email: client_email,
-        status: "pending",
-        template_vars: {
-          client_name: client_first_name || "Client",
-          order_number,
-          service_address,
-          scheduled_date_time,
-          technician_name,
-          portal_path: `/portal/orders/${order_id}`,
-        },
-      });
+    // Render template and enqueue to pgmq for delivery
+    const templateVars = {
+      client_name: client_first_name || "Client",
+      order_number,
+      service_address,
+      scheduled_date_time,
+      technician_name,
+      portal_path: `/portal/orders/${order_id}`,
+    };
 
-    if (queueError) {
-      console.error(`[${requestId}] Failed to queue email:`, queueError);
+    const queueResult = await queueRenderedEmail({
+      eventKey,
+      templateKey,
+      toEmail: client_email,
+      templateVars,
+    });
+
+    if (!queueResult.success) {
+      console.error(`[${requestId}] Failed to queue email:`, queueResult.error);
       return new Response(JSON.stringify({ 
         success: false, 
         error: "Failed to queue email" 
@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[${requestId}] Email queued with template: ${templateKey}`);
+    console.log(`[${requestId}] Email queued to pgmq with template: ${templateKey}`);
 
     // Send SMS notification based on status (non-blocking)
     let phoneForSms = client_phone;
