@@ -1,12 +1,12 @@
 /**
  * send-appointment-notification
- * Queues email notifications for appointment events
- * Uses email_queue for professional templates from process-email-queue
+ * Queues email notifications for appointment events via pgmq
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { queueRenderedEmail } from "../_shared/templateRenderer.ts";
 
 interface NotificationRequest {
   email: string;
@@ -44,19 +44,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const body: NotificationRequest = await req.json();
     const { 
-      email, 
-      name, 
-      appointmentTitle, 
-      appointmentDate, 
-      appointmentTime,
-      appointmentType,
-      orderNumber,
-      serviceAddress,
-      serviceAddressLine2,
-      instructions,
-      status, 
-      notes,
-      appointmentId,
+      email, name, appointmentTitle, appointmentDate, appointmentTime,
+      appointmentType, orderNumber, serviceAddress, serviceAddressLine2,
+      instructions, status, notes, appointmentId,
     } = body;
 
     console.log(`[${requestId}] Queuing appointment notification: status=${status}, to=${email?.substring(0, 3)}***`);
@@ -70,19 +60,13 @@ const handler = async (req: Request): Promise<Response> => {
         .maybeSingle();
 
       if (apt?.status === "hold" || !apt?.order_id) {
-        console.log(`[${requestId}] BLOCKED: Cannot send confirmation email for hold/unlinked appointment ${appointmentId} (status=${apt?.status}, order_id=${apt?.order_id})`);
+        console.log(`[${requestId}] BLOCKED: Cannot send confirmation email for hold/unlinked appointment`);
         return new Response(JSON.stringify({ 
-          success: false, 
-          blocked: true,
-          reason: "appointment_not_confirmed_yet",
-        }), { 
-          status: 200, 
-          headers: { "Content-Type": "application/json", ...corsHeaders } 
-        });
+          success: false, blocked: true, reason: "appointment_not_confirmed_yet",
+        }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     }
 
-    // Map status to template key
     const templateKeyMap: Record<string, string> = {
       confirmed: "appointment_scheduled",
       updated: "appointment_updated",
@@ -91,85 +75,45 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     const templateKey = templateKeyMap[status];
-    
     if (!templateKey) {
-      console.log(`[${requestId}] Unknown status: ${status}`);
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Unknown appointment status" 
-      }), { 
-        status: 400, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
+      return new Response(JSON.stringify({ success: false, error: "Unknown appointment status" }), { 
+        status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } 
       });
     }
 
-    // Idempotency check
     const eventKey = `appointment_${status}_${appointmentId || appointmentDate}_${email}`;
-
-    const { data: existingEmail } = await supabase
-      .from("email_queue")
-      .select("id")
-      .eq("event_key", eventKey)
-      .in("status", ["sent", "pending", "processing"])
-      .maybeSingle();
-
-    if (existingEmail) {
-      console.log(`[${requestId}] Email already queued/sent for this event`);
-      return new Response(JSON.stringify({ 
-        success: true, 
-        already_queued: true,
-      }), { 
-        status: 200, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
-      });
-    }
-
-    // Format date/time for template
     const parsedDate = new Date(appointmentDate);
-    const fullAddress = serviceAddressLine2 
-      ? `${serviceAddress}, ${serviceAddressLine2}` 
-      : serviceAddress;
+    const fullAddress = serviceAddressLine2 ? `${serviceAddress}, ${serviceAddressLine2}` : serviceAddress;
 
-    // Queue email for professional template processing
-    const { error: queueError } = await supabase
-      .from("email_queue")
-      .insert({
-        event_key: eventKey,
-        template_key: templateKey,
-        to_email: email,
-        status: "pending",
-        template_vars: {
-          client_name: name?.split(" ")[0] || "Client",
-          title: appointmentTitle || appointmentType || "Rendez-vous",
-          scheduled_at: parsedDate.toISOString(),
-          service_address: fullAddress,
-          order_number: orderNumber,
-          cancellation_reason: status === "cancelled" ? notes : undefined,
-          portal_path: "/portal/appointments",
-        },
-      });
-
-    if (queueError) {
-      console.error(`[${requestId}] Failed to queue email:`, queueError);
-      throw new Error(`Failed to queue email: ${queueError.message}`);
-    }
-
-    console.log(`[${requestId}] Email queued with template: ${templateKey}`);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      queued: true,
-      template: templateKey,
-    }), { 
-      status: 200, 
-      headers: { "Content-Type": "application/json", ...corsHeaders } 
+    const result = await queueRenderedEmail({
+      eventKey,
+      templateKey,
+      toEmail: email,
+      templateVars: {
+        client_name: name?.split(" ")[0] || "Client",
+        title: appointmentTitle || appointmentType || "Rendez-vous",
+        scheduled_at: parsedDate.toISOString(),
+        service_address: fullAddress,
+        order_number: orderNumber,
+        cancellation_reason: status === "cancelled" ? notes : undefined,
+        portal_path: "/portal/appointments",
+      },
     });
 
+    if (result.alreadyQueued) {
+      console.log(`[${requestId}] Email already queued/sent for this event`);
+    } else {
+      console.log(`[${requestId}] Email queued via pgmq with template: ${templateKey}`);
+    }
+
+    return new Response(JSON.stringify({ 
+      success: result.success, queued: true, template: templateKey,
+    }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
+
   } catch (error: any) {
-    console.error(`[${requestId}] Error in send-appointment-notification:`, error);
+    console.error(`[${requestId}] Error:`, error);
     return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 
+      status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req.headers.get('origin')) } 
     });
   }
 };
