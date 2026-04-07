@@ -1,42 +1,18 @@
 /**
  * Shared email template renderer for send-* edge functions.
- * Renders template_key + template_vars into HTML using the same
- * templates as send-template-test, then enqueues to pgmq via ResendProxy.
+ * Uses the ORIGINAL professional corporate blue design from baseStyles/components.
+ * Renders template_key + template_vars into HTML, then enqueues to pgmq.
  */
 
 import { enqueueEmail, type EnqueueResult } from "./ResendProxy.ts";
+import {
+  emailDocument, header, statusBanner, contentWrapper, footer,
+  greeting, bodyText, button, helpSection, sectionHeader, infoRow,
+  divider, amountBox, alertBox,
+  colors, fonts, escapeHtml, formatCurrency, formatDate, formatDateTime
+} from "./emailTemplates/components.ts";
 
-// ── Inline email layout (same as send-template-test) ──────────────
-
-const emailStyles = {
-  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-  bgColor: "#f4f4f5",
-  cardBg: "#ffffff",
-  textPrimary: "#18181b",
-  textSecondary: "#52525b",
-  textMuted: "#71717a",
-  accent: "#0d9488",
-  accentLight: "#ccfbf1",
-  success: "#059669",
-  successBg: "#d1fae5",
-  warning: "#d97706",
-  warningBg: "#fef3c7",
-  error: "#dc2626",
-  errorBg: "#fee2e2",
-  info: "#0284c7",
-  infoBg: "#e0f2fe",
-  border: "#e4e4e7",
-};
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(amount || 0);
-
-const formatDate = (dateStr: string, includeTime = false) => {
-  if (!dateStr) return "N/A";
-  const date = new Date(dateStr);
-  if (includeTime) return date.toLocaleString("fr-CA", { dateStyle: "long", timeStyle: "short" });
-  return date.toLocaleDateString("fr-CA", { dateStyle: "long" });
-};
+const SUPPORT_EMAIL = "Support@nivra-telecom.ca";
 
 const joinUrl = (baseUrl: string, path: string): string => {
   const base = baseUrl.replace(/\/+$/, '');
@@ -44,41 +20,12 @@ const joinUrl = (baseUrl: string, path: string): string => {
   return `${base}/${cleanPath}`;
 };
 
-const wrapEmail = (content: string, ctaUrl?: string, ctaText?: string) => {
-  const email = "Support@nivra-telecom.ca";
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Nivra Telecom</title></head>
-<body style="margin:0; padding:0; background-color:${emailStyles.bgColor}; font-family:${emailStyles.fontFamily};">
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:${emailStyles.bgColor};">
-<tr><td align="center" style="padding:24px 16px;">
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px; width:100%;">
-<tr><td style="background-color:${emailStyles.cardBg}; border-radius:12px 12px 0 0; padding:0;">
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-<tr><td style="height:4px; background:linear-gradient(90deg, ${emailStyles.accent}, #14b8a6); border-radius:12px 12px 0 0;"></td></tr>
-<tr><td style="padding:28px 32px 20px;"><h1 style="margin:0; font-size:26px; font-weight:700; color:${emailStyles.accent};">Nivra Telecom</h1><p style="margin:4px 0 0; font-size:13px; color:${emailStyles.textMuted};">Votre service, simplifié.</p></td></tr>
-</table></td></tr>
-<tr><td style="background-color:${emailStyles.cardBg}; padding:0 32px 32px;">${content}</td></tr>
-${ctaUrl ? `<tr><td style="background-color:${emailStyles.cardBg}; padding:0 32px 32px;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td align="center"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-radius:8px; background-color:${emailStyles.accent};"><a href="${ctaUrl}" target="_blank" style="display:inline-block; padding:14px 32px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:8px;">${ctaText || "Ouvrir le portail"}</a></td></tr></table></td></tr></table></td></tr>` : ""}
-<tr><td style="background-color:${emailStyles.cardBg}; border-radius:0 0 12px 12px; padding:24px 32px; border-top:1px solid ${emailStyles.border};"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td align="center"><p style="margin:0 0 6px; font-size:13px; font-weight:600; color:${emailStyles.textPrimary};">Nivra Telecom</p><p style="margin:0 0 6px; font-size:12px; color:${emailStyles.textMuted};">Laval, QC, Canada</p><p style="margin:0 0 12px; font-size:13px; color:${emailStyles.textSecondary};"><a href="mailto:${email}" style="color:${emailStyles.accent}; text-decoration:none;">${email}</a></p><p style="margin:0; font-size:11px; color:${emailStyles.textMuted};">Vous recevez cet email suite à une action sur votre compte Nivra Telecom.</p></td></tr></table></td></tr>
-</table></td></tr></table></body></html>`;
-};
-
-const greeting = (name?: string) => `<p style="margin:0 0 4px; font-size:16px; color:${emailStyles.textPrimary};">Bonjour${name ? ` <strong>${name}</strong>` : ""},</p>`;
-
-const statusBadge = (type: "success" | "warning" | "error" | "info", icon: string, titleFr: string, messageFr: string) => {
-  const colors: Record<string, { bg: string; border: string; text: string }> = {
-    success: { bg: emailStyles.successBg, border: emailStyles.success, text: "#065f46" },
-    warning: { bg: emailStyles.warningBg, border: emailStyles.warning, text: "#92400e" },
-    error: { bg: emailStyles.errorBg, border: emailStyles.error, text: "#991b1b" },
-    info: { bg: emailStyles.infoBg, border: emailStyles.info, text: "#075985" },
-  };
-  const c = colors[type];
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:20px 0;"><tr><td style="background-color:${c.bg}; border-left:4px solid ${c.border}; border-radius:0 8px 8px 0; padding:16px 20px;"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-size:18px; font-weight:600; color:${c.text};">${icon} ${titleFr}</td></tr><tr><td style="font-size:14px; color:${c.text}; padding-top:6px;">${messageFr}</td></tr></table></td></tr></table>`;
-};
-
-const detailsCard = (items: Array<{ label: string; value: string }>) => `
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#fafafa; border-radius:8px; border:1px solid ${emailStyles.border}; margin:20px 0;">
-${items.map((item, idx) => `<tr><td style="padding:14px 16px; ${idx < items.length - 1 ? `border-bottom:1px solid ${emailStyles.border};` : ""}"><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr><td style="font-size:13px; color:${emailStyles.textMuted}; width:40%;">${item.label}</td><td style="font-size:14px; color:${emailStyles.textPrimary}; font-weight:500; text-align:right;">${item.value}</td></tr></table></td></tr>`).join("")}
-</table>`;
+// Build a details table using the original style
+const detailsTable = (items: Array<{ label: string; value: string }>): string => `
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%; margin: 16px 0;">
+    ${items.map(item => infoRow(item.label, item.value)).join("")}
+  </table>
+`;
 
 // ── Template rendering ─────────────────────────────────────────────
 
