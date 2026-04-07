@@ -16,6 +16,7 @@ const corsHeaders = {
 // Status to template mapping
 const STATUS_TEMPLATE_MAP: Record<string, string> = {
   installation_scheduled: "installation_scheduled",
+  technician_assigned: "technician_assigned",
   technician_en_route: "technician_en_route",
   installation_in_progress: "installation_in_progress",
   installation_completed: "installation_completed",
