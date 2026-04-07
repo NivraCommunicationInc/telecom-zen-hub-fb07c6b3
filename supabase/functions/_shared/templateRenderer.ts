@@ -394,6 +394,30 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
         ${statusBadge("info", "🎫", "Ticket créé", "Votre demande de support a été reçue.")}
         ${detailsCard([
           ...(vars.ticket_number ? [{ label: "Nº ticket", value: vars.ticket_number }] : []),
+          ...(vars.subject ? [{ label: "Sujet", value: vars.subject }] : []),
+        ])}
+      `, portalUrl, "Voir mon ticket"),
+    }),
+
+    ticket_status_update: () => ({
+      subject: `Nivra — Mise à jour ticket #${vars.ticket_number || ""}`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("info", "🔄", "Ticket mis à jour", `Votre ticket a été mis à jour : ${vars.status_label || vars.new_status || ""}.`)}
+        ${detailsCard([
+          ...(vars.ticket_number ? [{ label: "Nº ticket", value: vars.ticket_number }] : []),
+          ...(vars.status_label ? [{ label: "Statut", value: vars.status_label }] : []),
+        ])}
+      `, portalUrl, "Voir mon ticket"),
+    }),
+
+    ticket_resolved: () => ({
+      subject: `Nivra — Ticket résolu #${vars.ticket_number || ""}`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("success", "✅", "Ticket résolu", "Votre demande de support a été résolue.")}
+        ${detailsCard([
+          ...(vars.ticket_number ? [{ label: "Nº ticket", value: vars.ticket_number }] : []),
         ])}
       `, portalUrl, "Voir mon ticket"),
     }),
@@ -406,6 +430,20 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
         ${statusBadge("success", "📅", "Rendez-vous confirmé", "Votre rendez-vous a été planifié avec succès.")}
         ${detailsCard([
           ...(vars.scheduled_at ? [{ label: "Date et heure", value: formatDate(vars.scheduled_at, true) }] : []),
+          ...(vars.service_address ? [{ label: "Adresse", value: vars.service_address }] : []),
+          ...(vars.order_number ? [{ label: "Nº commande", value: vars.order_number }] : []),
+        ])}
+      `, portalUrl, "Voir mes rendez-vous"),
+    }),
+
+    appointment_updated: () => ({
+      subject: `Nivra — Rendez-vous modifié`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("warning", "📅", "Rendez-vous modifié", "Votre rendez-vous a été mis à jour.")}
+        ${detailsCard([
+          ...(vars.scheduled_at ? [{ label: "Nouvelle date", value: formatDate(vars.scheduled_at, true) }] : []),
+          ...(vars.service_address ? [{ label: "Adresse", value: vars.service_address }] : []),
         ])}
       `, portalUrl, "Voir mes rendez-vous"),
     }),
@@ -419,6 +457,17 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
           ...(vars.scheduled_at ? [{ label: "Date et heure", value: formatDate(vars.scheduled_at, true) }] : []),
         ])}
       `, portalUrl, "Voir mes rendez-vous"),
+    }),
+
+    appointment_cancelled: () => ({
+      subject: `Nivra — Rendez-vous annulé`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("error", "❌", "Rendez-vous annulé", "Votre rendez-vous a été annulé.")}
+        ${detailsCard([
+          ...(vars.cancellation_reason ? [{ label: "Raison", value: vars.cancellation_reason }] : []),
+        ])}
+      `, portalUrl, "Replanifier"),
     }),
 
     // Welcome / Account
@@ -446,7 +495,82 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
       `, portalUrl, "Voir mes services"),
     }),
 
+    service_suspended: () => ({
+      subject: `Nivra — Service suspendu`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("warning", "⚠️", "Service suspendu", "Votre service a été temporairement suspendu.")}
+        ${detailsCard([
+          ...(vars.service_name ? [{ label: "Service", value: vars.service_name }] : []),
+          ...(vars.reason ? [{ label: "Raison", value: vars.reason }] : []),
+        ])}
+      `, portalUrl, "Voir mes services"),
+    }),
+
+    service_reactivated: () => ({
+      subject: `Nivra — Service rétabli`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("success", "✅", "Service rétabli", "Votre service a été rétabli avec succès.")}
+        ${detailsCard([
+          ...(vars.service_name ? [{ label: "Service", value: vars.service_name }] : []),
+        ])}
+      `, portalUrl, "Voir mes services"),
+    }),
+
     // Cancellation
+    cancellation_received: () => ({
+      subject: `Nivra — Demande d'annulation reçue`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("warning", "📋", "Demande reçue", "Nous avons bien reçu votre demande d'annulation.")}
+        ${detailsCard([
+          ...(vars.request_number ? [{ label: "Nº demande", value: vars.request_number }] : []),
+          ...(vars.service_type ? [{ label: "Service", value: vars.service_type }] : []),
+        ])}
+      `, portalUrl, "Voir ma demande"),
+    }),
+
+    cancellation_scheduled: () => ({
+      subject: `Nivra — Annulation planifiée`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("info", "📅", "Annulation planifiée", "Votre annulation a été planifiée.")}
+        ${detailsCard([
+          ...(vars.request_number ? [{ label: "Nº demande", value: vars.request_number }] : []),
+          ...(vars.service_type ? [{ label: "Service", value: vars.service_type }] : []),
+          ...(vars.effective_date ? [{ label: "Date effective", value: vars.effective_date }] : []),
+        ])}
+      `, portalUrl, "Voir ma demande"),
+    }),
+
+    cancellation_completed: () => ({
+      subject: `Nivra — Annulation complétée`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("info", "📋", "Annulation confirmée", "Votre service a été annulé.")}
+        ${detailsCard([
+          ...(vars.request_number ? [{ label: "Nº demande", value: vars.request_number }] : []),
+          ...(vars.service_type ? [{ label: "Service", value: vars.service_type }] : []),
+          ...(vars.service_name ? [{ label: "Service", value: vars.service_name }] : []),
+        ])}
+      `, portalUrl, "Voir mon compte"),
+    }),
+
+    cancellation_declined: () => ({
+      subject: `Nivra — Annulation refusée`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("error", "❌", "Annulation refusée", "Votre demande d'annulation a été refusée.")}
+        ${detailsCard([
+          ...(vars.request_number ? [{ label: "Nº demande", value: vars.request_number }] : []),
+          ...(vars.service_type ? [{ label: "Service", value: vars.service_type }] : []),
+          ...(vars.decline_reason ? [{ label: "Raison", value: vars.decline_reason }] : []),
+        ])}
+        ${vars.public_message ? `<p style="margin:16px 0; font-size:14px; color:${emailStyles.textSecondary};">${vars.public_message}</p>` : ""}
+      `, portalUrl, "Contacter le support"),
+    }),
+
     cancellation_requested: () => ({
       subject: `Nivra — Demande d'annulation reçue`,
       html: wrapEmail(`
@@ -458,7 +582,7 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
       `, portalUrl, "Voir ma demande"),
     }),
 
-    cancellation_confirmed: () => ({
+    cancellation_confirmed_legacy: () => ({
       subject: `Nivra — Annulation confirmée`,
       html: wrapEmail(`
         ${greeting(vars.client_name)}
@@ -467,6 +591,49 @@ export function renderTemplate(templateKey: string, vars: Record<string, any>): 
           ...(vars.service_name ? [{ label: "Service", value: vars.service_name }] : []),
         ])}
       `, portalUrl, "Voir mon compte"),
+    }),
+
+    // Payment received
+    payment_received: () => ({
+      subject: `Nivra — Paiement reçu`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("success", "💳", "Paiement reçu", "Nous avons bien reçu votre paiement.")}
+        ${detailsCard([
+          ...(vars.amount ? [{ label: "Montant", value: formatCurrency(vars.amount) }] : []),
+          ...(vars.invoice_number ? [{ label: "Nº facture", value: vars.invoice_number }] : []),
+          ...(vars.payment_method ? [{ label: "Mode de paiement", value: vars.payment_method }] : []),
+        ])}
+      `, joinUrl(BASE_URL, "/portal/invoices"), "Voir mes factures"),
+    }),
+
+    // Invoice overdue
+    invoice_overdue: () => ({
+      subject: `Nivra — Facture en souffrance (#${vars.invoice_number || ""})`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("error", "⚠️", "Facture en souffrance", "Votre facture est en retard de paiement.")}
+        ${detailsCard([
+          { label: "Nº facture", value: vars.invoice_number || "N/A" },
+          ...(vars.amount ? [{ label: "Montant dû", value: formatCurrency(vars.amount) }] : []),
+          ...(vars.due_date ? [{ label: "Date d'échéance", value: vars.due_date }] : []),
+          ...(vars.days_overdue ? [{ label: "Jours de retard", value: `${vars.days_overdue} jours` }] : []),
+        ])}
+      `, joinUrl(BASE_URL, "/portal/invoices"), "Payer maintenant"),
+    }),
+
+    // Channel changes
+    channels_change_requested: () => ({
+      subject: `Nivra — Changement de chaînes confirmé`,
+      html: wrapEmail(`
+        ${greeting(vars.client_name)}
+        ${statusBadge("success", "📺", "Chaînes mises à jour", "Votre demande de changement de chaînes a été traitée.")}
+        ${detailsCard([
+          ...(vars.order_number ? [{ label: "Nº commande", value: vars.order_number }] : []),
+          ...(vars.channels_list ? [{ label: "Chaînes", value: vars.channels_list }] : []),
+          ...(vars.total_amount ? [{ label: "Total", value: formatCurrency(vars.total_amount) }] : []),
+        ])}
+      `, portalUrl, "Voir mes chaînes"),
     }),
   };
 
