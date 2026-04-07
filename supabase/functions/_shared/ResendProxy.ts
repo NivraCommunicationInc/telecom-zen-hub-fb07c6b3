@@ -1,8 +1,9 @@
 /**
  * ResendProxy — Drop-in replacement for the Resend SDK.
- * Instead of sending emails directly, it inserts into `email_queue`
- * so that the process-email-queue worker handles delivery, retries,
- * and tracking.
+ * Enqueues emails to pgmq via enqueue_email RPC for delivery
+ * by the process-email-queue worker (Lovable Email API).
+ *
+ * Also inserts into `email_queue` table for tracking/idempotency.
  *
  * Usage (identical to original Resend SDK):
  *   import { Resend } from "../_shared/ResendProxy.ts";
@@ -57,6 +58,13 @@ export interface EnqueueResult {
   alreadyQueued?: boolean;
 }
 
+// ── Constants ──────────────────────────────────────────────────────
+
+const SENDER_DOMAIN = "notify.nivra-telecom.ca";
+const FROM_DOMAIN = "nivra-telecom.ca";
+const DEFAULT_FROM = `Nivra Telecom <noreply@${FROM_DOMAIN}>`;
+const PGMQ_QUEUE = "transactional_emails";
+
 // ── Helpers ────────────────────────────────────────────────────────
 
 function getSupabaseClient() {
@@ -70,6 +78,79 @@ function generateEventKey(to: string): string {
   return `q_${to}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function generateMessageId(): string {
+  return crypto.randomUUID();
+}
+
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h\d|li|tr|table|section)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// ── Unsubscribe token management ──────────────────────────────────
+
+async function getOrCreateUnsubscribeToken(
+  supabase: ReturnType<typeof createClient>,
+  email: string
+): Promise<string> {
+  // Check for existing token
+  const { data: existing } = await supabase
+    .from("email_unsubscribe_tokens")
+    .select("token")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existing?.token) return existing.token;
+
+  // Create new token
+  const token = crypto.randomUUID();
+  const { error } = await supabase
+    .from("email_unsubscribe_tokens")
+    .insert({ email, token })
+    .single();
+
+  if (error) {
+    // Race condition: another process created it
+    const { data: retry } = await supabase
+      .from("email_unsubscribe_tokens")
+      .select("token")
+      .eq("email", email)
+      .maybeSingle();
+    if (retry?.token) return retry.token;
+    // Fallback: use a deterministic token
+    return token;
+  }
+
+  return token;
+}
+
+// ── Suppression check ─────────────────────────────────────────────
+
+async function isEmailSuppressed(
+  supabase: ReturnType<typeof createClient>,
+  email: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("suppressed_emails")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+  return !!data;
+}
+
 // ── Core enqueue ───────────────────────────────────────────────────
 
 export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueResult> {
@@ -77,7 +158,7 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
     const supabase = getSupabaseClient();
     const eventKey = params.eventKey || generateEventKey(params.to);
 
-    // Idempotency check
+    // Idempotency check on email_queue table
     if (params.eventKey) {
       const { data: existing } = await supabase
         .from("email_queue")
@@ -90,43 +171,85 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
       }
     }
 
-    // Build template vars with passthrough fields
+    // Check suppression
+    if (await isEmailSuppressed(supabase, params.to)) {
+      console.log(`[enqueueEmail] Suppressed: ${params.to}`);
+      return { success: true, alreadyQueued: true };
+    }
+
+    // Resolve HTML content
+    const html = params.html || params.templateVars?._html || "";
+    const subject = params.subject || params.templateVars?._subject || "Notification Nivra Telecom";
+    const fromEmail = params.fromEmail || params.templateVars?._from_email || DEFAULT_FROM;
+    const text = params.text || params.templateVars?._text || htmlToPlainText(html);
+
+    if (!html) {
+      console.error(`[enqueueEmail] No HTML content for template: ${params.templateKey}`);
+      return { success: false, error: "No HTML content available" };
+    }
+
+    // Get unsubscribe token
+    const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, params.to);
+
+    // Generate message ID for deduplication in process-email-queue
+    const messageId = generateMessageId();
+
+    // Build pgmq payload matching what process-email-queue expects
+    const pgmqPayload = {
+      to: params.to,
+      from: fromEmail,
+      sender_domain: SENDER_DOMAIN,
+      subject,
+      html,
+      text,
+      purpose: "transactional",
+      label: params.templateKey || "custom_html",
+      idempotency_key: eventKey,
+      unsubscribe_token: unsubscribeToken,
+      message_id: messageId,
+      queued_at: new Date().toISOString(),
+    };
+
+    // Enqueue to pgmq for delivery by process-email-queue
+    const { error: pgmqError } = await supabase.rpc("enqueue_email", {
+      queue_name: PGMQ_QUEUE,
+      payload: pgmqPayload,
+    });
+
+    if (pgmqError) {
+      console.error("[enqueueEmail] pgmq enqueue error:", pgmqError.message);
+      return { success: false, error: pgmqError.message };
+    }
+
+    // Log pending in email_send_log
+    await supabase.from("email_send_log").insert({
+      message_id: messageId,
+      template_name: params.templateKey || "custom_html",
+      recipient_email: params.to,
+      status: "pending",
+    });
+
+    // Also track in email_queue table for idempotency/admin visibility
     const templateVars: Record<string, any> = { ...(params.templateVars || {}) };
-    if (params.html) templateVars._html = params.html;
-    if (params.text) templateVars._text = params.text;
-    if (params.fromEmail) templateVars._from_email = params.fromEmail;
-    if (params.replyTo) templateVars._reply_to = params.replyTo;
-    if (params.subject) templateVars._subject = params.subject;
-    if (params.attachments && params.attachments.length > 0) {
-      templateVars._attachments = params.attachments;
-    }
+    await supabase.from("email_queue").insert({
+      event_key: eventKey,
+      to_email: params.to,
+      template_key: params.templateKey || "custom_html",
+      template_vars: templateVars,
+      message_type: params.messageType,
+      entity_type: params.entityType,
+      entity_id: params.entityId,
+      from_email: params.fromEmail,
+      subject,
+      status: "sent", // Mark as sent since it's now in pgmq
+      attempts: 1,
+      max_attempts: params.maxAttempts || 5,
+    }).then(({ error }) => {
+      if (error) console.warn("[enqueueEmail] email_queue tracking insert failed:", error.message);
+    });
 
-    const { data, error } = await supabase
-      .from("email_queue")
-      .insert({
-        event_key: eventKey,
-        to_email: params.to,
-        template_key: params.templateKey || "custom_html",
-        template_vars: templateVars,
-        message_type: params.messageType,
-        entity_type: params.entityType,
-        entity_id: params.entityId,
-        from_email: params.fromEmail,
-        subject: params.subject,
-        status: "queued",
-        attempts: 0,
-        max_attempts: params.maxAttempts || 5,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.error("[enqueueEmail] Insert error:", error.message);
-      return { success: false, error: error.message };
-    }
-
-    console.log(`[enqueueEmail] Queued: id=${data.id} to=${params.to} template=${params.templateKey || "custom_html"}`);
-    return { success: true, id: data.id };
+    console.log(`[enqueueEmail] Queued to pgmq: id=${messageId} to=${params.to} template=${params.templateKey || "custom_html"}`);
+    return { success: true, id: messageId };
   } catch (err: any) {
     console.error("[enqueueEmail] Exception:", err);
     return { success: false, error: err.message || "Unknown error" };
@@ -137,8 +260,8 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
 
 export class Resend {
   constructor(_apiKey: string | undefined) {
-    // API key ignored — all sends are routed through email_queue.
-    // The process-email-queue worker uses RESEND_API_KEY from env.
+    // API key ignored — all sends are routed through pgmq.
+    // The process-email-queue worker uses LOVABLE_API_KEY from env.
   }
 
   emails = {
