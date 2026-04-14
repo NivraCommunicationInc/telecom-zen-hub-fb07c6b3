@@ -675,6 +675,7 @@ const ClientAuth = () => {
               
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
+                  <HoneypotField value={honeypot} onChange={setHoneypot} />
                   <div>
                     <Label htmlFor="login-email" className="text-slate-700 flex items-center gap-2">
                       <Mail className="w-4 h-4 text-teal-600" />
