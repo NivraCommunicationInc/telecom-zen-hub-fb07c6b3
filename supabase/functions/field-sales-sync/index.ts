@@ -14,11 +14,12 @@ import { computeTaxes } from "../_shared/tax-constants.ts";
  * - get_stats: Get synchronization statistics
  */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+import { getCorsHeaders } from "../_shared/cors.ts";
+
+const buildCorsHeaders = (req: Request) => ({
+  ...getCorsHeaders(req.headers.get("origin")),
   'Content-Type': 'application/json',
-};
+});
 
 // Generate order number from DB sequence — NO local generation
 async function generateOrderNumberFromDB(admin: any): Promise<string> {
