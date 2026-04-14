@@ -35,7 +35,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <FieldPanel title={title} className="rounded-[1.5rem] p-0" contentClassName="space-y-3">
+    <FieldPanel title={title} className="rounded-[1.5rem]">
       <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
         <Icon className="h-4 w-4 text-primary" />
         {title}
