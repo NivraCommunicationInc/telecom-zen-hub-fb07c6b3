@@ -439,6 +439,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
         </div>
       </div>
 
+      {/* Anti-bot */}
+      <CloudflareTurnstile onVerify={handleTurnstileVerify} className="flex justify-center" />
+
       {/* Submit Button */}
       <Button 
         type="submit" 
