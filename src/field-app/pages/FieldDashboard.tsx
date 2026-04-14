@@ -1,134 +1,32 @@
 /**
- * FieldDashboard — Telecom-grade field sales command center.
- * Real-time KPIs, performance ring, daily goals, recent activity, weather-aware greeting.
+ * FieldDashboard — Uses backend dashboard-summary + dashboard-activity endpoints.
+ * No direct DB queries.
  */
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useStaffUser } from "@/lib/hooks/useStaffUser";
+import { fetchDashboardSummary, fetchDashboardActivity } from "@/field-app/lib/fieldServices";
 import {
   TrendingUp, DollarSign, UserPlus, Plus, BarChart3, Clock,
-  CheckCircle2, AlertCircle, Loader2, ArrowUpRight, Target,
-  Zap, Trophy, ChevronRight, Bell, MapPin, Calendar,
-  ShoppingCart, Flame, Star, ArrowRight, RefreshCw, Search,
+  CheckCircle2, AlertCircle, Loader2, Target,
+  Zap, Trophy, ChevronRight, MapPin, Calendar,
+  ShoppingCart, Star, ArrowRight, RefreshCw, Search,
 } from "lucide-react";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
-
-/* ─── Data hook ─── */
-function useFieldDashboard() {
-  const { user } = useStaffUser();
-  return useQuery({
-    queryKey: ["field-dashboard-pro", user?.id],
-    queryFn: async () => {
-      const today = new Date();
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay());
-      const startOfWeekISO = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate()).toISOString();
-
-      const [ordersAll, ordersToday, ordersWeek, ordersMonth, commissionsRes, profileRes, recentOrders, leadsRes, leadsWon, leadsLost, recentLeads] = await Promise.all([
-        supabase.from("field_sales_orders").select("id, payment_status, sync_status, total_amount, created_at", { count: "exact" })
-          .eq("salesperson_id", user!.id),
-        supabase.from("field_sales_orders").select("id, total_amount", { count: "exact" })
-          .eq("salesperson_id", user!.id).gte("created_at", startOfDay),
-        supabase.from("field_sales_orders").select("id", { count: "exact", head: true })
-          .eq("salesperson_id", user!.id).gte("created_at", startOfWeekISO),
-        supabase.from("field_sales_orders").select("id, total_amount", { count: "exact" })
-          .eq("salesperson_id", user!.id).gte("created_at", startOfMonth),
-        supabase.from("sales_commissions").select("commission_amount, status")
-          .eq("salesperson_id", user!.id),
-        supabase.from("profiles").select("full_name, phone, job_title").eq("user_id", user!.id).maybeSingle(),
-        supabase.from("field_sales_orders")
-          .select("id, customer_name, payment_status, sync_status, total_amount, created_at, services, customer_address")
-          .eq("salesperson_id", user!.id).order("created_at", { ascending: false }).limit(8),
-        supabase.from("field_leads").select("id, status, created_at", { count: "exact" })
-          .eq("agent_id", user!.id).not("status", "in", '("won","lost")'),
-        supabase.from("field_leads").select("id", { count: "exact", head: true })
-          .eq("agent_id", user!.id).eq("status", "won"),
-        supabase.from("field_leads").select("id", { count: "exact", head: true })
-          .eq("agent_id", user!.id).eq("status", "lost"),
-        supabase.from("field_leads")
-          .select("id, first_name, last_name, status, phone, created_at, service_need")
-          .eq("agent_id", user!.id).order("created_at", { ascending: false }).limit(5),
-      ]);
-
-      const commissions = commissionsRes.data || [];
-      const pendingCommissions = commissions
-        .filter((c: any) => ["pending", "pending_activation"].includes(c.status))
-        .reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
-      const approvedCommissions = commissions
-        .filter((c: any) => ["approved", "validated"].includes(c.status))
-        .reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
-      const paidCommissions = commissions
-        .filter((c: any) => c.status === "paid")
-        .reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
-      const totalEarned = approvedCommissions + paidCommissions;
-
-      const allOrders = ordersAll.data || [];
-      const pendingPayment = allOrders.filter((o: any) => o.payment_status === "pending").length;
-      const syncErrors = allOrders.filter((o: any) => o.sync_status === "error").length;
-      const pendingSync = allOrders.filter((o: any) => o.sync_status === "pending").length;
-
-      const todayRevenue = (ordersToday.data || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
-      const monthRevenue = (ordersMonth.data || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
-
-      // Conversion rate
-      const totalLeadsAll = (leadsWon.count ?? 0) + (leadsLost.count ?? 0) + (leadsRes.count ?? 0);
-      const conversionRate = totalLeadsAll > 0 ? Math.round(((leadsWon.count ?? 0) / totalLeadsAll) * 100) : 0;
-
-      // Daily goal (target 3 sales/day)
-      const dailyGoal = 3;
-      const salesTodayCount = ordersToday.count ?? 0;
-      const goalProgress = Math.min(100, Math.round((salesTodayCount / dailyGoal) * 100));
-
-      return {
-        salesToday: salesTodayCount,
-        salesWeek: ordersWeek.count ?? 0,
-        salesMonth: ordersMonth.count ?? 0,
-        pendingCommissions,
-        totalEarned,
-        paidCommissions,
-        pendingPayment,
-        syncErrors,
-        pendingSync,
-        openLeads: leadsRes.count ?? 0,
-        wonLeads: leadsWon.count ?? 0,
-        lostLeads: leadsLost.count ?? 0,
-        totalOrders: ordersAll.count ?? 0,
-        userName: profileRes.data?.full_name ?? null,
-        jobTitle: profileRes.data?.job_title ?? "Agent terrain",
-        recentOrders: (recentOrders.data || []) as any[],
-        recentLeads: (recentLeads.data || []) as any[],
-        todayRevenue,
-        monthRevenue,
-        conversionRate,
-        dailyGoal,
-        goalProgress,
-      };
-    },
-    enabled: !!user?.id,
-    staleTime: 1000 * 60 * 2,
-    refetchInterval: 1000 * 60 * 5,
-  });
-}
 
 const SYNC_ICON: Record<string, { icon: typeof CheckCircle2; color: string }> = {
   synced: { icon: CheckCircle2, color: "text-[#16A34A]" },
   pending: { icon: Clock, color: "text-[#D97706]" },
   error: { icon: AlertCircle, color: "text-[#DC2626]" },
 };
-
 const PAYMENT_LABEL: Record<string, { label: string; color: string }> = {
   confirmed: { label: "Payé", color: "text-[#16A34A]" },
   pending: { label: "En attente", color: "text-[#D97706]" },
   failed: { label: "Échoué", color: "text-[#DC2626]" },
   cancelled: { label: "Annulé", color: "text-[#6B7280]" },
 };
-
 const LEAD_STATUS: Record<string, { label: string; classes: string }> = {
   new: { label: "Nouveau", classes: "bg-[#FEF3C7] text-[#D97706]" },
   contacted: { label: "Contacté", classes: "bg-[#E0E7FF] text-[#4338CA]" },
@@ -140,7 +38,19 @@ const LEAD_STATUS: Record<string, { label: string; classes: string }> = {
 
 export default function FieldDashboard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useFieldDashboard();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["field-dashboard-summary"],
+    queryFn: fetchDashboardSummary,
+    staleTime: 1000 * 60 * 2,
+    refetchInterval: 1000 * 60 * 5,
+  });
+
+  const { data: activity } = useQuery({
+    queryKey: ["field-dashboard-activity"],
+    queryFn: fetchDashboardActivity,
+    staleTime: 1000 * 60 * 2,
+  });
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -150,46 +60,32 @@ export default function FieldDashboard() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-[#22C55E]" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#22C55E]" /></div>;
   }
 
   const goalMet = (data?.salesToday ?? 0) >= (data?.dailyGoal ?? 3);
 
   return (
     <div className="space-y-6">
-      {/* ═══ HEADER ═══ */}
+      {/* HEADER */}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#000000] tracking-tight">
             {greeting()}{data?.userName ? `, ${data.userName.split(" ")[0]}` : ""} 👋
           </h1>
-          <p className="text-sm text-[#6B7280] mt-0.5">
-            {format(new Date(), "EEEE d MMMM yyyy", { locale: fr })} · {data?.jobTitle}
-          </p>
+          <p className="text-sm text-[#6B7280] mt-0.5">{format(new Date(), "EEEE d MMMM yyyy", { locale: fr })} · {data?.jobTitle}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate(fieldPath("/address-lookup"))}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[#374151] text-sm font-semibold hover:bg-[#F9FAFB] transition-all"
-          >
-            <Search className="h-4 w-4" />
-            Rechercher
+          <button onClick={() => navigate(fieldPath("/address-lookup"))} className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#E5E7EB] bg-white text-[#374151] text-sm font-semibold hover:bg-[#F9FAFB] transition-all">
+            <Search className="h-4 w-4" /> Rechercher
           </button>
-          <button
-            onClick={() => navigate(fieldPath("/sale/new"))}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] transition-all shadow-md hover:shadow-lg"
-          >
-            <Plus className="h-4 w-4" />
-            Nouvelle vente
+          <button onClick={() => navigate(fieldPath("/sale/new"))} className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] transition-all shadow-md hover:shadow-lg">
+            <Plus className="h-4 w-4" /> Nouvelle vente
           </button>
         </div>
       </div>
 
-      {/* ═══ DAILY GOAL PROGRESS ═══ */}
+      {/* DAILY GOAL */}
       <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -207,10 +103,7 @@ export default function FieldDashboard() {
           </div>
         </div>
         <div className="h-3 rounded-full bg-[#F3F4F6] overflow-hidden">
-          <div
-            className={cn("h-full rounded-full transition-all duration-700", goalMet ? "bg-[#22C55E]" : "bg-[#F59E0B]")}
-            style={{ width: `${data?.goalProgress ?? 0}%` }}
-          />
+          <div className={cn("h-full rounded-full transition-all duration-700", goalMet ? "bg-[#22C55E]" : "bg-[#F59E0B]")} style={{ width: `${data?.goalProgress ?? 0}%` }} />
         </div>
         <div className="flex items-center justify-between mt-2">
           <span className="text-[10px] text-[#9CA3AF]">Revenu aujourd'hui</span>
@@ -218,7 +111,7 @@ export default function FieldDashboard() {
         </div>
       </div>
 
-      {/* ═══ KPI GRID — 3x2 ═══ */}
+      {/* KPI GRID */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
           { label: "Ventes aujourd'hui", value: data?.salesToday ?? 0, icon: Zap, iconColor: "text-[#22C55E]", iconBg: "bg-[#DCFCE7]", trend: data?.salesToday && data.salesToday > 0 ? `+${data.salesToday}` : undefined },
@@ -228,14 +121,12 @@ export default function FieldDashboard() {
           { label: "Taux de conversion", value: `${data?.conversionRate ?? 0}%`, icon: Target, iconColor: "text-[#EC4899]", iconBg: "bg-[#FCE7F3]", subtitle: `${data?.wonLeads ?? 0} gagnés / ${data?.lostLeads ?? 0} perdus` },
           { label: "Leads ouverts", value: data?.openLeads ?? 0, icon: UserPlus, iconColor: "text-[#06B6D4]", iconBg: "bg-[#CFFAFE]" },
         ].map((w) => (
-          <div key={w.label} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 hover:border-[#D1D5DB] transition-colors group">
+          <div key={w.label} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 hover:border-[#D1D5DB] transition-colors">
             <div className="flex items-center justify-between mb-3">
               <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", w.iconBg)}>
                 <w.icon className={cn("h-5 w-5", w.iconColor)} />
               </div>
-              {w.trend && (
-                <span className="text-[10px] font-bold text-[#16A34A] bg-[#DCFCE7] px-1.5 py-0.5 rounded-md">{w.trend}</span>
-              )}
+              {w.trend && <span className="text-[10px] font-bold text-[#16A34A] bg-[#DCFCE7] px-1.5 py-0.5 rounded-md">{w.trend}</span>}
             </div>
             <p className="text-2xl font-bold text-[#000000] tracking-tight">{w.value}</p>
             <p className="text-[11px] text-[#6B7280] font-medium mt-0.5">{w.label}</p>
@@ -244,7 +135,7 @@ export default function FieldDashboard() {
         ))}
       </div>
 
-      {/* ═══ ALERTS STRIP ═══ */}
+      {/* ALERTS */}
       {((data?.syncErrors ?? 0) > 0 || (data?.pendingPayment ?? 0) > 0 || (data?.pendingSync ?? 0) > 0) && (
         <div className="flex gap-2 flex-wrap">
           {(data?.syncErrors ?? 0) > 0 && (
@@ -265,7 +156,7 @@ export default function FieldDashboard() {
         </div>
       )}
 
-      {/* ═══ QUICK ACTIONS — Card Grid ═══ */}
+      {/* QUICK ACTIONS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Nouvelle vente", sub: "Placer une commande", icon: ShoppingCart, path: "/sale/new", primary: true, iconBg: "bg-[#DCFCE7]", iconColor: "text-[#16A34A]" },
@@ -277,16 +168,7 @@ export default function FieldDashboard() {
           { label: "Objectifs", sub: "Voir mes cibles", icon: Target, path: "/objectives", iconBg: "bg-[#FCE7F3]", iconColor: "text-[#EC4899]" },
           { label: "Rapport du jour", sub: "Générer", icon: Calendar, path: "/daily-report", iconBg: "bg-[#EDE9FE]", iconColor: "text-[#8B5CF6]" },
         ].map((a) => (
-          <button
-            key={a.label}
-            onClick={() => navigate(fieldPath(a.path))}
-            className={cn(
-              "flex flex-col items-center gap-2 p-4 rounded-2xl border text-center transition-all hover:shadow-sm",
-              a.primary
-                ? "bg-[#F0FDF4] border-[#BBF7D0] hover:bg-[#DCFCE7]"
-                : "bg-white border-[#E5E7EB] hover:bg-[#F9FAFB] hover:border-[#D1D5DB]"
-            )}
-          >
+          <button key={a.label} onClick={() => navigate(fieldPath(a.path))} className={cn("flex flex-col items-center gap-2 p-4 rounded-2xl border text-center transition-all hover:shadow-sm", a.primary ? "bg-[#F0FDF4] border-[#BBF7D0] hover:bg-[#DCFCE7]" : "bg-white border-[#E5E7EB] hover:bg-[#F9FAFB] hover:border-[#D1D5DB]")}>
             <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", a.iconBg)}>
               <a.icon className={cn("h-5 w-5", a.iconColor)} />
             </div>
@@ -298,17 +180,14 @@ export default function FieldDashboard() {
         ))}
       </div>
 
-      {/* ═══ TWO-COLUMN: Recent Orders + Recent Leads ═══ */}
+      {/* RECENT ORDERS + LEADS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Recent Orders */}
         <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
             <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Dernières commandes</h3>
-            <button onClick={() => navigate(fieldPath("/submissions"))} className="text-xs text-[#22C55E] hover:text-[#16A34A] font-semibold flex items-center gap-1">
-              Tout voir <ChevronRight className="h-3 w-3" />
-            </button>
+            <button onClick={() => navigate(fieldPath("/submissions"))} className="text-xs text-[#22C55E] hover:text-[#16A34A] font-semibold flex items-center gap-1">Tout voir <ChevronRight className="h-3 w-3" /></button>
           </div>
-          {(data?.recentOrders?.length ?? 0) === 0 ? (
+          {(activity?.recentOrders?.length ?? 0) === 0 ? (
             <div className="p-6 text-center">
               <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-[#D1D5DB]" />
               <p className="text-sm text-[#9CA3AF]">Aucune commande</p>
@@ -316,16 +195,12 @@ export default function FieldDashboard() {
             </div>
           ) : (
             <div className="divide-y divide-[#F3F4F6]">
-              {data!.recentOrders.slice(0, 5).map((order: any) => {
+              {activity!.recentOrders.slice(0, 5).map((order: any) => {
                 const syncCfg = SYNC_ICON[order.sync_status] || SYNC_ICON.pending;
                 const SIcon = syncCfg.icon;
                 const payCfg = PAYMENT_LABEL[order.payment_status] || PAYMENT_LABEL.pending;
                 return (
-                  <button
-                    key={order.id}
-                    onClick={() => navigate(fieldPath(`/orders/${order.id}`))}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F9FAFB] transition-colors text-left"
-                  >
+                  <button key={order.id} onClick={() => navigate(fieldPath(`/orders/${order.id}`))} className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F9FAFB] transition-colors text-left">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-[#000000] font-semibold truncate">{order.customer_name}</span>
@@ -338,9 +213,7 @@ export default function FieldDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-[#9CA3AF]">
-                        {formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: fr })}
-                      </span>
+                      <span className="text-[10px] text-[#9CA3AF]">{formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: fr })}</span>
                       <ChevronRight className="h-3.5 w-3.5 text-[#D1D5DB]" />
                     </div>
                   </button>
@@ -350,30 +223,22 @@ export default function FieldDashboard() {
           )}
         </div>
 
-        {/* Recent Leads */}
         <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
             <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Derniers leads</h3>
-            <button onClick={() => navigate(fieldPath("/leads"))} className="text-xs text-[#22C55E] hover:text-[#16A34A] font-semibold flex items-center gap-1">
-              Tout voir <ChevronRight className="h-3 w-3" />
-            </button>
+            <button onClick={() => navigate(fieldPath("/leads"))} className="text-xs text-[#22C55E] hover:text-[#16A34A] font-semibold flex items-center gap-1">Tout voir <ChevronRight className="h-3 w-3" /></button>
           </div>
-          {(data?.recentLeads?.length ?? 0) === 0 ? (
+          {(activity?.recentLeads?.length ?? 0) === 0 ? (
             <div className="p-6 text-center">
               <UserPlus className="h-8 w-8 mx-auto mb-2 text-[#D1D5DB]" />
               <p className="text-sm text-[#9CA3AF]">Aucun lead</p>
-              <button onClick={() => navigate(fieldPath("/leads/new"))} className="text-xs text-[#22C55E] hover:underline mt-1 font-medium">Ajouter un lead</button>
             </div>
           ) : (
             <div className="divide-y divide-[#F3F4F6]">
-              {data!.recentLeads.map((lead: any) => {
+              {activity!.recentLeads.map((lead: any) => {
                 const sc = LEAD_STATUS[lead.status] || LEAD_STATUS.new;
                 return (
-                  <button
-                    key={lead.id}
-                    onClick={() => navigate(fieldPath(`/leads/${lead.id}`))}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F9FAFB] transition-colors text-left"
-                  >
+                  <button key={lead.id} onClick={() => navigate(fieldPath(`/leads/${lead.id}`))} className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F9FAFB] transition-colors text-left">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-[#000000] font-semibold truncate">{lead.first_name} {lead.last_name}</span>
@@ -382,9 +247,7 @@ export default function FieldDashboard() {
                       <p className="text-[10px] text-[#6B7280] mt-0.5">{lead.service_need || lead.phone || "—"}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-[#9CA3AF]">
-                        {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}
-                      </span>
+                      <span className="text-[10px] text-[#9CA3AF]">{formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}</span>
                       <ChevronRight className="h-3.5 w-3.5 text-[#D1D5DB]" />
                     </div>
                   </button>
@@ -395,29 +258,17 @@ export default function FieldDashboard() {
         </div>
       </div>
 
-      {/* ═══ PERFORMANCE SUMMARY STRIP ═══ */}
+      {/* PERFORMANCE */}
       <div className="bg-gradient-to-r from-[#F0FDF4] to-[#ECFDF5] border border-[#BBF7D0] rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-3">
           <Trophy className="h-5 w-5 text-[#16A34A]" />
           <h3 className="text-sm font-bold text-[#16A34A]">Performance globale</h3>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <p className="text-2xl font-bold text-[#000000]">{data?.totalOrders ?? 0}</p>
-            <p className="text-[10px] text-[#6B7280]">Ventes totales</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-[#000000]">{(data?.monthRevenue ?? 0).toFixed(0)} $</p>
-            <p className="text-[10px] text-[#6B7280]">Revenu ce mois</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-[#16A34A]">{(data?.paidCommissions ?? 0).toFixed(2)} $</p>
-            <p className="text-[10px] text-[#6B7280]">Commissions payées</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-[#000000]">{data?.conversionRate ?? 0}%</p>
-            <p className="text-[10px] text-[#6B7280]">Taux conversion</p>
-          </div>
+          <div><p className="text-2xl font-bold text-[#000000]">{data?.totalOrders ?? 0}</p><p className="text-[10px] text-[#6B7280]">Ventes totales</p></div>
+          <div><p className="text-2xl font-bold text-[#000000]">{(data?.monthRevenue ?? 0).toFixed(0)} $</p><p className="text-[10px] text-[#6B7280]">Revenu ce mois</p></div>
+          <div><p className="text-2xl font-bold text-[#16A34A]">{(data?.paidCommissions ?? 0).toFixed(2)} $</p><p className="text-[10px] text-[#6B7280]">Commissions payées</p></div>
+          <div><p className="text-2xl font-bold text-[#000000]">{data?.conversionRate ?? 0}%</p><p className="text-[10px] text-[#6B7280]">Taux conversion</p></div>
         </div>
       </div>
     </div>
