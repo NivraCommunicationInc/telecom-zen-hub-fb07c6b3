@@ -397,6 +397,59 @@ export type Database = {
         }
         Relationships: []
       }
+      address_serviceability_checks: {
+        Row: {
+          address_id: string | null
+          checked_at: string
+          checked_by_user_id: string | null
+          coverage_type: string | null
+          id: string
+          normalized_address: string | null
+          raw_input: Json
+          response_payload: Json | null
+          restriction_codes: string[] | null
+          serviceability_status: string
+          serviceable_products: Json | null
+          source_system: string
+        }
+        Insert: {
+          address_id?: string | null
+          checked_at?: string
+          checked_by_user_id?: string | null
+          coverage_type?: string | null
+          id?: string
+          normalized_address?: string | null
+          raw_input?: Json
+          response_payload?: Json | null
+          restriction_codes?: string[] | null
+          serviceability_status?: string
+          serviceable_products?: Json | null
+          source_system?: string
+        }
+        Update: {
+          address_id?: string | null
+          checked_at?: string
+          checked_by_user_id?: string | null
+          coverage_type?: string | null
+          id?: string
+          normalized_address?: string | null
+          raw_input?: Json
+          response_payload?: Json | null
+          restriction_codes?: string[] | null
+          serviceability_status?: string
+          serviceable_products?: Json | null
+          source_system?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "address_serviceability_checks_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "field_customer_addresses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_access_limits: {
         Row: {
           created_at: string | null
@@ -3900,6 +3953,44 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_duplicate_checks: {
+        Row: {
+          created_at: string
+          id: string
+          incoming_customer_hash: string
+          match_score: number
+          match_type: string
+          matched_customer_id: string | null
+          matched_field_lead_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          incoming_customer_hash: string
+          match_score?: number
+          match_type?: string
+          matched_customer_id?: string | null
+          matched_field_lead_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          incoming_customer_hash?: string
+          match_score?: number
+          match_type?: string
+          matched_customer_id?: string | null
+          matched_field_lead_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_duplicate_checks_matched_field_lead_id_fkey"
+            columns: ["matched_field_lead_id"]
+            isOneToOne: false
+            referencedRelation: "field_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_referral_usage: {
         Row: {
           attribution_id: string
@@ -5820,6 +5911,80 @@ export type Database = {
           },
         ]
       }
+      field_commission_payout_items: {
+        Row: {
+          amount: number
+          commission_id: string
+          created_at: string
+          id: string
+          payout_id: string
+        }
+        Insert: {
+          amount: number
+          commission_id: string
+          created_at?: string
+          id?: string
+          payout_id: string
+        }
+        Update: {
+          amount?: number
+          commission_id?: string
+          created_at?: string
+          id?: string
+          payout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_commission_payout_items_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "field_commission_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_commission_payouts: {
+        Row: {
+          adjustment_amount: number
+          created_at: string
+          gross_amount: number
+          id: string
+          net_amount: number
+          paid_at: string | null
+          payout_period_end: string
+          payout_period_start: string
+          payout_status: string
+          reference_number: string | null
+          user_id: string
+        }
+        Insert: {
+          adjustment_amount?: number
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          paid_at?: string | null
+          payout_period_end: string
+          payout_period_start: string
+          payout_status?: string
+          reference_number?: string | null
+          user_id: string
+        }
+        Update: {
+          adjustment_amount?: number
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          paid_at?: string | null
+          payout_period_end?: string
+          payout_period_start?: string
+          payout_status?: string
+          reference_number?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       field_commissions: {
         Row: {
           agent_id: string
@@ -5876,27 +6041,187 @@ export type Database = {
           },
         ]
       }
+      field_customer_addresses: {
+        Row: {
+          address_type: string
+          building_code: string | null
+          city: string
+          country_code: string
+          created_at: string
+          customer_id: string | null
+          field_lead_id: string | null
+          id: string
+          is_primary: boolean
+          latitude: number | null
+          line1: string
+          line2: string | null
+          longitude: number | null
+          normalized_address: string | null
+          postal_code: string
+          province_code: string
+          unit_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_type?: string
+          building_code?: string | null
+          city: string
+          country_code?: string
+          created_at?: string
+          customer_id?: string | null
+          field_lead_id?: string | null
+          id?: string
+          is_primary?: boolean
+          latitude?: number | null
+          line1: string
+          line2?: string | null
+          longitude?: number | null
+          normalized_address?: string | null
+          postal_code: string
+          province_code?: string
+          unit_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_type?: string
+          building_code?: string | null
+          city?: string
+          country_code?: string
+          created_at?: string
+          customer_id?: string | null
+          field_lead_id?: string | null
+          id?: string
+          is_primary?: boolean
+          latitude?: number | null
+          line1?: string
+          line2?: string | null
+          longitude?: number | null
+          normalized_address?: string | null
+          postal_code?: string
+          province_code?: string
+          unit_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_customer_addresses_field_lead_id_fkey"
+            columns: ["field_lead_id"]
+            isOneToOne: false
+            referencedRelation: "field_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_lead_activities: {
+        Row: {
+          activity_at: string
+          activity_type: string
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          performed_by_user_id: string
+        }
+        Insert: {
+          activity_at?: string
+          activity_type?: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          performed_by_user_id: string
+        }
+        Update: {
+          activity_at?: string
+          activity_type?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          performed_by_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "field_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_lead_tasks: {
+        Row: {
+          assigned_user_id: string
+          created_at: string
+          due_at: string
+          id: string
+          lead_id: string
+          metadata: Json | null
+          status: string
+          task_type: string
+          title: string
+        }
+        Insert: {
+          assigned_user_id: string
+          created_at?: string
+          due_at: string
+          id?: string
+          lead_id: string
+          metadata?: Json | null
+          status?: string
+          task_type?: string
+          title: string
+        }
+        Update: {
+          assigned_user_id?: string
+          created_at?: string
+          due_at?: string
+          id?: string
+          lead_id?: string
+          metadata?: Json | null
+          status?: string
+          task_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_lead_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "field_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_leads: {
         Row: {
           address: string | null
           agent_id: string
           agent_name: string | null
           city: string | null
+          converted_at: string | null
           created_at: string
           eligibility_notes: string | null
           email: string | null
           first_name: string
           id: string
+          interest_summary: string | null
+          last_contact_at: string | null
           last_name: string
+          lead_stage: string
           lost_at: string | null
           lost_reason: string | null
+          next_follow_up_at: string | null
           notes: string | null
           order_id: string | null
           payment_method_intent: string | null
           phone: string | null
           postal_code: string | null
+          priority_level: string
           province: string | null
           service_need: string | null
+          source_channel: string
           status: string
           submitted_at: string | null
           updated_at: string
@@ -5907,21 +6232,28 @@ export type Database = {
           agent_id: string
           agent_name?: string | null
           city?: string | null
+          converted_at?: string | null
           created_at?: string
           eligibility_notes?: string | null
           email?: string | null
           first_name: string
           id?: string
+          interest_summary?: string | null
+          last_contact_at?: string | null
           last_name: string
+          lead_stage?: string
           lost_at?: string | null
           lost_reason?: string | null
+          next_follow_up_at?: string | null
           notes?: string | null
           order_id?: string | null
           payment_method_intent?: string | null
           phone?: string | null
           postal_code?: string | null
+          priority_level?: string
           province?: string | null
           service_need?: string | null
+          source_channel?: string
           status?: string
           submitted_at?: string | null
           updated_at?: string
@@ -5932,25 +6264,248 @@ export type Database = {
           agent_id?: string
           agent_name?: string | null
           city?: string | null
+          converted_at?: string | null
           created_at?: string
           eligibility_notes?: string | null
           email?: string | null
           first_name?: string
           id?: string
+          interest_summary?: string | null
+          last_contact_at?: string | null
           last_name?: string
+          lead_stage?: string
           lost_at?: string | null
           lost_reason?: string | null
+          next_follow_up_at?: string | null
           notes?: string | null
           order_id?: string | null
           payment_method_intent?: string | null
           phone?: string | null
           postal_code?: string | null
+          priority_level?: string
           province?: string | null
           service_need?: string | null
+          source_channel?: string
           status?: string
           submitted_at?: string | null
           updated_at?: string
           won_at?: string | null
+        }
+        Relationships: []
+      }
+      field_objective_templates: {
+        Row: {
+          created_at: string
+          default_target_value: number
+          id: string
+          metric_type: string
+          name: string
+          objective_code: string
+          period_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_target_value?: number
+          id?: string
+          metric_type?: string
+          name: string
+          objective_code: string
+          period_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_target_value?: number
+          id?: string
+          metric_type?: string
+          name?: string
+          objective_code?: string
+          period_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      field_order_notes: {
+        Row: {
+          content: string
+          created_at: string
+          created_by_user_id: string | null
+          field_order_id: string
+          id: string
+          is_internal: boolean
+          note_type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by_user_id?: string | null
+          field_order_id: string
+          id?: string
+          is_internal?: boolean
+          note_type?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          field_order_id?: string
+          id?: string
+          is_internal?: boolean
+          note_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_order_notes_field_order_id_fkey"
+            columns: ["field_order_id"]
+            isOneToOne: false
+            referencedRelation: "field_sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_order_status_history: {
+        Row: {
+          change_reason: string | null
+          changed_by_user_id: string | null
+          created_at: string
+          field_order_id: string
+          id: string
+          metadata: Json | null
+          new_status: string
+          old_status: string | null
+          status_domain: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string
+          field_order_id: string
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          old_status?: string | null
+          status_domain?: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by_user_id?: string | null
+          created_at?: string
+          field_order_id?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          old_status?: string | null
+          status_domain?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_order_status_history_field_order_id_fkey"
+            columns: ["field_order_id"]
+            isOneToOne: false
+            referencedRelation: "field_sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_order_sync_events: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          error_message: string | null
+          external_reference: string | null
+          field_order_id: string
+          id: string
+          last_attempt_at: string | null
+          next_retry_at: string | null
+          request_payload: Json | null
+          response_payload: Json | null
+          sync_action: string
+          sync_status: string
+          sync_target: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          error_message?: string | null
+          external_reference?: string | null
+          field_order_id: string
+          id?: string
+          last_attempt_at?: string | null
+          next_retry_at?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+          sync_action?: string
+          sync_status?: string
+          sync_target?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          error_message?: string | null
+          external_reference?: string | null
+          field_order_id?: string
+          id?: string
+          last_attempt_at?: string | null
+          next_retry_at?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+          sync_action?: string
+          sync_status?: string
+          sync_target?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_order_sync_events_field_order_id_fkey"
+            columns: ["field_order_id"]
+            isOneToOne: false
+            referencedRelation: "field_sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_resources: {
+        Row: {
+          content_body: string | null
+          content_url: string | null
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          resource_type: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content_body?: string | null
+          content_url?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          resource_type?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content_body?: string | null
+          content_url?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          resource_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -6258,13 +6813,84 @@ export type Database = {
         }
         Relationships: []
       }
+      field_territories: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          name: string
+          status: string
+          territory_code: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          status?: string
+          territory_code: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          status?: string
+          territory_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      field_territory_assignments: {
+        Row: {
+          assigned_from: string
+          assigned_to: string | null
+          created_at: string
+          id: string
+          status: string
+          territory_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_from?: string
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          territory_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_from?: string
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          territory_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_territory_assignments_territory_id_fkey"
+            columns: ["territory_id"]
+            isOneToOne: false
+            referencedRelation: "field_territories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_territory_streets: {
         Row: {
+          access_notes: string | null
           agent_id: string
+          best_hours: string | null
           city: string | null
           completed_at: string | null
           created_at: string
           doors_answered: number | null
+          doors_interested: number
           doors_knocked: number | null
           doors_sold: number | null
           id: string
@@ -6272,15 +6898,19 @@ export type Database = {
           postal_code: string | null
           status: string
           street_name: string
+          territory_id: string | null
           total_doors: number | null
           updated_at: string
         }
         Insert: {
+          access_notes?: string | null
           agent_id: string
+          best_hours?: string | null
           city?: string | null
           completed_at?: string | null
           created_at?: string
           doors_answered?: number | null
+          doors_interested?: number
           doors_knocked?: number | null
           doors_sold?: number | null
           id?: string
@@ -6288,15 +6918,19 @@ export type Database = {
           postal_code?: string | null
           status?: string
           street_name: string
+          territory_id?: string | null
           total_doors?: number | null
           updated_at?: string
         }
         Update: {
+          access_notes?: string | null
           agent_id?: string
+          best_hours?: string | null
           city?: string | null
           completed_at?: string | null
           created_at?: string
           doors_answered?: number | null
+          doors_interested?: number
           doors_knocked?: number | null
           doors_sold?: number | null
           id?: string
@@ -6304,10 +6938,66 @@ export type Database = {
           postal_code?: string | null
           status?: string
           street_name?: string
+          territory_id?: string | null
           total_doors?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "field_territory_streets_territory_id_fkey"
+            columns: ["territory_id"]
+            isOneToOne: false
+            referencedRelation: "field_territories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_territory_visits: {
+        Row: {
+          created_at: string
+          doors_answered: number
+          doors_interested: number
+          doors_knocked: number
+          doors_sold: number
+          id: string
+          notes: string | null
+          territory_street_id: string
+          user_id: string
+          visit_date: string
+        }
+        Insert: {
+          created_at?: string
+          doors_answered?: number
+          doors_interested?: number
+          doors_knocked?: number
+          doors_sold?: number
+          id?: string
+          notes?: string | null
+          territory_street_id: string
+          user_id: string
+          visit_date?: string
+        }
+        Update: {
+          created_at?: string
+          doors_answered?: number
+          doors_interested?: number
+          doors_knocked?: number
+          doors_sold?: number
+          id?: string
+          notes?: string | null
+          territory_street_id?: string
+          user_id?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_territory_visits_territory_street_id_fkey"
+            columns: ["territory_street_id"]
+            isOneToOne: false
+            referencedRelation: "field_territory_streets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fulfillment_snapshots: {
         Row: {
@@ -9983,6 +10673,161 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      product_attributes: {
+        Row: {
+          attribute_key: string
+          attribute_value: Json
+          created_at: string
+          id: string
+          service_id: string
+        }
+        Insert: {
+          attribute_key: string
+          attribute_value?: Json
+          created_at?: string
+          id?: string
+          service_id: string
+        }
+        Update: {
+          attribute_key?: string
+          attribute_value?: Json
+          created_at?: string
+          id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_attributes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_attributes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_equipment_rules: {
+        Row: {
+          created_at: string
+          default_quantity: number
+          equipment_service_id: string
+          id: string
+          max_quantity: number
+          min_quantity: number
+          relationship_type: string
+          service_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_quantity?: number
+          equipment_service_id: string
+          id?: string
+          max_quantity?: number
+          min_quantity?: number
+          relationship_type?: string
+          service_id: string
+        }
+        Update: {
+          created_at?: string
+          default_quantity?: number
+          equipment_service_id?: string
+          id?: string
+          max_quantity?: number
+          min_quantity?: number
+          relationship_type?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_equipment_rules_equipment_service_id_fkey"
+            columns: ["equipment_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_equipment_rules_equipment_service_id_fkey"
+            columns: ["equipment_service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_equipment_rules_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_equipment_rules_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_prices: {
+        Row: {
+          amount: number
+          billing_frequency: string | null
+          created_at: string
+          currency_code: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          price_type: string
+          service_id: string
+          status: string
+        }
+        Insert: {
+          amount?: number
+          billing_frequency?: string | null
+          created_at?: string
+          currency_code?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          price_type?: string
+          service_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          billing_frequency?: string | null
+          created_at?: string
+          currency_code?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          price_type?: string
+          service_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_prices_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_prices_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profile_change_requests: {
         Row: {

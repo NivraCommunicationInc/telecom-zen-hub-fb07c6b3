@@ -1,13 +1,13 @@
 /**
  * Step 1 — Customer Identification
  * Supports: Search existing customer OR create new.
- * Uses real serviceability check against service_coverage_areas table.
+ * Uses backend serviceability engine + duplicate detection.
  */
 import { useState } from "react";
-import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight, AlertTriangle } from "lucide-react";
+import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight, AlertTriangle, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
-import { checkServiceCoverage, type CoverageResult } from "@/field-app/lib/useServiceCoverage";
+import { checkServiceability, checkDuplicates, type ServiceabilityResult, type DuplicateCheckResult } from "@/field-app/lib/fieldServices";
 
 interface Props {
   customer: FieldSaleCustomer;
@@ -36,16 +36,17 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchDone, setSearchDone] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
-  const [coverageDetail, setCoverageDetail] = useState<CoverageResult | null>(null);
+  const [coverageDetail, setCoverageDetail] = useState<ServiceabilityResult | null>(null);
+  const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
 
   const update = (field: keyof FieldSaleCustomer, value: string) =>
     onChange({ ...customer, [field]: value });
 
-  const checkServiceability = async () => {
+  const runServiceabilityCheck = async () => {
     onChange({ ...customer, serviceability_status: "checking" });
     setCoverageDetail(null);
     try {
-      const result = await checkServiceCoverage(customer.postal_code);
+      const result = await checkServiceability(customer.postal_code, customer.address, customer.city);
       setCoverageDetail(result);
       if (result.status === "available" || result.status === "limited") {
         onChange({ ...customer, serviceability_status: "available" });
@@ -54,6 +55,16 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
       }
     } catch {
       onChange({ ...customer, serviceability_status: "unavailable" });
+    }
+  };
+
+  const runDuplicateCheck = async () => {
+    if (!customer.phone && !customer.email) return;
+    try {
+      const result = await checkDuplicates(customer.phone, customer.email, customer.address);
+      setDuplicateResult(result);
+    } catch {
+      // Non-blocking
     }
   };
 
@@ -390,33 +401,44 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
         {customer.serviceability_status === "unknown" && customer.postal_code.trim() && (
           <button
             type="button"
-            onClick={checkServiceability}
-            className="w-full py-2.5 rounded-lg bg-[#3B82F6] text-white text-sm font-medium hover:bg-[#2563EB] transition-colors"
+            onClick={() => runServiceabilityCheck()}
+            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-colors"
           >
             Vérifier la disponibilité du service
           </button>
         )}
         {customer.serviceability_status === "checking" && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F3F4F6] text-sm text-[#6B7280]">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Vérification en cours…
           </div>
         )}
         {customer.serviceability_status === "available" && coverageDetail && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] text-sm text-[#16A34A] font-medium">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 font-medium dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
               <CheckCircle2 className="h-4 w-4" />
               {coverageDetail.status === "limited" ? "Service partiellement disponible" : "Service disponible à cette adresse"}
             </div>
             {coverageDetail.status === "limited" && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs text-[#92400E]">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400">
                 <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <div>
                   <p className="font-medium">Couverture limitée</p>
                   {coverageDetail.notes && <p className="mt-0.5">{coverageDetail.notes}</p>}
-                  {coverageDetail.availableServices && (
-                    <p className="mt-0.5">Services disponibles : {coverageDetail.availableServices.join(", ")}</p>
+                  {coverageDetail.serviceable_products && coverageDetail.serviceable_products.length > 0 && (
+                    <p className="mt-0.5">Services disponibles : {coverageDetail.serviceable_products.join(", ")}</p>
                   )}
+                </div>
+              </div>
+            )}
+            {duplicateResult?.has_duplicates && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium">Doublons potentiels détectés</p>
+                  {duplicateResult.matches.map(m => (
+                    <p key={m.id} className="mt-0.5">{m.name} ({m.type}) — score {Math.round(m.score * 100)}%</p>
+                  ))}
                 </div>
               </div>
             )}
