@@ -202,6 +202,7 @@ const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
         addressCity: formData.addressCity || null,
         addressProvince: formData.addressProvince || null,
         addressPostalCode: formData.addressPostalCode || null,
+        turnstileToken: turnstileToken || null,
       };
 
       const response = await fetch(`${backendUrl}/functions/v1/submit-web-form`, {
