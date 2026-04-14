@@ -4,6 +4,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Mobile-first responsive base ──────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+img, video, iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Prevent horizontal overflow on mobile */
+body {
+  overflow-x: hidden;
+}
+
+/* Responsive typography scale */
+:root {
+  --text-xs: clamp(11px, 2.5vw, 12px);
+  --text-sm: clamp(13px, 2.8vw, 14px);
+  --text-base: clamp(15px, 3vw, 16px);
+  --text-lg: clamp(17px, 3.5vw, 20px);
+  --text-xl: clamp(20px, 4vw, 24px);
+  --text-2xl: clamp(24px, 5vw, 32px);
+  --text-3xl: clamp(28px, 6vw, 40px);
+  --text-hero: clamp(32px, 7vw, 56px);
+}
+
+/* Responsive grid utility */
+.grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: clamp(12px, 3vw, 24px);
+}
+
+/* iOS input zoom prevention — inputs must be ≥16px */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* Staff Portal Animations */
 @keyframes staff-orb-1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
