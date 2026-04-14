@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
 import { COMPANY_CONTACT } from "@/config/company";
 import { SEO_CONFIG } from "@/config/seo";
@@ -12,9 +12,8 @@ interface SEOHeadProps {
 }
 
 /**
- * SEOHead - Dynamic SEO meta tags for each page
- * Updates document head with title, description, canonical, OG, Twitter cards
- * Also injects Google Site Verification meta tag if configured
+ * SEOHead - Dynamic SEO meta tags for each page via react-helmet-async.
+ * Updates document head with title, description, canonical, OG, Twitter cards.
  */
 export const SEOHead = ({
   title,
@@ -28,84 +27,44 @@ export const SEOHead = ({
   const fullCanonical = canonical || `${baseUrl}${location.pathname}`;
   const fullOgImage = ogImage.startsWith("http") ? ogImage : `${baseUrl}${ogImage}`;
 
-  useEffect(() => {
-    // Update title
-    if (title) {
-      document.title = title;
-    }
+  return (
+    <Helmet>
+      {title && <title>{title}</title>}
+      {description && <meta name="description" content={description} />}
+      <link rel="canonical" href={fullCanonical} />
 
-    // Helper to update or create meta tag
-    const setMeta = (name: string, content: string, isProperty = false) => {
-      const attr = isProperty ? "property" : "name";
-      let element = document.querySelector(`meta[${attr}="${name}"]`);
-      if (!element) {
-        element = document.createElement("meta");
-        element.setAttribute(attr, name);
-        document.head.appendChild(element);
-      }
-      element.setAttribute("content", content);
-    };
+      {/* Robots */}
+      <meta name="robots" content={noindex ? "noindex, nofollow" : "index, follow"} />
 
-    // Helper to update or create link tag
-    const setLink = (rel: string, href: string) => {
-      let element = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement;
-      if (!element) {
-        element = document.createElement("link");
-        element.setAttribute("rel", rel);
-        document.head.appendChild(element);
-      }
-      element.setAttribute("href", href);
-    };
+      {/* Open Graph */}
+      {title && <meta property="og:title" content={title} />}
+      {description && <meta property="og:description" content={description} />}
+      <meta property="og:url" content={fullCanonical} />
+      <meta property="og:image" content={fullOgImage} />
+      <meta property="og:type" content="website" />
+      <meta property="og:locale" content="fr_CA" />
+      <meta property="og:site_name" content={COMPANY_CONTACT.companyName} />
 
-    // Set meta description
-    if (description) {
-      setMeta("description", description);
-      setMeta("og:description", description, true);
-      setMeta("twitter:description", description);
-    }
+      {/* Twitter */}
+      <meta name="twitter:card" content="summary_large_image" />
+      {title && <meta name="twitter:title" content={title} />}
+      {description && <meta name="twitter:description" content={description} />}
+      <meta name="twitter:image" content={fullOgImage} />
 
-    // Set canonical
-    setLink("canonical", fullCanonical);
-
-    // Set OG tags
-    if (title) {
-      setMeta("og:title", title, true);
-      setMeta("twitter:title", title);
-    }
-    setMeta("og:url", fullCanonical, true);
-    setMeta("og:image", fullOgImage, true);
-    setMeta("twitter:image", fullOgImage);
-    setMeta("og:type", "website", true);
-    setMeta("og:site_name", COMPANY_CONTACT.companyName, true);
-
-    // Handle robots - public pages should NEVER have noindex
-    if (noindex) {
-      setMeta("robots", "noindex, nofollow");
-    } else {
-      // Ensure public pages are indexable - set index, follow
-      setMeta("robots", "index, follow");
-    }
-
-    // Twitter card type
-    setMeta("twitter:card", "summary_large_image");
-
-    // Google Site Verification - inject if configured
-    if (SEO_CONFIG.googleSiteVerification) {
-      setMeta("google-site-verification", SEO_CONFIG.googleSiteVerification);
-    }
-
-    // Cleanup function not needed since we want meta tags to persist
-  }, [title, description, fullCanonical, fullOgImage, noindex]);
-
-  return null;
+      {/* Google Site Verification */}
+      {SEO_CONFIG.googleSiteVerification && (
+        <meta name="google-site-verification" content={SEO_CONFIG.googleSiteVerification} />
+      )}
+    </Helmet>
+  );
 };
 
 // SEO data for each page
 export const SEO_DATA = {
   home: {
-    title: "Nivra Telecom | Internet, Mobile & TV prépayés au Québec - Sans contrat",
+    title: "Nivra Telecom | Internet & TV prépayé au Québec — Sans contrat",
     description:
-      "Nivra Telecom : Internet haute vitesse dès 45$/mois, mobile 5G prépayé dès 50$/mois, TV 200+ chaînes. Sans contrat, activation 24h, support 7j/7 au Québec. Offre 50% premier mois!",
+      "Nivra Telecom offre des forfaits Internet et TV prépayés au Québec, sans engagement ni contrat. Économisez sur Bell et Vidéotron. Activation rapide, support en français.",
   },
   about: {
     title: "À propos de Nivra Telecom | Notre mission et valeurs",
@@ -123,12 +82,12 @@ export const SEO_DATA = {
       "Internet haute vitesse, télévision IPTV, téléphonie mobile prépayée et sécurité résidentielle. Services sans contrat disponibles partout au Québec.",
   },
   internet: {
-    title: "Forfaits Internet haute vitesse | Nivra Telecom Québec",
+    title: "Forfaits Internet haute vitesse sans contrat | Nivra Telecom Québec",
     description:
       "Internet illimité haute vitesse sans contrat. Forfaits de 25 à 1000 Mbps, installation rapide, équipement inclus. Vérifiez la disponibilité à votre adresse.",
   },
   tv: {
-    title: "Forfaits télévision IPTV | Nivra Telecom Québec",
+    title: "Forfaits télévision IPTV sans contrat | Nivra Telecom Québec",
     description:
       "Télévision IPTV sans contrat avec 100+ chaînes. Forfaits personnalisables, enregistrement cloud, 4K disponible. Essayez sans engagement.",
   },
