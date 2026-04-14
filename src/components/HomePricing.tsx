@@ -2,6 +2,7 @@
  * HomePricing — Dynamic pricing cards, Xfinity-inspired dark style
  */
 import { useMemo } from "react";
+import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { usePublicServices } from "@/hooks/usePublicServices";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, ArrowRight, Star } from "lucide-react";
@@ -126,9 +127,7 @@ const HomePricing = () => {
           ))}
         </div>
 
-        <p className="text-center text-xs text-white/40">
-          {t('pricing.disclaimer')}
-        </p>
+        <LegalDisclaimer />
       </div>
     </section>
   );
