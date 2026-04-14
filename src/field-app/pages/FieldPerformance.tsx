@@ -1,15 +1,15 @@
 /**
- * FieldPerformance — Analytics & performance dashboard for field agents.
- * Weekly/monthly trends, conversion funnel, top services sold.
+ * FieldPerformance — Polished analytics page for field reps.
  */
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { format, startOfMonth, startOfWeek, subDays } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Award, BarChart3, DollarSign, Loader2, Target, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaffUser } from "@/lib/hooks/useStaffUser";
-import { Loader2, TrendingUp, BarChart3, Target, DollarSign, Award, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
-import { fr } from "date-fns/locale";
+import { FieldEmptyState, FieldMetricCard, FieldPageHeader, FieldPanel } from "@/field-app/components/FieldUI";
 
 type Period = "week" | "month" | "all";
 
@@ -20,204 +20,153 @@ export default function FieldPerformance() {
   const { data, isLoading } = useQuery({
     queryKey: ["field-performance", user?.id, period],
     queryFn: async () => {
-      let startDate: string | null = null;
       const now = new Date();
-      if (period === "week") startDate = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
-      else if (period === "month") startDate = startOfMonth(now).toISOString();
+      const startDate = period === "week" ? startOfWeek(now, { weekStartsOn: 1 }).toISOString() : period === "month" ? startOfMonth(now).toISOString() : null;
 
-      let ordersQ = supabase.from("field_sales_orders")
+      let ordersQuery = supabase
+        .from("field_sales_orders")
         .select("id, total_amount, payment_status, sync_status, services, created_at")
         .eq("salesperson_id", user!.id);
-      if (startDate) ordersQ = ordersQ.gte("created_at", startDate);
+      if (startDate) ordersQuery = ordersQuery.gte("created_at", startDate);
 
-      let leadsQ = supabase.from("field_leads")
-        .select("id, status, created_at")
-        .eq("agent_id", user!.id);
-      if (startDate) leadsQ = leadsQ.gte("created_at", startDate);
+      let leadsQuery = supabase.from("field_leads").select("id, status, created_at").eq("agent_id", user!.id);
+      if (startDate) leadsQuery = leadsQuery.gte("created_at", startDate);
 
-      let commissionsQ = supabase.from("sales_commissions")
-        .select("commission_amount, status, created_at")
-        .eq("salesperson_id", user!.id);
-      if (startDate) commissionsQ = commissionsQ.gte("created_at", startDate);
+      let commissionsQuery = supabase.from("sales_commissions").select("commission_amount, status, created_at").eq("salesperson_id", user!.id);
+      if (startDate) commissionsQuery = commissionsQuery.gte("created_at", startDate);
 
-      const [ordersRes, leadsRes, commissionsRes] = await Promise.all([ordersQ, leadsQ, commissionsQ]);
-
+      const [ordersRes, leadsRes, commissionsRes] = await Promise.all([ordersQuery, leadsQuery, commissionsQuery]);
       const orders = ordersRes.data || [];
       const leads = leadsRes.data || [];
       const commissions = commissionsRes.data || [];
 
-      const totalRevenue = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
-      const totalCommissions = commissions.reduce((sum: number, c: any) => sum + Number(c.commission_amount || c.amount || 0), 0);
-      const paidOrders = orders.filter((o: any) => o.payment_status === "confirmed").length;
-      const syncedOrders = orders.filter((o: any) => o.sync_status === "synced").length;
+      const totalRevenue = orders.reduce((sum: number, order: any) => sum + Number(order.total_amount || 0), 0);
+      const totalCommissions = commissions.reduce((sum: number, commission: any) => sum + Number(commission.commission_amount || 0), 0);
+      const confirmedOrders = orders.filter((order: any) => order.payment_status === "confirmed").length;
+      const syncedOrders = orders.filter((order: any) => order.sync_status === "synced").length;
+      const wonLeads = leads.filter((lead: any) => lead.status === "won").length;
+      const conversionRate = leads.length > 0 ? Math.round((wonLeads / leads.length) * 100) : 0;
 
-      // Lead funnel
-      const leadsByStatus: Record<string, number> = {};
-      leads.forEach((l: any) => { leadsByStatus[l.status] = (leadsByStatus[l.status] || 0) + 1; });
-
-      // Top services
       const serviceCounts: Record<string, number> = {};
-      orders.forEach((o: any) => {
-        const svcs = Array.isArray(o.services) ? o.services : [];
-        svcs.forEach((s: any) => {
-          const name = s.name || "Inconnu";
+      for (const order of orders) {
+        const services = Array.isArray((order as any).services) ? (order as any).services : [];
+        for (const service of services) {
+          const name = service.name || "Inconnu";
           serviceCounts[name] = (serviceCounts[name] || 0) + 1;
-        });
-      });
+        }
+      }
+
       const topServices = Object.entries(serviceCounts)
-        .sort(([, a], [, b]) => b - a)
+        .sort(([, a], [, b]) => Number(b) - Number(a))
         .slice(0, 5);
 
-      // Daily breakdown (last 7 days)
-      const dailyBreakdown: { date: string; count: number; revenue: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = subDays(new Date(), i);
-        const dayStr = format(d, "yyyy-MM-dd");
-        const dayOrders = orders.filter((o: any) => o.created_at.startsWith(dayStr));
-        dailyBreakdown.push({
-          date: format(d, "EEE d", { locale: fr }),
+      const dailyBreakdown = Array.from({ length: 7 }).map((_, index) => {
+        const day = subDays(new Date(), 6 - index);
+        const key = format(day, "yyyy-MM-dd");
+        const dayOrders = orders.filter((order: any) => order.created_at.startsWith(key));
+        return {
+          label: format(day, "EEE d", { locale: fr }),
           count: dayOrders.length,
-          revenue: dayOrders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0),
-        });
-      }
-      const maxDailyCount = Math.max(1, ...dailyBreakdown.map((d) => d.count));
+          revenue: dayOrders.reduce((sum: number, order: any) => sum + Number(order.total_amount || 0), 0),
+        };
+      });
 
       return {
         totalOrders: orders.length,
         totalRevenue,
         totalCommissions,
-        paidOrders,
+        confirmedOrders,
         syncedOrders,
         totalLeads: leads.length,
-        leadsByStatus,
+        wonLeads,
+        conversionRate,
         topServices,
         dailyBreakdown,
-        maxDailyCount,
+        maxDailyCount: Math.max(1, ...dailyBreakdown.map((item) => item.count)),
         avgOrderValue: orders.length > 0 ? totalRevenue / orders.length : 0,
       };
     },
     enabled: !!user?.id,
   });
 
-  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" /></div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#000000]">Performance</h1>
-          <p className="text-sm text-[#6B7280]">Analyse de vos résultats terrain</p>
-        </div>
-        <div className="flex bg-[#F3F4F6] rounded-lg p-0.5">
-          {([["week", "Semaine"], ["month", "Mois"], ["all", "Tout"]] as [Period, string][]).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setPeriod(key)}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                period === key ? "bg-white text-[#000000] shadow-sm" : "text-[#6B7280] hover:text-[#000000]"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Ventes", value: data?.totalOrders ?? 0, icon: TrendingUp, color: "text-[#22C55E]", bg: "bg-[#DCFCE7]" },
-          { label: "Revenu", value: `${(data?.totalRevenue ?? 0).toFixed(0)} $`, icon: DollarSign, color: "text-[#3B82F6]", bg: "bg-[#DBEAFE]" },
-          { label: "Panier moyen", value: `${(data?.avgOrderValue ?? 0).toFixed(0)} $`, icon: BarChart3, color: "text-[#8B5CF6]", bg: "bg-[#EDE9FE]" },
-          { label: "Commissions", value: `${(data?.totalCommissions ?? 0).toFixed(0)} $`, icon: Award, color: "text-[#F59E0B]", bg: "bg-[#FEF3C7]" },
-        ].map((c) => (
-          <div key={c.label} className="bg-white border border-[#E5E7EB] rounded-xl p-4">
-            <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-2", c.bg)}>
-              <c.icon className={cn("h-4 w-4", c.color)} />
-            </div>
-            <p className="text-xl font-bold text-[#000000]">{c.value}</p>
-            <p className="text-[11px] text-[#6B7280] font-medium">{c.label}</p>
+      <FieldPageHeader
+        eyebrow="Performance"
+        title="Pilotage des résultats"
+        description="Une lecture claire des ventes, de la conversion et de la valeur commerciale, sans effet dashboard générique."
+        actions={
+          <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-card">
+            {([ ["week", "7 jours"], ["month", "Ce mois"], ["all", "Historique"] ] as [Period, string][]).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setPeriod(value)}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                  period === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        ))}
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <FieldMetricCard label="Ventes" value={data?.totalOrders ?? 0} hint={`${data?.confirmedOrders ?? 0} payées`} icon={TrendingUp} tone="success" />
+        <FieldMetricCard label="Revenu" value={`${(data?.totalRevenue ?? 0).toFixed(0)} $`} hint={`${(data?.avgOrderValue ?? 0).toFixed(0)} $ panier moyen`} icon={DollarSign} tone="premium" />
+        <FieldMetricCard label="Commissions" value={`${(data?.totalCommissions ?? 0).toFixed(0)} $`} hint={`${data?.syncedOrders ?? 0} commandes synchronisées`} icon={Award} tone="warning" />
+        <FieldMetricCard label="Conversion" value={`${data?.conversionRate ?? 0}%`} hint={`${data?.wonLeads ?? 0} leads gagnés`} icon={Target} tone="info" />
       </div>
 
-      {/* Daily Bar Chart */}
-      <div className="bg-white border border-[#E5E7EB] rounded-xl p-5">
-        <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-4">Ventes — 7 derniers jours</h3>
-        <div className="flex items-end gap-2 h-32">
-          {data?.dailyBreakdown.map((day, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <span className="text-[10px] font-bold text-[#000000]">{day.count}</span>
-              <div
-                className={cn("w-full rounded-t-md transition-all", day.count > 0 ? "bg-[#22C55E]" : "bg-[#F3F4F6]")}
-                style={{ height: `${Math.max(4, (day.count / (data?.maxDailyCount ?? 1)) * 100)}%` }}
-              />
-              <span className="text-[9px] text-[#9CA3AF] font-medium">{day.date}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <FieldPanel title="Rythme des 7 derniers jours" description="Le rythme commercial doit être lisible en un coup d'œil.">
+          <div className="flex h-48 items-end gap-3">
+            {data?.dailyBreakdown.map((day) => (
+              <div key={day.label} className="flex flex-1 flex-col items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">{day.count}</span>
+                <div className="flex h-36 w-full items-end rounded-[1rem] bg-secondary px-2 pb-2">
+                  <div
+                    className="w-full rounded-[0.8rem] bg-primary transition-all"
+                    style={{ height: `${Math.max(8, (day.count / Math.max(data?.maxDailyCount ?? 1, 1)) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[11px] text-muted-foreground">{day.label}</span>
+              </div>
+            ))}
+          </div>
+        </FieldPanel>
 
-      {/* Two columns: Lead Funnel + Top Services */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Lead Funnel */}
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-5">
-          <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-3">Entonnoir leads</h3>
-          {(data?.totalLeads ?? 0) === 0 ? (
-            <p className="text-sm text-[#9CA3AF] text-center py-4">Aucun lead</p>
-          ) : (
-            <div className="space-y-2">
-              {[
-                { key: "new", label: "Nouveaux", color: "bg-[#3B82F6]" },
-                { key: "contacted", label: "Contactés", color: "bg-[#06B6D4]" },
-                { key: "qualified", label: "Qualifiés", color: "bg-[#F59E0B]" },
-                { key: "submitted", label: "Soumis", color: "bg-[#8B5CF6]" },
-                { key: "won", label: "Gagnés", color: "bg-[#22C55E]" },
-                { key: "lost", label: "Perdus", color: "bg-[#EF4444]" },
-              ].map((stage) => {
-                const count = data?.leadsByStatus[stage.key] || 0;
-                const pct = (data?.totalLeads ?? 0) > 0 ? (count / data!.totalLeads) * 100 : 0;
-                return (
-                  <div key={stage.key}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-[#374151]">{stage.label}</span>
-                      <span className="text-xs font-bold text-[#000000]">{count}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-[#F3F4F6] overflow-hidden">
-                      <div className={cn("h-full rounded-full transition-all", stage.color)} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Top Services */}
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-5">
-          <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-3">Services les plus vendus</h3>
-          {(data?.topServices?.length ?? 0) === 0 ? (
-            <p className="text-sm text-[#9CA3AF] text-center py-4">Aucune donnée</p>
+        <FieldPanel title="Services qui ferment le mieux" description="Les offres qui reviennent le plus peuvent guider votre pitch terrain.">
+          {(data?.topServices.length ?? 0) === 0 ? (
+            <FieldEmptyState
+              icon={BarChart3}
+              title="Pas assez de données"
+              description="Dès que des ventes seront confirmées, les services les plus performants apparaîtront ici."
+            />
           ) : (
             <div className="space-y-3">
-              {data!.topServices.map(([name, count], i) => (
-                <div key={name} className="flex items-center gap-3">
-                  <span className={cn(
-                    "h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold",
-                    i === 0 ? "bg-[#FEF3C7] text-[#D97706]" : "bg-[#F3F4F6] text-[#6B7280]"
-                  )}>
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#000000] truncate">{name}</p>
+              {data?.topServices.map(([name, count], index) => (
+                <div key={name} className="flex items-center gap-3 rounded-[1.25rem] border border-border bg-card px-4 py-3 shadow-card">
+                  <div className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary text-sm font-semibold text-foreground">{index + 1}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{name}</p>
                   </div>
-                  <span className="text-sm font-bold text-[#000000]">{count}x</span>
+                  <span className="text-sm font-semibold text-foreground">{count}x</span>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </FieldPanel>
       </div>
     </div>
   );
