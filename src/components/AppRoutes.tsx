@@ -207,6 +207,7 @@ const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
 const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
 const QuoteCheckoutPage = lazy(() => import("@/pages/QuoteCheckout"));
 const PolitiqueConfidentialite = lazy(() => import("@/pages/PolitiqueConfidentialite"));
+const AccesRefuse = lazy(() => import("@/pages/AccesRefuse"));
 
 const ConditionsDeService = lazy(() => import("@/pages/legal/ConditionsDeService"));
 const InstallationRendezvous = lazy(() => import("@/pages/legal/InstallationRendezvous"));
@@ -430,6 +431,7 @@ const AppRoutes = () => {
       <Route path="/privacy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicy /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms" element={<MaintenanceGuard><PublicLayout><TermsOfUse /></PublicLayout></MaintenanceGuard>} />
       <Route path="/not-authorized" element={<MaintenanceGuard><PublicLayout><NotAuthorized /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/acces-refuse" element={<MaintenanceGuard><PublicLayout><AccesRefuse /></PublicLayout></MaintenanceGuard>} />
       
       {/* Legal pages */}
       <Route path="/conditions-de-service" element={<MaintenanceGuard><PublicLayout><ConditionsDeService /></PublicLayout></MaintenanceGuard>} />
