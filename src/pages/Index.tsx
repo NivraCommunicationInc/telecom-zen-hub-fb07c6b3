@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import ProductCategories from "@/components/ProductCategories";
 import HomePricing from "@/components/HomePricing";
 import HowItWorks from "@/components/HowItWorks";
 import WhyNivra from "@/components/WhyNivra";
@@ -27,6 +28,7 @@ const Index = () => {
       <HomeStatusBanner />
       <main id="main-content" tabIndex={-1}>
         <Hero />
+        <ProductCategories />
         <Suspense fallback={null}>
           <StatsBanner />
         </Suspense>
