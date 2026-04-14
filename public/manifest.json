@@ -1,0 +1,45 @@
+{
+  "name": "Nivra Telecom",
+  "short_name": "Nivra",
+  "description": "Internet et TV prépayé au Québec — Sans contrat",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a3a6a",
+  "lang": "fr-CA",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "categories": ["utilities", "business"],
+  "shortcuts": [
+    {
+      "name": "Mes forfaits",
+      "url": "/forfaits",
+      "description": "Voir les forfaits Internet et TV"
+    },
+    {
+      "name": "Mon compte",
+      "url": "/portail",
+      "description": "Accéder à mon espace client"
+    }
+  ]
+}
