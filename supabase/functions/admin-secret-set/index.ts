@@ -55,6 +55,31 @@ serve(async (req: Request): Promise<Response> => {
 
   console.log(`[${requestId}] [${timestamp}] admin-secret-set started`);
 
+  // ── JWT Authentication ──────────────────────────────────────
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(
+      JSON.stringify({ ok: false, request_id: requestId, error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+  if (claimsError || !claimsData?.claims?.sub) {
+    return new Response(
+      JSON.stringify({ ok: false, request_id: requestId, error: "Invalid token" }),
+      { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+  const callerUserId = claimsData.claims.sub as string;
+
   try {
     const body: RequestBody = await req.json();
     const { admin_user_id, current_code, new_code } = body;
