@@ -207,6 +207,7 @@ const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
 const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
 const QuoteCheckoutPage = lazy(() => import("@/pages/QuoteCheckout"));
 const PolitiqueConfidentialite = lazy(() => import("@/pages/PolitiqueConfidentialite"));
+const AccesRefuse = lazy(() => import("@/pages/AccesRefuse"));
 
 const ConditionsDeService = lazy(() => import("@/pages/legal/ConditionsDeService"));
 const InstallationRendezvous = lazy(() => import("@/pages/legal/InstallationRendezvous"));
