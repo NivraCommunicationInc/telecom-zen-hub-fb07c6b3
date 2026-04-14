@@ -249,7 +249,7 @@ export const ServiceStatusCards = ({
         allOperational ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
       )}>
         <CardContent className="py-3 px-4">
-          <div className="flex items-center justify-between" onClick={() => setExpanded(true)}>
+          <button type="button" className="flex items-center justify-between w-full" onClick={() => setExpanded(true)} aria-expanded={expanded} aria-label="Voir le détail des services">
             <div className="flex items-center gap-2">
               <div className={cn(
                 "w-2 h-2 rounded-full animate-pulse",

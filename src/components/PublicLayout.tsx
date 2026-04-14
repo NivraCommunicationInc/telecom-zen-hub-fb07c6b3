@@ -12,6 +12,10 @@ export const PublicLayout = ({ children }: PublicLayoutProps) => {
 
   return (
     <div className="text-foreground">
+      {/* Skip navigation — WCAG 2.1 AA */}
+      <a href="#main-content" className="skip-nav">
+        Aller au contenu principal
+      </a>
       {/* Promotional announcement bar */}
       <AnnouncementBar />
       {children}

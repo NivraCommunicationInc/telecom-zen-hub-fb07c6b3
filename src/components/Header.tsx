@@ -113,6 +113,8 @@ const Header = () => {
             }`}
             type="button"
             onClick={() => handleNavClick(target)}
+            aria-expanded={openDropdown === target.id}
+            aria-haspopup="true"
           >
             {getLabel(target)}
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdown === target.id ? 'rotate-180' : ''}`} />
@@ -179,6 +181,7 @@ const Header = () => {
             onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
             className="flex items-center justify-between w-full px-4 py-3.5 text-base font-medium text-foreground/80 hover:bg-secondary active:bg-secondary/80 rounded-xl mb-1 min-h-[44px]"
             type="button"
+            aria-expanded={isExpanded}
           >
             {getLabel(target)}
             <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -264,7 +267,9 @@ const Header = () => {
             <button
               className="w-14 h-14 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Toggle menu"
+              aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-menu"
               type="button"
             >
               {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -297,7 +302,7 @@ const Header = () => {
 
             <div className="h-6 w-px bg-border/60 mx-1" />
 
-            <nav className="flex items-center gap-0.5 flex-1">
+            <nav aria-label="Navigation principale" className="flex items-center gap-0.5 flex-1">
               {NAV_TARGETS.map(renderDesktopNavItem)}
             </nav>
 
@@ -322,9 +327,10 @@ const Header = () => {
         <>
           <div 
             className="fixed inset-0 bg-black/40 z-40 lg:hidden" 
-            onClick={() => setIsMenuOpen(false)} 
+            onClick={() => setIsMenuOpen(false)}
+            aria-hidden="true"
           />
-          <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-background z-50 shadow-2xl lg:hidden overflow-y-auto">
+          <div id="mobile-menu" role="dialog" aria-label="Menu de navigation" className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-background z-50 shadow-2xl lg:hidden overflow-y-auto">
             <div className="p-4 border-b border-border flex items-center justify-between h-14">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -332,12 +338,12 @@ const Header = () => {
                 </div>
                 <span className="font-bold text-primary text-lg">Nivra</span>
               </Link>
-              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-lg">
+              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-lg" aria-label="Fermer le menu">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <nav className="p-3">
+            <nav aria-label="Navigation mobile" className="p-3">
               {NAV_TARGETS.map(renderMobileNavItem)}
             </nav>
 
