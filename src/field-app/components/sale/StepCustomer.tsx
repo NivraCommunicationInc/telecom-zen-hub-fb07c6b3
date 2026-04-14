@@ -36,16 +36,17 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchDone, setSearchDone] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
-  const [coverageDetail, setCoverageDetail] = useState<CoverageResult | null>(null);
+  const [coverageDetail, setCoverageDetail] = useState<ServiceabilityResult | null>(null);
+  const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
 
   const update = (field: keyof FieldSaleCustomer, value: string) =>
     onChange({ ...customer, [field]: value });
 
-  const checkServiceability = async () => {
+  const runServiceabilityCheck = async () => {
     onChange({ ...customer, serviceability_status: "checking" });
     setCoverageDetail(null);
     try {
-      const result = await checkServiceCoverage(customer.postal_code);
+      const result = await checkServiceability(customer.postal_code, customer.address, customer.city);
       setCoverageDetail(result);
       if (result.status === "available" || result.status === "limited") {
         onChange({ ...customer, serviceability_status: "available" });
@@ -54,6 +55,16 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
       }
     } catch {
       onChange({ ...customer, serviceability_status: "unavailable" });
+    }
+  };
+
+  const runDuplicateCheck = async () => {
+    if (!customer.phone && !customer.email) return;
+    try {
+      const result = await checkDuplicates(customer.phone, customer.email, customer.address);
+      setDuplicateResult(result);
+    } catch {
+      // Non-blocking
     }
   };
 
