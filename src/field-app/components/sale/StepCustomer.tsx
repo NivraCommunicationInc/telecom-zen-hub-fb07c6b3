@@ -1,13 +1,13 @@
 /**
  * Step 1 — Customer Identification
  * Supports: Search existing customer OR create new.
- * Uses real serviceability check against service_coverage_areas table.
+ * Uses backend serviceability engine + duplicate detection.
  */
 import { useState } from "react";
-import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight, AlertTriangle } from "lucide-react";
+import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight, AlertTriangle, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
-import { checkServiceCoverage, type CoverageResult } from "@/field-app/lib/useServiceCoverage";
+import { checkServiceability, checkDuplicates, type ServiceabilityResult, type DuplicateCheckResult } from "@/field-app/lib/fieldServices";
 
 interface Props {
   customer: FieldSaleCustomer;
