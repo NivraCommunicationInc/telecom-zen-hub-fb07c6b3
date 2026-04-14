@@ -53,7 +53,7 @@ const StatusPage = () => {
   const dateLocale = isFr ? fr : enUS;
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // Fetch service status
+  // Fetch service status from DB
   const { data: services, refetch: refetchServices } = useQuery({
     queryKey: ["public-service-status"],
     queryFn: async () => {
@@ -65,6 +65,20 @@ const StatusPage = () => {
       return data;
     },
     refetchInterval: 60000,
+  });
+
+  // Live health-check from edge function
+  const { data: healthData } = useQuery({
+    queryKey: ["health-check-live"],
+    queryFn: async () => {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-check`,
+        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+      );
+      return res.json();
+    },
+    refetchInterval: 60000,
+    retry: 1,
   });
 
   const handleRefresh = async () => {

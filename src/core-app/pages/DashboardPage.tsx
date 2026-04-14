@@ -6,6 +6,7 @@
  * billing_invoices, billing_automation_runs, order_automation_log
  */
 import { useMemo } from "react";
+import SystemMonitor from "@/core-app/components/SystemMonitor";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -186,6 +187,9 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-4">
+      {/* System Monitor */}
+      <SystemMonitor />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
