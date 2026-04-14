@@ -389,3 +389,80 @@ export async function fetchResources() {
 export async function fetchTrackingSummary() {
   return callFieldFunction("field-order-engine", { action: "tracking-summary" });
 }
+
+// ═══════════════════════════════════════
+// DAILY REPORT SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchDailyReport() {
+  return callFieldFunction("field-order-engine", { action: "daily-report" });
+}
+
+// ═══════════════════════════════════════
+// PAY / PAYROLL SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchPaySummary() {
+  return callFieldFunction("field-commission-engine", { action: "pay-summary" });
+}
+
+// ═══════════════════════════════════════
+// PERFORMANCE / ANALYTICS SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchPerformanceData(period: string) {
+  return callFieldFunction("field-order-engine", { action: "performance", period });
+}
+
+// ═══════════════════════════════════════
+// PROFILE SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchAgentProfile() {
+  return callFieldFunction("field-order-engine", { action: "agent-profile" });
+}
+
+export async function updateAgentProfile(data: { full_name: string; phone: string }) {
+  return callFieldFunction("field-order-engine", { action: "update-profile" }, {
+    method: "POST",
+    body: data,
+  });
+}
+
+// ═══════════════════════════════════════
+// NEW SALE — ORDER CREATION (full submit)
+// ═══════════════════════════════════════
+
+export async function submitNewSale(draftData: any) {
+  return callFieldFunction("field-order-engine", { action: "submit-sale" }, {
+    method: "POST",
+    body: draftData,
+  });
+}
+
+// ═══════════════════════════════════════
+// NEW LEAD — CREATE LEAD
+// ═══════════════════════════════════════
+
+export async function createNewLead(leadData: any) {
+  return callFieldFunction("field-order-engine", { action: "create-lead", domain: "leads" }, {
+    method: "POST",
+    body: leadData,
+  });
+}
+
+// ═══════════════════════════════════════
+// SIDEBAR BADGES
+// ═══════════════════════════════════════
+
+export async function fetchSidebarBadges() {
+  return callFieldFunction("field-order-engine", { action: "sidebar-badges" });
+}
+
+// ═══════════════════════════════════════
+// SALE SUCCESS — ORDER STATUS POLL
+// ═══════════════════════════════════════
+
+export async function fetchSaleStatus(orderId: string) {
+  return callFieldFunction("field-order-engine", { action: "sale-status", order_id: orderId });
+}
