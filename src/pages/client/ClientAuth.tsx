@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import HoneypotField, { isHoneypotTriggered } from "@/components/shared/HoneypotField";
+import CloudflareTurnstile from "@/components/shared/CloudflareTurnstile";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,11 @@ const ClientAuth = () => {
   const [isSendingPin, setIsSendingPin] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingUserId, setPendingUserId] = useState("");
+
+  // Anti-bot
+  const [honeypot, setHoneypot] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
 
   const verifyInFlightRef = useRef(false);
   const supportEmailDisplay = COMPANY_CONTACT.supportEmailDisplay;
@@ -156,6 +163,7 @@ const ClientAuth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isHoneypotTriggered(honeypot)) return; // Silent reject
     if (!loginData.email || !loginData.password) {
       toast({ title: "Veuillez remplir tous les champs", variant: "destructive" });
       return;
@@ -667,6 +675,7 @@ const ClientAuth = () => {
               
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
+                  <HoneypotField value={honeypot} onChange={setHoneypot} />
                   <div>
                     <Label htmlFor="login-email" className="text-slate-700 flex items-center gap-2">
                       <Mail className="w-4 h-4 text-teal-600" />
@@ -704,6 +713,7 @@ const ClientAuth = () => {
                       Mot de passe oublié?
                     </button>
                   </div>
+                  <CloudflareTurnstile onVerify={handleTurnstileVerify} className="flex justify-center" />
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold shadow-lg shadow-teal-500/25 h-12 text-base" 
