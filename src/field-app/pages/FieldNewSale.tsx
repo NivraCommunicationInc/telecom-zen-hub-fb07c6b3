@@ -11,11 +11,11 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { toast } from "sonner";
-// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
 import {
   EMPTY_DRAFT, STEP_ORDER,
   type FieldSaleDraft, type FieldSaleStep,
 } from "@/field-app/lib/fieldSaleTypes";
+import { useFieldConfig, getActivationFee } from "@/field-app/lib/useFieldConfig";
 
 import SaleStepIndicator from "@/field-app/components/sale/SaleStepIndicator";
 import StepCustomer from "@/field-app/components/sale/StepCustomer";
@@ -72,10 +72,12 @@ export default function FieldNewSale() {
     }
   }, []);
 
+  const { data: fieldConfig } = useFieldConfig();
+  const activationFee = fieldConfig ? getActivationFee(fieldConfig, draft.services.length) : (draft.services.length === 0 ? 0 : draft.services.length === 1 ? 25 : 45);
+
   // Compute promo discounts
   const monthlySubtotal = draft.services.reduce((s, sv) => s + sv.monthlyPrice, 0);
   const equipmentTotal = draft.equipment.reduce((s, e) => s + e.price * e.quantity, 0);
-  const activationFee = draft.services.length === 0 ? 0 : draft.services.length === 1 ? 25 : 45;
 
   // Calculate promo impact
   const promoMonthlyDiscount = draft.promos.reduce((sum, p) => {

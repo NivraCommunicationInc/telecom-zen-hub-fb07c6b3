@@ -6044,6 +6044,36 @@ export type Database = {
         }
         Relationships: []
       }
+      field_sales_config: {
+        Row: {
+          config_key: string
+          config_type: string
+          config_value: string
+          created_at: string
+          description: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          config_key: string
+          config_type?: string
+          config_value: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          config_key?: string
+          config_type?: string
+          config_value?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       field_sales_orders: {
         Row: {
           additional_photos: Json | null
@@ -12173,6 +12203,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      service_coverage_areas: {
+        Row: {
+          available_services: Json
+          coverage_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          postal_prefix: string
+          updated_at: string
+        }
+        Insert: {
+          available_services?: Json
+          coverage_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          postal_prefix: string
+          updated_at?: string
+        }
+        Update: {
+          available_services?: Json
+          coverage_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          postal_prefix?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       service_instances: {
         Row: {
