@@ -1,6 +1,5 @@
 /**
- * field-order-engine — Canonical order lifecycle for field sales.
- * Actions: validate, submit, update-payment, retry-sync, add-note, history.
+ * field-order-engine — Canonical order lifecycle + dashboard + leads + notifications for field sales.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -24,8 +23,234 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action") || "";
+    const domain = url.searchParams.get("domain") || "";
 
-    // ── GET: Order detail ──
+    // ═══════════════════════════════════════
+    // DASHBOARD
+    // ═══════════════════════════════════════
+
+    if (req.method === "GET" && action === "dashboard-summary") {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      const startOfWeekISO = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate()).toISOString();
+
+      const [ordersAll, ordersToday, ordersWeek, ordersMonth, commissionsRes, profileRes, leadsRes, leadsWon, leadsLost] = await Promise.all([
+        admin.from("field_sales_orders").select("id, payment_status, sync_status, total_amount, created_at", { count: "exact" }).eq("salesperson_id", userId),
+        admin.from("field_sales_orders").select("id, total_amount", { count: "exact" }).eq("salesperson_id", userId).gte("created_at", startOfDay),
+        admin.from("field_sales_orders").select("id", { count: "exact", head: true }).eq("salesperson_id", userId).gte("created_at", startOfWeekISO),
+        admin.from("field_sales_orders").select("id, total_amount", { count: "exact" }).eq("salesperson_id", userId).gte("created_at", startOfMonth),
+        admin.from("sales_commissions").select("commission_amount, status").eq("salesperson_id", userId),
+        admin.from("profiles").select("full_name, phone, job_title").eq("user_id", userId).maybeSingle(),
+        admin.from("field_leads").select("id, status, created_at", { count: "exact" }).eq("agent_id", userId).not("status", "in", '("won","lost")'),
+        admin.from("field_leads").select("id", { count: "exact", head: true }).eq("agent_id", userId).eq("status", "won"),
+        admin.from("field_leads").select("id", { count: "exact", head: true }).eq("agent_id", userId).eq("status", "lost"),
+      ]);
+
+      // Get config for daily goal
+      const { data: configRows } = await admin.from("field_sales_config").select("config_key, config_value").in("config_key", ["default_daily_target"]);
+      const dailyGoal = Number(configRows?.find((r: any) => r.config_key === "default_daily_target")?.config_value || 3);
+
+      const commissions = commissionsRes.data || [];
+      const pendingCommissions = commissions.filter((c: any) => ["pending", "pending_activation"].includes(c.status)).reduce((sum: number, c: any) => sum + Number(c.commission_amount || 0), 0);
+      const approvedCommissions = commissions.filter((c: any) => ["approved", "validated"].includes(c.status)).reduce((sum: number, c: any) => sum + Number(c.commission_amount || 0), 0);
+      const paidCommissions = commissions.filter((c: any) => c.status === "paid").reduce((sum: number, c: any) => sum + Number(c.commission_amount || 0), 0);
+
+      const allOrders = ordersAll.data || [];
+      const pendingPayment = allOrders.filter((o: any) => o.payment_status === "pending").length;
+      const syncErrors = allOrders.filter((o: any) => o.sync_status === "error").length;
+      const pendingSync = allOrders.filter((o: any) => o.sync_status === "pending").length;
+
+      const todayRevenue = (ordersToday.data || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
+      const monthRevenue = (ordersMonth.data || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
+
+      const totalLeadsAll = (leadsWon.count ?? 0) + (leadsLost.count ?? 0) + (leadsRes.count ?? 0);
+      const conversionRate = totalLeadsAll > 0 ? Math.round(((leadsWon.count ?? 0) / totalLeadsAll) * 100) : 0;
+
+      const salesTodayCount = ordersToday.count ?? 0;
+      const goalProgress = Math.min(100, Math.round((salesTodayCount / dailyGoal) * 100));
+
+      return new Response(JSON.stringify({
+        salesToday: salesTodayCount,
+        salesWeek: ordersWeek.count ?? 0,
+        salesMonth: ordersMonth.count ?? 0,
+        pendingCommissions,
+        totalEarned: approvedCommissions + paidCommissions,
+        paidCommissions,
+        pendingPayment,
+        syncErrors,
+        pendingSync,
+        openLeads: leadsRes.count ?? 0,
+        wonLeads: leadsWon.count ?? 0,
+        lostLeads: leadsLost.count ?? 0,
+        totalOrders: ordersAll.count ?? 0,
+        userName: profileRes.data?.full_name ?? null,
+        jobTitle: profileRes.data?.job_title ?? "Agent terrain",
+        todayRevenue,
+        monthRevenue,
+        conversionRate,
+        dailyGoal,
+        goalProgress,
+      }), { headers });
+    }
+
+    // ── Dashboard activity ──
+    if (req.method === "GET" && action === "dashboard-activity") {
+      const [recentOrders, recentLeads] = await Promise.all([
+        admin.from("field_sales_orders")
+          .select("id, customer_name, payment_status, sync_status, total_amount, created_at, services, customer_address")
+          .eq("salesperson_id", userId).order("created_at", { ascending: false }).limit(8),
+        admin.from("field_leads")
+          .select("id, first_name, last_name, status, phone, created_at, service_need")
+          .eq("agent_id", userId).order("created_at", { ascending: false }).limit(5),
+      ]);
+
+      return new Response(JSON.stringify({
+        recentOrders: recentOrders.data || [],
+        recentLeads: recentLeads.data || [],
+      }), { headers });
+    }
+
+    // ═══════════════════════════════════════
+    // TRACKING SUMMARY
+    // ═══════════════════════════════════════
+
+    if (req.method === "GET" && action === "tracking-summary") {
+      const [leadsRes, ordersRes] = await Promise.all([
+        admin.from("field_leads").select("status").eq("agent_id", userId),
+        admin.from("field_sales_orders").select("payment_status, sync_status").eq("salesperson_id", userId),
+      ]);
+
+      const leadCounts: Record<string, number> = {};
+      for (const l of leadsRes.data || []) leadCounts[l.status] = (leadCounts[l.status] || 0) + 1;
+
+      const paymentCounts: Record<string, number> = {};
+      const syncCounts: Record<string, number> = {};
+      for (const o of ordersRes.data || []) {
+        const ps = o.payment_status || "pending";
+        const ss = o.sync_status || "pending";
+        paymentCounts[ps] = (paymentCounts[ps] || 0) + 1;
+        syncCounts[ss] = (syncCounts[ss] || 0) + 1;
+      }
+
+      return new Response(JSON.stringify({
+        leadCounts,
+        paymentCounts,
+        syncCounts,
+        totalLeads: (leadsRes.data || []).length,
+        totalOrders: (ordersRes.data || []).length,
+      }), { headers });
+    }
+
+    // ═══════════════════════════════════════
+    // LEADS
+    // ═══════════════════════════════════════
+
+    if (domain === "leads") {
+      if (req.method === "GET" && action === "list") {
+        const status = url.searchParams.get("status");
+        const search = url.searchParams.get("search");
+
+        let query = admin.from("field_leads").select("*").eq("agent_id", userId).order("created_at", { ascending: false }).limit(100);
+        if (status && status !== "all") query = query.eq("status", status);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        let leads = data || [];
+        if (search) {
+          const q = search.toLowerCase();
+          leads = leads.filter((l: any) => l.first_name?.toLowerCase().includes(q) || l.last_name?.toLowerCase().includes(q) || l.phone?.includes(q));
+        }
+
+        return new Response(JSON.stringify({ leads }), { headers });
+      }
+
+      if (req.method === "GET" && action === "lead-detail") {
+        const leadId = url.searchParams.get("lead_id");
+        if (!leadId) return new Response(JSON.stringify({ error: "lead_id requis" }), { status: 400, headers });
+
+        const { data, error } = await admin.from("field_leads").select("*").eq("id", leadId).single();
+        if (error) throw error;
+
+        return new Response(JSON.stringify({ lead: data }), { headers });
+      }
+
+      if (req.method === "POST" && action === "update-lead") {
+        const body = await req.json();
+        const leadId = body.lead_id;
+        const newStatus = sanitizeString(body.status || "", 50);
+        if (!leadId || !newStatus) return new Response(JSON.stringify({ error: "lead_id et status requis" }), { status: 400, headers });
+
+        const updates: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
+        if (newStatus === "submitted") updates.submitted_at = new Date().toISOString();
+        if (newStatus === "lost") updates.lost_at = new Date().toISOString();
+
+        const { error } = await admin.from("field_leads").update(updates).eq("id", leadId);
+        if (error) throw error;
+
+        return new Response(JSON.stringify({ success: true }), { headers });
+      }
+
+      if (req.method === "POST" && action === "convert-lead") {
+        const body = await req.json();
+        const leadId = body.lead_id;
+        if (!leadId) return new Response(JSON.stringify({ error: "lead_id requis" }), { status: 400, headers });
+
+        await admin.from("field_leads").update({ status: "submitted", submitted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", leadId);
+
+        return new Response(JSON.stringify({ success: true, message: "Lead converti" }), { headers });
+      }
+
+      return new Response(JSON.stringify({ error: "Action leads inconnue" }), { status: 400, headers });
+    }
+
+    // ═══════════════════════════════════════
+    // NOTIFICATIONS
+    // ═══════════════════════════════════════
+
+    if (domain === "notifications") {
+      if (req.method === "GET" && action === "notifications") {
+        const [dbNotifs, recentOrders] = await Promise.all([
+          admin.from("employee_notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+          admin.from("field_sales_orders").select("id, customer_name, sync_status, payment_status, created_at, updated_at").eq("salesperson_id", userId).order("updated_at", { ascending: false }).limit(10),
+        ]);
+
+        const notifications = (dbNotifs.data || []).map((n: any) => ({
+          id: n.id, type: "system", title: n.title || "Notification", description: n.message || "", time: n.created_at, isRead: n.is_read, source: "db",
+          status: "info",
+        }));
+
+        for (const order of recentOrders.data || []) {
+          if (order.sync_status === "synced") {
+            notifications.push({ id: `sync-${order.id}`, type: "sync", title: "Commande synchronisée", description: `${order.customer_name}`, time: order.updated_at || order.created_at, isRead: true, source: "derived", status: "success" });
+          } else if (order.sync_status === "error") {
+            notifications.push({ id: `sync-err-${order.id}`, type: "sync", title: "Sync à relancer", description: `${order.customer_name}`, time: order.updated_at || order.created_at, isRead: false, source: "derived", status: "error" });
+          } else if (order.payment_status === "pending") {
+            notifications.push({ id: `pay-${order.id}`, type: "sale", title: "Paiement en attente", description: `${order.customer_name}`, time: order.updated_at || order.created_at, isRead: false, source: "derived", status: "warning" });
+          }
+        }
+
+        notifications.sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+        return new Response(JSON.stringify({ notifications: notifications.slice(0, 30) }), { headers });
+      }
+
+      if (req.method === "POST" && action === "mark-read") {
+        await admin.from("employee_notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("user_id", userId).eq("is_read", false);
+        return new Response(JSON.stringify({ success: true }), { headers });
+      }
+
+      return new Response(JSON.stringify({ error: "Action notifications inconnue" }), { status: 400, headers });
+    }
+
+    // ═══════════════════════════════════════
+    // ORDERS
+    // ═══════════════════════════════════════
+
+    // GET: Order detail
     if (req.method === "GET" && action === "detail") {
       const orderId = url.searchParams.get("order_id");
       if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
@@ -37,27 +262,61 @@ Deno.serve(async (req) => {
         admin.from("field_order_notes").select("*").eq("field_order_id", orderId).order("created_at", { ascending: false }),
       ]);
 
+      const order = orderRes.data;
+      if (!order) return new Response(JSON.stringify({ error: "Commande introuvable" }), { status: 404, headers });
+
+      // Fetch related canonical data if converted
+      let canonical = null;
+      let invoice = null;
+      let payment = null;
+      let appointment = null;
+      let subscription = null;
+      let commission = null;
+
+      if (order.converted_order_id) {
+        const [coreRes, invRes, apptRes, subRes] = await Promise.all([
+          admin.from("orders").select("id, order_number, status, total_amount, payment_status, service_type").eq("id", order.converted_order_id).maybeSingle(),
+          admin.from("billing_invoices").select("id, invoice_number, status, total, amount_paid, balance_due, due_date").eq("order_id", order.converted_order_id).maybeSingle(),
+          admin.from("appointments").select("id, appointment_number, title, scheduled_at, status, service_address").eq("order_id", order.converted_order_id).maybeSingle(),
+          admin.from("billing_subscriptions").select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date").eq("order_id", order.converted_order_id).maybeSingle(),
+        ]);
+        canonical = coreRes.data;
+        invoice = invRes.data;
+        appointment = apptRes.data;
+        subscription = subRes.data;
+
+        if (invRes.data?.id) {
+          const { data: payData } = await admin.from("billing_payments").select("id, payment_number, status, amount, method, provider, received_at").eq("invoice_id", invRes.data.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+          payment = payData;
+        }
+      }
+
+      // Get commission
+      const { data: commData } = await admin.from("field_commissions").select("id, amount, status, reason").eq("sale_id", orderId).maybeSingle();
+      commission = commData;
+
       return new Response(JSON.stringify({
-        order: orderRes.data,
+        order,
+        canonical,
+        invoice,
+        payment,
+        appointment,
+        subscription,
+        commission,
         status_history: historyRes.data || [],
         sync_events: syncRes.data || [],
         notes: notesRes.data || [],
       }), { headers });
     }
 
-    // ── GET: Order list ──
+    // GET: Order list
     if (req.method === "GET" && action === "list") {
       const status = url.searchParams.get("status");
       const paymentStatus = url.searchParams.get("payment_status");
       const syncStatus = url.searchParams.get("sync_status");
       const mine = url.searchParams.get("mine") === "true";
 
-      let query = admin
-        .from("field_sales_orders")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
-
+      let query = admin.from("field_sales_orders").select("*").order("created_at", { ascending: false }).limit(100);
       if (mine) query = query.eq("salesperson_id", userId);
       if (status) query = query.eq("status", status);
       if (paymentStatus) query = query.eq("payment_status", paymentStatus);
@@ -69,6 +328,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ orders: data || [] }), { headers });
     }
 
+    // GET: Order history
+    if (req.method === "GET" && action === "history") {
+      const orderId = url.searchParams.get("order_id");
+      if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
+
+      const [historyRes, syncRes] = await Promise.all([
+        admin.from("field_order_status_history").select("*").eq("field_order_id", orderId).order("created_at", { ascending: false }),
+        admin.from("field_order_sync_events").select("*").eq("field_order_id", orderId).order("created_at", { ascending: false }),
+      ]);
+
+      return new Response(JSON.stringify({ status_history: historyRes.data || [], sync_events: syncRes.data || [] }), { headers });
+    }
+
     // POST actions
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Méthode non supportée" }), { status: 405, headers });
@@ -76,7 +348,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
-    // ── Validate order draft ──
+    // Validate
     if (action === "validate") {
       const issues: string[] = [];
       const warnings: string[] = [];
@@ -89,193 +361,93 @@ Deno.serve(async (req) => {
       if (!body.customer_date_of_birth?.trim()) issues.push("Date de naissance requise");
       if (!body.services || body.services.length === 0) issues.push("Au moins un service requis");
 
-      // Check equipment constraints
-      const routerCount = (body.equipment || []).filter((e: any) => 
-        e.category === "Routeur" || e.name?.toLowerCase().includes("routeur")
-      ).reduce((sum: number, e: any) => sum + (e.quantity || 1), 0);
-
+      const routerCount = (body.equipment || []).filter((e: any) => e.category === "Routeur" || e.name?.toLowerCase().includes("routeur")).reduce((sum: number, e: any) => sum + (e.quantity || 1), 0);
       if (routerCount > 1) issues.push("Maximum 1 routeur par commande");
 
-      const terminalCount = (body.equipment || []).filter((e: any) => 
-        e.category === "Terminal" || e.name?.toLowerCase().includes("terminal")
-      ).reduce((sum: number, e: any) => sum + (e.quantity || 1), 0);
-
+      const terminalCount = (body.equipment || []).filter((e: any) => e.category === "Terminal" || e.name?.toLowerCase().includes("terminal")).reduce((sum: number, e: any) => sum + (e.quantity || 1), 0);
       if (terminalCount > 5) issues.push("Maximum 5 terminaux par commande");
 
-      // DOB validation
       if (body.customer_date_of_birth) {
         const dob = new Date(body.customer_date_of_birth);
         const age = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
         if (age < 18) issues.push("Le client doit avoir 18 ans ou plus");
       }
 
-      return new Response(JSON.stringify({
-        valid: issues.length === 0,
-        issues,
-        warnings,
-      }), { headers });
+      return new Response(JSON.stringify({ valid: issues.length === 0, issues, warnings }), { headers });
     }
 
-    // ── Submit order ──
+    // Submit
     if (action === "submit") {
       const orderId = body.order_id;
       if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
 
-      // Log status transition
-      await admin.from("field_order_status_history").insert({
-        field_order_id: orderId,
-        status_domain: "order",
-        old_status: "draft",
-        new_status: "submitted",
-        changed_by_user_id: userId,
-        change_reason: "Soumission par l'agent terrain",
-      });
+      await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "order", old_status: "draft", new_status: "submitted", changed_by_user_id: userId, change_reason: "Soumission par l'agent terrain" });
+      await admin.from("field_order_sync_events").insert({ field_order_id: orderId, sync_target: "core", sync_action: "create_order", sync_status: "pending", attempt_count: 0 });
 
-      // Create sync event
-      await admin.from("field_order_sync_events").insert({
-        field_order_id: orderId,
-        sync_target: "core",
-        sync_action: "create_order",
-        sync_status: "pending",
-        attempt_count: 0,
-      });
-
-      return new Response(JSON.stringify({
-        success: true,
-        order_id: orderId,
-        sync_status: "pending",
-        message: "Commande soumise avec succès",
-      }), { headers });
+      return new Response(JSON.stringify({ success: true, order_id: orderId, sync_status: "pending", message: "Commande soumise" }), { headers });
     }
 
-    // ── Update payment status ──
+    // Update payment
     if (action === "update-payment") {
       const orderId = body.order_id;
       const newStatus = sanitizeString(body.payment_status || "", 50);
       const reference = body.payment_reference || null;
+      if (!orderId || !newStatus) return new Response(JSON.stringify({ error: "order_id et payment_status requis" }), { status: 400, headers });
 
-      if (!orderId || !newStatus) {
-        return new Response(JSON.stringify({ error: "order_id et payment_status requis" }), { status: 400, headers });
-      }
-
-      // Get current status
-      const { data: order } = await admin
-        .from("field_sales_orders")
-        .select("payment_status")
-        .eq("id", orderId)
-        .single();
-
-      // Update order
-      await admin
-        .from("field_sales_orders")
-        .update({
-          payment_status: newStatus,
-          payment_reference: reference,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
-
-      // Log status change
-      await admin.from("field_order_status_history").insert({
-        field_order_id: orderId,
-        status_domain: "payment",
-        old_status: order?.payment_status || "unknown",
-        new_status: newStatus,
-        changed_by_user_id: userId,
-        change_reason: reference ? `Référence: ${reference}` : null,
-      });
+      const { data: order } = await admin.from("field_sales_orders").select("payment_status").eq("id", orderId).single();
+      await admin.from("field_sales_orders").update({ payment_status: newStatus, payment_reference: reference, updated_at: new Date().toISOString() }).eq("id", orderId);
+      await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "payment", old_status: order?.payment_status || "unknown", new_status: newStatus, changed_by_user_id: userId, change_reason: reference ? `Ref: ${reference}` : null });
 
       return new Response(JSON.stringify({ success: true }), { headers });
     }
 
-    // ── Retry sync ──
+    // Retry sync
     if (action === "retry-sync") {
       const orderId = body.order_id;
       if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
 
-      // Get config for max retries
-      const { data: configRows } = await admin
-        .from("field_sales_config")
-        .select("config_key, config_value")
-        .in("config_key", ["sync_retry_max_attempts", "sync_retry_delay_seconds"]);
-
+      const { data: configRows } = await admin.from("field_sales_config").select("config_key, config_value").in("config_key", ["sync_retry_max_attempts"]);
       const maxAttempts = Number(configRows?.find((r: any) => r.config_key === "sync_retry_max_attempts")?.config_value || 3);
 
-      // Get last sync event
-      const { data: lastSync } = await admin
-        .from("field_order_sync_events")
-        .select("*")
-        .eq("field_order_id", orderId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      const { data: lastSync } = await admin.from("field_order_sync_events").select("*").eq("field_order_id", orderId).order("created_at", { ascending: false }).limit(1).single();
 
       if (lastSync && lastSync.attempt_count >= maxAttempts) {
-        return new Response(JSON.stringify({
-          success: false,
-          message: `Maximum de ${maxAttempts} tentatives atteint. Contactez un superviseur.`,
-        }), { headers });
+        return new Response(JSON.stringify({ success: false, message: `Max ${maxAttempts} tentatives atteint.` }), { headers });
       }
 
-      // Create new sync event
-      await admin.from("field_order_sync_events").insert({
-        field_order_id: orderId,
-        sync_target: "core",
-        sync_action: "retry",
-        sync_status: "pending",
-        attempt_count: (lastSync?.attempt_count || 0) + 1,
-      });
+      const newCount = (lastSync?.attempt_count || 0) + 1;
+      await admin.from("field_order_sync_events").insert({ field_order_id: orderId, sync_target: "core", sync_action: "retry", sync_status: "pending", attempt_count: newCount });
+      await admin.from("field_sales_orders").update({ sync_status: "pending", sync_error: null }).eq("id", orderId);
+      await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "sync", old_status: "error", new_status: "pending", changed_by_user_id: userId, change_reason: `Resync #${newCount}` });
 
-      // Update order sync_status
-      await admin
-        .from("field_sales_orders")
-        .update({ sync_status: "pending", sync_error: null })
-        .eq("id", orderId);
+      try { await admin.functions.invoke("field-sales-sync", { body: { orderId } }); } catch {}
 
-      // Log status change
-      await admin.from("field_order_status_history").insert({
-        field_order_id: orderId,
-        status_domain: "sync",
-        old_status: "error",
-        new_status: "pending",
-        changed_by_user_id: userId,
-        change_reason: `Tentative de resync #${(lastSync?.attempt_count || 0) + 1}`,
-      });
-
-      // Trigger actual sync
-      try {
-        await admin.functions.invoke("field-sales-sync", {
-          body: { orderId },
-        });
-      } catch (syncErr) {
-        // Non-blocking — sync event will track the failure
-      }
-
-      return new Response(JSON.stringify({
-        success: true,
-        message: "Synchronisation relancée",
-        attempt_count: (lastSync?.attempt_count || 0) + 1,
-      }), { headers });
+      return new Response(JSON.stringify({ success: true, message: "Sync relancée", attempt_count: newCount }), { headers });
     }
 
-    // ── Add note ──
+    // Add note
     if (action === "add-note") {
       const orderId = body.order_id;
       const content = sanitizeString(body.content || "", 2000);
-      const noteType = body.note_type || "internal";
-      const isInternal = body.is_internal !== false;
+      if (!orderId || !content) return new Response(JSON.stringify({ error: "order_id et content requis" }), { status: 400, headers });
 
-      if (!orderId || !content) {
-        return new Response(JSON.stringify({ error: "order_id et content requis" }), { status: 400, headers });
+      await admin.from("field_order_notes").insert({ field_order_id: orderId, note_type: body.note_type || "internal", created_by_user_id: userId, content, is_internal: body.is_internal !== false });
+
+      return new Response(JSON.stringify({ success: true }), { headers });
+    }
+
+    // Cancel order
+    if (action === "cancel") {
+      const orderId = body.order_id;
+      if (!orderId) return new Response(JSON.stringify({ error: "order_id requis" }), { status: 400, headers });
+
+      const { data: order } = await admin.from("field_sales_orders").select("payment_status, sync_status").eq("id", orderId).single();
+      if (order?.payment_status === "confirmed" || order?.sync_status === "synced") {
+        return new Response(JSON.stringify({ error: "Impossible d'annuler une commande payée ou synchronisée" }), { status: 400, headers });
       }
 
-      await admin.from("field_order_notes").insert({
-        field_order_id: orderId,
-        note_type: noteType,
-        created_by_user_id: userId,
-        content,
-        is_internal: isInternal,
-      });
+      await admin.from("field_sales_orders").update({ payment_status: "cancelled", sync_status: "error", sync_error: "Cancelled by agent", updated_at: new Date().toISOString() }).eq("id", orderId);
+      await admin.from("field_order_status_history").insert({ field_order_id: orderId, status_domain: "order", old_status: order?.payment_status, new_status: "cancelled", changed_by_user_id: userId, change_reason: "Annulée par l'agent" });
 
       return new Response(JSON.stringify({ success: true }), { headers });
     }

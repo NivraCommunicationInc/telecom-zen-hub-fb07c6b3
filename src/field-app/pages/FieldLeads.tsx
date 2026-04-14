@@ -1,9 +1,8 @@
 /**
- * FieldLeads — Lead management. Clean light UI.
+ * FieldLeads — Uses fetchLeads from service layer. No direct DB queries.
  */
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useStaffUser } from "@/lib/hooks/useStaffUser";
+import { fetchLeads } from "@/field-app/lib/fieldServices";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { UserPlus, Loader2, Phone, ChevronRight, Plus, Search } from "lucide-react";
@@ -23,98 +22,41 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
 
 export default function FieldLeads() {
   const navigate = useNavigate();
-  const { user } = useStaffUser();
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
-  const { data: leads = [], isLoading } = useQuery({
-    queryKey: ["field-leads", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("field_leads")
-        .select("*")
-        .eq("agent_id", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
+  const { data, isLoading } = useQuery({
+    queryKey: ["field-leads-list", filter, search],
+    queryFn: () => fetchLeads({ status: filter !== "all" ? filter : undefined, search: search || undefined }),
   });
 
-  const filtered = leads.filter((l: any) => {
-    if (filter !== "all" && l.status !== filter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return l.first_name?.toLowerCase().includes(q) || l.last_name?.toLowerCase().includes(q) || l.phone?.includes(q);
-    }
-    return true;
-  });
+  const leads = data?.leads || [];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-[#000000]">Mes leads</h1>
-        <button
-          onClick={() => navigate(fieldPath("/sale/new"))}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-medium hover:bg-[#16A34A] transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Nouvelle vente
-        </button>
+        <button onClick={() => navigate(fieldPath("/sale/new"))} className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-medium hover:bg-[#16A34A] transition-colors"><Plus className="h-4 w-4" />Nouvelle vente</button>
       </div>
-
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9CA3AF]" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher…"
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-sm text-[#000000] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E]"
-        />
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-sm text-[#000000] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E]" />
       </div>
-
       <div className="flex gap-1 flex-wrap">
-        {[
-          { key: "all", label: "Tous" },
-          { key: "new", label: "Nouveaux" },
-          { key: "contacted", label: "Contactés" },
-          { key: "qualified", label: "Qualifiés" },
-          { key: "submitted", label: "Soumis" },
-        ].map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              "px-2.5 py-1 rounded-md text-xs font-medium transition-colors border",
-              filter === f.key
-                ? "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]"
-                : "text-[#6B7280] border-transparent hover:bg-[#F3F4F6]"
-            )}
-          >
-            {f.label}
-          </button>
+        {[{ key: "all", label: "Tous" }, { key: "new", label: "Nouveaux" }, { key: "contacted", label: "Contactés" }, { key: "qualified", label: "Qualifiés" }, { key: "submitted", label: "Soumis" }].map((f) => (
+          <button key={f.key} onClick={() => setFilter(f.key)} className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors border", filter === f.key ? "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]" : "text-[#6B7280] border-transparent hover:bg-[#F3F4F6]")}>{f.label}</button>
         ))}
       </div>
-
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <UserPlus className="h-8 w-8 mx-auto mb-2 text-[#D1D5DB]" />
-          <p className="text-sm text-[#9CA3AF]">Aucun lead trouvé</p>
-        </div>
+      ) : leads.length === 0 ? (
+        <div className="text-center py-12"><UserPlus className="h-8 w-8 mx-auto mb-2 text-[#D1D5DB]" /><p className="text-sm text-[#9CA3AF]">Aucun lead trouvé</p></div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((lead: any) => {
+          {leads.map((lead: any) => {
             const sc = STATUS_CONFIG[lead.status] || STATUS_CONFIG.new;
             return (
-              <button
-                key={lead.id}
-                onClick={() => navigate(fieldPath(`/leads/${lead.id}`))}
-                className="w-full text-left p-4 rounded-xl border border-[#E5E7EB] bg-white hover:border-[#D1D5DB] transition-colors"
-              >
+              <button key={lead.id} onClick={() => navigate(fieldPath(`/leads/${lead.id}`))} className="w-full text-left p-4 rounded-xl border border-[#E5E7EB] bg-white hover:border-[#D1D5DB] transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -127,9 +69,7 @@ export default function FieldLeads() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[#9CA3AF]">
-                      {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}
-                    </span>
+                    <span className="text-[10px] text-[#9CA3AF]">{formatDistanceToNow(new Date(lead.created_at), { addSuffix: true, locale: fr })}</span>
                     <ChevronRight className="h-4 w-4 text-[#D1D5DB]" />
                   </div>
                 </div>

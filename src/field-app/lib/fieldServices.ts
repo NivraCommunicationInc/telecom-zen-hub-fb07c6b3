@@ -1,6 +1,6 @@
 /**
- * Field Portal — Backend Service Layer
- * All business logic calls go through edge functions.
+ * Field Portal — Backend Service Layer (Complete)
+ * ALL business logic calls go through edge functions.
  * Frontend only: fetches data, displays data, submits intent, shows status.
  */
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,18 @@ async function callFieldFunction<T = any>(
   }
 
   return res.json();
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchDashboardSummary() {
+  return callFieldFunction("field-order-engine", { action: "dashboard-summary" });
+}
+
+export async function fetchDashboardActivity() {
+  return callFieldFunction("field-order-engine", { action: "dashboard-activity" });
 }
 
 // ═══════════════════════════════════════
@@ -108,6 +120,18 @@ export async function checkDuplicates(
 }
 
 // ═══════════════════════════════════════
+// CUSTOMER SERVICE
+// ═══════════════════════════════════════
+
+export async function searchCustomers(query: string) {
+  return callFieldFunction("field-serviceability", { action: "customer-search", q: query });
+}
+
+export async function fetchCustomerDetail(customerId: string) {
+  return callFieldFunction("field-serviceability", { action: "customer-detail", customer_id: customerId });
+}
+
+// ═══════════════════════════════════════
 // PRICING SERVICE
 // ═══════════════════════════════════════
 
@@ -151,7 +175,14 @@ export interface OrderValidation {
   warnings: string[];
 }
 
-export async function validateOrder(orderData: any): Promise<OrderValidation> {
+export async function createOrderDraft(orderData: any) {
+  return callFieldFunction("field-order-engine", { action: "create-draft" }, {
+    method: "POST",
+    body: orderData,
+  });
+}
+
+export async function validateOrderDraft(orderData: any): Promise<OrderValidation> {
   return callFieldFunction("field-order-engine", { action: "validate" }, {
     method: "POST",
     body: orderData,
@@ -190,6 +221,10 @@ export async function fetchOrderDetail(orderId: string) {
   return callFieldFunction("field-order-engine", { action: "detail", order_id: orderId });
 }
 
+export async function fetchOrderHistory(orderId: string) {
+  return callFieldFunction("field-order-engine", { action: "history", order_id: orderId });
+}
+
 export async function fetchOrderList(filters?: { status?: string; payment_status?: string; sync_status?: string; mine?: boolean }) {
   const params: Record<string, string> = { action: "list" };
   if (filters?.status) params.status = filters.status;
@@ -224,10 +259,133 @@ export async function createCommissionDispute(commissionId: string, reason: stri
   });
 }
 
+export async function requestWithdrawal(amount: number, method: string, destination: string, notes?: string) {
+  return callFieldFunction("field-commission-engine", { action: "withdraw" }, {
+    method: "POST",
+    body: { amount, method, destination, notes },
+  });
+}
+
+export async function fetchWithdrawals() {
+  return callFieldFunction("field-commission-engine", { action: "withdrawals" });
+}
+
 // ═══════════════════════════════════════
 // OBJECTIVES SERVICE
 // ═══════════════════════════════════════
 
 export async function fetchObjectives() {
   return callFieldFunction("field-objectives", { action: "current" });
+}
+
+export async function fetchObjectiveProgress() {
+  return callFieldFunction("field-objectives", { action: "progress" });
+}
+
+// ═══════════════════════════════════════
+// LEADS SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchLeads(filters?: { status?: string; search?: string }) {
+  const params: Record<string, string> = { action: "list" };
+  if (filters?.status) params.status = filters.status;
+  if (filters?.search) params.search = filters.search;
+  return callFieldFunction("field-order-engine", { ...params, domain: "leads" });
+}
+
+export async function fetchLeadDetail(leadId: string) {
+  return callFieldFunction("field-order-engine", { action: "lead-detail", lead_id: leadId, domain: "leads" });
+}
+
+export async function updateLeadStatus(leadId: string, newStatus: string) {
+  return callFieldFunction("field-order-engine", { action: "update-lead", domain: "leads" }, {
+    method: "POST",
+    body: { lead_id: leadId, status: newStatus },
+  });
+}
+
+export async function createLeadActivity(leadId: string, activityType: string, notes: string) {
+  return callFieldFunction("field-order-engine", { action: "lead-activity", domain: "leads" }, {
+    method: "POST",
+    body: { lead_id: leadId, activity_type: activityType, notes },
+  });
+}
+
+export async function convertLeadToDraft(leadId: string) {
+  return callFieldFunction("field-order-engine", { action: "convert-lead", domain: "leads" }, {
+    method: "POST",
+    body: { lead_id: leadId },
+  });
+}
+
+// ═══════════════════════════════════════
+// TERRITORY SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchTerritories() {
+  return callFieldFunction("field-objectives", { action: "territories" });
+}
+
+export async function fetchTerritoryStreets(filters?: { status?: string }) {
+  const params: Record<string, string> = { action: "streets" };
+  if (filters?.status) params.status = filters.status;
+  return callFieldFunction("field-objectives", params);
+}
+
+export async function createTerritoryStreet(data: { street_name: string; city: string; postal_code?: string; total_doors?: number; notes?: string }) {
+  return callFieldFunction("field-objectives", { action: "create-street" }, {
+    method: "POST",
+    body: data,
+  });
+}
+
+export async function updateTerritoryStreet(streetId: string, updates: Record<string, any>) {
+  return callFieldFunction("field-objectives", { action: "update-street" }, {
+    method: "POST",
+    body: { street_id: streetId, ...updates },
+  });
+}
+
+export async function deleteTerritoryStreet(streetId: string) {
+  return callFieldFunction("field-objectives", { action: "delete-street" }, {
+    method: "POST",
+    body: { street_id: streetId },
+  });
+}
+
+export async function createTerritoryVisit(streetId: string, data: { doors_knocked: number; doors_answered: number; doors_interested: number; doors_sold: number; notes?: string }) {
+  return callFieldFunction("field-objectives", { action: "log-visit" }, {
+    method: "POST",
+    body: { street_id: streetId, ...data },
+  });
+}
+
+// ═══════════════════════════════════════
+// NOTIFICATIONS SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchNotifications() {
+  return callFieldFunction("field-order-engine", { action: "notifications", domain: "notifications" });
+}
+
+export async function markNotificationsRead() {
+  return callFieldFunction("field-order-engine", { action: "mark-read", domain: "notifications" }, {
+    method: "POST",
+  });
+}
+
+// ═══════════════════════════════════════
+// RESOURCES SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchResources() {
+  return callFieldFunction("field-catalog", { action: "resources" });
+}
+
+// ═══════════════════════════════════════
+// TRACKING / PIPELINE SERVICE
+// ═══════════════════════════════════════
+
+export async function fetchTrackingSummary() {
+  return callFieldFunction("field-order-engine", { action: "tracking-summary" });
 }
