@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import HoneypotField, { isHoneypotTriggered } from "@/components/shared/HoneypotField";
+import CloudflareTurnstile from "@/components/shared/CloudflareTurnstile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -60,6 +62,9 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
   const [showPassword, setShowPassword] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof SignupFormData, string>>>({});
+  const [honeypot, setHoneypot] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
 
   const handleChange = (field: keyof SignupFormData, value: string) => {
     // Clear error when user starts typing
@@ -167,12 +172,14 @@ export const ClientSignupForm = ({ onSubmit, isLoading }: ClientSignupFormProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isHoneypotTriggered(honeypot)) return; // Silent reject
     if (!validate()) return;
     await onSubmit(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
       {/* Name Row */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
