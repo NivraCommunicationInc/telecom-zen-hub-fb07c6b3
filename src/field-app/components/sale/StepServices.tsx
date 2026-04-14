@@ -1,10 +1,11 @@
 /**
  * Step 2 — Service / Plan Selection
- * Uses the REAL approved catalog via useFieldSalesOffers hook.
+ * Uses the backend catalog engine via fieldServices.
  */
+import { useQuery } from "@tanstack/react-query";
 import { Wifi, Smartphone, Tv, Package, Loader2, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useFieldSalesOffers, type FieldSalesOffer } from "@/hooks/useFieldSalesOffers";
+import { fetchCatalog } from "@/field-app/lib/fieldServices";
 import type { FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
 
 interface Props {
@@ -12,6 +13,17 @@ interface Props {
   onChange: (services: FieldSaleService[]) => void;
   onNext: () => void;
   onBack: () => void;
+}
+
+interface CatalogProduct {
+  id: string;
+  product_code: string;
+  name: string;
+  category_code: string;
+  customer_description: string | null;
+  is_sellable: boolean;
+  prices: Array<{ price_type: string; amount: number }>;
+  attributes: Array<{ attribute_key: string; attribute_value_jsonb: any }>;
 }
 
 const CATEGORY_ICONS: Record<string, typeof Wifi> = {
@@ -29,39 +41,61 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_ORDER = ["internet", "mobile", "tv"];
 
 export default function StepServices({ selected, onChange, onNext, onBack }: Props) {
-  const { data: offers = [], isLoading, error } = useFieldSalesOffers();
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["field-catalog-full"],
+    queryFn: () => fetchCatalog(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Build product list with prices merged
+  const products: CatalogProduct[] = (data?.products || [])
+    .filter((p: any) => p.is_sellable && p.product_type !== "equipment" && p.product_type !== "fee")
+    .map((p: any) => ({
+      ...p,
+      prices: (data?.prices || []).filter((pr: any) => pr.product_id === p.id),
+      attributes: (data?.attributes || []).filter((a: any) => a.product_id === p.id),
+    }));
 
   // Group by category
-  const grouped: Record<string, FieldSalesOffer[]> = {};
-  for (const o of offers) {
-    const cat = o.category || "other";
+  const grouped: Record<string, CatalogProduct[]> = {};
+  for (const p of products) {
+    const cat = p.category_code || "other";
     if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push(o);
+    grouped[cat].push(p);
   }
 
-  // Sort categories
   const sortedCategories = Object.keys(grouped).sort((a, b) => {
     const ai = CATEGORY_ORDER.indexOf(a);
     const bi = CATEGORY_ORDER.indexOf(b);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
+  const getMonthlyPrice = (p: CatalogProduct) => {
+    const rec = p.prices.find((pr) => pr.price_type === "recurring_monthly");
+    return rec ? Number(rec.amount) : 0;
+  };
+
+  const getAttr = (p: CatalogProduct, key: string) => {
+    const attr = p.attributes.find((a) => a.attribute_key === key);
+    return attr?.attribute_value_jsonb;
+  };
+
   const isSelected = (id: string) => selected.some((s) => s.id === id);
 
-  const toggleService = (offer: FieldSalesOffer) => {
-    if (isSelected(offer.id)) {
-      onChange(selected.filter((s) => s.id !== offer.id));
+  const toggleService = (p: CatalogProduct) => {
+    if (isSelected(p.id)) {
+      onChange(selected.filter((s) => s.id !== p.id));
     } else {
-      const speed = offer.features_json?.speed;
+      const speed = getAttr(p, "download_speed_mbps");
       onChange([
         ...selected,
         {
-          id: offer.id,
-          name: offer.name_fr,
-          category: offer.category,
-          monthlyPrice: Number(offer.price_monthly) || 0,
-          description: offer.description_fr,
-          speed: speed || undefined,
+          id: p.id,
+          name: p.name,
+          category: p.category_code,
+          monthlyPrice: getMonthlyPrice(p),
+          description: p.customer_description,
+          speed: speed ? `${speed} Mbps` : undefined,
         },
       ]);
     }
@@ -85,7 +119,7 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
           <AlertTriangle className="h-4 w-4 inline mr-2" />
           Erreur de chargement du catalogue. Veuillez réessayer.
         </div>
-      ) : offers.length === 0 ? (
+      ) : products.length === 0 ? (
         <div className="p-6 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] text-center">
           <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-[#D97706]" />
           <p className="text-sm font-medium text-[#92400E]">Aucun forfait approuvé disponible</p>
@@ -109,18 +143,16 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
                 </span>
               </div>
               <div className="space-y-2">
-                {items.map((offer) => {
-                  const active = isSelected(offer.id);
-                  const speed = offer.features_json?.speed;
-                  const features = offer.features_json?.features || [];
-                  const badge = offer.features_json?.badge;
-                  const price = Number(offer.price_monthly) || 0;
+                {items.map((product) => {
+                  const active = isSelected(product.id);
+                  const price = getMonthlyPrice(product);
+                  const speed = getAttr(product, "download_speed_mbps");
 
                   return (
                     <button
-                      key={offer.id}
+                      key={product.id}
                       type="button"
-                      onClick={() => toggleService(offer)}
+                      onClick={() => toggleService(product)}
                       className={cn(
                         "w-full text-left p-4 rounded-xl border-2 transition-all",
                         active
@@ -131,30 +163,15 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-[#000000]">{offer.name_fr}</span>
+                            <span className="text-sm font-semibold text-[#000000]">{product.name}</span>
                             {speed && (
                               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#3B82F6]">
-                                {speed}
-                              </span>
-                            )}
-                            {badge && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#D97706]">
-                                {badge}
-                              </span>
-                            )}
-                            {offer.is_featured && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#16A34A]">
-                                Populaire
+                                {speed} Mbps
                               </span>
                             )}
                           </div>
-                          {features.length > 0 && (
-                            <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-1">
-                              {features.slice(0, 3).join(" · ")}
-                            </p>
-                          )}
-                          {!features.length && offer.description_fr && (
-                            <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-1">{offer.description_fr}</p>
+                          {product.customer_description && (
+                            <p className="text-xs text-[#6B7280] mt-0.5 line-clamp-1">{product.customer_description}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-3 ml-3">
@@ -204,7 +221,6 @@ export default function StepServices({ selected, onChange, onNext, onBack }: Pro
         </div>
       )}
 
-      {/* Pricing notice */}
       <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs text-[#92400E]">
         ⚠️ Tarification officielle uniquement. Aucune remise ni code promo n'est applicable sur le terrain.
       </div>

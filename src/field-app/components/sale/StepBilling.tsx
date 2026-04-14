@@ -1,53 +1,68 @@
 /**
- * Step 6 — Billing Setup (promo-aware)
+ * Step 6 — Billing Setup (backend-driven pricing)
+ * All pricing computed via field-pricing-quote edge function.
  */
-import { CreditCard, RotateCcw, Check, Tag } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { CreditCard, RotateCcw, Check, Tag, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FieldSaleBilling, FieldSaleService, FieldSaleEquipment } from "@/field-app/lib/fieldSaleTypes";
 import type { FieldSalePromo } from "@/field-app/components/sale/StepPromo";
-// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
-const TAX_DISPLAY = { TPS_LABEL: "TPS (5%)", TVQ_LABEL: "TVQ (9.975%)" };
+import { computePricingQuote, type PricingQuoteResult } from "@/field-app/lib/fieldServices";
 
 interface Props {
   services: FieldSaleService[];
   equipment: FieldSaleEquipment[];
   billing: FieldSaleBilling;
   promos?: FieldSalePromo[];
+  installationType?: string;
+  paymentMethod?: string;
   onChange: (b: FieldSaleBilling) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export default function StepBilling({ services, equipment, billing, promos = [], onChange, onNext, onBack }: Props) {
-  const monthlySubtotal = services.reduce((s, sv) => s + sv.monthlyPrice, 0);
-  const equipmentTotal = equipment.reduce((s, e) => s + e.price * e.quantity, 0);
-  const activationFee = services.length === 0 ? 0 : services.length === 1 ? 25 : 45;
+export default function StepBilling({ services, equipment, billing, promos = [], installationType, paymentMethod, onChange, onNext, onBack }: Props) {
+  // Build items for pricing quote
+  const items = [
+    ...services.map((s) => ({ product_id: s.id, quantity: 1 })),
+    ...equipment.filter((e) => e.quantity > 0).map((e) => ({ product_id: e.id, quantity: e.quantity })),
+  ];
 
-  const promoMonthlyDiscount = promos.reduce((sum, p) => {
-    if (p.promo_type === "monthly_discount") return sum + p.discount_monthly;
-    if (p.promo_type === "percentage_off") return sum + (monthlySubtotal * p.discount_percentage / 100);
-    return sum;
-  }, 0);
-  const promoOnetimeDiscount = promos.reduce((sum, p) => {
-    if (p.promo_type === "activation_credit") return sum + Math.min(p.discount_onetime, activationFee);
-    if (p.promo_type === "free_installation") return sum + p.discount_onetime;
-    return sum;
-  }, 0);
+  const promoPayload = promos.map((p) => ({
+    promo_code: p.id.startsWith("manual-") ? undefined : p.name,
+    field_promo_id: p.id.startsWith("manual-") ? undefined : p.id,
+  }));
 
-  const effectiveMonthly = Math.max(0, monthlySubtotal - promoMonthlyDiscount);
-  const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
-  const oneTimeSubtotal = equipmentTotal + effectiveActivation;
-  const totalDueToday = effectiveMonthly + oneTimeSubtotal;
-  // ⛔ NO LOCAL TAX MATH — display subtotals only
-  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
-  const monthlyTaxes = { tps: 0, tvq: 0, total: effectiveMonthly, taxableAmount: effectiveMonthly };
+  const { data: quote, isLoading } = useQuery({
+    queryKey: ["field-pricing-quote", items, promoPayload, installationType, paymentMethod],
+    queryFn: () => computePricingQuote(items, promoPayload, installationType, paymentMethod),
+    enabled: items.length > 0,
+    staleTime: 30_000,
+  });
+
+  // Fallback local display if quote not yet loaded
+  const monthlySubtotal = quote?.recurring_monthly_estimate ?? services.reduce((s, sv) => s + sv.monthlyPrice, 0);
+  const oneTimeSubtotal = quote?.one_time_subtotal ?? equipment.reduce((s, e) => s + e.price * e.quantity, 0);
+  const activationFee = quote?.activation_fee ?? 0;
+  const discountTotal = quote?.discount_total ?? 0;
+  const tpsAmount = quote?.tps_amount ?? 0;
+  const tvqAmount = quote?.tvq_amount ?? 0;
+  const grandTotal = quote?.grand_total ?? (monthlySubtotal + oneTimeSubtotal + activationFee);
+  const dueToday = quote?.due_today_estimate ?? grandTotal;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-[#000000]">Facturation</h2>
-        <p className="text-sm text-[#6B7280] mt-0.5">Résumé financier et options de facturation.</p>
+        <p className="text-sm text-[#6B7280] mt-0.5">Résumé financier calculé par le moteur de prix.</p>
       </div>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-sm text-[#1D4ED8]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Calcul du devis en cours…
+        </div>
+      )}
 
       {/* Monthly recurring */}
       <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 space-y-3">
@@ -61,25 +76,36 @@ export default function StepBilling({ services, equipment, billing, promos = [],
             <span className="text-[#000000] font-medium">{s.monthlyPrice.toFixed(2)} $</span>
           </div>
         ))}
-        {promoMonthlyDiscount > 0 && (
+        {discountTotal > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-[#DC2626] flex items-center gap-1"><Tag className="h-3 w-3" /> Promotion</span>
-            <span className="text-[#DC2626] font-medium">-{promoMonthlyDiscount.toFixed(2)} $</span>
+            <span className="text-[#DC2626] flex items-center gap-1"><Tag className="h-3 w-3" /> Promotions</span>
+            <span className="text-[#DC2626] font-medium">-{discountTotal.toFixed(2)} $</span>
           </div>
         )}
         <div className="border-t border-[#E5E7EB] pt-2 space-y-1">
           <div className="flex justify-between text-xs text-[#6B7280]">
-            <span>Sous-total</span><span>{effectiveMonthly.toFixed(2)} $</span>
+            <span>Sous-total mensuel</span><span>{monthlySubtotal.toFixed(2)} $/mois</span>
           </div>
-          <div className="flex justify-between text-xs text-[#6B7280]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>Calculé au traitement</span>
-          </div>
-          <div className="flex justify-between text-xs text-[#6B7280]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>Calculé au traitement</span>
-          </div>
-          <div className="flex justify-between text-sm font-bold text-[#000000] pt-1">
-            <span>Sous-total mensuel</span><span>{effectiveMonthly.toFixed(2)} $/mois (+ taxes)</span>
-          </div>
+          {quote && (
+            <>
+              <div className="flex justify-between text-xs text-[#6B7280]">
+                <span>TPS (5%)</span><span>{tpsAmount.toFixed(2)} $</span>
+              </div>
+              <div className="flex justify-between text-xs text-[#6B7280]">
+                <span>TVQ (9.975%)</span><span>{tvqAmount.toFixed(2)} $</span>
+              </div>
+            </>
+          )}
+          {!quote && (
+            <>
+              <div className="flex justify-between text-xs text-[#6B7280]">
+                <span>TPS (5%)</span><span>Calculé au traitement</span>
+              </div>
+              <div className="flex justify-between text-xs text-[#6B7280]">
+                <span>TVQ (9.975%)</span><span>Calculé au traitement</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -99,16 +125,10 @@ export default function StepBilling({ services, equipment, billing, promos = [],
           <span className="text-[#374151]">Frais d'activation</span>
           <span className="text-[#000000] font-medium">{activationFee.toFixed(2)} $</span>
         </div>
-        {promoOnetimeDiscount > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-[#DC2626] flex items-center gap-1"><Tag className="h-3 w-3" /> Promotion</span>
-            <span className="text-[#DC2626] font-medium">-{promoOnetimeDiscount.toFixed(2)} $</span>
-          </div>
-        )}
         <div className="border-t border-[#E5E7EB] pt-2">
           <div className="flex justify-between text-sm font-medium">
             <span className="text-[#374151]">Total frais uniques</span>
-            <span className="text-[#000000]">{oneTimeSubtotal.toFixed(2)} $</span>
+            <span className="text-[#000000]">{(oneTimeSubtotal + activationFee).toFixed(2)} $</span>
           </div>
         </div>
       </div>
@@ -118,19 +138,23 @@ export default function StepBilling({ services, equipment, billing, promos = [],
         <h3 className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">Montant dû aujourd'hui</h3>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-[#D1D5DB]">Premier mois</span><span>{effectiveMonthly.toFixed(2)} $</span>
+            <span className="text-[#D1D5DB]">Premier mois</span><span>{monthlySubtotal.toFixed(2)} $</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#D1D5DB]">Frais uniques</span><span>{oneTimeSubtotal.toFixed(2)} $</span>
+            <span className="text-[#D1D5DB]">Frais uniques</span><span>{(oneTimeSubtotal + activationFee).toFixed(2)} $</span>
           </div>
-          <div className="flex justify-between text-xs text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TPS_LABEL}</span><span>Calculé au traitement</span>
-          </div>
-          <div className="flex justify-between text-xs text-[#9CA3AF]">
-            <span>{TAX_DISPLAY.TVQ_LABEL}</span><span>Calculé au traitement</span>
-          </div>
+          {quote && (
+            <>
+              <div className="flex justify-between text-xs text-[#9CA3AF]">
+                <span>TPS</span><span>{tpsAmount.toFixed(2)} $</span>
+              </div>
+              <div className="flex justify-between text-xs text-[#9CA3AF]">
+                <span>TVQ</span><span>{tvqAmount.toFixed(2)} $</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
-            <span>Sous-total</span><span className="text-[#22C55E]">{totalDueToday.toFixed(2)} $ (+ taxes)</span>
+            <span>Total</span><span className="text-[#22C55E]">{dueToday.toFixed(2)} $</span>
           </div>
         </div>
       </div>
