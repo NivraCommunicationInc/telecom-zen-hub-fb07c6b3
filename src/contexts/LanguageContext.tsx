@@ -229,6 +229,97 @@ const translations: Record<Language, Record<string, string>> = {
     'common.none': 'Aucun',
     'common.yes': 'Oui',
     'common.no': 'Non',
+    'common.perMonth': '/ mois',
+    'common.free': 'Gratuit',
+    'common.included': 'Inclus',
+    'common.confirm': 'Confirmer',
+    'common.submit': 'Soumettre',
+    'common.download': 'Télécharger',
+    'common.upload': 'Téléverser',
+    'common.export': 'Exporter',
+    'common.close': 'Fermer',
+    'common.or': 'ou',
+
+    // Homepage — Hero (Xfinity-style)
+    'xhero.eyebrow': 'Sans contrat. Résiliez à tout moment.',
+    'xhero.title': 'Internet résidentiel fiable.',
+    'xhero.titleAccent': 'Un prix. Simple.',
+    'xhero.subtitle': 'Forfaits transparents • Activation rapide • Support local au Québec',
+    'xhero.cta': 'Voir les forfaits',
+    'xhero.ctaSecondary': 'Vérifier mon adresse',
+    'xhero.bullet1': 'Sans engagement',
+    'xhero.bullet2': 'Installation rapide',
+    'xhero.bullet3': 'Support québécois',
+
+    // Homepage — Product Categories
+    'categories.internet': 'Internet',
+    'categories.internet.desc': 'Internet haute vitesse',
+    'categories.mobile': 'Mobile',
+    'categories.mobile.desc': 'Forfaits mobiles prépayés',
+    'categories.tv': 'TV & Streaming',
+    'categories.tv.desc': 'Télévision & divertissement',
+    'categories.security': 'Sécurité',
+    'categories.security.desc': 'Solutions de sécurité résidentielle',
+    'categories.build': 'Créez votre forfait',
+    'categories.build.desc': 'Personnalisez vos services',
+
+    // Homepage — Pricing
+    'pricing.title': 'Choisissez votre forfait',
+    'pricing.subtitle': 'Internet illimité, sans contrat',
+    'pricing.recommended': 'Recommandé',
+    'pricing.choose': 'Choisir',
+    'pricing.disclaimer': 'Taxes en sus • Équipement en option si applicable',
+
+    // Homepage — Why Nivra
+    'why.title': 'Pourquoi choisir Nivra',
+    'why.nocontract': 'Sans contrat',
+    'why.nocontract.desc': 'Aucun engagement à long terme. Vous gardez le contrôle.',
+    'why.simple': 'Processus simple',
+    'why.simple.desc': 'Commande en ligne, installation rapide, service actif.',
+    'why.support': 'Support local',
+    'why.support.desc': 'Équipe basée au Québec, disponible 7 jours sur 7.',
+    'why.fast': 'Activation rapide',
+    'why.fast.desc': 'Service activé en quelques jours, pas en semaines.',
+
+    // Homepage — How it works
+    'how.title': 'Comment ça fonctionne',
+    'how.step1': 'Choisissez votre forfait',
+    'how.step1.desc': 'Sélectionnez le plan Internet qui correspond à vos besoins.',
+    'how.step2': 'Vérification de votre adresse',
+    'how.step2.desc': 'Nous validons la disponibilité du service à votre adresse.',
+    'how.step3': 'Installation ou activation',
+    'how.step3.desc': 'Un technicien installe ou active votre service rapidement.',
+    'how.step4': 'Service actif',
+    'how.step4.desc': "Profitez de votre connexion Internet dès l'activation.",
+
+    // Homepage — Final CTA
+    'finalcta.title': 'Prêt à commencer ?',
+    'finalcta.bullet1': 'Sans contrat',
+    'finalcta.bullet2': 'Mise en service rapide',
+    'finalcta.bullet3': 'Processus simple',
+    'finalcta.cta': 'Commencer maintenant',
+
+    // Errors
+    'errors.generic': 'Une erreur est survenue. Veuillez réessayer.',
+    'errors.network': 'Problème de connexion. Vérifiez votre réseau.',
+    'errors.notFound': 'Page introuvable',
+    'errors.unauthorized': 'Accès non autorisé',
+    'errors.sessionExpired': 'Votre session a expiré. Reconnectez-vous.',
+
+    // Portal
+    'portal.welcome': 'Bienvenue',
+    'portal.balance': 'Solde',
+    'portal.nextPayment': 'Prochain paiement',
+    'portal.currentPlan': 'Forfait actuel',
+    'portal.usage': 'Utilisation',
+    'portal.invoices': 'Factures',
+    'portal.support': 'Support',
+    'portal.settings': 'Paramètres',
+
+    // Status page
+    'status.title': 'État des services',
+    'status.allOperational': 'Tous les systèmes fonctionnent normalement.',
+    'status.issues': 'Certains services rencontrent des problèmes.',
   },
   
   en: {
@@ -439,6 +530,97 @@ const translations: Record<Language, Record<string, string>> = {
     'common.none': 'None',
     'common.yes': 'Yes',
     'common.no': 'No',
+    'common.perMonth': '/ month',
+    'common.free': 'Free',
+    'common.included': 'Included',
+    'common.confirm': 'Confirm',
+    'common.submit': 'Submit',
+    'common.download': 'Download',
+    'common.upload': 'Upload',
+    'common.export': 'Export',
+    'common.close': 'Close',
+    'common.or': 'or',
+
+    // Homepage — Hero (Xfinity-style)
+    'xhero.eyebrow': 'No contract. Cancel anytime.',
+    'xhero.title': 'Reliable home Internet.',
+    'xhero.titleAccent': 'One price. Simple.',
+    'xhero.subtitle': 'Transparent plans • Fast activation • Local support in Quebec',
+    'xhero.cta': 'View plans',
+    'xhero.ctaSecondary': 'Check my address',
+    'xhero.bullet1': 'No commitment',
+    'xhero.bullet2': 'Fast installation',
+    'xhero.bullet3': 'Quebec-based support',
+
+    // Homepage — Product Categories
+    'categories.internet': 'Internet',
+    'categories.internet.desc': 'High-speed Internet',
+    'categories.mobile': 'Mobile',
+    'categories.mobile.desc': 'Prepaid mobile plans',
+    'categories.tv': 'TV & Streaming',
+    'categories.tv.desc': 'Television & entertainment',
+    'categories.security': 'Security',
+    'categories.security.desc': 'Home security solutions',
+    'categories.build': 'Build your plan',
+    'categories.build.desc': 'Customize your services',
+
+    // Homepage — Pricing
+    'pricing.title': 'Choose your plan',
+    'pricing.subtitle': 'Unlimited Internet, no contract',
+    'pricing.recommended': 'Recommended',
+    'pricing.choose': 'Choose',
+    'pricing.disclaimer': 'Taxes extra • Equipment optional if applicable',
+
+    // Homepage — Why Nivra
+    'why.title': 'Why choose Nivra',
+    'why.nocontract': 'No contract',
+    'why.nocontract.desc': 'No long-term commitment. You stay in control.',
+    'why.simple': 'Simple process',
+    'why.simple.desc': 'Order online, fast installation, service active.',
+    'why.support': 'Local support',
+    'why.support.desc': 'Quebec-based team, available 7 days a week.',
+    'why.fast': 'Fast activation',
+    'why.fast.desc': 'Service activated in days, not weeks.',
+
+    // Homepage — How it works
+    'how.title': 'How it works',
+    'how.step1': 'Choose your plan',
+    'how.step1.desc': 'Select the Internet plan that fits your needs.',
+    'how.step2': 'Address verification',
+    'how.step2.desc': 'We confirm service availability at your address.',
+    'how.step3': 'Installation or activation',
+    'how.step3.desc': 'A technician installs or activates your service quickly.',
+    'how.step4': 'Service active',
+    'how.step4.desc': 'Enjoy your Internet connection as soon as it\'s activated.',
+
+    // Homepage — Final CTA
+    'finalcta.title': 'Ready to get started?',
+    'finalcta.bullet1': 'No contract',
+    'finalcta.bullet2': 'Fast setup',
+    'finalcta.bullet3': 'Simple process',
+    'finalcta.cta': 'Get started now',
+
+    // Errors
+    'errors.generic': 'An error occurred. Please try again.',
+    'errors.network': 'Connection issue. Check your network.',
+    'errors.notFound': 'Page not found',
+    'errors.unauthorized': 'Unauthorized access',
+    'errors.sessionExpired': 'Your session has expired. Please sign in again.',
+
+    // Portal
+    'portal.welcome': 'Welcome',
+    'portal.balance': 'Balance',
+    'portal.nextPayment': 'Next payment',
+    'portal.currentPlan': 'Current plan',
+    'portal.usage': 'Usage',
+    'portal.invoices': 'Invoices',
+    'portal.support': 'Support',
+    'portal.settings': 'Settings',
+
+    // Status page
+    'status.title': 'System Status',
+    'status.allOperational': 'All systems are operating normally.',
+    'status.issues': 'Some services are experiencing issues.',
   },
   
   ht: {
