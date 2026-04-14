@@ -17,6 +17,19 @@ export default defineConfig(({ mode }) => ({
       "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tooltip'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),
