@@ -48,7 +48,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   return (
-    <footer ref={ref} className="bg-slate-900 text-white" data-testid="footer">
+    <footer ref={ref} className="bg-slate-900 text-white" data-testid="footer" role="contentinfo">
       {/* Main Content Grid */}
       <div className="container mx-auto px-4 sm:px-6 py-14 lg:py-20 max-w-[1320px]">
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14">

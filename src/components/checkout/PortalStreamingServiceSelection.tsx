@@ -100,14 +100,17 @@ export const PortalStreamingServiceSelection = ({
                 const features = Array.isArray(service.features) ? service.features : [];
                 
                 return (
-                  <div 
+                  <button 
                     key={service.id}
-                    className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                    type="button"
+                    className={`p-4 rounded-lg border-2 transition-all cursor-pointer text-left w-full ${
                       isSelected 
                         ? "border-cyan-500 bg-cyan-500/5" 
                         : "border-border hover:border-cyan-500/50"
                     }`}
                     onClick={() => toggleService(service)}
+                    aria-pressed={isSelected}
+                    aria-label={`${service.name} — $${service.price_monthly.toFixed(2)}/mois`}
                   >
                     <div className="flex items-start gap-3">
                       <Checkbox 
@@ -135,7 +138,7 @@ export const PortalStreamingServiceSelection = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -159,14 +162,17 @@ export const PortalStreamingServiceSelection = ({
                   const features = Array.isArray(service.features) ? service.features : [];
                   
                   return (
-                    <div 
+                    <button 
                       key={service.id}
-                      className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                      type="button"
+                      className={`p-4 rounded-lg border-2 transition-all cursor-pointer text-left w-full ${
                         isSelected 
                           ? "border-cyan-500 bg-cyan-500/5" 
                           : "border-border hover:border-cyan-500/50"
                       }`}
                       onClick={() => toggleService(service)}
+                      aria-pressed={isSelected}
+                      aria-label={`${service.name} — $${service.price_monthly.toFixed(2)}/mois`}
                     >
                       <div className="flex items-start gap-3">
                         <Checkbox 
@@ -194,7 +200,7 @@ export const PortalStreamingServiceSelection = ({
                           )}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

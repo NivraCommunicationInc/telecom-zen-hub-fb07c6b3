@@ -19,7 +19,7 @@ const Index = () => {
       <LocalBusinessSchema />
       <Header />
       <HomeStatusBanner />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Hero />
         <HomePricing />
         <HowItWorks />
