@@ -1,11 +1,13 @@
 /**
  * Step 1 — Customer Identification
  * Supports: Search existing customer OR create new.
+ * Uses real serviceability check against service_coverage_areas table.
  */
 import { useState } from "react";
-import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight } from "lucide-react";
+import { User, MapPin, CheckCircle2, XCircle, Loader2, Search, UserPlus, ArrowRight, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { FieldSaleCustomer } from "@/field-app/lib/fieldSaleTypes";
+import { checkServiceCoverage, type CoverageResult } from "@/field-app/lib/useServiceCoverage";
 
 interface Props {
   customer: FieldSaleCustomer;
@@ -34,16 +36,25 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchDone, setSearchDone] = useState(false);
   const [isExisting, setIsExisting] = useState(false);
+  const [coverageDetail, setCoverageDetail] = useState<CoverageResult | null>(null);
 
   const update = (field: keyof FieldSaleCustomer, value: string) =>
     onChange({ ...customer, [field]: value });
 
-  const checkServiceability = () => {
+  const checkServiceability = async () => {
     onChange({ ...customer, serviceability_status: "checking" });
-    setTimeout(() => {
-      const available = customer.postal_code.trim().length >= 3;
-      onChange({ ...customer, serviceability_status: available ? "available" : "unavailable" });
-    }, 1200);
+    setCoverageDetail(null);
+    try {
+      const result = await checkServiceCoverage(customer.postal_code);
+      setCoverageDetail(result);
+      if (result.status === "available" || result.status === "limited") {
+        onChange({ ...customer, serviceability_status: "available" });
+      } else {
+        onChange({ ...customer, serviceability_status: "unavailable" });
+      }
+    } catch {
+      onChange({ ...customer, serviceability_status: "unavailable" });
+    }
   };
 
   const handleSearch = async () => {
@@ -391,16 +402,33 @@ export default function StepCustomer({ customer, onChange, onNext, onCancel }: P
             Vérification en cours…
           </div>
         )}
-        {customer.serviceability_status === "available" && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] text-sm text-[#16A34A] font-medium">
-            <CheckCircle2 className="h-4 w-4" />
-            Service disponible à cette adresse
+        {customer.serviceability_status === "available" && coverageDetail && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] text-sm text-[#16A34A] font-medium">
+              <CheckCircle2 className="h-4 w-4" />
+              {coverageDetail.status === "limited" ? "Service partiellement disponible" : "Service disponible à cette adresse"}
+            </div>
+            {coverageDetail.status === "limited" && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs text-[#92400E]">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium">Couverture limitée</p>
+                  {coverageDetail.notes && <p className="mt-0.5">{coverageDetail.notes}</p>}
+                  {coverageDetail.availableServices && (
+                    <p className="mt-0.5">Services disponibles : {coverageDetail.availableServices.join(", ")}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {customer.serviceability_status === "unavailable" && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#DC2626] font-medium">
-            <XCircle className="h-4 w-4" />
-            Service non disponible — Vente impossible
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#DC2626] font-medium">
+            <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p>Service non disponible à cette adresse</p>
+              <p className="text-xs font-normal mt-1">Ce code postal n'est pas dans notre zone de couverture. Vous pouvez sauvegarder le contact comme lead pour suivi.</p>
+            </div>
           </div>
         )}
       </div>
