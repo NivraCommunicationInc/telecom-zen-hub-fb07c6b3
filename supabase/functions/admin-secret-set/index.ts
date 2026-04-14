@@ -93,6 +93,15 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // ── Caller must be changing their OWN code ──
+    if (callerUserId !== admin_user_id) {
+      console.error(`[${requestId}] Caller ${callerUserId} != target ${admin_user_id}`);
+      return new Response(
+        JSON.stringify({ ok: false, request_id: requestId, error: "Forbidden: can only change your own code" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Validate code formats (6 digits)
     if (!/^\d{6}$/.test(current_code) || !/^\d{6}$/.test(new_code)) {
       console.error(`[${requestId}] Invalid code format`);
