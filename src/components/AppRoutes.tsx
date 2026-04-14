@@ -431,6 +431,7 @@ const AppRoutes = () => {
       <Route path="/privacy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicy /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms" element={<MaintenanceGuard><PublicLayout><TermsOfUse /></PublicLayout></MaintenanceGuard>} />
       <Route path="/not-authorized" element={<MaintenanceGuard><PublicLayout><NotAuthorized /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/acces-refuse" element={<MaintenanceGuard><PublicLayout><AccesRefuse /></PublicLayout></MaintenanceGuard>} />
       
       {/* Legal pages */}
       <Route path="/conditions-de-service" element={<MaintenanceGuard><PublicLayout><ConditionsDeService /></PublicLayout></MaintenanceGuard>} />
