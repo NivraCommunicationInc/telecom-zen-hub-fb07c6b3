@@ -2612,6 +2612,39 @@ export type Database = {
         }
         Relationships: []
       }
+      client_errors: {
+        Row: {
+          component_stack: string | null
+          created_at: string
+          error_timestamp: string | null
+          id: string
+          message: string | null
+          stack: string | null
+          url: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          component_stack?: string | null
+          created_at?: string
+          error_timestamp?: string | null
+          id?: string
+          message?: string | null
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          component_stack?: string | null
+          created_at?: string
+          error_timestamp?: string | null
+          id?: string
+          message?: string | null
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       client_internal_notes: {
         Row: {
           body: string
