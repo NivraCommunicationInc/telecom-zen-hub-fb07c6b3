@@ -1,5 +1,5 @@
 /**
- * field-commission-engine — Commission summary, detail, and dispute API.
+ * field-commission-engine — Commission summary, list, detail, dispute, withdrawals.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -25,78 +25,46 @@ Deno.serve(async (req) => {
     const action = url.searchParams.get("action") || "summary";
 
     // ── Summary ──
-    if (action === "summary") {
-      const { data: commissions } = await admin
-        .from("sales_commissions")
-        .select("commission_amount, status, bonus_amount")
-        .eq("salesperson_id", userId);
+    if (action === "summary" && req.method === "GET") {
+      const [commissionsRes, withdrawalsRes] = await Promise.all([
+        admin.from("sales_commissions").select("commission_amount, status, bonus_amount").eq("salesperson_id", userId),
+        admin.from("commission_withdrawal_requests").select("amount, status").eq("agent_id", userId),
+      ]);
 
-      const summary = {
-        pending: 0,
-        awaiting_activation: 0,
-        approved: 0,
-        paid: 0,
-        disputed: 0,
-        total: 0,
-        count_by_status: {} as Record<string, number>,
-      };
+      const commissions = commissionsRes.data || [];
+      const withdrawals = withdrawalsRes.data || [];
 
-      for (const c of commissions || []) {
-        const amount = Number(c.commission_amount || 0) + Number(c.bonus_amount || 0);
-        summary.total += amount;
+      let pending = 0, approved = 0, paid = 0, total = 0;
+      const countByStatus: Record<string, number> = {};
 
-        const status = c.status || "pending";
-        summary.count_by_status[status] = (summary.count_by_status[status] || 0) + 1;
-
-        if (["pending", "pending_activation"].includes(status)) {
-          summary.pending += amount;
-        } else if (["validated", "approved", "payable"].includes(status)) {
-          summary.approved += amount;
-        } else if (status === "paid" || status === "included_in_payroll") {
-          summary.paid += amount;
-        }
+      for (const c of commissions) {
+        const amt = Number(c.commission_amount || 0) + Number(c.bonus_amount || 0);
+        total += amt;
+        const s = c.status || "pending";
+        countByStatus[s] = (countByStatus[s] || 0) + 1;
+        if (["pending", "pending_activation"].includes(s)) pending += amt;
+        else if (["validated", "approved", "payable"].includes(s)) approved += amt;
+        else if (s === "paid" || s === "included_in_payroll") paid += amt;
       }
 
-      // Get disputes
-      const { data: disputes } = await admin
-        .from("commission_disputes")
-        .select("id, status")
-        .eq("agent_id", userId)
-        .eq("status", "open");
-
-      summary.disputed = disputes?.length || 0;
-
-      // Get payouts
-      const { data: payouts } = await admin
-        .from("field_commission_payouts")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(5);
+      const pendingWithdrawals = withdrawals.filter((w: any) => ["pending", "approved", "processing"].includes(w.status)).reduce((s: number, w: any) => s + Number(w.amount), 0);
+      const effectiveAvailable = Math.max(0, approved - pendingWithdrawals);
+      const disputedCount = commissions.filter((c: any) => ["disputed", "clawback", "rejected"].includes(c.status)).length;
 
       return new Response(JSON.stringify({
-        summary,
-        recent_payouts: payouts || [],
+        summary: { pending, approved, paid, total, effectiveAvailable, pendingWithdrawals, disputedCount, countByStatus, totalCommissions: commissions.length },
       }), { headers });
     }
 
     // ── List commissions ──
-    if (action === "list") {
+    if (action === "list" && req.method === "GET") {
       const status = url.searchParams.get("status");
-
-      let query = admin
-        .from("sales_commissions")
-        .select("*, field_sales_orders!field_order_id(customer_name, services)")
-        .eq("salesperson_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (status) query = query.eq("status", status);
+      let query = admin.from("sales_commissions").select("*, field_sales_orders!sales_commissions_field_order_id_fkey(customer_name, customer_email)").eq("salesperson_id", userId).order("created_at", { ascending: false }).limit(200);
+      if (status && status !== "all") query = query.eq("status", status);
 
       const { data, error } = await query;
       if (error) throw error;
 
-      // Add status explanation to each commission
       const enriched = (data || []).map((c: any) => ({
         ...c,
         status_explanation: getStatusExplanation(c.status),
@@ -107,78 +75,63 @@ Deno.serve(async (req) => {
     }
 
     // ── Detail ──
-    if (action === "detail") {
+    if (action === "detail" && req.method === "GET") {
       const commissionId = url.searchParams.get("commission_id");
       if (!commissionId) return new Response(JSON.stringify({ error: "commission_id requis" }), { status: 400, headers });
 
-      const { data: commission } = await admin
-        .from("sales_commissions")
-        .select("*")
-        .eq("id", commissionId)
-        .eq("salesperson_id", userId)
-        .single();
+      const { data } = await admin.from("sales_commissions").select("*").eq("id", commissionId).eq("salesperson_id", userId).single();
+      if (!data) return new Response(JSON.stringify({ error: "Commission introuvable" }), { status: 404, headers });
 
-      if (!commission) {
-        return new Response(JSON.stringify({ error: "Commission introuvable" }), { status: 404, headers });
-      }
+      const { data: disputes } = await admin.from("commission_disputes").select("*").eq("commission_id", commissionId).order("created_at", { ascending: false });
 
-      // Get related disputes
-      const { data: disputes } = await admin
-        .from("commission_disputes")
-        .select("*")
-        .eq("commission_id", commissionId)
-        .order("created_at", { ascending: false });
-
-      return new Response(JSON.stringify({
-        commission: {
-          ...commission,
-          status_explanation: getStatusExplanation(commission.status),
-          next_action: getNextAction(commission.status),
-        },
-        disputes: disputes || [],
-      }), { headers });
+      return new Response(JSON.stringify({ commission: { ...data, status_explanation: getStatusExplanation(data.status), next_action: getNextAction(data.status) }, disputes: disputes || [] }), { headers });
     }
 
-    // ── Create dispute (POST) ──
-    if (action === "dispute" && req.method === "POST") {
-      const body = await req.json();
+    // ── Withdrawals list ──
+    if (action === "withdrawals" && req.method === "GET") {
+      const { data, error } = await admin.from("commission_withdrawal_requests").select("*").eq("agent_id", userId).order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      return new Response(JSON.stringify({ withdrawals: data || [] }), { headers });
+    }
+
+    // POST actions
+    if (req.method !== "POST") return new Response(JSON.stringify({ error: "Méthode non supportée" }), { status: 405, headers });
+
+    const body = await req.json();
+
+    // ── Dispute ──
+    if (action === "dispute") {
       const commissionId = body.commission_id;
       const reason = sanitizeString(body.reason || "", 2000);
+      if (!commissionId || !reason) return new Response(JSON.stringify({ error: "commission_id et reason requis" }), { status: 400, headers });
 
-      if (!commissionId || !reason) {
-        return new Response(JSON.stringify({ error: "commission_id et reason requis" }), { status: 400, headers });
-      }
+      const { data: commission } = await admin.from("sales_commissions").select("id").eq("id", commissionId).eq("salesperson_id", userId).single();
+      if (!commission) return new Response(JSON.stringify({ error: "Commission introuvable" }), { status: 404, headers });
 
-      // Verify the commission belongs to this agent
-      const { data: commission } = await admin
-        .from("sales_commissions")
-        .select("id")
-        .eq("id", commissionId)
-        .eq("salesperson_id", userId)
-        .single();
-
-      if (!commission) {
-        return new Response(JSON.stringify({ error: "Commission introuvable" }), { status: 404, headers });
-      }
-
-      const { data: dispute, error } = await admin
-        .from("commission_disputes")
-        .insert({
-          commission_id: commissionId,
-          agent_id: userId,
-          reason,
-          status: "open",
-        })
-        .select()
-        .single();
-
+      const { data: dispute, error } = await admin.from("commission_disputes").insert({ commission_id: commissionId, agent_id: userId, reason, status: "open" }).select().single();
       if (error) throw error;
+
+      // Update commission status
+      await admin.from("sales_commissions").update({ status: "disputed" as any, rejection_reason: `[CONTESTATION] ${reason}` }).eq("id", commissionId);
 
       return new Response(JSON.stringify({ success: true, dispute }), { headers });
     }
 
-    return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
+    // ── Withdraw ──
+    if (action === "withdraw") {
+      const amount = Number(body.amount);
+      const destination = sanitizeString(body.destination || "", 500);
+      if (!amount || amount <= 0 || !destination) return new Response(JSON.stringify({ error: "Montant et destination requis" }), { status: 400, headers });
 
+      const notes = [body.method ? `Méthode: ${body.method}` : null, `Destination: ${destination}`, body.notes?.trim() || null].filter(Boolean).join(" | ");
+
+      const { error } = await admin.from("commission_withdrawal_requests").insert({ agent_id: userId, amount, notes } as any);
+      if (error) throw error;
+
+      return new Response(JSON.stringify({ success: true }), { headers });
+    }
+
+    return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers });
   } catch (err: any) {
     const status = err.status || 500;
     return new Response(JSON.stringify({ error: err.message || "Erreur serveur" }), { status, headers });
@@ -186,31 +139,11 @@ Deno.serve(async (req) => {
 });
 
 function getStatusExplanation(status: string): string {
-  const explanations: Record<string, string> = {
-    pending: "En attente de validation par un superviseur.",
-    pending_activation: "La commission sera validée quand le service du client sera activé.",
-    validated: "Commission validée, en attente d'inclusion dans le prochain cycle de paie.",
-    approved: "Approuvée et prête pour le versement.",
-    payable: "Montant confirmé, en file d'attente pour paiement.",
-    included_in_payroll: "Incluse dans la prochaine fiche de paie.",
-    paid: "Versée avec succès.",
-    rejected: "Refusée. Consultez la raison pour plus de détails.",
-    disputed: "Contestation en cours de traitement.",
-  };
-  return explanations[status] || "Statut en cours de traitement.";
+  const m: Record<string, string> = { pending: "En attente de validation.", pending_activation: "En attente d'activation du service client.", validated: "Validée, en attente de versement.", approved: "Approuvée, prête pour paiement.", paid: "Versée.", rejected: "Refusée.", disputed: "Contestation en cours." };
+  return m[status] || "Statut en traitement.";
 }
 
 function getNextAction(status: string): string {
-  const actions: Record<string, string> = {
-    pending: "Aucune action requise. Un superviseur doit valider.",
-    pending_activation: "Le service client doit être activé pour débloquer la commission.",
-    validated: "Sera automatiquement incluse dans le prochain cycle.",
-    approved: "En attente du prochain traitement de paie.",
-    payable: "Sera versée au prochain cycle de paiement.",
-    included_in_payroll: "Vérifiez votre fiche de paie.",
-    paid: "Aucune action. Montant versé.",
-    rejected: "Vous pouvez contester si vous pensez que c'est une erreur.",
-    disputed: "Un superviseur traitera votre contestation.",
-  };
-  return actions[status] || "";
+  const m: Record<string, string> = { pending: "Un superviseur doit valider.", pending_activation: "Le service client doit être activé.", validated: "Sera incluse au prochain cycle.", approved: "En attente du prochain paiement.", paid: "Aucune action.", rejected: "Vous pouvez contester.", disputed: "Un superviseur traitera." };
+  return m[status] || "";
 }
