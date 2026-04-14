@@ -1,4 +1,6 @@
-import { useState, forwardRef } from "react";
+import { useState, forwardRef, useCallback } from "react";
+import HoneypotField, { isHoneypotTriggered } from "@/components/shared/HoneypotField";
+import CloudflareTurnstile from "@/components/shared/CloudflareTurnstile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +63,9 @@ const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
   const [isLoading, setIsLoading] = useState(false);
   const [requestNumber, setRequestNumber] = useState<string | null>(null);
   const [showAddress, setShowAddress] = useState(false);
+  const [honeypot, setHoneypot] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -137,7 +142,12 @@ const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
   };
 
   const handleSubmitClick = async () => {
-    // This is a button click handler - NO form submission, NO navigation
+    // Anti-bot: silently reject honeypot
+    if (isHoneypotTriggered(honeypot)) {
+      setIsSubmitted(true);
+      return;
+    }
+
     setErrors({});
 
     // Hard block when consent is not accepted
