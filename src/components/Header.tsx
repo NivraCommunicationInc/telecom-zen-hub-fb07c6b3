@@ -260,7 +260,7 @@ const Header = () => {
       </div>
 
       {/* Main navigation — dark black */}
-      <header className={`sticky top-0 z-50 bg-black/98 backdrop-blur-xl transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}>
+      <header className={`sticky top-0 z-50 bg-black transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}>
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
           {/* Mobile */}
           <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
