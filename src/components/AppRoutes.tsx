@@ -219,6 +219,7 @@ const FraisPossibles = lazy(() => import("@/pages/legal/FraisPossibles"));
 const RefundPolicy = lazy(() => import("@/pages/legal/RefundPolicy"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/legal/PrivacyPolicyPage"));
 const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
+const ConformiteCRTC = lazy(() => import("@/pages/legal/ConformiteCRTC"));
 
 // Admin pages (lazy-loaded)
 const AdminLogin = lazy(() => import("@/pages/admin/AdminLogin"));
@@ -445,6 +446,7 @@ const AppRoutes = () => {
       <Route path="/refund-policy" element={<MaintenanceGuard><PublicLayout><RefundPolicy /></PublicLayout></MaintenanceGuard>} />
       <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
       <Route path="/terms-and-conditions" element={<MaintenanceGuard><PublicLayout><TermsAndConditions /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/conformite-crtc" element={<MaintenanceGuard><PublicLayout><ConformiteCRTC /></PublicLayout></MaintenanceGuard>} />
       <Route path="/a-propos" element={<MaintenanceGuard><PublicLayout><APropos /></PublicLayout></MaintenanceGuard>} />
       <Route path="/aide" element={<MaintenanceGuard><PublicLayout><Aide /></PublicLayout></MaintenanceGuard>} />
       <Route path="/concours" element={<MaintenanceGuard><PublicLayout><Contest /></PublicLayout></MaintenanceGuard>} />

@@ -44,6 +44,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
       { label: isFr ? "Frais" : "Fees", href: "/frais-possibles" },
       { label: isFr ? "Équipement" : "Equipment", href: "/equipement-garantie" },
       { label: isFr ? "Support & plaintes" : "Complaints", href: "/support-et-plaintes" },
+      { label: isFr ? "Conformité CRTC" : "CRTC Compliance", href: "/conformite-crtc" },
     ],
   };
 
