@@ -21,57 +21,56 @@ export default function MarketingComparisonTable() {
   const Checkmark = ({ val, inverted = false }: { val: boolean; inverted?: boolean }) => {
     const show = inverted ? !val : val;
     return show ? (
-      <Check className="w-5 h-5 text-green-600 mx-auto" aria-label={isFr ? "Oui" : "Yes"} />
+      <Check className="w-5 h-5 text-purple-400 mx-auto" aria-label={isFr ? "Oui" : "Yes"} />
     ) : (
-      <X className="w-5 h-5 text-destructive mx-auto" aria-label={isFr ? "Non" : "No"} />
+      <X className="w-5 h-5 text-white/20 mx-auto" aria-label={isFr ? "Non" : "No"} />
     );
   };
 
-  // For "fees" rows (index 4,5), inversion: true=bad, so Nivra false=good
   const isNegativeRow = (idx: number) => idx === 4 || idx === 5;
 
   return (
     <section
       aria-label={isFr ? "Comparaison avec la concurrence" : "Competitor comparison"}
-      className="py-16 px-6 bg-card"
+      className="py-16 px-6 bg-white"
     >
       <div className="max-w-[900px] mx-auto">
         <div className="text-center mb-10">
-          <p className="text-xs tracking-[2px] uppercase text-muted-foreground mb-2">
+          <p className="text-xs tracking-[2px] uppercase text-black/40 mb-2">
             {isFr ? "Pourquoi Nivra ?" : "Why Nivra?"}
           </p>
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+          <h2 className="text-2xl md:text-3xl font-bold text-black">
             {isFr ? "La différence est claire" : "The difference is clear"}
           </h2>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
           <table className="w-full min-w-[500px]" aria-label={isFr ? "Comparaison Nivra vs concurrents" : "Nivra vs competitors"}>
             <thead>
               <tr>
-                <th className="p-3 text-left text-xs text-muted-foreground bg-muted font-medium">
+                <th className="p-3 text-left text-xs text-black/50 bg-gray-50 font-medium">
                   {isFr ? "Caractéristique" : "Feature"}
                 </th>
-                <th className="p-3 text-center bg-primary text-primary-foreground font-bold text-sm">
+                <th className="p-3 text-center bg-purple-600 text-white font-bold text-sm">
                   Nivra Telecom
                 </th>
-                <th className="p-3 text-center text-xs text-muted-foreground bg-muted font-medium">Bell</th>
-                <th className="p-3 text-center text-xs text-muted-foreground bg-muted font-medium">Vidéotron</th>
+                <th className="p-3 text-center text-xs text-black/50 bg-gray-50 font-medium">Bell</th>
+                <th className="p-3 text-center text-xs text-black/50 bg-gray-50 font-medium">Vidéotron</th>
               </tr>
             </thead>
             <tbody>
               {features.map((f, i) => {
                 const neg = isNegativeRow(i);
                 return (
-                  <tr key={i} className={i % 2 === 0 ? "bg-card" : "bg-muted/40"}>
-                    <td className="p-3.5 text-sm text-foreground border-b border-border">{f.label}</td>
-                    <td className="p-3.5 text-center border-b border-border bg-primary/[0.03]">
+                  <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                    <td className="p-3.5 text-sm text-black border-b border-gray-100">{f.label}</td>
+                    <td className="p-3.5 text-center border-b border-gray-100 bg-purple-50">
                       <Checkmark val={f.nivra} inverted={neg} />
                     </td>
-                    <td className="p-3.5 text-center border-b border-border">
+                    <td className="p-3.5 text-center border-b border-gray-100">
                       <Checkmark val={f.bell} inverted={neg} />
                     </td>
-                    <td className="p-3.5 text-center border-b border-border">
+                    <td className="p-3.5 text-center border-b border-gray-100">
                       <Checkmark val={f.videotron} inverted={neg} />
                     </td>
                   </tr>
@@ -82,7 +81,7 @@ export default function MarketingComparisonTable() {
         </div>
 
         <div className="text-center mt-8">
-          <Button size="lg" asChild>
+          <Button size="lg" className="bg-black text-white hover:bg-black/90 rounded-full" asChild>
             <Link to="/forfaits">
               {isFr ? "Voir nos forfaits →" : "View our plans →"}
             </Link>

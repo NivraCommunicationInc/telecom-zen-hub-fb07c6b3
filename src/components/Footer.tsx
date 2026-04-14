@@ -48,25 +48,25 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   return (
-    <footer ref={ref} className="bg-slate-900 text-white" data-testid="footer" role="contentinfo">
+    <footer ref={ref} className="bg-black text-white" data-testid="footer" role="contentinfo">
       {/* Main Content Grid */}
       <div className="container mx-auto px-4 sm:px-6 py-14 lg:py-20 max-w-[1320px]">
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14">
           
-          {/* Brand — full width on mobile */}
+          {/* Brand */}
           <div className="col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-[#003366] flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center">
                 <span className="font-bold text-white text-lg">N</span>
               </div>
               <span className="font-bold text-lg text-white">{COMPANY_CONTACT.companyName}</span>
             </div>
             
-            <p className="text-sm font-medium mb-3 text-slate-300">
+            <p className="text-sm font-medium mb-3 text-white/60">
               {isFr ? "Télécoms prépayés au Québec" : "Prepaid Telecom in Quebec"}
             </p>
             
-            <p className="text-slate-400 mb-5 text-sm leading-relaxed max-w-xs">
+            <p className="text-white/40 mb-5 text-sm leading-relaxed max-w-xs">
               {isFr 
                 ? "Activation rapide, installation professionnelle et support local." 
                 : "Fast activation, professional installation, and local support."}
@@ -75,24 +75,24 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <div className="space-y-2.5">
               <Link 
                 to="/portal/auth"
-                className="flex items-center gap-2.5 text-slate-400 hover:text-white transition-colors text-sm"
+                className="flex items-center gap-2.5 text-white/40 hover:text-white transition-colors text-sm"
               >
-                <MessageSquare className="w-4 h-4 text-slate-500 shrink-0" />
+                <MessageSquare className="w-4 h-4 text-white/30 shrink-0" />
                 <span>Chat / Tickets</span>
               </Link>
               <a 
                 href={`mailto:${supportEmail.toLowerCase()}`} 
-                className="flex items-center gap-2.5 text-slate-400 hover:text-white transition-colors text-sm"
+                className="flex items-center gap-2.5 text-white/40 hover:text-white transition-colors text-sm"
               >
-                <Mail className="w-4 h-4 text-slate-500 shrink-0" />
+                <Mail className="w-4 h-4 text-white/30 shrink-0" />
                 <span className="break-all">{supportEmail}</span>
               </a>
-              <div className="flex items-start gap-2.5 text-slate-400 text-sm">
-                <MapPin className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 text-white/40 text-sm">
+                <MapPin className="w-4 h-4 text-white/30 shrink-0 mt-0.5" />
                 <span>{address}</span>
               </div>
-              <div className="flex items-start gap-2.5 text-slate-400 text-sm">
-                <Clock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 text-white/40 text-sm">
+                <Clock className="w-4 h-4 text-white/30 shrink-0 mt-0.5" />
                 <span>{businessHours}</span>
               </div>
             </div>
@@ -102,7 +102,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 href="https://www.facebook.com/profile.php?id=61584408712750"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-white/40 hover:text-white transition-colors"
                 aria-label="Facebook"
               >
                 <Facebook className="w-5 h-5" />
@@ -111,7 +111,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                 href="https://www.instagram.com/nivratelecom/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-white/40 hover:text-white transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram className="w-5 h-5" />
@@ -127,7 +127,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <ul className="space-y-3">
               {links.services.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-slate-400 hover:text-white transition-colors text-sm">
+                  <Link to={link.href} className="text-white/40 hover:text-white transition-colors text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -143,7 +143,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <ul className="space-y-3">
               {links.support.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-slate-400 hover:text-white transition-colors text-sm">
+                  <Link to={link.href} className="text-white/40 hover:text-white transition-colors text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -159,7 +159,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             <ul className="space-y-3">
               {links.legal.map((link) => (
                 <li key={link.href}>
-                  <Link to={link.href} className="text-slate-400 hover:text-white transition-colors text-sm">
+                  <Link to={link.href} className="text-white/40 hover:text-white transition-colors text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -174,7 +174,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         <div className="container mx-auto px-4 sm:px-6 py-6 max-w-[1320px]">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex flex-col items-center sm:items-start gap-2">
-              <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">
+              <p className="text-white/30 text-xs uppercase tracking-wider font-medium">
                 {isFr ? "Paiement" : "Payment"}
               </p>
               <div className="flex items-center gap-3">
@@ -183,7 +183,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               </div>
             </div>
             <div className="flex flex-col items-center sm:items-end gap-2">
-              <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">
+              <p className="text-white/30 text-xs uppercase tracking-wider font-medium">
                 {isFr ? "Sécurité" : "Security"}
               </p>
               <img src={googleSafeBrowsingImg} alt="Google Safe Browsing" className="h-8 object-contain" />
@@ -192,27 +192,27 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
       </div>
 
-      {/* Bottom Bar — compact on mobile */}
+      {/* Bottom Bar */}
       <div className="border-t border-white/10">
         <div className="container mx-auto px-4 sm:px-6 py-4 max-w-[1320px]">
           <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:text-left">
-            <p className="text-slate-500 text-xs">
+            <p className="text-white/30 text-xs">
               © {currentYear} {COMPANY_CONTACT.legalName}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-              <Link to="/privacy-policy" className="text-slate-500 hover:text-white transition-colors text-xs">
+              <Link to="/privacy-policy" className="text-white/30 hover:text-white transition-colors text-xs">
                 {isFr ? "Confidentialité" : "Privacy"}
               </Link>
-              <span className="text-slate-700 text-xs">·</span>
-              <Link to="/terms-and-conditions" className="text-slate-500 hover:text-white transition-colors text-xs">
+              <span className="text-white/15 text-xs">·</span>
+              <Link to="/terms-and-conditions" className="text-white/30 hover:text-white transition-colors text-xs">
                 {isFr ? "Conditions" : "Terms"}
               </Link>
-              <span className="text-slate-700 text-xs">·</span>
-              <Link to="/refund-policy" className="text-slate-500 hover:text-white transition-colors text-xs">
+              <span className="text-white/15 text-xs">·</span>
+              <Link to="/refund-policy" className="text-white/30 hover:text-white transition-colors text-xs">
                 {isFr ? "Remboursement" : "Refunds"}
               </Link>
-              <span className="text-slate-700 text-xs hidden sm:inline">·</span>
-              <span className="text-slate-600 text-xs">HTTPS + WAF</span>
+              <span className="text-white/15 text-xs hidden sm:inline">·</span>
+              <span className="text-white/20 text-xs">HTTPS + WAF</span>
             </div>
           </div>
         </div>

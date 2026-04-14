@@ -8,22 +8,22 @@ const steps = [
 ];
 
 const HowItWorks = () => (
-  <section className="py-20 lg:py-28 bg-background">
+  <section className="py-20 lg:py-28 bg-white">
     <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-      <h2 className="text-3xl md:text-[2.5rem] font-bold text-foreground text-center mb-16 tracking-[-0.025em]">
+      <h2 className="text-3xl md:text-[2.5rem] font-bold text-black text-center mb-16 tracking-[-0.025em]">
         Comment ça fonctionne
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
         {steps.map((step, i) => (
-          <div key={i} className="relative text-center bg-card border border-border rounded-2xl p-6 hover:shadow-elevated transition-all duration-300">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-md mx-auto mb-4">
+          <div key={i} className="relative text-center group">
+            <div className="w-16 h-16 rounded-2xl bg-purple-100 flex items-center justify-center mx-auto mb-5 group-hover:bg-purple-200 transition-colors">
+              <step.icon className="w-7 h-7 text-purple-600" />
+            </div>
+            <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold mx-auto mb-4">
               {i + 1}
             </div>
-            <div className="w-16 h-16 rounded-2xl bg-primary/8 flex items-center justify-center mx-auto mb-5">
-              <step.icon className="w-7 h-7 text-primary" />
-            </div>
-            <h3 className="font-bold text-foreground mb-2">{step.title}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-[220px] mx-auto">{step.text}</p>
+            <h3 className="font-bold text-black mb-2">{step.title}</h3>
+            <p className="text-sm text-black/60 leading-relaxed max-w-[220px] mx-auto">{step.text}</p>
           </div>
         ))}
       </div>
