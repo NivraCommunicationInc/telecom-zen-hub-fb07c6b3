@@ -163,6 +163,7 @@ const ClientAuth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isHoneypotTriggered(honeypot)) return; // Silent reject
     if (!loginData.email || !loginData.password) {
       toast({ title: "Veuillez remplir tous les champs", variant: "destructive" });
       return;
