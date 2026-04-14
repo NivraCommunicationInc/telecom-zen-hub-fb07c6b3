@@ -632,6 +632,10 @@ const ContactForm = forwardRef<HTMLDivElement>((_, ref) => {
           </CardContent>
         </Card>
 
+        {/* Anti-bot protections */}
+        <HoneypotField value={honeypot} onChange={setHoneypot} />
+        <CloudflareTurnstile onVerify={handleTurnstileVerify} className="flex justify-center" />
+
         {/* Submit button - type="button" to prevent any form submission */}
         <Button 
           type="button"
