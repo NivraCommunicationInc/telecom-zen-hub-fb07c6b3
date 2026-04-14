@@ -1,12 +1,12 @@
 /**
- * Step 3 — Equipment selection (DB-driven catalog).
- * Prices and items come from services_public table.
+ * Step 3 — Equipment selection (backend-driven catalog).
+ * Uses the field-catalog edge function for equipment data.
  */
-import { Plus, Minus, Loader2, AlertTriangle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Minus, Loader2, AlertTriangle, Router, Tv, Smartphone, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FieldSaleEquipment, FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
-import { useEquipmentCatalog, type EquipmentItem } from "@/field-app/lib/useEquipmentCatalog";
-import { useFieldConfig } from "@/field-app/lib/useFieldConfig";
+import { fetchCatalog } from "@/field-app/lib/fieldServices";
 
 interface Props {
   services: FieldSaleService[];
@@ -14,6 +14,17 @@ interface Props {
   onChange: (eq: FieldSaleEquipment[]) => void;
   onNext: () => void;
   onBack: () => void;
+}
+
+interface EquipmentItem {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  description: string | null;
+  requiredServiceCategory: string;
+  maxQty: number;
+  icon: typeof Router;
 }
 
 const SERVICE_CATEGORY_LABELS: Record<string, string> = {
@@ -24,13 +35,53 @@ const SERVICE_CATEGORY_LABELS: Record<string, string> = {
   other: "Autre",
 };
 
+function resolveEquipmentMeta(name: string, rules: any[]): { category: string; icon: typeof Router; maxQty: number } {
+  const n = name.toLowerCase();
+  // Check rules for max qty
+  const rule = rules.find((r: any) => r.equipment_product_id && r.max_quantity);
+  const maxFromRule = rule?.max_quantity;
+
+  if (n.includes("router") || n.includes("routeur") || n.includes("borne") || n.includes("mesh")) {
+    return { category: "internet", icon: Router, maxQty: maxFromRule ?? (n.includes("router") || n.includes("routeur") ? 1 : 3) };
+  }
+  if (n.includes("terminal") || n.includes("iptv") || n.includes("4k")) {
+    return { category: "tv", icon: Tv, maxQty: maxFromRule ?? 5 };
+  }
+  if (n.includes("sim") || n.includes("esim")) {
+    return { category: "mobile", icon: Smartphone, maxQty: maxFromRule ?? 5 };
+  }
+  return { category: "other", icon: Package, maxQty: maxFromRule ?? 5 };
+}
+
 export default function StepEquipment({ services, equipment, onChange, onNext, onBack }: Props) {
-  const { data: config } = useFieldConfig();
-  const { data: catalog = [], isLoading, error } = useEquipmentCatalog(config);
+  const { data: catalogData, isLoading, error } = useQuery({
+    queryKey: ["field-catalog-full"],
+    queryFn: () => fetchCatalog(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Extract equipment products from the catalog
+  const catalog: EquipmentItem[] = (catalogData?.products || [])
+    .filter((p: any) => p.product_type === "equipment" && p.is_sellable)
+    .map((p: any) => {
+      const prices = (catalogData?.prices || []).filter((pr: any) => pr.product_id === p.id);
+      const oneTimePrice = prices.find((pr: any) => pr.price_type === "one_time");
+      const rules = (catalogData?.equipment_rules || []).filter((r: any) => r.equipment_product_id === p.id);
+      const meta = resolveEquipmentMeta(p.name, rules);
+      return {
+        id: p.id,
+        name: p.name,
+        price: oneTimePrice ? Number(oneTimePrice.amount) : 0,
+        category: meta.category,
+        description: p.customer_description,
+        requiredServiceCategory: meta.category,
+        maxQty: meta.maxQty,
+        icon: meta.icon,
+      };
+    });
 
   const selectedCategories = new Set(services.map((s) => s.category));
 
-  // Group by requiredServiceCategory
   const groupedEquipment = catalog.reduce<Record<string, EquipmentItem[]>>((acc, eq) => {
     if (!acc[eq.requiredServiceCategory]) acc[eq.requiredServiceCategory] = [];
     acc[eq.requiredServiceCategory].push(eq);
