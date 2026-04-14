@@ -38,6 +38,13 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 600,
     sourcemap: false,
     reportCompressedSize: true,
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
   },
   plugins: [
     react(),

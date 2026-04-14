@@ -20,6 +20,11 @@
   # Permissions Policy - Restrict browser features
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
 
+  # Cross-Origin Isolation
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-site
+
 # Ensure correct content types for crawler-critical files
 /sitemap.xml
   Content-Type: application/xml; charset=utf-8
