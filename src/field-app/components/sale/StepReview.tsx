@@ -1,189 +1,231 @@
 /**
- * Step 7 — Final Review before submission.
- * Shows promos impact in financial summary.
+ * StepReview — Final review before submission with confidence signals.
  */
-import { User, Package, Wrench, CreditCard, CalendarDays, Check, MapPin, Tag } from "lucide-react";
+import { AlertCircle, CreditCard, Loader2, Package, Tag, User, Wrench } from "lucide-react";
 import type { FieldSaleDraft } from "@/field-app/lib/fieldSaleTypes";
-// ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only
+import { FieldBadge, FieldPanel } from "@/field-app/components/FieldUI";
 
 interface Props {
   draft: FieldSaleDraft;
   agentName: string;
+  activationFee: number;
+  submitPhase: "idle" | "creating" | "syncing" | "finalizing" | "error";
+  submitMessage: string;
   onSubmit: () => void;
   onBack: () => void;
   isSubmitting: boolean;
 }
 
-function Section({ icon: Icon, title, children }: { icon: typeof User; title: string; children: React.ReactNode }) {
+function Row({ label, value, emphasis = false, danger = false }: { label: string; value: string; emphasis?: boolean; danger?: boolean }) {
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 space-y-3">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-[#22C55E]" />
-        <h3 className="text-sm font-semibold text-[#000000]">{title}</h3>
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={danger ? "font-medium text-destructive" : emphasis ? "font-semibold text-foreground" : "text-foreground"}>{value}</span>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: typeof User;
+  children: React.ReactNode;
+}) {
+  return (
+    <FieldPanel title={title} className="rounded-[1.5rem] p-0" contentClassName="space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Icon className="h-4 w-4 text-primary" />
+        {title}
       </div>
       {children}
-    </div>
+    </FieldPanel>
   );
 }
 
-function Row({ label, value, bold, negative }: { label: string; value: string; bold?: boolean; negative?: boolean }) {
-  return (
-    <div className="flex justify-between text-sm">
-      <span className="text-[#6B7280]">{label}</span>
-      <span className={bold ? "font-bold text-[#000000]" : negative ? "font-medium text-[#DC2626]" : "text-[#000000]"}>{value}</span>
-    </div>
-  );
-}
-
-export default function StepReview({ draft, agentName, onSubmit, onBack, isSubmitting }: Props) {
+export default function StepReview({
+  draft,
+  agentName,
+  activationFee,
+  submitPhase,
+  submitMessage,
+  onSubmit,
+  onBack,
+  isSubmitting,
+}: Props) {
   const { customer, services, promos, equipment, installation, billing, payment } = draft;
 
-  const monthlySubtotal = services.reduce((s, sv) => s + sv.monthlyPrice, 0);
-  const equipmentTotal = equipment.reduce((s, e) => s + e.price * e.quantity, 0);
-  const activationFee = services.length === 0 ? 0 : services.length === 1 ? 25 : 45;
+  const monthlySubtotal = services.reduce((sum, service) => sum + service.monthlyPrice, 0);
+  const equipmentTotal = equipment.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Promo calculations
-  const promoMonthlyDiscount = promos.reduce((sum, p) => {
-    if (p.promo_type === "monthly_discount") return sum + p.discount_monthly;
-    if (p.promo_type === "percentage_off") return sum + (monthlySubtotal * p.discount_percentage / 100);
+  const promoMonthlyDiscount = promos.reduce((sum, promo) => {
+    if (promo.promo_type === "monthly_discount") return sum + promo.discount_monthly;
+    if (promo.promo_type === "percentage_off") return sum + (monthlySubtotal * promo.discount_percentage) / 100;
     return sum;
   }, 0);
-  const promoOnetimeDiscount = promos.reduce((sum, p) => {
-    if (p.promo_type === "activation_credit") return sum + Math.min(p.discount_onetime, activationFee);
-    if (p.promo_type === "free_installation") return sum + p.discount_onetime;
+
+  const promoOnetimeDiscount = promos.reduce((sum, promo) => {
+    if (promo.promo_type === "activation_credit") return sum + Math.min(promo.discount_onetime, activationFee);
+    if (promo.promo_type === "free_installation") return sum + promo.discount_onetime;
     return sum;
   }, 0);
 
   const effectiveMonthly = Math.max(0, monthlySubtotal - promoMonthlyDiscount);
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
-  const oneTimeSubtotal = equipmentTotal + effectiveActivation;
-  const totalDueToday = effectiveMonthly + oneTimeSubtotal;
-  // ⛔ NO LOCAL TAX MATH — display subtotal only
-  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
+  const totalDueToday = effectiveMonthly + equipmentTotal + effectiveActivation;
+
+  const phaseTone = submitPhase === "error" ? "danger" : submitPhase === "idle" ? "default" : "warning";
+  const phaseLabel =
+    submitPhase === "creating"
+      ? "Création"
+      : submitPhase === "syncing"
+        ? "Synchronisation"
+        : submitPhase === "finalizing"
+          ? "Finalisation"
+          : submitPhase === "error"
+            ? "À corriger"
+            : "Prêt";
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-bold text-[#000000]">Confirmation finale</h2>
-        <p className="text-sm text-[#6B7280] mt-0.5">Vérifiez tous les détails avant de soumettre la commande.</p>
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">Confirmation finale</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Vérifiez les informations critiques avant d'envoyer la commande. L'agent doit pouvoir expliquer clairement ce qui se passe ensuite.
+        </p>
       </div>
 
-      <Section icon={User} title="Client">
-        <Row label="Nom" value={`${customer.first_name} ${customer.last_name}`} />
-        <Row label="Date de naissance" value={customer.date_of_birth ? new Date(customer.date_of_birth + "T12:00:00").toLocaleDateString("fr-CA") : "—"} />
-        <Row label="Téléphone" value={customer.phone} />
-        <Row label="Courriel" value={customer.email} />
-        <Row label="Adresse" value={`${customer.address}, ${customer.city} ${customer.postal_code}`} />
-      </Section>
-
-      <Section icon={Package} title="Services">
-        {services.map((s) => (
-          <Row key={s.id} label={s.name} value={`${s.monthlyPrice.toFixed(2)} $/mois`} />
-        ))}
-        <div className="border-t border-[#E5E7EB] pt-2">
-          <Row label="Sous-total mensuel" value={`${monthlySubtotal.toFixed(2)} $/mois`} bold />
-        </div>
-      </Section>
-
-      {/* Promos */}
-      {promos.length > 0 && (
-        <Section icon={Tag} title="Promotions appliquées">
-          {promos.map((p) => (
-            <div key={p.id} className="text-sm">
-              <span className="text-[#374151]">{p.name}</span>
-              {p.promo_type === "monthly_discount" && (
-                <span className="text-[#DC2626] ml-2 font-medium">-{p.discount_monthly.toFixed(2)} $/mois × {p.duration_months} mois</span>
-              )}
-              {(p.promo_type === "free_installation" || p.promo_type === "activation_credit") && (
-                <span className="text-[#DC2626] ml-2 font-medium">-{p.discount_onetime.toFixed(2)} $</span>
-              )}
+      {(submitPhase !== "idle" || submitMessage) && (
+        <div className="rounded-[1.5rem] border border-border bg-card p-4 shadow-card">
+          <div className="flex items-start gap-3">
+            {submitPhase === "error" ? (
+              <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
+            ) : (
+              <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary" />
+            )}
+            <div className="space-y-2">
+              <FieldBadge tone={phaseTone as any}>{phaseLabel}</FieldBadge>
+              <p className="text-sm leading-6 text-foreground">{submitMessage}</p>
             </div>
-          ))}
-        </Section>
+          </div>
+        </div>
       )}
 
-      {equipment.length > 0 && (
-        <Section icon={Package} title="Équipement">
-          {equipment.map((e) => (
-            <Row key={e.id} label={`${e.name} x${e.quantity}`} value={`${(e.price * e.quantity).toFixed(2)} $`} />
-          ))}
-        </Section>
-      )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <FieldPanel title="Client" description="Identité, coordonnées et adresse de service.">
+          <Row label="Nom" value={`${customer.first_name} ${customer.last_name}`} emphasis />
+          <Row label="Date de naissance" value={customer.date_of_birth ? new Date(`${customer.date_of_birth}T12:00:00`).toLocaleDateString("fr-CA") : "—"} />
+          <Row label="Téléphone" value={customer.phone} />
+          <Row label="Courriel" value={customer.email} />
+          <Row label="Adresse" value={`${customer.address}, ${customer.city} ${customer.postal_code}`} />
+        </FieldPanel>
 
-      <Section icon={Wrench} title="Installation">
-        <Row
-          label="Type"
-          value={installation.type === "technician" ? "Installation technicien" : "Auto-installation / Expédition"}
-        />
-        {installation.scheduledDate && (
+        <FieldPanel title="Paiement & installation" description="Le client doit comprendre quoi payer et quelle est la prochaine étape.">
           <Row
-            label="Date"
-            value={new Date(installation.scheduledDate + "T12:00:00").toLocaleDateString("fr-CA", {
-              weekday: "long", day: "numeric", month: "long",
-            })}
+            label="Méthode de paiement"
+            value={
+              payment.method === "paypal"
+                ? "PayPal"
+                : payment.method === "interac"
+                  ? "Virement Interac"
+                  : payment.method === "send_link"
+                    ? "Lien de paiement"
+                    : "Carte sur place"
+            }
+            emphasis
           />
-        )}
-        {installation.timeWindow && <Row label="Plage horaire" value={installation.timeWindow} />}
-      </Section>
-
-      <Section icon={CreditCard} title="Paiement">
-        <Row
-          label="Méthode"
-          value={payment.method === "paypal" ? "PayPal (recommandé)" : payment.method === "interac" ? "Virement Interac" : payment.method === "send_link" ? "Lien de paiement" : "Carte sur place"}
-        />
-        <Row
-          label="Statut"
-          value={
-            payment.status === "completed" ? "✅ Payé" :
-            payment.status === "sent" ? "📧 Lien envoyé" : "⏳ En attente"
-          }
-        />
-        {payment.linkSentTo && <Row label="Envoyé à" value={payment.linkSentTo} />}
-        <Row label="Paiement pré-autorisé" value={billing.preauthorizedPayment ? "Oui" : "Non"} />
-      </Section>
-
-      {/* Financial summary */}
-      <div className="bg-[#000000] text-white rounded-xl p-5 space-y-2">
-        <h3 className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">Résumé financier</h3>
-        <Row label="Premier mois" value={`${monthlySubtotal.toFixed(2)} $`} />
-        {promoMonthlyDiscount > 0 && (
-          <Row label="Réduction mensuelle" value={`-${promoMonthlyDiscount.toFixed(2)} $`} negative />
-        )}
-        <Row label="Frais uniques" value={`${(equipmentTotal + activationFee).toFixed(2)} $`} />
-        {promoOnetimeDiscount > 0 && (
-          <Row label="Réduction frais uniques" value={`-${promoOnetimeDiscount.toFixed(2)} $`} negative />
-        )}
-        <div className="text-xs space-y-1 pt-1">
-          <div className="flex justify-between text-[#9CA3AF]">
-            <span>TPS (5%)</span>
-            <span>Calculé au traitement</span>
-          </div>
-          <div className="flex justify-between text-[#9CA3AF]">
-            <span>TVQ (9.975%)</span>
-            <span>Calculé au traitement</span>
-          </div>
-        </div>
-        <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#374151]">
-          <span>Sous-total aujourd'hui</span>
-          <span className="text-[#22C55E]">{totalDueToday.toFixed(2)} $ (+ taxes)</span>
-        </div>
+          <Row
+            label="Statut"
+            value={payment.status === "completed" ? "Payé" : payment.status === "sent" ? "Lien envoyé" : "En attente"}
+          />
+          <Row label="Préautorisation" value={billing.preauthorizedPayment ? "Oui" : "Non"} />
+          <Row
+            label="Installation"
+            value={installation.type === "technician" ? "Technicien" : "Auto-installation / expédition"}
+          />
+          {installation.scheduledDate ? (
+            <Row
+              label="Date prévue"
+              value={new Date(`${installation.scheduledDate}T12:00:00`).toLocaleDateString("fr-CA", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
+            />
+          ) : null}
+          {installation.timeWindow ? <Row label="Plage horaire" value={installation.timeWindow} /> : null}
+        </FieldPanel>
       </div>
 
-      <div className="bg-[#F3F4F6] rounded-xl p-4 text-xs text-[#6B7280]">
-        <span className="font-medium text-[#374151]">Agent :</span> {agentName}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <FieldPanel title="Services" description="Résumé commercial présenté au client.">
+          <div className="space-y-3">
+            {services.map((service) => (
+              <Row key={service.id} label={service.name} value={`${service.monthlyPrice.toFixed(2)} $/mois`} />
+            ))}
+            <div className="border-t border-border pt-3">
+              <Row label="Sous-total mensuel" value={`${monthlySubtotal.toFixed(2)} $/mois`} emphasis />
+            </div>
+          </div>
+        </FieldPanel>
+
+        <FieldPanel title="Équipement & promos" description="Ce qui modifie le coût affiché aujourd'hui.">
+          <div className="space-y-3">
+            {equipment.length > 0 ? equipment.map((item) => (
+              <Row key={item.id} label={`${item.name} × ${item.quantity}`} value={`${(item.price * item.quantity).toFixed(2)} $`} />
+            )) : <Row label="Équipement" value="Aucun" />}
+            {promos.map((promo) => (
+              <Row
+                key={promo.id}
+                label={promo.name}
+                value={promo.promo_type === "monthly_discount" ? `-${promo.discount_monthly.toFixed(2)} $/mois` : `-${promo.discount_onetime.toFixed(2)} $`}
+                danger
+              />
+            ))}
+          </div>
+        </FieldPanel>
       </div>
+
+      <FieldPanel title="Résumé financier" description="Sous-total terrain visible maintenant. Les taxes sont calculées au traitement central.">
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-3">
+            <Row label="Premier mois" value={`${monthlySubtotal.toFixed(2)} $`} />
+            {promoMonthlyDiscount > 0 ? <Row label="Réduction mensuelle" value={`-${promoMonthlyDiscount.toFixed(2)} $`} danger /> : null}
+            <Row label="Frais d'activation" value={`${activationFee.toFixed(2)} $`} />
+            <Row label="Équipement" value={`${equipmentTotal.toFixed(2)} $`} />
+            {promoOnetimeDiscount > 0 ? <Row label="Crédits immédiats" value={`-${promoOnetimeDiscount.toFixed(2)} $`} danger /> : null}
+            <Row label="Taxes" value="Calculées au traitement" />
+          </div>
+          <div className="rounded-[1.5rem] border border-[hsl(var(--field-premium-border))] bg-[linear-gradient(135deg,hsl(var(--field-hero-from)),hsl(var(--field-hero-to)))] p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Aujourd'hui</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{totalDueToday.toFixed(2)} $</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Sous-total avant taxes, prêt à être expliqué clairement au client.</p>
+            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Agent: <span className="font-medium text-foreground">{agentName}</span></div>
+              <div className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> Paiement: <span className="font-medium text-foreground">{payment.status === "completed" ? "confirmé" : "à suivre"}</span></div>
+              <div className="flex items-center gap-2"><Wrench className="h-4 w-4 text-primary" /> Installation: <span className="font-medium text-foreground">{installation.type === "technician" ? "technicien" : "self-install"}</span></div>
+            </div>
+          </div>
+        </div>
+      </FieldPanel>
 
       <div className="flex gap-3">
-        <button type="button" onClick={onBack} className="flex-1 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] transition-colors">
-          ← Modifier
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex-1 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground transition-all hover:-translate-y-0.5 hover:shadow-card"
+        >
+          Retour modifier
         </button>
         <button
           type="button"
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="flex-1 py-3 rounded-lg bg-[#22C55E] text-white text-sm font-bold hover:bg-[#16A34A] disabled:opacity-50 transition-colors"
+          className="flex-1 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:shadow-elevated disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "Soumission…" : "✓ Soumettre la commande"}
+          {isSubmitting ? "Soumission en cours…" : "Soumettre la commande"}
         </button>
       </div>
     </div>

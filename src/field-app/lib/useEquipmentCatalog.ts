@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Router, Tv, Smartphone, Package } from "lucide-react";
 import type { FieldConfig } from "./useFieldConfig";
+import { logger } from "@/lib/logger";
 
 export interface EquipmentItem {
   id: string;
@@ -52,7 +53,7 @@ export function useEquipmentCatalog(config?: FieldConfig) {
         .order("name");
 
       if (error) {
-        console.error("[EquipmentCatalog] Error:", error);
+        logger.warn("Equipment catalog lookup failed", error);
         return [];
       }
 

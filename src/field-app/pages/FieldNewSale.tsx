@@ -1,9 +1,8 @@
 /**
  * FieldNewSale — Guided 8-step sales workflow.
  * Customer → Services → Promo → Equipment → Installation → Billing → Payment → Review → Submit
- * With real catalog, customer lookup, promo selection, and commission auto-creation.
  */
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,12 +10,14 @@ import { useStaffUser } from "@/lib/hooks/useStaffUser";
 import { fieldPath } from "@/field-app/lib/fieldPaths";
 import { logInternalAudit } from "@/lib/security/internalAuditLogger";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
-  EMPTY_DRAFT, STEP_ORDER,
-  type FieldSaleDraft, type FieldSaleStep,
+  EMPTY_DRAFT,
+  STEP_ORDER,
+  type FieldSaleDraft,
+  type FieldSaleStep,
 } from "@/field-app/lib/fieldSaleTypes";
-import { useFieldConfig, getActivationFee } from "@/field-app/lib/useFieldConfig";
-
+import { getActivationFee, useFieldConfig } from "@/field-app/lib/useFieldConfig";
 import SaleStepIndicator from "@/field-app/components/sale/SaleStepIndicator";
 import StepCustomer from "@/field-app/components/sale/StepCustomer";
 import StepServices from "@/field-app/components/sale/StepServices";
@@ -27,10 +28,14 @@ import StepBilling from "@/field-app/components/sale/StepBilling";
 import StepPayment from "@/field-app/components/sale/StepPayment";
 import StepReview from "@/field-app/components/sale/StepReview";
 
+type SubmitPhase = "idle" | "creating" | "syncing" | "finalizing" | "error";
+
 export default function FieldNewSale() {
   const navigate = useNavigate();
   const { user } = useStaffUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<SubmitPhase>("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
 
   const { data: profile } = useQuery({
     queryKey: ["field-agent-profile", user?.id],
@@ -73,42 +78,47 @@ export default function FieldNewSale() {
   }, []);
 
   const { data: fieldConfig } = useFieldConfig();
-  const activationFee = fieldConfig ? getActivationFee(fieldConfig, draft.services.length) : (draft.services.length === 0 ? 0 : draft.services.length === 1 ? 25 : 45);
+  const activationFee = fieldConfig
+    ? getActivationFee(fieldConfig, draft.services.length)
+    : draft.services.length === 0
+      ? 0
+      : draft.services.length === 1
+        ? 25
+        : 45;
 
-  // Compute promo discounts
-  const monthlySubtotal = draft.services.reduce((s, sv) => s + sv.monthlyPrice, 0);
-  const equipmentTotal = draft.equipment.reduce((s, e) => s + e.price * e.quantity, 0);
+  const monthlySubtotal = draft.services.reduce((sum, service) => sum + service.monthlyPrice, 0);
+  const equipmentTotal = draft.equipment.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Calculate promo impact
-  const promoMonthlyDiscount = draft.promos.reduce((sum, p) => {
-    if (p.promo_type === "monthly_discount") return sum + p.discount_monthly;
-    if (p.promo_type === "percentage_off") return sum + (monthlySubtotal * p.discount_percentage / 100);
+  const promoMonthlyDiscount = draft.promos.reduce((sum, promo) => {
+    if (promo.promo_type === "monthly_discount") return sum + promo.discount_monthly;
+    if (promo.promo_type === "percentage_off") return sum + (monthlySubtotal * promo.discount_percentage) / 100;
     return sum;
   }, 0);
-  const promoOnetimeDiscount = draft.promos.reduce((sum, p) => {
-    if (p.promo_type === "activation_credit") return sum + Math.min(p.discount_onetime, activationFee);
-    if (p.promo_type === "free_installation") return sum + p.discount_onetime;
+
+  const promoOnetimeDiscount = draft.promos.reduce((sum, promo) => {
+    if (promo.promo_type === "activation_credit") return sum + Math.min(promo.discount_onetime, activationFee);
+    if (promo.promo_type === "free_installation") return sum + promo.discount_onetime;
     return sum;
   }, 0);
 
   const effectiveMonthly = Math.max(0, monthlySubtotal - promoMonthlyDiscount);
   const effectiveActivation = Math.max(0, activationFee - promoOnetimeDiscount);
   const totalDueToday = effectiveMonthly + equipmentTotal + effectiveActivation;
-  // ⛔ NO LOCAL TAX MATH — display subtotal only; server computes taxes at sync
-  const taxes = { tps: 0, tvq: 0, total: totalDueToday, taxableAmount: totalDueToday };
+  const taxes = { total: totalDueToday };
 
   const handleSubmit = async () => {
     if (!user?.id || isSubmitting) return;
+
     setIsSubmitting(true);
+    setSubmitPhase("creating");
+    setSubmitMessage("Création de la commande terrain et validation des données client…");
 
     try {
-      const promoNames = draft.promos.map(p => p.name).join(", ");
-
-      // ═══ STEP 1: Insert into field_sales_orders (canonical sync source) ═══
-      const servicesPayload = draft.services.map(s => ({
-        name: s.name,
-        category: s.category,
-        price_monthly: s.monthlyPrice,
+      const promoNames = draft.promos.map((promo) => promo.name).join(", ");
+      const servicesPayload = draft.services.map((service) => ({
+        name: service.name,
+        category: service.category,
+        price_monthly: service.monthlyPrice,
         price_setup: 0,
         quantity: 1,
       }));
@@ -143,37 +153,56 @@ export default function FieldNewSale() {
           sync_status: "pending",
           internal_notes: [
             promoNames ? `Promos: ${promoNames}` : "",
-            draft.equipment.length > 0 ? `Équipement: ${draft.equipment.map(e => `${e.name} x${e.quantity}`).join(", ")}` : "",
+            draft.equipment.length > 0 ? `Équipement: ${draft.equipment.map((item) => `${item.name} x${item.quantity}`).join(", ")}` : "",
             draft.billing.preauthorizedPayment ? "Pré-auth: Oui" : "",
             draft.customer.notes || "",
-          ].filter(Boolean).join("\n"),
+          ]
+            .filter(Boolean)
+            .join("\n"),
         })
         .select("id")
         .single();
 
       if (fieldOrderError) throw fieldOrderError;
 
-      console.log("[FieldNewSale] field_sales_orders created:", fieldOrder.id);
+      logger.log("Field sale created", fieldOrder.id);
 
-      // ═══ STEP 2: Call field-sales-sync to create canonical order ═══
+      setSubmitPhase("syncing");
+      setSubmitMessage("Synchronisation en cours avec le système central pour rendre la commande visible aux opérations…");
+
+      let syncState: "success" | "pending" | "error" = "pending";
+      let syncErrorMessage = "";
+
       try {
-        const { data: syncResult, error: syncError } = await supabase.functions.invoke(
-          "field-sales-sync",
-          { body: { action: "sync_single", sale_id: fieldOrder.id } }
-        );
+        const { data: syncResult, error: syncError } = await supabase.functions.invoke("field-sales-sync", {
+          body: { action: "sync_single", sale_id: fieldOrder.id },
+        });
 
         if (syncError) {
-          console.error("[FieldNewSale] Sync error (non-blocking):", syncError);
+          syncState = "error";
+          syncErrorMessage = syncError.message || "Erreur de synchronisation";
+          logger.warn("Field sale sync error", syncError);
         } else if (syncResult?.success) {
-          console.log("[FieldNewSale] Canonical order created:", syncResult.order_number);
+          syncState = "success";
+          logger.log("Field sale synced", syncResult.order_number || fieldOrder.id);
         } else {
-          console.warn("[FieldNewSale] Sync returned failure:", syncResult);
+          syncState = "error";
+          syncErrorMessage = syncResult?.error || "La synchronisation a été refusée";
+          logger.warn("Field sale sync returned failure", syncResult);
         }
-      } catch (syncErr) {
-        console.error("[FieldNewSale] Sync call failed (non-blocking):", syncErr);
+      } catch (syncErr: any) {
+        syncState = "error";
+        syncErrorMessage = syncErr?.message || "La synchronisation a échoué";
+        logger.warn("Field sale sync invocation failed", syncErr);
       }
 
-      // ═══ STEP 3: Also create field_leads record (legacy / CRM tracking) ═══
+      setSubmitPhase("finalizing");
+      setSubmitMessage(
+        syncState === "success"
+          ? "Commande transmise avec succès. Finalisation de la trace CRM et du journal d'audit…"
+          : "Commande créée. La vente est sauvegardée, mais la synchronisation devra être suivie dans le détail de commande."
+      );
+
       try {
         await supabase.from("field_leads").insert({
           agent_id: user.id,
@@ -185,24 +214,32 @@ export default function FieldNewSale() {
           address: draft.customer.address,
           city: draft.customer.city,
           postal_code: draft.customer.postal_code,
-          service_need: draft.services.map((s) => s.name).join(", "),
-          payment_method_intent: draft.payment.method === "paypal" ? "PayPal" : draft.payment.method === "interac" ? "Virement Interac" : draft.payment.method === "send_link" ? "Lien de paiement" : "Carte sur place",
+          service_need: draft.services.map((service) => service.name).join(", "),
+          payment_method_intent:
+            draft.payment.method === "paypal"
+              ? "PayPal"
+              : draft.payment.method === "interac"
+                ? "Virement Interac"
+                : draft.payment.method === "send_link"
+                  ? "Lien de paiement"
+                  : "Carte sur place",
           eligibility_notes: `Installation: ${draft.installation.type}${draft.installation.scheduledDate ? ` le ${draft.installation.scheduledDate}` : ""}`,
           notes: [
-            `Services: ${draft.services.map((s) => s.name).join(", ")}`,
-            `Équipement: ${draft.equipment.map((e) => `${e.name} x${e.quantity}`).join(", ") || "Aucun"}`,
+            `Services: ${draft.services.map((service) => service.name).join(", ")}`,
+            `Équipement: ${draft.equipment.map((item) => `${item.name} x${item.quantity}`).join(", ") || "Aucun"}`,
             promoNames ? `Promos: ${promoNames}` : "",
             `Total: ${taxes.total.toFixed(2)} $`,
             `Pré-auth: ${draft.billing.preauthorizedPayment ? "Oui" : "Non"}`,
             draft.customer.notes,
-          ].filter(Boolean).join(". ").trim(),
+          ]
+            .filter(Boolean)
+            .join(". ")
+            .trim(),
           status: "submitted",
           submitted_at: new Date().toISOString(),
         });
-        // Commission is now created server-side by field-sales-sync at sync time
-        // and unlocked only when the order reaches "activated" status
       } catch (leadErr) {
-        console.error("[FieldNewSale] Lead creation failed (non-blocking):", leadErr);
+        logger.warn("Field lead mirror creation failed", leadErr);
       }
 
       await logInternalAudit({
@@ -213,25 +250,44 @@ export default function FieldNewSale() {
         targetId: fieldOrder.id,
         details: {
           customer: `${draft.customer.first_name} ${draft.customer.last_name}`,
-          services: draft.services.map((s) => s.name),
-          promos: draft.promos.map((p) => p.name),
+          services: draft.services.map((service) => service.name),
+          promos: draft.promos.map((promo) => promo.name),
           total: taxes.total,
           payment_method: draft.payment.method,
+          sync_state: syncState,
         },
       });
 
-      toast.success("Commande soumise avec succès !");
-      navigate(fieldPath(`/sale/success?leadId=${fieldOrder.id}&total=${taxes.total.toFixed(2)}&payment=${draft.payment.method}&status=${draft.payment.status}`));
-    } catch (err) {
-      console.error(err);
-      toast.error("Erreur lors de la soumission");
+      if (syncState === "success") {
+        toast.success("Commande soumise et synchronisée avec succès");
+      } else if (syncState === "error") {
+        toast.warning("Commande créée, mais la synchronisation demande un suivi");
+      } else {
+        toast.success("Commande créée — synchronisation toujours en cours");
+      }
+
+      const nextUrl = new URLSearchParams({
+        leadId: fieldOrder.id,
+        total: taxes.total.toFixed(2),
+        payment: draft.payment.method,
+        status: draft.payment.status,
+        sync: syncState,
+      });
+
+      if (syncErrorMessage) nextUrl.set("syncError", syncErrorMessage);
+      navigate(fieldPath(`/sale/success?${nextUrl.toString()}`));
+    } catch (err: any) {
+      logger.warn("Field sale submission failed", err);
+      setSubmitPhase("error");
+      setSubmitMessage(err?.message || "La commande n'a pas pu être soumise. Vérifiez les données et réessayez.");
+      toast.error(err?.message || "Erreur lors de la soumission");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5">
       <SaleStepIndicator
         currentStep={draft.step}
         completedSteps={completedSteps}
@@ -318,6 +374,9 @@ export default function FieldNewSale() {
         <StepReview
           draft={draft}
           agentName={profile?.full_name || "Agent"}
+          activationFee={activationFee}
+          submitPhase={submitPhase}
+          submitMessage={submitMessage}
           onSubmit={handleSubmit}
           onBack={() => goBack("review")}
           isSubmitting={isSubmitting}

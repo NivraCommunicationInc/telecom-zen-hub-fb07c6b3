@@ -3,6 +3,7 @@
  * Replaces the mock postal-code-length check.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 export interface CoverageResult {
   status: "available" | "limited" | "unavailable" | "unknown";
@@ -32,7 +33,7 @@ export async function checkServiceCoverage(postalCode: string): Promise<Coverage
     .maybeSingle();
 
   if (error) {
-    console.error("[ServiceCoverage] DB error:", error);
+    logger.warn("Service coverage lookup failed", error);
     return { status: "unknown" };
   }
 
