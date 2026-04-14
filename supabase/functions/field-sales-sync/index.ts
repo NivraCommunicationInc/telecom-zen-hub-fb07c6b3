@@ -83,7 +83,7 @@ function wrapLineItemsForOrder(lineItems: any[]): Record<string, any> {
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: buildCorsHeaders(req) });
   }
 
   try {
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ success: false, error: 'Non autorisé' }),
-        { status: 401, headers: corsHeaders }
+        { status: 401, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
     if (claimsError || !claims.user) {
       return new Response(
         JSON.stringify({ success: false, error: 'Session invalide' }),
-        { status: 401, headers: corsHeaders }
+        { status: 401, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -701,7 +701,7 @@ Deno.serve(async (req) => {
         console.error('[field-sales-sync] Sale not found:', saleIdToSync, fetchError);
         return new Response(
           JSON.stringify({ success: false, error: 'Vente non trouvée' }),
-          { status: 404, headers: corsHeaders }
+          { status: 404, headers: buildCorsHeaders(req) }
         );
       }
 
@@ -724,7 +724,7 @@ Deno.serve(async (req) => {
         console.error('[field-sales-sync] Unauthorized:', claims.user.id);
         return new Response(
           JSON.stringify({ success: false, error: 'Non autorisé' }),
-          { status: 403, headers: corsHeaders }
+          { status: 403, headers: buildCorsHeaders(req) }
         );
       }
 
@@ -733,7 +733,7 @@ Deno.serve(async (req) => {
       
       return new Response(
         JSON.stringify(result),
-        { status: result.success ? 200 : 500, headers: corsHeaders }
+        { status: result.success ? 200 : 500, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -751,7 +751,7 @@ Deno.serve(async (req) => {
       if (!adminRole) {
         return new Response(
           JSON.stringify({ success: false, error: 'Accès administrateur requis' }),
-          { status: 403, headers: corsHeaders }
+          { status: 403, headers: buildCorsHeaders(req) }
         );
       }
 
@@ -769,7 +769,7 @@ Deno.serve(async (req) => {
       if (!pendingSales || pendingSales.length === 0) {
         return new Response(
           JSON.stringify({ success: true, synced: 0, message: 'Aucune vente en attente' }),
-          { headers: corsHeaders }
+          { headers: buildCorsHeaders(req) }
         );
       }
 
@@ -796,7 +796,7 @@ Deno.serve(async (req) => {
           failed,
           errors: errors.length > 0 ? errors : undefined,
         }),
-        { headers: corsHeaders }
+        { headers: buildCorsHeaders(req) }
       );
     }
 
@@ -820,20 +820,20 @@ Deno.serve(async (req) => {
             total: allSales?.length || 0 
           } 
         }),
-        { headers: corsHeaders }
+        { headers: buildCorsHeaders(req) }
       );
     }
 
     return new Response(
       JSON.stringify({ success: false, error: 'Action non reconnue' }),
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: buildCorsHeaders(req) }
     );
 
   } catch (error: any) {
     console.error('[field-sales-sync] Error:', error);
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 });
