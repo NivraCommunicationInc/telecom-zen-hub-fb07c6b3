@@ -1,9 +1,12 @@
 /**
- * Step 3 — Equipment selection (dynamic based on selected services).
+ * Step 3 — Equipment selection (DB-driven catalog).
+ * Prices and items come from services_public table.
  */
-import { Router, Tv, Smartphone, Package, Plus, Minus } from "lucide-react";
+import { Plus, Minus, Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FieldSaleEquipment, FieldSaleService } from "@/field-app/lib/fieldSaleTypes";
+import { useEquipmentCatalog, type EquipmentItem } from "@/field-app/lib/useEquipmentCatalog";
+import { useFieldConfig } from "@/field-app/lib/useFieldConfig";
 
 interface Props {
   services: FieldSaleService[];
@@ -13,47 +16,22 @@ interface Props {
   onBack: () => void;
 }
 
-interface EquipmentOption {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-  requiredServiceCategory: string;
-  maxQty: number;
-  icon: typeof Router;
-}
-
-const EQUIPMENT_CATALOG: EquipmentOption[] = [
-  // Internet
-  { id: "eq-modem", name: "Modem câble", price: 0, category: "modem", requiredServiceCategory: "internet", maxQty: 1, icon: Package },
-  { id: "eq-router", name: "Routeur Wi-Fi 6", price: 99.99, category: "router", requiredServiceCategory: "internet", maxQty: 1, icon: Router },
-  { id: "eq-borne", name: "Borne Wi-Fi (extension)", price: 79.99, category: "borne", requiredServiceCategory: "internet", maxQty: 3, icon: Router },
-  { id: "eq-mesh", name: "Kit Mesh Wi-Fi (2 bornes)", price: 149.99, category: "mesh", requiredServiceCategory: "internet", maxQty: 1, icon: Router },
-  // TV
-  { id: "eq-tv-terminal", name: "Terminal IPTV", price: 75, category: "terminal", requiredServiceCategory: "tv", maxQty: 5, icon: Tv },
-  { id: "eq-tv-hdmi", name: "Câble HDMI (inclus)", price: 0, category: "accessoire", requiredServiceCategory: "tv", maxQty: 5, icon: Tv },
-  // Mobile
-  { id: "eq-sim", name: "Carte SIM physique", price: 10, category: "sim", requiredServiceCategory: "mobile", maxQty: 5, icon: Smartphone },
-  { id: "eq-esim", name: "eSIM (activation)", price: 0, category: "esim", requiredServiceCategory: "mobile", maxQty: 5, icon: Smartphone },
-  // Security
-  { id: "eq-cam-int", name: "Caméra intérieure Wi-Fi", price: 89.99, category: "camera", requiredServiceCategory: "security", maxQty: 4, icon: Package },
-  { id: "eq-cam-ext", name: "Caméra extérieure PoE", price: 129.99, category: "camera", requiredServiceCategory: "security", maxQty: 4, icon: Package },
-  { id: "eq-sensor", name: "Détecteur mouvement", price: 29.99, category: "sensor", requiredServiceCategory: "security", maxQty: 6, icon: Package },
-  { id: "eq-panel", name: "Panneau de contrôle", price: 199.99, category: "panel", requiredServiceCategory: "security", maxQty: 1, icon: Package },
-];
-
 const SERVICE_CATEGORY_LABELS: Record<string, string> = {
   internet: "Internet",
   tv: "Télévision",
   mobile: "Mobile",
   security: "Sécurité",
+  other: "Autre",
 };
 
 export default function StepEquipment({ services, equipment, onChange, onNext, onBack }: Props) {
+  const { data: config } = useFieldConfig();
+  const { data: catalog = [], isLoading, error } = useEquipmentCatalog(config);
+
   const selectedCategories = new Set(services.map((s) => s.category));
 
-  // Show ALL equipment, grouped by category — highlight relevant ones
-  const groupedEquipment = EQUIPMENT_CATALOG.reduce<Record<string, EquipmentOption[]>>((acc, eq) => {
+  // Group by requiredServiceCategory
+  const groupedEquipment = catalog.reduce<Record<string, EquipmentItem[]>>((acc, eq) => {
     if (!acc[eq.requiredServiceCategory]) acc[eq.requiredServiceCategory] = [];
     acc[eq.requiredServiceCategory].push(eq);
     return acc;
@@ -61,7 +39,7 @@ export default function StepEquipment({ services, equipment, onChange, onNext, o
 
   const getQty = (id: string) => equipment.find((e) => e.id === id)?.quantity ?? 0;
 
-  const setQty = (eq: EquipmentOption, qty: number) => {
+  const setQty = (eq: EquipmentItem, qty: number) => {
     const clamped = Math.max(0, Math.min(qty, eq.maxQty));
     const filtered = equipment.filter((e) => e.id !== eq.id);
     if (clamped > 0) {
@@ -71,6 +49,43 @@ export default function StepEquipment({ services, equipment, onChange, onNext, o
   };
 
   const totalEquipment = equipment.reduce((s, e) => s + e.price * e.quantity, 0);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-5 w-5 animate-spin text-[#22C55E]" />
+      </div>
+    );
+  }
+
+  if (error || catalog.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-bold text-[#000000]">Équipement</h2>
+          <p className="text-sm text-[#6B7280] mt-0.5">Sélectionnez l'équipement nécessaire.</p>
+        </div>
+        {error ? (
+          <div className="p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-sm text-[#DC2626]">
+            <AlertTriangle className="h-4 w-4 inline mr-2" />
+            Erreur de chargement du catalogue d'équipement.
+          </div>
+        ) : (
+          <div className="p-6 rounded-xl bg-[#F3F4F6] text-center text-sm text-[#6B7280]">
+            Aucun équipement disponible dans le catalogue.
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button type="button" onClick={onBack} className="flex-1 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] transition-colors">
+            ← Retour
+          </button>
+          <button type="button" onClick={onNext} className="flex-1 py-2.5 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors">
+            Continuer sans équipement →
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -89,12 +104,11 @@ export default function StepEquipment({ services, equipment, onChange, onNext, o
               <h3 className="text-sm font-semibold text-[#374151]">
                 {SERVICE_CATEGORY_LABELS[categoryKey] || categoryKey}
               </h3>
-              {isRelevant && (
+              {isRelevant ? (
                 <span className="text-[10px] font-medium bg-[#DCFCE7] text-[#16A34A] px-1.5 py-0.5 rounded">
                   Service sélectionné
                 </span>
-              )}
-              {!isRelevant && (
+              ) : (
                 <span className="text-[10px] font-medium bg-[#F3F4F6] text-[#9CA3AF] px-1.5 py-0.5 rounded">
                   Optionnel
                 </span>
@@ -124,6 +138,9 @@ export default function StepEquipment({ services, equipment, onChange, onNext, o
                         <p className="text-xs text-[#6B7280]">
                           {eq.price === 0 ? "Gratuit" : `${eq.price.toFixed(2)} $`} · Frais unique · Max {eq.maxQty}
                         </p>
+                        {eq.description && (
+                          <p className="text-[10px] text-[#9CA3AF] mt-0.5 line-clamp-1">{eq.description}</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -153,7 +170,6 @@ export default function StepEquipment({ services, equipment, onChange, onNext, o
         );
       })}
 
-      {/* Equipment total */}
       {totalEquipment > 0 && (
         <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl p-4">
           <div className="flex justify-between text-sm font-bold">
