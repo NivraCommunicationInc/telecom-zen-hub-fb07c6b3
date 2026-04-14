@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import AppRoutes from "@/components/AppRoutes";
 import NivraChat from "@/components/chatbot/NivraChat";
+import CookieConsent from "@/components/CookieConsent";
 import { DevOverflowDetector } from "@/components/DevOverflowDetector";
 import { AppModeGate, InstallPrompt, NotificationPrompt, SWUpdateHandler } from "@/components/pwa";
 import LockdownGuard from "@/components/LockdownGuard";
@@ -46,6 +47,7 @@ const App = () => (
           <InstallPrompt />
           <NotificationPrompt />
           <SWUpdateHandler />
+          <CookieConsent />
         </BrowserRouter>
       </TooltipProvider>
     </LanguageProvider>

@@ -38,6 +38,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     legal: [
       { label: isFr ? "Conditions" : "Terms", href: "/conditions-de-service" },
       { label: isFr ? "Confidentialité" : "Privacy", href: "/privacy-policy" },
+      { label: isFr ? "Loi 25 — Vos droits" : "Law 25 — Your Rights", href: "/politique-de-confidentialite" },
       { label: isFr ? "Remboursement" : "Refunds", href: "/refund-policy" },
       { label: isFr ? "Paiement" : "Payment", href: "/modalites-paiement" },
       { label: isFr ? "Frais" : "Fees", href: "/frais-possibles" },

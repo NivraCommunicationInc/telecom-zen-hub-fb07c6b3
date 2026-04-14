@@ -206,8 +206,8 @@ const TVConfigurator = lazy(() => import("@/pages/TVConfigurator"));
 const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
 const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
 const QuoteCheckoutPage = lazy(() => import("@/pages/QuoteCheckout"));
+const PolitiqueConfidentialite = lazy(() => import("@/pages/PolitiqueConfidentialite"));
 
-// Legal pages (lazy-loaded)
 const ConditionsDeService = lazy(() => import("@/pages/legal/ConditionsDeService"));
 const InstallationRendezvous = lazy(() => import("@/pages/legal/InstallationRendezvous"));
 const ModalitesPaiement = lazy(() => import("@/pages/legal/ModalitesPaiement"));
@@ -438,6 +438,7 @@ const AppRoutes = () => {
       <Route path="/equipement-garantie" element={<MaintenanceGuard><PublicLayout><EquipementGarantie /></PublicLayout></MaintenanceGuard>} />
       <Route path="/support-et-plaintes" element={<MaintenanceGuard><PublicLayout><SupportEtPlaintes /></PublicLayout></MaintenanceGuard>} />
       <Route path="/confidentialite-loi25" element={<MaintenanceGuard><PublicLayout><ConfidentialiteLoi25 /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/politique-de-confidentialite" element={<MaintenanceGuard><PublicLayout><PolitiqueConfidentialite /></PublicLayout></MaintenanceGuard>} />
       <Route path="/frais-possibles" element={<MaintenanceGuard><PublicLayout><FraisPossibles /></PublicLayout></MaintenanceGuard>} />
       <Route path="/refund-policy" element={<MaintenanceGuard><PublicLayout><RefundPolicy /></PublicLayout></MaintenanceGuard>} />
       <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
