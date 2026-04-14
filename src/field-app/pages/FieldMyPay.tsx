@@ -1,10 +1,11 @@
 /**
  * FieldMyPay — Clear payout visibility for field reps.
+ * Uses backend commission engine only.
  */
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Banknote, Clock, DollarSign, ExternalLink, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchPaySummary } from "@/field-app/lib/fieldServices";
 import { FieldBadge, FieldMetricCard, FieldPageHeader, FieldPanel } from "@/field-app/components/FieldUI";
 
 const formatMoney = (value: number) => `${value.toFixed(2)} $`;
@@ -12,38 +13,7 @@ const formatMoney = (value: number) => `${value.toFixed(2)} $`;
 export default function FieldMyPay() {
   const { data, isLoading } = useQuery({
     queryKey: ["field-pay-summary"],
-    queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const [commissionsRes, payrollRes] = await Promise.all([
-        supabase.from("sales_commissions").select("commission_amount, status").eq("salesperson_id", user.id),
-        supabase
-          .from("payroll_entries")
-          .select("net_pay, status, pay_period, created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(3),
-      ]);
-
-      const commissions = commissionsRes.data || [];
-      const payrollEntries = payrollRes.data || [];
-
-      return {
-        totalPending: commissions
-          .filter((commission) => ["pending", "pending_activation"].includes(commission.status))
-          .reduce((sum, commission) => sum + Number(commission.commission_amount || 0), 0),
-        totalApproved: commissions
-          .filter((commission) => ["validated", "approved"].includes(commission.status))
-          .reduce((sum, commission) => sum + Number(commission.commission_amount || 0), 0),
-        totalPaid: commissions
-          .filter((commission) => commission.status === "paid")
-          .reduce((sum, commission) => sum + Number(commission.commission_amount || 0), 0),
-        payrollEntries,
-      };
-    },
+    queryFn: fetchPaySummary,
     staleTime: 60_000,
   });
 
@@ -55,20 +25,21 @@ export default function FieldMyPay() {
     );
   }
 
-  const summary = data ?? { totalPending: 0, totalApproved: 0, totalPaid: 0, payrollEntries: [] };
+  const summary = data?.summary ?? { pending: 0, approved: 0, paid: 0 };
+  const payrollEntries = data?.payroll_entries || [];
 
   return (
     <div className="space-y-6">
       <FieldPageHeader
         eyebrow="Rémunération"
         title="Visibilité de paie"
-        description="Cette page n'est plus un placeholder: elle vous dit clairement ce qui est dû, ce qui est approuvé et ce qui a déjà été payé."
+        description="Montants dus, approuvés et payés — directement depuis le moteur de commissions."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <FieldMetricCard label="En attente" value={formatMoney(summary.totalPending)} hint="Commissions en cours de validation ou d'activation" icon={Clock} tone="warning" />
-        <FieldMetricCard label="Approuvé" value={formatMoney(summary.totalApproved)} hint="Montants prêts à entrer dans le prochain cycle" icon={DollarSign} tone="info" />
-        <FieldMetricCard label="Payé" value={formatMoney(summary.totalPaid)} hint="Commissions déjà versées" icon={Banknote} tone="success" />
+        <FieldMetricCard label="En attente" value={formatMoney(summary.pending)} hint="Commissions en cours de validation ou d'activation" icon={Clock} tone="warning" />
+        <FieldMetricCard label="Approuvé" value={formatMoney(summary.approved)} hint="Montants prêts à entrer dans le prochain cycle" icon={DollarSign} tone="info" />
+        <FieldMetricCard label="Payé" value={formatMoney(summary.paid)} hint="Commissions déjà versées" icon={Banknote} tone="success" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
@@ -82,10 +53,10 @@ export default function FieldMyPay() {
 
         <FieldPanel title="Dernières paies" description="Historique rapide des fiches de paie les plus récentes.">
           <div className="space-y-3">
-            {summary.payrollEntries.length === 0 ? (
+            {payrollEntries.length === 0 ? (
               <p className="text-sm text-muted-foreground">Aucune fiche de paie récente disponible ici.</p>
             ) : (
-              summary.payrollEntries.map((entry: any) => (
+              payrollEntries.map((entry: any) => (
                 <div key={`${entry.pay_period}-${entry.created_at}`} className="rounded-[1.25rem] border border-border bg-card px-4 py-3 shadow-card">
                   <div className="flex items-center justify-between gap-3">
                     <div>
