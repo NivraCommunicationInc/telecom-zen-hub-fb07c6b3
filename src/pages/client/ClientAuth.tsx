@@ -713,6 +713,7 @@ const ClientAuth = () => {
                       Mot de passe oublié?
                     </button>
                   </div>
+                  <CloudflareTurnstile onVerify={handleTurnstileVerify} className="flex justify-center" />
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold shadow-lg shadow-teal-500/25 h-12 text-base" 
