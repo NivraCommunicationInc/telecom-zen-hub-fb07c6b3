@@ -183,7 +183,11 @@ export default function StaffOrderDetail() {
     if (!order) return;
     setIsGeneratingPdf("contract");
     try {
-      const result = await generateCanonicalContractPDF(supabase, order.related_contract_id || order.id);
+      const result = await generateCanonicalContractPDF(
+        supabase,
+        order.related_contract_id || order.id,
+        { source: order.related_contract_id ? "contract" : "order" }
+      );
       if (result.success && result.blob) {
         safePDFOpen(result.blob, result.filename || `Contrat_${order.order_number}.pdf`);
         toast.success("Contrat ouvert");

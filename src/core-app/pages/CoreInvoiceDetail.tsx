@@ -75,7 +75,7 @@ const CoreInvoiceDetail = () => {
             setPdfError("Aucune commande liée — contrat non disponible");
             return;
           }
-          result = await generateCanonicalContractPDF(adminClient, inv.order_id);
+          result = await generateCanonicalContractPDF(adminClient, inv.order_id, { source: "order" });
           title = `Contrat — ${inv.order_number || ""}`;
           filename = `Contrat_${inv.order_number || inv.invoice_number}.pdf`;
           break;
