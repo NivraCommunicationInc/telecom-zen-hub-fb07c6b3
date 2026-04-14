@@ -6,8 +6,10 @@ import { usePublicServices } from "@/hooks/usePublicServices";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check, ArrowRight, Star } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const HomePricing = () => {
+  const { t } = useLanguage();
   const { data: services, isLoading } = usePublicServices({ surface: "website", categories: ["Internet"] });
 
   const plans = useMemo(() => {
@@ -58,10 +60,10 @@ const HomePricing = () => {
       <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
         <div className="text-center mb-14">
           <h2 className="text-3xl md:text-[2.5rem] font-bold text-white mb-4 tracking-[-0.025em]">
-            Choisissez votre forfait
+            {t('pricing.title')}
           </h2>
           <p className="text-white/60 text-lg">
-            Internet illimité, sans contrat
+            {t('pricing.subtitle')}
           </p>
         </div>
 
@@ -80,7 +82,7 @@ const HomePricing = () => {
                 <div className="absolute top-4 right-4 z-10">
                   <div className="flex items-center gap-1 bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full">
                     <Star className="w-3 h-3 fill-current" />
-                    Recommandé
+                    {t('pricing.recommended')}
                   </div>
                 </div>
               )}
@@ -116,7 +118,7 @@ const HomePricing = () => {
                     ? "h-12 bg-white text-black"
                     : "h-10 bg-white/10 text-white group-hover:bg-white group-hover:text-black"
                 }`}>
-                  Choisir
+                  {t('pricing.choose')}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               </div>
@@ -125,7 +127,7 @@ const HomePricing = () => {
         </div>
 
         <p className="text-center text-xs text-white/40">
-          Taxes en sus • Équipement en option si applicable
+          {t('pricing.disclaimer')}
         </p>
       </div>
     </section>
