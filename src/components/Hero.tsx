@@ -89,6 +89,8 @@ const Hero = () => {
                 alt="Famille profitant d'Internet à la maison avec Nivra"
                 className="w-full h-full object-cover"
                 loading="eager"
+                width={800}
+                height={600}
               />
               {/* Subtle overlay gradient for depth */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />

@@ -174,205 +174,204 @@ const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 const CoreCreateQuote = lazy(() => import("@/core-app/pages/CoreCreateQuote"));
 
-// Public pages
-import Index from "@/pages/Index";
-import About from "@/pages/About";
-import Careers from "@/pages/Careers";
-import JobApplication from "@/pages/JobApplication";
-import FAQ from "@/pages/FAQ";
-import Contact from "@/pages/Contact";
-import PrivacyPolicy from "@/pages/PrivacyPolicy";
-import TermsOfUse from "@/pages/TermsOfUse";
-import ServicesDetail from "@/pages/ServicesDetail";
-import InternetPlans from "@/pages/InternetPlans";
-import TVPlans from "@/pages/TVPlans";
-import MobilePlans from "@/pages/MobilePlans";
-import MobileCoverage from "@/pages/MobileCoverage";
-import StreamingPlans from "@/pages/StreamingPlans";
-
-import DevLogin from "@/pages/DevLogin";
-import E2eInstallTest from "@/pages/E2eInstallTest";
-import VerifyIdentity from "@/pages/VerifyIdentity";
-import NotAuthorized from "@/pages/NotAuthorized";
-import APropos from "@/pages/APropos";
-import Aide from "@/pages/Aide";
-import DynamicPage from "@/pages/DynamicPage";
-import Contest from "@/pages/Contest";
-import TrackOrder from "@/pages/TrackOrder";
-import Parrainage from "@/pages/Parrainage";
-import StatusPage from "@/pages/StatusPage";
-import Install from "@/pages/Install";
-import ComparePlans from "@/pages/ComparePlans";
-import TVConfigurator from "@/pages/TVConfigurator";
+// Public pages (lazy-loaded for code splitting)
+const Index = lazy(() => import("@/pages/Index"));
+const About = lazy(() => import("@/pages/About"));
+const Careers = lazy(() => import("@/pages/Careers"));
+const JobApplication = lazy(() => import("@/pages/JobApplication"));
+const FAQ = lazy(() => import("@/pages/FAQ"));
+const Contact = lazy(() => import("@/pages/Contact"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
+const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
+const ServicesDetail = lazy(() => import("@/pages/ServicesDetail"));
+const InternetPlans = lazy(() => import("@/pages/InternetPlans"));
+const TVPlans = lazy(() => import("@/pages/TVPlans"));
+const MobilePlans = lazy(() => import("@/pages/MobilePlans"));
+const MobileCoverage = lazy(() => import("@/pages/MobileCoverage"));
+const StreamingPlans = lazy(() => import("@/pages/StreamingPlans"));
+const DevLogin = lazy(() => import("@/pages/DevLogin"));
+const E2eInstallTest = lazy(() => import("@/pages/E2eInstallTest"));
+const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
+const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
+const APropos = lazy(() => import("@/pages/APropos"));
+const Aide = lazy(() => import("@/pages/Aide"));
+const DynamicPage = lazy(() => import("@/pages/DynamicPage"));
+const Contest = lazy(() => import("@/pages/Contest"));
+const TrackOrder = lazy(() => import("@/pages/TrackOrder"));
+const Parrainage = lazy(() => import("@/pages/Parrainage"));
+const StatusPage = lazy(() => import("@/pages/StatusPage"));
+const Install = lazy(() => import("@/pages/Install"));
+const ComparePlans = lazy(() => import("@/pages/ComparePlans"));
+const TVConfigurator = lazy(() => import("@/pages/TVConfigurator"));
 const GuestCheckout = lazy(() => import("@/pages/GuestCheckout"));
 const PublicQuotePage = lazy(() => import("@/pages/PublicQuote"));
 const QuoteCheckoutPage = lazy(() => import("@/pages/QuoteCheckout"));
 
-// Legal pages
-import ConditionsDeService from "@/pages/legal/ConditionsDeService";
-import InstallationRendezvous from "@/pages/legal/InstallationRendezvous";
-import ModalitesPaiement from "@/pages/legal/ModalitesPaiement";
-import EquipementGarantie from "@/pages/legal/EquipementGarantie";
-import SupportEtPlaintes from "@/pages/legal/SupportEtPlaintes";
-import ConfidentialiteLoi25 from "@/pages/legal/ConfidentialiteLoi25";
-import FraisPossibles from "@/pages/legal/FraisPossibles";
-import RefundPolicy from "@/pages/legal/RefundPolicy";
-import PrivacyPolicyPage from "@/pages/legal/PrivacyPolicyPage";
-import TermsAndConditions from "@/pages/legal/TermsAndConditions";
+// Legal pages (lazy-loaded)
+const ConditionsDeService = lazy(() => import("@/pages/legal/ConditionsDeService"));
+const InstallationRendezvous = lazy(() => import("@/pages/legal/InstallationRendezvous"));
+const ModalitesPaiement = lazy(() => import("@/pages/legal/ModalitesPaiement"));
+const EquipementGarantie = lazy(() => import("@/pages/legal/EquipementGarantie"));
+const SupportEtPlaintes = lazy(() => import("@/pages/legal/SupportEtPlaintes"));
+const ConfidentialiteLoi25 = lazy(() => import("@/pages/legal/ConfidentialiteLoi25"));
+const FraisPossibles = lazy(() => import("@/pages/legal/FraisPossibles"));
+const RefundPolicy = lazy(() => import("@/pages/legal/RefundPolicy"));
+const PrivacyPolicyPage = lazy(() => import("@/pages/legal/PrivacyPolicyPage"));
+const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
 
-// Admin pages
-import AdminLogin from "@/pages/admin/AdminLogin";
-import AdminBootstrap from "@/pages/admin/AdminBootstrap";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminOrders from "@/pages/admin/AdminOrders";
-import AdminOrderDetail from "@/pages/admin/AdminOrderDetail";
-import AdminQueues from "@/pages/admin/AdminQueues";
-import AdminClients from "@/pages/admin/AdminClients";
-import AdminServices from "@/pages/admin/AdminServices";
-import AdminBilling from "@/pages/admin/AdminBilling";
-import BillingV2Playbook from "@/pages/admin/BillingV2Playbook";
-import AdminRequests from "@/pages/admin/AdminRequests";
-import AdminContracts from "@/pages/admin/AdminContracts";
-import AdminActivityLogs from "@/pages/admin/AdminActivityLogs";
-import AdminAppointments from "@/pages/admin/AdminAppointments";
-import AdminCareers from "@/pages/admin/AdminCareers";
-import AdminApplications from "@/pages/admin/AdminApplications";
-import AdminTickets from "@/pages/admin/AdminTickets";
-import AdminChannels from "@/pages/admin/AdminChannels";
-import AdminTechnicians from "@/pages/admin/AdminTechnicians";
-import AdminReplacements from "@/pages/admin/AdminReplacements";
-import AdminCancellations from "@/pages/admin/AdminCancellations";
-import AdminEmployees from "@/pages/admin/AdminEmployees";
-import AdminPromotions from "@/pages/admin/AdminPromotions";
-import AdminAccounts from "@/pages/admin/AdminAccounts";
-import AdminStreaming from "@/pages/admin/AdminStreaming";
-import AdminStreamingCatalog from "@/pages/admin/AdminStreamingCatalog";
-import AdminSystemStatus from "@/pages/admin/AdminSystemStatus";
-import AdminSystemHealth from "@/pages/admin/AdminSystemHealth";
-import AdminInternalTickets from "@/pages/admin/AdminInternalTickets";
-import AdminEmailActivity from "@/pages/admin/AdminEmailActivity";
-import AdminEmailDeliverability from "@/pages/admin/AdminEmailDeliverability";
-import AdminAccount from "@/pages/admin/AdminAccount";
-import AdminAccountProfile from "@/pages/admin/AdminAccountProfile";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import AdminUsersAccess from "@/pages/admin/AdminUsersAccess";
-import AdminAuditLog from "@/pages/admin/AdminAuditLog";
-import AdminResetPassword from "@/pages/admin/AdminResetPassword";
-import AdminChangeCredentials from "@/pages/admin/AdminChangeCredentials";
-import AdminPDFTemplatesV2 from "@/pages/admin/AdminPDFTemplatesV2";
-import AdminQA from "@/pages/admin/AdminQA";
-import AdminSystemAudit from "@/pages/admin/AdminSystemAudit";
-import AdminRecouvrement from "@/pages/admin/AdminRecouvrement";
-import AdminPaymentDisputes from "@/pages/admin/AdminPaymentDisputes";
-import AdminPayments from "@/pages/admin/AdminPayments";
-import AdminInvoices from "@/pages/admin/AdminInvoices";
-import AdminInvoiceDetail from "@/pages/admin/AdminInvoiceDetail";
-import AdminPaymentsV2 from "@/pages/admin/AdminPaymentsV2";
-import AdminSite from "@/pages/admin/AdminSite";
-import AdminSecurityEvents from "@/pages/admin/AdminSecurityEvents";
-import AdminMaintenance from "@/pages/admin/AdminMaintenance";
-import AdminSecurityGuardian from "@/pages/admin/AdminSecurityGuardian";
-import AdminContests from "@/pages/admin/AdminContests";
-import AdminWebForms from "@/pages/admin/AdminWebForms";
-import AdminTelephony from "@/pages/admin/AdminTelephony";
-import AdminMarketing from "@/pages/admin/AdminMarketing";
-import AdminCommunicationEmail from "@/pages/admin/AdminCommunicationEmail";
-import AdminCommunicationSMS from "@/pages/admin/AdminCommunicationSMS";
-import AdminReferrals from "@/pages/admin/AdminReferrals";
-import AdminReferralInfluencers from "@/pages/admin/AdminReferralInfluencers";
-import AdminReferralInfluencerDetail from "@/pages/admin/AdminReferralInfluencerDetail";
-import AdminReferralCodes from "@/pages/admin/AdminReferralCodes";
-import AdminReferralAttributions from "@/pages/admin/AdminReferralAttributions";
-import AdminReferralCommissions from "@/pages/admin/AdminReferralCommissions";
-import AdminReferralCashouts from "@/pages/admin/AdminReferralCashouts";
-import AdminReferralSettings from "@/pages/admin/AdminReferralSettings";
-import AdminPartnerTerms from "@/pages/admin/AdminPartnerTerms";
-import LiveActivityPage from "@/pages/admin/LiveActivityPage";
-import AdminDocumentRequests from "@/pages/admin/AdminDocumentRequests";
-import AdminContestedInvoices from "@/pages/admin/AdminContestedInvoices";
-import AdminContestedPayments from "@/pages/admin/AdminContestedPayments";
-import AdminWorkQueue from "@/pages/admin/AdminWorkQueue";
-import AdminSubscriptions from "@/pages/admin/AdminSubscriptions";
-import AdminSubscriptionDetail from "@/pages/admin/AdminSubscriptionDetail";
-import AdminNotificationsSettings from "@/pages/admin/AdminNotificationsSettings";
-import AdminNotifications from "@/pages/admin/AdminNotifications";
-import AdminPOS from "@/pages/admin/AdminPOS";
-import AdminIdentityVerification from "@/pages/admin/AdminIdentityVerification";
-import AdminKYCVerifications from "@/pages/admin/AdminKYCVerifications";
+// Admin pages (lazy-loaded)
+const AdminLogin = lazy(() => import("@/pages/admin/AdminLogin"));
+const AdminBootstrap = lazy(() => import("@/pages/admin/AdminBootstrap"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const AdminOrders = lazy(() => import("@/pages/admin/AdminOrders"));
+const AdminOrderDetail = lazy(() => import("@/pages/admin/AdminOrderDetail"));
+const AdminQueues = lazy(() => import("@/pages/admin/AdminQueues"));
+const AdminClients = lazy(() => import("@/pages/admin/AdminClients"));
+const AdminServices = lazy(() => import("@/pages/admin/AdminServices"));
+const AdminBilling = lazy(() => import("@/pages/admin/AdminBilling"));
+const BillingV2Playbook = lazy(() => import("@/pages/admin/BillingV2Playbook"));
+const AdminRequests = lazy(() => import("@/pages/admin/AdminRequests"));
+const AdminContracts = lazy(() => import("@/pages/admin/AdminContracts"));
+const AdminActivityLogs = lazy(() => import("@/pages/admin/AdminActivityLogs"));
+const AdminAppointments = lazy(() => import("@/pages/admin/AdminAppointments"));
+const AdminCareers = lazy(() => import("@/pages/admin/AdminCareers"));
+const AdminApplications = lazy(() => import("@/pages/admin/AdminApplications"));
+const AdminTickets = lazy(() => import("@/pages/admin/AdminTickets"));
+const AdminChannels = lazy(() => import("@/pages/admin/AdminChannels"));
+const AdminTechnicians = lazy(() => import("@/pages/admin/AdminTechnicians"));
+const AdminReplacements = lazy(() => import("@/pages/admin/AdminReplacements"));
+const AdminCancellations = lazy(() => import("@/pages/admin/AdminCancellations"));
+const AdminEmployees = lazy(() => import("@/pages/admin/AdminEmployees"));
+const AdminPromotions = lazy(() => import("@/pages/admin/AdminPromotions"));
+const AdminAccounts = lazy(() => import("@/pages/admin/AdminAccounts"));
+const AdminStreaming = lazy(() => import("@/pages/admin/AdminStreaming"));
+const AdminStreamingCatalog = lazy(() => import("@/pages/admin/AdminStreamingCatalog"));
+const AdminSystemStatus = lazy(() => import("@/pages/admin/AdminSystemStatus"));
+const AdminSystemHealth = lazy(() => import("@/pages/admin/AdminSystemHealth"));
+const AdminInternalTickets = lazy(() => import("@/pages/admin/AdminInternalTickets"));
+const AdminEmailActivity = lazy(() => import("@/pages/admin/AdminEmailActivity"));
+const AdminEmailDeliverability = lazy(() => import("@/pages/admin/AdminEmailDeliverability"));
+const AdminAccount = lazy(() => import("@/pages/admin/AdminAccount"));
+const AdminAccountProfile = lazy(() => import("@/pages/admin/AdminAccountProfile"));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+const AdminUsersAccess = lazy(() => import("@/pages/admin/AdminUsersAccess"));
+const AdminAuditLog = lazy(() => import("@/pages/admin/AdminAuditLog"));
+const AdminResetPassword = lazy(() => import("@/pages/admin/AdminResetPassword"));
+const AdminChangeCredentials = lazy(() => import("@/pages/admin/AdminChangeCredentials"));
+const AdminPDFTemplatesV2 = lazy(() => import("@/pages/admin/AdminPDFTemplatesV2"));
+const AdminQA = lazy(() => import("@/pages/admin/AdminQA"));
+const AdminSystemAudit = lazy(() => import("@/pages/admin/AdminSystemAudit"));
+const AdminRecouvrement = lazy(() => import("@/pages/admin/AdminRecouvrement"));
+const AdminPaymentDisputes = lazy(() => import("@/pages/admin/AdminPaymentDisputes"));
+const AdminPayments = lazy(() => import("@/pages/admin/AdminPayments"));
+const AdminInvoices = lazy(() => import("@/pages/admin/AdminInvoices"));
+const AdminInvoiceDetail = lazy(() => import("@/pages/admin/AdminInvoiceDetail"));
+const AdminPaymentsV2 = lazy(() => import("@/pages/admin/AdminPaymentsV2"));
+const AdminSite = lazy(() => import("@/pages/admin/AdminSite"));
+const AdminSecurityEvents = lazy(() => import("@/pages/admin/AdminSecurityEvents"));
+const AdminMaintenance = lazy(() => import("@/pages/admin/AdminMaintenance"));
+const AdminSecurityGuardian = lazy(() => import("@/pages/admin/AdminSecurityGuardian"));
+const AdminContests = lazy(() => import("@/pages/admin/AdminContests"));
+const AdminWebForms = lazy(() => import("@/pages/admin/AdminWebForms"));
+const AdminTelephony = lazy(() => import("@/pages/admin/AdminTelephony"));
+const AdminMarketing = lazy(() => import("@/pages/admin/AdminMarketing"));
+const AdminCommunicationEmail = lazy(() => import("@/pages/admin/AdminCommunicationEmail"));
+const AdminCommunicationSMS = lazy(() => import("@/pages/admin/AdminCommunicationSMS"));
+const AdminReferrals = lazy(() => import("@/pages/admin/AdminReferrals"));
+const AdminReferralInfluencers = lazy(() => import("@/pages/admin/AdminReferralInfluencers"));
+const AdminReferralInfluencerDetail = lazy(() => import("@/pages/admin/AdminReferralInfluencerDetail"));
+const AdminReferralCodes = lazy(() => import("@/pages/admin/AdminReferralCodes"));
+const AdminReferralAttributions = lazy(() => import("@/pages/admin/AdminReferralAttributions"));
+const AdminReferralCommissions = lazy(() => import("@/pages/admin/AdminReferralCommissions"));
+const AdminReferralCashouts = lazy(() => import("@/pages/admin/AdminReferralCashouts"));
+const AdminReferralSettings = lazy(() => import("@/pages/admin/AdminReferralSettings"));
+const AdminPartnerTerms = lazy(() => import("@/pages/admin/AdminPartnerTerms"));
+const LiveActivityPage = lazy(() => import("@/pages/admin/LiveActivityPage"));
+const AdminDocumentRequests = lazy(() => import("@/pages/admin/AdminDocumentRequests"));
+const AdminContestedInvoices = lazy(() => import("@/pages/admin/AdminContestedInvoices"));
+const AdminContestedPayments = lazy(() => import("@/pages/admin/AdminContestedPayments"));
+const AdminWorkQueue = lazy(() => import("@/pages/admin/AdminWorkQueue"));
+const AdminSubscriptions = lazy(() => import("@/pages/admin/AdminSubscriptions"));
+const AdminSubscriptionDetail = lazy(() => import("@/pages/admin/AdminSubscriptionDetail"));
+const AdminNotificationsSettings = lazy(() => import("@/pages/admin/AdminNotificationsSettings"));
+const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications"));
+const AdminPOS = lazy(() => import("@/pages/admin/AdminPOS"));
+const AdminIdentityVerification = lazy(() => import("@/pages/admin/AdminIdentityVerification"));
+const AdminKYCVerifications = lazy(() => import("@/pages/admin/AdminKYCVerifications"));
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
-// Influencer Portal
-import InfluencerLogin from "@/pages/influencer/InfluencerLogin";
-import InfluencerOnboarding from "@/pages/influencer/InfluencerOnboarding";
-import InfluencerRegister from "@/pages/influencer/InfluencerRegister";
-import InfluencerResetPassword from "@/pages/influencer/InfluencerResetPassword";
-import InfluencerDashboard from "@/pages/influencer/InfluencerDashboard";
-import InfluencerReferrals from "@/pages/influencer/InfluencerReferrals";
-import InfluencerEarnings from "@/pages/influencer/InfluencerEarnings";
-import InfluencerCashouts from "@/pages/influencer/InfluencerCashouts";
-import InfluencerSettings from "@/pages/influencer/InfluencerSettings";
-import InfluencerTerms from "@/pages/influencer/InfluencerTerms";
+// Influencer Portal (lazy-loaded)
+const InfluencerLogin = lazy(() => import("@/pages/influencer/InfluencerLogin"));
+const InfluencerOnboarding = lazy(() => import("@/pages/influencer/InfluencerOnboarding"));
+const InfluencerRegister = lazy(() => import("@/pages/influencer/InfluencerRegister"));
+const InfluencerResetPassword = lazy(() => import("@/pages/influencer/InfluencerResetPassword"));
+const InfluencerDashboard = lazy(() => import("@/pages/influencer/InfluencerDashboard"));
+const InfluencerReferrals = lazy(() => import("@/pages/influencer/InfluencerReferrals"));
+const InfluencerEarnings = lazy(() => import("@/pages/influencer/InfluencerEarnings"));
+const InfluencerCashouts = lazy(() => import("@/pages/influencer/InfluencerCashouts"));
+const InfluencerSettings = lazy(() => import("@/pages/influencer/InfluencerSettings"));
+const InfluencerTerms = lazy(() => import("@/pages/influencer/InfluencerTerms"));
 import { InfluencerAuthProvider } from "@/hooks/useInfluencerAuth";
-import InfluencerProtectedRoute from "@/components/influencer/InfluencerProtectedRoute";
-import PartnerTermsAcceptanceGuard from "@/components/influencer/PartnerTermsAcceptanceGuard";
+const InfluencerProtectedRoute = lazy(() => import("@/components/influencer/InfluencerProtectedRoute"));
+const PartnerTermsAcceptanceGuard = lazy(() => import("@/components/influencer/PartnerTermsAcceptanceGuard"));
 
-// Client portal pages
-import ClientAuth from "@/pages/client/ClientAuth";
-import ClientSuspended from "@/pages/client/ClientSuspended";
-import ClientDashboard from "@/pages/client/ClientDashboard";
-import ClientAppointments from "@/pages/client/ClientAppointments";
-import ClientInvoices from "@/pages/client/ClientInvoices";
-import ClientTickets from "@/pages/client/ClientTickets";
-import ClientServices from "@/pages/client/ClientServices";
-import ClientProfile from "@/pages/client/ClientProfile";
-import ClientPayments from "@/pages/client/ClientPayments";
-import ClientBillingHub from "@/pages/client/ClientBillingHub";
-import ClientOrders from "@/pages/client/ClientOrders";
-import ClientContracts from "@/pages/client/ClientContracts";
-import ClientNewOrder from "@/pages/client/ClientNewOrder";
-import ClientOrderConfirmation from "@/pages/client/ClientOrderConfirmation";
-import ClientChannels from "@/pages/client/ClientChannels";
-import ClientEquipmentReplacement from "@/pages/client/ClientEquipmentReplacement";
-import ClientCancellations from "@/pages/client/ClientCancellations";
-import ClientAccessBlocked from "@/pages/client/ClientAccessBlocked";
-import ClientMonthlyInvoices from "@/pages/client/ClientMonthlyInvoices";
-import ClientWebForms from "@/pages/client/ClientWebForms";
-import ClientDocumentUpload from "@/pages/client/ClientDocumentUpload";
-import ClientDocuments from "@/pages/client/ClientDocuments";
-import ClientIdentityVerification from "@/pages/client/ClientIdentityVerification";
-import ClientResetPassword from "@/pages/client/ClientResetPassword";
-import ClientServiceAddresses from "@/pages/client/ClientServiceAddresses";
-import ClientVerifyEmail from "@/pages/client/ClientVerifyEmail";
-import ClientRescheduleAppointment from "@/pages/client/ClientRescheduleAppointment";
-import PaymentReturn from "@/pages/client/PaymentReturn";
-import PaymentCancelled from "@/pages/client/PaymentCancelled";
+// Client portal pages (lazy-loaded)
+const ClientAuth = lazy(() => import("@/pages/client/ClientAuth"));
+const ClientSuspended = lazy(() => import("@/pages/client/ClientSuspended"));
+const ClientDashboard = lazy(() => import("@/pages/client/ClientDashboard"));
+const ClientAppointments = lazy(() => import("@/pages/client/ClientAppointments"));
+const ClientInvoices = lazy(() => import("@/pages/client/ClientInvoices"));
+const ClientTickets = lazy(() => import("@/pages/client/ClientTickets"));
+const ClientServices = lazy(() => import("@/pages/client/ClientServices"));
+const ClientProfile = lazy(() => import("@/pages/client/ClientProfile"));
+const ClientPayments = lazy(() => import("@/pages/client/ClientPayments"));
+const ClientBillingHub = lazy(() => import("@/pages/client/ClientBillingHub"));
+const ClientOrders = lazy(() => import("@/pages/client/ClientOrders"));
+const ClientContracts = lazy(() => import("@/pages/client/ClientContracts"));
+const ClientNewOrder = lazy(() => import("@/pages/client/ClientNewOrder"));
+const ClientOrderConfirmation = lazy(() => import("@/pages/client/ClientOrderConfirmation"));
+const ClientChannels = lazy(() => import("@/pages/client/ClientChannels"));
+const ClientEquipmentReplacement = lazy(() => import("@/pages/client/ClientEquipmentReplacement"));
+const ClientCancellations = lazy(() => import("@/pages/client/ClientCancellations"));
+const ClientAccessBlocked = lazy(() => import("@/pages/client/ClientAccessBlocked"));
+const ClientMonthlyInvoices = lazy(() => import("@/pages/client/ClientMonthlyInvoices"));
+const ClientWebForms = lazy(() => import("@/pages/client/ClientWebForms"));
+const ClientDocumentUpload = lazy(() => import("@/pages/client/ClientDocumentUpload"));
+const ClientDocuments = lazy(() => import("@/pages/client/ClientDocuments"));
+const ClientIdentityVerification = lazy(() => import("@/pages/client/ClientIdentityVerification"));
+const ClientResetPassword = lazy(() => import("@/pages/client/ClientResetPassword"));
+const ClientServiceAddresses = lazy(() => import("@/pages/client/ClientServiceAddresses"));
+const ClientVerifyEmail = lazy(() => import("@/pages/client/ClientVerifyEmail"));
+const ClientRescheduleAppointment = lazy(() => import("@/pages/client/ClientRescheduleAppointment"));
+const PaymentReturn = lazy(() => import("@/pages/client/PaymentReturn"));
+const PaymentCancelled = lazy(() => import("@/pages/client/PaymentCancelled"));
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
-import ClientReferrals from "@/pages/client/ClientReferrals";
+const ClientReferrals = lazy(() => import("@/pages/client/ClientReferrals"));
 
-// Staff portal pages
-import StaffLogin from "@/pages/staff/StaffLogin";
-import StaffOnboarding from "@/pages/staff/StaffOnboarding";
-import StaffAdminDashboard from "@/pages/staff/StaffAdminDashboard";
-import StaffEmployeeDashboard from "@/pages/staff/StaffEmployeeDashboard";
-import StaffTechnicianDashboard from "@/pages/staff/StaffTechnicianDashboard";
-import StaffClients from "@/pages/staff/StaffClients";
-import StaffClientDetail from "@/pages/staff/StaffClientDetail";
-import StaffOrders from "@/pages/staff/StaffOrders";
-import StaffOrderDetail from "@/pages/staff/StaffOrderDetail";
-import StaffTickets from "@/pages/staff/StaffTickets";
-import StaffTicketDetail from "@/pages/staff/StaffTicketDetail";
-import StaffAppointments from "@/pages/staff/StaffAppointments";
-import StaffAppointmentDetail from "@/pages/staff/StaffAppointmentDetail";
-import StaffBilling from "@/pages/staff/StaffBilling";
-import StaffBillingDetail from "@/pages/staff/StaffBillingDetail";
-import StaffStreaming from "@/pages/staff/StaffStreaming";
-import StaffTvChannels from "@/pages/staff/StaffTvChannels";
-import StaffNotes from "@/pages/staff/StaffNotes";
-import StaffAccount from "@/pages/staff/StaffAccount";
-import StaffPOS from "@/pages/staff/StaffPOS";
-import StaffNotifications from "@/pages/staff/StaffNotifications";
-import TechnicianPOS from "@/pages/staff/TechnicianPOS";
+// Staff portal pages (lazy-loaded)
+const StaffLogin = lazy(() => import("@/pages/staff/StaffLogin"));
+const StaffOnboarding = lazy(() => import("@/pages/staff/StaffOnboarding"));
+const StaffAdminDashboard = lazy(() => import("@/pages/staff/StaffAdminDashboard"));
+const StaffEmployeeDashboard = lazy(() => import("@/pages/staff/StaffEmployeeDashboard"));
+const StaffTechnicianDashboard = lazy(() => import("@/pages/staff/StaffTechnicianDashboard"));
+const StaffClients = lazy(() => import("@/pages/staff/StaffClients"));
+const StaffClientDetail = lazy(() => import("@/pages/staff/StaffClientDetail"));
+const StaffOrders = lazy(() => import("@/pages/staff/StaffOrders"));
+const StaffOrderDetail = lazy(() => import("@/pages/staff/StaffOrderDetail"));
+const StaffTickets = lazy(() => import("@/pages/staff/StaffTickets"));
+const StaffTicketDetail = lazy(() => import("@/pages/staff/StaffTicketDetail"));
+const StaffAppointments = lazy(() => import("@/pages/staff/StaffAppointments"));
+const StaffAppointmentDetail = lazy(() => import("@/pages/staff/StaffAppointmentDetail"));
+const StaffBilling = lazy(() => import("@/pages/staff/StaffBilling"));
+const StaffBillingDetail = lazy(() => import("@/pages/staff/StaffBillingDetail"));
+const StaffStreaming = lazy(() => import("@/pages/staff/StaffStreaming"));
+const StaffTvChannels = lazy(() => import("@/pages/staff/StaffTvChannels"));
+const StaffNotes = lazy(() => import("@/pages/staff/StaffNotes"));
+const StaffAccount = lazy(() => import("@/pages/staff/StaffAccount"));
+const StaffPOS = lazy(() => import("@/pages/staff/StaffPOS"));
+const StaffNotifications = lazy(() => import("@/pages/staff/StaffNotifications"));
+const TechnicianPOS = lazy(() => import("@/pages/staff/TechnicianPOS"));
 import StaffLayout from "@/components/staff/StaffLayout";
 import StaffAdminLayout from "@/components/staff/StaffAdminLayout";
 import { StaffProtectedRoute } from "@/components/staff/StaffProtectedRoute";
@@ -396,8 +395,19 @@ const AdminProtectedOutlet = () => (
   </AuthProvider>
 );
 
+// Global Suspense fallback for lazy routes
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="flex flex-col items-center gap-3">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <p className="text-sm text-muted-foreground">Chargement...</p>
+    </div>
+  </div>
+);
+
 const AppRoutes = () => {
   return (
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       {/* ============================================ */}
       {/* PUBLIC ROUTES - Wrapped with MaintenanceGuard + PublicLayout */}
@@ -928,6 +938,7 @@ const AppRoutes = () => {
       {/* Catch-all redirect (no visible 404 page) */}
       <Route path="*" element={<Navigate to="/hub" replace />} />
     </Routes>
+    </Suspense>
   );
 };
 
