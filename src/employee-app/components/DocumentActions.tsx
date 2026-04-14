@@ -67,7 +67,11 @@ export function DocumentActions({
       case "receipt":
         return generateCanonicalReceiptPDF(supabase, invoiceId!);
       case "contract":
-        return generateCanonicalContractPDF(supabase, contractId || orderId!);
+        return generateCanonicalContractPDF(
+          supabase,
+          contractId || orderId!,
+          { source: contractId ? "contract" : "order" }
+        );
       case "order_summary":
         return generateCanonicalOrderSummaryPDF(supabase, orderId!);
     }

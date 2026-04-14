@@ -451,13 +451,33 @@ export async function generateCanonicalInvoicePDF(
 
 /**
  * Generate canonical contract PDF from any Supabase client.
+ * Accepts either a contract id or an order id and resolves safely.
  */
 export async function generateCanonicalContractPDF(
   client: SupabaseClient,
-  contractId: string
+  documentId: string,
+  options?: { source?: "auto" | "contract" | "order" }
 ): Promise<PDFGenerationResult> {
   try {
-    const data = await fetchCanonicalDocumentData(client, { contractId });
+    const source = options?.source ?? "auto";
+    let data: CanonicalDocumentData | null = null;
+
+    if (source === "contract") {
+      data = await fetchCanonicalDocumentData(client, { contractId: documentId });
+    } else if (source === "order") {
+      data = await fetchCanonicalDocumentData(client, { orderId: documentId });
+    } else {
+      const { data: contractMatch } = await client
+        .from("contracts")
+        .select("id")
+        .eq("id", documentId)
+        .maybeSingle();
+
+      data = contractMatch
+        ? await fetchCanonicalDocumentData(client, { contractId: documentId })
+        : await fetchCanonicalDocumentData(client, { orderId: documentId });
+    }
+
     if (!data) {
       return { success: false, error: "Données du contrat introuvables" };
     }
