@@ -98,77 +98,76 @@ body {
   animation: staff-float 8s ease-in-out infinite;
 }
 
-/* Nivra Design System - Professional ISP Corporate */
-/* Inspired by Bell / Vidéotron / Rogers: Clean, Trustworthy, Readable */
+/* Nivra Design System — Xfinity-inspired: Dark, Bold, Premium */
 
 @layer base {
   :root {
-    /* Clean White Background */
+    /* Dark base */
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --foreground: 0 0% 7%;
 
-    /* Cards - Pure white with subtle depth */
+    /* Cards */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 7%;
 
-    /* Primary - Professional Navy Blue */
-    --primary: 222 47% 20%;
+    /* Primary — Vivid Purple (Xfinity-inspired) */
+    --primary: 270 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Light Gray */
+    /* Secondary — Light cool gray */
     --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary-foreground: 0 0% 7%;
 
-    /* Muted - Soft Gray */
+    /* Muted */
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
 
-    /* Accent - Professional Teal (TELUS-inspired) */
-    --accent: 168 76% 42%;
+    /* Accent — Bright purple */
+    --accent: 270 70% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders - Visible but subtle */
+    /* Borders */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 168 76% 42%;
+    --ring: 270 70% 50%;
 
     --radius: 0.75rem;
 
-    /* Extended Navy Palette */
-    --navy-900: 222 47% 11%;
-    --navy-800: 222 47% 15%;
-    --navy-700: 222 44% 21%;
-    --navy-600: 222 39% 31%;
-    --navy-500: 222 30% 41%;
-    
-    /* Teal Accent Palette */
-    --teal-600: 168 76% 36%;
-    --teal-500: 168 76% 42%;
-    --teal-400: 168 66% 51%;
-    --teal-300: 168 56% 62%;
-    --teal-200: 168 46% 78%;
-    
-    /* Legacy cyan mapping */
-    --cyan-500: 168 76% 42%;
-    --cyan-400: 168 66% 51%;
-    --cyan-300: 168 56% 62%;
-    --cyan-200: 168 46% 78%;
-    
+    /* Extended palette — dark navy for dark sections */
+    --navy-900: 0 0% 7%;
+    --navy-800: 0 0% 10%;
+    --navy-700: 0 0% 15%;
+    --navy-600: 0 0% 25%;
+    --navy-500: 0 0% 35%;
+
+    /* Purple accent palette */
+    --teal-600: 270 70% 44%;
+    --teal-500: 270 70% 50%;
+    --teal-400: 270 60% 58%;
+    --teal-300: 270 50% 68%;
+    --teal-200: 270 40% 80%;
+
+    /* Legacy cyan → purple mapping */
+    --cyan-500: 270 70% 50%;
+    --cyan-400: 270 60% 58%;
+    --cyan-300: 270 50% 68%;
+    --cyan-200: 270 40% 80%;
+
     --success: 158 64% 42%;
     --success-foreground: 0 0% 100%;
 
-    /* Core Console Text Tokens (global fallback) */
+    /* Core Console Text Tokens */
     --core-text-primary: 0 0% 0%;
     --core-text-secondary: 220 19% 27%;
     --core-text-label: 220 19% 27%;
     --core-text-disabled: 220 9% 46%;
-    
+
     /* Premium Shadows */
     --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
     --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
@@ -178,13 +177,13 @@ body {
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 222 47% 20%;
+    --sidebar-foreground: 0 0% 7%;
+    --sidebar-primary: 270 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-accent-foreground: 0 0% 7%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 168 76% 42%;
+    --sidebar-ring: 270 70% 50%;
   }
 
   .dark {

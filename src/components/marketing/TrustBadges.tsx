@@ -13,14 +13,14 @@ export default function TrustBadges() {
   ];
 
   return (
-    <section aria-label={isFr ? "Garanties Nivra Telecom" : "Nivra Telecom guarantees"} className="bg-secondary border-t border-border">
+    <section aria-label={isFr ? "Garanties Nivra Telecom" : "Nivra Telecom guarantees"} className="bg-[#0a0a0a] border-t border-white/10">
       <div className="flex flex-wrap justify-center gap-4 py-8 px-6 max-w-[1200px] mx-auto">
         {badges.map((b, i) => (
           <div key={i} className="flex items-center gap-2.5 px-4 py-2">
             <span className="text-2xl" aria-hidden="true">{b.icon}</span>
             <div>
-              <div className="font-bold text-xs text-foreground">{b.title}</div>
-              <div className="text-xs text-muted-foreground">{b.sub}</div>
+              <div className="font-bold text-xs text-white">{b.title}</div>
+              <div className="text-xs text-white/40">{b.sub}</div>
             </div>
           </div>
         ))}
