@@ -260,7 +260,7 @@ export const ServiceStatusCards = ({
               </span>
             </div>
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </div>
+          </button>
         </CardContent>
       </Card>
     );
