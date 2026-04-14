@@ -42,6 +42,11 @@ const ClientAuth = () => {
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingUserId, setPendingUserId] = useState("");
 
+  // Anti-bot
+  const [honeypot, setHoneypot] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const handleTurnstileVerify = useCallback((token: string) => setTurnstileToken(token), []);
+
   const verifyInFlightRef = useRef(false);
   const supportEmailDisplay = COMPANY_CONTACT.supportEmailDisplay;
   
