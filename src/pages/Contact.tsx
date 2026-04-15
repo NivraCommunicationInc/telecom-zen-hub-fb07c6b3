@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { LocalBusinessSchema } from "@/components/seo";
 import { Link } from "react-router-dom";
 
 const Contact = () => {
