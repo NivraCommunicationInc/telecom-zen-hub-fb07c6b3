@@ -64,6 +64,16 @@ const InternetPlans = () => {
   return (
     <div className="min-h-screen bg-background" data-testid="internet-plans-page">
       <SEOHead {...SEO_DATA.internet} />
+      <ItemListSchema
+        listName="Forfaits Internet Nivra Telecom"
+        listDescription="Forfaits Internet et TV sans contrat au Québec"
+        listUrl="https://nivra-telecom.ca/internet"
+        items={[
+          { position: 1, name: "Internet 400 Mbps", description: "Forfait Internet 400 Mbps sans contrat au Québec" },
+          { position: 2, name: "Internet 600 Mbps", description: "Forfait Internet 600 Mbps sans contrat au Québec" },
+          { position: 3, name: "Internet 1 Gbps", description: "Forfait Internet 1 Gbps sans contrat au Québec" },
+        ]}
+      />
       <Header />
       <main className="pt-24 pb-20 relative">
         {/* Background Effects */}
