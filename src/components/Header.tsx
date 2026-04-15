@@ -10,6 +10,8 @@ import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } 
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 
+const GOLD = "#d4a843";
+
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -174,35 +176,41 @@ const Header = () => {
   const renderMobileNavItem = (target: NavTarget) => {
     const hasChildren = target.children && target.children.length > 0;
     const isExpanded = mobileExpanded === target.id;
+    const isActive = target.type === 'route' && location.pathname === target.target;
 
     if (hasChildren) {
       return (
         <div key={target.id}>
           <button
             onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
-            className="flex items-center justify-between w-full px-4 py-3.5 text-base font-medium text-white/80 hover:bg-white/5 active:bg-white/10 rounded-xl mb-1 min-h-[44px]"
+            className="flex items-center justify-between w-full pl-5 pr-4 text-[18px] font-medium text-white hover:bg-white/5 active:bg-white/10"
+            style={{ height: 56, minHeight: 56 }}
             type="button"
             aria-expanded={isExpanded}
           >
             {getLabel(target)}
-            <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
           {isExpanded && (
-            <div className="pl-4 space-y-0.5 mb-1">
-              {target.children!.map((child) => (
-                <Link
-                  key={child.id}
-                  to={child.target}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl min-h-[44px] ${
-                    location.pathname === child.target
-                      ? 'bg-purple-500/20 text-purple-400'
-                      : 'text-white/60 hover:bg-white/5 active:bg-white/10'
-                  }`}
-                >
-                  {getLabel(child)}
-                </Link>
-              ))}
+            <div className="pl-5">
+              {target.children!.map((child) => {
+                const childActive = location.pathname === child.target;
+                return (
+                  <Link
+                    key={child.id}
+                    to={child.target}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center pl-5 pr-4 text-[16px] font-medium"
+                    style={{
+                      height: 48,
+                      minHeight: 48,
+                      color: childActive ? GOLD : 'rgba(255,255,255,0.6)',
+                    }}
+                  >
+                    {getLabel(child)}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -214,11 +222,12 @@ const Header = () => {
         key={target.id}
         to={target.target}
         onClick={() => setIsMenuOpen(false)}
-        className={`flex items-center px-4 py-3.5 text-base font-medium rounded-xl mb-1 min-h-[44px] ${
-          location.pathname === target.target
-            ? 'bg-purple-500/20 text-purple-400'
-            : 'text-white/80 hover:bg-white/5 active:bg-white/10'
-        }`}
+        className="flex items-center pl-5 pr-4 text-[18px] font-medium hover:bg-white/5 active:bg-white/10"
+        style={{
+          height: 56,
+          minHeight: 56,
+          color: isActive ? GOLD : 'white',
+        }}
       >
         {getLabel(target)}
       </Link>
@@ -226,7 +235,8 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="flex items-center w-full text-left px-4 py-3.5 text-base font-medium text-white/80 hover:bg-white/5 active:bg-white/10 rounded-xl mb-1 min-h-[44px]"
+        className="flex items-center w-full text-left pl-5 pr-4 text-[18px] font-medium text-white hover:bg-white/5 active:bg-white/10"
+        style={{ height: 56, minHeight: 56 }}
         type="button"
       >
         {getLabel(target)}
@@ -260,40 +270,36 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Main navigation — dark black */}
-      <header className={`sticky top-0 z-50 bg-black transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}>
-        <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
+      {/* Main navigation */}
+      <header
+        className={`sticky top-0 z-50 bg-black transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}
+        style={{ height: 56 }}
+      >
+        <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
           {/* Mobile */}
-          <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
+          <div className="flex items-center justify-between h-[56px] lg:hidden">
+            <Link to="/" className="flex items-center gap-2 pl-0">
+              <LogoIcon size={28} />
+              <span className="font-bold text-lg text-white tracking-tight">Nivra</span>
+            </Link>
+
             <button
-              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white rounded-lg"
+              className="flex items-center justify-center text-white"
+              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44 }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={isMenuOpen}
               aria-controls="mobile-menu"
               type="button"
             >
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <Menu className="w-6 h-6" strokeWidth={2} />
             </button>
-
-            <Link to="/" className="justify-self-center flex items-center gap-2">
-              <LogoIcon size={36} />
-              <span className="font-bold text-xl text-white tracking-tight">Nivra</span>
-            </Link>
-
-            <Link
-              to={portalLink}
-              className="w-14 h-14 flex items-center justify-center justify-self-end text-white/70 hover:text-white rounded-lg"
-              aria-label="Compte"
-            >
-              <User className="w-5 h-5" />
-            </Link>
           </div>
 
           {/* Desktop */}
-          <div className="hidden lg:flex items-center h-16 gap-6">
+          <div className="hidden lg:flex items-center h-[56px] gap-6">
             <Link to="/" className="flex items-center shrink-0 mr-2">
-              <LogoFull height={38} />
+              <LogoFull height={32} />
             </Link>
 
             <div className="h-6 w-px bg-white/15 mx-1" />
@@ -318,51 +324,75 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Mobile Menu — dark */}
+      {/* Mobile Menu — full-screen overlay */}
       {isMenuOpen && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/60 z-40 lg:hidden" 
-            onClick={() => setIsMenuOpen(false)}
-            aria-hidden="true"
-          />
-          <div id="mobile-menu" role="dialog" aria-label="Menu de navigation" className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-[#111111] z-50 shadow-2xl lg:hidden overflow-y-auto">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between h-14">
-              <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
-                <LogoIcon size={32} />
-                <span className="font-bold text-white text-lg">Nivra</span>
-              </Link>
-              <button onClick={() => setIsMenuOpen(false)} className="p-2 text-white/60 hover:text-white rounded-lg" aria-label="Fermer le menu">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <div
+          id="mobile-menu"
+          role="dialog"
+          aria-label="Menu de navigation"
+          className="fixed inset-0 z-[100] lg:hidden flex flex-col"
+          style={{ background: '#0d1f3c' }}
+        >
+          {/* Top bar with close */}
+          <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56 }}>
+            <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
+              <LogoIcon size={28} />
+              <span className="font-bold text-lg text-white">Nivra</span>
+            </Link>
+            <button
+              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center justify-center text-white"
+              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44 }}
+              aria-label="Fermer le menu"
+            >
+              <X className="w-6 h-6" strokeWidth={2} />
+            </button>
+          </div>
 
-            <nav aria-label="Navigation mobile" className="p-3">
-              {NAV_TARGETS.map(renderMobileNavItem)}
-            </nav>
+          {/* Nav links */}
+          <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto pt-2">
+            {NAV_TARGETS.map(renderMobileNavItem)}
 
-            <div className="p-4 border-t border-white/10 space-y-1">
-              <Link to="/aide" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-white/50 hover:bg-white/5 rounded-xl min-h-[44px]">
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <Link to="/aide" onClick={() => setIsMenuOpen(false)}
+                className="flex items-center pl-5 pr-4 text-[16px] text-white/50 hover:text-white"
+                style={{ height: 48 }}
+              >
                 Support
               </Link>
-              <Link to="/a-propos" onClick={() => setIsMenuOpen(false)} className="flex items-center px-4 py-3 text-sm text-white/50 hover:bg-white/5 rounded-xl min-h-[44px]">
+              <Link to="/a-propos" onClick={() => setIsMenuOpen(false)}
+                className="flex items-center pl-5 pr-4 text-[16px] text-white/50 hover:text-white"
+                style={{ height: 48 }}
+              >
                 {isFr ? "À propos" : "About"}
               </Link>
-              <div className="px-4 py-2">
+              <div className="px-5 py-3">
                 <LanguageSelector />
               </div>
             </div>
+          </nav>
 
-            <div className="p-4 border-t border-white/10">
-              <Button className="w-full bg-white hover:bg-white/90 text-black h-12 text-base font-semibold rounded-full" asChild>
-                <Link to={portalLink} onClick={() => setIsMenuOpen(false)}>
-                  <User className="w-4 h-4 mr-2" />
-                  {isFr ? "Connexion" : "Log in"}
-                </Link>
-              </Button>
-            </div>
+          {/* Bottom actions */}
+          <div className="p-4 space-y-3 border-t border-white/10">
+            <Link
+              to="/commander"
+              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center justify-center w-full font-bold text-[16px] text-white rounded-xl"
+              style={{ height: 52, background: GOLD }}
+            >
+              {isFr ? "Commander" : "Order Now"}
+            </Link>
+            <Link
+              to={portalLink}
+              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center justify-center gap-2 w-full font-semibold text-[15px] text-white/80 rounded-xl border border-white/20"
+              style={{ height: 48 }}
+            >
+              <User className="w-4 h-4" />
+              {isFr ? "Mon compte" : "My account"}
+            </Link>
           </div>
-        </>
+        </div>
       )}
     </>
   );
