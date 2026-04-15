@@ -18,6 +18,7 @@ const StatsBanner = lazy(() => import("@/components/marketing/StatsBanner"));
 const MarketingComparisonTable = lazy(() => import("@/components/marketing/MarketingComparisonTable"));
 const TestimonialsSection = lazy(() => import("@/components/marketing/TestimonialsSection"));
 const TrustBadges = lazy(() => import("@/components/marketing/TrustBadges"));
+const CoverageSection = lazy(() => import("@/components/marketing/CoverageSection"));
 
 const Index = () => {
   return (
@@ -39,6 +40,9 @@ const Index = () => {
         <ComparisonTable />
         <Suspense fallback={null}>
           <MarketingComparisonTable />
+        </Suspense>
+        <Suspense fallback={null}>
+          <CoverageSection />
         </Suspense>
         <Suspense fallback={null}>
           <TestimonialsSection />

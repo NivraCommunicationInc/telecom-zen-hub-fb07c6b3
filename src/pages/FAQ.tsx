@@ -115,7 +115,10 @@ const FAQ = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead {...SEO_DATA.faq} />
+      <SEOHead
+        title={isFr ? "FAQ — Internet sans contrat au Québec | Nivra Telecom" : "FAQ — No-Contract Internet in Quebec | Nivra Telecom"}
+        description={isFr ? "Réponses aux questions fréquentes sur les forfaits Internet et TV sans contrat de Nivra Telecom au Québec. Prix, couverture, activation, support." : "Answers to frequently asked questions about Nivra Telecom no-contract Internet and TV plans in Quebec. Pricing, coverage, activation, support."}
+      />
       <FAQSchema faqs={allFaqs} pageUrl="https://nivra-telecom.ca/faq" />
       <BreadcrumbSchema />
       <Header />
