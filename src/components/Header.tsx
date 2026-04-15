@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { LogoIcon, LogoFull } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User, Search, ChevronDown } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -276,9 +277,7 @@ const Header = () => {
             </button>
 
             <Link to="/" className="justify-self-center flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-purple-600 flex items-center justify-center">
-                <span className="font-bold text-white text-lg">N</span>
-              </div>
+              <LogoIcon size={36} />
               <span className="font-bold text-xl text-white tracking-tight">Nivra</span>
             </Link>
 
@@ -293,11 +292,8 @@ const Header = () => {
 
           {/* Desktop */}
           <div className="hidden lg:flex items-center h-16 gap-6">
-            <Link to="/" className="flex items-center gap-2.5 shrink-0 mr-2">
-              <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center shadow-sm">
-                <span className="font-extrabold text-white text-xl">N</span>
-              </div>
-              <span className="font-extrabold text-[1.35rem] text-white tracking-tight">Nivra</span>
+            <Link to="/" className="flex items-center shrink-0 mr-2">
+              <LogoFull height={38} />
             </Link>
 
             <div className="h-6 w-px bg-white/15 mx-1" />
@@ -333,9 +329,7 @@ const Header = () => {
           <div id="mobile-menu" role="dialog" aria-label="Menu de navigation" className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-[#111111] z-50 shadow-2xl lg:hidden overflow-y-auto">
             <div className="p-4 border-b border-white/10 flex items-center justify-between h-14">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center">
-                  <span className="font-bold text-white text-sm">N</span>
-                </div>
+                <LogoIcon size={32} />
                 <span className="font-bold text-white text-lg">Nivra</span>
               </Link>
               <button onClick={() => setIsMenuOpen(false)} className="p-2 text-white/60 hover:text-white rounded-lg" aria-label="Fermer le menu">
