@@ -92,5 +92,6 @@ export default function TestimonialsSection() {
             : "Testimonials reflect real customer experiences. Results may vary by region and setup."}
         </p>
       </div>
+    </section>
   );
 }
