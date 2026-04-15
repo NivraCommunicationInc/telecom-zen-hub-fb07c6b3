@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
+import { verifyTurnstileToken, getClientIp, turnstileFailResponse } from "../_shared/turnstile.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,6 +124,14 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+
+    // Turnstile anti-bot verification
+    const turnstileToken = body.turnstileToken ?? body.cfTurnstileResponse ?? "";
+    const isHuman = await verifyTurnstileToken(turnstileToken, clientIp);
+    if (!isHuman) {
+      return turnstileFailResponse(corsHeaders);
+    }
+
     const validation = validatePayload(body);
 
     if (!validation.valid) {

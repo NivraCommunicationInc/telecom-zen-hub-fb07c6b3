@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "../_shared/ResendProxy.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { verifyTurnstileToken, getClientIp, turnstileFailResponse } from "../_shared/turnstile.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,6 +97,14 @@ serve(async (req) => {
     }
 
     const body = await req.json();
+
+    // Turnstile anti-bot verification
+    const turnstileToken = body.turnstileToken ?? body.cfTurnstileResponse ?? "";
+    const isHuman = await verifyTurnstileToken(turnstileToken, clientIp);
+    if (!isHuman) {
+      return turnstileFailResponse(corsHeaders);
+    }
+
     const payload = validatePayload(body);
     const userAgent = req.headers.get("user-agent") || "Unknown";
 
