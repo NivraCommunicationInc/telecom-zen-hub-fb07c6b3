@@ -75,7 +75,7 @@ export const usePresence = (options: UsePresenceOptions = {}) => {
     }
   }, [trackPresence, user]);
 
-  const isStaffRole = role === "admin" || role === "employee" || role === "technician";
+  const isStaffRole = role === "admin";
 
   useEffect(() => {
     if (!user || !isStaffRole) {
