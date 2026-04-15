@@ -87,6 +87,11 @@ export default function MarketingComparisonTable() {
             </Link>
           </Button>
         </div>
+        <p className="text-center text-[11px] text-white/40 mt-3">
+          * {isFr
+            ? "Comparaison basée sur les grilles tarifaires publiques de Bell et Vidéotron en avril 2025. Prix sujets à changement."
+            : "Comparison based on Bell and Vidéotron public pricing as of April 2025. Prices subject to change."}
+        </p>
       </div>
     </section>
   );
