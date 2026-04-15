@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import SEOHead from "@/components/SEOHead";
 import { FAQSchema, BreadcrumbSchema } from "@/components/seo";
 
 const FAQ = () => {
