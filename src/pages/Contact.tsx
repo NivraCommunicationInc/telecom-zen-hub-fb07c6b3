@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { LocalBusinessSchema } from "@/components/seo";
 import { Link } from "react-router-dom";
 
 const Contact = () => {
@@ -41,6 +42,7 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead {...SEO_DATA.contact} />
+      <LocalBusinessSchema />
       <Header />
 
       {/* Hero Section */}
