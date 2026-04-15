@@ -75,8 +75,10 @@ export const usePresence = (options: UsePresenceOptions = {}) => {
     }
   }, [trackPresence, user]);
 
+  const isStaffRole = role === "admin";
+
   useEffect(() => {
-    if (!user) {
+    if (!user || !isStaffRole) {
       setOnlineUsers([]);
       setIsConnected(false);
       return;
