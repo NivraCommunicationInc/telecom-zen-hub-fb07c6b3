@@ -223,13 +223,25 @@ export const OrderSummaryCard = ({
             </div>
           )}
 
+          {/* ── Satisfaction guarantee ── */}
+          <div className="mt-5 bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+            <p className="text-xs font-semibold text-emerald-700">✓ Satisfaction 30 jours</p>
+            <p className="text-[11px] text-emerald-600 mt-0.5">
+              {isFrench ? "Remboursement complet si insatisfait" : "Full refund if unsatisfied"}
+            </p>
+          </div>
+
           {/* ── Return policy ── */}
           {showTrustBadges && (
-            <div className="mt-5 pt-4 border-t border-slate-200">
-              <p className="text-sm text-slate-600">
-                {isFrench 
-                  ? "Retours sans souci, sans frais dans les 15 jours" 
-                  : "Hassle-free returns within 15 days"}
+            <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5">
+              <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                🔒 {isFrench ? "Paiement sécurisé — chiffrement 256 bits" : "Secure payment — 256-bit encryption"}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                ✓ {isFrench ? "Sans contrat — annulez à tout moment" : "No contract — cancel anytime"}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                🇨🇦 {isFrench ? "Entreprise québécoise" : "Quebec-based company"}
               </p>
             </div>
           )}

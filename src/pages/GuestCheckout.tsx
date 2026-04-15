@@ -1170,16 +1170,23 @@ const GuestCheckout = () => {
                       paymentMethod={paymentMethod || undefined}
                     />
 
-                    {/* Security badges */}
-                    <div className="flex items-center gap-4 pt-2">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {/* Trust badges */}
+                    <div className="flex flex-wrap items-center justify-center gap-4 pt-4 pb-2 border-t border-border mt-4">
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Lock className="w-3.5 h-3.5 text-emerald-600" />
-                        Paiement sécurisé
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        SSL 256-bit
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        Sans contrat
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                        Aucun frais caché
-                      </div>
+                        Remboursement 30 jours
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        🇨🇦 Entreprise québécoise
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -1237,14 +1244,17 @@ const GuestCheckout = () => {
 
                     {/* Account setup CTA */}
                     <div className="mt-6 p-4 bg-primary/5 rounded-xl border border-primary/20 max-w-md mx-auto">
-                      <Mail className="w-6 h-6 text-primary mx-auto mb-2" />
+                      <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
                       <p className="text-sm font-semibold text-foreground mb-1">
-                        Vérifiez votre courriel
+                        ✅ Commande confirmée !
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Un courriel a été envoyé à <strong>{email}</strong> pour compléter la création de votre compte
-                        et accéder à votre portail client.
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Un compte client a été créé automatiquement avec votre adresse courriel.
                       </p>
+                      <div className="flex items-center gap-2 justify-center text-xs text-primary">
+                        <Mail className="w-4 h-4" />
+                        <span>Vérifiez votre boîte de réception à <strong>{email}</strong> pour accéder à votre espace client.</span>
+                      </div>
                     </div>
 
                     {/* KYC pending notice */}
