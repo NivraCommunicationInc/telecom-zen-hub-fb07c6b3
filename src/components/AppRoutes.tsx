@@ -398,12 +398,30 @@ const AdminProtectedOutlet = () => (
   </AuthProvider>
 );
 
-// Global Suspense fallback for lazy routes
+// Global branded loading screen for lazy routes
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="flex flex-col items-center gap-3">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      <p className="text-sm text-muted-foreground">Chargement...</p>
+  <div className="min-h-screen flex items-center justify-center bg-[hsl(220,20%,8%)]">
+    <div className="flex flex-col items-center gap-5">
+      <div className="flex gap-1.5">
+        <div className="w-3 h-3 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="w-3 h-3 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+        <div className="w-3 h-3 rounded-full bg-purple-300 animate-bounce" style={{ animationDelay: '300ms' }} />
+      </div>
+      <p className="text-sm font-bold tracking-[0.25em] text-white/80 uppercase">
+        Nivra Telecom
+      </p>
+      <div className="w-48 h-1 rounded-full bg-white/10 overflow-hidden">
+        <div
+          className="h-full w-12 rounded-full bg-gradient-to-r from-purple-500 to-purple-300"
+          style={{ animation: 'nivra-load 1.2s ease-in-out infinite' }}
+        />
+      </div>
+      <style>{`
+        @keyframes nivra-load {
+          0% { transform: translateX(-48px); }
+          100% { transform: translateX(192px); }
+        }
+      `}</style>
     </div>
   </div>
 );
