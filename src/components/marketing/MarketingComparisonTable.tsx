@@ -8,26 +8,19 @@ export default function MarketingComparisonTable() {
   const isFr = language === "fr";
 
   const features = [
-    { label: isFr ? "Sans contrat" : "No contract", nivra: true, bell: false, videotron: false },
-    { label: isFr ? "Prix fixe garanti" : "Guaranteed fixed price", nivra: true, bell: false, videotron: false },
-    { label: isFr ? "Activation en ligne" : "Online activation", nivra: true, bell: false, videotron: true },
-    { label: isFr ? "Support en français 7j/7" : "French support 7/7", nivra: true, bell: true, videotron: true },
-    { label: isFr ? "Frais de résiliation" : "Cancellation fees", nivra: false, bell: true, videotron: true },
-    { label: isFr ? "Frais d'installation" : "Installation fees", nivra: false, bell: true, videotron: true },
-    { label: isFr ? "Facturation transparente" : "Transparent billing", nivra: true, bell: false, videotron: false },
-    { label: isFr ? "Changer de forfait à tout moment" : "Switch plans anytime", nivra: true, bell: false, videotron: false },
+    { label: isFr ? "Contrat minimum requis" : "Minimum contract required", nivra: false, bell: true, videotron: true, negative: true },
+    { label: isFr ? "Frais de résiliation" : "Cancellation fees", nivra: false, bell: true, videotron: true, negative: true },
+    { label: isFr ? "Frais d'installation" : "Installation fees", nivra: false, bell: true, videotron: true, negative: true },
+    { label: isFr ? "Activation en ligne disponible" : "Online activation available", nivra: true, bell: false, videotron: true, negative: false },
+    { label: isFr ? "Prix fixe garanti (sans hausse après 12 mois)" : "Guaranteed fixed price (no increase after 12 months)", nivra: true, bell: false, videotron: false, negative: false },
   ];
 
-  const Checkmark = ({ val, inverted = false }: { val: boolean; inverted?: boolean }) => {
-    const show = inverted ? !val : val;
-    return show ? (
+  const CellIcon = ({ good }: { good: boolean }) =>
+    good ? (
       <Check className="w-5 h-5 text-purple-400 mx-auto" aria-label={isFr ? "Oui" : "Yes"} />
     ) : (
       <X className="w-5 h-5 text-white/20 mx-auto" aria-label={isFr ? "Non" : "No"} />
     );
-  };
-
-  const isNegativeRow = (idx: number) => idx === 4 || idx === 5;
 
   return (
     <section
@@ -37,10 +30,10 @@ export default function MarketingComparisonTable() {
       <div className="max-w-[900px] mx-auto">
         <div className="text-center mb-10">
           <p className="text-xs tracking-[2px] uppercase text-black/40 mb-2">
-            {isFr ? "Pourquoi Nivra ?" : "Why Nivra?"}
+            {isFr ? "Comparaison factuelle" : "Factual comparison"}
           </p>
           <h2 className="text-2xl md:text-3xl font-bold text-black">
-            {isFr ? "La différence est claire" : "The difference is clear"}
+            {isFr ? "Comparez avant de choisir" : "Compare before you choose"}
           </h2>
         </div>
 
@@ -59,23 +52,20 @@ export default function MarketingComparisonTable() {
               </tr>
             </thead>
             <tbody>
-              {features.map((f, i) => {
-                const neg = isNegativeRow(i);
-                return (
-                  <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                    <td className="p-3.5 text-sm text-black border-b border-gray-100">{f.label}</td>
-                    <td className="p-3.5 text-center border-b border-gray-100 bg-purple-50">
-                      <Checkmark val={f.nivra} inverted={neg} />
-                    </td>
-                    <td className="p-3.5 text-center border-b border-gray-100">
-                      <Checkmark val={f.bell} inverted={neg} />
-                    </td>
-                    <td className="p-3.5 text-center border-b border-gray-100">
-                      <Checkmark val={f.videotron} inverted={neg} />
-                    </td>
-                  </tr>
-                );
-              })}
+              {features.map((f, i) => (
+                <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                  <td className="p-3.5 text-sm text-black border-b border-gray-100">{f.label}</td>
+                  <td className="p-3.5 text-center border-b border-gray-100 bg-purple-50">
+                    <CellIcon good={f.negative ? !f.nivra : f.nivra} />
+                  </td>
+                  <td className="p-3.5 text-center border-b border-gray-100">
+                    <CellIcon good={f.negative ? !f.bell : f.bell} />
+                  </td>
+                  <td className="p-3.5 text-center border-b border-gray-100">
+                    <CellIcon good={f.negative ? !f.videotron : f.videotron} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -87,10 +77,10 @@ export default function MarketingComparisonTable() {
             </Link>
           </Button>
         </div>
-        <p className="text-center text-[11px] text-white/40 mt-3">
+        <p className="text-center text-[11px] text-black/40 mt-4 max-w-[700px] mx-auto leading-relaxed">
           * {isFr
-            ? "Comparaison basée sur les grilles tarifaires publiques de Bell et Vidéotron en avril 2025. Prix sujets à changement."
-            : "Comparison based on Bell and Vidéotron public pricing as of April 2025. Prices subject to change."}
+            ? "Comparaison basée sur les informations publiques disponibles sur bell.ca et videotron.com en avril 2025. Les offres des concurrents peuvent changer sans préavis. Nivra Telecom n'est pas affilié à Bell Canada ou Vidéotron. Pour les tarifs actuels de nos concurrents, consultez leurs sites officiels."
+            : "Comparison based on publicly available information on bell.ca and videotron.com as of April 2025. Competitor offers may change without notice. Nivra Telecom is not affiliated with Bell Canada or Vidéotron. For current competitor pricing, please visit their official websites."}
         </p>
       </div>
     </section>
