@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddressAutocomplete, type AddressValue } from "@/components/shared/AddressAutocomplete";
 import { InternetInfoBox } from "@/components/ServiceInfoBox";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
+import { ItemListSchema } from "@/components/seo";
 import { useInternetPlans, useEquipmentPrices } from "@/hooks/usePublicServices";
 
 
