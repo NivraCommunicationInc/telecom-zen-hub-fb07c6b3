@@ -41,7 +41,7 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead {...SEO_DATA.contact} />
-      <Header />
+      <LocalBusinessSchema />
 
       {/* Hero Section */}
       <section className="pt-32 pb-12 bg-gradient-to-b from-primary to-background">

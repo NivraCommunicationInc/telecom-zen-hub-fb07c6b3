@@ -33,6 +33,10 @@ if (import.meta.env.DEV && "serviceWorker" in navigator) {
     });
 }
 
+// Remove static SEO fallback content once React mounts
+const seoFallback = document.getElementById("seo-fallback");
+if (seoFallback) seoFallback.remove();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
