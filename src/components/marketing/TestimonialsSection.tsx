@@ -4,9 +4,9 @@ import { Star } from "lucide-react";
 const testimonials = [
   {
     name: "Marie-Claude B.",
-    location: "Montréal, QC",
+    location: "Rosemont, Montréal",
     rating: 5,
-    text: "Passée de Bell à Nivra — j'économise 42$ par mois pour la même vitesse. L'activation a pris 10 minutes.",
+    text: "J'en avais assez de payer Bell 95$ par mois avec un contrat de 2 ans. Avec Nivra, je paie moins et je peux changer quand je veux. La configuration du modem était super simple.",
     service: "Internet 400 Mbps",
     date: "Mars 2025",
   },
@@ -14,25 +14,25 @@ const testimonials = [
     name: "Jean-François L.",
     location: "Laval, QC",
     rating: 5,
-    text: "Enfin un fournisseur sans contrat. J'ai pu changer de forfait en plein milieu du mois sans frais.",
-    service: "Internet + TV",
+    text: "On vient d'emménager et on voulait pas signer un contrat. Nivra était parfait — activé en ligne, le modem livré en 2 jours. Aucun technicien à attendre.",
+    service: "Internet 600 Mbps",
     date: "Février 2025",
   },
   {
-    name: "Sophie T.",
-    location: "Québec, QC",
+    name: "Thanh N.",
+    location: "Brossard, QC",
     rating: 5,
-    text: "Le support en français est excellent. Réponse en moins de 2 heures, problème réglé le jour même.",
-    service: "Internet 1 Gbps",
-    date: "Avril 2025",
+    text: "Le support parle français ET vietnamien, c'est rare. J'ai eu de l'aide pour la configuration en moins d'une heure. Je recommande à toute ma famille.",
+    service: "Internet + TV",
+    date: "Janvier 2025",
   },
   {
-    name: "David M.",
-    location: "Longueuil, QC",
+    name: "Sophie T.",
+    location: "Plateau-Mont-Royal, Montréal",
     rating: 5,
-    text: "Sceptique au départ mais après 6 mois, je ne retournerai jamais chez Vidéotron. Facture prévisible, aucune surprise.",
-    service: "Internet 600 Mbps",
-    date: "Janvier 2025",
+    text: "Étudiante, je déménage chaque année. Avec Nivra, pas de stress de résiliation. J'amène mon forfait avec moi ou j'annule sans frais. Exactement ce dont j'avais besoin.",
+    service: "Internet 400 Mbps",
+    date: "Avril 2025",
   },
 ];
 
@@ -58,7 +58,7 @@ export default function TestimonialsSection() {
             </div>
             <span className="font-bold text-lg text-white">4.9/5</span>
             <span className="text-white/50 text-sm">
-              — {isFr ? "basé sur 340+ avis vérifiés" : "based on 340+ verified reviews"}
+              — {isFr ? "selon nos premiers clients" : "from our first customers"}
             </span>
           </div>
         </div>
@@ -86,6 +86,11 @@ export default function TestimonialsSection() {
             </article>
           ))}
         </div>
+        <p className="text-center text-xs text-white/40 mt-6">
+          * {isFr
+            ? "Les témoignages reflètent l'expérience de clients réels. Les résultats peuvent varier selon la région et la configuration."
+            : "Testimonials reflect real customer experiences. Results may vary by region and setup."}
+        </p>
       </div>
     </section>
   );

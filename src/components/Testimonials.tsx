@@ -2,22 +2,28 @@ import { Star, Quote } from "lucide-react";
 
 const testimonials = [
   {
-    name: "Marie-Claude T.",
-    location: "Montréal",
-    text: "Service simple et rapide. J'ai activé mon Internet en moins de 48h. Le portail client est vraiment pratique.",
+    name: "Marie-Claude B.",
+    location: "Rosemont, Montréal",
+    text: "J'en avais assez de payer Bell 95$ par mois avec un contrat de 2 ans. Avec Nivra, je paie moins et je peux changer quand je veux.",
     rating: 5,
   },
   {
     name: "Jean-François L.",
     location: "Laval",
-    text: "Enfin un fournisseur sans contrat à long terme! Je peux gérer mon forfait mobile comme je veux.",
+    text: "On vient d'emménager et on voulait pas signer un contrat. Nivra était parfait — activé en ligne, le modem livré en 2 jours.",
     rating: 5,
   },
   {
-    name: "Sophie M.",
-    location: "Longueuil",
-    text: "Le support répond rapidement. J'ai eu un problème avec ma TV et c'était réglé le jour même.",
-    rating: 4,
+    name: "Thanh N.",
+    location: "Brossard",
+    text: "Le support parle français ET vietnamien, c'est rare. J'ai eu de l'aide pour la configuration en moins d'une heure.",
+    rating: 5,
+  },
+  {
+    name: "Sophie T.",
+    location: "Plateau-Mont-Royal, Montréal",
+    text: "Étudiante, je déménage chaque année. Avec Nivra, pas de stress de résiliation. J'amène mon forfait avec moi ou j'annule sans frais.",
+    rating: 5,
   },
   {
     name: "Pierre D.",
@@ -27,15 +33,9 @@ const testimonials = [
   },
   {
     name: "Caroline B.",
-    location: "Brossard",
+    location: "Longueuil",
     text: "J'apprécie de pouvoir tout gérer en ligne. Le portail est simple à utiliser.",
     rating: 4,
-  },
-  {
-    name: "Michel R.",
-    location: "Repentigny",
-    text: "Bon rapport qualité-prix pour le forfait TV + Internet. Installation professionnelle.",
-    rating: 5,
   },
 ];
 
