@@ -124,6 +124,14 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+
+    // Turnstile anti-bot verification
+    const turnstileToken = body.turnstileToken ?? body.cfTurnstileResponse ?? "";
+    const isHuman = await verifyTurnstileToken(turnstileToken, clientIp);
+    if (!isHuman) {
+      return turnstileFailResponse(corsHeaders);
+    }
+
     const validation = validatePayload(body);
 
     if (!validation.valid) {
