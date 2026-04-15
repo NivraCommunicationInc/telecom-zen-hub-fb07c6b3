@@ -41,13 +41,13 @@ export default function TestimonialsSection() {
   const isFr = language === "fr";
 
   return (
-    <section aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="py-16 px-6 bg-[#0d0d0d]">
+    <section aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="py-10 sm:py-16 px-4 sm:px-6 bg-[#0d0d0d]">
       <div className="max-w-[1100px] mx-auto">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           <p className="text-xs tracking-[2px] uppercase text-white/40 mb-2">
             {isFr ? "Ce que disent nos clients" : "What our customers say"}
           </p>
-          <h2 className="text-2xl md:text-3xl font-bold text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white">
             {isFr ? "Ils ont fait le saut" : "They made the switch"}
           </h2>
           <div className="flex items-center justify-center gap-2 mt-3">
@@ -63,30 +63,30 @@ export default function TestimonialsSection() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
           {testimonials.map((t, i) => (
             <article
               key={i}
-              className="bg-[#1a1a1a] rounded-xl p-6 border border-white/10 hover:border-purple-500/30 transition-colors"
+              className="bg-[#1a1a1a] rounded-xl p-[18px] sm:p-6 border border-white/10 hover:border-purple-500/30 transition-colors"
             >
               <div className="flex mb-3" aria-label={`${t.rating} étoiles sur 5`}>
                 {[...Array(t.rating)].map((_, j) => (
                   <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-              <p className="text-white/70 leading-relaxed mb-4 text-sm">
+              <p className="text-white/70 leading-relaxed mb-4 text-[14px]">
                 &ldquo;{t.text}&rdquo;
               </p>
               <div className="border-t border-white/10 pt-3">
                 <div className="font-bold text-sm text-white">{t.name}</div>
-                <div className="text-xs text-white/40 mt-0.5">
+                <div className="text-[12px] text-white/40 mt-0.5">
                   {t.location} · {t.service} · {t.date}
                 </div>
               </div>
             </article>
           ))}
         </div>
-        <p className="text-center text-xs text-white/40 mt-6">
+        <p className="text-center text-[12px] text-white/40 mt-6 px-2">
           * {isFr
             ? "Les témoignages reflètent l'expérience de clients réels. Les résultats peuvent varier selon la région et la configuration."
             : "Testimonials reflect real customer experiences. Results may vary by region and setup."}

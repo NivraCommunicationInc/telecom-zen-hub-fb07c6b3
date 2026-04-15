@@ -21,53 +21,60 @@ const ComparisonTable = () => {
     );
 
   return (
-    <section className="py-20 lg:py-28 bg-[#111111]">
+    <section className="py-10 sm:py-20 lg:py-28 bg-[#111111]">
       <div className="container mx-auto px-4 sm:px-6 max-w-[900px]">
-        <div className="text-center mb-10">
+        <div className="text-center mb-8 sm:mb-10">
           <p className="text-xs tracking-[2px] uppercase text-white/40 mb-2">
             {isFr ? "Comparaison factuelle" : "Factual comparison"}
           </p>
-          <h2 className="text-3xl md:text-[2.5rem] font-bold text-white tracking-[-0.025em]">
+          <h2 className="text-2xl sm:text-3xl md:text-[2.5rem] font-bold text-white tracking-[-0.025em]">
             {isFr ? "Comparez avant de choisir" : "Compare before you choose"}
           </h2>
         </div>
 
-        <div className="bg-[#1a1a1a] rounded-3xl border border-white/10 overflow-x-auto max-w-[850px] mx-auto">
-          <table className="w-full min-w-[500px]" aria-label={isFr ? "Comparaison Nivra vs concurrents" : "Nivra vs competitors"}>
-            <thead>
-              <tr>
-                <th className="p-4 text-left text-xs text-white/50 font-medium" />
-                <th className="p-4 text-center font-bold text-purple-400 text-sm border-l border-white/10 bg-purple-500/5">
-                  Nivra Telecom
-                </th>
-                <th className="p-4 text-center font-bold text-white/50 text-sm border-l border-white/10">Bell</th>
-                <th className="p-4 text-center font-bold text-white/50 text-sm border-l border-white/10">Vidéotron</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => {
-                // For negative attributes (contract, fees), "true" means bad for consumer
-                const isNegativeAttribute = i <= 2;
-                return (
-                  <tr key={i} className={i < rows.length - 1 ? "border-b border-white/10" : ""}>
-                    <td className="p-4 text-sm font-medium text-white">{row.label}</td>
-                    <td className="p-4 text-center border-l border-white/10 bg-purple-500/5">
-                      <CellIcon positive={isNegativeAttribute ? !row.nivra : row.nivra} />
-                    </td>
-                    <td className="p-4 text-center border-l border-white/10">
-                      <CellIcon positive={isNegativeAttribute ? !row.bell : row.bell} />
-                    </td>
-                    <td className="p-4 text-center border-l border-white/10">
-                      <CellIcon positive={isNegativeAttribute ? !row.videotron : row.videotron} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        {/* Scrollable wrapper for mobile */}
+        <div className="bg-[#1a1a1a] rounded-2xl sm:rounded-3xl border border-white/10 overflow-hidden max-w-[850px] mx-auto">
+          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full min-w-[420px]" aria-label={isFr ? "Comparaison Nivra vs concurrents" : "Nivra vs competitors"}>
+              <thead>
+                <tr>
+                  <th className="p-2.5 sm:p-4 text-left text-xs text-white/50 font-medium" />
+                  <th className="p-2.5 sm:p-4 text-center font-bold text-purple-400 text-[13px] sm:text-sm border-l border-white/10 bg-purple-500/5">
+                    Nivra
+                  </th>
+                  <th className="p-2.5 sm:p-4 text-center font-bold text-white/50 text-[13px] sm:text-sm border-l border-white/10">Bell</th>
+                  <th className="p-2.5 sm:p-4 text-center font-bold text-white/50 text-[13px] sm:text-sm border-l border-white/10">Vidéotron</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => {
+                  const isNegativeAttribute = i <= 2;
+                  return (
+                    <tr key={i} className={i < rows.length - 1 ? "border-b border-white/10" : ""}>
+                      <td className="p-2.5 sm:p-4 text-[13px] sm:text-sm font-medium text-white">{row.label}</td>
+                      <td className="p-2.5 sm:p-4 text-center border-l border-white/10 bg-purple-500/5">
+                        <CellIcon positive={isNegativeAttribute ? !row.nivra : row.nivra} />
+                      </td>
+                      <td className="p-2.5 sm:p-4 text-center border-l border-white/10">
+                        <CellIcon positive={isNegativeAttribute ? !row.bell : row.bell} />
+                      </td>
+                      <td className="p-2.5 sm:p-4 text-center border-l border-white/10">
+                        <CellIcon positive={isNegativeAttribute ? !row.videotron : row.videotron} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <p className="text-center text-[11px] text-white/35 mt-6 max-w-[700px] mx-auto leading-relaxed">
+        {/* Mobile scroll hint */}
+        <p className="text-center text-[12px] text-white/30 mt-3 sm:hidden">
+          ← {isFr ? "Glisser pour voir" : "Swipe to see"} →
+        </p>
+
+        <p className="text-center text-[11px] text-white/35 mt-5 sm:mt-6 max-w-[700px] mx-auto leading-relaxed px-2">
           * {isFr
             ? "Comparaison basée sur les informations publiques disponibles sur bell.ca et videotron.com en avril 2025. Les offres des concurrents peuvent changer sans préavis. Nivra Telecom n'est pas affilié à Bell Canada ou Vidéotron. Pour les tarifs actuels de nos concurrents, consultez leurs sites officiels."
             : "Comparison based on publicly available information on bell.ca and videotron.com as of April 2025. Competitor offers may change without notice. Nivra Telecom is not affiliated with Bell Canada or Vidéotron. For current competitor pricing, please visit their official websites."}

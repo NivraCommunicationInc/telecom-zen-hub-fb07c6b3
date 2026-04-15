@@ -17,12 +17,12 @@ export default function StatsBanner() {
         {stats.map((s, i) => (
           <div
             key={i}
-            className={`py-7 px-6 text-center ${
+            className={`py-4 px-3 md:py-7 md:px-6 text-center ${
               i < stats.length - 1 ? "border-r border-white/10" : ""
-            }`}
+            } ${i >= 2 ? "border-t md:border-t-0 border-white/10" : ""}`}
           >
-            <div className="text-2xl md:text-3xl font-extrabold mb-1 text-purple-400">{s.number}</div>
-            <div className="text-xs md:text-sm text-white/60">{s.label}</div>
+            <div className="text-xl md:text-3xl font-extrabold mb-1 text-purple-400">{s.number}</div>
+            <div className="text-[11px] md:text-sm text-white/60">{s.label}</div>
           </div>
         ))}
       </div>

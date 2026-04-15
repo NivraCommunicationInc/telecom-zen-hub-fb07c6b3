@@ -30,10 +30,10 @@ const steps = [
 
 const ReferralProgram = () => {
   return (
-    <section className="py-20 lg:py-28 bg-white relative overflow-hidden">
+    <section className="py-12 sm:py-20 lg:py-28 bg-white relative overflow-hidden">
       <div className="container mx-auto px-4 max-w-6xl relative">
         {/* Badge */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-5 sm:mb-6">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-100 border border-purple-200 text-purple-700 text-sm font-semibold">
             <Gift className="w-4 h-4" />
             Programme de parrainage
@@ -41,28 +41,28 @@ const ReferralProgram = () => {
         </div>
 
         {/* Headline */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-[2.5rem] font-bold text-black mb-5 tracking-[-0.025em]">
+        <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-[2.5rem] font-bold text-black mb-4 sm:mb-5 tracking-[-0.025em]">
             Parrainez un proche, recevez <span className="text-purple-600">25$</span>
           </h2>
-          <p className="text-lg text-black/60 leading-relaxed">
+          <p className="text-[16px] sm:text-lg text-black/60 leading-relaxed">
             Invitez vos proches chez Nivra et recevez une carte-cadeau Visa/Mastercard de 25$ après leur 3e cycle mensuel payé. Sans limite de parrainages.
           </p>
         </div>
 
         {/* Steps */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-7 mb-16">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-7 mb-10 sm:mb-16">
           {steps.map((step, i) => (
             <div key={i} className="relative group">
-              <div className="bg-gray-50 rounded-2xl border border-gray-200 p-8 h-full hover:border-purple-300 hover:shadow-lg transition-all duration-300">
-                <div className="absolute -top-3 -left-1 w-7 h-7 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold shadow-md">
+              <div className="bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-8 h-full hover:border-purple-300 hover:shadow-lg transition-all duration-300">
+                <div className="absolute -top-2.5 -left-0.5 sm:-top-3 sm:-left-1 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-black text-white flex items-center justify-center text-[11px] sm:text-xs font-bold shadow-md">
                   {i + 1}
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-5 group-hover:bg-purple-200 transition-colors duration-300">
-                  <step.icon className="w-6 h-6 text-purple-600 transition-transform duration-300 group-hover:scale-110" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-purple-100 flex items-center justify-center mb-3 sm:mb-5 group-hover:bg-purple-200 transition-colors duration-300">
+                  <step.icon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 transition-transform duration-300 group-hover:scale-110" />
                 </div>
-                <h3 className="font-bold text-black mb-2">{step.title}</h3>
-                <p className="text-sm text-black/60 leading-relaxed">{step.description}</p>
+                <h3 className="font-bold text-black mb-1.5 sm:mb-2 text-[14px] sm:text-base">{step.title}</h3>
+                <p className="text-[13px] sm:text-sm text-black/60 leading-relaxed">{step.description}</p>
               </div>
               {i < steps.length - 1 && (
                 <div className="hidden lg:flex absolute top-1/2 -right-3 -translate-y-1/2 z-10">
@@ -74,24 +74,25 @@ const ReferralProgram = () => {
         </div>
 
         {/* Reward highlight */}
-        <div className="bg-gradient-to-br from-purple-700 via-purple-600 to-purple-800 rounded-3xl p-10 md:p-14 text-center shadow-xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-purple-700 via-purple-600 to-purple-800 rounded-2xl sm:rounded-3xl p-6 sm:p-10 md:p-14 text-center shadow-xl relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/5 to-transparent" />
           </div>
           <div className="relative">
-            <div className="flex items-center justify-center gap-3 mb-5">
-              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-                <CreditCard className="w-8 h-8 text-white" />
+            <div className="flex items-center justify-center gap-3 mb-4 sm:mb-5">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/10 flex items-center justify-center">
+                <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
               </div>
             </div>
-            <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-3">
               Carte-cadeau Visa/Mastercard de 25$
             </h3>
-            <p className="text-white/70 max-w-lg mx-auto mb-8 text-lg leading-relaxed">
+            <p className="text-white/70 max-w-lg mx-auto mb-6 sm:mb-8 text-[15px] sm:text-lg leading-relaxed">
               Pour chaque parrainage qualifié. Aucune limite — plus vous parrainez, plus vous gagnez. Programme transparent, sans conditions cachées.
             </p>
             <Button
-              className="bg-white text-purple-700 hover:bg-white/90 rounded-full px-8 h-12 font-bold gap-2 shadow-md transition-all duration-200"
+              className="bg-white text-purple-700 hover:bg-white/90 rounded-[10px] sm:rounded-full px-8 font-bold gap-2 shadow-md transition-all duration-200 w-full sm:w-auto"
+              style={{ height: 48 }}
               asChild
             >
               <Link to="/parrainage">
