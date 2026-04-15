@@ -185,6 +185,7 @@ const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
 const ServicesDetail = lazy(() => import("@/pages/ServicesDetail"));
 const InternetPlans = lazy(() => import("@/pages/InternetPlans"));
+const Forfaits = lazy(() => import("@/pages/Forfaits"));
 const TVPlans = lazy(() => import("@/pages/TVPlans"));
 const MobilePlans = lazy(() => import("@/pages/MobilePlans"));
 const MobileCoverage = lazy(() => import("@/pages/MobileCoverage"));
