@@ -185,6 +185,7 @@ const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
 const ServicesDetail = lazy(() => import("@/pages/ServicesDetail"));
 const InternetPlans = lazy(() => import("@/pages/InternetPlans"));
+const Forfaits = lazy(() => import("@/pages/Forfaits"));
 const TVPlans = lazy(() => import("@/pages/TVPlans"));
 const MobilePlans = lazy(() => import("@/pages/MobilePlans"));
 const MobileCoverage = lazy(() => import("@/pages/MobileCoverage"));
@@ -417,6 +418,7 @@ const AppRoutes = () => {
       <Route path="/" element={<MaintenanceGuard><PublicLayout><Index /></PublicLayout></MaintenanceGuard>} />
       <Route path="/about" element={<MaintenanceGuard><PublicLayout><About /></PublicLayout></MaintenanceGuard>} />
       <Route path="/services" element={<MaintenanceGuard><PublicLayout><ServicesDetail /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/forfaits" element={<MaintenanceGuard><PublicLayout><Forfaits /></PublicLayout></MaintenanceGuard>} />
       <Route path="/internet" element={<MaintenanceGuard><PublicLayout><InternetPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/tv" element={<MaintenanceGuard><PublicLayout><TVPlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/mobile" element={<MaintenanceGuard><PublicLayout><MobilePlans /></PublicLayout></MaintenanceGuard>} />
