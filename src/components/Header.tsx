@@ -236,8 +236,8 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="flex items-center w-full text-left pl-5 pr-4 text-[18px] font-medium text-white hover:bg-white/5 active:bg-white/10"
-        style={{ height: 56, minHeight: 56 }}
+        className="flex items-center w-full text-left pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8]"
+        style={{ height: 56, minHeight: 56, color: '#111111' }}
         type="button"
       >
         {getLabel(target)}
