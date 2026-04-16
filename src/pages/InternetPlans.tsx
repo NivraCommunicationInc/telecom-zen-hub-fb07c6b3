@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Wifi, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Loader2 } from "lucide-react";
+import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -102,8 +103,8 @@ const InternetPlans = () => {
             
             <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
               {isFrench 
-                ? "Connexion fiable et rapide avec le routeur Nivra Born Wifi inclus. Aucune vérification de crédit requise."
-                : "Fast and reliable connection with the Nivra Born Wifi router included. No credit check required."}
+                ? "Connexion fiable et rapide. Borne Nivra WiFi requise — 60$ (achat unique). Aucune vérification de crédit requise."
+                : "Fast and reliable connection. Nivra WiFi modem required — $60 (one-time purchase). No credit check required."}
             </p>
           </div>
         </section>
@@ -226,8 +227,10 @@ const InternetPlans = () => {
                       </li>
                     ))}
                   </ul>
+
+                  <EquipmentRequiredBox type="internet" />
                   
-                  <Button 
+                  <Button
                     onClick={() => handleGetStarted(plan.id)}
                     variant={plan.featured ? "hero" : "outline"} 
                     className="w-full mt-6"
