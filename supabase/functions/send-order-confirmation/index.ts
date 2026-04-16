@@ -962,6 +962,31 @@ Deno.serve(async (req) => {
       .select("id")
       .maybeSingle();
 
+    // ── BCC: Send a copy to business email for first-month-free promo orders ──
+    const FIRST_MONTH_FREE_CODES = ['BIENVENUE2026', 'NIVRA2026'];
+    const effectivePromoCode = (promo_code || orderData?.promo_code || "").toUpperCase().trim();
+    if (FIRST_MONTH_FREE_CODES.includes(effectivePromoCode)) {
+      const bccEventKey = `${eventKey}_bcc_support`;
+      const bccPayload = {
+        ...queuePayload,
+        event_key: bccEventKey,
+        to_email: "support@nivra-telecom.ca",
+        template_vars: {
+          ...queuePayload.template_vars,
+          is_bcc_copy: true,
+          original_client_email: client_email,
+        },
+      };
+      const { error: bccError } = await supabase
+        .from("email_queue")
+        .insert(bccPayload);
+      if (bccError) {
+        console.warn(`[${requestId}] Failed to queue BCC copy to support:`, bccError);
+      } else {
+        console.log(`[${requestId}] ✅ BCC copy queued to support@nivra-telecom.ca`);
+      }
+    }
+
     let queuedEmailId = queuedEmail?.id ?? null;
 
     if (queueInsertError && queueInsertError.code !== "PGRST116") {

@@ -1,16 +1,17 @@
-import { PartyPopper, PackageCheck, CalendarCheck, XCircle, RotateCcw } from "lucide-react";
+import { PartyPopper, PackageCheck, CalendarCheck, XCircle, RotateCcw, Sparkles } from "lucide-react";
 
 const FIRST_MONTH_FREE_CODES = ['BIENVENUE2026', 'NIVRA2026'];
 
 interface FirstMonthFreeExplanationProps {
   promoCode?: string | null;
+  autoApplied?: boolean;
 }
 
 /**
  * Explanation box shown when a first-month-free promo code is applied (BIENVENUE2026 or NIVRA2026).
- * Only renders if the applied promo code matches one of the known codes.
+ * Shows a different header message when the promo was auto-applied vs manually entered.
  */
-export const FirstMonthFreeExplanation = ({ promoCode }: FirstMonthFreeExplanationProps) => {
+export const FirstMonthFreeExplanation = ({ promoCode, autoApplied = false }: FirstMonthFreeExplanationProps) => {
   if (!promoCode || !FIRST_MONTH_FREE_CODES.includes(promoCode.toUpperCase())) {
     return null;
   }
@@ -18,9 +19,15 @@ export const FirstMonthFreeExplanation = ({ promoCode }: FirstMonthFreeExplanati
   return (
     <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <PartyPopper className="w-5 h-5 text-emerald-600" />
+        {autoApplied ? (
+          <Sparkles className="w-5 h-5 text-emerald-600" />
+        ) : (
+          <PartyPopper className="w-5 h-5 text-emerald-600" />
+        )}
         <p className="font-semibold text-emerald-700 text-sm">
-          Premier mois gratuit appliqué!
+          {autoApplied
+            ? "🎉 Bonne nouvelle! Nous avons détecté que vous êtes un nouveau client. Votre premier mois de service est automatiquement gratuit — aucun code requis!"
+            : "Premier mois gratuit appliqué!"}
         </p>
       </div>
 
