@@ -234,8 +234,8 @@ export const button = (
 `;
 };
 
-// Professional Footer - Digital support only (chat/tickets)
-export const footer = (supportEmail: string): string => `
+// Professional Footer - Email only support, no phone, no NEQ
+export const footer = (_supportEmail: string): string => `
   <tr>
     <td style="background-color: ${colors.footerBg}; padding: 32px 40px;">
       <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
@@ -243,7 +243,7 @@ export const footer = (supportEmail: string): string => `
           <td style="text-align: center; padding-bottom: 20px;">
             <h4 style="color: ${colors.white}; font-size: 18px; font-weight: 700; margin: 0;">Nivra Telecom</h4>
             <p style="color: ${colors.footerText}; font-size: 13px; margin: 8px 0 0 0;">
-              Fournisseur de services de télécommunications prépayés au Québec
+              Fournisseur de services Internet et TV sans contrat au Québec
             </p>
           </td>
         </tr>
@@ -251,25 +251,17 @@ export const footer = (supportEmail: string): string => `
           <td style="text-align: center; padding-bottom: 20px;">
             <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
               <tr>
-                <td style="padding: 0 12px; white-space: nowrap;">
-                  <a href="https://nivra-telecom.ca/portal" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">💬&nbsp;Chat / Tickets</a>
-                </td>
-                <td style="padding: 0 12px; white-space: nowrap;">
-                  <a href="mailto:${supportEmail}" style="color: ${colors.footerLink}; font-size: 13px; text-decoration: none; white-space: nowrap;">✉️&nbsp;${supportEmail}</a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="text-align: center; padding-bottom: 16px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-              <tr>
                 <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Site web</a></td>
+                <td style="color: ${colors.footerText};">|</td>
+                <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca/forfaits" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Forfaits</a></td>
+                <td style="color: ${colors.footerText};">|</td>
+                <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca/faq" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">FAQ</a></td>
                 <td style="color: ${colors.footerText};">|</td>
                 <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca/privacy" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Confidentialité</a></td>
                 <td style="color: ${colors.footerText};">|</td>
                 <td style="padding: 0 8px;"><a href="https://nivra-telecom.ca/terms" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">Conditions</a></td>
+                <td style="color: ${colors.footerText};">|</td>
+                <td style="padding: 0 8px;"><a href="https://crtc.gc.ca/fra/accueil-home.htm" style="color: ${colors.footerLink}; font-size: 12px; text-decoration: none;">CRTC</a></td>
               </tr>
             </table>
           </td>
@@ -277,7 +269,7 @@ export const footer = (supportEmail: string): string => `
         <tr>
           <td style="border-top: 1px solid #374151; padding-top: 16px; text-align: center;">
             <p style="color: ${colors.textLight}; font-size: 11px; margin: 0;">
-              © ${new Date().getFullYear()} Nivra Telecom Inc. Tous droits réservés.
+              © 2025 Nivra Communications Inc. Tous droits réservés.
             </p>
           </td>
         </tr>
@@ -286,20 +278,15 @@ export const footer = (supportEmail: string): string => `
   </tr>
 `;
 
-// Help section - Digital support only (chat/tickets)
+// Help section - Email only support, no phone
 export const helpSection = (supportEmail: string): string => `
   <div style="margin-top: 32px; padding: 24px; background-color: ${colors.bgSection}; border-radius: 8px; text-align: center;">
     <p style="color: ${colors.textPrimary}; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">Besoin d'aide?</p>
-    <p style="color: ${colors.textSecondary}; font-size: 14px; margin: 0 0 16px 0;">Notre équipe est disponible via chat ou tickets (réponse sous 1h à 24h)</p>
+    <p style="color: ${colors.textSecondary}; font-size: 14px; margin: 0 0 16px 0;">Notre équipe répond par courriel 7 jours sur 7, de 8h à 20h.</p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
       <tr>
-        <td style="padding: 0 8px;">
-          <a href="https://nivra-telecom.ca/portal" style="display: inline-block; padding: 10px 20px; background-color: ${colors.primary}; color: ${colors.white}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; white-space: nowrap;">
-            💬&nbsp;Chat / Tickets
-          </a>
-        </td>
-        <td style="padding: 0 8px;">
-          <a href="mailto:${supportEmail}" style="display: inline-block; padding: 10px 20px; background-color: ${colors.white}; color: ${colors.primary}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid ${colors.borderMedium}; white-space: nowrap;">
+        <td>
+          <a href="mailto:${supportEmail}" style="display: inline-block; padding: 10px 24px; background-color: ${colors.primary}; color: ${colors.white}; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px;">
             ✉️&nbsp;${supportEmail}
           </a>
         </td>
