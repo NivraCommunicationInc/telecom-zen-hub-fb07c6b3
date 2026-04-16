@@ -63,18 +63,7 @@ const TVPlans = () => {
 
   const handleGetStarted = (planId: string) => {
     trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "tv" } });
-    const state = {
-      validatedAddress: addressText,
-      addressDetails,
-      selectedPlanId: planId,
-      redirectTo: '/portal/tv-order'
-    };
-    
-    if (user) {
-      navigate('/portal/tv-order', { state });
-    } else {
-      navigate('/portal/auth', { state });
-    }
+    navigate(`/commander?plan=${planId}`);
   };
 
   return (
