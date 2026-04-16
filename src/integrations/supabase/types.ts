@@ -9478,6 +9478,8 @@ export type Database = {
           equipment_details: Json | null
           equipment_id: string | null
           equipment_line_details: Json | null
+          equipment_refund_date: string | null
+          equipment_refunded: boolean | null
           etransfer_status: string | null
           failure_reason: string | null
           fulfillment_assigned_at: string | null
@@ -9582,6 +9584,8 @@ export type Database = {
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
+          equipment_refund_date?: string | null
+          equipment_refunded?: boolean | null
           etransfer_status?: string | null
           failure_reason?: string | null
           fulfillment_assigned_at?: string | null
@@ -9686,6 +9690,8 @@ export type Database = {
           equipment_details?: Json | null
           equipment_id?: string | null
           equipment_line_details?: Json | null
+          equipment_refund_date?: string | null
+          equipment_refunded?: boolean | null
           etransfer_status?: string | null
           failure_reason?: string | null
           fulfillment_assigned_at?: string | null
