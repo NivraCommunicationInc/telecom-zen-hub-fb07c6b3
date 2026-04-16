@@ -7,7 +7,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import heroImage from "@/assets/hero-xfinity.jpg";
 
 const Hero = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isFr = language === 'fr';
   const { data: services, isLoading } = usePublicServices({ surface: "website", categories: ["Internet"] });
 
   const internetPrice = (() => {
