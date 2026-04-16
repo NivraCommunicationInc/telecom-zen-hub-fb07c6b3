@@ -776,6 +776,7 @@ Deno.serve(async (req) => {
       oneTimeTotal: canonicalOneTime,
       deliveryMethod: delivery_method ? getDeliveryMethodLabel(delivery_method) : undefined,
       deliveryAddress: delivery_address,
+      installation: installation,
       portalLink: `${siteBaseUrl}/portal/orders/${order_id}`,
       supportEmail: "support@nivra-telecom.ca",
       promoCode: effectivePromoCode || undefined,
