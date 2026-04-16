@@ -490,8 +490,9 @@ ${firstMonthBanner}
   ${afterTotalSummary}
 </div>
 
-<!-- EQUIPMENT -->
+<!-- EQUIPMENT / INSTALLATION -->
 ${equipmentSection}
+${installationSection}
 
 <!-- INFO CARDS -->
 <div style="padding:0 32px 24px">
