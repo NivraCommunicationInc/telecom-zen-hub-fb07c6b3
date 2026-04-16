@@ -19,7 +19,7 @@ import { AccountActionMenu } from "@/core-app/components/account-actions/Account
 import { OrderActionMenu } from "@/core-app/components/account-actions/OrderActions";
 
 /* ── Profile ── */
-export const ProfileSection = ({ data, acct, prof, clientName }: any) => (
+export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: any) => (
   <div className="space-y-3">
     <Panel>
       <PanelHeader icon={User} title="Informations personnelles" />
@@ -29,7 +29,15 @@ export const ProfileSection = ({ data, acct, prof, clientName }: any) => (
         <InfoLine label="Nom" value={prof?.last_name || "—"} />
         <InfoLine label="Courriel" value={prof?.email || "—"} />
         <InfoLine label="Téléphone" value={prof?.phone || "—"} mono />
-        <InfoLine label="Date de naissance" value={fmtDate(prof?.date_of_birth)} />
+        <div className="flex items-start justify-between py-1.5 border-b border-[hsl(220,15%,14%)] last:border-0">
+          <span className="text-[11px] text-[hsl(220,10%,45%)]">Date de naissance</span>
+          <span className="text-[11px] text-white text-right flex items-center gap-1.5">
+            {fmtDate(prof?.date_of_birth)}
+            {prof?.dob_locked && !isAdminCore && (
+              <span title="Champ verrouillé — modification réservée à admin_core" className="cursor-help">🔒</span>
+            )}
+          </span>
+        </div>
         <InfoLine label="Langue" value={prof?.preferred_language || "fr"} />
         <InfoLine label="Identité vérifiée" value={prof?.identity_verified ? "✓ Oui" : "✗ Non"} accent={!!prof?.identity_verified} />
       </div>

@@ -10900,6 +10900,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           department: string | null
+          dob_locked: boolean | null
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -10971,6 +10972,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           department?: string | null
+          dob_locked?: boolean | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -11042,6 +11044,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           department?: string | null
+          dob_locked?: boolean | null
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
