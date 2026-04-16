@@ -585,7 +585,7 @@ const ClientProfile = () => {
                           max={getMaxDobDate(MIN_AGE_TELECOM)}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          Vous devez avoir au moins {MIN_AGE_TELECOM} ans pour nos services
+                          Requis par la réglementation CRTC. Vous devez avoir {MIN_AGE_TELECOM} ans ou plus.
                         </p>
                       </>
                     )}
