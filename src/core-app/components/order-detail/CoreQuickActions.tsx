@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Wrench, Calendar, FileText, Wifi, Headphones, Ban,
   Loader2, CreditCard, Package, Send, CheckCircle2,
-  RotateCcw, AlertTriangle, Pencil
+  RotateCcw, AlertTriangle, Pencil, RotateCw
 } from "lucide-react";
 import { EditOrderDialog } from "@/core-app/components/account-actions/EditOrderDialog";
 
@@ -31,6 +31,7 @@ export function CoreQuickActions({ proc }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
   const [editOrderOpen, setEditOrderOpen] = useState(false);
+  const [equipReturnConfirmed, setEquipReturnConfirmed] = useState(false);
 
   const order = proc.order;
   const isTerminal = ["cancelled", "activated"].includes(order?.status);
@@ -38,6 +39,13 @@ export function CoreQuickActions({ proc }: Props) {
   const hasAppointment = !!proc.appointment;
   const hasTechnician = !!order?.technician_id;
   const hasContract = proc.contracts?.length > 0;
+
+  // Equipment refund eligibility
+  const FIRST_MONTH_FREE_CODES = ['BIENVENUE2026', 'NIVRA2026'];
+  const orderPromoCode = (order?.promo_code || order?.discount_code || '').toUpperCase();
+  const isFirstMonthFreeOrder = FIRST_MONTH_FREE_CODES.includes(orderPromoCode);
+  const orderAge = order?.created_at ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+  const canRefundEquipment = isFirstMonthFreeOrder && orderAge <= 30 && !order?.equipment_refunded;
 
   const actions: QuickAction[] = [
     // Edit order
