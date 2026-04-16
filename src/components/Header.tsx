@@ -336,38 +336,36 @@ const Header = () => {
           role="dialog"
           aria-label="Menu de navigation"
           className="fixed inset-0 z-[100] lg:hidden flex flex-col"
-          style={{ background: '#ffffff' }}
+          style={{ background: '#FFFFFF' }}
         >
-          {/* Top bar with close */}
-          <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56, borderBottom: '1px solid #eeeeee' }}>
+          <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56, borderBottom: '1px solid #E8E8E8' }}>
             <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
               <LogoIcon size={28} />
-              <span className="font-bold text-lg" style={{ color: '#111111' }}>Nivra</span>
+              <span className="font-bold text-lg" style={{ color: '#0D0D0D' }}>Nivra</span>
             </Link>
             <button
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center justify-center"
-              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, color: '#111111' }}
+              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, color: '#0D0D0D' }}
               aria-label="Fermer le menu"
             >
               <X className="w-6 h-6" strokeWidth={2} />
             </button>
           </div>
 
-          {/* Nav links */}
           <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto pt-2">
             {NAV_TARGETS.map(renderMobileNavItem)}
 
-            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #eeeeee' }}>
+            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #E8E8E8' }}>
               <Link to="/aide" onClick={() => setIsMenuOpen(false)}
                 className="flex items-center pl-5 pr-4 text-[16px]"
-                style={{ height: 48, color: '#999999' }}
+                style={{ height: 48, color: '#6B7280' }}
               >
                 Support
               </Link>
               <Link to="/a-propos" onClick={() => setIsMenuOpen(false)}
                 className="flex items-center pl-5 pr-4 text-[16px]"
-                style={{ height: 48, color: '#999999' }}
+                style={{ height: 48, color: '#6B7280' }}
               >
                 {isFr ? "À propos" : "About"}
               </Link>
@@ -377,13 +375,12 @@ const Header = () => {
             </div>
           </nav>
 
-          {/* Bottom actions */}
-          <div className="p-4 space-y-3" style={{ borderTop: '1px solid #eeeeee' }}>
+          <div className="p-4 space-y-3" style={{ borderTop: '1px solid #E8E8E8' }}>
             <Link
               to="/commander"
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center justify-center w-full font-bold text-[16px] text-white"
-              style={{ height: 52, background: PURPLE, borderRadius: 50 }}
+              style={{ height: 52, background: '#7C3AED', borderRadius: 50 }}
             >
               {isFr ? "Commander" : "Order Now"}
             </Link>
@@ -391,7 +388,7 @@ const Header = () => {
               to={portalLink}
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center justify-center gap-2 w-full font-semibold text-[15px]"
-              style={{ height: 48, color: '#555555', borderRadius: 50, border: '2px solid #eeeeee' }}
+              style={{ height: 48, color: '#6B7280', borderRadius: 50, border: '2px solid #E8E8E8' }}
             >
               <User className="w-4 h-4" />
               {isFr ? "Mon compte" : "My account"}
