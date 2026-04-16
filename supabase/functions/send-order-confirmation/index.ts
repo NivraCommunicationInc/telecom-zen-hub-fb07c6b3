@@ -847,8 +847,6 @@ Deno.serve(async (req) => {
       latestPayment = data;
     }
 
-    const phoneForSms = client_phone || orderData?.client_phone;
-    const clientIdForSms = client_id || orderData?.user_id;
 
     if (!force && orderData?.confirmation_email_sent_at) {
       console.log(`[${requestId}] Email already sent at ${orderData.confirmation_email_sent_at}`);
