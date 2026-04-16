@@ -355,6 +355,16 @@ const Header = () => {
 
           {/* Nav links */}
           <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto pt-2">
+            {/* Phone number — first item in mobile menu */}
+            <a
+              href="tel:+18336487222"
+              className="flex items-center gap-2.5 pl-5 pr-4 text-[16px] font-semibold text-white/80 hover:text-white active:bg-white/5"
+              style={{ height: 52, minHeight: 52 }}
+            >
+              <span>📞</span>
+              <span>1-833-NIVRA-CA</span>
+            </a>
+            <div className="border-b border-white/10 mx-4 mb-1" />
             {NAV_TARGETS.map(renderMobileNavItem)}
 
             <div className="mt-4 border-t border-white/10 pt-4">
