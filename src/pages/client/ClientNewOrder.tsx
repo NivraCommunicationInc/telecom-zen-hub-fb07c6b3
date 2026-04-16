@@ -1830,6 +1830,7 @@ const ClientNewOrder = () => {
     setInstallationCredit(0);
     setPromoValidationError(null);
     setDiscountCode("");
+    setAutoAppliedPromo(false);
     // Note: removing promo does NOT remove referral code — they are independent
     toast.info("Code promo retiré");
   };
@@ -5693,7 +5694,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
 
               {/* ═══ FIRST MONTH FREE EXPLANATION (shown when BIENVENUE2026/NIVRA2026 applied) ═══ */}
-              <FirstMonthFreeExplanation promoCode={appliedPromo?.code} />
+              <FirstMonthFreeExplanation promoCode={appliedPromo?.code} autoApplied={autoAppliedPromo} />
 
               <Card className="bg-card border-border">
                 <CardHeader>
