@@ -141,6 +141,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     clientFirstName,
     orderNumber,
     orderDate,
+    paymentMethod,
     services,
     oneTimeFees,
     oneTimeTotal,
@@ -164,251 +165,264 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
   const equipTvq = Math.round(equipTotal * 0.09975 * 100) / 100;
   const equipGrandTotal = Math.round((equipTotal + equipTps + equipTvq) * 100) / 100;
 
-  // === Service line ===
   const serviceName = services.length > 0 ? services[0].name : 'Internet';
   const servicePrice = services.length > 0 ? services[0].price : 0;
 
-  // === Delivery address ===
   const fullAddress = deliveryAddress
     ? `${escapeHtml(deliveryAddress.street)}, ${escapeHtml(deliveryAddress.city)}, ${escapeHtml(deliveryAddress.province)} ${escapeHtml(deliveryAddress.postalCode)}`
     : '';
+  const fullName = deliveryAddress
+    ? `${escapeHtml(clientFirstName)}`
+    : escapeHtml(clientFirstName);
 
-  // === First month free section ===
-  const firstMonthSection = hasFirstMonthFree ? `
-    <tr><td style="padding:0 40px 24px;">
-      <div style="background-color:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:24px 28px;">
-        <p style="margin:0 0 4px;font-size:14px;color:#059669;">🎁</p>
-        <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#065F46;">Votre premier mois offert</p>
-        <p style="margin:0;font-size:14px;line-height:1.7;color:#333333;">
-          En tant que nouveau client Nivra Telecom, votre premier mois de service est entièrement gratuit. 
-          Aucun montant ne sera débité pour votre service Internet durant les 30 prochains jours. 
-          Votre facturation régulière débutera automatiquement à votre deuxième mois.
-        </p>
-      </div>
-    </td></tr>
-  ` : '';
+  const fmtPrice = (n: number) => n.toFixed(2).replace('.', ',');
+  const formattedDate = formatDate(orderDate);
+  const payLabel = escapeHtml(paymentMethod || 'PayPal');
 
-  // === Financial summary ===
-  let financialSummary = '';
-  if (hasFirstMonthFree) {
-    financialSummary = `
-      <tr><td style="padding:0 40px 24px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;"><tr>${sLabel('Résumé de votre commande')}</tr></table>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;">
-          ${finRow('Forfait mensuel', formatCurrencySimple(servicePrice))}
-          <tr>
-            <td style="color:#059669;font-size:14px;line-height:1.7;padding:8px 0;border-bottom:1px solid #EEEEEE;font-family:'Courier New',Courier,monospace;">Premier mois offert</td>
-            <td style="color:#059669;font-size:14px;font-weight:700;text-align:right;padding:8px 0;border-bottom:1px solid #EEEEEE;font-family:'Courier New',Courier,monospace;">-${formatCurrencySimple(servicePrice)}</td>
-          </tr>
-          ${dividerLine}
-          ${finRow('Service ce mois-ci', '0,00 $', { bold: true })}
-        </table>
-
-        ${equipTotal > 0 ? `
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;"><tr>${sLabel('Équipement (frais uniques)')}</tr></table>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;">
-            ${(oneTimeFees || []).map(f => finRow(f.label, formatCurrencySimple(f.amount))).join('')}
-            ${finRow('TPS (5%)', formatCurrencySimple(equipTps))}
-            ${finRow('TVQ (9,975%)', formatCurrencySimple(equipTvq))}
-            ${dividerLine}
-          </table>
-        ` : ''}
-
-        <div style="background-color:#E6F0FA;border:2px solid #0066CC;border-radius:8px;padding:20px 24px;margin-bottom:16px;">
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
-            <tr>
-              <td style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#666666;font-weight:600;">Total payé aujourd'hui</td>
-              <td style="text-align:right;"><span style="font-size:24px;font-weight:700;color:#0066CC;">${formatCurrencySimple(equipGrandTotal)}</span></td>
-            </tr>
-          </table>
-        </div>
-
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-top:16px;">
-          <tr>
-            <td style="color:#059669;font-size:14px;font-weight:600;padding:8px 0;">Premier mois de service</td>
-            <td style="color:#059669;font-size:16px;font-weight:700;text-align:right;padding:8px 0;">GRATUIT</td>
-          </tr>
-          <tr>
-            <td style="color:#666666;font-size:13px;padding:4px 0;">À partir du 2e mois</td>
-            <td style="color:#333333;font-size:14px;font-weight:600;text-align:right;padding:4px 0;">${formatCurrencySimple(serviceSubtotal)}/mois</td>
-          </tr>
-          <tr>
-            <td></td>
-            <td style="color:#666666;font-size:12px;text-align:right;padding:2px 0;">(taxes incluses: ${formatCurrencySimple(serviceTotalWithTax)}$/mois)</td>
-          </tr>
-        </table>
-      </td></tr>
-    `;
-  } else {
-    financialSummary = `
-      <tr><td style="padding:0 40px 24px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;"><tr>${sLabel('Résumé de votre commande')}</tr></table>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;">
-          ${finRow('Forfait mensuel', formatCurrencySimple(serviceSubtotal))}
-          ${finRow('TPS (5%)', formatCurrencySimple(serviceTps))}
-          ${finRow('TVQ (9,975%)', formatCurrencySimple(serviceTvq))}
-          ${dividerLine}
-          ${finRow('Total mensuel', `${formatCurrencySimple(serviceTotalWithTax)}/mois`, { bold: true, color: '#0066CC', size: '16px' })}
-        </table>
-
-        ${equipTotal > 0 ? `
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;"><tr>${sLabel('Équipement (frais uniques)')}</tr></table>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;">
-            ${(oneTimeFees || []).map(f => finRow(f.label, formatCurrencySimple(f.amount))).join('')}
-            ${finRow('TPS (5%)', formatCurrencySimple(equipTps))}
-            ${finRow('TVQ (9,975%)', formatCurrencySimple(equipTvq))}
-            ${dividerLine}
-          </table>
-
-          <div style="background-color:#E6F0FA;border:2px solid #0066CC;border-radius:8px;padding:20px 24px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
-              <tr>
-                <td style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#666666;font-weight:600;">Total payé aujourd'hui</td>
-                <td style="text-align:right;"><span style="font-size:24px;font-weight:700;color:#0066CC;">${formatCurrencySimple(Math.round((serviceSubtotal + equipTotal + serviceTps + serviceTvq + equipTps + equipTvq) * 100) / 100)}</span></td>
-              </tr>
-            </table>
-          </div>
-        ` : ''}
-      </td></tr>
-    `;
-  }
-
-  // === Equipment shipping section ===
-  const equipmentSection = (oneTimeFees && oneTimeFees.length > 0) ? `
-    <tr><td style="padding:0 40px 24px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;"><tr>${sLabel('📦 Votre équipement en route')}</tr></table>
-      <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#333333;">
-        Votre équipement Nivra sera expédié à votre adresse dans les 24 à 48 heures ouvrables. 
-        Un courriel de suivi avec votre numéro de colis vous sera envoyé dès l'expédition.
-      </p>
-      ${fullAddress ? `
-        <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#666666;font-weight:600;">Adresse de livraison</p>
-        <p style="margin:0;font-size:14px;line-height:1.7;color:#333333;">${fullAddress}</p>
-      ` : ''}
-    </td></tr>
-  ` : '';
-
-  // === Info section ===
-  const infoSection = `
-    <tr><td style="padding:0 40px 24px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;"><tr>${sLabel('ℹ️ Ce que vous devez savoir')}</tr></table>
-      
-      <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#333333;">Annulation sans frais</p>
-      <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#333333;">
-        Vous pouvez annuler votre service à tout moment depuis votre espace client. 
-        L'annulation prend effet à la fin de votre cycle de facturation en cours.
-      </p>
-
-      <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#333333;">Garantie équipement</p>
-      <p style="margin:0;font-size:14px;line-height:1.7;color:#333333;">
-        Si vous n'êtes pas entièrement satisfait, retournez votre équipement dans les 30 jours 
-        suivant la livraison pour un remboursement complet des frais d'équipement.
-      </p>
-    </td></tr>
-  `;
-
-  // === Support section ===
-  const supportSection = `
-    <tr><td style="padding:0 40px 32px;">
-      <div style="background-color:#F3F4F6;border-radius:8px;padding:24px;text-align:center;">
-        <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#1A1A1A;">Une question? Notre équipe est là.</p>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-          <tr>
-            <td>
-              <a href="mailto:${supportEmail}" style="display:inline-block;padding:10px 24px;background-color:#0066CC;color:#FFFFFF;font-size:13px;font-weight:600;text-decoration:none;border-radius:6px;">
-                ✉️&nbsp;${supportEmail}
-              </a>
-            </td>
-          </tr>
-        </table>
-        <p style="margin:12px 0 0;font-size:12px;color:#6B7280;">Disponible 7 jours sur 7, de 8 h à 20 h (HE)</p>
-      </div>
-    </td></tr>
-  `;
-
-  // === Preheader ===
   const preheader = hasFirstMonthFree
     ? `Bienvenue chez Nivra! Votre premier mois de service Internet est offert gratuitement.`
-    : `Merci ${clientFirstName}! Commande #${orderNumber} confirmée. Total: ${formatCurrencySimple(serviceTotalWithTax)}/mois`;
+    : `Merci ${clientFirstName}! Commande #${orderNumber} confirmée.`;
 
-  // === Welcome text ===
-  const welcomeText = hasFirstMonthFree
-    ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#333333;">
-        Votre premier mois de service Internet est offert gratuitement, en guise de bienvenue dans la famille Nivra Telecom.
-      </p>`
-    : '';
+  // === First month free banner ===
+  const firstMonthBanner = hasFirstMonthFree ? `
+    <div style="padding:24px 32px;background:#fff5e6;border-left:4px solid #FF9500;margin:0">
+      <div style="margin-bottom:8px">
+        <span style="font-size:20px">🎁</span>
+        <span style="font-size:15px;font-weight:700;color:#B36200;margin-left:10px">Votre premier mois offert</span>
+      </div>
+      <div style="font-size:13px;color:#7A4500;line-height:1.7">En tant que nouveau client Nivra Telecom, votre premier mois de service est entièrement gratuit. Aucun montant ne sera débité pour votre service Internet durant les 30 prochains jours. Votre facturation régulière débutera automatiquement à votre deuxième mois.</div>
+    </div>` : '';
 
-  // === Service plan ===
-  const planSection = `
-    <tr><td style="padding:0 40px 24px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;"><tr>${sLabel('Votre forfait')}</tr></table>
-      <p style="margin:0;font-size:16px;font-weight:600;color:#1A1A1A;">
-        ${services.map(s => `${escapeHtml(s.name)} — ${formatCurrencySimple(s.price)}$/mois`).join('<br>')}
-      </p>
-    </td></tr>
-  `;
+  // === Financial rows ===
+  const finRowHtml = (label: string, value: string, opts?: { green?: boolean; bold?: boolean; greenBg?: boolean }) => {
+    const bg = opts?.greenBg ? 'background:#f0fff8;' : '';
+    const color = opts?.green ? 'color:#00875A;font-weight:600;' : 'color:#555;';
+    const fw = opts?.bold ? 'font-weight:600;' : '';
+    return `<div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;${color}${fw}border-bottom:1px solid #eee;${bg}">
+      <span>${label}</span><span>${value}</span>
+    </div>`;
+  };
 
-  // === Build full email ===
-  const bodyContent = `
-    ${header()}
-    <!-- Confirmation banner -->
-    <tr>
-      <td style="padding:32px 40px 8px;">
-        <p style="margin:0 0 8px;font-size:28px;color:#059669;">✓</p>
-        <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1A1A1A;">Commande confirmée</h2>
-        <p style="margin:0 0 4px;font-size:16px;line-height:1.7;color:#333333;">
-          Bienvenue chez Nivra Telecom, ${escapeHtml(clientFirstName)}.
-        </p>
-        <p style="margin:0;font-size:14px;line-height:1.7;color:#4A4A4A;">
-          Votre service sera activé sous 24 à 48 heures suivant la réception de votre équipement.
-        </p>
-        ${welcomeText}
-      </td>
-    </tr>
+  let financialBlock = '';
+  if (hasFirstMonthFree) {
+    financialBlock = `
+      ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
+      ${finRowHtml('Premier mois offert', `-${fmtPrice(servicePrice)} $`, { green: true, greenBg: true })}
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #eee">
+        <span>Service ce mois-ci</span><span style="font-weight:600">0,00 $</span>
+      </div>
+      ${equipTotal > 0 ? `
+        <div style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee">Équipement (frais uniques)</div>
+        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
+        ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
+        <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #0057B8">
+          <span>TVQ (9,975%)</span><span>${fmtPrice(equipTvq)} $</span>
+        </div>
+      ` : ''}
+      <div style="padding:16px;background:#0057B8;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Équipement uniquement — service gratuit ce mois</div>
+        </div>
+        <div style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(equipGrandTotal)} $</div>
+      </div>`;
+  } else {
+    financialBlock = `
+      ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
+      ${finRowHtml('TPS (5%)', `${fmtPrice(serviceTps)} $`)}
+      <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #0057B8">
+        <span>TVQ (9,975%)</span><span>${fmtPrice(serviceTvq)} $</span>
+      </div>
+      ${equipTotal > 0 ? `
+        <div style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee">Équipement (frais uniques)</div>
+        ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
+        ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
+        <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #0057B8">
+          <span>TVQ (9,975%)</span><span>${fmtPrice(equipTvq)} $</span>
+        </div>
+      ` : ''}
+      <div style="padding:16px;background:#0057B8;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
+        </div>
+        <div style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(Math.round((serviceSubtotal + equipTotal + serviceTps + equipTps + serviceTvq + equipTvq) * 100) / 100)} $</div>
+      </div>`;
+  }
 
-    <!-- Order ref -->
-    <tr><td style="padding:16px 40px 24px;">
-      <p style="margin:0;font-size:12px;color:#6B7280;">Commande #${escapeHtml(orderNumber)} · ${formatDate(orderDate)}</p>
-    </td></tr>
+  // === After-total summary (first month free only) ===
+  const afterTotalSummary = hasFirstMonthFree ? `
+    <div style="margin-top:12px;display:flex;justify-content:space-between;padding:12px 16px;background:#f0fff8;border-radius:6px;border:1px solid #b7ebd6">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#00875A">Premier mois de service</div>
+        <div style="font-size:12px;color:#555;margin-top:2px">À partir du 2e mois</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:700;color:#00875A">GRATUIT</div>
+        <div style="font-size:13px;font-weight:600;color:#0d1f3c">${fmtPrice(serviceTotalWithTax)} $/mois</div>
+      </div>
+    </div>` : '';
 
-    <!-- Divider -->
-    <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #EEEEEE;margin:0;"></td></tr>
+  // === Equipment section ===
+  const equipmentSection = (oneTimeFees && oneTimeFees.length > 0) ? `
+    <div style="padding:0 32px 24px">
+      <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Votre équipement en route</div>
+      <div style="background:#f8f9ff;border-radius:8px;padding:16px;border:1px solid #e8ecff">
+        <div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:12px">Votre équipement Nivra sera expédié à votre adresse dans les <strong>24 à 48 heures ouvrables</strong>. Un courriel de suivi avec votre numéro de colis vous sera envoyé dès l'expédition.</div>
+        ${fullAddress ? `
+          <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Adresse de livraison</div>
+          <div style="font-size:13px;color:#0d1f3c;font-weight:600">${escapeHtml(clientFirstName)}</div>
+          <div style="font-size:13px;color:#555">${fullAddress}</div>
+        ` : ''}
+      </div>
+    </div>` : '';
 
-    <!-- First month free -->
-    ${firstMonthSection}
+  // === Build full HTML ===
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<title>Confirmation de commande</title>
+<!--[if mso]><style>body,table,td{font-family:Arial,sans-serif!important}</style><![endif]-->
+<style>*{box-sizing:border-box}body{margin:0;padding:0;-webkit-text-size-adjust:100%}</style>
+</head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,Helvetica,sans-serif">
+<!--[if !mso]><!--><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(preheader)}</div><!--<![endif]-->
 
-    <!-- Plan -->
-    ${planSection}
+<div style="background:#f0f2f5;padding:24px;font-family:Arial,sans-serif">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e0e0e0">
 
-    <!-- Financial summary -->
-    ${financialSummary}
+<!-- HEADER -->
+<div style="background:#0057B8;padding:28px 32px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="vertical-align:middle">
+      <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px">Nivra Telecom</div>
+      <div style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:2px;margin-top:2px">TÉLÉCOMMUNICATIONS</div>
+    </td>
+    <td style="text-align:right;vertical-align:middle">
+      <div style="width:44px;height:44px;background:rgba(255,255,255,0.15);border-radius:50%;display:inline-flex;align-items:center;justify-content:center">
+        <div style="color:#fff;font-size:20px;font-weight:700">N</div>
+      </div>
+    </td>
+  </tr></table>
+</div>
 
-    <!-- Divider -->
-    <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #EEEEEE;margin:0 0 24px;"></td></tr>
+<!-- CONFIRMATION BANNER -->
+<div style="background:#f8fffe;border-bottom:3px solid #00B37D;padding:32px;text-align:center">
+  <div style="width:56px;height:56px;background:#00B37D;border-radius:50%;margin:0 auto 16px;line-height:56px;text-align:center">
+    <span style="color:#fff;font-size:26px;font-weight:700">✓</span>
+  </div>
+  <div style="font-size:24px;font-weight:700;color:#0d1f3c;margin-bottom:6px">Commande confirmée</div>
+  <div style="font-size:15px;color:#555;line-height:1.5">Bienvenue chez Nivra Telecom, <strong>${escapeHtml(clientFirstName)}</strong>.<br>Votre service sera activé sous 24 à 48 heures suivant la réception de votre équipement.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px auto 0;background:#fff;border-radius:6px;border:1px solid #e8e8e8"><tr>
+    <td style="padding:10px 20px;text-align:left">
+      <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase">Commande</div>
+      <div style="font-size:13px;font-weight:700;color:#0d1f3c">#${escapeHtml(orderNumber)}</div>
+    </td>
+    <td style="width:1px;background:#e8e8e8;padding:0"></td>
+    <td style="padding:10px 20px;text-align:left">
+      <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase">Date</div>
+      <div style="font-size:13px;font-weight:700;color:#0d1f3c">${formattedDate}</div>
+    </td>
+    <td style="width:1px;background:#e8e8e8;padding:0"></td>
+    <td style="padding:10px 20px;text-align:left">
+      <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase">Paiement</div>
+      <div style="font-size:13px;font-weight:700;color:#0d1f3c">${payLabel}</div>
+    </td>
+  </tr></table>
+</div>
 
-    <!-- Equipment -->
-    ${equipmentSection}
+<!-- FIRST MONTH FREE -->
+${firstMonthBanner}
 
-    <!-- Info -->
-    ${infoSection}
+<!-- PLAN -->
+<div style="padding:24px 32px">
+  <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Votre forfait</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:8px;border:1px solid #e8ecff"><tr>
+    <td style="padding:14px 16px;vertical-align:middle">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="width:40px;height:40px;background:#0057B8;border-radius:8px;text-align:center;vertical-align:middle">
+          <span style="color:#fff;font-size:16px">📡</span>
+        </td>
+        <td style="padding-left:12px">
+          <div style="font-size:14px;font-weight:700;color:#0d1f3c">${escapeHtml(serviceName)}</div>
+          <div style="font-size:12px;color:#888">Sans contrat · Activation sous 24h</div>
+        </td>
+      </tr></table>
+    </td>
+    <td style="padding:14px 16px;text-align:right;vertical-align:middle">
+      <div style="font-size:18px;font-weight:700;color:#0057B8">${fmtPrice(servicePrice)}$</div>
+      <div style="font-size:11px;color:#999">/mois</div>
+    </td>
+  </tr></table>
+</div>
 
-    <!-- CTA -->
-    <tr><td style="padding:0 40px 24px;text-align:center;">
-      ${button('Accéder à mon espace client →', portalLink, 'primary')}
-    </td></tr>
+<!-- FINANCIAL SUMMARY -->
+<div style="padding:0 32px 24px">
+  <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Résumé de votre commande</div>
+  <div style="background:#fafafa;border-radius:8px;overflow:hidden;border:1px solid #eeeeee">
+    ${financialBlock}
+  </div>
+  ${afterTotalSummary}
+</div>
 
-    <!-- Support -->
-    ${supportSection}
+<!-- EQUIPMENT -->
+${equipmentSection}
 
-    <!-- Footer -->
-    ${footer(supportEmail)}
-  `;
+<!-- INFO CARDS -->
+<div style="padding:0 32px 24px">
+  <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Ce que vous devez savoir</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="width:50%;padding-right:6px;vertical-align:top">
+      <div style="padding:16px;background:#fafafa;border-radius:8px;border:1px solid #eee">
+        <div style="font-size:13px;font-weight:700;color:#0d1f3c;margin-bottom:6px">Annulation sans frais</div>
+        <div style="font-size:12px;color:#666;line-height:1.6">Annulez à tout moment depuis votre espace client. Effectif à la fin de votre cycle de facturation.</div>
+      </div>
+    </td>
+    <td style="width:50%;padding-left:6px;vertical-align:top">
+      <div style="padding:16px;background:#fafafa;border-radius:8px;border:1px solid #eee">
+        <div style="font-size:13px;font-weight:700;color:#0d1f3c;margin-bottom:6px">Garantie équipement</div>
+        <div style="font-size:12px;color:#666;line-height:1.6">Retournez l'équipement sous 30 jours pour un remboursement complet garanti.</div>
+      </div>
+    </td>
+  </tr></table>
+</div>
 
-  return emailDocument(
-    `Confirmation de commande #${escapeHtml(orderNumber)} | Nivra Telecom`,
-    preheader,
-    bodyContent
-  );
+<!-- CTA -->
+<div style="padding:0 32px 32px;text-align:center">
+  <a href="${portalLink}" style="display:inline-block;background:#0057B8;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:50px;text-decoration:none;letter-spacing:0.3px">Accéder à mon espace client →</a>
+</div>
+
+<!-- SUPPORT -->
+<div style="padding:20px 32px;background:#f5f7fa;border-top:1px solid #eee;text-align:center">
+  <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:4px">Une question? Notre équipe est là.</div>
+  <div style="font-size:13px;color:#888;margin-bottom:12px">Disponible 7 jours sur 7, de 8 h à 20 h (HE)</div>
+  <a href="mailto:${supportEmail}" style="display:inline-block;background:#0d1f3c;color:#fff;font-size:13px;font-weight:600;padding:10px 24px;border-radius:50px;text-decoration:none">${supportEmail}</a>
+</div>
+
+<!-- FOOTER -->
+<div style="background:#0d1f3c;padding:28px 32px;text-align:center">
+  <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Nivra Telecom</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px">Fournisseur de services Internet et TV sans contrat au Québec</div>
+  <div style="margin-bottom:16px">
+    <a href="https://nivra-telecom.ca" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Site web</a>
+    <span style="color:rgba(255,255,255,0.2)"> | </span>
+    <a href="https://nivra-telecom.ca/plans" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Forfaits</a>
+    <span style="color:rgba(255,255,255,0.2)"> | </span>
+    <a href="https://nivra-telecom.ca/faq" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">FAQ</a>
+    <span style="color:rgba(255,255,255,0.2)"> | </span>
+    <a href="https://nivra-telecom.ca/privacy" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Confidentialité</a>
+    <span style="color:rgba(255,255,255,0.2)"> | </span>
+    <a href="https://nivra-telecom.ca/terms" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Conditions</a>
+    <span style="color:rgba(255,255,255,0.2)"> | </span>
+    <a href="https://crtc.gc.ca" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">CRTC</a>
+  </div>
+  <div style="font-size:11px;color:rgba(255,255,255,0.25)">© 2025 Nivra Communications Inc. Tous droits réservés.</div>
+</div>
+
+</div>
+</div>
+</body>
+</html>`;
 }
 
 // ============================================================
