@@ -616,7 +616,7 @@ Deno.serve(async (req) => {
 
     const hasFirstMonthFree = isFirstMonthFreePromo(effectivePromoCode);
     const emailSubject = hasFirstMonthFree
-      ? `🎉 Bienvenue chez Nivra Telecom — Votre premier mois est gratuit! (Commande #${order_number})`
+      ? `🎉 Bienvenue chez Nivra Telecom — Votre premier mois est offert! (Commande #${order_number})`
       : `Confirmation de commande #${order_number} | Nivra Telecom`;
 
     // Generate full HTML email
