@@ -304,7 +304,8 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     </table>` : '';
 
   // === Equipment section ===
-  const equipmentSection = (oneTimeFees && oneTimeFees.length > 0) ? `
+  const hasInstallation = !!installation;
+  const equipmentSection = (!hasInstallation && oneTimeFees && oneTimeFees.length > 0) ? `
     <div style="padding:0 32px 24px">
       <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Votre équipement en route</div>
       <div style="background:#f8f9ff;border-radius:8px;padding:16px;border:1px solid #e8ecff">
@@ -314,6 +315,89 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
           <div style="font-size:13px;color:#0d1f3c;font-weight:600">${escapeHtml(clientFirstName)}</div>
           <div style="font-size:13px;color:#555">${fullAddress}</div>
         ` : ''}
+      </div>
+    </div>` : '';
+
+  // === Installation section ===
+  const formatInstallDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      const days = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+      const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+      return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    } catch { return dateStr; }
+  };
+
+  const installationAddress = installation
+    ? [installation.service_address, installation.service_city, installation.service_province || 'QC', installation.service_postal_code].filter(Boolean).join(', ')
+    : '';
+
+  const installationSection = hasInstallation ? `
+    <div style="padding:0 32px 24px">
+      <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">🛠 Installation par technicien</div>
+      <div style="background:#f0f7ff;border-radius:8px;overflow:hidden;border:1px solid #c4dcf0">
+        <!-- Date & Time highlight -->
+        <div style="background:#0057B8;padding:20px 20px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle">
+              <div style="font-size:10px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Date du rendez-vous</div>
+              <div style="font-size:18px;font-weight:700;color:#fff">${escapeHtml(formatInstallDate(installation!.scheduled_date))}</div>
+              ${installation!.scheduled_time ? `<div style="font-size:14px;color:rgba(255,255,255,0.85);margin-top:4px">${escapeHtml(installation!.scheduled_time)}</div>` : ''}
+            </td>
+            <td style="text-align:right;vertical-align:middle">
+              <div style="width:48px;height:48px;background:rgba(255,255,255,0.15);border-radius:50%;display:inline-block;line-height:48px;text-align:center">
+                <span style="font-size:22px">📅</span>
+              </div>
+            </td>
+          </tr></table>
+        </div>
+        <!-- Details -->
+        <div style="padding:16px 20px">
+          ${installation!.technician_name ? `
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px">
+              <tr>
+                <td style="width:28px;vertical-align:top;padding-top:2px"><span style="font-size:14px">👤</span></td>
+                <td>
+                  <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px">Technicien</div>
+                  <div style="font-size:13px;font-weight:600;color:#0d1f3c">${escapeHtml(installation!.technician_name)}</div>
+                </td>
+              </tr>
+            </table>
+          ` : ''}
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px">
+            <tr>
+              <td style="width:28px;vertical-align:top;padding-top:2px"><span style="font-size:14px">📍</span></td>
+              <td>
+                <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px">Adresse d'installation</div>
+                <div style="font-size:13px;font-weight:600;color:#0d1f3c">${escapeHtml(installationAddress)}</div>
+              </td>
+            </tr>
+          </table>
+          ${installation!.installation_fee !== undefined ? `
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px">
+              <tr>
+                <td style="width:28px;vertical-align:top;padding-top:2px"><span style="font-size:14px">💲</span></td>
+                <td>
+                  <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px">Frais d'installation</div>
+                  <div style="font-size:13px;font-weight:600;color:#0d1f3c">${installation!.installation_fee === 0 ? 'GRATUIT' : `${fmtPrice(installation!.installation_fee!)} $`}</div>
+                </td>
+              </tr>
+            </table>
+          ` : ''}
+          ${installation!.notes ? `
+            <div style="margin-top:12px;padding:10px 12px;background:#fff5e6;border-radius:6px;border:1px solid #ffe0a6">
+              <div style="font-size:12px;color:#B36200;line-height:1.6">💡 ${escapeHtml(installation!.notes)}</div>
+            </div>
+          ` : ''}
+          <div style="margin-top:16px;padding:12px;background:#fff;border-radius:6px;border:1px solid #e8e8e8">
+            <div style="font-size:12px;color:#666;line-height:1.6">
+              <strong>Ce que vous devez préparer :</strong><br>
+              • Assurez-vous qu'un adulte (18+) est présent à l'adresse<br>
+              • Dégagez l'accès au point d'entrée du câble<br>
+              • Le technicien vous contactera 30 minutes avant son arrivée
+            </div>
+          </div>
+        </div>
       </div>
     </div>` : '';
 
