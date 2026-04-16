@@ -330,6 +330,22 @@ export function CoreQuickActions({ proc }: Props) {
         })}
       </div>
 
+      {/* Equipment return confirmation toggle — only for first-month-free orders */}
+      {canRefundEquipment && (
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[hsl(220,15%,16%)]">
+          <input
+            type="checkbox"
+            id="equip-return-confirm"
+            checked={equipReturnConfirmed}
+            onChange={(e) => setEquipReturnConfirmed(e.target.checked)}
+            className="rounded border-[hsl(220,15%,20%)] bg-[hsl(220,20%,9%)]"
+          />
+          <label htmlFor="equip-return-confirm" className="text-[10px] text-amber-400 cursor-pointer">
+            Équipement retourné confirmé — J'ai vérifié que l'équipement a été reçu en bon état
+          </label>
+        </div>
+      )}
+
       <EditOrderDialog
         order={order}
         open={editOrderOpen}

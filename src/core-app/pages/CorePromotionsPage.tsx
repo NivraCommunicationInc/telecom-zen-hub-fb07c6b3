@@ -440,15 +440,20 @@ export default function CorePromotionsPage() {
                 ["Description", selectedPromo.description || "—"],
                 ["Type", selectedPromo.discount_type === "percent" ? "Pourcentage" : "Montant fixe"],
                 ["Valeur", selectedPromo.discount_type === "percent" ? `${selectedPromo.discount_value}%` : `${selectedPromo.discount_value.toFixed(2)} $`],
-                ["Statut", selectedPromo.status === "active" ? "Actif" : "Inactif"],
-                ["Portée", selectedPromo.scope],
-                ["Utilisations", `${selectedPromo.redemption_count || 0}${selectedPromo.usage_limit_total ? ` / ${selectedPromo.usage_limit_total}` : ""}`],
+                ["Statut", selectedPromo.status === "active" ? "✅ Actif" : "⛔ Inactif"],
+                ["Portée", selectedPromo.scope === "global" ? "Globale (tous les clients)" : "Restreinte"],
+                ["Utilisations", `${selectedPromo.redemption_count || 0} utilisations${selectedPromo.usage_limit_total ? ` / ${selectedPromo.usage_limit_total}` : ""}${selectedPromo.usage_limit_per_client ? ` • ${selectedPromo.usage_limit_per_client} par client` : ""}`],
                 ["Clients uniques", `${selectedPromo.unique_users_count || 0}`],
-                ["Nouveaux clients", selectedPromo.new_customers_only ? "Oui" : "Non"],
-                ["Cumulable", selectedPromo.stackable ? "Oui" : "Non"],
-                ["Durée", selectedPromo.duration === "first_cycle_only" ? "1er mois" : "Continu"],
+                ["Nouveaux clients", selectedPromo.new_customers_only ? "Oui — nouveaux clients uniquement" : "Non"],
+                ["Cumulable", selectedPromo.stackable ? "Oui — cumulable avec d'autres promos" : "Non — codes de référence uniquement"],
+                ["Durée", selectedPromo.duration === "first_cycle_only" ? "Premier mois seulement (100% gratuit)" : "Continu"],
+                ["Période", (() => {
+                  const start = selectedPromo.start_at ? format(new Date(selectedPromo.start_at), "d MMMM yyyy", { locale: fr }) : "—";
+                  const end = selectedPromo.end_at ? format(new Date(selectedPromo.end_at), "d MMMM yyyy", { locale: fr }) : "Illimité";
+                  return `${start} → ${end}`;
+                })()],
               ].map(([l, v]) => (
-                <div key={l as string} className="flex justify-between"><span className="text-[#94A3B8]">{l}</span><span className="text-[#F8FAFC] font-medium text-right max-w-[200px]">{v}</span></div>
+                <div key={l as string} className="flex justify-between"><span className="text-[#94A3B8]">{l}</span><span className="text-[#F8FAFC] font-medium text-right max-w-[250px]">{v}</span></div>
               ))}
             </div>
             {selectedPromo.applies_to && (
