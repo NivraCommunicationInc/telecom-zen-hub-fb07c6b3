@@ -33,8 +33,8 @@ const HomePricing = () => {
 
   if (isLoading) {
     return (
-      <section className="py-12 sm:py-20" style={{ background: '#FFFFFF' }}>
-        <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
+      <section className="px-5 sm:px-10" style={{ background: '#FFFFFF', paddingTop: 48, paddingBottom: 48 }}>
+        <div className="max-w-[1100px] mx-auto">
           <Skeleton className="h-8 w-56 mx-auto mb-3" />
           <Skeleton className="h-5 w-72 mx-auto mb-10" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -48,13 +48,13 @@ const HomePricing = () => {
   if (plans.length === 0) return null;
 
   return (
-    <section id="forfaits" className="py-12 sm:py-20 lg:py-28" style={{ background: '#FFFFFF' }}>
-      <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
+    <section id="forfaits" className="px-5 sm:px-10" style={{ background: '#FFFFFF', paddingTop: 48, paddingBottom: 48 }}>
+      <div className="max-w-[1100px] mx-auto">
         <div className="text-center mb-10 sm:mb-14">
-          <h2 className="text-2xl sm:text-3xl md:text-[40px] font-bold tracking-[-0.5px] mb-3" style={{ color: '#0D0D0D' }}>
+          <h2 className="text-2xl sm:text-3xl md:text-[36px] font-extrabold mb-3" style={{ color: '#0D0D0D', letterSpacing: '-0.5px' }}>
             {t('pricing.title')}
           </h2>
-          <p className="text-base sm:text-lg" style={{ color: '#6B7280' }}>
+          <p style={{ color: '#444444', fontSize: 16 }}>
             {t('pricing.subtitle')}
           </p>
         </div>
@@ -67,45 +67,45 @@ const HomePricing = () => {
               className="group relative block transition-all duration-200"
               style={{
                 background: '#FFFFFF',
-                border: plan.recommended ? '2px solid #7C3AED' : '1.5px solid #E8E8E8',
+                border: plan.recommended ? '2px solid #7C3AED' : '1.5px solid #EEEEEE',
                 borderRadius: 20,
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
               }}
               onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.12)')}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)')}
             >
               {plan.recommended && (
                 <div className="absolute top-4 right-4 z-10">
-                  <div className="flex items-center gap-1 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5" style={{ background: '#7C3AED', borderRadius: 50 }}>
+                  <div className="flex items-center gap-1 text-white uppercase px-3 py-1.5" style={{ background: '#7C3AED', borderRadius: 50, fontSize: 10, fontWeight: 700, letterSpacing: '0.5px' }}>
                     <Star className="w-3 h-3 fill-current" />
                     {t('pricing.recommended')}
                   </div>
                 </div>
               )}
 
-              <div className="p-6 sm:p-7 lg:p-8 flex flex-col h-full">
-                <h3 className="text-[18px] font-bold mb-1 pr-20" style={{ color: '#0D0D0D' }}>{plan.name}</h3>
-                {plan.speed && <p className="text-xs mb-5" style={{ color: '#6B7280' }}>{plan.speed}</p>}
+              <div className="p-8 flex flex-col h-full">
+                <h3 className="font-bold mb-1 pr-20" style={{ color: '#0D0D0D', fontSize: 18 }}>{plan.name}</h3>
+                {plan.speed && <p className="text-xs mb-5" style={{ color: '#999999' }}>{plan.speed}</p>}
 
                 <div className="mb-5">
-                  <span className="font-black leading-none" style={{ color: '#0D0D0D', fontSize: plan.recommended ? 48 : 42 }}>
+                  <span className="font-extrabold leading-none" style={{ color: '#0D0D0D', fontSize: 52 }}>
                     {plan.price.toFixed(0)}$
                   </span>
-                  <span className="text-sm font-medium ml-1" style={{ color: '#6B7280' }}>/mois</span>
+                  <span className="ml-1" style={{ color: '#999999', fontSize: 18, fontWeight: 400 }}>/mois</span>
                 </div>
 
                 <div className="space-y-3 mb-7 flex-1">
                   {plan.features.map((f, i) => (
-                    <div key={i} className="flex items-start gap-2.5 text-[15px]">
+                    <div key={i} className="flex items-start gap-2.5" style={{ fontSize: 15 }}>
                       <Check className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#7C3AED' }} />
-                      <span style={{ color: '#6B7280' }}>{f}</span>
+                      <span style={{ color: '#444444' }}>{f}</span>
                     </div>
                   ))}
                 </div>
 
                 <div
-                  className="w-full flex items-center justify-center gap-2 font-bold text-[15px] text-white"
-                  style={{ height: 48, borderRadius: 50, background: '#7C3AED' }}
+                  className="w-full flex items-center justify-center gap-2 font-bold text-white"
+                  style={{ height: 50, borderRadius: 50, background: '#7C3AED', fontSize: 15 }}
                 >
                   {t('pricing.choose')}
                   <ArrowRight className="w-4 h-4" />

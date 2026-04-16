@@ -14,32 +14,32 @@ export default function CoverageSection() {
   const isFr = language === 'fr';
 
   return (
-    <section aria-label={isFr ? "Zones de couverture" : "Coverage areas"} className="py-12 sm:py-20 px-4 sm:px-6" style={{ background: '#F5F5F5' }}>
+    <section aria-label={isFr ? "Zones de couverture" : "Coverage areas"} className="px-5 sm:px-10" style={{ background: '#F7F7F7', paddingTop: 48, paddingBottom: 48 }}>
       <div className="max-w-[1100px] mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 mb-5 sm:mb-6" style={{ background: '#F3EEFF', borderRadius: 50 }}>
+        <div className="inline-flex items-center gap-2 px-4 py-2 mb-5" style={{ background: '#F3EEFF', borderRadius: 50 }}>
           <MapPin className="w-4 h-4" style={{ color: '#7C3AED' }} />
-          <span className="text-[11px] font-semibold uppercase tracking-[2px]" style={{ color: '#7C3AED' }}>
+          <span className="font-semibold uppercase" style={{ color: '#7C3AED', fontSize: 11, letterSpacing: 2 }}>
             {isFr ? "Couverture" : "Coverage"}
           </span>
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: '#0D0D0D' }}>
+        <h2 className="text-2xl sm:text-3xl font-extrabold mb-3" style={{ color: '#0D0D0D', letterSpacing: '-0.5px' }}>
           {isFr ? "Service disponible dans tout le Québec" : "Service available across Quebec"}
         </h2>
 
-        <p className="mb-8 sm:mb-10 max-w-xl mx-auto text-[14px] sm:text-base" style={{ color: '#6B7280' }}>
+        <p className="mb-8 max-w-xl mx-auto" style={{ color: '#444444', fontSize: 16, lineHeight: 1.7 }}>
           {isFr ? "Internet et TV sans contrat disponibles dans les principales villes et régions du Québec" : "No-contract Internet and TV available in major Quebec cities and regions"}
         </p>
 
-        <div className="flex flex-wrap justify-center gap-2 mb-8 sm:mb-10">
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
           {regions.map((r) => (
-            <span key={r} className="px-3 py-1.5 text-[13px]" style={{ background: '#FFFFFF', border: '1px solid #E8E8E8', borderRadius: 50, color: '#6B7280' }}>
+            <span key={r} className="px-3 py-1.5" style={{ background: '#FFFFFF', border: '1px solid #EEEEEE', borderRadius: 50, color: '#444444', fontSize: 13 }}>
               {r}
             </span>
           ))}
         </div>
 
-        <p className="text-[14px]" style={{ color: '#6B7280' }}>
+        <p style={{ color: '#444444', fontSize: 14 }}>
           {isFr ? "Votre ville n'est pas listée ?" : "Your city isn't listed?"}{' '}
           <Link to="/contact" className="hover:underline" style={{ color: '#7C3AED' }}>
             {isFr ? "Contactez-nous" : "Contact us"}

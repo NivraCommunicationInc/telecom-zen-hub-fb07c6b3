@@ -12,18 +12,18 @@ export default function StatsBanner() {
   ];
 
   return (
-    <section aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"} style={{ background: '#F5F5F5' }}>
-      <div className="grid grid-cols-2 md:grid-cols-4 max-w-[1200px] mx-auto">
+    <section aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"} style={{ background: '#F7F7F7' }}>
+      <div className="grid grid-cols-2 md:grid-cols-4 max-w-[1100px] mx-auto">
         {stats.map((s, i) => (
           <div
             key={i}
             className={`py-5 px-4 md:py-8 md:px-6 text-center ${
               i < stats.length - 1 ? "border-r" : ""
             } ${i >= 2 ? "border-t md:border-t-0" : ""}`}
-            style={{ borderColor: '#E8E8E8' }}
+            style={{ borderColor: '#EEEEEE' }}
           >
-            <div className="text-xl md:text-3xl font-extrabold mb-1" style={{ color: '#7C3AED' }}>{s.number}</div>
-            <div className="text-[11px] md:text-sm" style={{ color: '#6B7280' }}>{s.label}</div>
+            <div className="text-xl md:text-[36px] font-extrabold mb-1" style={{ color: '#7C3AED' }}>{s.number}</div>
+            <div className="text-[11px] md:text-sm" style={{ color: '#999999' }}>{s.label}</div>
           </div>
         ))}
       </div>
