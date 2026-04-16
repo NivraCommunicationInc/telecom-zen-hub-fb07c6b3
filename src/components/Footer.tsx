@@ -20,7 +20,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   ];
 
   return (
-    <footer ref={ref} className="bg-[#0d0d1a] text-white" data-testid="footer" role="contentinfo">
+    <footer ref={ref} className="bg-[#111118] text-white" data-testid="footer" role="contentinfo">
       <div className="container mx-auto px-4 sm:px-6 py-10 max-w-[1200px]">
         {/* ROW 1 — Logo + tagline */}
         <div className="flex items-center gap-3 mb-6">

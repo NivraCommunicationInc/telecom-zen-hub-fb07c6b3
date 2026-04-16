@@ -122,20 +122,20 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 240 20% 10%;
 
-    /* Primary — Purple #6b21e8 */
-    --primary: 263 82% 53%;
+    /* Primary — Deep Purple #5b21b6 */
+    --primary: 263 70% 42%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary — Light purple tint #f5f3ff */
-    --secondary: 250 100% 98%;
+    /* Secondary — Very subtle gray #f9fafb */
+    --secondary: 210 20% 98%;
     --secondary-foreground: 240 20% 10%;
 
     /* Muted */
-    --muted: 250 100% 98%;
+    --muted: 210 20% 98%;
     --muted-foreground: 220 9% 46%;
 
-    /* Accent — Purple */
-    --accent: 263 82% 53%;
+    /* Accent — Deep Purple */
+    --accent: 263 70% 42%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -144,7 +144,7 @@ body {
     /* Borders */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 263 82% 53%;
+    --ring: 263 70% 42%;
 
     --radius: 0.75rem;
 
@@ -156,16 +156,16 @@ body {
     --navy-500: 240 10% 30%;
 
     /* Purple accent palette */
-    --teal-600: 263 82% 45%;
-    --teal-500: 263 82% 53%;
-    --teal-400: 263 70% 60%;
-    --teal-300: 263 55% 70%;
+    --teal-600: 263 70% 36%;
+    --teal-500: 263 70% 42%;
+    --teal-400: 263 60% 52%;
+    --teal-300: 263 50% 65%;
     --teal-200: 263 40% 82%;
 
     /* Legacy cyan → purple mapping */
-    --cyan-500: 263 82% 53%;
-    --cyan-400: 263 70% 60%;
-    --cyan-300: 263 55% 70%;
+    --cyan-500: 263 70% 42%;
+    --cyan-400: 263 60% 52%;
+    --cyan-300: 263 50% 65%;
     --cyan-200: 263 40% 82%;
 
     --success: 158 64% 42%;
@@ -187,12 +187,12 @@ body {
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 20% 10%;
-    --sidebar-primary: 263 82% 53%;
+    --sidebar-primary: 263 70% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 250 100% 98%;
     --sidebar-accent-foreground: 240 20% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 263 82% 53%;
+    --sidebar-ring: 263 70% 42%;
   }
 
   .dark {

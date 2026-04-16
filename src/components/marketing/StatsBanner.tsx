@@ -12,7 +12,7 @@ export default function StatsBanner() {
   ];
 
   return (
-    <section aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"} className="bg-[#1a3a6a] text-white">
+    <section aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"} className="bg-[#5b21b6] text-white">
       <div className="grid grid-cols-2 md:grid-cols-4">
         {stats.map((s, i) => (
           <div
