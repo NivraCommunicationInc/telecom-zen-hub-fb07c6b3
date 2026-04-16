@@ -32,7 +32,7 @@ const FAQ = () => {
         },
         {
           q: isFr ? 'Y a-t-il des frais d\'installation ou d\'activation ?' : 'Are there installation or activation fees?',
-          a: isFr ? 'Non. L\'activation se fait entièrement en ligne en 10 minutes. Aucuns frais de technicien, aucuns frais d\'installation. Le modem est livré à votre domicile.' : 'No. Activation is done entirely online in 10 minutes. No technician fees, no installation fees. The modem is delivered to your home.',
+          a: isFr ? 'Non. L\'activation se fait entièrement en ligne en 10 minutes. Aucuns frais de technicien, aucuns frais d\'installation. La borne Nivra WiFi est livrée à votre domicile.' : 'No. Activation is done entirely online in 10 minutes. No technician fees, no installation fees. The Nivra WiFi modem is delivered to your home.',
         },
         {
           q: isFr ? 'Puis-je garder mon numéro de téléphone si je change pour Nivra ?' : 'Can I keep my phone number if I switch to Nivra?',
@@ -71,6 +71,27 @@ const FAQ = () => {
         {
           q: isFr ? 'Nivra Telecom offre-t-il la télévision ?' : 'Does Nivra Telecom offer television?',
           a: isFr ? 'Oui. Nous offrons des forfaits TV avec plus de 100 chaînes canadiennes et québécoises, incluant les chaînes francophones, les sports et les chaînes spécialisées. Disponible en combiné avec Internet ou séparément.' : 'Yes. We offer TV packages with over 100 Canadian and Quebec channels, including French-language, sports, and specialty channels. Available bundled with Internet or separately.',
+        },
+      ],
+    },
+    {
+      title: isFr ? 'Équipement' : 'Equipment',
+      questions: [
+        {
+          q: isFr ? "Est-ce que l'équipement Internet est inclus dans le forfait ?" : "Is Internet equipment included in the plan?",
+          a: isFr ? "Non. La borne Nivra WiFi est obligatoire pour activer votre service Internet et s'achète une seule fois au prix de 60$. Elle vous appartient et il n'y a pas de frais mensuels. Le forfait mensuel couvre uniquement le service Internet." : "No. The Nivra WiFi modem is mandatory to activate your Internet service and is purchased once for $60. You own it and there are no monthly fees. The monthly plan covers Internet service only.",
+        },
+        {
+          q: isFr ? "Combien coûtent les terminaux TV Nivra ?" : "How much do Nivra TV terminals cost?",
+          a: isFr ? "Chaque terminal Nivra coûte 50$ à l'achat (frais unique). Vous pouvez avoir de 1 à 4 terminaux selon le nombre de télévisions dans votre domicile. Un forfait Internet actif est requis pour accéder à la télévision." : "Each Nivra terminal costs $50 (one-time fee). You can have 1 to 4 terminals depending on the number of TVs in your home. An active Internet plan is required to access TV.",
+        },
+        {
+          q: isFr ? "Est-ce que la carte SIM est incluse dans le forfait mobile ?" : "Is the SIM card included in the mobile plan?",
+          a: isFr ? "Non. La carte SIM Nivra est obligatoire pour activer votre forfait mobile et coûte 30$ à l'achat (frais unique). Elle vous appartient et fonctionne exclusivement avec les forfaits Nivra Mobile." : "No. The Nivra SIM card is mandatory to activate your mobile plan and costs $30 (one-time fee). You own it and it works exclusively with Nivra Mobile plans.",
+        },
+        {
+          q: isFr ? "Combien de lignes mobiles puis-je avoir avec Nivra ?" : "How many mobile lines can I have with Nivra?",
+          a: isFr ? "Vous pouvez avoir un maximum de 3 lignes mobiles par compte. Chaque ligne nécessite sa propre carte SIM Nivra à 30$." : "You can have a maximum of 3 mobile lines per account. Each line requires its own Nivra SIM card at $30.",
         },
       ],
     },
