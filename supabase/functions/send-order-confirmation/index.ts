@@ -897,86 +897,72 @@ Deno.serve(async (req) => {
 
     const siteBaseUrl = Deno.env.get("SITE_URL") || "https://nivra-telecom.ca";
 
-    console.log(`[${requestId}] Queueing email via email_queue...`);
+    console.log(`[${requestId}] Generating HTML and queueing via pgmq...`);
 
     const eventKeyBase = `order_confirmation_${order_id}`;
     const eventKey = force
       ? `manual_order_confirmation_${order_id}_${Date.now()}`
       : eventKeyBase;
 
-    const serviceType = services && services.length > 0
-      ? services.map((s) => s.name).join(", ")
-      : "Service Nivra";
+    const orderDate = body.order_date || orderData?.created_at || new Date().toISOString();
+    const effectivePromoCode = promo_code || orderData?.promo_code || null;
+    const effectivePaymentRef = payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null;
+    const effectivePaymentMethod = payment_method || latestPayment?.method || orderData?.payment_method || null;
 
-    const queuePayload = {
-      event_key: eventKey,
-      to_email: client_email,
-      template_key: "order_submitted",
-      template_vars: {
-        manual_send: force,
-        client_name: client_first_name || "Client",
-        client_email,
-        client_phone: client_phone || orderData?.client_phone || profilePhone || "",
-        client_address: delivery_address
-          ? `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}`
-          : profileAddress || "",
-        order_id,
-        order_number,
-        invoice_id: latestInvoice?.id || null,
-        invoice_number: latestInvoice?.invoice_number || null,
-        service_type: serviceType,
-        total_amount: canonicalAmountPaidToday,
-        subtotal: canonicalSubtotal,
-        tps_amount: canonicalTps,
-        tvq_amount: canonicalTvq,
-        taxes_total: toNum(canonicalTps + canonicalTvq),
-        one_time_total: canonicalOneTime,
-        one_time_charges: canonicalOneTime,
-        monthly_recurring_amount: canonicalRecurring,
-        discount_amount: canonicalDiscount,
-        total_payable: canonicalTotalPayable,
-        amount_paid_today: canonicalAmountPaidToday,
-        amount_paid_total: canonicalAmountPaidTotal,
-        amount_due_today: canonicalBalanceDue,
-        balance_due: canonicalBalanceDue,
-        delivery_method: getDeliveryMethodLabel(delivery_method),
-        delivery_address: delivery_address
-          ? `${delivery_address.street}, ${delivery_address.city}, ${delivery_address.province} ${delivery_address.postalCode}`
-          : null,
-        payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
-        payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
-        portal_path: `/portal/orders/${order_id}`,
-        promo_code: promo_code || orderData?.promo_code || null,
-        // PDF attachment data
-        account_number: accountNumber,
-        services: services || [],
-      },
-      status: "queued",
-      attempts: 0,
-      max_attempts: 3,
-    };
+    const hasFirstMonthFree = isFirstMonthFreePromo(effectivePromoCode);
+    const emailSubject = hasFirstMonthFree
+      ? `🎉 Bienvenue chez Nivra Telecom — Votre premier mois est gratuit! (Commande #${order_number})`
+      : `Confirmation de commande #${order_number} | Nivra Telecom`;
 
-    const { data: queuedEmail, error: queueInsertError } = await supabase
-      .from("email_queue")
-      .insert(queuePayload)
-      .select("id")
-      .maybeSingle();
+    // Generate full HTML email
+    const htmlBody = generateOrderConfirmationHtml({
+      clientFirstName: client_first_name || "Client",
+      orderNumber: order_number,
+      orderDate,
+      paymentReference: effectivePaymentRef || undefined,
+      paymentMethod: effectivePaymentMethod || undefined,
+      services: services || [],
+      subtotal: canonicalSubtotal,
+      tpsAmount: canonicalTps,
+      tvqAmount: canonicalTvq,
+      totalWithTax: canonicalTotalPayable,
+      oneTimeFees: one_time_fees,
+      oneTimeTotal: canonicalOneTime,
+      deliveryMethod: delivery_method ? getDeliveryMethodLabel(delivery_method) : undefined,
+      deliveryAddress: delivery_address,
+      portalLink: `${siteBaseUrl}/portal/orders/${order_id}`,
+      supportPhone: Deno.env.get("SUPPORT_PHONE") || "",
+      supportEmail: Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca",
+      promoCode: effectivePromoCode || undefined,
+    });
 
-    let queuedEmailId = queuedEmail?.id ?? null;
+    // Enqueue main email via pgmq (actually delivered by process-email-queue)
+    const enqueueResult = await enqueueEmail({
+      to: client_email,
+      templateKey: "order_submitted",
+      eventKey,
+      subject: emailSubject,
+      html: htmlBody,
+      fromEmail: "Nivra Telecom <noreply@nivra-telecom.ca>",
+      messageType: "order_confirmation",
+      entityType: "order",
+      entityId: order_id,
+      maxAttempts: 3,
+    });
 
-    if (queueInsertError && queueInsertError.code !== "PGRST116") {
-      console.error(`[${requestId}] Failed to queue email:`, queueInsertError);
+    if (!enqueueResult.success) {
+      console.error(`[${requestId}] Failed to enqueue email:`, enqueueResult.error);
       logResult("error", {
         order_id,
         order_number,
         to_email: maskEmail(client_email),
-        error: queueInsertError.message,
+        error: enqueueResult.error || "Failed to enqueue email",
       });
       return new Response(JSON.stringify({
         success: false,
         status: "error",
         error: "Failed to queue email",
-        details: queueInsertError.message,
+        details: enqueueResult.error,
         request_id: requestId,
       }), {
         status: 500,
@@ -984,40 +970,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!queuedEmailId) {
-      const { data: existingQueuedEmail, error: lookupError } = await supabase
-        .from("email_queue")
-        .select("id")
-        .eq("event_key", eventKey)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    console.log(`[${requestId}] ✅ Email enqueued to pgmq: ${enqueueResult.id}`);
 
-      if (lookupError || !existingQueuedEmail?.id) {
-        const details = lookupError?.message || "No queued email row returned after insert";
-        console.error(`[${requestId}] Failed to resolve queued email ID:`, lookupError || details);
-        logResult("error", {
-          order_id,
-          order_number,
-          to_email: maskEmail(client_email),
-          error: details,
-        });
-        return new Response(JSON.stringify({
-          success: false,
-          status: "error",
-          error: "Failed to resolve queued email",
-          details,
-          request_id: requestId,
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    // BCC copy for first-month-free promo orders
+    if (hasFirstMonthFree) {
+      const bccEventKey = `${eventKey}_bcc_support`;
+      const bccResult = await enqueueEmail({
+        to: "support@nivra-telecom.ca",
+        templateKey: "order_submitted",
+        eventKey: bccEventKey,
+        subject: `[BCC] ${emailSubject}`,
+        html: htmlBody,
+        fromEmail: "Nivra Telecom <noreply@nivra-telecom.ca>",
+        messageType: "order_confirmation_bcc",
+        entityType: "order",
+        entityId: order_id,
+        maxAttempts: 3,
+      });
+      if (bccResult.success) {
+        console.log(`[${requestId}] ✅ BCC copy enqueued to pgmq`);
+      } else {
+        console.warn(`[${requestId}] BCC enqueue failed:`, bccResult.error);
       }
-
-      queuedEmailId = existingQueuedEmail.id;
     }
-
-    console.log(`[${requestId}] ✅ Email queued successfully: ${queuedEmailId}`);
 
     // Update order to mark confirmation as queued
     const { error: updateError } = await supabase
@@ -1033,12 +1008,14 @@ Deno.serve(async (req) => {
       order_id,
       order_number,
       to_email: maskEmail(client_email),
-      method: "email_queue",
-      email_queue_id: queuedEmailId,
+      method: "pgmq",
+      message_id: enqueueResult.id,
       forced: force,
     });
 
     // Send SMS notification
+    const phoneForSms = client_phone || orderData?.client_phone;
+    const clientIdForSms = client_id || orderData?.user_id;
     if (phoneForSms && toE164(phoneForSms)) {
       console.log(`[${requestId}] Sending SMS notification...`);
       const smsResult = await sendSmsNotification({
@@ -1060,9 +1037,9 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       status: "queued",
-      email_queue_id: queuedEmailId,
+      message_id: enqueueResult.id,
       order_number,
-      method: "email_queue",
+      method: "pgmq",
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
