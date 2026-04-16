@@ -112,8 +112,8 @@ const Header = () => {
           <button
             className={`flex items-center gap-1 px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
               isActive
-                ? 'text-[#111111]'
-                : 'text-[#555555] hover:text-[#111111]'
+                ? 'text-[#0D0D0D]'
+                : 'text-[#6B7280] hover:text-[#0D0D0D]'
             }`}
             type="button"
             onClick={() => handleNavClick(target)}
@@ -126,7 +126,7 @@ const Header = () => {
 
           {openDropdown === target.id && (
             <div className="absolute top-full left-0 pt-1 z-50">
-              <div className="bg-white rounded-xl shadow-lg border border-[#eeeeee] py-1.5 min-w-[200px]">
+              <div className="rounded-xl shadow-lg py-1.5 min-w-[200px]" style={{ background: '#FFFFFF', border: '1px solid #E8E8E8' }}>
                 {target.children!.map((child) => {
                   const childActive = location.pathname === child.target;
                   return (
@@ -135,8 +135,8 @@ const Header = () => {
                       to={child.target}
                       className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
                         childActive
-                          ? 'text-[#7c3aed] bg-[#f3eeff]'
-                          : 'text-[#555555] hover:text-[#111111] hover:bg-[#f8f8f8]'
+                          ? 'text-[#7C3AED] bg-[#F3EEFF]'
+                          : 'text-[#6B7280] hover:text-[#0D0D0D] hover:bg-[#F5F5F5]'
                       }`}
                     >
                       {getLabel(child)}
@@ -156,8 +156,8 @@ const Header = () => {
         to={target.target}
         className={`px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
           isActive
-            ? 'text-[#111111]'
-            : 'text-[#555555] hover:text-[#111111]'
+            ? 'text-[#0D0D0D]'
+            : 'text-[#6B7280] hover:text-[#0D0D0D]'
         }`}
       >
         {getLabel(target)}
@@ -166,7 +166,7 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="px-3 py-2 text-sm font-semibold text-[#555555] hover:text-[#111111] transition-colors rounded-md"
+        className="px-3 py-2 text-sm font-semibold text-[#6B7280] hover:text-[#0D0D0D] transition-colors rounded-md"
         type="button"
       >
         {getLabel(target)}
