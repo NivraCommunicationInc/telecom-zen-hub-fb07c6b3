@@ -256,14 +256,14 @@ const Header = () => {
             <Link to="/" className="hover:text-[#0D0D0D] transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
             <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors" style={{ color: '#6B7280' }}>{isFr ? "Entreprise" : "Business"}</Link>
           </div>
-          <div className="flex items-center gap-5 text-xs" style={{ color: '#999999' }}>
-            <Link to="/aide" className="hover:text-[#111111] transition-colors">
+          <div className="flex items-center gap-5 text-xs" style={{ color: '#6B7280' }}>
+            <Link to="/aide" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "Trouver un point de vente" : "Find a store"}
             </Link>
-            <Link to="/a-propos" className="hover:text-[#111111] transition-colors">
+            <Link to="/a-propos" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "À propos" : "About"}
             </Link>
-            <Link to="/contact" className="hover:text-[#111111] transition-colors">
+            <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "Nous joindre" : "Contact Us"}
             </Link>
             <LanguageSelector />
@@ -274,7 +274,7 @@ const Header = () => {
       {/* Main navigation */}
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-sm' : ''}`}
-        style={{ height: 56, background: '#ffffff', borderBottom: '1px solid #eeeeee' }}
+        style={{ height: 56, background: '#FFFFFF', borderBottom: '1px solid #E8E8E8' }}
         
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
