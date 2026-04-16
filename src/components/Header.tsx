@@ -112,8 +112,8 @@ const Header = () => {
           <button
             className={`flex items-center gap-1 px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
               isActive
-                ? 'text-[#111111]'
-                : 'text-[#555555] hover:text-[#111111]'
+                ? 'text-[#0D0D0D]'
+                : 'text-[#6B7280] hover:text-[#0D0D0D]'
             }`}
             type="button"
             onClick={() => handleNavClick(target)}
@@ -126,7 +126,7 @@ const Header = () => {
 
           {openDropdown === target.id && (
             <div className="absolute top-full left-0 pt-1 z-50">
-              <div className="bg-white rounded-xl shadow-lg border border-[#eeeeee] py-1.5 min-w-[200px]">
+              <div className="rounded-xl shadow-lg py-1.5 min-w-[200px]" style={{ background: '#FFFFFF', border: '1px solid #E8E8E8' }}>
                 {target.children!.map((child) => {
                   const childActive = location.pathname === child.target;
                   return (
@@ -135,8 +135,8 @@ const Header = () => {
                       to={child.target}
                       className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
                         childActive
-                          ? 'text-[#7c3aed] bg-[#f3eeff]'
-                          : 'text-[#555555] hover:text-[#111111] hover:bg-[#f8f8f8]'
+                          ? 'text-[#7C3AED] bg-[#F3EEFF]'
+                          : 'text-[#6B7280] hover:text-[#0D0D0D] hover:bg-[#F5F5F5]'
                       }`}
                     >
                       {getLabel(child)}
@@ -156,8 +156,8 @@ const Header = () => {
         to={target.target}
         className={`px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
           isActive
-            ? 'text-[#111111]'
-            : 'text-[#555555] hover:text-[#111111]'
+            ? 'text-[#0D0D0D]'
+            : 'text-[#6B7280] hover:text-[#0D0D0D]'
         }`}
       >
         {getLabel(target)}
@@ -166,7 +166,7 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="px-3 py-2 text-sm font-semibold text-[#555555] hover:text-[#111111] transition-colors rounded-md"
+        className="px-3 py-2 text-sm font-semibold text-[#6B7280] hover:text-[#0D0D0D] transition-colors rounded-md"
         type="button"
       >
         {getLabel(target)}
@@ -184,8 +184,8 @@ const Header = () => {
         <div key={target.id}>
           <button
             onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
-            className="flex items-center justify-between w-full pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8]"
-            style={{ height: 56, minHeight: 56, color: '#111111' }}
+            className="flex items-center justify-between w-full pl-5 pr-4 text-[18px] font-medium hover:bg-[#F5F5F5]"
+            style={{ height: 56, minHeight: 56, color: '#0D0D0D' }}
             type="button"
             aria-expanded={isExpanded}
           >
@@ -205,7 +205,7 @@ const Header = () => {
                     style={{
                       height: 48,
                       minHeight: 48,
-                      color: childActive ? PURPLE : '#999999',
+                      color: childActive ? PURPLE : '#6B7280',
                     }}
                   >
                     {getLabel(child)}
@@ -223,11 +223,11 @@ const Header = () => {
         key={target.id}
         to={target.target}
         onClick={() => setIsMenuOpen(false)}
-        className="flex items-center pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8] active:bg-[#f0f0f0]"
+        className="flex items-center pl-5 pr-4 text-[18px] font-medium hover:bg-[#F5F5F5]"
         style={{
           height: 56,
           minHeight: 56,
-          color: isActive ? PURPLE : '#111111',
+          color: isActive ? PURPLE : '#0D0D0D',
         }}
       >
         {getLabel(target)}
@@ -236,8 +236,8 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="flex items-center w-full text-left pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8]"
-        style={{ height: 56, minHeight: 56, color: '#111111' }}
+        className="flex items-center w-full text-left pl-5 pr-4 text-[18px] font-medium hover:bg-[#F5F5F5]"
+        style={{ height: 56, minHeight: 56, color: '#0D0D0D' }}
         type="button"
       >
         {getLabel(target)}
@@ -250,20 +250,20 @@ const Header = () => {
       <PublicSystemStatusBanner />
       
       {/* Top utility bar — desktop only */}
-      <div className="bg-[#f8f8f8] border-b border-[#eeeeee] hidden lg:block">
+      <div className="hidden lg:block" style={{ background: '#F5F5F5', borderBottom: '1px solid #E8E8E8' }}>
         <div className="container mx-auto px-6 max-w-[1200px] flex items-center justify-between h-9">
-          <div className="flex items-center gap-5 text-xs font-medium" style={{ color: '#555555' }}>
-            <Link to="/" className="hover:text-[#111111] transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
-            <Link to="/contact" className="hover:text-[#111111] transition-colors" style={{ color: '#999999' }}>{isFr ? "Entreprise" : "Business"}</Link>
+          <div className="flex items-center gap-5 text-xs font-medium" style={{ color: '#6B7280' }}>
+            <Link to="/" className="hover:text-[#0D0D0D] transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
+            <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors" style={{ color: '#6B7280' }}>{isFr ? "Entreprise" : "Business"}</Link>
           </div>
-          <div className="flex items-center gap-5 text-xs" style={{ color: '#999999' }}>
-            <Link to="/aide" className="hover:text-[#111111] transition-colors">
+          <div className="flex items-center gap-5 text-xs" style={{ color: '#6B7280' }}>
+            <Link to="/aide" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "Trouver un point de vente" : "Find a store"}
             </Link>
-            <Link to="/a-propos" className="hover:text-[#111111] transition-colors">
+            <Link to="/a-propos" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "À propos" : "About"}
             </Link>
-            <Link to="/contact" className="hover:text-[#111111] transition-colors">
+            <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors">
               {isFr ? "Nous joindre" : "Contact Us"}
             </Link>
             <LanguageSelector />
@@ -274,14 +274,14 @@ const Header = () => {
       {/* Main navigation */}
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-sm' : ''}`}
-        style={{ height: 56, background: '#ffffff', borderBottom: '1px solid #eeeeee' }}
+        style={{ height: 56, background: '#FFFFFF', borderBottom: '1px solid #E8E8E8' }}
         
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
           {/* Mobile — 3-column grid: hamburger | centered logo | spacer */}
           <div className="grid grid-cols-[56px_1fr_56px] items-center h-[56px] lg:hidden">
             <button
-              className="flex items-center justify-center w-[56px] h-[56px]" style={{ color: '#111111' }}
+              className="flex items-center justify-center w-[56px] h-[56px]" style={{ color: '#0D0D0D' }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={isMenuOpen}
@@ -293,7 +293,7 @@ const Header = () => {
 
             <Link to="/" className="justify-self-center flex items-center gap-2">
               <LogoIcon size={28} />
-              <span className="font-bold text-lg tracking-tight" style={{ color: '#111111' }}>Nivra</span>
+              <span className="font-bold text-lg tracking-tight" style={{ color: '#0D0D0D' }}>Nivra</span>
             </Link>
 
             <div>{/* spacer */}</div>
@@ -336,38 +336,36 @@ const Header = () => {
           role="dialog"
           aria-label="Menu de navigation"
           className="fixed inset-0 z-[100] lg:hidden flex flex-col"
-          style={{ background: '#ffffff' }}
+          style={{ background: '#FFFFFF' }}
         >
-          {/* Top bar with close */}
-          <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56, borderBottom: '1px solid #eeeeee' }}>
+          <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56, borderBottom: '1px solid #E8E8E8' }}>
             <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
               <LogoIcon size={28} />
-              <span className="font-bold text-lg" style={{ color: '#111111' }}>Nivra</span>
+              <span className="font-bold text-lg" style={{ color: '#0D0D0D' }}>Nivra</span>
             </Link>
             <button
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center justify-center"
-              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, color: '#111111' }}
+              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, color: '#0D0D0D' }}
               aria-label="Fermer le menu"
             >
               <X className="w-6 h-6" strokeWidth={2} />
             </button>
           </div>
 
-          {/* Nav links */}
           <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto pt-2">
             {NAV_TARGETS.map(renderMobileNavItem)}
 
-            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #eeeeee' }}>
+            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #E8E8E8' }}>
               <Link to="/aide" onClick={() => setIsMenuOpen(false)}
                 className="flex items-center pl-5 pr-4 text-[16px]"
-                style={{ height: 48, color: '#999999' }}
+                style={{ height: 48, color: '#6B7280' }}
               >
                 Support
               </Link>
               <Link to="/a-propos" onClick={() => setIsMenuOpen(false)}
                 className="flex items-center pl-5 pr-4 text-[16px]"
-                style={{ height: 48, color: '#999999' }}
+                style={{ height: 48, color: '#6B7280' }}
               >
                 {isFr ? "À propos" : "About"}
               </Link>
@@ -377,13 +375,12 @@ const Header = () => {
             </div>
           </nav>
 
-          {/* Bottom actions */}
-          <div className="p-4 space-y-3" style={{ borderTop: '1px solid #eeeeee' }}>
+          <div className="p-4 space-y-3" style={{ borderTop: '1px solid #E8E8E8' }}>
             <Link
               to="/commander"
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center justify-center w-full font-bold text-[16px] text-white"
-              style={{ height: 52, background: PURPLE, borderRadius: 50 }}
+              style={{ height: 52, background: '#7C3AED', borderRadius: 50 }}
             >
               {isFr ? "Commander" : "Order Now"}
             </Link>
@@ -391,7 +388,7 @@ const Header = () => {
               to={portalLink}
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center justify-center gap-2 w-full font-semibold text-[15px]"
-              style={{ height: 48, color: '#555555', borderRadius: 50, border: '2px solid #eeeeee' }}
+              style={{ height: 48, color: '#6B7280', borderRadius: 50, border: '2px solid #E8E8E8' }}
             >
               <User className="w-4 h-4" />
               {isFr ? "Mon compte" : "My account"}

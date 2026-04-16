@@ -20,38 +20,58 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   ];
 
   return (
-    <footer ref={ref} style={{ background: '#111111' }} className="text-white" data-testid="footer" role="contentinfo">
+    <footer ref={ref} style={{ background: '#0D0D0D', marginTop: 0 }} className="text-white" data-testid="footer" role="contentinfo">
       <div className="container mx-auto px-4 sm:px-6 py-10 max-w-[1200px]">
         {/* ROW 1 — Logo + tagline */}
         <div className="flex items-center gap-3 mb-6">
           <LogoIcon size={32} />
           <div>
             <span className="font-bold text-lg text-white">Nivra</span>
-            <p className="text-white/35 text-[13px]">
+            <p className="text-[13px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
               {isFr ? "Internet et TV sans contrat au Québec" : "Internet & TV without contract in Quebec"}
             </p>
           </div>
         </div>
 
-        {/* ROW 2 — All links in one compact row */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-8">
+        {/* ROW 2 — All links */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-6">
           {links.map((link) => (
             <Link
               key={link.href}
               to={link.href}
-              className="text-white/55 hover:text-white transition-colors text-[13px]"
+              className="transition-colors text-[13px]"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
             >
               {link.label}
             </Link>
           ))}
         </div>
 
-        {/* ROW 3 — Copyright + SSL on same line */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <p className="text-white/30 text-[12px]">
+        {/* ROW 3 — Payment + Security */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 pb-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="flex items-center gap-3">
+            <span className="text-[12px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              {isFr ? "Paiements:" : "Payments:"}
+            </span>
+            {['VISA', 'MC', 'Interac', 'PayPal'].map(p => (
+              <span key={p} className="text-[11px] font-semibold px-2 py-0.5" style={{ color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4 }}>
+                {p}
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>🔒 SSL 256-bit</span>
+            <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>🛡 Cloudflare WAF</span>
+            <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>✓ Stripe</span>
+          </div>
+        </div>
+
+        {/* ROW 4 — Copyright */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
             © {currentYear} {COMPANY_CONTACT.legalName}
           </p>
-          <p className="text-white/30 text-[12px]">
+          <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
             🔒 SSL • Cloudflare
           </p>
         </div>
