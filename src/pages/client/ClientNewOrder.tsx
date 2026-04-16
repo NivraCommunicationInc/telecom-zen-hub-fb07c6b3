@@ -617,6 +617,8 @@ const ClientNewOrder = () => {
   } | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [promoValidationError, setPromoValidationError] = useState<string | null>(null);
+  const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
+  const autoApplyAttemptedRef = useRef(false);
   
   // Separate referral code state (independent of promo codes)
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
