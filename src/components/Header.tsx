@@ -10,8 +10,8 @@ import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } 
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 
-const PURPLE = "#5b21b6";
-const PURPLE_DARK = "#4c1d95";
+const PURPLE = "#7c3aed";
+const PURPLE_DARK = "#5b21b6";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -249,21 +249,21 @@ const Header = () => {
     <>
       <PublicSystemStatusBanner />
       
-      {/* Top utility bar */}
-      <div className="bg-[#0a0a0a] border-b border-white/10 hidden lg:block">
+      {/* Top utility bar — desktop only */}
+      <div className="bg-[#f8f8f8] border-b border-[#eeeeee] hidden lg:block">
         <div className="container mx-auto px-6 max-w-[1200px] flex items-center justify-between h-9">
-          <div className="flex items-center gap-5 text-xs font-medium text-white/70">
-            <Link to="/" className="hover:text-white transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
-            <Link to="/contact" className="text-white/50 hover:text-white transition-colors">{isFr ? "Entreprise" : "Business"}</Link>
+          <div className="flex items-center gap-5 text-xs font-medium" style={{ color: '#555555' }}>
+            <Link to="/" className="hover:text-[#111111] transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
+            <Link to="/contact" className="hover:text-[#111111] transition-colors" style={{ color: '#999999' }}>{isFr ? "Entreprise" : "Business"}</Link>
           </div>
-          <div className="flex items-center gap-5 text-xs text-white/50">
-            <Link to="/aide" className="hover:text-white transition-colors">
+          <div className="flex items-center gap-5 text-xs" style={{ color: '#999999' }}>
+            <Link to="/aide" className="hover:text-[#111111] transition-colors">
               {isFr ? "Trouver un point de vente" : "Find a store"}
             </Link>
-            <Link to="/a-propos" className="hover:text-white transition-colors">
+            <Link to="/a-propos" className="hover:text-[#111111] transition-colors">
               {isFr ? "À propos" : "About"}
             </Link>
-            <Link to="/contact" className="hover:text-white transition-colors">
+            <Link to="/contact" className="hover:text-[#111111] transition-colors">
               {isFr ? "Nous joindre" : "Contact Us"}
             </Link>
             <LanguageSelector />
@@ -273,7 +273,8 @@ const Header = () => {
 
       {/* Main navigation */}
       <header
-        className={`sticky top-0 z-50 bg-[#111118] transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}
+        className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-sm' : ''}`}
+        style={{ height: 56, background: '#ffffff', borderBottom: '1px solid #eeeeee' }}
         style={{ height: 56 }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
