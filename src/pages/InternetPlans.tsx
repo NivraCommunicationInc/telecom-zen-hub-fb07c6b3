@@ -263,13 +263,13 @@ const InternetPlans = () => {
                   <Router className="w-12 h-12 text-cyan-500" />
                 </div>
                 <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-2xl font-bold text-foreground mb-2">
-                    Nivra Born Wifi
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    {isFrench 
-                      ? `Routeur haute performance inclus avec tous les forfaits. Frais uniques de ${routerPrice}$ payables avant l'installation.`
-                      : `High-performance router included with all plans. One-time $${routerPrice} fee payable before installation.`}
+                   <h3 className="text-2xl font-bold text-foreground mb-2">
+                     Borne Nivra WiFi
+                   </h3>
+                   <p className="text-muted-foreground mb-4">
+                     {isFrench 
+                       ? `Borne WiFi haute performance obligatoire pour tous les forfaits Internet. Achat unique de ${routerPrice}$ payable avant l'installation. Vous en êtes propriétaire.`
+                       : `High-performance WiFi modem mandatory for all Internet plans. One-time $${routerPrice} purchase payable before installation. You own it.`}
                   </p>
                   <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                     <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
