@@ -111,31 +111,31 @@ body {
 
 @layer base {
   :root {
-    /* Dark base */
+    /* Light professional base */
     --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
+    --foreground: 240 20% 10%;
 
     /* Cards */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card-foreground: 240 20% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: 240 20% 10%;
 
-    /* Primary — Vivid Purple (Xfinity-inspired) */
-    --primary: 270 70% 50%;
+    /* Primary — Purple #6b21e8 */
+    --primary: 263 82% 53%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary — Light cool gray */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 0 0% 7%;
+    /* Secondary — Light purple tint #f5f3ff */
+    --secondary: 250 100% 98%;
+    --secondary-foreground: 240 20% 10%;
 
     /* Muted */
-    --muted: 220 14% 96%;
+    --muted: 250 100% 98%;
     --muted-foreground: 220 9% 46%;
 
-    /* Accent — Bright purple */
-    --accent: 270 70% 50%;
+    /* Accent — Purple */
+    --accent: 263 82% 53%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -144,7 +144,7 @@ body {
     /* Borders */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 270 70% 50%;
+    --ring: 263 82% 53%;
 
     --radius: 0.75rem;
 
