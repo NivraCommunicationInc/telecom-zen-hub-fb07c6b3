@@ -1839,7 +1839,40 @@ const ClientNewOrder = () => {
     setAppliedReferral(null);
   };
 
-  // Create order mutation
+  // ═══ AUTO-APPLY BIENVENUE2026 for new clients ═══
+  // When the client has filled email/phone/DOB and hasn't entered a promo, auto-detect and apply
+  const FIRST_MONTH_FREE_CODES_SET = new Set(['BIENVENUE2026', 'NIVRA2026']);
+  useEffect(() => {
+    // Only attempt once per checkout session
+    if (autoApplyAttemptedRef.current) return;
+    // Don't auto-apply if promo already applied or welcome discount active
+    if (appliedPromo) return;
+    if (discountCode.trim()) return; // user is typing a code
+    if (!isHydrated) return;
+    if (welcomeDiscountDismissed) return;
+    // Need at least email to attempt
+    const email = profile?.email || user?.email;
+    if (!email) return;
+    // Need to be on at least step 3+ (after service selection and address)
+    if (step < 3) return;
+
+    autoApplyAttemptedRef.current = true;
+
+    const tryAutoApply = async () => {
+      try {
+        const result = await validateAndApplyPromo('BIENVENUE2026', { silent: true });
+        if (result) {
+          setAutoAppliedPromo(true);
+          console.log("[AutoPromo] BIENVENUE2026 auto-applied for new client");
+        }
+      } catch (err) {
+        console.warn("[AutoPromo] Auto-apply failed:", err);
+      }
+    };
+
+    tryAutoApply();
+  }, [isHydrated, appliedPromo, discountCode, step, profile?.email, user?.email, welcomeDiscountDismissed]);
+
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       const shouldBypassIdentityKyc = isStreamingOnlyOrder;
