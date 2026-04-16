@@ -18,3 +18,4 @@ export { CheckoutPhoneField, validateCanadianPhone } from './CheckoutPhoneField'
 export { CheckoutServiceAddress, validateCanadianPostalCode, formatPostalCode, isAddressComplete } from './CheckoutServiceAddress';
 export { CheckoutEssentialTerms, ETransferStatusInfo } from './CheckoutEssentialTerms';
 export { AutoPayPalOption } from './AutoPayPalOption';
+export { FirstMonthFreeExplanation } from './FirstMonthFreeExplanation';

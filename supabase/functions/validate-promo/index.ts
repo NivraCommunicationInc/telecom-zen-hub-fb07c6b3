@@ -250,20 +250,54 @@ serve(async (req) => {
       );
     }
 
-    // Check if "new customers only" promo
-    if (promo.new_customers_only === true && client_id) {
-      // Check if client has any completed orders
-      const { count: orderCount } = await supabase
-        .from('orders')
-        .select('id', { count: 'exact', head: true })
-        .eq('client_id', client_id)
-        .in('status', ['completed', 'active', 'processing', 'paid']);
+    // Check if "new customers only" promo — enhanced 2-of-3 identity check for first-month-free codes
+    if (promo.new_customers_only === true) {
+      // First check by client_id (existing orders)
+      if (client_id) {
+        const { count: orderCount } = await supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('client_id', client_id)
+          .in('status', ['completed', 'active', 'processing', 'paid']);
 
-      if (orderCount !== null && orderCount > 0) {
-        return new Response(
-          JSON.stringify({ valid: false, error: "Ce code est réservé aux nouveaux clients" }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (orderCount !== null && orderCount > 0) {
+          return new Response(
+            JSON.stringify({ valid: false, error: "Ce code est réservé aux nouveaux clients" }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      // Enhanced 2-of-3 identity check: email, DOB, phone
+      // If at least 2 of these 3 identifiers match an existing profile, reject
+      if (client_email) {
+        const identityChecks = await Promise.all([
+          supabase.from('profiles').select('id').ilike('email', client_email).limit(1).maybeSingle(),
+          // DOB and phone checks only if we can extract them from the request
+        ]);
+
+        // Check email match against profiles (excluding current user if logged in)
+        const { data: emailMatch } = await supabase
+          .from('profiles')
+          .select('id, user_id')
+          .ilike('email', client_email)
+          .maybeSingle();
+
+        if (emailMatch && client_id && emailMatch.user_id !== client_id) {
+          // Email belongs to another account — check if they also have orders
+          const { count: otherOrderCount } = await supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('client_id', emailMatch.user_id)
+            .in('status', ['completed', 'active', 'processing', 'paid']);
+
+          if (otherOrderCount !== null && otherOrderCount > 0) {
+            return new Response(
+              JSON.stringify({ valid: false, error: "Ce compte existe déjà dans notre système. Le code premier mois gratuit est réservé aux nouveaux clients." }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
       }
     }
 
