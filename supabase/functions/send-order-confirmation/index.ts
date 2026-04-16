@@ -475,7 +475,9 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
 
   <!-- Preheader Text (hidden) -->
   <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
-    Merci ${escapeHtml(clientFirstName)}! Votre commande #${escapeHtml(orderNumber)} est confirmée. Total mensuel: ${formatCurrencySimple(totalWithTax)} &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;
+    ${hasFirstMonthFree
+      ? `🎉 Bienvenue chez Nivra! Votre premier mois est gratuit. Commande #${escapeHtml(orderNumber)} confirmée.`
+      : `Merci ${escapeHtml(clientFirstName)}! Votre commande #${escapeHtml(orderNumber)} est confirmée. Total mensuel: ${formatCurrencySimple(totalWithTax)}`} &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;
   </div>
 
   <!-- Wrapper Table -->
@@ -604,6 +606,8 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
               </div>
 
               ${oneTimeFeesHtml}
+
+              ${firstMonthFreeHtml}
 
               ${deliveryHtml}
 
