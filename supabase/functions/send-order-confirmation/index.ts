@@ -193,14 +193,19 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
       <div style="font-size:13px;color:#7A4500;line-height:1.7">En tant que nouveau client Nivra Telecom, votre premier mois de service est entièrement gratuit. Aucun montant ne sera débité pour votre service Internet durant les 30 prochains jours. Votre facturation régulière débutera automatiquement à votre deuxième mois.</div>
     </div>` : '';
 
-  // === Financial rows ===
-  const finRowHtml = (label: string, value: string, opts?: { green?: boolean; bold?: boolean; greenBg?: boolean }) => {
+  // === Financial rows — TABLE-based for email client compatibility ===
+  const finRowHtml = (label: string, value: string, opts?: { green?: boolean; bold?: boolean; greenBg?: boolean; thickBorder?: boolean }) => {
     const bg = opts?.greenBg ? 'background:#f0fff8;' : '';
-    const color = opts?.green ? 'color:#00875A;font-weight:600;' : 'color:#555;';
-    const fw = opts?.bold ? 'font-weight:600;' : '';
-    return `<div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;${color}${fw}border-bottom:1px solid #eee;${bg}">
-      <span>${label}</span><span>${value}</span>
-    </div>`;
+    const labelColor = opts?.green ? '#00875A' : '#555';
+    const valColor = opts?.green ? '#00875A' : '#555';
+    const fw = (opts?.bold || opts?.green) ? '600' : '400';
+    const border = opts?.thickBorder ? 'border-bottom:2px solid #eee;' : 'border-bottom:1px solid #eee;';
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${bg}${border}">
+      <tr>
+        <td style="padding:12px 16px;font-size:13px;color:${labelColor};font-weight:${fw}">${label}</td>
+        <td style="padding:12px 16px;font-size:13px;color:${valColor};font-weight:${fw};text-align:right;white-space:nowrap">${value}</td>
+      </tr>
+    </table>`;
   };
 
   let financialBlock = '';
@@ -208,59 +213,80 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     financialBlock = `
       ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
       ${finRowHtml('Premier mois offert', `-${fmtPrice(servicePrice)} $`, { green: true, greenBg: true })}
-      <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #eee">
-        <span>Service ce mois-ci</span><span style="font-weight:600">0,00 $</span>
-      </div>
+      ${finRowHtml('Service ce mois-ci', '0,00 $', { bold: true, thickBorder: true })}
       ${equipTotal > 0 ? `
-        <div style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee">Équipement (frais uniques)</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #eee">
+          <tr><td style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase">Équipement (frais uniques)</td></tr>
+        </table>
         ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
-        <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #0057B8">
-          <span>TVQ (9,975%)</span><span>${fmtPrice(equipTvq)} $</span>
-        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
+          <tr>
+            <td style="padding:12px 16px;font-size:13px;color:#555">TVQ (9,975%)</td>
+            <td style="padding:12px 16px;font-size:13px;color:#555;text-align:right;white-space:nowrap">${fmtPrice(equipTvq)} $</td>
+          </tr>
+        </table>
       ` : ''}
-      <div style="padding:16px;background:#0057B8;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Équipement uniquement — service gratuit ce mois</div>
-        </div>
-        <div style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(equipGrandTotal)} $</div>
-      </div>`;
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0057B8">
+        <tr>
+          <td style="padding:16px">
+            <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Équipement uniquement — service gratuit ce mois</div>
+          </td>
+          <td style="padding:16px;text-align:right;white-space:nowrap">
+            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(equipGrandTotal)} $</span>
+          </td>
+        </tr>
+      </table>`;
   } else {
     financialBlock = `
       ${finRowHtml('Forfait mensuel', `${fmtPrice(servicePrice)} $`)}
       ${finRowHtml('TPS (5%)', `${fmtPrice(serviceTps)} $`)}
-      <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #0057B8">
-        <span>TVQ (9,975%)</span><span>${fmtPrice(serviceTvq)} $</span>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
+        <tr>
+          <td style="padding:12px 16px;font-size:13px;color:#555">TVQ (9,975%)</td>
+          <td style="padding:12px 16px;font-size:13px;color:#555;text-align:right;white-space:nowrap">${fmtPrice(serviceTvq)} $</td>
+        </tr>
+      </table>
       ${equipTotal > 0 ? `
-        <div style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee">Équipement (frais uniques)</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #eee">
+          <tr><td style="padding:10px 16px;font-size:10px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase">Équipement (frais uniques)</td></tr>
+        </table>
         ${(oneTimeFees || []).map(f => finRowHtml(escapeHtml(f.label), `${fmtPrice(f.amount)} $`)).join('')}
         ${finRowHtml('TPS (5%)', `${fmtPrice(equipTps)} $`)}
-        <div style="padding:12px 16px;display:flex;justify-content:space-between;font-size:13px;color:#555;border-bottom:2px solid #0057B8">
-          <span>TVQ (9,975%)</span><span>${fmtPrice(equipTvq)} $</span>
-        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid #0057B8">
+          <tr>
+            <td style="padding:12px 16px;font-size:13px;color:#555">TVQ (9,975%)</td>
+            <td style="padding:12px 16px;font-size:13px;color:#555;text-align:right;white-space:nowrap">${fmtPrice(equipTvq)} $</td>
+          </tr>
+        </table>
       ` : ''}
-      <div style="padding:16px;background:#0057B8;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
-        </div>
-        <div style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(Math.round((serviceSubtotal + equipTotal + serviceTps + equipTps + serviceTvq + equipTvq) * 100) / 100)} $</div>
-      </div>`;
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0057B8">
+        <tr>
+          <td style="padding:16px">
+            <div style="font-size:11px;color:rgba(255,255,255,0.7);letter-spacing:1.5px;text-transform:uppercase">Total payé aujourd'hui</div>
+          </td>
+          <td style="padding:16px;text-align:right;white-space:nowrap">
+            <span style="font-size:26px;font-weight:700;color:#fff">${fmtPrice(Math.round((serviceSubtotal + equipTotal + serviceTps + equipTps + serviceTvq + equipTvq) * 100) / 100)} $</span>
+          </td>
+        </tr>
+      </table>`;
   }
 
   // === After-total summary (first month free only) ===
   const afterTotalSummary = hasFirstMonthFree ? `
-    <div style="margin-top:12px;display:flex;justify-content:space-between;padding:12px 16px;background:#f0fff8;border-radius:6px;border:1px solid #b7ebd6">
-      <div>
-        <div style="font-size:13px;font-weight:600;color:#00875A">Premier mois de service</div>
-        <div style="font-size:12px;color:#555;margin-top:2px">À partir du 2e mois</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:14px;font-weight:700;color:#00875A">GRATUIT</div>
-        <div style="font-size:13px;font-weight:600;color:#0d1f3c">${fmtPrice(serviceTotalWithTax)} $/mois</div>
-      </div>
-    </div>` : '';
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;background:#f0fff8;border-radius:6px;border:1px solid #b7ebd6">
+      <tr>
+        <td style="padding:12px 16px">
+          <div style="font-size:13px;font-weight:600;color:#00875A">Premier mois de service</div>
+          <div style="font-size:12px;color:#555;margin-top:2px">À partir du 2e mois</div>
+        </td>
+        <td style="padding:12px 16px;text-align:right">
+          <div style="font-size:14px;font-weight:700;color:#00875A">GRATUIT</div>
+          <div style="font-size:13px;font-weight:600;color:#0d1f3c">${fmtPrice(serviceTotalWithTax)} $/mois</div>
+        </td>
+      </tr>
+    </table>` : '';
 
   // === Equipment section ===
   const equipmentSection = (oneTimeFees && oneTimeFees.length > 0) ? `
