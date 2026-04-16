@@ -73,7 +73,7 @@ const buildInitial = (account: any, profile: any): FormValues => ({
   billing_postal_code: account?.billing_postal_code || "",
 });
 
-export function Account360ProfileEditDialog({ open, onOpenChange, account, profile, clientId, onSaved }: Props) {
+export function Account360ProfileEditDialog({ open, onOpenChange, account, profile, clientId, onSaved, isAdminCore = false }: Props) {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -244,7 +244,17 @@ export function Account360ProfileEditDialog({ open, onOpenChange, account, profi
               <Field label="Nom" value={form.last_name} onChange={(v) => setField("last_name", v)} error={errors.last_name} />
               <Field label="Email" type="email" value={form.email} onChange={(v) => setField("email", v)} error={errors.email} />
               <Field label="Téléphone" value={form.phone || ""} onChange={(v) => setField("phone", v)} error={errors.phone} />
-              <Field label="Date de naissance" type="date" value={form.date_of_birth || ""} onChange={(v) => setField("date_of_birth", v)} error={errors.date_of_birth} />
+              {profile?.dob_locked && !isAdminCore ? (
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Date de naissance 🔒</Label>
+                  <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-muted text-sm text-muted-foreground">
+                    {form.date_of_birth || "—"}
+                    <span className="text-[10px]" title="Modification réservée à admin_core">Verrouillé</span>
+                  </div>
+                </div>
+              ) : (
+                <Field label="Date de naissance" type="date" value={form.date_of_birth || ""} onChange={(v) => setField("date_of_birth", v)} error={errors.date_of_birth} />
+              )}
             </div>
           </section>
 
