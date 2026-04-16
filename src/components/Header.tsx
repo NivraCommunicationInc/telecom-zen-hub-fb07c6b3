@@ -336,18 +336,18 @@ const Header = () => {
           role="dialog"
           aria-label="Menu de navigation"
           className="fixed inset-0 z-[100] lg:hidden flex flex-col"
-          style={{ background: '#111118' }}
+          style={{ background: '#ffffff' }}
         >
           {/* Top bar with close */}
-          <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56 }}>
+          <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56, borderBottom: '1px solid #eeeeee' }}>
             <Link to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
               <LogoIcon size={28} />
-              <span className="font-bold text-lg text-white">Nivra</span>
+              <span className="font-bold text-lg" style={{ color: '#111111' }}>Nivra</span>
             </Link>
             <button
               onClick={() => setIsMenuOpen(false)}
-              className="flex items-center justify-center text-white"
-              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44 }}
+              className="flex items-center justify-center"
+              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44, color: '#111111' }}
               aria-label="Fermer le menu"
             >
               <X className="w-6 h-6" strokeWidth={2} />
@@ -358,16 +358,16 @@ const Header = () => {
           <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto pt-2">
             {NAV_TARGETS.map(renderMobileNavItem)}
 
-            <div className="mt-4 border-t border-white/10 pt-4">
+            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #eeeeee' }}>
               <Link to="/aide" onClick={() => setIsMenuOpen(false)}
-                className="flex items-center pl-5 pr-4 text-[16px] text-white/50 hover:text-white"
-                style={{ height: 48 }}
+                className="flex items-center pl-5 pr-4 text-[16px]"
+                style={{ height: 48, color: '#999999' }}
               >
                 Support
               </Link>
               <Link to="/a-propos" onClick={() => setIsMenuOpen(false)}
-                className="flex items-center pl-5 pr-4 text-[16px] text-white/50 hover:text-white"
-                style={{ height: 48 }}
+                className="flex items-center pl-5 pr-4 text-[16px]"
+                style={{ height: 48, color: '#999999' }}
               >
                 {isFr ? "À propos" : "About"}
               </Link>
@@ -378,20 +378,20 @@ const Header = () => {
           </nav>
 
           {/* Bottom actions */}
-          <div className="p-4 space-y-3 border-t border-white/10">
+          <div className="p-4 space-y-3" style={{ borderTop: '1px solid #eeeeee' }}>
             <Link
               to="/commander"
               onClick={() => setIsMenuOpen(false)}
-              className="flex items-center justify-center w-full font-bold text-[16px] text-white rounded-[10px]"
-              style={{ height: 52, background: PURPLE }}
+              className="flex items-center justify-center w-full font-bold text-[16px] text-white"
+              style={{ height: 52, background: PURPLE, borderRadius: 50 }}
             >
               {isFr ? "Commander" : "Order Now"}
             </Link>
             <Link
               to={portalLink}
               onClick={() => setIsMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full font-semibold text-[15px] text-white/80 rounded-[10px] border border-white/20"
-              style={{ height: 48 }}
+              className="flex items-center justify-center gap-2 w-full font-semibold text-[15px]"
+              style={{ height: 48, color: '#555555', borderRadius: 50, border: '2px solid #eeeeee' }}
             >
               <User className="w-4 h-4" />
               {isFr ? "Mon compte" : "My account"}
