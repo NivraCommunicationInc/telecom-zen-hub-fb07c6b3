@@ -149,24 +149,24 @@ body {
     --radius: 0.75rem;
 
     /* Extended palette — dark navy for dark sections */
-    --navy-900: 0 0% 7%;
-    --navy-800: 0 0% 10%;
-    --navy-700: 0 0% 15%;
-    --navy-600: 0 0% 25%;
-    --navy-500: 0 0% 35%;
+    --navy-900: 240 20% 5%;
+    --navy-800: 240 20% 8%;
+    --navy-700: 240 20% 12%;
+    --navy-600: 240 15% 20%;
+    --navy-500: 240 10% 30%;
 
     /* Purple accent palette */
-    --teal-600: 270 70% 44%;
-    --teal-500: 270 70% 50%;
-    --teal-400: 270 60% 58%;
-    --teal-300: 270 50% 68%;
-    --teal-200: 270 40% 80%;
+    --teal-600: 263 82% 45%;
+    --teal-500: 263 82% 53%;
+    --teal-400: 263 70% 60%;
+    --teal-300: 263 55% 70%;
+    --teal-200: 263 40% 82%;
 
     /* Legacy cyan → purple mapping */
-    --cyan-500: 270 70% 50%;
-    --cyan-400: 270 60% 58%;
-    --cyan-300: 270 50% 68%;
-    --cyan-200: 270 40% 80%;
+    --cyan-500: 263 82% 53%;
+    --cyan-400: 263 70% 60%;
+    --cyan-300: 263 55% 70%;
+    --cyan-200: 263 40% 82%;
 
     --success: 158 64% 42%;
     --success-foreground: 0 0% 100%;
@@ -186,13 +186,13 @@ body {
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 7%;
-    --sidebar-primary: 270 70% 50%;
+    --sidebar-foreground: 240 20% 10%;
+    --sidebar-primary: 263 82% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 0 0% 7%;
+    --sidebar-accent: 250 100% 98%;
+    --sidebar-accent-foreground: 240 20% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 270 70% 50%;
+    --sidebar-ring: 263 82% 53%;
   }
 
   .dark {
