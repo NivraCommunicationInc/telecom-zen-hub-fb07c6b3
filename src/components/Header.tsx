@@ -250,11 +250,11 @@ const Header = () => {
       <PublicSystemStatusBanner />
       
       {/* Top utility bar — desktop only */}
-      <div className="bg-[#f8f8f8] border-b border-[#eeeeee] hidden lg:block">
+      <div className="hidden lg:block" style={{ background: '#F5F5F5', borderBottom: '1px solid #E8E8E8' }}>
         <div className="container mx-auto px-6 max-w-[1200px] flex items-center justify-between h-9">
-          <div className="flex items-center gap-5 text-xs font-medium" style={{ color: '#555555' }}>
-            <Link to="/" className="hover:text-[#111111] transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
-            <Link to="/contact" className="hover:text-[#111111] transition-colors" style={{ color: '#999999' }}>{isFr ? "Entreprise" : "Business"}</Link>
+          <div className="flex items-center gap-5 text-xs font-medium" style={{ color: '#6B7280' }}>
+            <Link to="/" className="hover:text-[#0D0D0D] transition-colors">{isFr ? "Personnel" : "Personal"}</Link>
+            <Link to="/contact" className="hover:text-[#0D0D0D] transition-colors" style={{ color: '#6B7280' }}>{isFr ? "Entreprise" : "Business"}</Link>
           </div>
           <div className="flex items-center gap-5 text-xs" style={{ color: '#999999' }}>
             <Link to="/aide" className="hover:text-[#111111] transition-colors">
