@@ -31,6 +31,7 @@ interface Props {
   profile: any;
   clientId?: string;
   onSaved: () => void;
+  isAdminCore?: boolean;
 }
 
 const PROVINCES = ["QC", "ON", "BC", "AB", "MB", "NB", "NL", "NS", "PE", "SK", "NT", "NU", "YT"];
