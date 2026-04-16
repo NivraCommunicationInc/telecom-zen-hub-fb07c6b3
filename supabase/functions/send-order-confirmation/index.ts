@@ -612,6 +612,7 @@ Deno.serve(async (req) => {
       one_time_total,
       delivery_method,
       delivery_address,
+      installation,
     payment_reference,
     payment_method,
     promo_code,
