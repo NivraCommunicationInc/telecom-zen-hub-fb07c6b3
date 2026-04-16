@@ -41,52 +41,58 @@ export default function TestimonialsSection() {
   const isFr = language === "fr";
 
   return (
-    <section aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="py-10 sm:py-16 px-4 sm:px-6 bg-[#f4f7fb]">
+    <section aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="py-12 sm:py-20 px-4 sm:px-6" style={{ background: '#f8f8f8' }}>
       <div className="max-w-[1100px] mx-auto">
         <div className="text-center mb-8 sm:mb-12">
-          <p className="text-xs tracking-[2px] uppercase text-[#8a94a6] mb-2">
+          <p className="text-[11px] tracking-[2px] uppercase mb-2" style={{ color: '#999999' }}>
             {isFr ? "Ce que disent nos clients" : "What our customers say"}
           </p>
-          <h2 className="text-2xl sm:text-3xl font-bold text-[#1a1a2e]">
+          <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: '#111111' }}>
             {isFr ? "Ils ont fait le saut" : "They made the switch"}
           </h2>
           <div className="flex items-center justify-center gap-2 mt-3">
             <div className="flex" aria-hidden="true">
               {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                <Star key={i} className="w-5 h-5 fill-current" style={{ color: '#7c3aed' }} />
               ))}
             </div>
-            <span className="font-bold text-lg text-[#1a1a2e]">4.9/5</span>
-            <span className="text-[#8a94a6] text-sm">
+            <span className="font-bold text-lg" style={{ color: '#111111' }}>4.9/5</span>
+            <span className="text-sm" style={{ color: '#999999' }}>
               — {isFr ? "selon nos premiers clients" : "from our first customers"}
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {testimonials.map((t, i) => (
             <article
               key={i}
-              className="bg-white rounded-xl p-[18px] sm:p-6 border border-[#e8edf3] hover:border-purple-300 transition-colors shadow-sm"
+              className="p-5 sm:p-6 transition-all duration-200"
+              style={{
+                background: '#ffffff',
+                borderRadius: 20,
+                border: '1.5px solid #eeeeee',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              }}
             >
               <div className="flex mb-3" aria-label={`${t.rating} étoiles sur 5`}>
                 {[...Array(t.rating)].map((_, j) => (
-                  <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  <Star key={j} className="w-4 h-4 fill-current" style={{ color: '#7c3aed' }} />
                 ))}
               </div>
-              <p className="text-[#555e6d] leading-relaxed mb-4 text-[14px]">
+              <p className="leading-relaxed mb-4 text-[14px]" style={{ color: '#555555' }}>
                 &ldquo;{t.text}&rdquo;
               </p>
-              <div className="border-t border-[#e8edf3] pt-3">
-                <div className="font-bold text-sm text-[#1a1a2e]">{t.name}</div>
-                <div className="text-[12px] text-[#8a94a6] mt-0.5">
+              <div className="pt-3" style={{ borderTop: '1px solid #eeeeee' }}>
+                <div className="font-bold text-sm" style={{ color: '#111111' }}>{t.name}</div>
+                <div className="text-[12px] mt-0.5" style={{ color: '#999999' }}>
                   {t.location} · {t.service} · {t.date}
                 </div>
               </div>
             </article>
           ))}
         </div>
-        <p className="text-center text-[12px] text-[#8a94a6] mt-6 px-2">
+        <p className="text-center text-[12px] mt-6 px-2" style={{ color: '#999999' }}>
           * {isFr
             ? "Les témoignages reflètent l'expérience de clients réels. Les résultats peuvent varier selon la région et la configuration."
             : "Testimonials reflect real customer experiences. Results may vary by region and setup."}
