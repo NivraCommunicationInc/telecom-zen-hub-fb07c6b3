@@ -617,8 +617,6 @@ const ClientNewOrder = () => {
   } | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [promoValidationError, setPromoValidationError] = useState<string | null>(null);
-  const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
-  const autoApplyAttemptedRef = useRef(false);
   
   // Separate referral code state (independent of promo codes)
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
@@ -1830,7 +1828,6 @@ const ClientNewOrder = () => {
     setInstallationCredit(0);
     setPromoValidationError(null);
     setDiscountCode("");
-    setAutoAppliedPromo(false);
     // Note: removing promo does NOT remove referral code — they are independent
     toast.info("Code promo retiré");
   };
@@ -1840,40 +1837,7 @@ const ClientNewOrder = () => {
     setAppliedReferral(null);
   };
 
-  // ═══ AUTO-APPLY BIENVENUE2026 for new clients ═══
-  // When the client has filled email/phone/DOB and hasn't entered a promo, auto-detect and apply
-  const FIRST_MONTH_FREE_CODES_SET = new Set(['BIENVENUE2026', 'NIVRA2026']);
-  useEffect(() => {
-    // Only attempt once per checkout session
-    if (autoApplyAttemptedRef.current) return;
-    // Don't auto-apply if promo already applied or welcome discount active
-    if (appliedPromo) return;
-    if (discountCode.trim()) return; // user is typing a code
-    if (!isHydrated) return;
-    if (welcomeDiscountDismissed) return;
-    // Need at least email to attempt
-    const email = profile?.email || user?.email;
-    if (!email) return;
-    // Need to be on at least step 3+ (after service selection and address)
-    if (step < 3) return;
-
-    autoApplyAttemptedRef.current = true;
-
-    const tryAutoApply = async () => {
-      try {
-        const result = await validateAndApplyPromo('BIENVENUE2026', { silent: true });
-        if (result) {
-          setAutoAppliedPromo(true);
-          console.log("[AutoPromo] BIENVENUE2026 auto-applied for new client");
-        }
-      } catch (err) {
-        console.warn("[AutoPromo] Auto-apply failed:", err);
-      }
-    };
-
-    tryAutoApply();
-  }, [isHydrated, appliedPromo, discountCode, step, profile?.email, user?.email, welcomeDiscountDismissed]);
-
+  // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       const shouldBypassIdentityKyc = isStreamingOnlyOrder;
@@ -5694,7 +5658,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
               </Card>
 
               {/* ═══ FIRST MONTH FREE EXPLANATION (shown when BIENVENUE2026/NIVRA2026 applied) ═══ */}
-              <FirstMonthFreeExplanation promoCode={appliedPromo?.code} autoApplied={autoAppliedPromo} />
+              <FirstMonthFreeExplanation promoCode={appliedPromo?.code} />
 
               <Card className="bg-card border-border">
                 <CardHeader>
