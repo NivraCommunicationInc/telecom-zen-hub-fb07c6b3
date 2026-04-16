@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Wrench, Calendar, FileText, Wifi, Headphones, Ban,
   Loader2, CreditCard, Package, Send, CheckCircle2,
-  RotateCcw, AlertTriangle, Pencil
+  RotateCcw, AlertTriangle, Pencil, RotateCw
 } from "lucide-react";
 import { EditOrderDialog } from "@/core-app/components/account-actions/EditOrderDialog";
 
@@ -31,6 +31,7 @@ export function CoreQuickActions({ proc }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
   const [editOrderOpen, setEditOrderOpen] = useState(false);
+  const [equipReturnConfirmed, setEquipReturnConfirmed] = useState(false);
 
   const order = proc.order;
   const isTerminal = ["cancelled", "activated"].includes(order?.status);
@@ -38,6 +39,13 @@ export function CoreQuickActions({ proc }: Props) {
   const hasAppointment = !!proc.appointment;
   const hasTechnician = !!order?.technician_id;
   const hasContract = proc.contracts?.length > 0;
+
+  // Equipment refund eligibility
+  const FIRST_MONTH_FREE_CODES = ['BIENVENUE2026', 'NIVRA2026'];
+  const orderPromoCode = (order?.promo_code || order?.discount_code || '').toUpperCase();
+  const isFirstMonthFreeOrder = FIRST_MONTH_FREE_CODES.includes(orderPromoCode);
+  const orderAge = order?.created_at ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 999;
+  const canRefundEquipment = isFirstMonthFreeOrder && orderAge <= 30 && !order?.equipment_refunded;
 
   const actions: QuickAction[] = [
     // Edit order
@@ -208,6 +216,50 @@ export function CoreQuickActions({ proc }: Props) {
         await proc.changeStatus("processing", "Réouverture manuelle via console");
       },
     },
+    // Equipment refund - only for first-month-free promo orders within 30 days
+    {
+      id: "refund_equipment",
+      label: order?.equipment_refunded ? "Équipement remboursé ✓" : "Rembourser équipement",
+      icon: RotateCw,
+      variant: "warning",
+      hidden: !isFirstMonthFreeOrder,
+      disabled: !canRefundEquipment || !equipReturnConfirmed,
+      disabledReason: order?.equipment_refunded
+        ? "Équipement déjà remboursé"
+        : orderAge > 30
+        ? "Délai de 30 jours dépassé"
+        : !equipReturnConfirmed
+        ? "Confirmez le retour de l'équipement d'abord"
+        : undefined,
+      handler: async () => {
+        const user = (await supabase.auth.getUser()).data.user;
+        // Calculate equipment total from pricing_snapshot
+        const pricingSnapshot = order?.pricing_snapshot as Record<string, any> | null;
+        const equipmentTotal = Number(pricingSnapshot?.one_time_subtotal ?? 0);
+
+        // Mark order as equipment refunded
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({
+            equipment_refunded: true,
+            equipment_refund_date: new Date().toISOString(),
+          })
+          .eq("id", order.id);
+        if (updateError) throw updateError;
+
+        // Add activity log
+        await supabase.from("activity_logs").insert({
+          user_id: user?.id || order.user_id,
+          entity_type: "order",
+          entity_id: order.id,
+          action: "equipment_refund",
+          reason: `Remboursement équipement approuvé par ${user?.email || "admin"} — Montant: ${equipmentTotal.toFixed(2)} $ — Code promo: ${orderPromoCode}`,
+        });
+
+        toast.success(`Remboursement équipement enregistré (${equipmentTotal.toFixed(2)} $)`);
+        proc.refetch();
+      },
+    },
   ];
 
   const visibleActions = actions.filter(a => !a.hidden);
@@ -277,6 +329,22 @@ export function CoreQuickActions({ proc }: Props) {
           );
         })}
       </div>
+
+      {/* Equipment return confirmation toggle — only for first-month-free orders */}
+      {canRefundEquipment && (
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[hsl(220,15%,16%)]">
+          <input
+            type="checkbox"
+            id="equip-return-confirm"
+            checked={equipReturnConfirmed}
+            onChange={(e) => setEquipReturnConfirmed(e.target.checked)}
+            className="rounded border-[hsl(220,15%,20%)] bg-[hsl(220,20%,9%)]"
+          />
+          <label htmlFor="equip-return-confirm" className="text-[10px] text-amber-400 cursor-pointer">
+            Équipement retourné confirmé — J'ai vérifié que l'équipement a été reçu en bon état
+          </label>
+        </div>
+      )}
 
       <EditOrderDialog
         order={order}
