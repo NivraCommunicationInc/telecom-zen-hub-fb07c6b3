@@ -281,7 +281,7 @@ const Header = () => {
           {/* Mobile — 3-column grid: hamburger | centered logo | spacer */}
           <div className="grid grid-cols-[56px_1fr_56px] items-center h-[56px] lg:hidden">
             <button
-              className="flex items-center justify-center text-white w-[56px] h-[56px]"
+              className="flex items-center justify-center w-[56px] h-[56px]" style={{ color: '#111111' }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={isMenuOpen}
@@ -293,7 +293,7 @@ const Header = () => {
 
             <Link to="/" className="justify-self-center flex items-center gap-2">
               <LogoIcon size={28} />
-              <span className="font-bold text-lg text-white tracking-tight">Nivra</span>
+              <span className="font-bold text-lg tracking-tight" style={{ color: '#111111' }}>Nivra</span>
             </Link>
 
             <div>{/* spacer */}</div>
@@ -305,19 +305,20 @@ const Header = () => {
               <LogoFull height={32} />
             </Link>
 
-            <div className="h-6 w-px bg-white/15 mx-1" />
+            <div className="h-6 w-px mx-1" style={{ background: '#eeeeee' }} />
 
             <nav aria-label="Navigation principale" className="flex items-center gap-0.5 flex-1">
               {NAV_TARGETS.map(renderDesktopNavItem)}
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button className="p-2 text-white/60 hover:text-white rounded-lg transition-colors" aria-label="Recherche">
+              <button className="p-2 rounded-lg transition-colors" style={{ color: '#999999' }} aria-label="Recherche">
                 <Search className="w-[18px] h-[18px]" />
               </button>
               <Link
                 to={portalLink}
-                className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-[10px] hover:opacity-90 transition-all shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white hover:opacity-90 transition-all"
+                style={{ background: PURPLE, borderRadius: 50 }}
                 style={{ background: PURPLE }}
               >
                 <User className="w-4 h-4" />
