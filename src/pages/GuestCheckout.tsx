@@ -811,7 +811,7 @@ const GuestCheckout = () => {
                         max={new Date(new Date().setFullYear(new Date().getFullYear() - MIN_AGE_TELECOM)).toISOString().split("T")[0]}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Requis pour la validation du client — vous devez avoir au moins {MIN_AGE_TELECOM} ans
+                        Requis par la réglementation CRTC pour les services de télécommunications. Vous devez avoir {MIN_AGE_TELECOM} ans ou plus.
                       </p>
                     </div>
                   </CardContent>

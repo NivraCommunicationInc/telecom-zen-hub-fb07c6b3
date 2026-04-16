@@ -110,6 +110,7 @@ serve(async (req) => {
           service_city: body.service_city,
           service_postal_code: body.service_postal_code,
           date_of_birth: body.date_of_birth || null,
+          dob_locked: true,
         });
 
       if (profileError && !profileError.message.includes("duplicate")) {
@@ -162,7 +163,7 @@ serve(async (req) => {
     // Step 6: Send password reset email for new accounts
     if (isNewAccount) {
       const appUrl = Deno.env.get("APP_BASE_URL") || "https://nivra-telecom.ca";
-      const redirectUrl = `${appUrl.split(',')[0]}/portal/auth?type=recovery`;
+      const redirectUrl = `${appUrl.split(',')[0]}/portail/creer-mot-de-passe`;
       
       const { error: resetError } = await supabase.auth.admin.generateLink({
         type: "recovery",
