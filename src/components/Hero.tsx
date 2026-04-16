@@ -15,66 +15,79 @@ const Hero = () => {
   })();
 
   return (
-    <section className="relative flex items-center overflow-hidden" style={{ background: '#0D0D0D', minHeight: 520 }}>
+    <section className="relative flex items-center overflow-hidden" style={{ background: '#EDE9FF', minHeight: 520 }}>
       <div className="max-w-[1100px] mx-auto px-5 sm:px-10 w-full" style={{ paddingTop: 64, paddingBottom: 48 }}>
-        <div className="max-w-2xl">
-          <p className="font-semibold uppercase mb-4" style={{ color: '#7C3AED', fontSize: 12, letterSpacing: 3 }}>
-            {t('xhero.eyebrow')}
-          </p>
+        <div className="flex items-center gap-10">
+          <div className="max-w-xl flex-1">
+            <p className="font-semibold uppercase mb-4" style={{ color: '#7C3AED', fontSize: 12, letterSpacing: 3 }}>
+              {t('xhero.eyebrow')}
+            </p>
 
-          <h1
-            className="font-extrabold text-white mb-5"
-            style={{ fontSize: 'clamp(40px, 8vw, 64px)', lineHeight: 1.1, letterSpacing: '-1px' }}
-          >
-            {t('xhero.title')}{" "}
-            <span style={{ color: '#7C3AED' }}>{t('xhero.titleAccent')}</span>
-          </h1>
+            <h1
+              className="font-extrabold mb-5"
+              style={{ color: '#111111', fontSize: 'clamp(36px, 7vw, 56px)', lineHeight: 1.1, letterSpacing: '-1px' }}
+            >
+              {t('xhero.title')}{" "}
+              <span style={{ color: '#7C3AED' }}>{t('xhero.titleAccent')}</span>
+            </h1>
 
-          <p className="mb-8 max-w-[480px]" style={{ color: 'rgba(255,255,255,0.6)', fontSize: 17, lineHeight: 1.7 }}>
-            {t('xhero.subtitle')}
-          </p>
+            <p className="mb-8 max-w-[480px]" style={{ color: '#555555', fontSize: 17, lineHeight: 1.7 }}>
+              {t('xhero.subtitle')}
+            </p>
 
-          <div className="mb-8 flex items-baseline gap-1">
-            {isLoading || internetPrice === null ? (
-              <Skeleton className="h-16 w-32 rounded-lg bg-white/10" />
-            ) : (
-              <>
-                <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 18 }}>{isFr ? 'Dès' : 'From'}</span>
-                <span className="text-white font-black leading-none ml-2" style={{ fontSize: 'clamp(48px, 10vw, 72px)' }}>
-                  {internetPrice}$
-                </span>
-                <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 16 }}>/{isFr ? 'mois' : 'mo'}</span>
-              </>
-            )}
+            <div className="mb-8 flex items-baseline gap-1">
+              {isLoading || internetPrice === null ? (
+                <Skeleton className="h-16 w-32 rounded-lg bg-purple-100" />
+              ) : (
+                <>
+                  <span style={{ color: '#555555', fontSize: 18 }}>{isFr ? 'Dès' : 'From'}</span>
+                  <span className="font-black leading-none ml-2" style={{ color: '#111111', fontSize: 'clamp(48px, 10vw, 72px)' }}>
+                    {internetPrice}$
+                  </span>
+                  <span style={{ color: '#555555', fontSize: 16 }}>/{isFr ? 'mois' : 'mo'}</span>
+                </>
+              )}
+            </div>
+
+            <ul className="flex flex-col gap-2.5 sm:flex-row sm:gap-6 mb-10">
+              {[t('xhero.bullet1'), t('xhero.bullet2'), t('xhero.bullet3')].map((text) => (
+                <li key={text} className="flex items-center gap-2 text-sm font-medium" style={{ color: '#555555' }}>
+                  <Check className="w-4 h-4 shrink-0" style={{ color: '#7C3AED' }} />
+                  {text}
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/forfaits"
+                className="flex items-center justify-center gap-2 px-8 font-bold text-white transition-all w-full sm:w-auto"
+                style={{ height: 52, borderRadius: 50, background: '#7C3AED', fontSize: 15 }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#6D28D9')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#7C3AED')}
+              >
+                {t('xhero.cta')}
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link
+                to="/forfaits"
+                className="flex items-center justify-center gap-2 px-7 font-semibold transition-all w-full sm:w-auto"
+                style={{ height: 52, borderRadius: 50, border: '2px solid #7C3AED', color: '#7C3AED', fontSize: 15 }}
+              >
+                {isFr ? 'Découvrir tous nos forfaits' : 'Discover all our plans'} →
+              </Link>
+            </div>
           </div>
 
-          <ul className="flex flex-col gap-2.5 sm:flex-row sm:gap-6 mb-10">
-            {[t('xhero.bullet1'), t('xhero.bullet2'), t('xhero.bullet3')].map((text) => (
-              <li key={text} className="flex items-center gap-2 text-sm font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                <Check className="w-4 h-4 shrink-0" style={{ color: '#7C3AED' }} />
-                {text}
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link
-              to="/forfaits"
-              className="flex items-center justify-center gap-2 px-8 font-bold text-white transition-all w-full sm:w-auto"
-              style={{ height: 52, borderRadius: 50, background: '#7C3AED', fontSize: 15 }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#6D28D9')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#7C3AED')}
-            >
-              {t('xhero.cta')}
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link
-              to="/forfaits"
-              className="flex items-center justify-center gap-2 px-7 font-semibold text-white bg-transparent transition-all w-full sm:w-auto"
-              style={{ height: 52, borderRadius: 50, border: '2px solid rgba(255,255,255,0.4)', fontSize: 15 }}
-            >
-              {isFr ? 'Découvrir tous nos forfaits' : 'Discover all our plans'} →
-            </Link>
+          {/* Hero image — desktop only */}
+          <div className="hidden lg:block flex-1">
+            <img
+              src="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&q=80"
+              alt={isFr ? "Personne profitant d'internet à la maison" : "Person enjoying internet at home"}
+              className="w-full max-w-[440px] ml-auto"
+              style={{ borderRadius: 24 }}
+              loading="eager"
+            />
           </div>
         </div>
       </div>
