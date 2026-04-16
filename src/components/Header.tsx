@@ -274,12 +274,12 @@ const Header = () => {
       {/* Main navigation */}
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-sm' : ''}`}
-        style={{ height: 56, background: '#FFFFFF', borderBottom: '1px solid #E8E8E8' }}
+        style={{ height: 64, background: '#FFFFFF', borderBottom: '1px solid #EEEEEE' }}
         
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
           {/* Mobile — 3-column grid: hamburger | centered logo | spacer */}
-          <div className="grid grid-cols-[56px_1fr_56px] items-center h-[56px] lg:hidden">
+          <div className="grid grid-cols-[56px_1fr_56px] items-center h-[64px] lg:hidden">
             <button
               className="flex items-center justify-center w-[56px] h-[56px]" style={{ color: '#0D0D0D' }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -300,7 +300,7 @@ const Header = () => {
           </div>
 
           {/* Desktop */}
-          <div className="hidden lg:flex items-center h-[56px] gap-6">
+          <div className="hidden lg:flex items-center h-[64px] gap-6">
             <Link to="/" className="flex items-center shrink-0 mr-2">
               <LogoFull height={32} />
             </Link>
