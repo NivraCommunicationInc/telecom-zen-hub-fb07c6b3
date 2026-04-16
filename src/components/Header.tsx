@@ -275,7 +275,7 @@ const Header = () => {
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-sm' : ''}`}
         style={{ height: 56, background: '#ffffff', borderBottom: '1px solid #eeeeee' }}
-        style={{ height: 56 }}
+        
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
           {/* Mobile — 3-column grid: hamburger | centered logo | spacer */}
