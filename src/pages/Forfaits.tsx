@@ -7,6 +7,7 @@ import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { useInternetPlans, useTVPlans } from "@/hooks/usePublicServices";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
 
 type TabKey = "internet" | "tv" | "combo";
 
@@ -217,6 +218,8 @@ const Forfaits = () => {
                         </li>
                       ))}
                     </ul>
+
+                    <EquipmentRequiredBox type={activeTab === "tv" ? "tv" : activeTab === "combo" ? "combo" : "internet"} />
 
                     <button
                       onClick={() => navigate(card.link)}

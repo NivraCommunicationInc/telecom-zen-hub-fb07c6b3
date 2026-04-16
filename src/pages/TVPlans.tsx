@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Tv, Check, MapPin, Shield, Zap, Star, ArrowRight, AlertTriangle, Router, Monitor, Wifi, Package, Loader2 } from "lucide-react";
+import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -254,8 +255,10 @@ const TVPlans = () => {
                       </li>
                     ))}
                   </ul>
+
+                  <EquipmentRequiredBox type="tv" />
                   
-                  <Button 
+                  <Button
                     onClick={() => handleGetStarted(plan.id)}
                     variant={plan.featured ? "hero" : "outline"} 
                     className="w-full mt-6"
@@ -348,8 +351,10 @@ const TVPlans = () => {
                       </li>
                     ))}
                   </ul>
+
+                  <EquipmentRequiredBox type="combo" />
                   
-                  <Button 
+                  <Button
                     onClick={() => handleGetStarted(plan.id)}
                     variant={plan.featured ? "hero" : "outline"} 
                     className={`w-full mt-6 ${!plan.featured ? 'hover:border-orange-500 hover:text-orange-500' : ''}`}

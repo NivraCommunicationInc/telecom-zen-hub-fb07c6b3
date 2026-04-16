@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useRef } from "react";
 import { trackLiveActivity } from "@/hooks/useLiveActivityTracker";
 import { Smartphone, Check, Shield, Zap, ArrowRight, Phone, MessageSquare, Globe, Wifi, CreditCard, Loader2 } from "lucide-react";
+import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -193,6 +194,8 @@ const MobilePlans = () => {
                       </div>
                     ))}
                   </div>
+
+                  <EquipmentRequiredBox type="mobile" />
 
                   {/* CTA Button */}
                   <Button 

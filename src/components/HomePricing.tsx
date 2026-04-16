@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Check, ArrowRight, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { EquipmentRequiredBox } from "@/components/shared/EquipmentRequiredBox";
 
 const HomePricing = () => {
   const { t } = useLanguage();
@@ -102,6 +103,8 @@ const HomePricing = () => {
                     </div>
                   ))}
                 </div>
+
+                <EquipmentRequiredBox type="internet" />
 
                 <div
                   className="w-full flex items-center justify-center gap-2 font-bold text-white"
