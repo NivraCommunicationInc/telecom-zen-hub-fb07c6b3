@@ -32,6 +32,18 @@ interface DeliveryAddress {
   postalCode: string;
 }
 
+interface InstallationInfo {
+  scheduled_date: string;       // ISO date or formatted string
+  scheduled_time?: string;      // e.g. "10h00 - 12h00"
+  technician_name?: string;
+  service_address: string;
+  service_city?: string;
+  service_province?: string;
+  service_postal_code?: string;
+  installation_fee?: number;
+  notes?: string;
+}
+
 interface OrderConfirmationRequest {
   order_id: string;
   client_email: string;
@@ -49,6 +61,7 @@ interface OrderConfirmationRequest {
   one_time_total?: number;
   delivery_method?: string;
   delivery_address?: DeliveryAddress;
+  installation?: InstallationInfo;
   payment_reference?: string;
   payment_method?: string;
   promo_code?: string;
