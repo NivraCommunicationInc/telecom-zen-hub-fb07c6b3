@@ -46,6 +46,7 @@ interface OrderConfirmationRequest {
   delivery_address?: DeliveryAddress;
   payment_reference?: string;
   payment_method?: string;
+  promo_code?: string;
   force?: boolean;
 }
 
@@ -115,6 +116,100 @@ const escapeHtml = (str: string): string => {
 // EMAIL HTML TEMPLATE
 // ============================================================
 
+const FIRST_MONTH_FREE_CODES = ['BIENVENUE2026', 'NIVRA2026'];
+
+function isFirstMonthFreePromo(promoCode?: string | null): boolean {
+  if (!promoCode) return false;
+  return FIRST_MONTH_FREE_CODES.includes(promoCode.trim().toUpperCase());
+}
+
+function generateFirstMonthFreeSection(promoCode: string, monthlyTotal: string): string {
+  return `
+    <!-- First Month Free Section -->
+    <div style="margin-top: 32px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+          <td style="padding-bottom: 16px;">
+            <div style="display: flex; align-items: center;">
+              <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #10b981 0%, #059669 100%); border-radius: 2px; margin-right: 12px;"></div>
+              <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0;">🎁 Premier mois gratuit</h3>
+            </div>
+          </td>
+        </tr>
+      </table>
+      <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 20px;">
+        <ul style="color: #065f46; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+          <li>Vous avez payé uniquement les frais d'équipement aujourd'hui</li>
+          <li>Votre premier mois de service est entièrement crédité (code: <strong>${promoCode}</strong>)</li>
+          <li>La facturation normale de ${monthlyTotal}/mois commence au 2e mois</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Equipment Section -->
+    <div style="margin-top: 24px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+          <td style="padding-bottom: 12px;">
+            <div style="display: flex; align-items: center;">
+              <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); border-radius: 2px; margin-right: 12px;"></div>
+              <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0;">📦 Votre équipement</h3>
+            </div>
+          </td>
+        </tr>
+      </table>
+      <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px;">
+        <ul style="color: #78350f; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+          <li>Livré sous 3-5 jours ouvrables</li>
+          <li>Instructions d'installation incluses dans la boîte</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Equipment Refund Section -->
+    <div style="margin-top: 24px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+          <td style="padding-bottom: 12px;">
+            <div style="display: flex; align-items: center;">
+              <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); border-radius: 2px; margin-right: 12px;"></div>
+              <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0;">↩ Remboursement équipement</h3>
+            </div>
+          </td>
+        </tr>
+      </table>
+      <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px;">
+        <ul style="color: #1e3a5a; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+          <li>Retournez l'équipement sous 30 jours en bon état</li>
+          <li>Remboursement complet des frais d'équipement garanti</li>
+          <li>Contactez <a href="mailto:support@nivra-telecom.ca" style="color: #2563eb;">support@nivra-telecom.ca</a> pour initier le retour</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Cancellation Section -->
+    <div style="margin-top: 24px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width: 100%;">
+        <tr>
+          <td style="padding-bottom: 12px;">
+            <div style="display: flex; align-items: center;">
+              <div style="width: 4px; height: 24px; background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%); border-radius: 2px; margin-right: 12px;"></div>
+              <h3 style="color: #0f172a; font-size: 16px; font-weight: 700; margin: 0;">⚠️ Annulation</h3>
+            </div>
+          </td>
+        </tr>
+      </table>
+      <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px;">
+        <ul style="color: #7f1d1d; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+          <li>Annulez à tout moment depuis votre espace client</li>
+          <li>Aucun frais de résiliation</li>
+          <li>Effectif à la fin du cycle de facturation en cours</li>
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
 interface EmailTemplateParams {
   clientFirstName: string;
   orderNumber: string;
@@ -133,6 +228,7 @@ interface EmailTemplateParams {
   portalLink: string;
   supportPhone: string;
   supportEmail: string;
+  promoCode?: string;
 }
 
 function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
