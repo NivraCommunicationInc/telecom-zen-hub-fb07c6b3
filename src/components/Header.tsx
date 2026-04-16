@@ -184,8 +184,8 @@ const Header = () => {
         <div key={target.id}>
           <button
             onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
-            className="flex items-center justify-between w-full pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8]"
-            style={{ height: 56, minHeight: 56, color: '#111111' }}
+            className="flex items-center justify-between w-full pl-5 pr-4 text-[18px] font-medium hover:bg-[#F5F5F5]"
+            style={{ height: 56, minHeight: 56, color: '#0D0D0D' }}
             type="button"
             aria-expanded={isExpanded}
           >
@@ -205,7 +205,7 @@ const Header = () => {
                     style={{
                       height: 48,
                       minHeight: 48,
-                      color: childActive ? PURPLE : '#999999',
+                      color: childActive ? PURPLE : '#6B7280',
                     }}
                   >
                     {getLabel(child)}
@@ -281,7 +281,7 @@ const Header = () => {
           {/* Mobile — 3-column grid: hamburger | centered logo | spacer */}
           <div className="grid grid-cols-[56px_1fr_56px] items-center h-[56px] lg:hidden">
             <button
-              className="flex items-center justify-center w-[56px] h-[56px]" style={{ color: '#111111' }}
+              className="flex items-center justify-center w-[56px] h-[56px]" style={{ color: '#0D0D0D' }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={isMenuOpen}
@@ -293,7 +293,7 @@ const Header = () => {
 
             <Link to="/" className="justify-self-center flex items-center gap-2">
               <LogoIcon size={28} />
-              <span className="font-bold text-lg tracking-tight" style={{ color: '#111111' }}>Nivra</span>
+              <span className="font-bold text-lg tracking-tight" style={{ color: '#0D0D0D' }}>Nivra</span>
             </Link>
 
             <div>{/* spacer */}</div>
