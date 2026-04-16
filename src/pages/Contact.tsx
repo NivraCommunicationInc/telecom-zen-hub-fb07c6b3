@@ -48,6 +48,19 @@ const Contact = () => {
       {/* Hero Section */}
       <section className="pt-32 pb-12 bg-gradient-to-b from-primary to-background">
         <div className="container mx-auto px-4 text-center">
+          {/* Phone number prominent */}
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/50 mb-2">
+              {isFrench ? "Support téléphonique" : "Phone Support"}
+            </p>
+            <a href="tel:+18336487222" className="text-3xl md:text-4xl font-extrabold text-white hover:text-accent transition-colors">
+              1-833-NIVRA-CA
+            </a>
+            <p className="text-sm text-white/60 mt-2">
+              {isFrench ? "Lundi–Dimanche, 8h00–20h00 (HE)" : "Monday–Sunday, 8:00 AM–8:00 PM (ET)"}
+            </p>
+          </div>
+
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-6">
             <CheckCircle className="w-4 h-4 text-accent" />
             <span className="text-sm font-medium text-accent">
