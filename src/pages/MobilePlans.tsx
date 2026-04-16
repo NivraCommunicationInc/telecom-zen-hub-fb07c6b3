@@ -48,11 +48,7 @@ const MobilePlans = () => {
 
   const handleGetStarted = (planId: string) => {
     trackLiveActivity("add_to_cart", `Ajout: ${planId}`, { metadata: { planId, category: "mobile" } });
-    if (user) {
-      navigate('/portal/new-order');
-    } else {
-      navigate('/portal/auth', { state: { redirectTo: '/portal/new-order' } });
-    }
+    navigate(`/commander?plan=${planId}`);
   };
 
   return (
