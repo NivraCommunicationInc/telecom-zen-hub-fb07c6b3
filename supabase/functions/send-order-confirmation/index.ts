@@ -250,7 +250,13 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     portalLink,
     supportPhone,
     supportEmail,
+    promoCode,
   } = params;
+
+  const hasFirstMonthFree = isFirstMonthFreePromo(promoCode);
+  const firstMonthFreeHtml = hasFirstMonthFree
+    ? generateFirstMonthFreeSection(promoCode!, formatCurrencySimple(subtotal))
+    : "";
 
   // Generate services HTML - Professional telecom style
   const servicesHtml = services.map((service, index) => `
