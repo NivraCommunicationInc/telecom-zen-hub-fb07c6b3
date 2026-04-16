@@ -765,9 +765,10 @@ Deno.serve(async (req) => {
       one_time_total,
       delivery_method,
       delivery_address,
-      payment_reference,
-      payment_method,
-      force = false,
+    payment_reference,
+    payment_method,
+    promo_code,
+    force = false,
     } = body;
 
     console.log(`[${requestId}] Request: order_id=${order_id}, order_number=${order_number}, force=${force}`);
