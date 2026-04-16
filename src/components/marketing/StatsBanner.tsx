@@ -12,17 +12,17 @@ export default function StatsBanner() {
   ];
 
   return (
-    <section aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"} className="bg-black text-white">
+    <section aria-label={isFr ? "Statistiques Nivra" : "Nivra Statistics"} className="bg-[#1a3a6a] text-white">
       <div className="grid grid-cols-2 md:grid-cols-4">
         {stats.map((s, i) => (
           <div
             key={i}
             className={`py-4 px-3 md:py-7 md:px-6 text-center ${
-              i < stats.length - 1 ? "border-r border-white/10" : ""
-            } ${i >= 2 ? "border-t md:border-t-0 border-white/10" : ""}`}
+              i < stats.length - 1 ? "border-r border-white/15" : ""
+            } ${i >= 2 ? "border-t md:border-t-0 border-white/15" : ""}`}
           >
-            <div className="text-xl md:text-3xl font-extrabold mb-1 text-purple-400">{s.number}</div>
-            <div className="text-[11px] md:text-sm text-white/60">{s.label}</div>
+            <div className="text-xl md:text-3xl font-extrabold mb-1 text-white">{s.number}</div>
+            <div className="text-[11px] md:text-sm text-white/70">{s.label}</div>
           </div>
         ))}
       </div>

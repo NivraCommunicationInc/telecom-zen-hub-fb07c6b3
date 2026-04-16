@@ -977,6 +977,25 @@ body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Push chat button up so it doesn't cover footer */
+  .crisp-client, [class*="chat-button"], [id*="chat"] {
+    bottom: 80px !important;
+  }
+
+  /* Give footer extra padding at bottom for chat button */
+  footer {
+    padding-bottom: 100px !important;
+  }
+
+  /* Promo banner wrapping */
+  .promo-banner, [class*="promo"], [class*="announcement"] {
+    white-space: normal !important;
+    text-overflow: unset !important;
+    overflow: visible !important;
+    font-size: 12px !important;
+    padding: 8px 40px 8px 12px !important;
+  }
 }
 
 /* ── Accessibility: Focus-visible ──────────────────────────── */

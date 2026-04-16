@@ -1,5 +1,5 @@
 /**
- * HomePricing — Dynamic pricing cards, Xfinity-inspired dark style
+ * HomePricing — Dynamic pricing cards, light professional telecom style
  */
 import { useMemo } from "react";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
@@ -42,12 +42,12 @@ const HomePricing = () => {
 
   if (isLoading) {
     return (
-      <section className="py-10 sm:py-16 lg:py-20 bg-[#111111]">
+      <section className="py-10 sm:py-16 lg:py-20 bg-[#f4f7fb]">
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
-          <Skeleton className="h-8 w-56 mx-auto mb-3 bg-white/10" />
-          <Skeleton className="h-5 w-72 mx-auto mb-10 bg-white/10" />
+          <Skeleton className="h-8 w-56 mx-auto mb-3 bg-slate-200" />
+          <Skeleton className="h-5 w-72 mx-auto mb-10 bg-slate-200" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-6">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[380px] rounded-2xl bg-white/5" />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[380px] rounded-2xl bg-slate-100" />)}
           </div>
         </div>
       </section>
@@ -57,13 +57,13 @@ const HomePricing = () => {
   if (plans.length === 0) return null;
 
   return (
-    <section id="forfaits" className="py-10 sm:py-20 lg:py-28 bg-[#111111]">
+    <section id="forfaits" className="py-10 sm:py-20 lg:py-28 bg-[#f4f7fb]">
       <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
         <div className="text-center mb-10 sm:mb-14">
-          <h2 className="text-2xl sm:text-3xl md:text-[2.5rem] font-bold text-white mb-3 sm:mb-4 tracking-[-0.025em]">
+          <h2 className="text-2xl sm:text-3xl md:text-[2.5rem] font-bold text-[#1a1a2e] mb-3 sm:mb-4 tracking-[-0.025em]">
             {t('pricing.title')}
           </h2>
-          <p className="text-white/60 text-[16px] sm:text-lg">
+          <p className="text-[#555e6d] text-[16px] sm:text-lg">
             {t('pricing.subtitle')}
           </p>
         </div>
@@ -75,8 +75,8 @@ const HomePricing = () => {
               to={`/commander?plan=${plan.id}`}
               className={`group relative rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 block ${
                 plan.recommended
-                  ? "border-2 border-purple-500 shadow-[0_0_30px_rgba(139,92,246,0.15)] md:scale-[1.02] z-10 bg-[#1a1a1a]"
-                  : "border border-white/10 hover:border-purple-500/40 bg-[#1a1a1a] hover:shadow-[0_0_20px_rgba(139,92,246,0.1)]"
+                  ? "border-2 border-purple-600 shadow-[0_4px_24px_rgba(124,58,237,0.12)] md:scale-[1.02] z-10 bg-white"
+                  : "border border-[#e8edf3] hover:border-purple-400 bg-white shadow-sm hover:shadow-md"
               }`}
             >
               {plan.recommended && (
@@ -89,35 +89,35 @@ const HomePricing = () => {
               )}
 
               <div className="p-5 sm:p-7 lg:p-8 flex flex-col h-full">
-                <h3 className="text-[18px] sm:text-lg font-bold text-white mb-1 pr-20 group-hover:text-purple-400 transition-colors">
+                <h3 className="text-[18px] sm:text-lg font-bold text-[#1a1a2e] mb-1 pr-20 group-hover:text-purple-600 transition-colors">
                   {plan.name}
                 </h3>
                 {plan.speed && (
-                  <p className="text-xs text-white/50 mb-4 sm:mb-5">{plan.speed}</p>
+                  <p className="text-xs text-[#8a94a6] mb-4 sm:mb-5">{plan.speed}</p>
                 )}
 
                 <div className="mb-4 sm:mb-5">
                   <div className="flex items-baseline gap-1">
-                    <span className={`font-black text-white leading-none ${plan.recommended ? "text-4xl sm:text-5xl" : "text-[36px] sm:text-4xl"}`}>
+                    <span className={`font-black text-[#1a1a2e] leading-none ${plan.recommended ? "text-4xl sm:text-5xl" : "text-[36px] sm:text-4xl"}`}>
                       {plan.price.toFixed(0)}$
                     </span>
-                    <span className="text-white/50 text-[14px] font-medium">/mois</span>
+                    <span className="text-[#8a94a6] text-[14px] font-medium">/mois</span>
                   </div>
                 </div>
 
                 <div className="space-y-2.5 sm:space-y-3 mb-6 sm:mb-7 flex-1">
                   {plan.features.map((f, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-[14px]">
-                      <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                      <span className="text-white/60">{f}</span>
+                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                      <span className="text-[#555e6d]">{f}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className={`w-full rounded-full flex items-center justify-center gap-2 font-bold text-[14px] transition-all duration-200 ${
                   plan.recommended
-                    ? "bg-white text-black"
-                    : "bg-white/10 text-white group-hover:bg-white group-hover:text-black"
+                    ? "bg-purple-600 text-white"
+                    : "bg-[#1a3a6a] text-white group-hover:bg-purple-600"
                 }`} style={{ height: 48 }}>
                   {t('pricing.choose')}
                   <ArrowRight className="w-3.5 h-3.5" />

@@ -5,7 +5,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPANY_CONTACT } from "@/config/company";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import paymentMethodsImg from "@/assets/payment-methods.png";
-import googleSafeBrowsingImg from "@/assets/google-safe-browsing.png";
 import paypalSecureImg from "@/assets/paypal-secure.png";
 
 const Footer = forwardRef<HTMLElement>((_, ref) => {
@@ -49,7 +48,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   return (
-    <footer ref={ref} className="bg-black text-white" data-testid="footer" role="contentinfo">
+    <footer ref={ref} className="bg-[#1a1a2e] text-white" data-testid="footer" role="contentinfo">
       {/* Main Content Grid */}
       <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-14 lg:py-20 max-w-[1320px]">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-14">
@@ -172,25 +171,22 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         </div>
       </div>
 
-      {/* Payment & Security */}
+      {/* Payment & Security — compact */}
       <div className="border-t border-white/8">
-        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-[1320px]">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex flex-col items-center sm:items-start gap-2">
+        <div className="container mx-auto px-4 sm:px-6 py-4 max-w-[1320px]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
               <p className="text-white/30 text-[12px] uppercase tracking-wider font-medium">
-                {isFr ? "Paiement" : "Payment"}
+                {isFr ? "Paiements acceptés:" : "Accepted payments:"}
               </p>
-              <div className="flex items-center gap-3">
-                <img src={paymentMethodsImg} alt="Interac, Cash, Mastercard" className="h-7 object-contain" />
-                <img src={paypalSecureImg} alt="PayPal" className="h-7 object-contain" />
+              <div className="flex items-center gap-2">
+                <img src={paymentMethodsImg} alt="Interac, Cash, Mastercard" className="h-5 object-contain" />
+                <img src={paypalSecureImg} alt="PayPal" className="h-5 object-contain" />
               </div>
             </div>
-            <div className="flex flex-col items-center sm:items-end gap-2">
-              <p className="text-white/30 text-[12px] uppercase tracking-wider font-medium">
-                {isFr ? "Sécurité" : "Security"}
-              </p>
-              <img src={googleSafeBrowsingImg} alt="Google Safe Browsing" className="h-8 object-contain" />
-            </div>
+            <p className="text-white/30 text-[12px]">
+              🔒 {isFr ? "Site sécurisé SSL • Protégé par Cloudflare WAF" : "SSL secured • Protected by Cloudflare WAF"}
+            </p>
           </div>
         </div>
       </div>
@@ -214,8 +210,6 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               <Link to="/refund-policy" className="text-white/30 hover:text-white transition-colors text-[12px]">
                 {isFr ? "Remboursement" : "Refunds"}
               </Link>
-              <span className="text-white/15 text-[12px] hidden sm:inline">·</span>
-              <span className="text-white/20 text-[12px]">HTTPS + WAF</span>
             </div>
           </div>
         </div>
