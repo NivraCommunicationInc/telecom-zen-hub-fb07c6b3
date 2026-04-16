@@ -17,13 +17,11 @@ export default function StatsBanner() {
         {stats.map((s, i) => (
           <div
             key={i}
-            className={`py-5 px-4 md:py-8 md:px-6 text-center ${
-              i < stats.length - 1 ? "border-r" : ""
-            } ${i >= 2 ? "border-t md:border-t-0" : ""}`}
+            className={`py-5 px-4 md:py-8 md:px-6 text-center ${i < stats.length - 1 ? "border-r" : ""} ${i >= 2 ? "border-t md:border-t-0" : ""}`}
             style={{ borderColor: '#EEEEEE' }}
           >
             <div className="text-xl md:text-[36px] font-extrabold mb-1" style={{ color: '#7C3AED' }}>{s.number}</div>
-            <div className="text-[11px] md:text-sm" style={{ color: '#999999' }}>{s.label}</div>
+            <div className="text-[11px] md:text-sm" style={{ color: '#555555' }}>{s.label}</div>
           </div>
         ))}
       </div>
