@@ -111,58 +111,55 @@ body {
 
 @layer base {
   :root {
-    /* Pure white base */
+    /* #FFFFFF base */
     --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
+    --foreground: 0 0% 5%;
 
-    /* Cards */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card-foreground: 0 0% 5%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: 0 0% 5%;
 
-    /* Primary — Nivra Purple #7c3aed */
+    /* Primary — #7C3AED */
     --primary: 263 84% 58%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary — Soft gray #f8f8f8 */
-    --secondary: 0 0% 97%;
-    --secondary-foreground: 0 0% 7%;
+    /* Secondary — #F5F5F5 */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 5%;
 
-    /* Muted */
-    --muted: 0 0% 97%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    /* Accent — Purple */
+    /* Accent — #7C3AED */
     --accent: 263 84% 58%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders — light #eeeeee */
-    --border: 0 0% 93%;
-    --input: 0 0% 93%;
+    /* Borders — #E8E8E8 */
+    --border: 0 0% 91%;
+    --input: 0 0% 91%;
     --ring: 263 84% 58%;
 
     --radius: 0.75rem;
 
-    /* Extended palette */
+    /* Dark shades — all map to #0D0D0D */
     --navy-900: 0 0% 5%;
-    --navy-800: 0 0% 7%;
-    --navy-700: 0 0% 12%;
-    --navy-600: 0 0% 20%;
-    --navy-500: 0 0% 30%;
+    --navy-800: 0 0% 5%;
+    --navy-700: 0 0% 5%;
+    --navy-600: 0 0% 5%;
+    --navy-500: 0 0% 5%;
 
-    /* Purple accent palette */
-    --teal-600: 263 84% 42%;
+    /* Purple palette */
+    --teal-600: 263 84% 50%;
     --teal-500: 263 84% 58%;
     --teal-400: 263 70% 65%;
     --teal-300: 263 55% 75%;
     --teal-200: 263 40% 85%;
 
-    /* Legacy cyan → purple mapping */
     --cyan-500: 263 84% 58%;
     --cyan-400: 263 70% 65%;
     --cyan-300: 263 55% 75%;
@@ -171,21 +168,19 @@ body {
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
 
-    /* Core Console Text Tokens */
-    --core-text-primary: 0 0% 0%;
-    --core-text-secondary: 0 0% 33%;
-    --core-text-label: 0 0% 33%;
+    --core-text-primary: 0 0% 5%;
+    --core-text-secondary: 0 0% 42%;
+    --core-text-label: 0 0% 42%;
     --core-text-disabled: 0 0% 60%;
 
-    /* Clean Shadows — subtle like Fizz */
     --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
     --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
     --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
     --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
 
-    /* Sidebar */
-    --sidebar-background: 0 0% 7%;
+    /* Sidebar — dark #0D0D0D */
+    --sidebar-background: 0 0% 5%;
     --sidebar-foreground: 0 0% 93%;
     --sidebar-primary: 263 84% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -978,14 +973,20 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Push chat button up so it doesn't cover footer */
+  /* Chat button position */
   .crisp-client, [class*="chat-button"], [id*="chat"] {
-    bottom: 80px !important;
+    bottom: 16px !important;
+    right: 16px !important;
   }
 
-  /* Give footer extra padding at bottom for chat button */
+  /* Remove extra body padding */
+  body {
+    padding-bottom: 0 !important;
+  }
+
+  /* Footer bottom padding for chat overlap */
   footer {
-    padding-bottom: 100px !important;
+    padding-bottom: 80px !important;
   }
 
   /* Promo banner wrapping */
