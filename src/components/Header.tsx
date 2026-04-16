@@ -112,8 +112,8 @@ const Header = () => {
           <button
             className={`flex items-center gap-1 px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
               isActive
-                ? 'text-white'
-                : 'text-white/70 hover:text-white'
+                ? 'text-[#111111]'
+                : 'text-[#555555] hover:text-[#111111]'
             }`}
             type="button"
             onClick={() => handleNavClick(target)}
@@ -126,7 +126,7 @@ const Header = () => {
 
           {openDropdown === target.id && (
             <div className="absolute top-full left-0 pt-1 z-50">
-              <div className="bg-[#1a1a1a] rounded-xl shadow-2xl border border-white/10 py-1.5 min-w-[200px]">
+              <div className="bg-white rounded-xl shadow-lg border border-[#eeeeee] py-1.5 min-w-[200px]">
                 {target.children!.map((child) => {
                   const childActive = location.pathname === child.target;
                   return (
@@ -135,8 +135,8 @@ const Header = () => {
                       to={child.target}
                       className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
                         childActive
-                          ? 'text-white bg-white/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
+                          ? 'text-[#7c3aed] bg-[#f3eeff]'
+                          : 'text-[#555555] hover:text-[#111111] hover:bg-[#f8f8f8]'
                       }`}
                     >
                       {getLabel(child)}
@@ -156,8 +156,8 @@ const Header = () => {
         to={target.target}
         className={`px-3 py-2 text-sm font-semibold transition-colors rounded-md ${
           isActive
-            ? 'text-white'
-            : 'text-white/70 hover:text-white'
+            ? 'text-[#111111]'
+            : 'text-[#555555] hover:text-[#111111]'
         }`}
       >
         {getLabel(target)}
@@ -166,7 +166,7 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="px-3 py-2 text-sm font-semibold text-white/70 hover:text-white transition-colors rounded-md"
+        className="px-3 py-2 text-sm font-semibold text-[#555555] hover:text-[#111111] transition-colors rounded-md"
         type="button"
       >
         {getLabel(target)}
