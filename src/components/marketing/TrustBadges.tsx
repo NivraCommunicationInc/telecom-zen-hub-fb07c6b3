@@ -13,14 +13,14 @@ export default function TrustBadges() {
   ];
 
   return (
-    <section style={{ background: '#FFFFFF', borderTop: '1px solid #E8E8E8' }}>
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center gap-2 sm:gap-4 py-6 sm:py-8 px-4 sm:px-6 max-w-[1200px] mx-auto">
+    <section style={{ background: '#FFFFFF', borderTop: '1px solid #EEEEEE' }}>
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center gap-2 sm:gap-4 py-6 sm:py-8 px-5 sm:px-10 max-w-[1100px] mx-auto">
         {badges.map((b, i) => (
           <div key={i} className="flex items-center gap-2.5 px-3 py-2.5 sm:px-4 sm:py-2">
             <span className="text-xl sm:text-2xl">{b.icon}</span>
             <div>
-              <div className="font-bold text-[12px] sm:text-xs" style={{ color: '#0D0D0D' }}>{b.title}</div>
-              <div className="text-[11px] sm:text-xs" style={{ color: '#6B7280' }}>{b.sub}</div>
+              <div className="font-bold" style={{ color: '#0D0D0D', fontSize: 12 }}>{b.title}</div>
+              <div style={{ color: '#999999', fontSize: 11 }}>{b.sub}</div>
             </div>
           </div>
         ))}
