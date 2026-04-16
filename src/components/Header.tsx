@@ -319,7 +319,7 @@ const Header = () => {
                 to={portalLink}
                 className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white hover:opacity-90 transition-all"
                 style={{ background: PURPLE, borderRadius: 50 }}
-                style={{ background: PURPLE }}
+                
               >
                 <User className="w-4 h-4" />
                 {isFr ? "Mon compte" : "My account"}
