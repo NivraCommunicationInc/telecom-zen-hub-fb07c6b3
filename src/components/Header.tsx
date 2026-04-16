@@ -223,11 +223,11 @@ const Header = () => {
         key={target.id}
         to={target.target}
         onClick={() => setIsMenuOpen(false)}
-        className="flex items-center pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8] active:bg-[#f0f0f0]"
+        className="flex items-center pl-5 pr-4 text-[18px] font-medium hover:bg-[#F5F5F5]"
         style={{
           height: 56,
           minHeight: 56,
-          color: isActive ? PURPLE : '#111111',
+          color: isActive ? PURPLE : '#0D0D0D',
         }}
       >
         {getLabel(target)}
@@ -236,8 +236,8 @@ const Header = () => {
       <button
         key={target.id}
         onClick={() => handleNavClick(target)}
-        className="flex items-center w-full text-left pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8]"
-        style={{ height: 56, minHeight: 56, color: '#111111' }}
+        className="flex items-center w-full text-left pl-5 pr-4 text-[18px] font-medium hover:bg-[#F5F5F5]"
+        style={{ height: 56, minHeight: 56, color: '#0D0D0D' }}
         type="button"
       >
         {getLabel(target)}
