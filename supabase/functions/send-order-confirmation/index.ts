@@ -128,6 +128,7 @@ interface EmailTemplateParams {
   oneTimeTotal?: number;
   deliveryMethod?: string;
   deliveryAddress?: DeliveryAddress;
+  installation?: InstallationInfo;
   portalLink: string;
   supportEmail: string;
   promoCode?: string;
