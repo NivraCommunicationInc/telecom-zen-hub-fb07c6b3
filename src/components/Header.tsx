@@ -10,8 +10,8 @@ import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } 
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 
-const PURPLE = "#6b21e8";
-const PURPLE_DARK = "#4c0fad";
+const PURPLE = "#5b21b6";
+const PURPLE_DARK = "#4c1d95";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -273,7 +273,7 @@ const Header = () => {
 
       {/* Main navigation */}
       <header
-        className={`sticky top-0 z-50 bg-[#0d0d1a] transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}
+        className={`sticky top-0 z-50 bg-[#111118] transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}
         style={{ height: 56 }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
@@ -334,7 +334,7 @@ const Header = () => {
           role="dialog"
           aria-label="Menu de navigation"
           className="fixed inset-0 z-[100] lg:hidden flex flex-col"
-          style={{ background: '#0d0d1a' }}
+          style={{ background: '#111118' }}
         >
           {/* Top bar with close */}
           <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56 }}>

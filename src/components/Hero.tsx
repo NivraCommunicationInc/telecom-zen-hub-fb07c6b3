@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Check, Phone, Star } from "lucide-react";
+import { ArrowRight, Check, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePublicServices } from "@/hooks/usePublicServices";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +27,7 @@ const Hero = () => {
           height={1080}
         />
         {/* Mobile: solid dark bg instead of image */}
-        <div className="absolute inset-0 bg-[#0a0a14] md:bg-gradient-to-r md:from-black/80 md:via-black/60 md:to-black/30" />
+        <div className="absolute inset-0 bg-[#111118] md:bg-gradient-to-r md:from-black/80 md:via-black/60 md:to-black/30" />
       </div>
 
       <div className="relative container mx-auto px-4 sm:px-6 max-w-[1200px] py-12 md:py-20 lg:py-28">
@@ -46,7 +46,7 @@ const Hero = () => {
               }}
             >
               {t('xhero.title')}{" "}
-              <span className="text-purple-400">{t('xhero.titleAccent')}</span>
+              <span className="text-[#a78bfa]">{t('xhero.titleAccent')}</span>
             </h1>
 
             <p className="text-[16px] sm:text-lg text-white/70 mb-6 sm:mb-8 leading-[1.6] max-w-md">
@@ -70,7 +70,7 @@ const Hero = () => {
             <ul className="flex flex-col gap-2.5 sm:flex-row sm:gap-6 mb-8 sm:mb-10">
               {[t('xhero.bullet1'), t('xhero.bullet2'), t('xhero.bullet3')].map((text) => (
                 <li key={text} className="flex items-center gap-2 text-sm text-white/80 font-medium">
-                  <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                  <Check className="w-4 h-4 text-[#5b21b6] shrink-0" />
                   {text}
                 </li>
               ))}
@@ -87,17 +87,13 @@ const Hero = () => {
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>
               </Button>
-              <Button
-                variant="outline"
-                className="rounded-[10px] sm:rounded-full px-10 text-base font-bold w-full sm:w-auto border-2 border-white/30 text-white hover:bg-white/10 hover:border-white/50 bg-transparent transition-all duration-200"
-                style={{ height: 52 }}
-                asChild
+              <Link
+                to="/forfaits"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto px-6 text-[15px] font-semibold text-white bg-transparent border-2 border-white/30 hover:bg-white/10 hover:border-white/50 transition-all duration-200"
+                style={{ height: 52, borderRadius: 10, textDecoration: 'none' }}
               >
-                <Link to="/contact">
-                  <Phone className="w-4 h-4 mr-2" />
-                  {t('xhero.ctaSecondary')}
-                </Link>
-              </Button>
+                {isFr ? 'Découvrir tous nos forfaits →' : 'Discover all our plans →'}
+              </Link>
             </div>
           </div>
 
