@@ -351,6 +351,7 @@ const PaymentCancelled = lazy(() => import("@/pages/client/PaymentCancelled"));
 import ClientProtectedRoute from "@/components/client/ClientProtectedRoute";
 import ClientSecurityCheck from "@/components/client/ClientSecurityCheck";
 const ClientReferrals = lazy(() => import("@/pages/client/ClientReferrals"));
+const CreerMotDePasse = lazy(() => import("@/pages/portal/CreerMotDePasse"));
 
 // Staff portal pages (lazy-loaded)
 const StaffLogin = lazy(() => import("@/pages/staff/StaffLogin"));
@@ -622,6 +623,7 @@ const AppRoutes = () => {
       {/* CLIENT PORTAL ROUTES - Wrapped with MaintenanceGuard */}
       {/* ============================================ */}
       <Route path="/portal/auth" element={<MaintenanceGuard><ClientAuthProvider><ClientAuth /></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portail/creer-mot-de-passe" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><CreerMotDePasse /></Suspense></MaintenanceGuard>} />
       <Route path="/portal/suspended" element={<MaintenanceGuard><ClientAuthProvider><ClientSuspended /></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/access-blocked" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute allowBlocked><ClientAccessBlocked /></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDashboard /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
