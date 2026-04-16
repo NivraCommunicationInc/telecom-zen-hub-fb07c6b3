@@ -89,6 +89,7 @@ import { mapBillingError } from "@/lib/billing/errorMapping";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
+import { FirstMonthFreeExplanation } from "@/components/checkout/FirstMonthFreeExplanation";
 
 interface Service {
   id: string;
@@ -5656,6 +5657,9 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                 </CardContent>
               </Card>
 
+              {/* ═══ FIRST MONTH FREE EXPLANATION (shown when BIENVENUE2026/NIVRA2026 applied) ═══ */}
+              <FirstMonthFreeExplanation promoCode={appliedPromo?.code} />
+
               <Card className="bg-card border-border">
                 <CardHeader>
                   <CardTitle>Notes additionnelles</CardTitle>
@@ -6658,6 +6662,12 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
                         la <a href="/conditions-de-service#nature-services" target="_blank" className="text-cyan-500 underline">Politique de remboursement</a>,{" "}
                         les <a href="/modalites-paiement" target="_blank" className="text-cyan-500 underline">Modalités de paiement</a>{" "}
                         et la <a href="/confidentialite-loi25" target="_blank" className="text-cyan-500 underline">Politique de confidentialité</a> de Nivra Telecom.
+                        {appliedPromo && ['BIENVENUE2026', 'NIVRA2026'].includes(appliedPromo.code.toUpperCase()) && (
+                          <span className="block mt-1">
+                            Vous comprenez que le premier mois est gratuit, que l'équipement est remboursable si retourné sous 30 jours,
+                            et que l'annulation prend effet à la fin du cycle de facturation en cours.
+                          </span>
+                        )}
                       </Label>
                       <p className="text-xs text-muted-foreground mt-2">
                         Vous autorisez également la facturation applicable au service sélectionné, y compris les paiements récurrents lorsqu'un abonnement ou un renouvellement automatique est activé.
