@@ -19,6 +19,9 @@ const ClientDashboard = () => {
   const { user } = useClientAuth();
   const navigate = useNavigate();
   const [dismissedBanners, setDismissedBanners] = useState<string[]>([]);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    return !localStorage.getItem("nivra_welcomed");
+  });
   const { data: accountIdentity } = useClientAccountIdentity(user?.id);
 
   const { data: profile } = useQuery({
@@ -133,6 +136,30 @@ const ClientDashboard = () => {
     <ClientLayout>
       <ReferralPopup />
       <div className="space-y-6" data-testid="portal-dashboard">
+        {/* Welcome banner for first-time users */}
+        {showWelcome && (
+          <div className="rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #1a3a5c 100%)' }}>
+            <div className="flex-1 text-white">
+              <h2 className="text-lg font-bold mb-1">
+                🎉 Bienvenue chez Nivra Telecom{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} !
+              </h2>
+              <p className="text-sm text-white/80 mb-3">Votre service sera activé sous 24h. Voici vos 3 premières étapes:</p>
+              <ul className="text-sm text-white/90 space-y-1">
+                <li>✓ Vérifiez votre courriel de confirmation</li>
+                <li>✓ Notez votre date d'activation</li>
+                <li>✓ Configurez votre modem à la réception</li>
+              </ul>
+            </div>
+            <button
+              onClick={() => { setShowWelcome(false); localStorage.setItem("nivra_welcomed", "1"); }}
+              className="text-sm text-white px-4 py-2 rounded-lg cursor-pointer shrink-0"
+              style={{ background: 'rgba(255,255,255,0.15)' }}
+            >
+              Compris ✓
+            </button>
+          </div>
+        )}
+
         {/* Page title - Rogers style */}
         <h1 className="text-3xl lg:text-4xl font-bold text-slate-900" data-testid="dashboard-greeting">
           Bienvenue

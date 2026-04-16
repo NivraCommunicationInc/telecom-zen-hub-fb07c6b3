@@ -309,6 +309,10 @@ const Header = () => {
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
+              <a href="tel:+18336487222" className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition-colors mr-1">
+                <span>📞</span>
+                <span className="font-medium">1-833-NIVRA-CA</span>
+              </a>
               <button className="p-2 text-white/60 hover:text-white rounded-lg transition-colors" aria-label="Recherche">
                 <Search className="w-[18px] h-[18px]" />
               </button>
