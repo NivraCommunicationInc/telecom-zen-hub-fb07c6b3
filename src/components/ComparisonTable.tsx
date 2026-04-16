@@ -15,50 +15,50 @@ const ComparisonTable = () => {
 
   const CellIcon = ({ positive }: { positive: boolean }) =>
     positive ? (
-      <Check className="w-5 h-5 text-emerald-400 mx-auto" aria-label={isFr ? "Oui" : "Yes"} />
+      <Check className="w-5 h-5 text-emerald-500 mx-auto" aria-label={isFr ? "Oui" : "Yes"} />
     ) : (
-      <X className="w-5 h-5 text-white/25 mx-auto" aria-label={isFr ? "Non" : "No"} />
+      <X className="w-5 h-5 text-slate-300 mx-auto" aria-label={isFr ? "Non" : "No"} />
     );
 
   return (
-    <section className="py-10 sm:py-20 lg:py-28 bg-[#111111]">
+    <section className="py-10 sm:py-20 lg:py-28 bg-white">
       <div className="container mx-auto px-4 sm:px-6 max-w-[900px]">
         <div className="text-center mb-8 sm:mb-10">
-          <p className="text-xs tracking-[2px] uppercase text-white/40 mb-2">
+          <p className="text-xs tracking-[2px] uppercase text-[#8a94a6] mb-2">
             {isFr ? "Comparaison factuelle" : "Factual comparison"}
           </p>
-          <h2 className="text-2xl sm:text-3xl md:text-[2.5rem] font-bold text-white tracking-[-0.025em]">
+          <h2 className="text-2xl sm:text-3xl md:text-[2.5rem] font-bold text-[#1a1a2e] tracking-[-0.025em]">
             {isFr ? "Comparez avant de choisir" : "Compare before you choose"}
           </h2>
         </div>
 
         {/* Scrollable wrapper for mobile */}
-        <div className="bg-[#1a1a1a] rounded-2xl sm:rounded-3xl border border-white/10 overflow-hidden max-w-[850px] mx-auto">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#e8edf3] overflow-hidden max-w-[850px] mx-auto shadow-sm">
           <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full min-w-[420px]" aria-label={isFr ? "Comparaison Nivra vs concurrents" : "Nivra vs competitors"}>
               <thead>
-                <tr>
-                  <th className="p-2.5 sm:p-4 text-left text-xs text-white/50 font-medium" />
-                  <th className="p-2.5 sm:p-4 text-center font-bold text-purple-400 text-[13px] sm:text-sm border-l border-white/10 bg-purple-500/5">
+                <tr className="bg-[#f4f7fb]">
+                  <th className="p-2.5 sm:p-4 text-left text-xs text-[#8a94a6] font-medium" />
+                  <th className="p-2.5 sm:p-4 text-center font-bold text-purple-600 text-[13px] sm:text-sm border-l border-[#e8edf3] bg-purple-50">
                     Nivra
                   </th>
-                  <th className="p-2.5 sm:p-4 text-center font-bold text-white/50 text-[13px] sm:text-sm border-l border-white/10">Bell</th>
-                  <th className="p-2.5 sm:p-4 text-center font-bold text-white/50 text-[13px] sm:text-sm border-l border-white/10">Vidéotron</th>
+                  <th className="p-2.5 sm:p-4 text-center font-bold text-[#8a94a6] text-[13px] sm:text-sm border-l border-[#e8edf3]">Bell</th>
+                  <th className="p-2.5 sm:p-4 text-center font-bold text-[#8a94a6] text-[13px] sm:text-sm border-l border-[#e8edf3]">Vidéotron</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, i) => {
                   const isNegativeAttribute = i <= 2;
                   return (
-                    <tr key={i} className={i < rows.length - 1 ? "border-b border-white/10" : ""}>
-                      <td className="p-2.5 sm:p-4 text-[13px] sm:text-sm font-medium text-white">{row.label}</td>
-                      <td className="p-2.5 sm:p-4 text-center border-l border-white/10 bg-purple-500/5">
+                    <tr key={i} className={i < rows.length - 1 ? "border-b border-[#e8edf3]" : ""}>
+                      <td className="p-2.5 sm:p-4 text-[13px] sm:text-sm font-medium text-[#1a1a2e]">{row.label}</td>
+                      <td className="p-2.5 sm:p-4 text-center border-l border-[#e8edf3] bg-purple-50/50">
                         <CellIcon positive={isNegativeAttribute ? !row.nivra : row.nivra} />
                       </td>
-                      <td className="p-2.5 sm:p-4 text-center border-l border-white/10">
+                      <td className="p-2.5 sm:p-4 text-center border-l border-[#e8edf3]">
                         <CellIcon positive={isNegativeAttribute ? !row.bell : row.bell} />
                       </td>
-                      <td className="p-2.5 sm:p-4 text-center border-l border-white/10">
+                      <td className="p-2.5 sm:p-4 text-center border-l border-[#e8edf3]">
                         <CellIcon positive={isNegativeAttribute ? !row.videotron : row.videotron} />
                       </td>
                     </tr>
@@ -70,11 +70,11 @@ const ComparisonTable = () => {
         </div>
 
         {/* Mobile scroll hint */}
-        <p className="text-center text-[12px] text-white/30 mt-3 sm:hidden">
+        <p className="text-center text-[12px] text-[#8a94a6] mt-3 sm:hidden">
           ← {isFr ? "Glisser pour voir" : "Swipe to see"} →
         </p>
 
-        <p className="text-center text-[11px] text-white/35 mt-5 sm:mt-6 max-w-[700px] mx-auto leading-relaxed px-2">
+        <p className="text-center text-[11px] text-[#8a94a6] mt-5 sm:mt-6 max-w-[700px] mx-auto leading-relaxed px-2">
           * {isFr
             ? "Comparaison basée sur les informations publiques disponibles sur bell.ca et videotron.com en avril 2025. Les offres des concurrents peuvent changer sans préavis. Nivra Telecom n'est pas affilié à Bell Canada ou Vidéotron. Pour les tarifs actuels de nos concurrents, consultez leurs sites officiels."
             : "Comparison based on publicly available information on bell.ca and videotron.com as of April 2025. Competitor offers may change without notice. Nivra Telecom is not affiliated with Bell Canada or Vidéotron. For current competitor pricing, please visit their official websites."}
