@@ -1,6 +1,3 @@
-/**
- * HomePricing — Fizz-style plan cards: white, clean, pill buttons
- */
 import { useMemo } from "react";
 import LegalDisclaimer from "@/components/LegalDisclaimer";
 import { usePublicServices } from "@/hooks/usePublicServices";
@@ -25,16 +22,10 @@ const HomePricing = () => {
         const features = s.features_json.length > 0
           ? s.features_json.slice(0, 3)
           : (s.short_description || s.description || "").split(/•|\||;/g).map(f => f.trim()).filter(Boolean).slice(0, 3);
-
         const speedMatch = s.name.match(/(\d+)\s*(Mbps|Gbps|Giga)/i) || (s.description || "").match(/(\d+)\s*(Mbps|Gbps)/i);
         const speed = speedMatch ? `${speedMatch[1]} ${speedMatch[2]}` : null;
-
         return {
-          id: s.id,
-          name: s.name,
-          price: Number(s.price),
-          speed,
-          features,
+          id: s.id, name: s.name, price: Number(s.price), speed, features,
           recommended: Boolean(s.is_recommended || s.is_featured) || idx === 1,
         };
       });
@@ -42,7 +33,7 @@ const HomePricing = () => {
 
   if (isLoading) {
     return (
-      <section className="py-12 sm:py-20" style={{ background: '#ffffff' }}>
+      <section className="py-12 sm:py-20" style={{ background: '#FFFFFF' }}>
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
           <Skeleton className="h-8 w-56 mx-auto mb-3" />
           <Skeleton className="h-5 w-72 mx-auto mb-10" />
@@ -57,13 +48,13 @@ const HomePricing = () => {
   if (plans.length === 0) return null;
 
   return (
-    <section id="forfaits" className="py-12 sm:py-20 lg:py-28" style={{ background: '#ffffff' }}>
+    <section id="forfaits" className="py-12 sm:py-20 lg:py-28" style={{ background: '#FFFFFF' }}>
       <div className="container mx-auto px-4 sm:px-6 max-w-[1200px]">
         <div className="text-center mb-10 sm:mb-14">
-          <h2 className="text-2xl sm:text-3xl md:text-[40px] font-bold tracking-[-0.5px] mb-3" style={{ color: '#111111' }}>
+          <h2 className="text-2xl sm:text-3xl md:text-[40px] font-bold tracking-[-0.5px] mb-3" style={{ color: '#0D0D0D' }}>
             {t('pricing.title')}
           </h2>
-          <p className="text-base sm:text-lg" style={{ color: '#555555' }}>
+          <p className="text-base sm:text-lg" style={{ color: '#6B7280' }}>
             {t('pricing.subtitle')}
           </p>
         </div>
@@ -75,8 +66,8 @@ const HomePricing = () => {
               to={`/commander?plan=${plan.id}`}
               className="group relative block transition-all duration-200"
               style={{
-                background: '#ffffff',
-                border: plan.recommended ? '2px solid #7c3aed' : '1.5px solid #eeeeee',
+                background: '#FFFFFF',
+                border: plan.recommended ? '2px solid #7C3AED' : '1.5px solid #E8E8E8',
                 borderRadius: 20,
                 boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
               }}
@@ -85,7 +76,7 @@ const HomePricing = () => {
             >
               {plan.recommended && (
                 <div className="absolute top-4 right-4 z-10">
-                  <div className="flex items-center gap-1 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5" style={{ background: '#7c3aed', borderRadius: 50 }}>
+                  <div className="flex items-center gap-1 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5" style={{ background: '#7C3AED', borderRadius: 50 }}>
                     <Star className="w-3 h-3 fill-current" />
                     {t('pricing.recommended')}
                   </div>
@@ -93,38 +84,28 @@ const HomePricing = () => {
               )}
 
               <div className="p-6 sm:p-7 lg:p-8 flex flex-col h-full">
-                <h3 className="text-[18px] font-bold mb-1 pr-20 group-hover:opacity-80 transition-opacity" style={{ color: '#111111' }}>
-                  {plan.name}
-                </h3>
-                {plan.speed && (
-                  <p className="text-xs mb-5" style={{ color: '#999999' }}>{plan.speed}</p>
-                )}
+                <h3 className="text-[18px] font-bold mb-1 pr-20" style={{ color: '#0D0D0D' }}>{plan.name}</h3>
+                {plan.speed && <p className="text-xs mb-5" style={{ color: '#6B7280' }}>{plan.speed}</p>}
 
                 <div className="mb-5">
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-black leading-none" style={{ color: '#111111', fontSize: plan.recommended ? 48 : 42 }}>
-                      {plan.price.toFixed(0)}$
-                    </span>
-                    <span className="text-sm font-medium" style={{ color: '#999999' }}>/mois</span>
-                  </div>
+                  <span className="font-black leading-none" style={{ color: '#0D0D0D', fontSize: plan.recommended ? 48 : 42 }}>
+                    {plan.price.toFixed(0)}$
+                  </span>
+                  <span className="text-sm font-medium ml-1" style={{ color: '#6B7280' }}>/mois</span>
                 </div>
 
                 <div className="space-y-3 mb-7 flex-1">
                   {plan.features.map((f, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-[15px]">
-                      <Check className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#7c3aed' }} />
-                      <span style={{ color: '#555555' }}>{f}</span>
+                      <Check className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#7C3AED' }} />
+                      <span style={{ color: '#6B7280' }}>{f}</span>
                     </div>
                   ))}
                 </div>
 
                 <div
-                  className="w-full flex items-center justify-center gap-2 font-bold text-[15px] text-white transition-all duration-200"
-                  style={{
-                    height: 48,
-                    borderRadius: 50,
-                    background: plan.recommended ? '#7c3aed' : '#111111',
-                  }}
+                  className="w-full flex items-center justify-center gap-2 font-bold text-[15px] text-white"
+                  style={{ height: 48, borderRadius: 50, background: '#7C3AED' }}
                 >
                   {t('pricing.choose')}
                   <ArrowRight className="w-4 h-4" />
@@ -133,7 +114,6 @@ const HomePricing = () => {
             </Link>
           ))}
         </div>
-
         <LegalDisclaimer />
       </div>
     </section>
