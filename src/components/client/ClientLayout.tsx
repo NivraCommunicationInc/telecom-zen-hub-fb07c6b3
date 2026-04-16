@@ -1,5 +1,5 @@
 /**
- * ClientLayout - Rogers/MonRogers-style layout
+ * ClientLayout - Purple-themed professional layout
  * Top navigation bar with dropdowns, clean white background
  */
 import { ReactNode, useCallback, useState, useRef, useEffect } from "react";
@@ -26,11 +26,15 @@ import { toast } from "sonner";
 import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
 import { Badge } from "@/components/ui/badge";
 
+const PURPLE = "#6b21e8";
+const PURPLE_LIGHT = "#ede9fe";
+const DARK = "#0d0d1a";
+
 interface ClientLayoutProps {
   children: ReactNode;
 }
 
-// Rogers-style navigation structure
+// Navigation structure
 const navGroups = [
   {
     label: "Survol",
@@ -84,7 +88,6 @@ const navGroups = [
 ];
 
 const ClientLayout = ({ children }: ClientLayoutProps) => {
-  // Activate live tracking for all client portal pages
   useLiveActivityTracker();
   const location = useLocation();
   const navigate = useNavigate();
@@ -95,7 +98,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
 
   const { data: overdueCount } = useOverdueCount(user?.id, portalClient);
 
-  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -106,7 +108,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Auto-logout handler
   const handleIdleLogout = useCallback(async () => {
     sessionStorage.removeItem("client_pin_verified");
     sessionStorage.removeItem("client_pin_pending_email");
@@ -138,7 +139,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
     return group.children.some((c) => isActive(c.path));
   };
 
-  // Lock body scroll when mobile menu open
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -149,8 +149,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   }, [mobileMenuOpen]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] client-portal-dark text-slate-900">
-      {/* System banners */}
+    <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <PortalSystemStatusBanner userType="client" />
       <AccountBlockedBanner />
       {user?.id && <PrepaidUrgentBanner userId={user.id} />}
@@ -158,7 +157,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
       {/* Top utility bar — desktop only */}
       <div className="bg-slate-100 border-b border-slate-200 hidden lg:block">
         <div className="max-w-[1200px] mx-auto px-6 flex items-center justify-end gap-6 h-9 text-xs text-slate-600">
-          <Link to="/" className="hover:text-teal-700 transition-colors">
+          <Link to="/" className="hover:text-[#6b21e8] transition-colors">
             Retour au site Nivra
           </Link>
           <span className="text-slate-300">|</span>
@@ -166,17 +165,17 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
             <User className="w-3.5 h-3.5" />
             {user?.email}
           </span>
-          <button onClick={handleSignOut} className="hover:text-teal-700 transition-colors flex items-center gap-1">
+          <button onClick={handleSignOut} className="hover:text-[#6b21e8] transition-colors flex items-center gap-1">
             <LogOut className="w-3.5 h-3.5" />
             Déconnexion
           </button>
         </div>
       </div>
 
-      {/* Main navigation bar */}
-      <header className="bg-teal-700 text-white shadow-md sticky top-0 z-50">
+      {/* Main navigation bar — purple themed */}
+      <header className="text-white shadow-md sticky top-0 z-50" style={{ background: DARK }}>
         <div className="max-w-[1200px] mx-auto px-4 lg:px-6">
-          {/* Mobile: strict 3-column grid 56 / 1fr / 56 */}
+          {/* Mobile: strict 3-column grid */}
           <div className="grid grid-cols-[56px_1fr_56px] items-center h-14 lg:hidden">
             <button
               className="w-14 h-14 flex items-center justify-center text-white/90 hover:text-white hover:bg-white/10 rounded-lg"
@@ -188,7 +187,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
             </button>
 
             <Link to="/portal" className="justify-self-center flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: PURPLE }}>
                 <span className="font-bold text-white text-lg">N</span>
               </div>
               <span className="font-bold text-xl text-white">Nivra</span>
@@ -206,7 +205,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
           {/* Desktop nav */}
           <div className="hidden lg:flex items-center h-16">
             <Link to="/portal" className="flex items-center gap-2 shrink-0">
-              <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: PURPLE }}>
                 <span className="font-bold text-white text-lg">N</span>
               </div>
               <span className="font-bold text-xl text-white">Nivra</span>
@@ -223,9 +222,10 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                       <button
                         className={cn(
                           "flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                          active ? "bg-white/20 text-white" : "text-white/85 hover:bg-white/10 hover:text-white",
+                          active ? "text-white" : "text-white/85 hover:bg-white/10 hover:text-white",
                           openDropdown === idx && "bg-white/20"
                         )}
+                        style={active ? { background: PURPLE } : undefined}
                         onClick={() => setOpenDropdown(openDropdown === idx ? null : idx)}
                       >
                         {group.label}
@@ -241,14 +241,14 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                         to={group.path!}
                         className={cn(
                           "flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                          active ? "bg-white/20 text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
+                          active ? "text-white" : "text-white/85 hover:bg-white/10 hover:text-white"
                         )}
+                        style={active ? { background: PURPLE } : undefined}
                       >
                         {group.label}
                       </Link>
                     )}
 
-                    {/* Dropdown menu */}
                     {hasChildren && openDropdown === idx && (
                       <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50">
                         {group.children.map((child) => (
@@ -259,9 +259,10 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                             className={cn(
                               "block px-4 py-2.5 text-sm transition-colors",
                               isActive(child.path)
-                                ? "bg-teal-50 text-teal-700 font-medium"
-                                : "text-slate-700 hover:bg-slate-50 hover:text-teal-700"
+                                ? "font-medium"
+                                : "text-slate-700 hover:text-[#6b21e8]"
                             )}
+                            style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                           >
                             {child.label}
                           </Link>
@@ -296,7 +297,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         <>
           <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
           <div className="fixed top-0 left-0 h-full w-[85vw] max-w-[320px] bg-white z-50 shadow-2xl lg:hidden overflow-y-auto">
-            {/* Drawer header */}
             <div className="p-4 border-b border-slate-200 flex items-center justify-between h-14">
               <span className="font-semibold text-slate-900 text-base">MonNivra</span>
               <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-slate-500 hover:text-slate-900 rounded-lg">
@@ -304,11 +304,10 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               </button>
             </div>
             
-            {/* User info */}
             <div className="p-4 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-teal-700" />
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: PURPLE_LIGHT }}>
+                  <User className="w-5 h-5" style={{ color: PURPLE }} />
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900 text-sm truncate">
@@ -319,7 +318,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               </div>
             </div>
 
-            {/* Nav items — min 44px touch targets */}
             <nav className="p-2">
               {navGroups.map((group, idx) => (
                 <div key={idx} className="mb-1">
@@ -329,8 +327,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                       onClick={() => setMobileMenuOpen(false)}
                       className={cn(
                         "flex items-center px-4 py-3 rounded-xl text-sm font-medium min-h-[44px]",
-                        isActive(group.path) ? "bg-teal-50 text-teal-700" : "text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+                        isActive(group.path) ? "text-white" : "text-slate-700 hover:bg-slate-50 active:bg-slate-100"
                       )}
+                      style={isActive(group.path) ? { background: PURPLE, color: 'white' } : undefined}
                     >
                       {group.label}
                     </Link>
@@ -346,8 +345,9 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
                             "flex items-center px-4 py-3 rounded-xl text-sm min-h-[44px]",
-                            isActive(child.path) ? "bg-teal-50 text-teal-700 font-medium" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
+                            isActive(child.path) ? "font-medium" : "text-slate-600 hover:bg-slate-50 active:bg-slate-100"
                           )}
+                          style={isActive(child.path) ? { background: PURPLE_LIGHT, color: PURPLE } : undefined}
                         >
                           {child.label}
                         </Link>
@@ -358,7 +358,6 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
               ))}
             </nav>
 
-            {/* Bottom actions */}
             <div className="p-4 border-t border-slate-200 mt-2 space-y-1">
               <Link to="/" className="flex items-center px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl min-h-[44px]">
                 Retour au site Nivra
@@ -375,7 +374,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         </>
       )}
 
-      {/* Main Content — responsive padding */}
+      {/* Main Content */}
       <main className="flex-1">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 lg:py-8">
           {children}
@@ -387,11 +386,11 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center text-xs text-slate-500 space-y-1">
           <p>© {new Date().getFullYear()} Nivra Télécom. Tous droits réservés.</p>
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <Link to="/privacy-policy" className="hover:text-slate-700 transition-colors">Confidentialité</Link>
+            <Link to="/privacy-policy" className="hover:text-[#6b21e8] transition-colors">Confidentialité</Link>
             <span className="text-slate-400">·</span>
-            <Link to="/conditions-de-service" className="hover:text-slate-700 transition-colors">Conditions</Link>
+            <Link to="/conditions-de-service" className="hover:text-[#6b21e8] transition-colors">Conditions</Link>
             <span className="text-slate-400">·</span>
-            <Link to="/contact" className="hover:text-slate-700 transition-colors">Support</Link>
+            <Link to="/contact" className="hover:text-[#6b21e8] transition-colors">Support</Link>
           </div>
         </div>
       </footer>

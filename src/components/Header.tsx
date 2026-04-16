@@ -10,7 +10,8 @@ import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } 
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 
-const GOLD = "#d4a843";
+const PURPLE = "#6b21e8";
+const PURPLE_DARK = "#4c0fad";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -204,7 +205,7 @@ const Header = () => {
                     style={{
                       height: 48,
                       minHeight: 48,
-                      color: childActive ? GOLD : 'rgba(255,255,255,0.6)',
+                      color: childActive ? PURPLE : 'rgba(255,255,255,0.6)',
                     }}
                   >
                     {getLabel(child)}
@@ -226,7 +227,7 @@ const Header = () => {
         style={{
           height: 56,
           minHeight: 56,
-          color: isActive ? GOLD : 'white',
+          color: isActive ? PURPLE : 'white',
         }}
       >
         {getLabel(target)}
@@ -272,20 +273,14 @@ const Header = () => {
 
       {/* Main navigation */}
       <header
-        className={`sticky top-0 z-50 bg-black transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}
+        className={`sticky top-0 z-50 bg-[#0d0d1a] transition-all duration-300 ${isScrolled ? 'shadow-[0_2px_20px_rgba(0,0,0,0.5)] border-b border-white/5' : 'border-b border-white/10'}`}
         style={{ height: 56 }}
       >
         <div className="container mx-auto px-4 sm:px-6 max-w-[1200px] h-full">
-          {/* Mobile */}
-          <div className="flex items-center justify-between h-[56px] lg:hidden">
-            <Link to="/" className="flex items-center gap-2 pl-0">
-              <LogoIcon size={28} />
-              <span className="font-bold text-lg text-white tracking-tight">Nivra</span>
-            </Link>
-
+          {/* Mobile — 3-column grid: hamburger | centered logo | spacer */}
+          <div className="grid grid-cols-[56px_1fr_56px] items-center h-[56px] lg:hidden">
             <button
-              className="flex items-center justify-center text-white"
-              style={{ width: 44, height: 44, minWidth: 44, minHeight: 44 }}
+              className="flex items-center justify-center text-white w-[56px] h-[56px]"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={isMenuOpen}
@@ -294,6 +289,13 @@ const Header = () => {
             >
               <Menu className="w-6 h-6" strokeWidth={2} />
             </button>
+
+            <Link to="/" className="justify-self-center flex items-center gap-2">
+              <LogoIcon size={28} />
+              <span className="font-bold text-lg text-white tracking-tight">Nivra</span>
+            </Link>
+
+            <div>{/* spacer */}</div>
           </div>
 
           {/* Desktop */}
@@ -309,16 +311,13 @@ const Header = () => {
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
-              <a href="tel:+18336487222" className="flex items-center gap-1.5 text-sm text-white/70 hover:text-white transition-colors mr-1">
-                <span>📞</span>
-                <span className="font-medium">1-833-NIVRA-CA</span>
-              </a>
               <button className="p-2 text-white/60 hover:text-white rounded-lg transition-colors" aria-label="Recherche">
                 <Search className="w-[18px] h-[18px]" />
               </button>
               <Link
                 to={portalLink}
-                className="flex items-center gap-2 px-5 py-2 text-sm font-bold bg-white text-black rounded-full hover:bg-white/90 transition-all shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-[10px] hover:opacity-90 transition-all shadow-sm hover:shadow-md"
+                style={{ background: PURPLE }}
               >
                 <User className="w-4 h-4" />
                 {isFr ? "Mon compte" : "My account"}
@@ -335,7 +334,7 @@ const Header = () => {
           role="dialog"
           aria-label="Menu de navigation"
           className="fixed inset-0 z-[100] lg:hidden flex flex-col"
-          style={{ background: '#0d1f3c' }}
+          style={{ background: '#0d0d1a' }}
         >
           {/* Top bar with close */}
           <div className="flex items-center justify-between px-4" style={{ height: 56, minHeight: 56 }}>
@@ -355,16 +354,6 @@ const Header = () => {
 
           {/* Nav links */}
           <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto pt-2">
-            {/* Phone number — first item in mobile menu */}
-            <a
-              href="tel:+18336487222"
-              className="flex items-center gap-2.5 pl-5 pr-4 text-[16px] font-semibold text-white/80 hover:text-white active:bg-white/5"
-              style={{ height: 52, minHeight: 52 }}
-            >
-              <span>📞</span>
-              <span>1-833-NIVRA-CA</span>
-            </a>
-            <div className="border-b border-white/10 mx-4 mb-1" />
             {NAV_TARGETS.map(renderMobileNavItem)}
 
             <div className="mt-4 border-t border-white/10 pt-4">
@@ -391,15 +380,15 @@ const Header = () => {
             <Link
               to="/commander"
               onClick={() => setIsMenuOpen(false)}
-              className="flex items-center justify-center w-full font-bold text-[16px] text-white rounded-xl"
-              style={{ height: 52, background: GOLD }}
+              className="flex items-center justify-center w-full font-bold text-[16px] text-white rounded-[10px]"
+              style={{ height: 52, background: PURPLE }}
             >
               {isFr ? "Commander" : "Order Now"}
             </Link>
             <Link
               to={portalLink}
               onClick={() => setIsMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full font-semibold text-[15px] text-white/80 rounded-xl border border-white/20"
+              className="flex items-center justify-center gap-2 w-full font-semibold text-[15px] text-white/80 rounded-[10px] border border-white/20"
               style={{ height: 48 }}
             >
               <User className="w-4 h-4" />
