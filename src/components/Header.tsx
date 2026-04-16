@@ -184,8 +184,8 @@ const Header = () => {
         <div key={target.id}>
           <button
             onClick={() => setMobileExpanded(isExpanded ? null : target.id)}
-            className="flex items-center justify-between w-full pl-5 pr-4 text-[18px] font-medium text-white hover:bg-white/5 active:bg-white/10"
-            style={{ height: 56, minHeight: 56 }}
+            className="flex items-center justify-between w-full pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8]"
+            style={{ height: 56, minHeight: 56, color: '#111111' }}
             type="button"
             aria-expanded={isExpanded}
           >
