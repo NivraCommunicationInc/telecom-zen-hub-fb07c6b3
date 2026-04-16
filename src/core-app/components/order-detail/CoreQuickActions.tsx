@@ -216,6 +216,50 @@ export function CoreQuickActions({ proc }: Props) {
         await proc.changeStatus("processing", "Réouverture manuelle via console");
       },
     },
+    // Equipment refund - only for first-month-free promo orders within 30 days
+    {
+      id: "refund_equipment",
+      label: order?.equipment_refunded ? "Équipement remboursé ✓" : "Rembourser équipement",
+      icon: RotateCw,
+      variant: "warning",
+      hidden: !isFirstMonthFreeOrder,
+      disabled: !canRefundEquipment || !equipReturnConfirmed,
+      disabledReason: order?.equipment_refunded
+        ? "Équipement déjà remboursé"
+        : orderAge > 30
+        ? "Délai de 30 jours dépassé"
+        : !equipReturnConfirmed
+        ? "Confirmez le retour de l'équipement d'abord"
+        : undefined,
+      handler: async () => {
+        const user = (await supabase.auth.getUser()).data.user;
+        // Calculate equipment total from pricing_snapshot
+        const pricingSnapshot = order?.pricing_snapshot as Record<string, any> | null;
+        const equipmentTotal = Number(pricingSnapshot?.one_time_subtotal ?? 0);
+
+        // Mark order as equipment refunded
+        const { error: updateError } = await supabase
+          .from("orders")
+          .update({
+            equipment_refunded: true,
+            equipment_refund_date: new Date().toISOString(),
+          })
+          .eq("id", order.id);
+        if (updateError) throw updateError;
+
+        // Add activity log
+        await supabase.from("activity_logs").insert({
+          user_id: user?.id || order.user_id,
+          entity_type: "order",
+          entity_id: order.id,
+          action: "equipment_refund",
+          reason: `Remboursement équipement approuvé par ${user?.email || "admin"} — Montant: ${equipmentTotal.toFixed(2)} $ — Code promo: ${orderPromoCode}`,
+        });
+
+        toast.success(`Remboursement équipement enregistré (${equipmentTotal.toFixed(2)} $)`);
+        proc.refetch();
+      },
+    },
   ];
 
   const visibleActions = actions.filter(a => !a.hidden);
