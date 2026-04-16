@@ -205,7 +205,7 @@ const Header = () => {
                     style={{
                       height: 48,
                       minHeight: 48,
-                      color: childActive ? PURPLE : 'rgba(255,255,255,0.6)',
+                      color: childActive ? PURPLE : '#999999',
                     }}
                   >
                     {getLabel(child)}
@@ -223,11 +223,11 @@ const Header = () => {
         key={target.id}
         to={target.target}
         onClick={() => setIsMenuOpen(false)}
-        className="flex items-center pl-5 pr-4 text-[18px] font-medium hover:bg-white/5 active:bg-white/10"
+        className="flex items-center pl-5 pr-4 text-[18px] font-medium hover:bg-[#f8f8f8] active:bg-[#f0f0f0]"
         style={{
           height: 56,
           minHeight: 56,
-          color: isActive ? PURPLE : 'white',
+          color: isActive ? PURPLE : '#111111',
         }}
       >
         {getLabel(target)}
