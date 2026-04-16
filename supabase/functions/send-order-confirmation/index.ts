@@ -160,6 +160,7 @@ function generateOrderConfirmationHtml(params: EmailTemplateParams): string {
     oneTimeFees,
     oneTimeTotal,
     deliveryAddress,
+    installation,
     portalLink,
     supportEmail,
     promoCode,
