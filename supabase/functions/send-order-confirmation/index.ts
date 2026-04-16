@@ -557,8 +557,7 @@ Deno.serve(async (req) => {
       deliveryMethod: delivery_method ? getDeliveryMethodLabel(delivery_method) : undefined,
       deliveryAddress: delivery_address,
       portalLink: `${siteBaseUrl}/portal/orders/${order_id}`,
-      supportPhone: Deno.env.get("SUPPORT_PHONE") || "",
-      supportEmail: Deno.env.get("SUPPORT_EMAIL") || "support@nivra-telecom.ca",
+      supportEmail: "support@nivra-telecom.ca",
       promoCode: effectivePromoCode || undefined,
     });
 
