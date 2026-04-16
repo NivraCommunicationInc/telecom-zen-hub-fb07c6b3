@@ -946,6 +946,7 @@ Deno.serve(async (req) => {
         payment_reference: payment_reference || latestPayment?.provider_payment_id || latestPayment?.reference || orderData?.payment_reference || null,
         payment_method: payment_method || latestPayment?.method || orderData?.payment_method || null,
         portal_path: `/portal/orders/${order_id}`,
+        promo_code: promo_code || orderData?.promo_code || null,
         // PDF attachment data
         account_number: accountNumber,
         services: services || [],
