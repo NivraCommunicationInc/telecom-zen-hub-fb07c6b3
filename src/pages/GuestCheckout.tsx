@@ -108,6 +108,8 @@ const GuestCheckout = () => {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [notes, setNotes] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
+  const [autoApplyAttempted, setAutoApplyAttempted] = useState(false);
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
   // ── KYC / Identity ──
@@ -295,6 +297,55 @@ const GuestCheckout = () => {
   const isAddressValid = addressStreet.length > 3 && addressCity.length > 1 && addressPostalCode.length >= 6;
   const isClientInfoValid = firstName.length >= 2 && lastName.length >= 2 && email.includes("@") && phone.length >= 10 && dateOfBirth.length === 10;
   const isPaymentDone = paymentComplete || (paymentMethod === "paypal" && !!paypalCaptureId);
+
+  // ── Auto-apply BIENVENUE2026 (first-month-free) for new clients after Step 3 ──
+  const tryAutoApplyFirstMonthFree = async () => {
+    // Skip if already applied or if user manually applied a different code
+    if (appliedPromo) return;
+    if (autoApplyAttempted) return;
+    if (isStreamingOnlyOrder) return; // streaming-only orders don't get first-month-free
+    if (selectedServices.length === 0) return;
+    setAutoApplyAttempted(true);
+
+    try {
+      const cartItems = selectedServices.map(s => ({ type: 'service' as const, amount: s.price, name: s.name }));
+      const { data, error } = await supabase.functions.invoke("validate-promo", {
+        body: {
+          code: "BIENVENUE2026",
+          client_email: email.trim().toLowerCase(),
+          client_dob: dateOfBirth,
+          client_phone: phone,
+          cart_items: cartItems,
+          subtotal_before_discount: subtotal,
+          auto_apply: true,
+        },
+      });
+
+      if (error || !data?.valid || !data?.is_new_client) {
+        console.log("[GuestCheckout] Auto-apply skipped:", data?.error || "not eligible");
+        return;
+      }
+
+      const promo = {
+        id: data.promo.id,
+        code: data.promo.code,
+        name: data.promo.name,
+        discount_type: data.promo.discount_type,
+        discount_value: data.promo.discount_value,
+        discount_amount: data.discount_amount,
+        applies_to: data.promo.applies_to,
+        stackable: data.promo.stackable,
+        new_customers_only: data.promo.new_customers_only,
+        duration: data.promo.duration,
+      };
+      setAppliedPromo(promo);
+      setAutoAppliedPromo(true);
+      setWelcomeDiscountDismissed(true);
+    } catch (err) {
+      // Fail silently — never block checkout on auto-apply
+      console.error("[GuestCheckout] Auto-apply error:", err);
+    }
+  };
 
   // ── Submit order ──
   const handleSubmit = async () => {
@@ -821,7 +872,14 @@ const GuestCheckout = () => {
                   <Button variant="outline" className="flex-1" onClick={() => setStep(isStreamingOnlyOrder ? 1 : 2)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
-                  <Button className="flex-1" disabled={!isClientInfoValid} onClick={() => setStep(4)}>
+                  <Button
+                    className="flex-1"
+                    disabled={!isClientInfoValid}
+                    onClick={async () => {
+                      await tryAutoApplyFirstMonthFree();
+                      setStep(4);
+                    }}
+                  >
                     Continuer <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
@@ -937,6 +995,26 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
+                {/* Auto-applied first-month-free banner */}
+                {autoAppliedPromo && appliedPromo?.code === "BIENVENUE2026" && (
+                  <Card className="bg-emerald-50 border-emerald-300">
+                    <CardContent className="py-4">
+                      <div className="flex items-start gap-3">
+                        <Gift className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-emerald-700 text-sm mb-1">
+                            🎉 Premier mois gratuit appliqué automatiquement!
+                          </p>
+                          <p className="text-xs text-emerald-800 leading-relaxed">
+                            Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
+                            Votre premier mois de service est entièrement gratuit — aucun code requis.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Promo / Referral */}
                 <Card>
                   <CardHeader>
@@ -952,9 +1030,15 @@ const GuestCheckout = () => {
                       subtotalBeforeDiscount={subtotal}
                       onPromoApplied={(promo) => {
                         setAppliedPromo(promo);
+                        if (!promo) setAutoAppliedPromo(false);
                         if (promo) setWelcomeDiscountDismissed(true);
                       }}
                       appliedPromo={appliedPromo}
+                      duplicateFirstMonthFreeMessage={
+                        autoAppliedPromo
+                          ? "Votre premier mois gratuit est déjà appliqué automatiquement."
+                          : undefined
+                      }
                     />
                     <ReferralCodeInput
                       clientEmail={email}

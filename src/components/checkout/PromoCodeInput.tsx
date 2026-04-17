@@ -41,7 +41,12 @@ interface PromoCodeInputProps {
   appliedPromo: AppliedPromo | null;
   onPromoApplied: (promo: AppliedPromo | null) => void;
   disabled?: boolean;
+  /** When set, manual entry of a first-month-free code (BIENVENUE2026 / NIVRA2026)
+   *  shows this message instead of re-applying. */
+  duplicateFirstMonthFreeMessage?: string;
 }
+
+const FIRST_MONTH_FREE_CODES = ["BIENVENUE2026", "NIVRA2026"];
 
 export const PromoCodeInput = ({
   clientEmail,
@@ -51,6 +56,7 @@ export const PromoCodeInput = ({
   appliedPromo,
   onPromoApplied,
   disabled = false,
+  duplicateFirstMonthFreeMessage,
 }: PromoCodeInputProps) => {
   const { toast } = useToast();
   const [code, setCode] = useState("");
@@ -63,6 +69,20 @@ export const PromoCodeInput = ({
       return;
     }
 
+    // Normalize early to detect first-month-free duplicates
+    const normalizedCode = normalizePromoCode(code);
+
+    // If first-month-free already applied (auto or manual), block re-applying the equivalent code
+    if (
+      duplicateFirstMonthFreeMessage &&
+      FIRST_MONTH_FREE_CODES.includes(normalizedCode) &&
+      appliedPromo &&
+      FIRST_MONTH_FREE_CODES.includes(appliedPromo.code?.toUpperCase?.() || "")
+    ) {
+      setError(duplicateFirstMonthFreeMessage);
+      return;
+    }
+
     if (appliedPromo && !appliedPromo.stackable) {
       setError("Un code promo est déjà appliqué et n'est pas cumulable");
       return;
@@ -72,8 +92,7 @@ export const PromoCodeInput = ({
     setError(null);
 
     try {
-      // Normalize code: trim, uppercase, remove trailing punctuation
-      const normalizedCode = normalizePromoCode(code);
+      // normalizedCode computed above
       
       const { data, error: invokeError } = await backendClient.functions.invoke("validate-promo", {
         body: {

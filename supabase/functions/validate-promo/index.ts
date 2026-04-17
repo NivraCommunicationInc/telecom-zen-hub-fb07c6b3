@@ -23,7 +23,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { code, client_email, client_id, cart_items, subtotal_before_discount } = await req.json();
+    const { code, client_email, client_id, cart_items, subtotal_before_discount, client_dob, client_phone, auto_apply } = await req.json();
 
     console.log(`[validate-promo] Validating code: ${code} for client: ${client_email}`);
 
@@ -250,9 +250,9 @@ serve(async (req) => {
       );
     }
 
-    // Check if "new customers only" promo — enhanced 2-of-3 identity check for first-month-free codes
+    // Check if "new customers only" promo — enhanced 2-of-3 identity check (email, DOB, phone)
     if (promo.new_customers_only === true) {
-      // First check by client_id (existing orders)
+      // First check by client_id (existing logged-in client)
       if (client_id) {
         const { count: orderCount } = await supabase
           .from('orders')
@@ -262,41 +262,87 @@ serve(async (req) => {
 
         if (orderCount !== null && orderCount > 0) {
           return new Response(
-            JSON.stringify({ valid: false, error: "Ce code est réservé aux nouveaux clients" }),
+            JSON.stringify({ valid: false, error: "Ce code est réservé aux nouveaux clients", is_new_client: false }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
       }
 
-      // Enhanced 2-of-3 identity check: email, DOB, phone
-      // If at least 2 of these 3 identifiers match an existing profile, reject
-      if (client_email) {
-        const identityChecks = await Promise.all([
-          supabase.from('profiles').select('id').ilike('email', client_email).limit(1).maybeSingle(),
-          // DOB and phone checks only if we can extract them from the request
-        ]);
+      // 2-of-3 identity match: email, DOB, phone — count matches against existing profiles with orders
+      let identityMatches = 0;
+      const matchedUserIds = new Set<string>();
 
-        // Check email match against profiles (excluding current user if logged in)
+      if (client_email) {
         const { data: emailMatch } = await supabase
           .from('profiles')
-          .select('id, user_id')
+          .select('user_id')
           .ilike('email', client_email)
           .maybeSingle();
+        if (emailMatch?.user_id && (!client_id || emailMatch.user_id !== client_id)) {
+          identityMatches++;
+          matchedUserIds.add(emailMatch.user_id);
+        }
+      }
 
-        if (emailMatch && client_id && emailMatch.user_id !== client_id) {
-          // Email belongs to another account — check if they also have orders
-          const { count: otherOrderCount } = await supabase
+      if (client_dob) {
+        const { data: dobMatches } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('date_of_birth', client_dob);
+        if (dobMatches && dobMatches.length > 0) {
+          for (const m of dobMatches) {
+            if (m.user_id && (!client_id || m.user_id !== client_id)) {
+              identityMatches++;
+              matchedUserIds.add(m.user_id);
+              break;
+            }
+          }
+        }
+      }
+
+      if (client_phone) {
+        const normalizedPhone = String(client_phone).replace(/\D/g, '');
+        if (normalizedPhone.length >= 10) {
+          const last10 = normalizedPhone.slice(-10);
+          const { data: phoneMatches } = await supabase
+            .from('profiles')
+            .select('user_id, phone')
+            .ilike('phone', `%${last10}%`)
+            .limit(5);
+          if (phoneMatches && phoneMatches.length > 0) {
+            for (const m of phoneMatches) {
+              if (m.user_id && (!client_id || m.user_id !== client_id)) {
+                identityMatches++;
+                matchedUserIds.add(m.user_id);
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // If 2+ identifiers match an existing user with paid orders — reject
+      if (identityMatches >= 2) {
+        let hasOrders = false;
+        for (const uid of matchedUserIds) {
+          const { count } = await supabase
             .from('orders')
             .select('id', { count: 'exact', head: true })
-            .eq('client_id', emailMatch.user_id)
+            .eq('client_id', uid)
             .in('status', ['completed', 'active', 'processing', 'paid']);
-
-          if (otherOrderCount !== null && otherOrderCount > 0) {
-            return new Response(
-              JSON.stringify({ valid: false, error: "Ce compte existe déjà dans notre système. Le code premier mois gratuit est réservé aux nouveaux clients." }),
-              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
+          if (count && count > 0) { hasOrders = true; break; }
+        }
+        if (hasOrders) {
+          return new Response(
+            JSON.stringify({
+              valid: false,
+              is_new_client: false,
+              error: auto_apply
+                ? "Client existant détecté"
+                : "Ce compte existe déjà dans notre système. Le code premier mois gratuit est réservé aux nouveaux clients.",
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
       }
     }
@@ -450,6 +496,8 @@ serve(async (req) => {
 
     const result = {
       valid: true,
+      is_new_client: promo.new_customers_only === true ? true : undefined,
+      auto_applied: auto_apply === true ? true : undefined,
       promo: {
         id: promo.id,
         code: promo.code.toUpperCase(),
