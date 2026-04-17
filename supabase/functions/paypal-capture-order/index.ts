@@ -282,7 +282,57 @@ serve(async (req) => {
           }
         }
       } else {
-        console.warn("[PayPal Capture] ⚠ Invoice ID not found in billing_invoices — no legacy fallback. invoice_id:", invoiceId);
+        console.error("[PayPal Capture] ✗ ORPHAN CAPTURE — invoice_id not found in billing_invoices:", invoiceId);
+        // HARDENING: alert immediately so support can manually recover
+        await supabase.from("billing_system_alerts").insert({
+          alert_type: "paypal_capture_orphan_no_invoice",
+          entity_type: "paypal_capture",
+          entity_id: null,
+          entity_reference: captureId,
+          details: {
+            ...captureProof,
+            attempted_invoice_id: invoiceId,
+            payer_email: payerEmail,
+            payer_name: `${payerFirstName} ${payerLastName}`.trim(),
+            payer_phone: payerPhone,
+            linked_customer_id: linkedCustomerId,
+            ts: new Date().toISOString(),
+            recovery_hint: "Money was captured by PayPal but no DB invoice exists. Manually create order/invoice/payment using payer info above.",
+          },
+        });
+        // Notify business immediately (use custom_html template — exists in registry)
+        const alertSubject = `🚨 PayPal capture orpheline — ${captureId}`;
+        const alertBody = `
+          <h2>Capture PayPal sans facture</h2>
+          <p><strong>Capture ID:</strong> ${captureId}</p>
+          <p><strong>Montant:</strong> ${amount} ${currencyCode}</p>
+          <p><strong>Payeur:</strong> ${payerFirstName} ${payerLastName} &lt;${payerEmail}&gt;</p>
+          <p><strong>Téléphone:</strong> ${payerPhone || "n/a"}</p>
+          <p><strong>Tentative invoice_id:</strong> ${invoiceId}</p>
+          <p>L'argent a été capturé par PayPal mais aucune facture n'a été trouvée. Récupération manuelle requise immédiatement.</p>
+        `;
+        await supabase.from("email_queue").insert([
+          {
+            event_key: `orphan_capture_${captureId}`,
+            to_email: "support@nivra-telecom.ca",
+            template_key: "custom_html",
+            subject: alertSubject,
+            template_vars: { subject: alertSubject, html: alertBody },
+            status: "queued",
+            attempts: 0,
+            max_attempts: 5,
+          },
+          {
+            event_key: `orphan_capture_${captureId}_alt`,
+            to_email: "nivratelecom@gmail.com",
+            template_key: "custom_html",
+            subject: alertSubject,
+            template_vars: { subject: alertSubject, html: alertBody },
+            status: "queued",
+            attempts: 0,
+            max_attempts: 5,
+          },
+        ]);
       }
     }
 

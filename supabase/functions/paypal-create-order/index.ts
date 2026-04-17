@@ -93,6 +93,34 @@ serve(async (req) => {
     });
 
     // ===================================================================
+    // HARDENING (post Vincent Jutras incident 2026-04-17):
+    // Reject any payload missing both invoice_id AND order_id AND subscription_id.
+    // An "amount-only" payload causes paypal-capture-order to be unable to
+    // reconcile the capture to a database record — silently dropping the order.
+    // ===================================================================
+    if (!body.invoice_id && !body.order_id && !body.subscription_id) {
+      console.error("[PayPal] ✗ Rejected: missing invoice_id, order_id, and subscription_id");
+      await supabase.from("billing_system_alerts").insert({
+        alert_type: "paypal_create_order_missing_reference",
+        entity_type: "paypal",
+        entity_id: null,
+        details: {
+          reason: "Payload missing both invoice_id and order_id — would have created untraceable PayPal order",
+          received_keys: Object.keys(body),
+          amount: body.amount,
+          ts: new Date().toISOString(),
+        },
+      });
+      return new Response(
+        JSON.stringify({
+          error: "Référence manquante: une commande ou facture doit être créée avant le paiement PayPal.",
+          code: "MISSING_REFERENCE",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ===================================================================
     // SECURITY: When invoice_id is provided, fetch the authoritative amount
     // from the database instead of trusting the frontend value.
     // ===================================================================
