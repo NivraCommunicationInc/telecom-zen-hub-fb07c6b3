@@ -8,6 +8,15 @@ import {
   type ImpersonationState,
 } from "@/components/client/ImpersonationBanner";
 
+function hasPendingImpersonationFlag(): boolean {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("impersonation_pending") === "1";
+  } catch {
+    return false;
+  }
+}
+
 type AppRole = "admin" | "client";
 
 export interface SignupData {
@@ -84,7 +93,7 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
   // finished validating it yet. While this is true, ClientProtectedRoute
   // must NOT redirect to /portal/auth.
   const [impersonationPending, setImpersonationPending] = useState<boolean>(() =>
-    !readStoredImpersonation() && !!readPendingImpersonationToken(),
+    !readStoredImpersonation() && (!!readPendingImpersonationToken() || hasPendingImpersonationFlag()),
   );
 
   // Validate any pending impersonation token (URL or localStorage handoff)
@@ -96,7 +105,7 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     const token = readPendingImpersonationToken();
-    if (!token) {
+    if (!token && !hasPendingImpersonationFlag()) {
       setImpersonationPending(false);
       return;
     }
@@ -104,6 +113,45 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
     (async () => {
       try {
+        if (!token) {
+          const startedAt = Date.now();
+          let resolved = false;
+          while (!resolved && !cancelled && Date.now() - startedAt < 10000) {
+            const nextToken = readPendingImpersonationToken();
+            if (nextToken) {
+              resolved = true;
+              const { data, error } = await serviceSupabase.rpc("validate_impersonation_token", {
+                _token: nextToken,
+              });
+              if (cancelled) return;
+              if (error) throw error;
+              const row = Array.isArray(data) ? data[0] : data;
+              if (!(row as any)?.is_valid) {
+                setImpersonationPending(false);
+                return;
+              }
+              const next: ImpersonationState = {
+                token: nextToken,
+                clientId: (row as any).client_id,
+                clientName: (row as any).client_full_name,
+                clientEmail: (row as any).client_email,
+                expiresAt: (row as any).expires_at,
+              };
+              try {
+                sessionStorage.setItem("nivra_impersonation_v1", JSON.stringify(next));
+              } catch {
+                /* ignore */
+              }
+              setImpersonation(next);
+            } else {
+              await new Promise((resolve) => window.setTimeout(resolve, 200));
+            }
+          }
+          if (!resolved && !cancelled) {
+            setImpersonationPending(false);
+          }
+          return;
+        }
         const { data, error } = await serviceSupabase.rpc("validate_impersonation_token", {
           _token: token,
         });
