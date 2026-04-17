@@ -315,7 +315,7 @@ const CoreAppLayout = () => {
         <nav className="flex-1 overflow-y-auto py-1 px-1.5 space-y-0.5 core-scrollbar">
           {collapsed ? (
             /* Collapsed: show only group icons */
-            NAV_GROUPS.map((group) => (
+            visibleGroups.map((group) => (
               <button
                 key={group.id}
                 onClick={() => {
