@@ -323,7 +323,12 @@ const SupplierAccountForm = ({ initial, id }: Props) => {
 
         <div>
           <Label>Compte client Nivra *</Label>
-          <ClientPicker value={form.client_id} onChange={(v) => set("client_id", v)} />
+          <ClientPicker value={form.client_id} onChange={(v) => set("client_id", v)} locked={isEdit} />
+          {isEdit && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Le lien au compte client est permanent et ne peut pas être modifié.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
