@@ -322,23 +322,13 @@ function ActivationDetail({
   });
 
   const handleRevealPassword = async () => {
+    // Password is now stored as plain text — read directly from the record
     if (decryptedPwd) {
       setShowPassword(!showPassword);
       return;
     }
-    setDecrypting(true);
-    try {
-      const { data, error } = await supabase.rpc("decrypt_wifi_password", {
-        p_encrypted: request.wifi_password_encrypted,
-      });
-      if (error) throw error;
-      setDecryptedPwd(data || "");
-      setShowPassword(true);
-    } catch (err: any) {
-      toast.error(err?.message || "Impossible de déchiffrer");
-    } finally {
-      setDecrypting(false);
-    }
+    setDecryptedPwd(request.wifi_password_encrypted || "");
+    setShowPassword(true);
   };
 
   const updateStatus = async (newStatus: string, extraFields: Record<string, any> = {}) => {
