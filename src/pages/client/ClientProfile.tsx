@@ -341,9 +341,11 @@ const ClientProfile = () => {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const writeGuard = useWriteGuard();
+
+  const handleSubmit = writeGuard((e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate phone format
     if (formData.phone && !validateCanadianPhone(formData.phone)) {
       toast({ 
@@ -396,7 +398,7 @@ const ClientProfile = () => {
 
   const passwordValidation = validatePassword(passwordForm.newPassword);
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = writeGuard(() => {
     if (!passwordValidation.isValid) {
       toast({ 
         title: "Mot de passe trop faible", 
@@ -410,7 +412,7 @@ const ClientProfile = () => {
       return;
     }
     changePasswordMutation.mutate({ newPassword: passwordForm.newPassword });
-  };
+  });
 
   const accountStatusColors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-700",

@@ -38,8 +38,11 @@ const statusConfig: Record<string, { color: string; label: string; icon: any }> 
   cancelled: { color: "bg-red-500/20 text-red-500", label: "Annulé", icon: Clock },
 };
 
+import { useWriteGuard } from "@/hooks/useWriteGuard";
+
 export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEquipmentOrderDetailsProps) {
   const queryClient = useQueryClient();
+  const writeGuard = useWriteGuard();
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch order lines
@@ -74,10 +77,10 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
   // The client portal does NOT fabricate invoices or payments.
   // ============================================================
 
-  const handlePayNow = () => {
+  const handlePayNow = writeGuard(() => {
     // Redirect client to the canonical portal payment page
     toast.info("Veuillez utiliser la section Facturation de votre portail pour effectuer le paiement.", { duration: 5000 });
-  };
+  });
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -274,7 +277,8 @@ export default function ClientEquipmentOrderDetails({ order, onClose }: ClientEq
             </div>
             <Button
               onClick={handlePayNow}
-              disabled={isProcessing}
+              disabled={isProcessing || writeGuard.isReadOnly}
+              title={writeGuard.disabledReason}
               className="w-full h-12 text-lg"
               size="lg"
             >

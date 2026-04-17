@@ -147,7 +147,9 @@ const ClientCancellations = () => {
     },
   });
 
-  const handleSubmit = () => {
+  const writeGuard = useWriteGuard();
+
+  const handleSubmit = writeGuard(() => {
     if (!newRequest.service_type || !newRequest.reason_code) {
       toast({ 
         title: "Champs requis", 
@@ -157,7 +159,7 @@ const ClientCancellations = () => {
       return;
     }
     createMutation.mutate(newRequest);
-  };
+  });
 
   // Detail view
   if (selectedRequest) {
