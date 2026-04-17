@@ -14529,6 +14529,81 @@ export type Database = {
           },
         ]
       }
+      supplier_accounts: {
+        Row: {
+          account_email: string
+          account_password_encrypted: string
+          activation_date: string
+          client_id: string
+          created_at: string
+          created_by: string | null
+          date_of_birth: string
+          first_name: string
+          id: string
+          last_name: string
+          monthly_price: number
+          mothers_maiden_name: string
+          notes: string | null
+          service_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_email: string
+          account_password_encrypted: string
+          activation_date: string
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          date_of_birth: string
+          first_name: string
+          id?: string
+          last_name: string
+          monthly_price: number
+          mothers_maiden_name: string
+          notes?: string | null
+          service_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_email?: string
+          account_password_encrypted?: string
+          activation_date?: string
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          date_of_birth?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          monthly_price?: number
+          mothers_maiden_name?: string
+          notes?: string | null
+          service_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      supplier_secrets: {
+        Row: {
+          created_at: string
+          encryption_key: string
+          id: boolean
+        }
+        Insert: {
+          created_at?: string
+          encryption_key: string
+          id?: boolean
+        }
+        Update: {
+          created_at?: string
+          encryption_key?: string
+          id?: boolean
+        }
+        Relationships: []
+      }
       support_ticket_id_status_debug: {
         Row: {
           created_at: string
@@ -16728,6 +16803,7 @@ export type Database = {
       }
     }
     Functions: {
+      _supplier_get_key: { Args: never; Returns: string }
       admin_sign_contract: {
         Args: {
           p_admin_name: string
@@ -16933,6 +17009,23 @@ export type Database = {
           p_payment_method_snapshot?: Json
           p_selected_channels_snapshot?: Json
           p_services_snapshot?: Json
+        }
+        Returns: string
+      }
+      create_supplier_account: {
+        Args: {
+          p_account_email: string
+          p_account_password: string
+          p_activation_date: string
+          p_client_id: string
+          p_date_of_birth: string
+          p_first_name: string
+          p_last_name: string
+          p_monthly_price: number
+          p_mothers_maiden_name: string
+          p_notes?: string
+          p_service_name: string
+          p_status?: string
         }
         Returns: string
       }
@@ -17281,6 +17374,7 @@ export type Database = {
         Args: { p_customer_id: string; p_order_id?: string }
         Returns: string
       }
+      reveal_supplier_password: { Args: { p_id: string }; Returns: string }
       search_clients_unified: {
         Args: {
           search_email?: string
@@ -17324,6 +17418,24 @@ export type Database = {
       supersede_contract_version: {
         Args: { p_order_id: string }
         Returns: string
+      }
+      update_supplier_account: {
+        Args: {
+          p_account_email: string
+          p_account_password: string
+          p_activation_date: string
+          p_client_id: string
+          p_date_of_birth: string
+          p_first_name: string
+          p_id: string
+          p_last_name: string
+          p_monthly_price: number
+          p_mothers_maiden_name: string
+          p_notes: string
+          p_service_name: string
+          p_status: string
+        }
+        Returns: undefined
       }
       update_template_last_used_at: {
         Args: { p_template_key: string }

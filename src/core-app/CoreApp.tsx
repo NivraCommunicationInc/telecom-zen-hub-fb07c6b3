@@ -106,6 +106,11 @@ const CoreMyAccountPage = lazy(() => import("./pages/CoreMyAccountPage"));
 const CoreSettingsPage = lazy(() => import("./pages/CoreSettingsPage"));
 const CoreStockPage = lazy(() => import("./pages/CoreStockPage"));
 
+// Supplier Accounts (admin only)
+const SupplierAccountsPage = lazy(() => import("./pages/SupplierAccountsPage"));
+const SupplierAccountNewPage = lazy(() => import("./pages/SupplierAccountNewPage"));
+const SupplierAccountDetailPage = lazy(() => import("./pages/SupplierAccountDetailPage"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -230,6 +235,10 @@ const CoreApp = () => {
                 <Route path="my-account" element={<S><CoreMyAccountPage /></S>} />
                 <Route path="settings" element={<S><CoreSettingsPage /></S>} />
                 <Route path="stock" element={<S><CoreStockPage /></S>} />
+                {/* Supplier Accounts (admin only) */}
+                <Route path="supplier-accounts" element={<S><SupplierAccountsPage /></S>} />
+                <Route path="supplier-accounts/new" element={<S><SupplierAccountNewPage /></S>} />
+                <Route path="supplier-accounts/:id" element={<S><SupplierAccountDetailPage /></S>} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

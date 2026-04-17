@@ -21,6 +21,7 @@ import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBad
 import { cn } from "@/lib/utils";
 import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
+import { ClientSupplierAccountSection } from "@/core-app/components/supplier-accounts/ClientSupplierAccountSection";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -544,6 +545,9 @@ const CoreClientProfile = () => {
           <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune activité enregistrée</p>
         )}
       </Section>
+
+      {/* ═══ COMPTE FOURNISSEUR (admin only) ═══ */}
+      <ClientSupplierAccountSection clientId={clientId} />
     </div>
   );
 };

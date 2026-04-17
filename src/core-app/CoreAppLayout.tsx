@@ -12,7 +12,7 @@ import {
   FileText, CreditCard, RefreshCcw, Calendar, LogOut, ChevronLeft,
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
-  MonitorPlay,
+  MonitorPlay, Lock,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
@@ -23,10 +23,13 @@ import { Input } from "@/components/ui/input";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 
+import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
+
 interface NavItem {
   icon: LucideIcon;
   label: string;
   href: string;
+  adminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -68,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Calendar, label: "Appointments", href: "/appointments" },
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Shield, label: "KYC", href: "/kyc" },
+      { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
   },
   {
@@ -186,9 +190,20 @@ const CoreAppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, themeClass, toggleTheme } = useInternalTheme();
+  const { isAdmin } = useIsCoreAdmin();
   const isDarkTheme = themeClass === "theme-dark";
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter out admin-only items for non-admins
+  const visibleGroups = useMemo<NavGroup[]>(
+    () =>
+      NAV_GROUPS.map((g) => ({
+        ...g,
+        items: g.items.filter((it) => !it.adminOnly || isAdmin),
+      })).filter((g) => g.items.length > 0),
+    [isAdmin]
+  );
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     try {
@@ -204,7 +219,7 @@ const CoreAppLayout = () => {
 
   // Auto-open group containing active route
   useEffect(() => {
-    for (const group of NAV_GROUPS) {
+    for (const group of visibleGroups) {
       if (group.items.some((item) => isCorePathActive(location.pathname, item.href))) {
         if (!openGroups[group.id]) {
           setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
@@ -212,12 +227,12 @@ const CoreAppLayout = () => {
         break;
       }
     }
-  }, [location.pathname]);
+  }, [location.pathname, visibleGroups]);
 
   const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return NAV_GROUPS;
+    if (!searchQuery.trim()) return visibleGroups;
     const q = searchQuery.toLowerCase().trim();
-    return NAV_GROUPS
+    return visibleGroups
       .map((group) => {
         const groupMatch = group.label.toLowerCase().includes(q);
         const matchingItems = group.items.filter((item) =>
@@ -228,7 +243,7 @@ const CoreAppLayout = () => {
         return null;
       })
       .filter((g): g is NavGroup => g !== null);
-  }, [searchQuery]);
+  }, [searchQuery, visibleGroups]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -300,7 +315,7 @@ const CoreAppLayout = () => {
         <nav className="flex-1 overflow-y-auto py-1 px-1.5 space-y-0.5 core-scrollbar">
           {collapsed ? (
             /* Collapsed: show only group icons */
-            NAV_GROUPS.map((group) => (
+            visibleGroups.map((group) => (
               <button
                 key={group.id}
                 onClick={() => {
