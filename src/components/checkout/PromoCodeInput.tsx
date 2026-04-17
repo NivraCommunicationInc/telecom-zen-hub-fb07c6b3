@@ -69,6 +69,20 @@ export const PromoCodeInput = ({
       return;
     }
 
+    // Normalize early to detect first-month-free duplicates
+    const normalizedCode = normalizePromoCode(code);
+
+    // If first-month-free already applied (auto or manual), block re-applying the equivalent code
+    if (
+      duplicateFirstMonthFreeMessage &&
+      FIRST_MONTH_FREE_CODES.includes(normalizedCode) &&
+      appliedPromo &&
+      FIRST_MONTH_FREE_CODES.includes(appliedPromo.code?.toUpperCase?.() || "")
+    ) {
+      setError(duplicateFirstMonthFreeMessage);
+      return;
+    }
+
     if (appliedPromo && !appliedPromo.stackable) {
       setError("Un code promo est déjà appliqué et n'est pas cumulable");
       return;
