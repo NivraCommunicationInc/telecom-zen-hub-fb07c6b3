@@ -43,6 +43,14 @@ export function useCanonicalFees() {
     return fee ? Number(fee.amount) : 0;
   };
 
+  /** Old prices for "before/after" display in UI (NOUVEAU PRIX badge). */
+  const OLD_PRICES: Record<string, number> = {
+    activation_single: 25,
+    delivery_self_install: 30,
+    installation_technician: 50,
+  };
+  const getOldPrice = (key: string): number | null => OLD_PRICES[key] ?? null;
+
   const getFeeRecord = (key: string): OperationalFee | undefined => {
     return fees?.find(f => f.fee_key === key);
   };
@@ -52,6 +60,7 @@ export function useCanonicalFees() {
     isLoading,
     getFee,
     getFeeRecord,
+    getOldPrice,
     // Convenience accessors matching the old hardcoded constants
     activationSingle: getFee("activation_single"),
     activationBundle: getFee("activation_bundle"),

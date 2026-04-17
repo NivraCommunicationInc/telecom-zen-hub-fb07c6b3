@@ -30,9 +30,9 @@ import { validateDob, getMaxDobDate, MIN_AGE_TELECOM, parseDate } from "@/lib/va
 import { AddressAutocomplete, AddressValue } from "@/components/shared/AddressAutocomplete";
 
 // ⛔ LOCAL TAX MATH REMOVED — taxes computed server-side only via order orchestration
-const DELIVERY_FEES = { standard: 30, uber: 45, shipHome: 15 };
-const ACTIVATION_FEE = 25;
-const INSTALLATION_FEE = 75;
+const DELIVERY_FEES = { standard: 20, uber: 45, shipHome: 15 };
+const ACTIVATION_FEE = 10;
+const INSTALLATION_FEE = 25;
 
 // Service plans matching public website
 const SERVICE_PLANS = {

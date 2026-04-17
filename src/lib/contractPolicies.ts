@@ -36,9 +36,9 @@ export const CONTRACT_TERMS = {
   
   // One-time fees (not plan-dependent)
   fees: {
-    activationSingle: 25, // 1 service type
+    activationSingle: 10, // 1 service type (updated 2026-04)
     activationMultiple: 45, // 2+ service types (bundled cap)
-    delivery: 30,
+    delivery: 20, // auto-installation shipping (updated 2026-04)
     tvTerminal: 50, // per terminal
     router: 60,
     maxTerminals: 4,

@@ -204,9 +204,9 @@ const GuestCheckout = () => {
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
   const simFee = hasMobileService ? SIM_PRICE : 0;
   const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
-  const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 25);
-  const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0);
-  const installationFee = isStreamingOnlyOrder ? 0 : (installationChoice === "technician" ? (canonicalFees.installationTechnician || 50) : 0);
+  const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 10);
+  const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
+  const installationFee = isStreamingOnlyOrder ? 0 : (installationChoice === "technician" ? (canonicalFees.installationTechnician || 25) : 0);
   const oneTimeFees = routerFee + simFee + terminalFee + activationFee + deliveryFee + installationFee;
 
   // ── Live server pricing ──

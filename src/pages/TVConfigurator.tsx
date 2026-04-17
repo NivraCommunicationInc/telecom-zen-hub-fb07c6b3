@@ -93,9 +93,9 @@ const TVConfigurator = () => {
   const canonicalFees = useCanonicalFees();
 
   // Canonical fee values (from DB, with fallbacks)
-  const TECHNICIAN_INSTALL_FEE = canonicalFees.installationTechnician || 50;
-  const STANDARD_DELIVERY_FEE = canonicalFees.deliverySelfInstall || 30;
-  const ACTIVATION_FEE_SINGLE = canonicalFees.activationSingle || 25;
+  const TECHNICIAN_INSTALL_FEE = canonicalFees.installationTechnician || 25;
+  const STANDARD_DELIVERY_FEE = canonicalFees.deliverySelfInstall || 20;
+  const ACTIVATION_FEE_SINGLE = canonicalFees.activationSingle || 10;
 
   // ─── Simulator step tracking ───
   const [activeStep, setActiveStep] = useState<SimulatorStep>(1);
