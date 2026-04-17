@@ -496,6 +496,8 @@ serve(async (req) => {
 
     const result = {
       valid: true,
+      is_new_client: promo.new_customers_only === true ? true : undefined,
+      auto_applied: auto_apply === true ? true : undefined,
       promo: {
         id: promo.id,
         code: promo.code.toUpperCase(),
