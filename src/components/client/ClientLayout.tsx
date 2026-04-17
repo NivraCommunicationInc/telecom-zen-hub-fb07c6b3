@@ -58,6 +58,7 @@ const navGroups = [
     path: null,
     children: [
       { path: "/portal/services", label: "Mes services" },
+      { path: "/portal/activation", label: "Activation des services" },
       { path: "/portal/service-addresses", label: "Mes adresses" },
       { path: "/portal/orders", label: "Mes commandes" },
       { path: "/portal/identity-verification", label: "Vérification d'identité" },
