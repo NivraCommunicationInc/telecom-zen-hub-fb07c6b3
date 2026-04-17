@@ -346,6 +346,110 @@ export type Database = {
           },
         ]
       }
+      activation_request_history: {
+        Row: {
+          activation_request_id: string
+          actor_name: string | null
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          note: string | null
+          to_status: string
+        }
+        Insert: {
+          activation_request_id: string
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status: string
+        }
+        Update: {
+          activation_request_id?: string
+          actor_name?: string | null
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activation_request_history_activation_request_id_fkey"
+            columns: ["activation_request_id"]
+            isOneToOne: false
+            referencedRelation: "activation_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activation_requests: {
+        Row: {
+          activated_at: string | null
+          admin_notes: string | null
+          assigned_to: string | null
+          business_notified: boolean
+          client_id: string
+          client_notes: string | null
+          completed_at: string | null
+          contact_phone: string
+          id: string
+          order_id: string | null
+          rejection_reason: string | null
+          started_at: string | null
+          status: string
+          submitted_at: string
+          updated_at: string
+          wifi_network_name: string
+          wifi_password_encrypted: string
+        }
+        Insert: {
+          activated_at?: string | null
+          admin_notes?: string | null
+          assigned_to?: string | null
+          business_notified?: boolean
+          client_id: string
+          client_notes?: string | null
+          completed_at?: string | null
+          contact_phone: string
+          id?: string
+          order_id?: string | null
+          rejection_reason?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          wifi_network_name: string
+          wifi_password_encrypted: string
+        }
+        Update: {
+          activated_at?: string | null
+          admin_notes?: string | null
+          assigned_to?: string | null
+          business_notified?: boolean
+          client_id?: string
+          client_notes?: string | null
+          completed_at?: string | null
+          contact_phone?: string
+          id?: string
+          order_id?: string | null
+          rejection_reason?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          wifi_network_name?: string
+          wifi_password_encrypted?: string
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           action: string
@@ -17056,10 +17160,12 @@ export type Database = {
         }
         Returns: string
       }
+      decrypt_wifi_password: { Args: { p_encrypted: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      encrypt_wifi_password: { Args: { p_password: string }; Returns: string }
       end_impersonation: { Args: { _token: string }; Returns: boolean }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -17441,6 +17547,16 @@ export type Database = {
           session_id: string
           token: string
         }[]
+      }
+      submit_activation_request: {
+        Args: {
+          p_client_notes?: string
+          p_contact_phone: string
+          p_order_id?: string
+          p_wifi_network_name: string
+          p_wifi_password: string
+        }
+        Returns: string
       }
       supersede_contract_version: {
         Args: { p_order_id: string }
