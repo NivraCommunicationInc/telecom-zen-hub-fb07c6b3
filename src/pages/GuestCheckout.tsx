@@ -995,6 +995,26 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
+                {/* Auto-applied first-month-free banner */}
+                {autoAppliedPromo && appliedPromo?.code === "BIENVENUE2026" && (
+                  <Card className="bg-emerald-50 border-emerald-300">
+                    <CardContent className="py-4">
+                      <div className="flex items-start gap-3">
+                        <Gift className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-emerald-700 text-sm mb-1">
+                            🎉 Premier mois gratuit appliqué automatiquement!
+                          </p>
+                          <p className="text-xs text-emerald-800 leading-relaxed">
+                            Nous avons détecté que vous êtes un nouveau client Nivra Telecom.
+                            Votre premier mois de service est entièrement gratuit — aucun code requis.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Promo / Referral */}
                 <Card>
                   <CardHeader>
@@ -1010,9 +1030,15 @@ const GuestCheckout = () => {
                       subtotalBeforeDiscount={subtotal}
                       onPromoApplied={(promo) => {
                         setAppliedPromo(promo);
+                        if (!promo) setAutoAppliedPromo(false);
                         if (promo) setWelcomeDiscountDismissed(true);
                       }}
                       appliedPromo={appliedPromo}
+                      duplicateFirstMonthFreeMessage={
+                        autoAppliedPromo
+                          ? "Votre premier mois gratuit est déjà appliqué automatiquement."
+                          : undefined
+                      }
                     />
                     <ReferralCodeInput
                       clientEmail={email}
