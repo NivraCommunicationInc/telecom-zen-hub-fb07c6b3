@@ -627,6 +627,29 @@ serve(async (req) => {
             // ★ FIX GAP 1: Promo fields propagated from pricing_snapshot
             promo_code: snapshotPromoCode,
             promo_discount_amount: snapshotPromoDiscount,
+            // ★ FIX GAP 2 (post Vincent Jutras incident): persist client identity
+            // and equipment line details on the order itself so it never depends
+            // on linked tables for downstream documents and admin views.
+            client_first_name: payload.customer.first_name || null,
+            client_last_name: payload.customer.last_name || null,
+            client_email: payload.customer.email || null,
+            client_phone: payload.customer.phone || null,
+            client_dob: payload.customer.date_of_birth || null,
+            client_full_address: [
+              payload.service_address?.street,
+              payload.service_address?.city,
+              payload.service_address?.province || "QC",
+              payload.service_address?.postal_code,
+            ].filter(Boolean).join(", ") || null,
+            equipment_line_details: (payload.equipment && payload.equipment.length > 0)
+              ? payload.equipment.map((e) => ({
+                  sku: e.sku || null,
+                  name: e.name || null,
+                  quantity: Number(e.quantity || 1),
+                  unit_price: toMoney(e.unit_price),
+                  line_total: toMoney(Number(e.unit_price || 0) * Number(e.quantity || 1)),
+                }))
+              : null,
           },
           { onConflict: "id" },
         );
