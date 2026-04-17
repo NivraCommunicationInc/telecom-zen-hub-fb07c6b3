@@ -189,7 +189,7 @@ serve(async (req: Request) => {
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
       to: [recipientEmail],
       bcc: isTest ? [] : BUSINESS_EMAILS,
-      replyTo: SUPPORT_EMAIL,
+      reply_to: SUPPORT_EMAIL,
       subject: `${isTest ? "[TEST] " : ""}${clientLang === "fr" ? "✅ Votre service Nivra est activé — Bienvenue!" : "✅ Your Nivra service is now active — Welcome!"}`,
       html,
       headers: { "X-Entity-Ref-ID": `activation-success-${ar.id}${isTest ? '-test-' + Date.now() : ''}` },
