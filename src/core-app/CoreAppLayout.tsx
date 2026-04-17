@@ -219,7 +219,7 @@ const CoreAppLayout = () => {
 
   // Auto-open group containing active route
   useEffect(() => {
-    for (const group of NAV_GROUPS) {
+    for (const group of visibleGroups) {
       if (group.items.some((item) => isCorePathActive(location.pathname, item.href))) {
         if (!openGroups[group.id]) {
           setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
@@ -227,12 +227,12 @@ const CoreAppLayout = () => {
         break;
       }
     }
-  }, [location.pathname]);
+  }, [location.pathname, visibleGroups]);
 
   const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return NAV_GROUPS;
+    if (!searchQuery.trim()) return visibleGroups;
     const q = searchQuery.toLowerCase().trim();
-    return NAV_GROUPS
+    return visibleGroups
       .map((group) => {
         const groupMatch = group.label.toLowerCase().includes(q);
         const matchingItems = group.items.filter((item) =>
@@ -243,7 +243,7 @@ const CoreAppLayout = () => {
         return null;
       })
       .filter((g): g is NavGroup => g !== null);
-  }, [searchQuery]);
+  }, [searchQuery, visibleGroups]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
