@@ -41,6 +41,11 @@ declare global {
     paypal?: {
       Buttons: (config: unknown) => {
         render: (container: string | HTMLElement) => Promise<void>;
+        isEligible?: () => boolean;
+      };
+      FUNDING?: {
+        CARD: string;
+        PAYPAL: string;
       };
     };
   }
@@ -62,6 +67,7 @@ export const PayPalButton = ({
   const [isLoading, setIsLoading] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
   const containerId = `paypal-button-container-${invoiceId || orderId || "main"}`;
+  const cardContainerId = `paypal-card-container-${invoiceId || orderId || "main"}`;
 
   // IMPORTANT:
   // Plusieurs parties du site refetch en arrière-plan (bannières statut, sécurité, etc.).
@@ -124,7 +130,8 @@ export const PayPalButton = ({
 
       // Get client ID from edge function (more secure)
       const script = document.createElement("script");
-      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA`;
+      // Enable card funding source explicitly so the standalone card button is rendered.
+      script.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || ""}&currency=CAD&locale=fr_CA&enable-funding=card&components=buttons,funding-eligibility`;
       script.async = true;
       script.onload = () => setSdkReady(true);
       script.onerror = () => {
@@ -261,8 +268,14 @@ export const PayPalButton = ({
           </span>
         </div>
       )}
-      <div 
-        id={containerId} 
+      {/* Card-first button (Visa / Mastercard — no PayPal account) */}
+      <div
+        id={cardContainerId}
+        className={isLoading ? "opacity-50 pointer-events-none mb-2" : "mb-2"}
+      />
+      {/* PayPal account button (fallback) */}
+      <div
+        id={containerId}
         className={isLoading ? "opacity-50 pointer-events-none" : ""}
       />
       {!sdkReady && !isLoading && (
