@@ -300,16 +300,24 @@ serve(async (req) => {
             recovery_hint: "Money was captured by PayPal but no DB invoice exists. Manually create order/invoice/payment using payer info above.",
           },
         });
-        // Notify business immediately
+        // Notify business immediately (use custom_html template — exists in registry)
+        const alertSubject = `🚨 PayPal capture orpheline — ${captureId}`;
+        const alertBody = `
+          <h2>Capture PayPal sans facture</h2>
+          <p><strong>Capture ID:</strong> ${captureId}</p>
+          <p><strong>Montant:</strong> ${amount} ${currencyCode}</p>
+          <p><strong>Payeur:</strong> ${payerFirstName} ${payerLastName} &lt;${payerEmail}&gt;</p>
+          <p><strong>Téléphone:</strong> ${payerPhone || "n/a"}</p>
+          <p><strong>Tentative invoice_id:</strong> ${invoiceId}</p>
+          <p>L'argent a été capturé par PayPal mais aucune facture n'a été trouvée. Récupération manuelle requise immédiatement.</p>
+        `;
         await supabase.from("email_queue").insert([
           {
             event_key: `orphan_capture_${captureId}`,
             to_email: "support@nivra-telecom.ca",
-            template_key: "internal_alert",
-            template_vars: {
-              subject: `🚨 PayPal capture orpheline — ${captureId}`,
-              body: `Capture PayPal ${captureId} ($${amount} ${currencyCode}) reçue de ${payerEmail} mais sans facture liée. Récupération manuelle requise.`,
-            },
+            template_key: "custom_html",
+            subject: alertSubject,
+            template_vars: { subject: alertSubject, html: alertBody },
             status: "queued",
             attempts: 0,
             max_attempts: 5,
@@ -317,11 +325,9 @@ serve(async (req) => {
           {
             event_key: `orphan_capture_${captureId}_alt`,
             to_email: "nivratelecom@gmail.com",
-            template_key: "internal_alert",
-            template_vars: {
-              subject: `🚨 PayPal capture orpheline — ${captureId}`,
-              body: `Capture PayPal ${captureId} ($${amount} ${currencyCode}) reçue de ${payerEmail} mais sans facture liée. Récupération manuelle requise.`,
-            },
+            template_key: "custom_html",
+            subject: alertSubject,
+            template_vars: { subject: alertSubject, html: alertBody },
             status: "queued",
             attempts: 0,
             max_attempts: 5,
