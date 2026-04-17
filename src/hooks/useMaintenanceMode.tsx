@@ -62,14 +62,22 @@ export const useMaintenanceMode = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings", filter: "key=eq.maintenance_mode" },
-        () => queryClient.invalidateQueries({ queryKey: ["site-settings", "maintenance_mode"] }),
+        (payload) => {
+          console.log("[maintenance_mode_realtime] maintenance change", payload);
+          queryClient.invalidateQueries({ queryKey: ["site-settings", "maintenance_mode"] });
+        },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings", filter: "key=eq.maintenance_allowed_routes" },
-        () => queryClient.invalidateQueries({ queryKey: ["site-settings", "maintenance_allowed_routes"] }),
+        (payload) => {
+          console.log("[maintenance_mode_realtime] allowed routes change", payload);
+          queryClient.invalidateQueries({ queryKey: ["site-settings", "maintenance_allowed_routes"] });
+        },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[maintenance_mode_realtime] status", status);
+      });
     return () => {
       supabase.removeChannel(channel);
     };

@@ -9,7 +9,6 @@ import LanguageSelector from "./LanguageSelector";
 import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } from "@/config/navigation";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
-import { QuickAnnouncementBanner } from "@/components/public/QuickAnnouncementBanner";
 import { SiteSearchDialog } from "@/components/public/SiteSearchDialog";
 
 const PURPLE = "#7c3aed";
@@ -251,7 +250,6 @@ const Header = () => {
   return (
     <>
       <SiteSearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
-      <QuickAnnouncementBanner />
       <PublicSystemStatusBanner />
       
       {/* Top utility bar — desktop only */}

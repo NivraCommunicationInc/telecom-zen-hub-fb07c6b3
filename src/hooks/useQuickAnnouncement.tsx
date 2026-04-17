@@ -5,16 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 export type QuickAnnouncementType = "info" | "warning" | "error" | "success";
 
 export interface QuickAnnouncementConfig {
-  active: boolean;
+  active?: boolean;
+  enabled?: boolean;
   message_fr: string;
   message_en: string;
   type: QuickAnnouncementType;
   link: string;
-  link_text_fr: string;
-  link_text_en: string;
+  link_text_fr?: string;
+  link_text_en?: string;
+  link_text?: string;
 }
 
-const DEFAULT: QuickAnnouncementConfig = {
+const DEFAULT: Required<Omit<QuickAnnouncementConfig, "enabled" | "link_text">> & { active: boolean } = {
   active: false,
   message_fr: "",
   message_en: "",
@@ -41,7 +43,14 @@ export const useQuickAnnouncement = () => {
         .eq("key", "quick_announcement")
         .maybeSingle();
       if (error || !data?.value_json) return DEFAULT;
-      return { ...DEFAULT, ...(data.value_json as unknown as QuickAnnouncementConfig) };
+      const raw = data.value_json as unknown as QuickAnnouncementConfig;
+      return {
+        ...DEFAULT,
+        ...raw,
+        active: Boolean(raw.active ?? raw.enabled ?? false),
+        link_text_fr: raw.link_text_fr ?? raw.link_text ?? "",
+        link_text_en: raw.link_text_en ?? raw.link_text ?? "",
+      };
     },
     staleTime: 30_000,
   });
@@ -57,11 +66,14 @@ export const useQuickAnnouncement = () => {
           table: "site_settings",
           filter: "key=eq.quick_announcement",
         },
-        () => {
+        (payload) => {
+          console.log("[quick_announcement_realtime] change received", payload);
           queryClient.invalidateQueries({ queryKey: ["site-settings", "quick_announcement"] });
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[quick_announcement_realtime] status", status);
+      });
     return () => {
       supabase.removeChannel(channel);
     };
