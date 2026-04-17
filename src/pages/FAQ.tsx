@@ -24,7 +24,7 @@ const FAQ = () => {
       questions: [
         {
           q: isFr ? 'Combien coûte Internet sans contrat au Québec avec Nivra Telecom ?' : 'How much does no-contract Internet cost in Quebec with Nivra Telecom?',
-          a: isFr ? 'Nos forfaits Internet sans contrat débutent à 39$/mois taxes incluses. Contrairement à Bell et Vidéotron, le prix affiché est le prix réel — aucuns frais cachés, aucune augmentation après 12 mois.' : 'Our no-contract Internet plans start at $39/month taxes included. Unlike Bell and Vidéotron, the price shown is the real price — no hidden fees, no increase after 12 months.',
+          a: isFr ? 'Nos forfaits Internet sans contrat débutent à 45$/mois taxes incluses. Contrairement à Bell et Vidéotron, le prix affiché est le prix réel — aucuns frais cachés, aucune augmentation après 12 mois.' : 'Our no-contract Internet plans start at $45/month taxes included. Unlike Bell and Vidéotron, the price shown is the real price — no hidden fees, no increase after 12 months.',
         },
         {
           q: isFr ? 'Est-ce que Nivra Telecom est moins cher que Bell ou Vidéotron ?' : 'Is Nivra Telecom cheaper than Bell or Vidéotron?',

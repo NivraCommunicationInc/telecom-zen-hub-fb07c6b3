@@ -7,7 +7,7 @@ export default function StatsBanner() {
   const stats = [
     { number: isFr ? "Sans contrat" : "No contract", label: isFr ? "Résiliez à tout moment, 0 frais" : "Cancel anytime, $0 fees" },
     { number: "4.9★", label: isFr ? "Note de nos premiers clients" : "Rating from our first clients" },
-    { number: isFr ? "Dès 39$" : "From $39", label: isFr ? "Par mois, taxes incluses" : "Per month, taxes included" },
+    { number: isFr ? "Dès 45$" : "From $45", label: isFr ? "Par mois, taxes incluses" : "Per month, taxes included" },
     { number: "10 min", label: isFr ? "Activation en ligne" : "Online activation" },
   ];
 
