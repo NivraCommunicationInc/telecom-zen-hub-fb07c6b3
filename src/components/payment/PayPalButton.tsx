@@ -268,8 +268,14 @@ export const PayPalButton = ({
           </span>
         </div>
       )}
-      <div 
-        id={containerId} 
+      {/* Card-first button (Visa / Mastercard — no PayPal account) */}
+      <div
+        id={cardContainerId}
+        className={isLoading ? "opacity-50 pointer-events-none mb-2" : "mb-2"}
+      />
+      {/* PayPal account button (fallback) */}
+      <div
+        id={containerId}
         className={isLoading ? "opacity-50 pointer-events-none" : ""}
       />
       {!sdkReady && !isLoading && (
