@@ -7416,6 +7416,51 @@ export type Database = {
           },
         ]
       }
+      impersonation_sessions: {
+        Row: {
+          admin_id: string
+          client_id: string
+          consumed_at: string | null
+          ended_at: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          is_active: boolean
+          reason: string | null
+          started_at: string
+          token: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_id: string
+          client_id: string
+          consumed_at?: string | null
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          reason?: string | null
+          started_at?: string
+          token?: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_id?: string
+          client_id?: string
+          consumed_at?: string | null
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          reason?: string | null
+          started_at?: string
+          token?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       influencer_audit_log: {
         Row: {
           action: string
@@ -16892,6 +16937,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      end_impersonation: { Args: { _token: string }; Returns: boolean }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -17259,6 +17305,19 @@ export type Database = {
           last_name: string
         }[]
       }
+      start_impersonation: {
+        Args: {
+          _client_id: string
+          _ip?: string
+          _reason?: string
+          _ua?: string
+        }
+        Returns: {
+          expires_at: string
+          session_id: string
+          token: string
+        }[]
+      }
       supersede_contract_version: {
         Args: { p_order_id: string }
         Returns: string
@@ -17270,6 +17329,17 @@ export type Database = {
       validate_contract_status_transition: {
         Args: { p_new_status: string; p_old_status: string }
         Returns: boolean
+      }
+      validate_impersonation_token: {
+        Args: { _token: string }
+        Returns: {
+          admin_id: string
+          client_email: string
+          client_full_name: string
+          client_id: string
+          expires_at: string
+          is_valid: boolean
+        }[]
       }
       validate_referral_code: {
         Args: { p_code: string }
