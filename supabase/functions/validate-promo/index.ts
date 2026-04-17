@@ -23,7 +23,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { code, client_email, client_id, cart_items, subtotal_before_discount } = await req.json();
+    const { code, client_email, client_id, cart_items, subtotal_before_discount, client_dob, client_phone, auto_apply } = await req.json();
 
     console.log(`[validate-promo] Validating code: ${code} for client: ${client_email}`);
 
