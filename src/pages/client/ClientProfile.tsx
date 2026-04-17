@@ -596,7 +596,8 @@ const ClientProfile = () => {
                   <Button
                     type="submit"
                     variant="hero"
-                    disabled={updateProfileMutation.isPending}
+                    disabled={updateProfileMutation.isPending || writeGuard.isReadOnly}
+                    title={writeGuard.disabledReason}
                     className="w-full"
                   >
                     {updateProfileMutation.isPending ? (
@@ -879,7 +880,8 @@ const ClientProfile = () => {
             <Button 
               variant="hero" 
               onClick={handlePasswordChange}
-              disabled={changePasswordMutation.isPending || !passwordForm.newPassword || !passwordForm.confirmPassword}
+              disabled={changePasswordMutation.isPending || !passwordForm.newPassword || !passwordForm.confirmPassword || writeGuard.isReadOnly}
+              title={writeGuard.disabledReason}
             >
               {changePasswordMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />

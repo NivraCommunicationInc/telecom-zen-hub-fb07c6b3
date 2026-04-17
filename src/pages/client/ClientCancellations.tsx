@@ -399,7 +399,7 @@ const ClientCancellations = () => {
                   Annuler
                 </Button>
                 <BlockedActionWrapper action="request" showInlineNotice={isAccountBlocked}>
-                  <Button onClick={handleSubmit} disabled={isAccountBlocked || createMutation.isPending}>
+                  <Button onClick={handleSubmit} disabled={isAccountBlocked || createMutation.isPending || writeGuard.isReadOnly} title={writeGuard.disabledReason}>
                     {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Soumettre la demande
                   </Button>

@@ -61,6 +61,7 @@ const STATUS_LABELS: Record<string, string> = {
 const ClientBillingHub = () => {
   const { user } = useClientAuth();
   const queryClient = useQueryClient();
+  const writeGuard = useWriteGuard();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "pay-invoice";
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -218,7 +219,9 @@ const ClientBillingHub = () => {
               <div className="flex gap-3">
                 {balance > 0 && (
                   <Button
-                    onClick={() => handleTabChange("pay-invoice")}
+                    onClick={writeGuard(() => handleTabChange("pay-invoice"))}
+                    disabled={writeGuard.isReadOnly}
+                    title={writeGuard.disabledReason}
                     className="bg-primary hover:bg-primary/90"
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
