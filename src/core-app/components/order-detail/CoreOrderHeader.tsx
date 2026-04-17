@@ -19,6 +19,7 @@ interface Props {
   profile: any;
   account: any;
   appointment: any;
+  incompleteAlert?: { id: string; details: any } | null;
   onRefresh: () => void;
 }
 
@@ -38,7 +39,7 @@ function getSlaInfo(createdAt: string, status: string) {
   return { label: `${hours}h`, color: "text-[hsl(220,10%,50%)] bg-[hsl(220,15%,14%)] border-[hsl(220,15%,20%)]", critical: false };
 }
 
-export function CoreOrderHeader({ order, profile, account, appointment, onRefresh }: Props) {
+export function CoreOrderHeader({ order, profile, account, appointment, incompleteAlert, onRefresh }: Props) {
   const clientName = profile?.full_name
     || [order.client_first_name, order.client_last_name].filter(Boolean).join(" ")
     || "—";
@@ -90,6 +91,14 @@ export function CoreOrderHeader({ order, profile, account, appointment, onRefres
               {order.risk_flags && order.risk_flags.length > 0 && (
                 <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded">
                   <AlertTriangle className="h-2.5 w-2.5" /> RISQUE
+                </span>
+              )}
+              {incompleteAlert && (
+                <span
+                  className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded"
+                  title={`Champs manquants : ${(incompleteAlert.details?.missing || []).join(", ")}`}
+                >
+                  <AlertTriangle className="h-2.5 w-2.5" /> Données incomplètes
                 </span>
               )}
             </div>

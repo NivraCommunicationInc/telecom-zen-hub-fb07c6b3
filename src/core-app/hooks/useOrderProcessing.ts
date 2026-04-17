@@ -433,6 +433,18 @@ export function useOrderProcessing(orderId: string | undefined) {
       // Compute installation time estimate
       const installationEstimate = computeInstallationEstimate(order, appointment);
 
+      // ★ Incomplete-data alert (set by fn_flag_incomplete_order trigger)
+      const { data: incompleteAlert } = await supabase
+        .from("billing_system_alerts")
+        .select("id, details, created_at")
+        .eq("alert_type", "incomplete_data")
+        .eq("entity_type", "order")
+        .eq("entity_id", orderId!)
+        .eq("resolved", false)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       // Enrich order with canonical KYC status from session for workflow step computation
       const enrichedOrder = {
         ...order,
@@ -456,6 +468,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         mobileFulfillment,
         kycSession,
         activityLogs: activityLogs || [],
+        incompleteAlert: incompleteAlert || null,
       };
     },
   });
@@ -1302,6 +1315,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     portRequest: data?.order?.port_request || null,
     kycSession: data?.kycSession,
     activityLogs: data?.activityLogs || [],
+    incompleteAlert: data?.incompleteAlert || null,
     isLoading: orderQuery.isLoading,
     error: orderQuery.error,
     refetch: orderQuery.refetch,

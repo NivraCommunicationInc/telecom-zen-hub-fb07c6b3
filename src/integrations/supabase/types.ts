@@ -16907,6 +16907,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_check_order_completeness: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
       fn_check_referral_qualification: {
         Args: { p_referral_id: string }
         Returns: undefined
