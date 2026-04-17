@@ -13,7 +13,7 @@ import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvi
 import {
   Search, ArrowRight, ShoppingCart, RefreshCw,
   Clock, AlertTriangle, TrendingUp, Pause,
-  ArrowUpDown, ChevronUp, ChevronDown, Zap, DollarSign
+  ArrowUpDown, ChevronUp, ChevronDown, Zap, DollarSign, ShieldCheck
 } from "lucide-react";
 import { format, differenceInHours, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -58,6 +58,22 @@ function getPriorityIndicator(order: any): { level: "high" | "medium" | "low"; r
   if (reasons.length >= 2) return { level: "high", reasons };
   if (reasons.length === 1) return { level: "medium", reasons };
   return { level: "low", reasons: [] };
+}
+
+/** KYC badge config — null/not_required = no badge */
+function getKycBadge(status: string | null | undefined): { label: string; icon: string; className: string } | null {
+  switch (status) {
+    case "pending":
+      return { label: "KYC Demandé", icon: "🟡", className: "bg-amber-500/15 text-amber-400 border-amber-500/25" };
+    case "completed":
+      return { label: "KYC Complété", icon: "🟠", className: "bg-orange-500/15 text-orange-400 border-orange-500/25" };
+    case "approved":
+      return { label: "KYC Approuvé", icon: "✅", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" };
+    case "rejected":
+      return { label: "KYC Rejeté", icon: "❌", className: "bg-red-500/15 text-red-400 border-red-500/25" };
+    default:
+      return null;
+  }
 }
 
 const OrdersPage = () => {
@@ -220,6 +236,7 @@ const OrdersPage = () => {
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Client</th>
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Service</th>
                 <SortableHeader label="Statut" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">KYC</th>
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Paiement</th>
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Facture</th>
                 <SortableHeader label="Montant" sortKey="total_amount" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
