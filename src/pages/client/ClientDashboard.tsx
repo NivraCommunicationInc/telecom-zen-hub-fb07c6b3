@@ -14,7 +14,6 @@ import { AlertTriangle, Info, X, ChevronRight, Wifi, Smartphone, Tv, ArrowRight,
 import { useState } from "react";
 import { toast } from "sonner";
 import ReferralPopup from "@/components/client/ReferralPopup";
-import ClientActivationSection from "@/components/client/ClientActivationSection";
 
 const ClientDashboard = () => {
   const { user } = useClientAuth();
@@ -254,12 +253,6 @@ const ClientDashboard = () => {
 
         {/* Service Countdown */}
         {user?.id && <ServiceCountdown userId={user.id} />}
-
-        {user?.id && (
-          <div data-testid="dashboard-activation-section">
-            <ClientActivationSection clientId={user.id} compact />
-          </div>
-        )}
 
         {/* Mobile Services - Rogers style section */}
         {mobileServices.length > 0 && (

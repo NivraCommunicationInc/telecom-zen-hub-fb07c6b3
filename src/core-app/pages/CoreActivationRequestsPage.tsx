@@ -1,5 +1,5 @@
 /**
- * CoreActivationRequestsPage — /core/activations
+ * CoreActivationRequestsPage — /core/wifi-requests
  * Manages WiFi activation requests submitted by clients via /portal/activation.
  * Admins can change status, view decrypted WiFi password, add notes,
  * and trigger client confirmation flow.
@@ -135,14 +135,20 @@ export default function CoreActivationRequestsPage() {
     return c;
   }, [requests]);
 
+  useEffect(() => {
+    if (!selected) return;
+    const nextSelected = requests.find((request) => request.id === selected.id) ?? null;
+    setSelected(nextSelected);
+  }, [requests, selected]);
+
   return (
     <div className="p-6 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Zap className="w-6 h-6 text-emerald-500" />
-            Activations
+            <Wifi className="w-6 h-6 text-emerald-500" />
+            Demandes WiFi
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Demandes d'activation WiFi soumises par les clients
@@ -436,11 +442,11 @@ function ActivationDetail({
               </code>
               <Button size="sm" variant="outline" onClick={handleRevealPassword} disabled={decrypting}>
                 {decrypting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Déchiffrement…</>
                 ) : showPassword ? (
-                  <EyeOff className="w-4 h-4" />
+                  <><EyeOff className="w-4 h-4 mr-1" /> Masquer</>
                 ) : (
-                  <Eye className="w-4 h-4" />
+                  <><Eye className="w-4 h-4 mr-1" /> Afficher</>
                 )}
               </Button>
             </div>
