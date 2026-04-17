@@ -1520,7 +1520,7 @@ const ClientNewOrder = () => {
     if (isEquipmentOnlyOrder) return 0;
     const serviceTypeCount = countServiceTypes();
     if (serviceTypeCount === 0) return 0;
-    if (serviceTypeCount === 1) return canonicalFees.activationSingle || 25;
+    if (serviceTypeCount === 1) return canonicalFees.activationSingle || 10;
     return canonicalFees.activationBundle || 45;
   };
   
@@ -1955,7 +1955,7 @@ const ClientNewOrder = () => {
         ? (deliveryChoice === "uber" ? DELIVERY_CONFIG.uber.fee : 
            deliveryChoice === "shipHome" ? DELIVERY_CONFIG.shipHome.fee : 
            DELIVERY_CONFIG.standard.fee)
-        : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0);
+        : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
 
       // Determine installation type for the order
       const orderInstallationType = isDeliveryOnlyOrder 
@@ -1965,7 +1965,7 @@ const ClientNewOrder = () => {
         : installationChoice;
       
       // For equipment-only orders, no activation fee (canonical)
-      const orderActivationFee = isEquipmentOnlyOrder ? 0 : (canonicalFees.activationSingle || 25);
+      const orderActivationFee = isEquipmentOnlyOrder ? 0 : (canonicalFees.activationSingle || 10);
 
       // Save pre-authorized payment method if credit card and checkbox selected
       // Use UPSERT to prevent duplicate cards (unique on user_id + payment_fingerprint)
@@ -2142,7 +2142,7 @@ const ClientNewOrder = () => {
       const feesForLineItems = [
         ...(orderActivationFee > 0 ? [{ name: "Frais d'activation", amount: orderActivationFee }] : []),
         ...(orderDeliveryFee > 0 ? [{ name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
-        ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 50) - installationCredit) }] : []),
+        ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 25) - installationCredit) }] : []),
       ];
       
       // Build discounts array (promo + preauth only - no auto SIM credits)
@@ -2397,7 +2397,7 @@ const ClientNewOrder = () => {
         fees: [
           ...(orderActivationFee > 0 ? [{ sku: new Set(selectedServices.map(s => s.category)).size >= 2 ? SKU.ACTIVATION_2PLUS : SKU.ACTIVATION_1, name: "Frais d'activation", amount: orderActivationFee }] : []),
           ...(orderDeliveryFee > 0 ? [{ sku: SKU.DELIVERY, name: isDeliveryOnlyOrder ? "Frais de livraison" : "Frais de livraison/installation", amount: orderDeliveryFee }] : []),
-          ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 50) - installationCredit) }] : []),
+          ...(!isDeliveryOnlyOrder && installationChoice === "technician" ? [{ sku: "FEE-INSTALL", name: "Installation professionnelle", amount: Math.max(0, (canonicalFees.installationTechnician || 25) - installationCredit) }] : []),
         ],
         promo: shouldAttachPromoToCheckout && appliedPromo ? {
           code: appliedPromo.code,
@@ -3274,7 +3274,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
       return 0;
     }
     // For Internet, TV, Security - use installation choice (canonical fee)
-    return installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 30) : 0;
+    return installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0;
   };
   
   const deliveryFee = calculateDeliveryFee();
@@ -3282,7 +3282,7 @@ Veuillez confirmer les chaînes et procéder à l'activation du service.
   const activationFee = calculateActivationFee();
   // IMPORTANT: Promo discounts are applied via promoDiscount (discount_amount) below.
   // Do not also subtract an installationCredit here, otherwise the promo is applied twice.
-  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? (canonicalFees.installationTechnician || 50) : 0;
+  const installationFee = (!isDeliveryOnlyOrder && installationChoice === "technician") ? (canonicalFees.installationTechnician || 25) : 0;
   
   // Calculate one-time fees vs monthly fees (include Streaming+ add-ons)
   const oneTimeFeesGross = deliveryFee + activationFee + installationFee + terminalFee + routerFee + simFee;
