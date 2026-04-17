@@ -383,6 +383,123 @@ export function renderQueueTemplate(
         }),
       };
     }
+
+    // ─── B2: Autopay activation invitation (sent at J+25, ~5 days before renewal) ───
+    case "autopay_activation_invitation": {
+      const planName = esc(v.plan_name || "votre forfait Nivra");
+      const monthlyTotal = money(v.monthly_total ?? v.total ?? v.amount);
+      const renewalDate = fmtDate(v.next_renewal_date);
+      const activationLink = String(v.activation_link || `${APP_URL}/portail/facturation`);
+      return {
+        subject: `Évitez les coupures — activez le paiement automatique`,
+        html: shell({
+          title: "Activez le paiement automatique",
+          preheader: `Votre prochain renouvellement est le ${renewalDate}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Activez le paiement automatique</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, votre forfait <strong>${planName}</strong> se renouvelle automatiquement le <strong>${renewalDate}</strong>.
+              Pour éviter toute interruption de service, activez le paiement automatique sécurisé via PayPal.
+            </p>
+            ${rowsTable([
+              ["Forfait", String(planName)],
+              ["Renouvellement", renewalDate],
+              ["Montant mensuel", monthlyTotal],
+            ])}
+            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
+              ✓ Paiement automatique chaque mois<br>
+              ✓ Sans compte PayPal requis (carte de crédit/débit acceptée)<br>
+              ✓ Annulable à tout moment dans votre espace client
+            </p>
+          `,
+          ctaUrl: activationLink,
+          ctaLabel: "Activer le paiement automatique",
+        }),
+      };
+    }
+
+    // ─── B2: Failed PayPal charge retry notification ───
+    case "paypal_charge_failed_retry": {
+      const invoiceNum = esc(v.invoice_number || "—");
+      const total = money(v.total ?? v.amount);
+      const retryDate = fmtDate(v.retry_date);
+      return {
+        subject: `Paiement automatique échoué — nouvelle tentative ${retryDate}`,
+        html: shell({
+          title: "Paiement automatique échoué",
+          preheader: `Nouvelle tentative le ${retryDate}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#D97706; font-size:22px;">Paiement automatique échoué</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, le paiement automatique de votre facture n'a pas pu être traité.
+              Nous réessaierons automatiquement le <strong>${retryDate}</strong>.
+            </p>
+            ${rowsTable([
+              ["Facture", String(invoiceNum)],
+              ["Montant", total],
+              ["Prochaine tentative", retryDate],
+            ])}
+            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
+              Pour éviter toute interruption, vous pouvez aussi payer manuellement dès maintenant via votre espace client.
+            </p>
+          `,
+          ctaUrl: `${APP_URL}/portail/facturation`,
+          ctaLabel: "Payer maintenant",
+        }),
+      };
+    }
+
+    // ─── B2: Service suspended (J+5) ───
+    case "service_suspended": {
+      const invoiceNum = esc(v.invoice_number || "—");
+      const total = money(v.total ?? v.amount);
+      const voidDate = fmtDate(v.void_date);
+      return {
+        subject: `Service suspendu — paiement requis avant ${voidDate}`,
+        html: shell({
+          title: "Service suspendu",
+          preheader: `Réactivez avant ${voidDate}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">⚠ Service suspendu</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, votre service Nivra est <strong>temporairement suspendu</strong> faute de paiement.
+              Vous pouvez encore réactiver votre service en payant la facture avant le <strong>${voidDate}</strong>.
+            </p>
+            ${rowsTable([
+              ["Facture", String(invoiceNum)],
+              ["Montant dû", total],
+              ["Date limite réactivation", voidDate],
+            ])}
+          `,
+          ctaUrl: String(v.payment_link || `${APP_URL}/portail/facturation`),
+          ctaLabel: "Payer et réactiver",
+        }),
+      };
+    }
+
+    // ─── B2: Invoice voided after J+10 ───
+    case "invoice_voided": {
+      const invoiceNum = esc(v.invoice_number || "—");
+      return {
+        subject: `Facture ${invoiceNum} annulée`,
+        html: shell({
+          title: "Facture annulée",
+          preheader: "Aucune dette restante.",
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">Facture annulée</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, votre facture <strong>${invoiceNum}</strong> a été annulée
+              car la fenêtre de réactivation est expirée. Vous n'avez aucune dette à régler.
+            </p>
+            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
+              Pour reprendre votre service, contactez-nous à <a href="mailto:${SUPPORT_EMAIL}" style="color:#0066CC;">${SUPPORT_EMAIL}</a>.
+            </p>
+          `,
+          ctaUrl: `${APP_URL}/support`,
+          ctaLabel: "Nous contacter",
+        }),
+      };
+    }
   }
 
   return null;
