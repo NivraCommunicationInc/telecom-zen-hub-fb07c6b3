@@ -23,10 +23,13 @@ import { Input } from "@/components/ui/input";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 
+import { useIsCoreAdmin } from "@/core-app/hooks/useIsCoreAdmin";
+
 interface NavItem {
   icon: LucideIcon;
   label: string;
   href: string;
+  adminOnly?: boolean;
 }
 
 interface NavGroup {
