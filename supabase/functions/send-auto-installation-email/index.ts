@@ -5,7 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Resend } from "../_shared/ResendProxy.ts";
+import { Resend } from "npm:resend@2.0.0";
 import { escapeHtml } from "../_shared/emailTemplates/components.ts";
 
 const corsHeaders = {
@@ -30,6 +30,12 @@ interface RequestBody {
   override_recipient?: string; // Test mode — redirect client email to this address
 }
 
+type ClientLang = "fr" | "en";
+
+function resolveClientLanguage(profile: { preferred_language?: string | null } | null | undefined): ClientLang {
+  return profile?.preferred_language === "fr" ? "fr" : "en";
+}
+
 function isTvOrder(items: Array<{ plan_name?: string | null; service_type?: string | null; description?: string | null }>): boolean {
   const haystack = items
     .flatMap(i => [i.plan_name, i.service_type, i.description])
@@ -41,23 +47,26 @@ function isTvOrder(items: Array<{ plan_name?: string | null; service_type?: stri
 // ============================================================
 // CLIENT EMAIL — premium template (cloned from send-order-confirmation)
 // ============================================================
-function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv: boolean }): string {
-  const { firstName, orderNumber, hasTv } = params;
-  const preheader = `Votre équipement Nivra est en route. Guides d'installation joints.`;
+function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv: boolean; lang: ClientLang }): string {
+  const { firstName, orderNumber, hasTv, lang } = params;
+  const isFr = lang === "fr";
+  const preheader = isFr
+    ? `Votre équipement Nivra est en route. Guide d'installation inclus.`
+    : `Your Nivra equipment is on its way. Installation guide included.`;
 
   const tvBlock = hasTv ? `
     <div style="padding:0 32px 24px">
       <div style="background:#fff5e6;border-left:4px solid #FF9500;border-radius:8px;padding:16px 20px">
-        <div style="font-size:13px;font-weight:700;color:#B36200;margin-bottom:6px">📺 Terminal Nivra TV</div>
-        <div style="font-size:13px;color:#7A4500;line-height:1.7">Si vous avez commandé un Terminal Nivra TV, installez-le <strong>SEULEMENT après l'activation de votre WiFi</strong>. Suivez le guide « Terminal Nivra TV » joint à ce courriel.</div>
+        <div style="font-size:13px;font-weight:700;color:#B36200;margin-bottom:6px">📺 ${isFr ? "Terminal Nivra TV" : "Nivra TV terminal"}</div>
+        <div style="font-size:13px;color:#7A4500;line-height:1.7">${isFr ? "Si vous avez commandé un Terminal Nivra TV, installez-le <strong>SEULEMENT après l'activation de votre WiFi</strong>. Suivez le guide « Terminal Nivra TV » joint à ce courriel." : "If you ordered a Nivra TV terminal, install it <strong>ONLY after your WiFi is activated</strong>. Follow the attached \"Nivra TV terminal\" guide."}</div>
       </div>
     </div>` : '';
 
   return `<!DOCTYPE html>
-<html lang="fr">
+<html lang="${lang}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="x-apple-disable-message-reformatting">
-<title>Votre équipement est en route</title>
+<title>${isFr ? "Votre équipement est en route" : "Your equipment is on its way"}</title>
 <style>*{box-sizing:border-box}body{margin:0;padding:0;-webkit-text-size-adjust:100%}</style>
 </head>
 <body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,Helvetica,sans-serif">
@@ -86,11 +95,11 @@ function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv
   <div style="width:56px;height:56px;background:#00B37D;border-radius:50%;margin:0 auto 16px;line-height:56px;text-align:center">
     <span style="color:#fff;font-size:26px;font-weight:700">📦</span>
   </div>
-  <div style="font-size:24px;font-weight:700;color:#0d1f3c;margin-bottom:6px">Votre équipement est en route</div>
-  <div style="font-size:15px;color:#555;line-height:1.5">Bonjour <strong>${escapeHtml(firstName)}</strong>,<br>Merci pour votre commande. Voici votre guide d'activation.</div>
+  <div style="font-size:24px;font-weight:700;color:#0d1f3c;margin-bottom:6px">${isFr ? "Votre équipement est en route" : "Your equipment is on its way"}</div>
+  <div style="font-size:15px;color:#555;line-height:1.5">${isFr ? `Bonjour <strong>${escapeHtml(firstName)}</strong>,<br>Merci pour votre commande. Voici votre guide d'activation.` : `Hello <strong>${escapeHtml(firstName)}</strong>,<br>Thank you for your order. Your installation guide is attached.`}</div>
   <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px auto 0;background:#fff;border-radius:6px;border:1px solid #e8e8e8"><tr>
     <td style="padding:10px 20px;text-align:left">
-      <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase">Commande</div>
+      <div style="font-size:10px;color:#999;letter-spacing:1.5px;text-transform:uppercase">${isFr ? "Commande" : "Order"}</div>
       <div style="font-size:13px;font-weight:700;color:#0d1f3c">#${escapeHtml(orderNumber)}</div>
     </td>
   </tr></table>
@@ -98,7 +107,7 @@ function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv
 
 <!-- STEPS SECTION -->
 <div style="padding:24px 32px">
-  <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Étapes à suivre à la réception</div>
+  <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">${isFr ? "Étapes à suivre à la réception" : "Steps when your order arrives"}</div>
   <div style="background:#f8f9ff;border-radius:8px;padding:20px;border:1px solid #e8ecff">
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px"><tr>
@@ -106,8 +115,8 @@ function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv
         <div style="width:26px;height:26px;background:#0057B8;color:#fff;border-radius:50%;text-align:center;line-height:26px;font-size:13px;font-weight:700">1</div>
       </td>
       <td style="padding-left:10px">
-        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">Installez votre Borne Nivra WiFi</div>
-        <div style="font-size:13px;color:#555;line-height:1.6">Suivez le guide d'installation joint à ce courriel.</div>
+        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">${isFr ? "Installez votre Borne Nivra WiFi" : "Install your Nivra WiFi router"}</div>
+        <div style="font-size:13px;color:#555;line-height:1.6">${isFr ? "Suivez le guide d'installation joint à ce courriel." : "Follow the installation guide attached to this email."}</div>
       </td>
     </tr></table>
 
@@ -116,8 +125,8 @@ function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv
         <div style="width:26px;height:26px;background:#0057B8;color:#fff;border-radius:50%;text-align:center;line-height:26px;font-size:13px;font-weight:700">2</div>
       </td>
       <td style="padding-left:10px">
-        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">Attendez le voyant BLANC FIXE</div>
-        <div style="font-size:13px;color:#555;line-height:1.6">Le démarrage prend jusqu'à 20 minutes.</div>
+        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">${isFr ? "Attendez le voyant BLANC FIXE" : "Wait for the SOLID WHITE light"}</div>
+        <div style="font-size:13px;color:#555;line-height:1.6">${isFr ? "Le démarrage prend jusqu'à 20 minutes." : "Startup can take up to 20 minutes."}</div>
       </td>
     </tr></table>
 
@@ -126,7 +135,7 @@ function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv
         <div style="width:26px;height:26px;background:#0057B8;color:#fff;border-radius:50%;text-align:center;line-height:26px;font-size:13px;font-weight:700">3</div>
       </td>
       <td style="padding-left:10px">
-        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">Connectez-vous à votre espace client</div>
+        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">${isFr ? "Connectez-vous à votre espace client" : "Log in to your client portal"}</div>
         <div style="font-size:13px;color:#555;line-height:1.6"><a href="${PORTAL_LINK}" style="color:#0057B8;text-decoration:none;font-weight:600">nivra-telecom.ca/portail</a></div>
       </td>
     </tr></table>
@@ -136,8 +145,8 @@ function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv
         <div style="width:26px;height:26px;background:#0057B8;color:#fff;border-radius:50%;text-align:center;line-height:26px;font-size:13px;font-weight:700">4</div>
       </td>
       <td style="padding-left:10px">
-        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">Cliquez sur « Activation WiFi »</div>
-        <div style="font-size:13px;color:#555;line-height:1.6">Remplissez le formulaire d'activation.</div>
+        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">${isFr ? "Cliquez sur « Activation WiFi »" : 'Click "WiFi Activation"'}</div>
+        <div style="font-size:13px;color:#555;line-height:1.6">${isFr ? "Remplissez le formulaire d'activation." : "Complete the activation form."}</div>
       </td>
     </tr></table>
 
@@ -146,8 +155,8 @@ function buildClientHtml(params: { firstName: string; orderNumber: string; hasTv
         <div style="width:26px;height:26px;background:#00B37D;color:#fff;border-radius:50%;text-align:center;line-height:26px;font-size:13px;font-weight:700">5</div>
       </td>
       <td style="padding-left:10px">
-        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">Service activé en 10 à 30 minutes</div>
-        <div style="font-size:13px;color:#555;line-height:1.6">Notre équipe active votre service rapidement.</div>
+        <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:2px">${isFr ? "Service activé en 10 à 30 minutes" : "Service activated in 10 to 30 minutes"}</div>
+        <div style="font-size:13px;color:#555;line-height:1.6">${isFr ? "Notre équipe active votre service rapidement." : "Our team will activate your service quickly."}</div>
       </td>
     </tr></table>
 
@@ -158,40 +167,40 @@ ${tvBlock}
 
 <!-- INFO CARDS -->
 <div style="padding:0 32px 24px">
-  <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">Documents joints</div>
+  <div style="font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">${isFr ? "Documents joints" : "Attachments"}</div>
   <div style="padding:16px;background:#fafafa;border-radius:8px;border:1px solid #eee">
-    <div style="font-size:13px;color:#666;line-height:1.7">📎 Guides d'installation PDF (FR + EN) ${hasTv ? '<br>📎 Guide Terminal Nivra TV (FR + EN)' : ''}</div>
+    <div style="font-size:13px;color:#666;line-height:1.7">📎 ${isFr ? "Guide d'installation PDF" : "PDF installation guide"}${hasTv ? `<br>📎 ${isFr ? "Guide Terminal Nivra TV PDF" : "Nivra TV terminal PDF guide"}` : ''}</div>
   </div>
 </div>
 
 <!-- CTA -->
 <div style="padding:0 32px 32px;text-align:center">
-  <a href="${PORTAL_LINK}" style="display:inline-block;background:#0057B8;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:50px;text-decoration:none;letter-spacing:0.3px">Accéder à mon espace client →</a>
+  <a href="${PORTAL_LINK}" style="display:inline-block;background:#0057B8;color:#fff;font-size:15px;font-weight:700;padding:14px 36px;border-radius:50px;text-decoration:none;letter-spacing:0.3px">${isFr ? "Accéder à mon espace client" : "Access my client portal"} →</a>
 </div>
 
 <!-- SUPPORT -->
 <div style="padding:20px 32px;background:#f5f7fa;border-top:1px solid #eee;text-align:center">
-  <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:4px">Une question? Notre équipe est là.</div>
-  <div style="font-size:13px;color:#888;margin-bottom:12px">Disponible 7 jours sur 7, de 8 h à 20 h (HE)</div>
+  <div style="font-size:14px;font-weight:700;color:#0d1f3c;margin-bottom:4px">${isFr ? "Une question? Notre équipe est là." : "Questions? Our team is here."}</div>
+  <div style="font-size:13px;color:#888;margin-bottom:12px">${isFr ? "Disponible 7 jours sur 7, de 8 h à 20 h (HE)" : "Available 7 days a week, 8 AM to 8 PM ET"}</div>
   <a href="mailto:${SUPPORT_EMAIL}" style="display:inline-block;background:#0d1f3c;color:#fff;font-size:13px;font-weight:600;padding:10px 24px;border-radius:50px;text-decoration:none">${SUPPORT_EMAIL}</a>
 </div>
 
 <!-- FOOTER -->
 <div style="background:#0d1f3c;padding:28px 32px;text-align:center">
   <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Nivra Telecom</div>
-  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px">Fournisseur de services Internet et TV sans contrat au Québec</div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px">${isFr ? "Fournisseur de services Internet et TV sans contrat au Québec" : "No-contract Internet and TV provider in Quebec"}</div>
   <div style="margin-bottom:16px">
     <a href="https://nivra-telecom.ca" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Site web</a>
     <span style="color:rgba(255,255,255,0.2)"> | </span>
-    <a href="https://nivra-telecom.ca/plans" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Forfaits</a>
+    <a href="https://nivra-telecom.ca/plans" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">${isFr ? "Forfaits" : "Plans"}</a>
     <span style="color:rgba(255,255,255,0.2)"> | </span>
     <a href="https://nivra-telecom.ca/faq" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">FAQ</a>
     <span style="color:rgba(255,255,255,0.2)"> | </span>
-    <a href="https://nivra-telecom.ca/privacy" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Confidentialité</a>
+    <a href="https://nivra-telecom.ca/privacy" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">${isFr ? "Confidentialité" : "Privacy"}</a>
     <span style="color:rgba(255,255,255,0.2)"> | </span>
-    <a href="https://nivra-telecom.ca/terms" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">Conditions</a>
+    <a href="https://nivra-telecom.ca/terms" style="font-size:12px;color:rgba(255,255,255,0.55);text-decoration:none">${isFr ? "Conditions" : "Terms"}</a>
   </div>
-  <div style="font-size:11px;color:rgba(255,255,255,0.25)">© 2025 Nivra Communications Inc. Tous droits réservés.</div>
+  <div style="font-size:11px;color:rgba(255,255,255,0.25)">© 2025 Nivra Communications Inc. ${isFr ? "Tous droits réservés." : "All rights reserved."}</div>
 </div>
 
 </div>
@@ -234,7 +243,7 @@ function buildBusinessNotifHtml(params: {
 </div></div></body></html>`;
 }
 
-async function downloadGuide(supabase: ReturnType<typeof createClient>, filename: string): Promise<{ filename: string; content: string; contentType: string } | null> {
+async function downloadGuide(supabase: ReturnType<typeof createClient>, filename: string): Promise<{ filename: string; content: string; type: string; disposition: "attachment" } | null> {
   const { data, error } = await supabase.storage.from(BUCKET).download(filename);
   if (error || !data) {
     console.error(`[send-auto-installation-email] Failed to download ${filename}:`, error?.message);
@@ -245,7 +254,7 @@ async function downloadGuide(supabase: ReturnType<typeof createClient>, filename
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   const base64 = btoa(binary);
-  return { filename, content: base64, contentType: "application/pdf" };
+  return { filename, content: base64, type: "application/pdf", disposition: "attachment" };
 }
 
 serve(async (req: Request) => {
@@ -274,17 +283,19 @@ serve(async (req: Request) => {
     let email = order.client_email;
     let firstName = order.client_first_name || "";
     let fullName = [order.client_first_name, order.client_last_name].filter(Boolean).join(" ").trim();
+    let clientLang: ClientLang = "en";
 
     if ((!email || !firstName) && order.user_id) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("email, full_name, first_name")
+        .select("email, full_name, first_name, preferred_language")
         .eq("user_id", order.user_id)
         .maybeSingle();
       if (profile) {
         email = email || profile.email;
         firstName = firstName || profile.first_name || (profile.full_name ? profile.full_name.split(" ")[0] : "");
         fullName = fullName || profile.full_name || "";
+        clientLang = resolveClientLanguage(profile);
       }
     }
 
@@ -299,8 +310,8 @@ serve(async (req: Request) => {
 
     const hasTv = isTvOrder(items || []);
 
-    const guideFiles = ["guide-borne-nivra-wifi-fr.pdf", "guide-borne-nivra-wifi-en.pdf"];
-    if (hasTv) guideFiles.push("guide-terminal-nivra-tv-fr.pdf", "guide-terminal-nivra-tv-en.pdf");
+    const guideFiles = [clientLang === "fr" ? "guide-borne-nivra-wifi-fr.pdf" : "guide-borne-nivra-wifi-en.pdf"];
+    if (hasTv) guideFiles.push(clientLang === "fr" ? "guide-terminal-nivra-tv-fr.pdf" : "guide-terminal-nivra-tv-en.pdf");
 
     const attachments = (await Promise.all(guideFiles.map(f => downloadGuide(supabase, f))))
       .filter((a): a is NonNullable<typeof a> => a !== null);
@@ -308,7 +319,7 @@ serve(async (req: Request) => {
     if (attachments.length === 0) throw new Error("No installation guides could be loaded from storage");
 
     const orderNumber = order.order_number || order.id.slice(0, 8);
-    const html = buildClientHtml({ firstName, orderNumber, hasTv });
+    const html = buildClientHtml({ firstName, orderNumber, hasTv, lang: clientLang });
 
     const recipientEmail = body.override_recipient || email;
     const isTest = !!body.override_recipient;
@@ -317,8 +328,8 @@ serve(async (req: Request) => {
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
       to: [recipientEmail],
       bcc: isTest ? [] : BUSINESS_EMAILS,
-      replyTo: SUPPORT_EMAIL,
-      subject: isTest ? "[TEST] Votre équipement Nivra est en route — Guide d'installation inclus" : "Votre équipement Nivra est en route — Guide d'installation inclus",
+      reply_to: SUPPORT_EMAIL,
+      subject: `${isTest ? "[TEST] " : ""}${clientLang === "fr" ? "📦 Votre équipement Nivra est en route — Guide d'installation inclus" : "📦 Your Nivra equipment is on its way — Installation guide included"}`,
       html,
       attachments,
       headers: { "X-Entity-Ref-ID": `auto-install-${order.id}${isTest ? '-test-' + Date.now() : ''}` },

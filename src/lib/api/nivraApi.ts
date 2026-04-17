@@ -147,6 +147,7 @@ export interface NivraFullCheckoutPayload {
   /** Idempotency key — prevents duplicate orders on retry */
   client_request_id: string;
   customer: NivraCheckoutCustomer;
+  client_language?: "fr" | "en";
   service_address: NivraCheckoutAddress;
   services: NivraCheckoutService[];
   equipment: NivraCheckoutEquipment[];

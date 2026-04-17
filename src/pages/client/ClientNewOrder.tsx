@@ -90,6 +90,7 @@ import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { normalizeServerPricingResult, sanitizeTaxes, toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { FirstMonthFreeExplanation } from "@/components/checkout/FirstMonthFreeExplanation";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Service {
   id: string;
@@ -544,6 +545,7 @@ const StreamingPlusSection = ({ selectedStreamingServices, onStreamingServicesCh
 
 const ClientNewOrder = () => {
   const { user } = useClientAuth();
+  const { language } = useLanguage();
   const { isClient } = usePortalRoleAccess();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -2366,6 +2368,7 @@ const ClientNewOrder = () => {
       // ── Build the full checkout payload once ──
       const checkoutPayload: import("@/lib/api/nivraApi").NivraFullCheckoutPayload = {
         client_request_id: clientRequestId,
+        client_language: language === "fr" ? "fr" : "en",
         customer: {
           user_id: user.id,
           first_name: firstName || profile?.first_name || '',

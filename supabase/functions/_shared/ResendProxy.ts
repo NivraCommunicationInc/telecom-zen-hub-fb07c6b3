@@ -21,9 +21,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 interface EmailSendParams {
   from: string;
   to: string[];
+  bcc?: string[];
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
   reply_to?: string;
   attachments?: Array<{ filename: string; content: string; contentType?: string }>;
   headers?: Record<string, string>;
@@ -36,6 +38,7 @@ interface EmailSendResult {
 
 export interface EnqueueEmailParams {
   to: string;
+  bcc?: string[];
   templateKey?: string;
   templateVars?: Record<string, any>;
   eventKey?: string;
@@ -197,11 +200,14 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
     // Build pgmq payload matching what process-email-queue expects
     const pgmqPayload = {
       to: params.to,
+      bcc: params.bcc,
       from: fromEmail,
       sender_domain: SENDER_DOMAIN,
       subject,
       html,
       text,
+      reply_to: params.replyTo,
+      attachments: params.attachments,
       purpose: "transactional",
       label: params.templateKey || "custom_html",
       idempotency_key: eventKey,
@@ -268,12 +274,13 @@ export class Resend {
     send: async (params: EmailSendParams): Promise<EmailSendResult> => {
       const result = await enqueueEmail({
         to: params.to[0],
+        bcc: params.bcc,
         templateKey: "custom_html",
         html: params.html,
         text: params.text,
         subject: params.subject,
         fromEmail: params.from,
-        replyTo: params.reply_to,
+        replyTo: params.replyTo || params.reply_to,
         attachments: params.attachments,
       });
 
