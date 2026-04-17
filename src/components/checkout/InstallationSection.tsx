@@ -111,9 +111,13 @@ export function InstallationSection({
                 <Package className="w-6 h-6" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <h3 className="font-semibold text-foreground">Auto-installation</h3>
-                  <span className="text-sm font-bold text-primary whitespace-nowrap">30,00 $</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground line-through">30,00 $</span>
+                    <span className="text-sm font-bold text-primary whitespace-nowrap">20,00 $</span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Nouveau prix</span>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                   Recevez l'équipement et branchez-le vous-même en quelques minutes.
@@ -162,9 +166,13 @@ export function InstallationSection({
                 <Wrench className="w-6 h-6" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <h3 className="font-semibold text-foreground">Technicien à domicile</h3>
-                  <span className="text-sm font-bold text-primary whitespace-nowrap">50,00 $</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground line-through">50,00 $</span>
+                    <span className="text-sm font-bold text-primary whitespace-nowrap">25,00 $</span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Nouveau prix</span>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                   Un technicien certifié installe et configure tout chez vous.

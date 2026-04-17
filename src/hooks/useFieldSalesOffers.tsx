@@ -170,7 +170,7 @@ export function calculateFieldSalesTotals(services: SelectedService[]) {
   const setupSubtotal = services.reduce((sum, s) => sum + (s.priceSetup * s.quantity), 0);
   
   const serviceCount = services.length;
-  const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 25 : 45;
+  const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
   
   const oneTimeTotal = setupSubtotal + activationFee;
   const taxableSubtotal = monthlySubtotal + oneTimeTotal;

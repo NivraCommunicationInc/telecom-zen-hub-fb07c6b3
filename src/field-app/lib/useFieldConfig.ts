@@ -25,7 +25,7 @@ export interface FieldConfig {
 }
 
 const DEFAULTS: FieldConfig = {
-  activation_fee_single: 25,
+  activation_fee_single: 10,
   activation_fee_multi: 45,
   daily_sales_goal: 3,
   monthly_sales_goal: 20,

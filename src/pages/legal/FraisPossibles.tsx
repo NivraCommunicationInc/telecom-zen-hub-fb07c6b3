@@ -21,10 +21,18 @@ const FraisPossibles = () => {
   const sim = equipment.simPrice;
   const esim = equipment.esimPrice;
 
+  // Old → new prices map for "NOUVEAU" highlight
+  const OLD_PRICES: Record<string, number> = {
+    "Activation (1 service)": 25,
+    "Livraison standard": 30,
+    "Installation par technicien": 50,
+  };
+
   const oneTimeFees = [
     { name: "Activation (1 service)", amount: `${activationSingle}$`, note: "Internet, TV ou Mobile seul" },
     { name: "Activation (2+ services)", amount: `${activationMultiple}$`, note: "Forfait groupé (Internet + TV + Mobile)" },
-    { name: "Livraison standard", amount: `${delivery}$`, note: "Délai 24-78h ouvrables" },
+    { name: "Livraison standard", amount: `${delivery}$`, note: "Auto-installation — délai 2 à 5 jours ouvrables" },
+    { name: "Installation par technicien", amount: `${fees.installationTechnician || 25}$`, note: "Visite à domicile — sur rendez-vous" },
     { name: "Livraison express (Uber)", amount: `${uberExpress}$`, note: "Zones éligibles seulement" },
     { name: "Routeur Nivra Born WiFi", amount: `${router}$`, note: "Achat, inclus garantie 1 an" },
     { name: "Terminal Nivra 4K Smart", amount: `${tvTerminal}$`, note: "Par terminal (max 4)" },
@@ -86,6 +94,21 @@ const FraisPossibles = () => {
             Transparence sur les frais qui peuvent s'appliquer à votre compte.
           </p>
 
+          <Card className="bg-primary/10 border-primary/30 mb-6">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🎉</span>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Nouveaux tarifs en vigueur</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Nous avons réduit nos frais pour rendre Nivra encore plus accessible : <strong>activation à 10 $</strong>,{" "}
+                    <strong>livraison à 20 $</strong>, <strong>technicien à 25 $</strong>.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-cyan-500/10 border-cyan-500/30 mb-8">
             <CardContent className="p-6">
               <div className="flex items-start gap-3">
@@ -118,13 +141,26 @@ const FraisPossibles = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {oneTimeFees.map((fee, index) => (
-                      <tr key={index} className="hover:bg-muted/30 transition-colors">
-                        <td className="p-4 text-foreground">{fee.name}</td>
-                        <td className="p-4 text-right font-mono text-accent font-medium">{fee.amount}</td>
-                        <td className="p-4 text-sm text-muted-foreground hidden sm:table-cell">{fee.note}</td>
-                      </tr>
-                    ))}
+                    {oneTimeFees.map((fee, index) => {
+                      const oldPrice = OLD_PRICES[fee.name];
+                      return (
+                        <tr key={index} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-4 text-foreground">{fee.name}</td>
+                          <td className="p-4 text-right font-mono font-medium">
+                            <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+                              {oldPrice && (
+                                <span className="text-xs text-muted-foreground line-through">{oldPrice}$</span>
+                              )}
+                              <span className="text-accent">{fee.amount}</span>
+                              {oldPrice && (
+                                <span className="text-[9px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Nouveau</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4 text-sm text-muted-foreground hidden sm:table-cell">{fee.note}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
