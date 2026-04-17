@@ -359,6 +359,30 @@ export function renderQueueTemplate(
         }),
       };
     }
+
+    case "quote_sent": {
+      const quoteNum = esc(v.quote_number || v.quote_id || "—");
+      const total = money(v.total ?? v.amount);
+      return {
+        subject: `Votre soumission Nivra — ${quoteNum}`,
+        html: shell({
+          title: "Soumission Nivra",
+          preheader: `Votre soumission ${quoteNum} est prête.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Votre soumission est prête</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, votre soumission Nivra est disponible. Cliquez sur le bouton ci-dessous pour la consulter et finaliser votre commande.
+            </p>
+            ${rowsTable([
+              ["Numéro de soumission", String(quoteNum)],
+              ["Total", total],
+            ])}
+          `,
+          ctaUrl: String(v.quote_link || `${APP_URL}/portail`),
+          ctaLabel: "Voir ma soumission",
+        }),
+      };
+    }
   }
 
   return null;
