@@ -190,9 +190,20 @@ const CoreAppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, themeClass, toggleTheme } = useInternalTheme();
+  const { isAdmin } = useIsCoreAdmin();
   const isDarkTheme = themeClass === "theme-dark";
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter out admin-only items for non-admins
+  const visibleGroups = useMemo<NavGroup[]>(
+    () =>
+      NAV_GROUPS.map((g) => ({
+        ...g,
+        items: g.items.filter((it) => !it.adminOnly || isAdmin),
+      })).filter((g) => g.items.length > 0),
+    [isAdmin]
+  );
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     try {
