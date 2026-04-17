@@ -29,10 +29,17 @@ const getAllowedOrigins = (): string[] => {
   ];
 };
 
-export const getCorsHeaders = (requestOrigin: string | null): Record<string, string> => {
+export const getCorsHeaders = (requestOrigin: string | Request | null | undefined): Record<string, string> => {
   const allowedOrigins = getAllowedOrigins();
-  const origin = requestOrigin || '';
-  
+  // Defensive: accept either a string origin or a Request object (some legacy
+  // callers pass `req` directly). Coerce to a usable string origin.
+  let origin = '';
+  if (typeof requestOrigin === 'string') {
+    origin = requestOrigin;
+  } else if (requestOrigin && typeof (requestOrigin as Request).headers?.get === 'function') {
+    origin = (requestOrigin as Request).headers.get('origin') || '';
+  }
+
   console.log(`[CORS] Request origin: ${origin}, Allowed: ${JSON.stringify(allowedOrigins)}`);
   
   // Check if the request origin is in the allowed list
