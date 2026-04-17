@@ -78,6 +78,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
         profile={proc.profile}
         account={proc.account}
         appointment={proc.appointment}
+        incompleteAlert={proc.incompleteAlert}
         onRefresh={() => proc.refetch()}
       />
 
