@@ -8442,6 +8442,87 @@ export type Database = {
           },
         ]
       }
+      kyc_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          client_email: string
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          document_deleted_at: string | null
+          document_path: string | null
+          document_uploaded_at: string | null
+          expires_at: string
+          id: string
+          notes: string | null
+          order_id: string | null
+          rejection_reason: string | null
+          requested_at: string
+          requested_by: string | null
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          client_email: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          document_deleted_at?: string | null
+          document_path?: string | null
+          document_uploaded_at?: string | null
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          client_email?: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          document_deleted_at?: string | null
+          document_path?: string | null
+          document_uploaded_at?: string | null
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_next_actions"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "kyc_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ledger_entries: {
         Row: {
           account_id: string | null
@@ -9498,6 +9579,7 @@ export type Database = {
           installation_type: string | null
           internal_notes: string | null
           kyc_policy: string
+          kyc_request_id: string | null
           kyc_status: string
           late_fee_amount: number | null
           late_fee_applied: boolean | null
@@ -9604,6 +9686,7 @@ export type Database = {
           installation_type?: string | null
           internal_notes?: string | null
           kyc_policy?: string
+          kyc_request_id?: string | null
           kyc_status?: string
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
@@ -9710,6 +9793,7 @@ export type Database = {
           installation_type?: string | null
           internal_notes?: string | null
           kyc_policy?: string
+          kyc_request_id?: string | null
           kyc_status?: string
           late_fee_amount?: number | null
           late_fee_applied?: boolean | null
@@ -9777,6 +9861,13 @@ export type Database = {
             columns: ["identity_verification_session_id"]
             isOneToOne: false
             referencedRelation: "identity_verification_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_kyc_request_id_fkey"
+            columns: ["kyc_request_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_requests"
             referencedColumns: ["id"]
           },
           {
@@ -16669,6 +16760,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_admin_otp: { Args: never; Returns: undefined }
+      cleanup_expired_kyc_documents: { Args: never; Returns: Json }
       cleanup_old_activity_logs: { Args: never; Returns: undefined }
       cleanup_old_logs: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
@@ -16689,6 +16781,10 @@ export type Database = {
         Returns: Json
       }
       commit_order_atomic: { Args: { p_payload: Json }; Returns: Json }
+      complete_kyc_request_by_token: {
+        Args: { p_document_path: string; p_token: string }
+        Returns: Json
+      }
       compute_address_hash: {
         Args: {
           p_address_line: string
@@ -16930,6 +17026,19 @@ export type Database = {
         }[]
       }
       get_kyc_document_urls: { Args: { p_session_id: string }; Returns: Json }
+      get_kyc_request_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          client_email: string
+          completed_at: string
+          expires_at: string
+          id: string
+          order_id: string
+          order_number: string
+          plan_name: string
+          status: string
+        }[]
+      }
       get_ledger_allocations: {
         Args: { p_entry_id: string }
         Returns: {
