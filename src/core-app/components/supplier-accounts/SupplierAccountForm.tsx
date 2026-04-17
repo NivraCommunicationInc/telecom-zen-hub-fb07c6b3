@@ -4,13 +4,13 @@
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Save, ArrowLeft, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Save, ArrowLeft, Trash2, User, X, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { adminClient } from "@/integrations/backend/adminClient";
 import { corePath } from "@/core-app/lib/corePaths";
 import {
   useCreateSupplierAccount,
@@ -33,86 +33,154 @@ type ClientOption = { user_id: string; full_name: string | null; email: string |
 function ClientPicker({
   value,
   onChange,
-  disabled,
+  locked,
 }: {
   value: string;
   onChange: (id: string) => void;
-  disabled?: boolean;
+  locked?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<ClientOption[]>([]);
+  const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<ClientOption | null>(null);
 
   // Load currently selected client when value changes
   useEffect(() => {
     if (!value) { setSelected(null); return; }
     if (selected?.user_id === value) return;
-    supabase
+    adminClient
       .from("profiles")
       .select("user_id, full_name, email, client_number")
       .eq("user_id", value)
       .maybeSingle()
       .then(({ data }) => setSelected(data as ClientOption | null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // Search
+  // Search (debounced)
   useEffect(() => {
-    if (!open) return;
+    if (!open || locked) return;
     const q = search.trim();
     if (q.length < 2) {
       setResults([]);
       return;
     }
-    const t = setTimeout(() => {
-      supabase
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const { data } = await adminClient
         .from("profiles")
         .select("user_id, full_name, email, client_number")
         .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,client_number.ilike.%${q}%`)
-        .limit(10)
-        .then(({ data }) => setResults((data ?? []) as ClientOption[]));
+        .limit(10);
+      setResults((data ?? []) as ClientOption[]);
+      setSearching(false);
     }, 200);
     return () => clearTimeout(t);
-  }, [search, open]);
+  }, [search, open, locked]);
 
+  // Locked state (after save): read-only card with lock icon
+  if (locked && selected) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
+        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <User className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-foreground truncate">
+            {selected.full_name ?? "(sans nom)"}
+          </div>
+          <div className="text-xs text-muted-foreground truncate">
+            {selected.client_number && <>Compte #{selected.client_number} · </>}
+            {selected.email}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+          <Lock className="h-3 w-3" />
+          Lié
+        </div>
+      </div>
+    );
+  }
+
+  // Selected (not yet saved): confirmation card with × to clear
+  if (selected && !open) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <User className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-foreground truncate">
+            {selected.full_name ?? "(sans nom)"}
+          </div>
+          <div className="text-xs text-muted-foreground truncate">
+            {selected.client_number && <>Compte #{selected.client_number} · </>}
+            {selected.email}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setSelected(null); onChange(""); setSearch(""); setOpen(true); }}
+          className="text-muted-foreground hover:text-destructive shrink-0 p-1"
+          aria-label="Retirer le client"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  // Search input + dropdown
   return (
     <div className="relative">
       <Input
-        placeholder="Rechercher un client (nom, courriel, #)"
-        value={open ? search : selected ? `${selected.full_name ?? "—"} · ${selected.email ?? ""}` : ""}
+        placeholder="Rechercher par nom, courriel ou numéro de compte…"
+        value={search}
         onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        disabled={disabled}
+        autoComplete="off"
       />
-      {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-60 overflow-y-auto">
-          {results.map((r) => (
-            <button
-              key={r.user_id}
-              type="button"
-              className="block w-full text-left px-3 py-2 text-sm hover:bg-accent"
-              onClick={() => {
-                onChange(r.user_id);
-                setSelected(r);
-                setOpen(false);
-                setSearch("");
-              }}
-            >
-              <div className="font-medium">{r.full_name ?? "(sans nom)"}</div>
-              <div className="text-xs text-muted-foreground">
-                {r.email} {r.client_number && `· #${r.client_number}`}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
       {open && (
-        <button
-          type="button"
-          className="fixed inset-0 z-40"
-          onClick={() => setOpen(false)}
-          tabIndex={-1}
-        />
+        <>
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-60 overflow-y-auto">
+            {searching && (
+              <div className="px-3 py-2 text-xs text-muted-foreground">Recherche…</div>
+            )}
+            {!searching && search.trim().length < 2 && (
+              <div className="px-3 py-2 text-xs text-muted-foreground">Tapez au moins 2 caractères</div>
+            )}
+            {!searching && search.trim().length >= 2 && results.length === 0 && (
+              <div className="px-3 py-2 text-xs text-muted-foreground">Aucun client trouvé</div>
+            )}
+            {results.map((r) => (
+              <button
+                key={r.user_id}
+                type="button"
+                className="block w-full text-left px-3 py-2 text-sm hover:bg-accent"
+                onClick={() => {
+                  onChange(r.user_id);
+                  setSelected(r);
+                  setOpen(false);
+                  setSearch("");
+                }}
+              >
+                <div className="font-medium text-foreground">
+                  {r.full_name ?? "(sans nom)"}
+                  {r.client_number && <span className="text-muted-foreground font-normal"> — #{r.client_number}</span>}
+                </div>
+                <div className="text-xs text-muted-foreground">{r.email}</div>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="fixed inset-0 z-40"
+            onClick={() => setOpen(false)}
+            tabIndex={-1}
+            aria-hidden
+          />
+        </>
       )}
     </div>
   );
@@ -255,7 +323,12 @@ const SupplierAccountForm = ({ initial, id }: Props) => {
 
         <div>
           <Label>Compte client Nivra *</Label>
-          <ClientPicker value={form.client_id} onChange={(v) => set("client_id", v)} />
+          <ClientPicker value={form.client_id} onChange={(v) => set("client_id", v)} locked={isEdit} />
+          {isEdit && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Le lien au compte client est permanent et ne peut pas être modifié.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
