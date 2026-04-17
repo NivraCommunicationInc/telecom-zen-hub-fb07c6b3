@@ -1,8 +1,10 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
+import { supabase as serviceSupabase } from "@/integrations/supabase/client";
 import {
   readStoredImpersonation,
+  readPendingImpersonationToken,
   type ImpersonationState,
 } from "@/components/client/ImpersonationBanner";
 
@@ -78,11 +80,68 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
   const [impersonation, setImpersonation] = useState<ImpersonationState | null>(() =>
     readStoredImpersonation(),
   );
+  // True while we know there is a pending impersonation token but haven't
+  // finished validating it yet. While this is true, ClientProtectedRoute
+  // must NOT redirect to /portal/auth.
+  const [impersonationPending, setImpersonationPending] = useState<boolean>(() =>
+    !readStoredImpersonation() && !!readPendingImpersonationToken(),
+  );
 
-  // Keep impersonation state in sync with sessionStorage updates from the
-  // ImpersonationProvider (which is the canonical writer once a token is
-  // validated). We poll lightly because storage events don't fire in the same
-  // tab; the cost is negligible (one read every 1.5s).
+  // Validate any pending impersonation token (URL or localStorage handoff)
+  // immediately on mount so ClientProtectedRoute can authorise the route on
+  // the very first render of a freshly opened "View as Client" tab.
+  useEffect(() => {
+    if (impersonation) {
+      setImpersonationPending(false);
+      return;
+    }
+    const token = readPendingImpersonationToken();
+    if (!token) {
+      setImpersonationPending(false);
+      return;
+    }
+    setImpersonationPending(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await serviceSupabase.rpc("validate_impersonation_token", {
+          _token: token,
+        });
+        if (cancelled) return;
+        if (error) throw error;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!(row as any)?.is_valid) {
+          setImpersonationPending(false);
+          return;
+        }
+        const next: ImpersonationState = {
+          token,
+          clientId: (row as any).client_id,
+          clientName: (row as any).client_full_name,
+          clientEmail: (row as any).client_email,
+          expiresAt: (row as any).expires_at,
+        };
+        try {
+          sessionStorage.setItem("nivra_impersonation_v1", JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        setImpersonation(next);
+      } catch (err) {
+        console.error("[ClientAuth] impersonation validation failed", err);
+      } finally {
+        if (!cancelled) setImpersonationPending(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Run only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep impersonation state in sync with later sessionStorage updates
+  // (e.g. ImpersonationProvider also validates and writes the canonical blob).
   useEffect(() => {
     const tick = () => {
       const next = readStoredImpersonation();
