@@ -397,6 +397,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
         </div>
       </footer>
     </div>
+    </ImpersonationProvider>
   );
 };
 
