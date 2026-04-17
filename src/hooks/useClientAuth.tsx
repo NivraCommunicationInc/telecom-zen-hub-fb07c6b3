@@ -1,6 +1,10 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
+import {
+  readStoredImpersonation,
+  type ImpersonationState,
+} from "@/components/client/ImpersonationBanner";
 
 type AppRole = "admin" | "client";
 
@@ -22,6 +26,8 @@ interface ClientAuthContextType {
   role: AppRole | null;
   isLoading: boolean;
   isAdmin: boolean;
+  /** True when the current effective identity comes from an admin impersonation token. */
+  isImpersonating: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (data: SignupData) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -30,6 +36,39 @@ interface ClientAuthContextType {
 }
 
 const ClientAuthContext = createContext<ClientAuthContextType | undefined>(undefined);
+
+/**
+ * Build a stand-in `User` object representing the impersonated client.
+ * This is NOT a Supabase auth user — it's a presentation-layer identity used
+ * by portal hooks/queries that read `user.id`. The admin remains authenticated
+ * via portalSupabase under the hood, and admin RLS policies grant access to
+ * the queried client data. All write actions are blocked by useWriteGuard.
+ */
+function buildImpersonatedUser(imp: ImpersonationState): User {
+  return {
+    id: imp.clientId,
+    email: imp.clientEmail ?? undefined,
+    user_metadata: {
+      full_name: imp.clientName ?? undefined,
+      impersonated: true,
+    },
+    app_metadata: { provider: "impersonation" },
+    aud: "authenticated",
+    created_at: new Date().toISOString(),
+  } as unknown as User;
+}
+
+function buildImpersonatedSession(imp: ImpersonationState, user: User): Session {
+  return {
+    access_token: `impersonation:${imp.token}`,
+    refresh_token: "",
+    expires_at: Math.floor(new Date(imp.expiresAt).getTime() / 1000),
+    expires_in: Math.max(0, Math.floor((new Date(imp.expiresAt).getTime() - Date.now()) / 1000)),
+    token_type: "bearer",
+    user,
+  } as unknown as Session;
+}
+
 
 export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
