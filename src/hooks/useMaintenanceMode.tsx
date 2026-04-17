@@ -21,7 +21,27 @@ const DEFAULT_CONFIG: MaintenanceConfig = {
   message_en: "",
 };
 
-const DEFAULT_ROUTES = ["/", "/contact", "/aide", "/portal/auth", "/status"];
+const DEFAULT_ROUTES = ["/contact", "/aide", "/portal/auth", "/status"];
+
+const normalizeMaintenanceConfig = (value: unknown): MaintenanceConfig => {
+  const raw = (value ?? {}) as Partial<MaintenanceConfig>;
+  const rawEnabled = (value as { enabled?: unknown } | null)?.enabled;
+
+  return {
+    ...DEFAULT_CONFIG,
+    ...raw,
+    enabled: rawEnabled === true || rawEnabled === "true",
+  };
+};
+
+const normalizeAllowedRoutes = (value: unknown): AllowedRoutes => {
+  const raw = value as Partial<AllowedRoutes> | null;
+  const routes = Array.isArray(raw?.routes) ? raw.routes : DEFAULT_ROUTES;
+
+  return {
+    routes: Array.from(new Set(routes.filter((route) => route !== "/"))),
+  };
+};
 
 export const useMaintenanceMode = () => {
   const location = useLocation();
@@ -36,7 +56,7 @@ export const useMaintenanceMode = () => {
         .eq("key", "maintenance_mode")
         .maybeSingle();
       if (error || !data?.value_json) return DEFAULT_CONFIG;
-      return { ...DEFAULT_CONFIG, ...(data.value_json as unknown as MaintenanceConfig) };
+      return normalizeMaintenanceConfig(data.value_json);
     },
     staleTime: 15_000,
   });
@@ -50,7 +70,7 @@ export const useMaintenanceMode = () => {
         .eq("key", "maintenance_allowed_routes")
         .maybeSingle();
       if (error || !data?.value_json) return { routes: DEFAULT_ROUTES };
-      return data.value_json as unknown as AllowedRoutes;
+      return normalizeAllowedRoutes(data.value_json);
     },
     staleTime: 30_000,
   });

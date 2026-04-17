@@ -71,14 +71,28 @@ interface AllowedRoutesConfig {
   routes: string[];
 }
 
-const DEFAULT_ROUTES = ["/", "/contact", "/aide", "/portal/auth", "/status"];
+const DEFAULT_ROUTES = ["/contact", "/aide", "/portal/auth", "/status"];
 const TOGGLEABLE_ROUTES: { key: string; label: string; description: string }[] = [
-  { key: "/", label: "Accueil", description: "Page d'accueil publique" },
   { key: "/contact", label: "Contact", description: "Page de contact / formulaire" },
   { key: "/aide", label: "Aide / FAQ", description: "Centre d'aide" },
   { key: "/portal/auth", label: "Portail client (login)", description: "Connexion clients existants" },
   { key: "/status", label: "Page Status", description: "Toujours recommandé pour transparence" },
 ];
+
+const normalizeMaintenanceConfig = (value: unknown): MaintenanceConfig => {
+  const raw = (value ?? {}) as Partial<MaintenanceConfig>;
+  const rawEnabled = (value as { enabled?: unknown } | null)?.enabled;
+
+  return {
+    enabled: rawEnabled === true || rawEnabled === "true",
+    eta: raw.eta ?? "",
+    message_fr: raw.message_fr ?? "",
+    message_en: raw.message_en ?? "",
+  };
+};
+
+const normalizeAllowedRoutes = (routes: string[] | undefined) =>
+  Array.from(new Set((routes ?? DEFAULT_ROUTES).filter((route) => route !== "/")));
 
 const TYPE_PREVIEW: Record<AnnouncementType, { bg: string; text: string; icon: string }> = {
   info: { bg: "#EFF6FF", text: "#1E40AF", icon: "ℹ️" },
@@ -357,19 +371,21 @@ function MaintenanceSection() {
 
   useEffect(() => {
     if (!hydrated && (cfgData || routesData)) {
-      if (cfgData) setConfig((c) => ({ ...c, ...cfgData, eta: cfgData.eta ?? "" }));
-      if (routesData?.routes) setRoutes(routesData.routes);
+      if (cfgData) setConfig(normalizeMaintenanceConfig(cfgData));
+      if (routesData?.routes) setRoutes(normalizeAllowedRoutes(routesData.routes));
       setHydrated(true);
     }
   }, [cfgData, routesData, hydrated]);
 
   const save = useMutation({
     mutationFn: async () => {
+      const sanitizedRoutes = normalizeAllowedRoutes(routes);
+
       const { error: e1 } = await supabase
         .from("site_settings")
         .update({
           value_json: {
-            enabled: config.enabled,
+            enabled: Boolean(config.enabled),
             eta: config.eta || null,
             message_fr: config.message_fr,
             message_en: config.message_en,
@@ -380,9 +396,11 @@ function MaintenanceSection() {
 
       const { error: e2 } = await supabase
         .from("site_settings")
-        .update({ value_json: { routes } as any })
+        .update({ value_json: { routes: sanitizedRoutes } as any })
         .eq("key", "maintenance_allowed_routes");
       if (e2) throw e2;
+
+      setRoutes(sanitizedRoutes);
     },
     onSuccess: () => {
       toast.success(
