@@ -342,6 +342,7 @@ const ClientWebForms = lazy(() => import("@/pages/client/ClientWebForms"));
 const ClientDocumentUpload = lazy(() => import("@/pages/client/ClientDocumentUpload"));
 const ClientDocuments = lazy(() => import("@/pages/client/ClientDocuments"));
 const ClientIdentityVerification = lazy(() => import("@/pages/client/ClientIdentityVerification"));
+const KycVerificationPage = lazy(() => import("@/pages/KycVerificationPage"));
 const ClientResetPassword = lazy(() => import("@/pages/client/ClientResetPassword"));
 const ClientServiceAddresses = lazy(() => import("@/pages/client/ClientServiceAddresses"));
 const ClientVerifyEmail = lazy(() => import("@/pages/client/ClientVerifyEmail"));
