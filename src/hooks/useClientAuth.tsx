@@ -324,6 +324,7 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (data: SignupData) => {
     const redirectUrl = `${window.location.origin}/`;
+    const preferredLanguage = typeof window !== "undefined" && window.localStorage.getItem("nivra-language") === "fr" ? "fr" : "en";
     const { data: authData, error } = await portalSupabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -335,6 +336,7 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
           last_name: data.lastName,
           phone: data.phone,
           client_pin: data.pin,
+          preferred_language: preferredLanguage,
         },
       },
     });
@@ -350,6 +352,7 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
           phone: data.phone,
           client_pin: data.pin,
           email: data.email,
+          preferred_language: preferredLanguage,
           service_address: data.serviceAddress || null,
           service_city: data.serviceCity || null,
           service_postal_code: data.servicePostalCode?.replace(/\s/g, "").toUpperCase() || null,
