@@ -483,6 +483,9 @@ const AppRoutes = () => {
       
       {/* Identity verification - QR code scan from mobile */}
       <Route path="/verify-id" element={<VerifyIdentity />} />
+
+      {/* Manual KYC verification — secure token link sent by admin */}
+      <Route path="/verification/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><KycVerificationPage /></Suspense>} />
       
       {/* Public Quote View (no login required) */}
       <Route path="/quote" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PublicQuotePage /></Suspense></MaintenanceGuard>} />
