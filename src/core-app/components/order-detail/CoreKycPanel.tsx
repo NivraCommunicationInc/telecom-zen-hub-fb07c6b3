@@ -103,11 +103,16 @@ export function CoreKycPanel({ order, onRefresh }: Props) {
     }
   }
 
-  const canRequest = status === "not_required" || status === "rejected";
   const canDecide = status === "completed";
+  const requestLabel =
+    status === "pending" ? "Renvoyer la demande" :
+    status === "rejected" ? "Nouvelle demande" :
+    status === "approved" ? "Demander une nouvelle vérification" :
+    status === "completed" ? "Renvoyer un nouveau lien" :
+    "🔍 Demander vérification d'identité";
 
   return (
-    <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-4">
+    <div className="rounded-lg border border-violet-500/20 bg-[hsl(220,20%,11%)] p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-violet-400" />
@@ -116,15 +121,16 @@ export function CoreKycPanel({ order, onRefresh }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          {canRequest && (
-            <button
-              onClick={() => setShowRequestModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 px-2.5 py-1.5 text-[11px] font-semibold"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {status === "rejected" ? "Nouvelle demande" : "Demander vérification d'identité"}
-            </button>
-          )}
+          {/* Always show request button so admins can trigger/resend at any time */}
+          <button
+            onClick={() => setShowRequestModal(true)}
+            disabled={!order?.client_email}
+            title={!order?.client_email ? "Aucun courriel client disponible" : undefined}
+            className="inline-flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {requestLabel}
+          </button>
           {canDecide && (
             <>
               <button
