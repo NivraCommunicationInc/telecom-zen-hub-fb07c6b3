@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useClientAuth } from "@/hooks/useClientAuth";
 
 const STATUS_STEPS = [
   { key: "pending", label: "Demande reçue", icon: Send },
@@ -70,9 +71,11 @@ interface ClientActivationSectionProps {
 
 export default function ClientActivationSection({ clientId, compact = false }: ClientActivationSectionProps) {
   const queryClient = useQueryClient();
+  const { isLoading: authLoading } = useClientAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState<"yes" | "no" | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [form, setForm] = useState({
     wifi_network_name: "",
     wifi_password: "",
@@ -84,7 +87,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   const { data: latestRequest, isLoading } = useQuery({
     queryKey: ["client-activation-request", clientId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await portalSupabase
         .from("activation_requests")
         .select("*")
         .eq("client_id", clientId)
@@ -94,12 +97,12 @@ export default function ClientActivationSection({ clientId, compact = false }: C
       if (error) throw error;
       return data;
     },
-    enabled: !!clientId,
+    enabled: !!clientId && !authLoading,
   });
 
   useEffect(() => {
-    if (!clientId) return;
-    const channel = supabase
+    if (!clientId || authLoading) return;
+    const channel = portalSupabase
       .channel(`activation-${clientId}`)
       .on(
         "postgres_changes",
@@ -116,9 +119,9 @@ export default function ClientActivationSection({ clientId, compact = false }: C
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      portalSupabase.removeChannel(channel);
     };
-  }, [clientId, queryClient]);
+  }, [authLoading, clientId, queryClient]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +133,15 @@ export default function ClientActivationSection({ clientId, compact = false }: C
 
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc("submit_activation_request", {
+      const {
+        data: { session },
+      } = await portalSupabase.auth.getSession();
+
+      if (!session?.user) {
+        throw new Error("Session portail introuvable. Rechargez la page puis réessayez.");
+      }
+
+      const { data, error } = await portalSupabase.rpc("submit_activation_request", {
         p_wifi_network_name: parsed.data.wifi_network_name,
         p_wifi_password: parsed.data.wifi_password,
         p_contact_phone: parsed.data.contact_phone,
@@ -139,11 +150,12 @@ export default function ClientActivationSection({ clientId, compact = false }: C
       });
       if (error) throw error;
 
-      supabase.functions.invoke("notify-activation-request", {
+      portalSupabase.functions.invoke("notify-activation-request", {
         body: { activation_request_id: data },
       }).catch((err) => console.warn("[notify-activation] failed:", err));
 
       toast.success("Demande soumise! Notre équipe va l'activer sous peu.");
+      setSuccessMessage("✅ Demande envoyée! Notre équipe traite maintenant votre activation WiFi.");
       setForm({
         wifi_network_name: "",
         wifi_password: "",
@@ -164,7 +176,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
     if (!latestRequest) return;
     setConfirming(works ? "yes" : "no");
     try {
-      const { error } = await supabase
+      const { error } = await portalSupabase
         .from("activation_requests")
         .update({
           status: works ? "completed" : "in_progress",
@@ -205,6 +217,14 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         <div className="flex items-center gap-2 text-slate-500">
           <Loader2 className="w-4 h-4 animate-spin" /> Chargement…
         </div>
+      )}
+
+      {successMessage && (
+        <Card className="border-emerald-300 bg-emerald-50">
+          <CardContent className="p-4 text-sm font-medium text-emerald-900">
+            {successMessage}
+          </CardContent>
+        </Card>
       )}
 
       {latestRequest && !isTerminal && (
