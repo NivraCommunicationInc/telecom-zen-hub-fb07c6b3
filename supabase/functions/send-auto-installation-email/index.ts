@@ -28,6 +28,7 @@ const TV_KEYWORDS = ["terminal", "tv", "télé", "tele", "television", "télévi
 interface RequestBody {
   order_id: string;
   override_recipient?: string; // Test mode — redirect client email to this address
+  force_lang?: ClientLang;     // Test mode — force language (fr/en)
 }
 
 type ClientLang = "fr" | "en";
@@ -302,6 +303,11 @@ serve(async (req: Request) => {
     if (!email) throw new Error("Client email not found");
     if (!firstName) firstName = "client";
     if (!fullName) fullName = email;
+
+    // Test mode: force language override
+    if (body.force_lang === "fr" || body.force_lang === "en") {
+      clientLang = body.force_lang;
+    }
 
     const { data: items = [] } = await supabase
       .from("order_items")
