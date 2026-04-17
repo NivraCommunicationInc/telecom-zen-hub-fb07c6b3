@@ -50,6 +50,8 @@ const HomePricing = () => {
 
   return (
     <section id="forfaits" className="px-5 sm:px-10" style={{ background: '#FFFFFF', paddingTop: 48, paddingBottom: 48 }}>
+      {/* Anchor for primary "Services" nav target — kept as a sibling so both #forfaits and #services resolve to this section */}
+      <span id="services" aria-hidden="true" className="block" style={{ scrollMarginTop: 80 }} />
       <div className="max-w-[1100px] mx-auto">
         <div className="text-center mb-10 sm:mb-14">
           <h2 className="text-2xl sm:text-3xl md:text-[36px] font-extrabold mb-3" style={{ color: '#0D0D0D', letterSpacing: '-0.5px' }}>

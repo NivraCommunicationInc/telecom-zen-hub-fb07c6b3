@@ -1,6 +1,7 @@
+import { forwardRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export default function TrustBadges() {
+const TrustBadges = forwardRef<HTMLElement>((_props, ref) => {
   const { language } = useLanguage();
   const isFr = language === "fr";
 
@@ -13,7 +14,7 @@ export default function TrustBadges() {
   ];
 
   return (
-    <section style={{ background: '#FFFFFF', borderTop: '1px solid #EEEEEE' }}>
+    <section ref={ref} style={{ background: '#FFFFFF', borderTop: '1px solid #EEEEEE' }}>
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center gap-2 sm:gap-4 py-6 sm:py-8 px-5 sm:px-10 max-w-[1100px] mx-auto">
         {badges.map((b, i) => (
           <div key={i} className="flex items-center gap-2.5 px-3 py-2.5 sm:px-4 sm:py-2">
@@ -27,4 +28,8 @@ export default function TrustBadges() {
       </div>
     </section>
   );
-}
+});
+
+TrustBadges.displayName = "TrustBadges";
+
+export default TrustBadges;

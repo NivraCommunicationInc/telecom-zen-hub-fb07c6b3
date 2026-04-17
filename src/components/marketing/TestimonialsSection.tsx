@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const testimonials = [
@@ -8,7 +8,7 @@ const testimonials = [
   { name: "Sophie T.", location: "Plateau-Mont-Royal", rating: 5, text: "Étudiante, je déménage chaque année. Avec Nivra, pas de stress de résiliation. J'amène mon forfait avec moi ou j'annule sans frais.", service: "Internet 400 Mbps" },
 ];
 
-export default function TestimonialsSection() {
+const TestimonialsSection = forwardRef<HTMLElement>((_props, ref) => {
   const { language } = useLanguage();
   const isFr = language === "fr";
   const [current, setCurrent] = useState(0);
@@ -22,7 +22,7 @@ export default function TestimonialsSection() {
   }, [next]);
 
   return (
-    <section aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="px-5 sm:px-10" style={{ background: '#FFFFFF', paddingTop: 48, paddingBottom: 48 }}>
+    <section ref={ref} aria-label={isFr ? "Témoignages clients" : "Customer testimonials"} className="px-5 sm:px-10" style={{ background: '#FFFFFF', paddingTop: 48, paddingBottom: 48 }}>
       <div className="max-w-[1100px] mx-auto">
         <div className="text-center mb-8 sm:mb-12">
           <p className="uppercase mb-2" style={{ color: '#999999', fontSize: 11, letterSpacing: 2 }}>
@@ -93,4 +93,8 @@ export default function TestimonialsSection() {
       </div>
     </section>
   );
-}
+});
+
+TestimonialsSection.displayName = "TestimonialsSection";
+
+export default TestimonialsSection;
