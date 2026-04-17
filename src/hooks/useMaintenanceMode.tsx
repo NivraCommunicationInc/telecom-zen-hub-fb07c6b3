@@ -24,7 +24,7 @@ const DEFAULT_CONFIG: MaintenanceConfig = {
 const DEFAULT_ROUTES = ["/contact", "/aide", "/portal/auth", "/status"];
 
 const normalizeMaintenanceConfig = (value: unknown): MaintenanceConfig => {
-  const raw = (value ?? {}) as Partial<MaintenanceConfig> & { enabled?: boolean | string };
+  const raw = (value ?? {}) as Partial<MaintenanceConfig> & { enabled?: unknown };
 
   return {
     ...DEFAULT_CONFIG,

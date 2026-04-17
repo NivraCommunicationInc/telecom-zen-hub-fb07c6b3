@@ -80,7 +80,7 @@ const TOGGLEABLE_ROUTES: { key: string; label: string; description: string }[] =
 ];
 
 const normalizeMaintenanceConfig = (value: unknown): MaintenanceConfig => {
-  const raw = (value ?? {}) as Partial<MaintenanceConfig> & { enabled?: boolean | string };
+  const raw = (value ?? {}) as Partial<MaintenanceConfig> & { enabled?: unknown };
 
   return {
     enabled: raw.enabled === true || raw.enabled === "true",
@@ -384,7 +384,7 @@ function MaintenanceSection() {
         .from("site_settings")
         .update({
           value_json: {
-            enabled: config.enabled === true || (config.enabled as unknown as string) === "true",
+            enabled: Boolean(config.enabled),
             eta: config.eta || null,
             message_fr: config.message_fr,
             message_en: config.message_en,
