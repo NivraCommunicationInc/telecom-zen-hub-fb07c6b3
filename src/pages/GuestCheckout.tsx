@@ -108,6 +108,8 @@ const GuestCheckout = () => {
   const [appointmentConfirmed, setAppointmentConfirmed] = useState(false);
   const [notes, setNotes] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [autoAppliedPromo, setAutoAppliedPromo] = useState(false);
+  const [autoApplyAttempted, setAutoApplyAttempted] = useState(false);
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
   // ── KYC / Identity ──
