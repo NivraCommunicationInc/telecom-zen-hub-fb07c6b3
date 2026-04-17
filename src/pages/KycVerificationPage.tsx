@@ -128,7 +128,7 @@ export default function KycVerificationPage() {
 
           {state === "already" && (
             <div className="text-center py-6">
-              <CheckCircle2 className="h-10 w-10 mx-auto text-green-600 mb-3" />
+              <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-500 mb-3" />
               <h2 className="text-lg font-semibold text-foreground">Vérification déjà reçue</h2>
               <p className="text-sm text-muted-foreground mt-2">Votre pièce d'identité a déjà été soumise. Vous recevrez une confirmation par courriel une fois validée.</p>
             </div>
@@ -144,7 +144,7 @@ export default function KycVerificationPage() {
 
           {state === "done" && (
             <div className="text-center py-6">
-              <CheckCircle2 className="h-12 w-12 mx-auto text-green-600 mb-3" />
+              <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-500 mb-3" />
               <h2 className="text-lg font-semibold text-foreground">Document reçu ✓</h2>
               <p className="text-sm text-muted-foreground mt-2">Merci. Notre équipe vérifiera votre identité dans les meilleurs délais et vous recevrez une confirmation par courriel.</p>
             </div>
