@@ -21,7 +21,7 @@ import { PromoCodeInput } from "@/components/checkout/PromoCodeInput";
 import { ReferralCodeInput, type AppliedReferral } from "@/components/checkout/ReferralCodeInput";
 import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
-import { GuestKycCard, type GuestKycStatus } from "@/components/checkout/GuestKycCard";
+
 import { PayPalButton } from "@/components/payment/PayPalButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,8 +113,7 @@ const GuestCheckout = () => {
   const [appliedReferral, setAppliedReferral] = useState<AppliedReferral | null>(null);
 
   // ── KYC / Identity ──
-  const [kycStatus, setKycStatus] = useState<GuestKycStatus>("not_started");
-  const [kycSessionId, setKycSessionId] = useState<string | null>(null);
+  // Identity verification (KYC) removed from public checkout — handled post-purchase if needed.
 
   // ── Payment ──
   const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>("paypal");
@@ -197,7 +196,8 @@ const GuestCheckout = () => {
   const needsAddress = !isStreamingOnlyOrder;
   const isETransfer = paymentMethod === "etransfer";
   const isLegalComplete = isChecklistComplete(legalChecklist, isETransfer);
-  const isKycComplete = isStreamingOnlyOrder || kycStatus === "completed";
+  // KYC removed — always treated as not required at checkout time.
+  const isKycComplete = true;
 
   const ROUTER_PRICE = routerPrice ?? 100;
   const SIM_PRICE = simPrice ?? 10;
@@ -366,11 +366,6 @@ const GuestCheckout = () => {
         return;
       }
 
-      // Validate KYC (unless streaming-only)
-      if (!isKycComplete) {
-        toast.error("Veuillez compléter la vérification d'identité");
-        return;
-      }
 
       if (!isPaymentDone) {
         toast.error("Veuillez compléter le paiement");
@@ -400,8 +395,8 @@ const GuestCheckout = () => {
       const userId = accountResult.user_id;
       console.log("[GuestCheckout] Account created/found:", userId, "isNew:", accountResult.is_new_account);
 
-      // Step 1b: Set kyc_status for the order
-      const kycStatusForOrder = isStreamingOnlyOrder ? "not_required" : "pending";
+      // Step 1b: KYC removed from public checkout — always not_required.
+      const kycStatusForOrder = "not_required";
 
       // Step 2: Resolve account_id
       const { data: acctRows } = await supabase
@@ -503,7 +498,7 @@ const GuestCheckout = () => {
           paypal_capture_id: paypalCaptureId || null,
         },
         identity: isStreamingOnlyOrder ? null : {
-          verification_session_id: kycSessionId || `guest_${clientRequestIdRef.current}`,
+          verification_session_id: `guest_${clientRequestIdRef.current}`,
           id_type: null,
           id_number: null,
           id_expiration: null,
@@ -889,17 +884,6 @@ const GuestCheckout = () => {
             {/* ═══ STEP 4: OPTIONS ═══ */}
             {step === 4 && (
               <div className="space-y-6">
-                {/* KYC / Identity Verification */}
-                <GuestKycCard
-                  isStreamingOnly={isStreamingOnlyOrder}
-                  guestEmail={email}
-                  guestRequestId={clientRequestIdRef.current}
-                  onStatusChange={(status, sid) => {
-                    setKycStatus(status);
-                    if (sid) setKycSessionId(sid);
-                  }}
-                />
-
                 {/* Installation */}
                 {(hasInternetService || hasTVService) && (
                   <InstallationSection
@@ -1066,26 +1050,13 @@ const GuestCheckout = () => {
                   </CardContent>
                 </Card>
 
-                {/* Step 4 validation gate */}
-                {!isKycComplete && !isStreamingOnlyOrder && (
-                  <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    <p className="text-sm text-amber-800">
-                      Veuillez compléter la vérification d'identité pour continuer au paiement.
-                    </p>
-                  </div>
-                )}
-
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setStep(3)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
                   <Button
                     className="flex-1"
-                    disabled={
-                      (!isKycComplete && !isStreamingOnlyOrder) ||
-                      (requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed))
-                    }
+                    disabled={requiresInstallation && (!selectedDate || !selectedTime || !appointmentConfirmed)}
                     onClick={() => setStep(5)}
                   >
                     Continuer au paiement <ArrowRight className="w-4 h-4 ml-2" />
@@ -1214,7 +1185,7 @@ const GuestCheckout = () => {
                   </Button>
                   <Button
                     className="flex-1 h-12 text-base font-bold"
-                    disabled={!isPaymentDone || !isLegalComplete || !isKycComplete || isSubmitting}
+                    disabled={!isPaymentDone || !isLegalComplete || isSubmitting}
                     onClick={handleSubmit}
                   >
                     {isSubmitting ? (
@@ -1274,19 +1245,6 @@ const GuestCheckout = () => {
                       </div>
                     </div>
 
-                    {/* KYC pending notice */}
-                    {!isStreamingOnlyOrder && (
-                      <div className="mt-4 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 max-w-md mx-auto">
-                        <Shield className="w-5 h-5 text-amber-600 mx-auto mb-2" />
-                        <p className="text-sm font-semibold text-foreground mb-1">
-                          Vérification d'identité en cours
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Votre commande est reçue mais en attente de validation d'identité.
-                          Aucune activation ne sera effectuée avant approbation de vos documents.
-                        </p>
-                      </div>
-                    )}
 
 
                     {/* Next steps */}
