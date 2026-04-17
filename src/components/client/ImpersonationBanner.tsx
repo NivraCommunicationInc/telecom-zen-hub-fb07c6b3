@@ -16,7 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { IMPERSONATION_PENDING_KEY } from "@/hooks/useImpersonation";
+import { IMPERSONATION_PENDING_KEY, IMPERSONATION_TOKEN_KEY } from "@/hooks/useImpersonation";
 
 const STORAGE_KEY = "nivra_impersonation_v1";
 
@@ -74,6 +74,8 @@ export function readPendingImpersonationToken(): string | null {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("impersonate");
     if (fromUrl) return fromUrl;
+    const directToken = localStorage.getItem(IMPERSONATION_TOKEN_KEY);
+    if (directToken) return directToken;
     const raw = localStorage.getItem(IMPERSONATION_PENDING_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { token?: string; expiresAt?: string };
@@ -101,8 +103,16 @@ export function ImpersonationProvider({ children }: ProviderProps) {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const urlToken = params.get("impersonate");
+    const isPendingOpen = params.get("impersonation_pending") === "1";
 
     let pendingToken: string | null = urlToken;
+    if (!pendingToken) {
+      try {
+        pendingToken = localStorage.getItem(IMPERSONATION_TOKEN_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
     if (!pendingToken) {
       try {
         const raw = localStorage.getItem(IMPERSONATION_PENDING_KEY);
@@ -117,18 +127,38 @@ export function ImpersonationProvider({ children }: ProviderProps) {
       }
     }
 
-    if (!pendingToken) return;
+    if (!pendingToken && !isPendingOpen) return;
+
+    if (!pendingToken && isPendingOpen) {
+      const startedAt = Date.now();
+      const timer = window.setInterval(() => {
+        const token = readPendingImpersonationToken();
+        if (token) {
+          window.clearInterval(timer);
+          window.location.replace(`${location.pathname}?impersonate=${encodeURIComponent(token)}`);
+          return;
+        }
+        if (Date.now() - startedAt > 10000) {
+          window.clearInterval(timer);
+          toast.error("Impossible de préparer la session d'assistance");
+          navigate("/portal/auth", { replace: true });
+        }
+      }, 200);
+      return () => window.clearInterval(timer);
+    }
 
     // If we already have a valid stored session for this exact token, skip.
     if (state?.token === pendingToken) {
       // Just clean up URL/handoff
       try {
+        localStorage.removeItem(IMPERSONATION_TOKEN_KEY);
         localStorage.removeItem(IMPERSONATION_PENDING_KEY);
       } catch {
         /* ignore */
       }
       if (urlToken) {
         params.delete("impersonate");
+        params.delete("impersonation_pending");
         const next = `${location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
         navigate(next, { replace: true });
       }
@@ -163,12 +193,14 @@ export function ImpersonationProvider({ children }: ProviderProps) {
         toast.error("Impossible de valider la session d'assistance");
       } finally {
         try {
+          localStorage.removeItem(IMPERSONATION_TOKEN_KEY);
           localStorage.removeItem(IMPERSONATION_PENDING_KEY);
         } catch {
           /* ignore */
         }
-        if (urlToken) {
+        if (urlToken || isPendingOpen) {
           params.delete("impersonate");
+          params.delete("impersonation_pending");
           const next = `${location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
           navigate(next, { replace: true });
         }
