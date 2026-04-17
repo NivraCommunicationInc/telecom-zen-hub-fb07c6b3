@@ -2546,6 +2546,33 @@ export type Database = {
         }
         Relationships: []
       }
+      client_admin_notes: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_billing_preferences: {
         Row: {
           created_at: string

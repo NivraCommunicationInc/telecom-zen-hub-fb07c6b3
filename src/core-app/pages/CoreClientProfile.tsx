@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 import { ClientSupplierAccountSection } from "@/core-app/components/supplier-accounts/ClientSupplierAccountSection";
+import { ClientAdminNotesSection } from "@/core-app/components/admin-notes/ClientAdminNotesSection";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -548,6 +549,9 @@ const CoreClientProfile = () => {
 
       {/* ═══ COMPTE FOURNISSEUR (admin only) ═══ */}
       <ClientSupplierAccountSection clientId={clientId} />
+
+      {/* ═══ NOTES PRIVÉES (admin only) ═══ */}
+      <ClientAdminNotesSection clientId={clientId} />
     </div>
   );
 };

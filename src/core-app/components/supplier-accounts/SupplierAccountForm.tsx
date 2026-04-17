@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // ── Client search dropdown ──────────────────────────────────────
-type ClientOption = { user_id: string; full_name: string | null; email: string | null; client_number: string | null };
+type ClientOption = { user_id: string; full_name: string | null; email: string | null; client_number: string | null; phone: string | null };
 
 function ClientPicker({
   value,
@@ -51,7 +51,7 @@ function ClientPicker({
     if (selected?.user_id === value) return;
     adminClient
       .from("profiles")
-      .select("user_id, full_name, email, client_number")
+      .select("user_id, full_name, email, client_number, phone")
       .eq("user_id", value)
       .maybeSingle()
       .then(({ data }) => setSelected(data as ClientOption | null));
@@ -68,11 +68,13 @@ function ClientPicker({
     }
     setSearching(true);
     const t = setTimeout(async () => {
-      const { data } = await adminClient
+      const { data, error } = await adminClient
         .from("profiles")
-        .select("user_id, full_name, email, client_number")
-        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,client_number.ilike.%${q}%`)
-        .limit(10);
+        .select("user_id, full_name, email, client_number, phone")
+        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,client_number.ilike.%${q}%,phone.ilike.%${q}%`)
+        .order("full_name", { ascending: true, nullsFirst: false })
+        .limit(15);
+      if (error) console.error("[ClientPicker] search error:", error);
       setResults((data ?? []) as ClientOption[]);
       setSearching(false);
     }, 200);
