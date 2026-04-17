@@ -27,6 +27,7 @@ const TV_KEYWORDS = ["terminal", "tv", "télé", "tele", "television", "télévi
 
 interface RequestBody {
   order_id: string;
+  override_recipient?: string; // Test mode — redirect client email to this address
 }
 
 function isTvOrder(items: Array<{ plan_name?: string | null; service_type?: string | null; description?: string | null }>): boolean {
@@ -309,29 +310,34 @@ serve(async (req: Request) => {
     const orderNumber = order.order_number || order.id.slice(0, 8);
     const html = buildClientHtml({ firstName, orderNumber, hasTv });
 
+    const recipientEmail = body.override_recipient || email;
+    const isTest = !!body.override_recipient;
+
     const sendResp = await resend.emails.send({
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      to: [email],
-      bcc: BUSINESS_EMAILS,
+      to: [recipientEmail],
+      bcc: isTest ? [] : BUSINESS_EMAILS,
       replyTo: SUPPORT_EMAIL,
-      subject: "Votre équipement Nivra est en route — Guide d'installation inclus",
+      subject: isTest ? "[TEST] Votre équipement Nivra est en route — Guide d'installation inclus" : "Votre équipement Nivra est en route — Guide d'installation inclus",
       html,
       attachments,
-      headers: { "X-Entity-Ref-ID": `auto-install-${order.id}` },
+      headers: { "X-Entity-Ref-ID": `auto-install-${order.id}${isTest ? '-test-' + Date.now() : ''}` },
     });
 
-    console.log(`[send-auto-installation-email] Sent to ${email} (order ${orderNumber}) with ${attachments.length} guides`);
+    console.log(`[send-auto-installation-email] Sent to ${recipientEmail} (order ${orderNumber}) with ${attachments.length} guides${isTest ? ' [TEST MODE]' : ''}`);
 
-    const equipmentList = (items || []).map(i => i.plan_name || i.service_type || i.description || "Item").filter(Boolean) as string[];
-    const notifHtml = buildBusinessNotifHtml({ fullName, email, orderNumber, equipment: equipmentList, guides: guideFiles });
+    if (!isTest) {
+      const equipmentList = (items || []).map(i => i.plan_name || i.service_type || i.description || "Item").filter(Boolean) as string[];
+      const notifHtml = buildBusinessNotifHtml({ fullName, email, orderNumber, equipment: equipmentList, guides: guideFiles });
 
-    await resend.emails.send({
-      from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      to: BUSINESS_EMAILS,
-      subject: `📦 Auto-installation — ${fullName} — Équipement expédié`,
-      html: notifHtml,
-      headers: { "X-Entity-Ref-ID": `auto-install-notif-${order.id}` },
-    });
+      await resend.emails.send({
+        from: "Nivra Telecom <noreply@nivra-telecom.ca>",
+        to: BUSINESS_EMAILS,
+        subject: `📦 Auto-installation — ${fullName} — Équipement expédié`,
+        html: notifHtml,
+        headers: { "X-Entity-Ref-ID": `auto-install-notif-${order.id}` },
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true, message_id: sendResp.data?.id, order_id: order.id, attachments: guideFiles, has_tv: hasTv,
