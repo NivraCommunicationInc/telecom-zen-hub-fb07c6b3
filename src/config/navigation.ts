@@ -88,6 +88,14 @@ export const NAV_TARGETS: NavTarget[] = [
     fallbackRoute: '/compare',
   },
   {
+    id: 'support',
+    label: 'Support',
+    labelFr: 'Support',
+    type: 'route',
+    target: '/support',
+    fallbackRoute: '/support',
+  },
+  {
     id: 'about',
     label: 'About',
     labelFr: 'À propos',
