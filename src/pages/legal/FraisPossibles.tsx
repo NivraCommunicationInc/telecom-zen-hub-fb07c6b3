@@ -94,6 +94,21 @@ const FraisPossibles = () => {
             Transparence sur les frais qui peuvent s'appliquer à votre compte.
           </p>
 
+          <Card className="bg-primary/10 border-primary/30 mb-6">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🎉</span>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Nouveaux tarifs en vigueur</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Nous avons réduit nos frais pour rendre Nivra encore plus accessible : <strong>activation à 10 $</strong>,{" "}
+                    <strong>livraison à 20 $</strong>, <strong>technicien à 25 $</strong>.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-cyan-500/10 border-cyan-500/30 mb-8">
             <CardContent className="p-6">
               <div className="flex items-start gap-3">
