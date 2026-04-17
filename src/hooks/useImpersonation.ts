@@ -3,16 +3,20 @@
  *
  * IMPORTANT: window.open() must be called synchronously in the click handler,
  * never after `await`, otherwise browsers block it as a non-user-gesture popup.
- * This hook therefore exposes a `requestImpersonationToken` that the caller uses
- * AFTER opening a blank window synchronously, then navigates that window to the
- * resulting URL.
  *
- * RPCs (SECURITY DEFINER):
- *   - start_impersonation(client_id, reason) → { token, expires_at }
- *   - end_impersonation(token)               → ends the session
+ * Flow (Shopify-style "View as customer"):
+ *   1. Click handler calls startImpersonation()
+ *   2. We synchronously open about:blank in a new tab (preserves user gesture)
+ *   3. We call start_impersonation RPC → { token, expires_at }
+ *   4. We persist the token to localStorage AND pass it via the URL
+ *   5. We navigate the new tab to /portal?impersonate=<token>
+ *   6. The portal's ClientAuthProvider reads the token, validates it,
+ *      and synthesises an effective user identity for the impersonated client.
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+export const IMPERSONATION_PENDING_KEY = "nivra_impersonation_pending_v1";
 
 interface StartArgs {
   clientId: string;
@@ -22,28 +26,21 @@ interface StartArgs {
 }
 
 export function useImpersonation() {
-  /**
-   * Open the client portal in a new tab in "support / view-as" mode.
-   *
-   * Synchronously opens a blank window in response to the click, then fetches
-   * a one-time token and navigates the window to /portal?impersonate=<token>.
-   * If the popup was blocked or the RPC fails, the window is closed and an
-   * error toast is shown.
-   */
   const startImpersonation = async ({ clientId, clientEmail, clientName, reason }: StartArgs) => {
     if (!clientId) {
       toast.error("Client invalide");
       return;
     }
 
-    // 1) Synchronously open a blank tab while we still have the user gesture.
+    // 1) SYNCHRONOUS popup open while we still have the user gesture.
     const win = window.open("about:blank", "_blank", "noopener,noreferrer");
     if (!win) {
-      toast.error("Le navigateur a bloqué l'ouverture du portail. Autorisez les popups pour ce site.");
+      toast.error(
+        "Le navigateur a bloqué l'ouverture du portail. Autorisez les popups pour ce site puis réessayez.",
+      );
       return;
     }
 
-    // Friendly placeholder while we fetch the token
     try {
       win.document.write(
         `<!doctype html><html><head><title>Mode assistance — Nivra</title>
@@ -71,19 +68,30 @@ export function useImpersonation() {
 
       const session = Array.isArray(data) ? data[0] : data;
       const token = (session as any)?.token;
-      if (!token) throw new Error("Session d'assistance invalide");
+      const expiresAt = (session as any)?.expires_at;
+      if (!token) throw new Error("Session d'assistance invalide (token manquant)");
+
+      // 2) Persist the token to localStorage so the new tab can pick it up
+      //    even if it is opened with about:blank and the URL is later stripped.
+      try {
+        localStorage.setItem(
+          IMPERSONATION_PENDING_KEY,
+          JSON.stringify({ token, expiresAt, clientId, clientName, clientEmail, ts: Date.now() }),
+        );
+      } catch {
+        /* localStorage unavailable — token will still flow via URL */
+      }
 
       const url = `${window.location.origin}/portal?impersonate=${encodeURIComponent(token)}`;
 
-      // 2) Navigate the already-open tab to the portal URL.
+      // 3) Navigate the already-open tab.
       try {
         win.location.replace(url);
       } catch {
-        // Fallback: try assigning .href
         win.location.href = url;
       }
 
-      toast.success(`Mode assistance activé pour ${clientName || clientEmail}`, {
+      toast.success(`Mode assistance activé pour ${clientName || clientEmail || "client"}`, {
         id: toastId,
         description: "Session valide 30 minutes — toutes les actions sont enregistrées.",
       });
