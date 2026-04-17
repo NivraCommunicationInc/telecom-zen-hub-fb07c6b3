@@ -167,57 +167,20 @@ export const CheckoutPaymentSection = ({
             </div>
           </div>
 
-          {/* ── 2. Interac E-Transfer — SECONDARY ── */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-              selectedPaymentMethod === "etransfer" 
-                ? "border-primary bg-primary/5" 
-                : "border-border hover:border-primary/50"
-            }`}
-            onClick={() => onPaymentMethodChange("etransfer")}
-          >
-            <div className="flex items-start gap-3">
-              <RadioGroupItem value="etransfer" id="payment-etransfer" className="mt-1" />
-              <div className="flex-1 space-y-4">
-                <Label htmlFor="payment-etransfer" className="text-base font-medium cursor-pointer flex items-center gap-2">
-                  <Banknote className="w-5 h-5 text-primary" />
-                  {isFrench ? "Virement Interac" : "Interac e-Transfer"}
-                </Label>
-
-                {selectedPaymentMethod === "etransfer" && (
-                  <div className="space-y-3 pt-2">
-                    <div className="p-4 bg-muted/50 border border-border rounded-lg space-y-3">
-                      <p className="text-sm font-medium">
-                        {isFrench ? "Envoyez votre virement à:" : "Send your transfer to:"}
-                      </p>
-                      <div className="flex items-center gap-2 bg-background p-3 rounded-lg border border-border">
-                        <Mail className="w-4 h-4 text-primary" />
-                        <span className="font-mono text-sm font-medium flex-1">{ETRANSFER_CONFIG.email}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleCopyEmail}
-                          className="h-8 px-2"
-                        >
-                          {copied ? <CheckIcon className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 p-3 bg-muted/50 border border-border rounded-lg">
-                      <AlertCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-muted-foreground">
-                        {isFrench 
-                          ? "Votre commande sera confirmée après vérification du virement."
-                          : "Your order will be confirmed after transfer verification."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Interac removed from public checkout (B3) — PayPal only.
+              PayPal accepts credit/debit cards (Visa, Mastercard, prepaid)
+              without requiring a PayPal account. */}
         </RadioGroup>
+
+        {/* PayPal accepts cards without account — info note */}
+        <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+          <Lock className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            {isFrench 
+              ? "Aucun compte PayPal requis. Payez avec votre carte de crédit, débit Visa, débit Mastercard ou carte prépayée."
+              : "No PayPal account required. Pay with your credit card, Visa debit, Mastercard debit or prepaid card."}
+          </p>
+        </div>
 
         {/* Security notice */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
