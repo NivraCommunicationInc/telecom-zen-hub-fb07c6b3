@@ -57,6 +57,9 @@ interface ActivationRequest {
   activated_at: string | null;
   completed_at: string | null;
   business_notified: boolean;
+  light_color: string | null;
+  has_terminal: boolean | null;
+  terminal_connected: boolean | null;
   // Joined client info
   client?: {
     full_name: string | null;
@@ -450,6 +453,45 @@ function ActivationDetail({
                 )}
               </Button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pre-activation checklist */}
+      <section className="border rounded-lg p-4 bg-violet-50/40">
+        <h3 className="text-xs font-bold uppercase text-violet-900 mb-2 flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3" /> Vérification équipement (déclaré par le client)
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Borne — voyant lumineux:</span>
+            {request.light_color === "blanc_fixe" ? (
+              <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300">
+                ✅ Blanc fixe
+              </Badge>
+            ) : request.light_color ? (
+              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                ⚠️ {request.light_color}
+              </Badge>
+            ) : (
+              <span className="text-muted-foreground italic">Non renseigné</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Terminal TV:</span>
+            {request.has_terminal ? (
+              request.terminal_connected ? (
+                <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300">
+                  ✅ Branché
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                  ⚠️ Non confirmé
+                </Badge>
+              )
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
           </div>
         </div>
       </section>
