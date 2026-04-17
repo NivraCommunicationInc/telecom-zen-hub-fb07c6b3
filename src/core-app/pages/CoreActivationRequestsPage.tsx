@@ -1,5 +1,5 @@
 /**
- * CoreActivationRequestsPage — /core/activations
+ * CoreActivationRequestsPage — /core/wifi-requests
  * Manages WiFi activation requests submitted by clients via /portal/activation.
  * Admins can change status, view decrypted WiFi password, add notes,
  * and trigger client confirmation flow.
@@ -142,7 +142,7 @@ export default function CoreActivationRequestsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Zap className="w-6 h-6 text-emerald-500" />
-            Activations
+            Demandes WiFi
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Demandes d'activation WiFi soumises par les clients
