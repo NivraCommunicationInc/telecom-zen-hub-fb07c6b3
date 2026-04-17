@@ -250,6 +250,7 @@ const Header = () => {
 
   return (
     <>
+      <SiteSearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
       <QuickAnnouncementBanner />
       <PublicSystemStatusBanner />
       
