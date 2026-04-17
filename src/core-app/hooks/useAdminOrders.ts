@@ -28,6 +28,7 @@ export interface AdminOrder {
   account_number: string | null;
   invoice_number: string | null;
   invoice_status: string | null;
+  kyc_status: string | null;
 }
 
 export function useAdminOrders(environment: EnvironmentFilter = "all") {
@@ -36,7 +37,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
     queryFn: async () => {
       let query = supabase
         .from("orders")
-        .select("id, order_number, user_id, account_id, service_type, order_type, status, payment_status, total_amount, risk_flags, created_at, environment")
+        .select("id, order_number, user_id, account_id, service_type, order_type, status, payment_status, total_amount, risk_flags, created_at, environment, kyc_status")
         .order("created_at", { ascending: false })
         .limit(500);
       if (environment !== "all") query = query.eq("environment", environment);
@@ -105,6 +106,7 @@ export function useAdminOrders(environment: EnvironmentFilter = "all") {
           account_number: accountNumber,
           invoice_number: invoice?.invoice_number ?? null,
           invoice_status: invoice?.status ?? null,
+          kyc_status: o.kyc_status ?? null,
         };
       });
     },
