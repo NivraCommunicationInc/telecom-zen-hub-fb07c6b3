@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { adminClient } from "@/integrations/backend/adminClient";
+import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import {
   useCreateSupplierAccount,
@@ -28,7 +28,17 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // ── Client search dropdown ──────────────────────────────────────
-type ClientOption = { user_id: string; full_name: string | null; email: string | null; client_number: string | null; phone: string | null };
+type ClientOption = {
+  id: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  email: string | null;
+  client_number: string | null;
+  account_number: string | null;
+  phone: string | null;
+};
 
 function ClientPicker({
   value,
@@ -49,10 +59,10 @@ function ClientPicker({
   useEffect(() => {
     if (!value) { setSelected(null); return; }
     if (selected?.user_id === value) return;
-    adminClient
+    supabase
       .from("profiles")
-      .select("user_id, full_name, email, client_number, phone")
-      .eq("user_id", value)
+      .select("id, user_id, first_name, last_name, full_name, email, client_number, account_number, phone")
+      .or(`id.eq.${value},user_id.eq.${value}`)
       .maybeSingle()
       .then(({ data }) => setSelected(data as ClientOption | null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -68,11 +78,11 @@ function ClientPicker({
     }
     setSearching(true);
     const t = setTimeout(async () => {
-      const { data, error } = await adminClient
+      const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email, client_number, phone")
-        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,client_number.ilike.%${q}%,phone.ilike.%${q}%`)
-        .order("full_name", { ascending: true, nullsFirst: false })
+        .select("id, user_id, first_name, last_name, full_name, email, client_number, account_number, phone")
+        .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,full_name.ilike.%${q}%,email.ilike.%${q}%,account_number.ilike.%${q}%,client_number.ilike.%${q}%,phone.ilike.%${q}%`)
+        .order("last_name", { ascending: true, nullsFirst: false })
         .limit(15);
       if (error) console.error("[ClientPicker] search error:", error);
       setResults((data ?? []) as ClientOption[]);
@@ -90,10 +100,10 @@ function ClientPicker({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-foreground truncate">
-            {selected.full_name ?? "(sans nom)"}
+            {selected.full_name ?? ([selected.first_name, selected.last_name].filter(Boolean).join(" ") || "(sans nom)")}
           </div>
           <div className="text-xs text-muted-foreground truncate">
-            {selected.client_number && <>Compte #{selected.client_number} · </>}
+            {(selected.account_number || selected.client_number) && <>Compte #{selected.account_number ?? selected.client_number} · </>}
             {selected.email}
           </div>
         </div>
@@ -114,10 +124,10 @@ function ClientPicker({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-foreground truncate">
-            {selected.full_name ?? "(sans nom)"}
+            {selected.full_name ?? ([selected.first_name, selected.last_name].filter(Boolean).join(" ") || "(sans nom)")}
           </div>
           <div className="text-xs text-muted-foreground truncate">
-            {selected.client_number && <>Compte #{selected.client_number} · </>}
+            {(selected.account_number || selected.client_number) && <>Compte #{selected.account_number ?? selected.client_number} · </>}
             {selected.email}
           </div>
         </div>
@@ -168,8 +178,8 @@ function ClientPicker({
                 }}
               >
                 <div className="font-medium text-foreground">
-                  {r.full_name ?? "(sans nom)"}
-                  {r.client_number && <span className="text-muted-foreground font-normal"> — #{r.client_number}</span>}
+                  {r.full_name ?? ([r.first_name, r.last_name].filter(Boolean).join(" ") || "(sans nom)")}
+                  {(r.account_number || r.client_number) && <span className="text-muted-foreground font-normal"> — #{r.account_number ?? r.client_number}</span>}
                 </div>
                 <div className="text-xs text-muted-foreground">{r.email}</div>
               </button>
