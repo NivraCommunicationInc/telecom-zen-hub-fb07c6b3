@@ -128,7 +128,12 @@ export function ImpersonationProvider({ children }: ProviderProps) {
 
   const exit = () => {
     if (state?.token) {
-      supabase.rpc("end_impersonation", { _token: state.token }).catch(() => {});
+      // Fire-and-forget; .then(noop, noop) avoids unhandled rejections without
+      // calling .catch on the PostgrestFilterBuilder (which has no .catch()).
+      void Promise.resolve(supabase.rpc("end_impersonation", { _token: state.token })).then(
+        () => {},
+        () => {},
+      );
     }
     sessionStorage.removeItem(STORAGE_KEY);
     setState(null);
