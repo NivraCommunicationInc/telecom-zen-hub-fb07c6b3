@@ -1,62 +1,102 @@
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Construction, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 interface MaintenancePageProps {
   eta?: string | null;
   messageFr?: string;
   messageEn?: string;
+  title?: string;
 }
 
-const MaintenancePage = ({ eta, messageFr, messageEn }: MaintenancePageProps) => {
+const MaintenancePage = ({ eta, messageFr, messageEn, title }: MaintenancePageProps) => {
   const { language } = useLanguage();
-  
-  const message = language === "fr" 
-    ? (messageFr || "Notre site est temporairement en maintenance. Merci de votre patience.")
-    : (messageEn || "Our site is temporarily under maintenance. Thank you for your patience.");
+  const isFr = language === "fr";
+
+  const headline =
+    title ?? (isFr ? "Maintenance en cours" : "Maintenance in progress");
+  const message = isFr
+    ? messageFr || "Nous effectuons une maintenance planifiée. Le service sera rétabli sous peu."
+    : messageEn || "We are performing scheduled maintenance. Service will be restored shortly.";
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className="mx-auto w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center">
-          <Construction className="w-10 h-10 text-accent" />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0d1f3c",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+      }}
+    >
+      <div style={{ textAlign: "center", maxWidth: "500px" }}>
+        <div style={{ fontSize: "64px", marginBottom: "24px" }} aria-hidden>
+          🔧
         </div>
-        
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-foreground">
-            {language === "fr" ? "Site en maintenance" : "Site Under Maintenance"}
-          </h1>
-          <p className="text-muted-foreground">
-            {message}
-          </p>
-        </div>
+        <h1
+          style={{
+            color: "white",
+            fontSize: "32px",
+            fontWeight: 800,
+            marginBottom: "12px",
+          }}
+        >
+          {headline}
+        </h1>
+        <p
+          style={{
+            color: "rgba(255,255,255,0.7)",
+            fontSize: "16px",
+            lineHeight: 1.7,
+            marginBottom: "24px",
+          }}
+        >
+          {message}
+        </p>
 
         {eta && (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg px-4 py-2">
-            <Clock className="w-4 h-4" />
-            <span>
-              {language === "fr" ? "Retour estimé: " : "Estimated return: "}
-              {eta}
-            </span>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              borderRadius: "10px",
+              padding: "14px 20px",
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                color: "#d4a843",
+                fontSize: "13px",
+                fontWeight: 600,
+                marginBottom: "4px",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {isFr ? "RÉTABLISSEMENT ESTIMÉ" : "ESTIMATED RESTORATION"}
+            </div>
+            <div style={{ color: "white", fontSize: "20px", fontWeight: 700 }}>{eta}</div>
           </div>
         )}
 
-        <div className="pt-4 space-y-3">
-          <Link to="/contact">
-            <Button variant="outline" className="w-full">
-              {language === "fr" ? "Nous contacter" : "Contact Us"}
-            </Button>
-          </Link>
-          <Link to="/portal/auth">
-            <Button variant="ghost" className="w-full text-sm">
-              {language === "fr" ? "Accès portail client" : "Client Portal Access"}
-            </Button>
+        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", marginBottom: "16px" }}>
+          {isFr ? "Suivez l'état des services en temps réel → " : "Follow real-time service status → "}
+          <Link to="/status" style={{ color: "#7C3AED", fontWeight: 600 }}>
+            nivra-telecom.ca/status
           </Link>
         </div>
 
-        <p className="text-xs text-muted-foreground/60">
-          Nivra Télécom
+        <div className="flex items-center justify-center gap-3 text-sm">
+          <Link to="/contact" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "underline" }}>
+            {isFr ? "Nous contacter" : "Contact us"}
+          </Link>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
+          <Link to="/portal/auth" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "underline" }}>
+            {isFr ? "Portail client" : "Client portal"}
+          </Link>
+        </div>
+
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", marginTop: "32px" }}>
+          Nivra Telecom
         </p>
       </div>
     </div>

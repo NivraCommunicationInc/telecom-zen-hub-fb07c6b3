@@ -249,7 +249,7 @@ const AdminPromotions = lazy(() => import("@/pages/admin/AdminPromotions"));
 const AdminAccounts = lazy(() => import("@/pages/admin/AdminAccounts"));
 const AdminStreaming = lazy(() => import("@/pages/admin/AdminStreaming"));
 const AdminStreamingCatalog = lazy(() => import("@/pages/admin/AdminStreamingCatalog"));
-const AdminSystemStatus = lazy(() => import("@/pages/admin/AdminSystemStatus"));
+// AdminSystemStatus removed — redirected to /core/system-status
 const AdminSystemHealth = lazy(() => import("@/pages/admin/AdminSystemHealth"));
 const AdminInternalTickets = lazy(() => import("@/pages/admin/AdminInternalTickets"));
 const AdminEmailActivity = lazy(() => import("@/pages/admin/AdminEmailActivity"));
@@ -272,7 +272,7 @@ const AdminInvoiceDetail = lazy(() => import("@/pages/admin/AdminInvoiceDetail")
 const AdminPaymentsV2 = lazy(() => import("@/pages/admin/AdminPaymentsV2"));
 const AdminSite = lazy(() => import("@/pages/admin/AdminSite"));
 const AdminSecurityEvents = lazy(() => import("@/pages/admin/AdminSecurityEvents"));
-const AdminMaintenance = lazy(() => import("@/pages/admin/AdminMaintenance"));
+// AdminMaintenance removed — redirected to /core/maintenance
 const AdminSecurityGuardian = lazy(() => import("@/pages/admin/AdminSecurityGuardian"));
 const AdminContests = lazy(() => import("@/pages/admin/AdminContests"));
 const AdminWebForms = lazy(() => import("@/pages/admin/AdminWebForms"));
@@ -525,7 +525,7 @@ const AppRoutes = () => {
         <Route path="recouvrement" element={<AdminRecouvrement />} />
         <Route path="streaming" element={<AdminStreaming />} />
         <Route path="streaming-catalog" element={<AdminStreamingCatalog />} />
-        <Route path="system-status" element={<AdminSystemStatus />} />
+        <Route path="system-status" element={<Navigate to="/core/system-status" replace />} />
         <Route path="internal-tickets" element={<AdminInternalTickets />} />
         <Route path="email-activity" element={<AdminEmailActivity />} />
         <Route path="email-deliverability" element={<AdminEmailDeliverability />} />
@@ -541,7 +541,7 @@ const AppRoutes = () => {
         <Route path="contested-payments" element={<AdminContestedPayments />} />
         <Route path="site" element={<AdminSite />} />
         <Route path="security-events" element={<AdminSecurityEvents />} />
-        <Route path="maintenance" element={<AdminMaintenance />} />
+        <Route path="maintenance" element={<Navigate to="/core/maintenance" replace />} />
         <Route path="security-guardian" element={<AdminSecurityGuardian />} />
         <Route path="concours" element={<AdminContests />} />
         <Route path="formulaire-web" element={<AdminWebForms />} />

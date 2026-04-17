@@ -13091,6 +13091,54 @@ export type Database = {
         }
         Relationships: []
       }
+      service_incidents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duration_minutes: number | null
+          id: string
+          incident_message: string | null
+          incident_title: string
+          resolved_at: string | null
+          resolved_by: string | null
+          service_display_name: string | null
+          service_name: string
+          started_at: string
+          status_at_incident: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          incident_message?: string | null
+          incident_title: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          service_display_name?: string | null
+          service_name: string
+          started_at?: string
+          status_at_incident: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          incident_message?: string | null
+          incident_title?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          service_display_name?: string | null
+          service_name?: string
+          started_at?: string
+          status_at_incident?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_instances: {
         Row: {
           account_id: string | null
@@ -13177,7 +13225,9 @@ export type Database = {
         Row: {
           description: string | null
           display_name: string
+          estimated_resolution: string | null
           id: string
+          incident_message: string | null
           last_incident_at: string | null
           response_time_ms: number | null
           service_name: string
@@ -13190,7 +13240,9 @@ export type Database = {
         Insert: {
           description?: string | null
           display_name: string
+          estimated_resolution?: string | null
           id?: string
+          incident_message?: string | null
           last_incident_at?: string | null
           response_time_ms?: number | null
           service_name: string
@@ -13203,7 +13255,9 @@ export type Database = {
         Update: {
           description?: string | null
           display_name?: string
+          estimated_resolution?: string | null
           id?: string
+          incident_message?: string | null
           last_incident_at?: string | null
           response_time_ms?: number | null
           service_name?: string
