@@ -25,6 +25,7 @@ import { portalClient } from "@/integrations/backend/portalClient";
 import { toast } from "sonner";
 import { useLiveActivityTracker } from "@/hooks/useLiveActivityTracker";
 import { Badge } from "@/components/ui/badge";
+import { ImpersonationProvider } from "@/components/client/ImpersonationBanner";
 
 const PURPLE = "#6b21e8";
 const PURPLE_LIGHT = "#ede9fe";
@@ -149,6 +150,7 @@ const ClientLayout = ({ children }: ClientLayoutProps) => {
   }, [mobileMenuOpen]);
 
   return (
+    <ImpersonationProvider>
     <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <PortalSystemStatusBanner userType="client" />
       <AccountBlockedBanner />
