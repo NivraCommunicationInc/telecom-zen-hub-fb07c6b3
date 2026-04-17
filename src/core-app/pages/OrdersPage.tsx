@@ -249,14 +249,14 @@ const OrdersPage = () => {
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-[hsl(220,15%,14%)]">
-                    {Array.from({ length: 11 }).map((_, j) => (
+                    {Array.from({ length: 12 }).map((_, j) => (
                       <td key={j} className="px-3 py-2.5"><div className="h-3.5 w-16 rounded bg-[hsl(220,15%,14%)] animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-12 text-[hsl(220,10%,35%)]">
+                  <td colSpan={12} className="text-center py-12 text-[hsl(220,10%,35%)]">
                     <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
                     <p className="text-xs">{search || statusFilter ? "Aucune commande ne correspond aux filtres." : "Aucune commande trouvée."}</p>
                   </td>
@@ -288,6 +288,16 @@ const OrdersPage = () => {
                       </td>
                       <td className="px-3 py-2.5 text-[hsl(220,10%,55%)]">{o.service_type || "—"}</td>
                       <td className="px-3 py-2.5"><StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" /></td>
+                      <td className="px-3 py-2.5">
+                        {(() => {
+                          const kyc = getKycBadge(o.kyc_status);
+                          return kyc ? (
+                            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${kyc.className}`}>
+                              <span>{kyc.icon}</span>{kyc.label}
+                            </span>
+                          ) : <span className="text-[hsl(220,10%,30%)]">—</span>;
+                        })()}
+                      </td>
                       <td className="px-3 py-2.5">
                         {o.payment_status ? <StatusBadge label={o.payment_status} variant={statusToVariant(o.payment_status)} size="sm" /> : <span className="text-[hsl(220,10%,30%)]">—</span>}
                       </td>
