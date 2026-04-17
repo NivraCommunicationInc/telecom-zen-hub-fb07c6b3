@@ -104,6 +104,11 @@ const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
 const EquipmentInventoryPage = lazy(() => import("@/core-app/pages/EquipmentInventoryPage"));
 const CoreAutomationPage = lazy(() => import("@/core-app/pages/CoreAutomationPage"));
 
+// Supplier Accounts (admin only)
+const SupplierAccountsPage = lazy(() => import("@/core-app/pages/SupplierAccountsPage"));
+const SupplierAccountNewPage = lazy(() => import("@/core-app/pages/SupplierAccountNewPage"));
+const SupplierAccountDetailPage = lazy(() => import("@/core-app/pages/SupplierAccountDetailPage"));
+
 export const coreRoutes: RouteObject = {
   path: "/core",
   element: <CoreAppLayout />,
@@ -200,5 +205,9 @@ export const coreRoutes: RouteObject = {
     { path: "stock", element: <CoreStockPage /> },
     { path: "equipment", element: <EquipmentInventoryPage /> },
     { path: "automation", element: <CoreAutomationPage /> },
+    // Supplier Accounts (admin only)
+    { path: "supplier-accounts", element: <SupplierAccountsPage /> },
+    { path: "supplier-accounts/new", element: <SupplierAccountNewPage /> },
+    { path: "supplier-accounts/:id", element: <SupplierAccountDetailPage /> },
   ],
 };
