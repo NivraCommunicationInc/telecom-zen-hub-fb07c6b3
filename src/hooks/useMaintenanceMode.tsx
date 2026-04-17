@@ -24,12 +24,13 @@ const DEFAULT_CONFIG: MaintenanceConfig = {
 const DEFAULT_ROUTES = ["/contact", "/aide", "/portal/auth", "/status"];
 
 const normalizeMaintenanceConfig = (value: unknown): MaintenanceConfig => {
-  const raw = (value ?? {}) as Partial<MaintenanceConfig> & { enabled?: unknown };
+  const raw = (value ?? {}) as Partial<MaintenanceConfig>;
+  const rawEnabled = (value as { enabled?: unknown } | null)?.enabled;
 
   return {
     ...DEFAULT_CONFIG,
     ...raw,
-    enabled: raw.enabled === true || raw.enabled === "true",
+    enabled: rawEnabled === true || rawEnabled === "true",
   };
 };
 

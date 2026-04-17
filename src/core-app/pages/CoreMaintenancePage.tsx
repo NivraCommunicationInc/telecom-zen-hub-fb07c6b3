@@ -80,10 +80,11 @@ const TOGGLEABLE_ROUTES: { key: string; label: string; description: string }[] =
 ];
 
 const normalizeMaintenanceConfig = (value: unknown): MaintenanceConfig => {
-  const raw = (value ?? {}) as Partial<MaintenanceConfig> & { enabled?: unknown };
+  const raw = (value ?? {}) as Partial<MaintenanceConfig>;
+  const rawEnabled = (value as { enabled?: unknown } | null)?.enabled;
 
   return {
-    enabled: raw.enabled === true || raw.enabled === "true",
+    enabled: rawEnabled === true || rawEnabled === "true",
     eta: raw.eta ?? "",
     message_fr: raw.message_fr ?? "",
     message_en: raw.message_en ?? "",
