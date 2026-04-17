@@ -141,13 +141,26 @@ const FraisPossibles = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {oneTimeFees.map((fee, index) => (
-                      <tr key={index} className="hover:bg-muted/30 transition-colors">
-                        <td className="p-4 text-foreground">{fee.name}</td>
-                        <td className="p-4 text-right font-mono text-accent font-medium">{fee.amount}</td>
-                        <td className="p-4 text-sm text-muted-foreground hidden sm:table-cell">{fee.note}</td>
-                      </tr>
-                    ))}
+                    {oneTimeFees.map((fee, index) => {
+                      const oldPrice = OLD_PRICES[fee.name];
+                      return (
+                        <tr key={index} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-4 text-foreground">{fee.name}</td>
+                          <td className="p-4 text-right font-mono font-medium">
+                            <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+                              {oldPrice && (
+                                <span className="text-xs text-muted-foreground line-through">{oldPrice}$</span>
+                              )}
+                              <span className="text-accent">{fee.amount}</span>
+                              {oldPrice && (
+                                <span className="text-[9px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Nouveau</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4 text-sm text-muted-foreground hidden sm:table-cell">{fee.note}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
