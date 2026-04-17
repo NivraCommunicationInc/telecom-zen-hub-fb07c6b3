@@ -525,7 +525,7 @@ const AppRoutes = () => {
         <Route path="recouvrement" element={<AdminRecouvrement />} />
         <Route path="streaming" element={<AdminStreaming />} />
         <Route path="streaming-catalog" element={<AdminStreamingCatalog />} />
-        <Route path="system-status" element={<AdminSystemStatus />} />
+        <Route path="system-status" element={<Navigate to="/core/system-status" replace />} />
         <Route path="internal-tickets" element={<AdminInternalTickets />} />
         <Route path="email-activity" element={<AdminEmailActivity />} />
         <Route path="email-deliverability" element={<AdminEmailDeliverability />} />
@@ -541,7 +541,7 @@ const AppRoutes = () => {
         <Route path="contested-payments" element={<AdminContestedPayments />} />
         <Route path="site" element={<AdminSite />} />
         <Route path="security-events" element={<AdminSecurityEvents />} />
-        <Route path="maintenance" element={<AdminMaintenance />} />
+        <Route path="maintenance" element={<Navigate to="/core/maintenance" replace />} />
         <Route path="security-guardian" element={<AdminSecurityGuardian />} />
         <Route path="concours" element={<AdminContests />} />
         <Route path="formulaire-web" element={<AdminWebForms />} />
