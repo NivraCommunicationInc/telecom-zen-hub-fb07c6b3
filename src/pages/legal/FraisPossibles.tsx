@@ -21,10 +21,18 @@ const FraisPossibles = () => {
   const sim = equipment.simPrice;
   const esim = equipment.esimPrice;
 
+  // Old → new prices map for "NOUVEAU" highlight
+  const OLD_PRICES: Record<string, number> = {
+    "Activation (1 service)": 25,
+    "Livraison standard": 30,
+    "Installation par technicien": 50,
+  };
+
   const oneTimeFees = [
     { name: "Activation (1 service)", amount: `${activationSingle}$`, note: "Internet, TV ou Mobile seul" },
     { name: "Activation (2+ services)", amount: `${activationMultiple}$`, note: "Forfait groupé (Internet + TV + Mobile)" },
-    { name: "Livraison standard", amount: `${delivery}$`, note: "Délai 24-78h ouvrables" },
+    { name: "Livraison standard", amount: `${delivery}$`, note: "Auto-installation — délai 2 à 5 jours ouvrables" },
+    { name: "Installation par technicien", amount: `${fees.installationTechnician || 25}$`, note: "Visite à domicile — sur rendez-vous" },
     { name: "Livraison express (Uber)", amount: `${uberExpress}$`, note: "Zones éligibles seulement" },
     { name: "Routeur Nivra Born WiFi", amount: `${router}$`, note: "Achat, inclus garantie 1 an" },
     { name: "Terminal Nivra 4K Smart", amount: `${tvTerminal}$`, note: "Par terminal (max 4)" },
