@@ -16,7 +16,7 @@ const SESSION_RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour (security requirement)
 
 const ClientProtectedRoute = ({ children, allowBlocked = false }: ClientProtectedRouteProps) => {
-  const { user, session, signOut, isLoading } = useClientAuth();
+  const { user, session, signOut, isLoading, isImpersonating } = useClientAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isVerifying, setIsVerifying] = useState(true);
@@ -44,6 +44,16 @@ const ClientProtectedRoute = ({ children, allowBlocked = false }: ClientProtecte
 
   useEffect(() => {
     const verifySession = async () => {
+      // IMPERSONATION: short-circuit all auth/PIN/role checks. The admin
+      // is already authenticated upstream; the impersonation token is the
+      // sole authority for which client identity to render. Write actions
+      // are blocked separately by useWriteGuard.
+      if (isImpersonating) {
+        setIsAuthorized(true);
+        setIsVerifying(false);
+        return;
+      }
+
       // Must have both user and session
       if (!user || !session) {
         setIsVerifying(false);
@@ -198,7 +208,7 @@ const ClientProtectedRoute = ({ children, allowBlocked = false }: ClientProtecte
     );
   }
 
-  if (!user || !session) {
+  if (!isImpersonating && (!user || !session)) {
     sessionStorage.removeItem("client_last_auth_check");
     sessionStorage.removeItem("client_pin_verified");
     sessionStorage.removeItem("client_pin_pending_email");
