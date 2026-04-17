@@ -13,6 +13,7 @@ import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickAc
 import { CoreWorkflowNav } from "@/core-app/components/order-detail/CoreWorkflowNav";
 import { CoreOrderFilePanel } from "@/core-app/components/order-detail/CoreOrderFilePanel";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
+import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
 import { ArrowLeft, Loader2, ShoppingCart } from "lucide-react";
 
@@ -84,6 +85,9 @@ function OrderConsole({ orderId }: { orderId: string }) {
 
       {/* ═══ QUICK ACTIONS ═══ */}
       <CoreQuickActions proc={proc} />
+
+      {/* ═══ KYC PANEL (manual identity verification) ═══ */}
+      <CoreKycPanel order={proc.order} onRefresh={() => proc.refetch()} />
 
       {/* ═══ MAIN LAYOUT: Workflow | Steps | Order File ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_300px] gap-3">
