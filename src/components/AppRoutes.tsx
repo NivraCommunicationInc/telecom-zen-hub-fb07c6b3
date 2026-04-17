@@ -330,6 +330,7 @@ const ClientAppointments = lazy(() => import("@/pages/client/ClientAppointments"
 const ClientInvoices = lazy(() => import("@/pages/client/ClientInvoices"));
 const ClientTickets = lazy(() => import("@/pages/client/ClientTickets"));
 const ClientServices = lazy(() => import("@/pages/client/ClientServices"));
+const ClientActivation = lazy(() => import("@/pages/client/ClientActivation"));
 const ClientProfile = lazy(() => import("@/pages/client/ClientProfile"));
 const ClientPayments = lazy(() => import("@/pages/client/ClientPayments"));
 const ClientBillingHub = lazy(() => import("@/pages/client/ClientBillingHub"));
@@ -552,6 +553,7 @@ const AppRoutes = () => {
       <Route path="/portal/monthly-invoices" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientMonthlyInvoices /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/services" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientServices /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/my-services" element={<Navigate to="/portal/services" replace />} />
+      <Route path="/portal/activation" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientActivation /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/tickets" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientTickets /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/channels" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientChannels /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/internet" element={<Navigate to="/portal/new-order" replace />} />
