@@ -2435,7 +2435,7 @@ const ClientNewOrder = () => {
         installation: {
           type: orderInstallationType,
           delivery_fee: orderDeliveryFee,
-          installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 50 : 0,
+          installation_fee: (!isDeliveryOnlyOrder && installationChoice === "technician") ? 25 : 0,
           scheduled_date: selectedDate || null,
           scheduled_time: selectedTime || null,
         },

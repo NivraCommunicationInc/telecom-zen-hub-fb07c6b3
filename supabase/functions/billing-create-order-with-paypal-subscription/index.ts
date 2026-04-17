@@ -121,7 +121,7 @@ serve(async (req) => {
     
     // Calculate activation fee
     const serviceCount = body.services.length;
-    const activationFee = serviceCount === 1 ? 25.00 : 45.00;
+    const activationFee = serviceCount === 1 ? 10.00 : 45.00;
     
     // Calculate total monthly amount (with discount)
     const totalMonthlyBase = body.services.reduce((sum, s) => sum + s.plan_price, 0);

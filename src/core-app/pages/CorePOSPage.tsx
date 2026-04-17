@@ -289,7 +289,7 @@ export default function CorePOSPage() {
     const equipmentTotal = equipment.reduce((s, e) => s + e.price * e.quantity, 0);
     const adjustmentsTotal = adjustments.reduce((s, a) => s + a.amount, 0);
     const serviceCount = services.length;
-    const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 25 : 45;
+    const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
     const oneTimeSubtotal = setupSubtotal + equipmentTotal + activationFee + adjustmentsTotal;
     const taxableAmount = monthlySubtotal + oneTimeSubtotal;
     // ⛔ NO LOCAL TAX MATH — taxes will be computed server-side at order orchestration

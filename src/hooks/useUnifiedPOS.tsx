@@ -67,7 +67,7 @@ export function useUnifiedPOS(initialState?: Partial<UnifiedPOSState>) {
     
     // Activation fee (grouped rate)
     const serviceCount = services.length;
-    const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 25 : 45;
+    const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
     
     // Subtotals
     const oneTimeSubtotal = setupSubtotal + equipmentTotal + activationFee + adjustmentsTotal;
@@ -268,7 +268,7 @@ export function calculateUnifiedPOSTotals(
   const adjustmentsTotal = feesTotal + creditsTotal;
   
   const serviceCount = services.length;
-  const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 25 : 45;
+  const activationFee = serviceCount === 0 ? 0 : serviceCount === 1 ? 10 : 45;
   
   const oneTimeSubtotal = setupSubtotal + equipmentTotal + activationFee + adjustmentsTotal;
   const recurringSubtotal = monthlySubtotal;

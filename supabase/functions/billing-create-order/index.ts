@@ -158,7 +158,7 @@ serve(async (req) => {
     
     // Calculate activation fee based on service count (fallback if not in billing_totals)
     const serviceCount = body.services.length;
-    const activationFee = serviceCount === 1 ? 25.00 : 45.00;
+    const activationFee = serviceCount === 1 ? 10.00 : 45.00;
     const activationFeePerInvoice = serviceCount > 0 ? activationFee : 0;
     
     // Step 1: Get or create billing customer
