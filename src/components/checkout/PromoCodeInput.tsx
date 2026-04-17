@@ -41,7 +41,12 @@ interface PromoCodeInputProps {
   appliedPromo: AppliedPromo | null;
   onPromoApplied: (promo: AppliedPromo | null) => void;
   disabled?: boolean;
+  /** When set, manual entry of a first-month-free code (BIENVENUE2026 / NIVRA2026)
+   *  shows this message instead of re-applying. */
+  duplicateFirstMonthFreeMessage?: string;
 }
+
+const FIRST_MONTH_FREE_CODES = ["BIENVENUE2026", "NIVRA2026"];
 
 export const PromoCodeInput = ({
   clientEmail,
@@ -51,6 +56,7 @@ export const PromoCodeInput = ({
   appliedPromo,
   onPromoApplied,
   disabled = false,
+  duplicateFirstMonthFreeMessage,
 }: PromoCodeInputProps) => {
   const { toast } = useToast();
   const [code, setCode] = useState("");
