@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useWriteGuard } from "@/hooks/useWriteGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { 

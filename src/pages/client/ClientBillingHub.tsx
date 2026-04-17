@@ -21,6 +21,7 @@ import { useClientAuth } from "@/hooks/useClientAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useLedgerBalance } from "@/hooks/useLedgerBalance";
+import { useWriteGuard } from "@/hooks/useWriteGuard";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {

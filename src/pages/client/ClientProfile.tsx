@@ -38,6 +38,7 @@ import ClientPinConfirmDialog from "@/components/client/ClientPinConfirmDialog";
 // Phase 3 components - New features
 import ClientMFASetup from "@/components/client/ClientMFASetup";
 import ClientEmailChange from "@/components/client/ClientEmailChange";
+import { useWriteGuard } from "@/hooks/useWriteGuard";
 import ClientNotificationPreferences from "@/components/client/ClientNotificationPreferences";
 import ClientLanguagePreference from "@/components/client/ClientLanguagePreference";
 import ClientAccountDeletion from "@/components/client/ClientAccountDeletion";
