@@ -58,6 +58,16 @@ const NivraChat = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Listen for global "open chat" events (triggered from Support page, etc.)
+  useEffect(() => {
+    const handler = () => {
+      setIsOpen(true);
+      setUnreadCount(0);
+    };
+    window.addEventListener("nivra:open-chat", handler);
+    return () => window.removeEventListener("nivra:open-chat", handler);
+  }, []);
+
   const fr = language === "fr";
 
   // Welcome message — only set once when chat opens

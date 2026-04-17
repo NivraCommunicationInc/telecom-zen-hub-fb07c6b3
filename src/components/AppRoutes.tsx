@@ -200,6 +200,7 @@ const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
 const APropos = lazy(() => import("@/pages/APropos"));
 const Aide = lazy(() => import("@/pages/Aide"));
+const Support = lazy(() => import("@/pages/Support"));
 const DynamicPage = lazy(() => import("@/pages/DynamicPage"));
 const Contest = lazy(() => import("@/pages/Contest"));
 const TrackOrder = lazy(() => import("@/pages/TrackOrder"));
@@ -477,6 +478,7 @@ const AppRoutes = () => {
       <Route path="/conformite-crtc" element={<MaintenanceGuard><PublicLayout><ConformiteCRTC /></PublicLayout></MaintenanceGuard>} />
       <Route path="/a-propos" element={<MaintenanceGuard><PublicLayout><APropos /></PublicLayout></MaintenanceGuard>} />
       <Route path="/aide" element={<MaintenanceGuard><PublicLayout><Aide /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/support" element={<MaintenanceGuard><PublicLayout><Support /></PublicLayout></MaintenanceGuard>} />
       <Route path="/concours" element={<MaintenanceGuard><PublicLayout><Contest /></PublicLayout></MaintenanceGuard>} />
       <Route path="/track-order" element={<MaintenanceGuard><PublicLayout><TrackOrder /></PublicLayout></MaintenanceGuard>} />
       <Route path="/parrainage" element={<MaintenanceGuard><PublicLayout><Parrainage /></PublicLayout></MaintenanceGuard>} />

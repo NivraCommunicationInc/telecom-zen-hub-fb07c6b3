@@ -13,6 +13,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
     { label: isFr ? "Forfaits" : "Plans", href: "/forfaits" },
     { label: "Internet", href: "/internet" },
     { label: "TV", href: "/television" },
+    { label: "Support", href: "/support" },
     { label: "Contact", href: "/contact" },
     { label: "FAQ", href: "/aide" },
     { label: isFr ? "État des services" : "System Status", href: "/status" },
