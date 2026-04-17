@@ -344,32 +344,32 @@ const ClientProfile = () => {
 
   const writeGuard = useWriteGuard();
 
-  const handleSubmit = writeGuard((e: React.FormEvent) => {
+  const submitProfileForm = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validate phone format
     if (formData.phone && !validateCanadianPhone(formData.phone)) {
-      toast({ 
-        title: "Format de téléphone invalide", 
+      toast({
+        title: "Format de téléphone invalide",
         description: "Utilisez le format (514) 555-1234",
-        variant: "destructive" 
+        variant: "destructive",
       });
       return;
     }
-    
+
     // Validate age (minimum 16 years for telecom services)
     if (formData.date_of_birth) {
       const dobValidation = validateDob(formData.date_of_birth, { minAge: MIN_AGE_TELECOM });
       if (!dobValidation.isValid) {
-        toast({ 
-          title: "Date de naissance invalide", 
+        toast({
+          title: "Date de naissance invalide",
           description: dobValidation.error?.fr || "Vous devez avoir au moins 16 ans",
-          variant: "destructive" 
+          variant: "destructive",
         });
         return;
       }
     }
-    
+
     // Check if sensitive changes require PIN confirmation
     if (hasSensitiveChanges(formData)) {
       setPendingProfileUpdate(formData);
@@ -378,6 +378,8 @@ const ClientProfile = () => {
       updateProfileMutation.mutate(formData);
     }
   };
+
+  const handleSubmit = writeGuard(submitProfileForm);
 
   // Handle PIN confirmed - execute pending update
   const handlePinConfirmed = () => {
