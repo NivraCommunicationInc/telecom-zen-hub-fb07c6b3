@@ -1,23 +1,26 @@
 /**
- * ImpersonationBanner — Discreet banner shown at the top of the client portal
- * when an admin is viewing the account in "assistance" mode.
+ * ImpersonationBanner — "Mode assistance" banner shown at the top of the
+ * client portal when an admin is viewing the account in support mode.
  *
- * The token is read from the URL on mount, validated server-side via
- * `validate_impersonation_token` (which marks it consumed), and the resulting
- * client identity is persisted in sessionStorage so a refresh keeps the banner.
+ * The token can arrive via two channels:
+ *   1. URL query param ?impersonate=<token> (primary, set by the opener tab)
+ *   2. localStorage key IMPERSONATION_PENDING_KEY (fallback for popups that
+ *      lost the URL during navigation, set by useImpersonation BEFORE open)
  *
- * Read-only enforcement: the banner exposes the active state via
- * `useImpersonationContext` so child pages / write actions can warn or block.
+ * Once validated server-side via validate_impersonation_token, the resulting
+ * client identity is persisted in sessionStorage so the banner survives
+ * refreshes and tab navigation within the portal.
  */
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { IMPERSONATION_PENDING_KEY } from "@/hooks/useImpersonation";
 
 const STORAGE_KEY = "nivra_impersonation_v1";
 
-interface ImpersonationState {
+export interface ImpersonationState {
   token: string;
   clientId: string;
   clientName: string | null;
@@ -41,7 +44,11 @@ export function useImpersonationContext() {
   return useContext(ImpersonationContext);
 }
 
-function loadStored(): ImpersonationState | null {
+/**
+ * Synchronous reader used by ClientAuthProvider during initial render so it
+ * can synthesise the impersonated identity before any data fetch fires.
+ */
+export function readStoredImpersonation(): ImpersonationState | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -57,6 +64,30 @@ function loadStored(): ImpersonationState | null {
   }
 }
 
+/**
+ * Pull a pending token (URL or localStorage handoff) without consuming the
+ * server-side session — used by ClientAuthProvider to know it must validate
+ * before authorising the route.
+ */
+export function readPendingImpersonationToken(): string | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("impersonate");
+    if (fromUrl) return fromUrl;
+    const raw = localStorage.getItem(IMPERSONATION_PENDING_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { token?: string; expiresAt?: string };
+    if (!parsed?.token) return null;
+    if (parsed.expiresAt && new Date(parsed.expiresAt).getTime() < Date.now()) {
+      localStorage.removeItem(IMPERSONATION_PENDING_KEY);
+      return null;
+    }
+    return parsed.token;
+  } catch {
+    return null;
+  }
+}
+
 interface ProviderProps {
   children: ReactNode;
 }
@@ -64,46 +95,83 @@ interface ProviderProps {
 export function ImpersonationProvider({ children }: ProviderProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [state, setState] = useState<ImpersonationState | null>(() => loadStored());
-  const [validating, setValidating] = useState(false);
+  const [state, setState] = useState<ImpersonationState | null>(() => readStoredImpersonation());
 
-  // Detect ?impersonate=… on every navigation that includes it
+  // Detect ?impersonate=… or localStorage handoff and validate
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const token = params.get("impersonate");
-    if (!token) return;
+    const urlToken = params.get("impersonate");
 
-    setValidating(true);
+    let pendingToken: string | null = urlToken;
+    if (!pendingToken) {
+      try {
+        const raw = localStorage.getItem(IMPERSONATION_PENDING_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { token?: string; expiresAt?: string };
+          if (parsed?.token && (!parsed.expiresAt || new Date(parsed.expiresAt).getTime() > Date.now())) {
+            pendingToken = parsed.token;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (!pendingToken) return;
+
+    // If we already have a valid stored session for this exact token, skip.
+    if (state?.token === pendingToken) {
+      // Just clean up URL/handoff
+      try {
+        localStorage.removeItem(IMPERSONATION_PENDING_KEY);
+      } catch {
+        /* ignore */
+      }
+      if (urlToken) {
+        params.delete("impersonate");
+        const next = `${location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+        navigate(next, { replace: true });
+      }
+      return;
+    }
+
     (async () => {
       try {
-        const { data, error } = await supabase.rpc("validate_impersonation_token", { _token: token });
+        const { data, error } = await supabase.rpc("validate_impersonation_token", {
+          _token: pendingToken,
+        });
         if (error) throw error;
         const row = Array.isArray(data) ? data[0] : data;
-        if (!row?.is_valid) {
+        if (!(row as any)?.is_valid) {
           toast.error("Lien d'assistance invalide ou expiré");
           return;
         }
         const next: ImpersonationState = {
-          token,
-          clientId: row.client_id,
-          clientName: row.client_full_name,
-          clientEmail: row.client_email,
-          expiresAt: row.expires_at,
+          token: pendingToken!,
+          clientId: (row as any).client_id,
+          clientName: (row as any).client_full_name,
+          clientEmail: (row as any).client_email,
+          expiresAt: (row as any).expires_at,
         };
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
         setState(next);
-        toast.success(`Mode assistance — ${next.clientName || next.clientEmail}`, {
+        toast.success(`Mode assistance — ${next.clientName || next.clientEmail || "client"}`, {
           description: "Session valide 30 minutes. Toutes les actions sont enregistrées.",
         });
       } catch (err: any) {
         console.error("[Impersonation] validate failed", err);
         toast.error("Impossible de valider la session d'assistance");
       } finally {
-        setValidating(false);
-        // Strip the token from the URL so it isn't re-used on refresh
-        params.delete("impersonate");
-        const next = `${location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
-        navigate(next, { replace: true });
+        try {
+          localStorage.removeItem(IMPERSONATION_PENDING_KEY);
+        } catch {
+          /* ignore */
+        }
+        if (urlToken) {
+          params.delete("impersonate");
+          const next = `${location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+          navigate(next, { replace: true });
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,8 +196,6 @@ export function ImpersonationProvider({ children }: ProviderProps) {
 
   const exit = () => {
     if (state?.token) {
-      // Fire-and-forget; .then(noop, noop) avoids unhandled rejections without
-      // calling .catch on the PostgrestFilterBuilder (which has no .catch()).
       void Promise.resolve(supabase.rpc("end_impersonation", { _token: state.token })).then(
         () => {},
         () => {},
@@ -138,7 +204,19 @@ export function ImpersonationProvider({ children }: ProviderProps) {
     sessionStorage.removeItem(STORAGE_KEY);
     setState(null);
     toast.success("Mode assistance terminé");
-    window.close();
+    // Try to close the tab; if the browser refuses (tab was not script-opened
+    // in some cases), fall back to redirecting to the Core admin.
+    setTimeout(() => {
+      try {
+        window.close();
+      } catch {
+        /* ignore */
+      }
+      // If close failed (window still open), redirect to Core
+      if (!window.closed) {
+        window.location.href = "/core";
+      }
+    }, 150);
   };
 
   const value = useMemo<ImpersonationContextValue>(
@@ -157,9 +235,9 @@ export function ImpersonationProvider({ children }: ProviderProps) {
           <div className="max-w-[1200px] mx-auto flex items-center justify-between gap-3 px-4 py-2 text-sm">
             <div className="flex items-center gap-2 min-w-0">
               <Eye className="h-4 w-4 shrink-0" />
-              <span className="font-semibold">Mode assistance</span>
+              <span className="font-semibold">👁 Mode assistance</span>
               <span className="text-violet-100 truncate">
-                — Vous consultez le compte de {state.clientName || state.clientEmail}
+                — Vous consultez le compte de {state.clientName || state.clientEmail || "client"}
               </span>
             </div>
             <button
