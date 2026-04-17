@@ -298,6 +298,55 @@ const GuestCheckout = () => {
   const isClientInfoValid = firstName.length >= 2 && lastName.length >= 2 && email.includes("@") && phone.length >= 10 && dateOfBirth.length === 10;
   const isPaymentDone = paymentComplete || (paymentMethod === "paypal" && !!paypalCaptureId);
 
+  // ── Auto-apply BIENVENUE2026 (first-month-free) for new clients after Step 3 ──
+  const tryAutoApplyFirstMonthFree = async () => {
+    // Skip if already applied or if user manually applied a different code
+    if (appliedPromo) return;
+    if (autoApplyAttempted) return;
+    if (isStreamingOnlyOrder) return; // streaming-only orders don't get first-month-free
+    if (selectedServices.length === 0) return;
+    setAutoApplyAttempted(true);
+
+    try {
+      const cartItems = selectedServices.map(s => ({ type: 'service' as const, amount: s.price, name: s.name }));
+      const { data, error } = await supabase.functions.invoke("validate-promo", {
+        body: {
+          code: "BIENVENUE2026",
+          client_email: email.trim().toLowerCase(),
+          client_dob: dateOfBirth,
+          client_phone: phone,
+          cart_items: cartItems,
+          subtotal_before_discount: subtotal,
+          auto_apply: true,
+        },
+      });
+
+      if (error || !data?.valid || !data?.is_new_client) {
+        console.log("[GuestCheckout] Auto-apply skipped:", data?.error || "not eligible");
+        return;
+      }
+
+      const promo = {
+        id: data.promo.id,
+        code: data.promo.code,
+        name: data.promo.name,
+        discount_type: data.promo.discount_type,
+        discount_value: data.promo.discount_value,
+        discount_amount: data.discount_amount,
+        applies_to: data.promo.applies_to,
+        stackable: data.promo.stackable,
+        new_customers_only: data.promo.new_customers_only,
+        duration: data.promo.duration,
+      };
+      setAppliedPromo(promo);
+      setAutoAppliedPromo(true);
+      setWelcomeDiscountDismissed(true);
+    } catch (err) {
+      // Fail silently — never block checkout on auto-apply
+      console.error("[GuestCheckout] Auto-apply error:", err);
+    }
+  };
+
   // ── Submit order ──
   const handleSubmit = async () => {
     if (submittingRef.current || isSubmitting) return;
