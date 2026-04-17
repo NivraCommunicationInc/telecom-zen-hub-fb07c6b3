@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // ── Client search dropdown ──────────────────────────────────────
-type ClientOption = { user_id: string; full_name: string | null; email: string | null; client_number: string | null };
+type ClientOption = { user_id: string; full_name: string | null; email: string | null; client_number: string | null; phone: string | null };
 
 function ClientPicker({
   value,
