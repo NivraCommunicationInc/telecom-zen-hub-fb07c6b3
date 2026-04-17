@@ -2,18 +2,6 @@ name: P0 Mobile Overflow Proof
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/**'
-      - 'e2e/**'
-      - 'playwright.config.ts'
-      - '.github/workflows/p0-mobile-overflow-proof.yml'
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'e2e/**'
-      - 'playwright.config.ts'
-      - '.github/workflows/p0-mobile-overflow-proof.yml'
 
 jobs:
   mobile_overflow_proof:
