@@ -56,7 +56,14 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
 };
 
 const ELIGIBLE_ORDER_STATUSES = ["confirmed", "processing", "shipped", "pending"] as const;
-const LIGHT_COLOR_OPTIONS = ["Rouge", "Orange fixe", "Orange clignotant", "Blanc clignotant", "Aucune lumière"];
+const LIGHT_COLOR_OPTIONS = [
+  "Blanc fixe",
+  "Orange fixe",
+  "Orange clignotant",
+  "Blanc clignotant",
+  "Aucune lumière",
+] as const;
+const LIGHT_OK = "Blanc fixe";
 
 const formSchema = z.object({
   wifi_network_name: z.string().trim().min(1, "Nom requis").max(32, "32 caractères max"),
@@ -85,13 +92,11 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   const [checks, setChecks] = useState({
     coaxial: false,
     power: false,
-    lightWhite: false,
-    lightOther: false,
     hasTerminal: false,
     hdmi: false,
     terminalPower: false,
   });
-  const [lightColor, setLightColor] = useState("");
+  const [lightColor, setLightColor] = useState<string>("");
   const [form, setForm] = useState({
     wifi_network_name: "",
     wifi_password: "",
@@ -171,17 +176,25 @@ export default function ClientActivationSection({ clientId, compact = false }: C
     if (!checks.coaxial || !checks.power) {
       return "Veuillez compléter toutes les vérifications obligatoires avant de soumettre.";
     }
-    if (!checks.lightWhite && !checks.lightOther) {
+    if (!lightColor) {
       return "Veuillez indiquer la couleur du voyant lumineux de la borne.";
     }
-    if (checks.lightOther && !lightColor) {
-      return "Veuillez préciser la couleur du voyant.";
+    if (lightColor !== LIGHT_OK) {
+      return "La lumière doit être blanche fixe pour activer votre service.";
     }
     if (checks.hasTerminal && (!checks.hdmi || !checks.terminalPower)) {
       return "Veuillez confirmer le branchement du Terminal TV ou décocher l'option.";
     }
     return null;
   };
+
+  const lightOk = lightColor === LIGHT_OK;
+  const canSubmit =
+    !!selectedOrderId &&
+    checks.coaxial &&
+    checks.power &&
+    lightOk &&
+    (!checks.hasTerminal || (checks.hdmi && checks.terminalPower));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +219,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         throw new Error("Session portail introuvable. Rechargez la page puis réessayez.");
       }
 
-      const resolvedLightColor = checks.lightWhite ? "blanc_fixe" : lightColor;
+      const resolvedLightColor = lightColor === LIGHT_OK ? "blanc_fixe" : lightColor;
       const terminalConnected = checks.hasTerminal ? checks.hdmi && checks.terminalPower : null;
 
       const { data, error } = await portalSupabase.rpc("submit_activation_request", {
@@ -237,8 +250,6 @@ export default function ClientActivationSection({ clientId, compact = false }: C
       setChecks({
         coaxial: false,
         power: false,
-        lightWhite: false,
-        lightOther: false,
         hasTerminal: false,
         hdmi: false,
         terminalPower: false,
@@ -582,69 +593,51 @@ export default function ClientActivationSection({ clientId, compact = false }: C
                   </label>
 
                   <div className="mb-2">
-                    <label className="flex items-start gap-3 mb-2 cursor-pointer">
-                      <Checkbox
-                        checked={checks.lightWhite}
-                        onCheckedChange={(v) =>
-                          setChecks({
-                            ...checks,
-                            lightWhite: v === true,
-                            lightOther: v === true ? false : checks.lightOther,
-                          })
-                        }
-                        className="mt-0.5"
-                      />
-                      <span className="text-sm text-slate-700">
-                        Le voyant lumineux de la borne est <strong>blanc fixe</strong> ✅
-                      </span>
-                    </label>
+                    <p className="text-sm font-semibold text-slate-800 mb-2">
+                      Quelle est la couleur du voyant lumineux de votre borne? *
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {LIGHT_COLOR_OPTIONS.map((color) => {
+                        const active = lightColor === color;
+                        const isOk = color === LIGHT_OK;
+                        return (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setLightColor(color)}
+                            className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
+                              active
+                                ? isOk
+                                  ? "border-2 border-emerald-500 bg-emerald-100 text-emerald-800 font-bold"
+                                  : "border-2 border-amber-500 bg-amber-100 text-amber-900 font-bold"
+                                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                            }`}
+                          >
+                            {color} {isOk ? "✅" : ""}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <Checkbox
-                        checked={checks.lightOther}
-                        onCheckedChange={(v) =>
-                          setChecks({
-                            ...checks,
-                            lightOther: v === true,
-                            lightWhite: v === true ? false : checks.lightWhite,
-                          })
-                        }
-                        className="mt-0.5"
-                      />
-                      <span className="text-sm text-slate-700">
-                        Le voyant lumineux est une <strong>autre couleur</strong> ⚠️
-                      </span>
-                    </label>
-
-                    {checks.lightOther && (
-                      <div className="ml-7 mt-3">
-                        <p className="text-xs text-slate-600 mb-2">Quelle couleur voyez-vous?</p>
-                        <div className="flex flex-wrap gap-2">
-                          {LIGHT_COLOR_OPTIONS.map((color) => {
-                            const active = lightColor === color;
-                            return (
-                              <button
-                                key={color}
-                                type="button"
-                                onClick={() => setLightColor(color)}
-                                className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
-                                  active
-                                    ? "border-2 border-violet-500 bg-violet-100 text-violet-800 font-bold"
-                                    : "border border-slate-200 bg-white text-slate-600"
-                                }`}
-                              >
-                                {color}
-                              </button>
-                            );
-                          })}
+                    {lightColor && lightColor !== LIGHT_OK && (
+                      <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-900 space-y-2">
+                        <p className="font-bold">⚠️ Votre borne n'est pas prête.</p>
+                        <p>La lumière doit être blanche fixe avant de pouvoir activer votre service.</p>
+                        <div>
+                          <p className="font-semibold mt-1">Que faire :</p>
+                          <ul className="list-disc list-inside space-y-0.5 mt-1">
+                            <li>Assurez-vous que le câble coaxial est bien vissé</li>
+                            <li>Assurez-vous que le bloc d'alimentation est bien branché</li>
+                            <li>Attendez 5 à 20 minutes — le démarrage peut prendre du temps</li>
+                          </ul>
                         </div>
-                        {lightColor && (
-                          <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                            ⚠️ Votre borne n'est peut-être pas prête. Assurez-vous qu'elle est bien branchée et
-                            attendez 5-10 minutes. Si la lumière reste {lightColor.toLowerCase()}, notre équipe le
-                            notera lors de l'activation.
-                          </div>
-                        )}
+                        <p>
+                          Si la lumière reste <strong>{lightColor.toLowerCase()}</strong> après 20 minutes,
+                          contactez-nous :{" "}
+                          <a href="mailto:support@nivra-telecom.ca" className="underline font-medium">
+                            support@nivra-telecom.ca
+                          </a>
+                        </p>
                       </div>
                     )}
                   </div>
@@ -691,8 +684,9 @@ export default function ClientActivationSection({ clientId, compact = false }: C
 
               <Button
                 type="submit"
-                disabled={submitting || eligibleOrders.length === 0}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={submitting || eligibleOrders.length === 0 || !canSubmit}
+                title={!lightOk ? "La lumière doit être blanche fixe pour continuer" : undefined}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>

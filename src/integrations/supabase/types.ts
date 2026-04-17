@@ -17169,19 +17169,7 @@ export type Database = {
         }
         Returns: string
       }
-      decrypt_wifi_password:
-        | {
-            Args: { p_encrypted: string }
-            Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: public.decrypt_wifi_password(p_encrypted => bytea), public.decrypt_wifi_password(p_encrypted => text). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-          }
-        | {
-            Args: { p_encrypted: string }
-            Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: public.decrypt_wifi_password(p_encrypted => bytea), public.decrypt_wifi_password(p_encrypted => text). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-          }
+      decrypt_wifi_password: { Args: { p_encrypted: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
