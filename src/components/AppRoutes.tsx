@@ -173,6 +173,10 @@ const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 const CoreCreateQuote = lazy(() => import("@/core-app/pages/CoreCreateQuote"));
+// Supplier Accounts (admin-only)
+const SupplierAccountsPage = lazy(() => import("@/core-app/pages/SupplierAccountsPage"));
+const SupplierAccountNewPage = lazy(() => import("@/core-app/pages/SupplierAccountNewPage"));
+const SupplierAccountDetailPage = lazy(() => import("@/core-app/pages/SupplierAccountDetailPage"));
 
 // Public pages (lazy-loaded for code splitting)
 const Index = lazy(() => import("@/pages/Index"));
@@ -780,6 +784,10 @@ const AppRoutes = () => {
           <Route path="my-account" element={<Suspense fallback={null}><CoreMyAccountPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><CoreSettingsPage /></Suspense>} />
           <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
+          {/* Supplier Accounts (admin-only — RLS enforced server-side) */}
+          <Route path="supplier-accounts" element={<Suspense fallback={null}><SupplierAccountsPage /></Suspense>} />
+          <Route path="supplier-accounts/new" element={<Suspense fallback={null}><SupplierAccountNewPage /></Suspense>} />
+          <Route path="supplier-accounts/:id" element={<Suspense fallback={null}><SupplierAccountDetailPage /></Suspense>} />
         </Route>
       </Route>
 
