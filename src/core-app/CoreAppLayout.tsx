@@ -190,19 +190,21 @@ const CoreAppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, themeClass, toggleTheme } = useInternalTheme();
-  const { isAdmin } = useIsCoreAdmin();
+  const { isAdmin, isLoading: isAdminLoading } = useIsCoreAdmin();
   const isDarkTheme = themeClass === "theme-dark";
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Filter out admin-only items for non-admins
+  // Filter out admin-only items for non-admins.
+  // While the role query is loading, show admin-only items optimistically
+  // (server-side RLS still enforces access) so they don't flash hidden.
   const visibleGroups = useMemo<NavGroup[]>(
     () =>
       NAV_GROUPS.map((g) => ({
         ...g,
-        items: g.items.filter((it) => !it.adminOnly || isAdmin),
+        items: g.items.filter((it) => !it.adminOnly || isAdmin || isAdminLoading),
       })).filter((g) => g.items.length > 0),
-    [isAdmin]
+    [isAdmin, isAdminLoading]
   );
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
