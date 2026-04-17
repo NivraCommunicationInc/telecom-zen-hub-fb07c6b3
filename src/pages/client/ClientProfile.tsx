@@ -38,6 +38,7 @@ import ClientPinConfirmDialog from "@/components/client/ClientPinConfirmDialog";
 // Phase 3 components - New features
 import ClientMFASetup from "@/components/client/ClientMFASetup";
 import ClientEmailChange from "@/components/client/ClientEmailChange";
+import { useWriteGuard } from "@/hooks/useWriteGuard";
 import ClientNotificationPreferences from "@/components/client/ClientNotificationPreferences";
 import ClientLanguagePreference from "@/components/client/ClientLanguagePreference";
 import ClientAccountDeletion from "@/components/client/ClientAccountDeletion";
@@ -341,9 +342,11 @@ const ClientProfile = () => {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const writeGuard = useWriteGuard();
+
+  const handleSubmit = writeGuard((e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate phone format
     if (formData.phone && !validateCanadianPhone(formData.phone)) {
       toast({ 
@@ -396,7 +399,7 @@ const ClientProfile = () => {
 
   const passwordValidation = validatePassword(passwordForm.newPassword);
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = writeGuard(() => {
     if (!passwordValidation.isValid) {
       toast({ 
         title: "Mot de passe trop faible", 
@@ -410,7 +413,7 @@ const ClientProfile = () => {
       return;
     }
     changePasswordMutation.mutate({ newPassword: passwordForm.newPassword });
-  };
+  });
 
   const accountStatusColors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-700",
@@ -593,7 +596,8 @@ const ClientProfile = () => {
                   <Button
                     type="submit"
                     variant="hero"
-                    disabled={updateProfileMutation.isPending}
+                    disabled={updateProfileMutation.isPending || writeGuard.isReadOnly}
+                    title={writeGuard.disabledReason}
                     className="w-full"
                   >
                     {updateProfileMutation.isPending ? (
@@ -876,7 +880,8 @@ const ClientProfile = () => {
             <Button 
               variant="hero" 
               onClick={handlePasswordChange}
-              disabled={changePasswordMutation.isPending || !passwordForm.newPassword || !passwordForm.confirmPassword}
+              disabled={changePasswordMutation.isPending || !passwordForm.newPassword || !passwordForm.confirmPassword || writeGuard.isReadOnly}
+              title={writeGuard.disabledReason}
             >
               {changePasswordMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />

@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useWriteGuard } from "@/hooks/useWriteGuard";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend/portalClient";
 import { 
@@ -147,7 +148,9 @@ const ClientCancellations = () => {
     },
   });
 
-  const handleSubmit = () => {
+  const writeGuard = useWriteGuard();
+
+  const handleSubmit = writeGuard(() => {
     if (!newRequest.service_type || !newRequest.reason_code) {
       toast({ 
         title: "Champs requis", 
@@ -157,7 +160,7 @@ const ClientCancellations = () => {
       return;
     }
     createMutation.mutate(newRequest);
-  };
+  });
 
   // Detail view
   if (selectedRequest) {
@@ -396,7 +399,7 @@ const ClientCancellations = () => {
                   Annuler
                 </Button>
                 <BlockedActionWrapper action="request" showInlineNotice={isAccountBlocked}>
-                  <Button onClick={handleSubmit} disabled={isAccountBlocked || createMutation.isPending}>
+                  <Button onClick={handleSubmit} disabled={isAccountBlocked || createMutation.isPending || writeGuard.isReadOnly} title={writeGuard.disabledReason}>
                     {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Soumettre la demande
                   </Button>

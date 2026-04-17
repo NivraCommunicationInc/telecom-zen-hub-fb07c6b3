@@ -85,7 +85,7 @@ function buildKycEmailHtml(opts: {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
