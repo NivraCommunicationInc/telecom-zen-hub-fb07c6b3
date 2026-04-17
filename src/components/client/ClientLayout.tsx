@@ -85,6 +85,7 @@ const navGroups = [
       { path: "/portal/tickets", label: "Support" },
       { path: "/portal/web-forms", label: "Formulaires" },
       { path: "/portal/documents", label: "Documents" },
+      { path: "/portal/guides", label: "📥 Guides & Documents" },
     ],
   },
 ];

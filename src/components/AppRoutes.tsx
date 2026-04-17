@@ -346,6 +346,7 @@ const ClientMonthlyInvoices = lazy(() => import("@/pages/client/ClientMonthlyInv
 const ClientWebForms = lazy(() => import("@/pages/client/ClientWebForms"));
 const ClientDocumentUpload = lazy(() => import("@/pages/client/ClientDocumentUpload"));
 const ClientDocuments = lazy(() => import("@/pages/client/ClientDocuments"));
+const ClientGuides = lazy(() => import("@/pages/client/ClientGuides"));
 const ClientIdentityVerification = lazy(() => import("@/pages/client/ClientIdentityVerification"));
 const KycVerificationPage = lazy(() => import("@/pages/KycVerificationPage"));
 const ClientResetPassword = lazy(() => import("@/pages/client/ClientResetPassword"));
@@ -568,6 +569,7 @@ const AppRoutes = () => {
       <Route path="/portal/contracts" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientContracts /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/web-forms" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientWebForms /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/documents" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientDocuments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/guides" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientGuides /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/identity-verification" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientIdentityVerification /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/service-addresses" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientServiceAddresses /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/referrals" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientReferrals /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />

@@ -1229,6 +1229,36 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_email_dispatch_log: {
+        Row: {
+          dispatched_at: string
+          edge_function: string
+          email_kind: string
+          entity_id: string
+          entity_type: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          dispatched_at?: string
+          edge_function: string
+          email_kind: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          dispatched_at?: string
+          edge_function?: string
+          email_kind?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: []
+      }
       automatic_email_dispatches: {
         Row: {
           created_at: string
@@ -16943,6 +16973,10 @@ export type Database = {
       }
     }
     Functions: {
+      _invoke_edge_function: {
+        Args: { p_function_name: string; p_payload: Json }
+        Returns: undefined
+      }
       _supplier_get_key: { Args: never; Returns: string }
       admin_sign_contract: {
         Args: {
