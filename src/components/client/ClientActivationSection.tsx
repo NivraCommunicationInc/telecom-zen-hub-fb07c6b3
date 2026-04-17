@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Wifi,
   Eye,
@@ -17,6 +18,7 @@ import {
   Zap,
   AlertTriangle,
   Send,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -53,6 +55,9 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   cancelled: { label: "⬜ Annulé", className: "bg-slate-100 text-slate-700 border-slate-300" },
 };
 
+const ELIGIBLE_ORDER_STATUSES = ["confirmed", "processing", "shipped", "pending"] as const;
+const LIGHT_COLOR_OPTIONS = ["Rouge", "Orange fixe", "Orange clignotant", "Blanc clignotant", "Aucune lumière"];
+
 const formSchema = z.object({
   wifi_network_name: z.string().trim().min(1, "Nom requis").max(32, "32 caractères max"),
   wifi_password: z.string().min(8, "Min. 8 caractères").max(63, "Max 63 caractères"),
@@ -76,6 +81,17 @@ export default function ClientActivationSection({ clientId, compact = false }: C
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState<"yes" | "no" | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [checks, setChecks] = useState({
+    coaxial: false,
+    power: false,
+    lightWhite: false,
+    lightOther: false,
+    hasTerminal: false,
+    hdmi: false,
+    terminalPower: false,
+  });
+  const [lightColor, setLightColor] = useState("");
   const [form, setForm] = useState({
     wifi_network_name: "",
     wifi_password: "",
@@ -100,6 +116,32 @@ export default function ClientActivationSection({ clientId, compact = false }: C
     enabled: !!clientId && !authLoading,
   });
 
+  // Eligible orders for activation
+  const { data: eligibleOrders = [] } = useQuery({
+    queryKey: ["client-eligible-orders", clientId],
+    queryFn: async () => {
+      const { data: orders, error } = await portalSupabase
+        .from("orders")
+        .select("id, order_number, created_at, status, plan_name")
+        .eq("client_id", clientId)
+        .in("status", ELIGIBLE_ORDER_STATUSES as unknown as string[])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      // Exclude orders that already have an active (non-terminal) activation request
+      const orderIds = (orders || []).map((o: any) => o.id);
+      if (orderIds.length === 0) return [];
+      const { data: activeReqs } = await portalSupabase
+        .from("activation_requests")
+        .select("order_id, status")
+        .in("order_id", orderIds)
+        .not("status", "in", "(rejected,cancelled,completed)");
+      const blocked = new Set((activeReqs || []).map((r: any) => r.order_id));
+      return (orders || []).filter((o: any) => !blocked.has(o.id));
+    },
+    enabled: !!clientId && !authLoading,
+  });
+
   useEffect(() => {
     if (!clientId || authLoading) return;
     const channel = portalSupabase
@@ -114,6 +156,7 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["client-activation-request", clientId] });
+          queryClient.invalidateQueries({ queryKey: ["client-eligible-orders", clientId] });
         },
       )
       .subscribe();
@@ -123,8 +166,30 @@ export default function ClientActivationSection({ clientId, compact = false }: C
     };
   }, [authLoading, clientId, queryClient]);
 
+  const validateChecklist = (): string | null => {
+    if (!selectedOrderId) return "Veuillez sélectionner une commande";
+    if (!checks.coaxial || !checks.power) {
+      return "Veuillez compléter toutes les vérifications obligatoires avant de soumettre.";
+    }
+    if (!checks.lightWhite && !checks.lightOther) {
+      return "Veuillez indiquer la couleur du voyant lumineux de la borne.";
+    }
+    if (checks.lightOther && !lightColor) {
+      return "Veuillez préciser la couleur du voyant.";
+    }
+    if (checks.hasTerminal && (!checks.hdmi || !checks.terminalPower)) {
+      return "Veuillez confirmer le branchement du Terminal TV ou décocher l'option.";
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const checklistErr = validateChecklist();
+    if (checklistErr) {
+      toast.error(checklistErr);
+      return;
+    }
     const parsed = formSchema.safeParse(form);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message || "Formulaire invalide");
@@ -141,13 +206,19 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         throw new Error("Session portail introuvable. Rechargez la page puis réessayez.");
       }
 
+      const resolvedLightColor = checks.lightWhite ? "blanc_fixe" : lightColor;
+      const terminalConnected = checks.hasTerminal ? checks.hdmi && checks.terminalPower : null;
+
       const { data, error } = await portalSupabase.rpc("submit_activation_request", {
         p_wifi_network_name: parsed.data.wifi_network_name,
         p_wifi_password: parsed.data.wifi_password,
         p_contact_phone: parsed.data.contact_phone,
         p_client_notes: parsed.data.client_notes || null,
-        p_order_id: null,
-      });
+        p_order_id: selectedOrderId,
+        p_light_color: resolvedLightColor,
+        p_has_terminal: checks.hasTerminal,
+        p_terminal_connected: terminalConnected,
+      } as any);
       if (error) throw error;
 
       portalSupabase.functions.invoke("notify-activation-request", {
@@ -163,7 +234,19 @@ export default function ClientActivationSection({ clientId, compact = false }: C
         contact_phone: "",
         client_notes: "",
       });
+      setChecks({
+        coaxial: false,
+        power: false,
+        lightWhite: false,
+        lightOther: false,
+        hasTerminal: false,
+        hdmi: false,
+        terminalPower: false,
+      });
+      setLightColor("");
+      setSelectedOrderId(null);
       queryClient.invalidateQueries({ queryKey: ["client-activation-request", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client-eligible-orders", clientId] });
     } catch (err: any) {
       console.error("[submit_activation_request]", err);
       toast.error(err?.message || "Erreur lors de la soumission");
@@ -336,8 +419,53 @@ export default function ClientActivationSection({ clientId, compact = false }: C
       {showForm && (
         <Card>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex items-center gap-2 mb-2 pb-3 border-b">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Order selection */}
+              <div>
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <Package className="w-4 h-4" /> Pour quelle commande demandez-vous l'activation? *
+                </Label>
+                <div className="mt-3 space-y-2">
+                  {eligibleOrders.length === 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-900">
+                      Aucune commande éligible trouvée. L'activation n'est disponible que pour les commandes en cours
+                      de traitement ou expédiées. Si vous pensez qu'il s'agit d'une erreur, contactez{" "}
+                      <a href="mailto:support@nivra-telecom.ca" className="underline font-medium">
+                        support@nivra-telecom.ca
+                      </a>
+                    </div>
+                  )}
+                  {eligibleOrders.map((order: any) => {
+                    const active = selectedOrderId === order.id;
+                    return (
+                      <button
+                        type="button"
+                        key={order.id}
+                        onClick={() => setSelectedOrderId(order.id)}
+                        className={`w-full text-left rounded-xl px-4 py-3 flex items-center gap-3 transition-colors ${
+                          active
+                            ? "border-2 border-violet-500 bg-violet-50"
+                            : "border border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <Package className={`w-5 h-5 ${active ? "text-violet-600" : "text-slate-400"}`} />
+                        <div className="flex-1">
+                          <div className="font-semibold text-slate-900 text-sm">
+                            Commande #{order.order_number}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {order.plan_name || "Service"} · Passée le{" "}
+                            {new Date(order.created_at).toLocaleDateString("fr-CA")}
+                          </div>
+                        </div>
+                        {active && <CheckCircle2 className="w-5 h-5 text-violet-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 pb-3 border-b">
                 <Wifi className="w-5 h-5 text-blue-600" />
                 <h3 className="text-lg font-bold text-slate-900">Activation WiFi</h3>
               </div>
@@ -418,7 +546,154 @@ export default function ClientActivationSection({ clientId, compact = false }: C
                 />
               </div>
 
-              <Button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700">
+              {/* ─── Pre-activation checklist ─── */}
+              <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-4">
+                <div className="text-sm font-bold text-slate-900 mb-1">
+                  ✅ Vérification avant activation
+                </div>
+                <p className="text-xs text-slate-600 mb-4">
+                  Veuillez confirmer que votre équipement est correctement installé avant de soumettre votre demande.
+                </p>
+
+                {/* Borne Nivra WiFi */}
+                <div className="mb-4">
+                  <div className="text-sm font-bold text-violet-700 mb-3">📡 Borne Nivra WiFi</div>
+
+                  <label className="flex items-start gap-3 mb-3 cursor-pointer">
+                    <Checkbox
+                      checked={checks.coaxial}
+                      onCheckedChange={(v) => setChecks({ ...checks, coaxial: v === true })}
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm text-slate-700">
+                      Le câble coaxial est bien vissé à la borne ET à la prise murale *
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 mb-3 cursor-pointer">
+                    <Checkbox
+                      checked={checks.power}
+                      onCheckedChange={(v) => setChecks({ ...checks, power: v === true })}
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm text-slate-700">
+                      Le bloc d'alimentation est branché à la borne ET dans la prise de courant murale *
+                    </span>
+                  </label>
+
+                  <div className="mb-2">
+                    <label className="flex items-start gap-3 mb-2 cursor-pointer">
+                      <Checkbox
+                        checked={checks.lightWhite}
+                        onCheckedChange={(v) =>
+                          setChecks({
+                            ...checks,
+                            lightWhite: v === true,
+                            lightOther: v === true ? false : checks.lightOther,
+                          })
+                        }
+                        className="mt-0.5"
+                      />
+                      <span className="text-sm text-slate-700">
+                        Le voyant lumineux de la borne est <strong>blanc fixe</strong> ✅
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <Checkbox
+                        checked={checks.lightOther}
+                        onCheckedChange={(v) =>
+                          setChecks({
+                            ...checks,
+                            lightOther: v === true,
+                            lightWhite: v === true ? false : checks.lightWhite,
+                          })
+                        }
+                        className="mt-0.5"
+                      />
+                      <span className="text-sm text-slate-700">
+                        Le voyant lumineux est une <strong>autre couleur</strong> ⚠️
+                      </span>
+                    </label>
+
+                    {checks.lightOther && (
+                      <div className="ml-7 mt-3">
+                        <p className="text-xs text-slate-600 mb-2">Quelle couleur voyez-vous?</p>
+                        <div className="flex flex-wrap gap-2">
+                          {LIGHT_COLOR_OPTIONS.map((color) => {
+                            const active = lightColor === color;
+                            return (
+                              <button
+                                key={color}
+                                type="button"
+                                onClick={() => setLightColor(color)}
+                                className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
+                                  active
+                                    ? "border-2 border-violet-500 bg-violet-100 text-violet-800 font-bold"
+                                    : "border border-slate-200 bg-white text-slate-600"
+                                }`}
+                              >
+                                {color}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {lightColor && (
+                          <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                            ⚠️ Votre borne n'est peut-être pas prête. Assurez-vous qu'elle est bien branchée et
+                            attendez 5-10 minutes. Si la lumière reste {lightColor.toLowerCase()}, notre équipe le
+                            notera lors de l'activation.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Terminal Nivra TV */}
+                <div className="border-t border-violet-100 pt-4">
+                  <label className="flex items-center gap-3 mb-3 cursor-pointer">
+                    <Checkbox
+                      checked={checks.hasTerminal}
+                      onCheckedChange={(v) => setChecks({ ...checks, hasTerminal: v === true })}
+                    />
+                    <span className="text-sm font-bold text-slate-800">
+                      📺 J'ai aussi un Terminal Nivra TV à installer (optionnel)
+                    </span>
+                  </label>
+
+                  {checks.hasTerminal && (
+                    <div className="ml-7">
+                      <label className="flex items-start gap-3 mb-3 cursor-pointer">
+                        <Checkbox
+                          checked={checks.hdmi}
+                          onCheckedChange={(v) => setChecks({ ...checks, hdmi: v === true })}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm text-slate-700">
+                          Le câble HDMI est bien branché au terminal ET au téléviseur
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <Checkbox
+                          checked={checks.terminalPower}
+                          onCheckedChange={(v) => setChecks({ ...checks, terminalPower: v === true })}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm text-slate-700">
+                          Le bloc d'alimentation du terminal est branché au terminal ET dans la prise murale
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={submitting || eligibleOrders.length === 0}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Soumission…
