@@ -92,8 +92,7 @@ export const PromoCodeInput = ({
     setError(null);
 
     try {
-      // Normalize code: trim, uppercase, remove trailing punctuation
-      const normalizedCode = normalizePromoCode(code);
+      // normalizedCode computed above
       
       const { data, error: invokeError } = await backendClient.functions.invoke("validate-promo", {
         body: {
