@@ -823,7 +823,14 @@ const GuestCheckout = () => {
                   <Button variant="outline" className="flex-1" onClick={() => setStep(isStreamingOnlyOrder ? 1 : 2)}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Retour
                   </Button>
-                  <Button className="flex-1" disabled={!isClientInfoValid} onClick={() => setStep(4)}>
+                  <Button
+                    className="flex-1"
+                    disabled={!isClientInfoValid}
+                    onClick={async () => {
+                      await tryAutoApplyFirstMonthFree();
+                      setStep(4);
+                    }}
+                  >
                     Continuer <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
