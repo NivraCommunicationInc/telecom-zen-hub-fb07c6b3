@@ -68,7 +68,7 @@ function buildKycEmailHtml(opts: {
           <p style="margin:16px 0 0;font-size:12px;color:#64748b;text-align:center;">Lien valide jusqu'au ${expires}</p>
 
           <div style="margin-top:28px;padding:14px 16px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;color:#1e40af;line-height:1.6;">
-            🔒 Vos documents sont chiffrés et conservés de manière sécurisée. Ils sont automatiquement supprimés 30 jours après validation.
+            🔒 Vos documents d'identité sont chiffrés et supprimés automatiquement dès que votre identité est validée par notre équipe. Nous ne conservons aucune copie de vos informations sensibles.
           </div>
 
           <p style="margin:24px 0 0;font-size:13px;color:#64748b;line-height:1.6;">Des questions? Écrivez à <a href="mailto:support@nivra-telecom.ca" style="color:#0066CC;">support@nivra-telecom.ca</a>.</p>
