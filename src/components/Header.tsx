@@ -10,6 +10,7 @@ import { NAV_TARGETS, type NavTarget, validateNavTargets, safeScrollToSection } 
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { PublicSystemStatusBanner } from "@/components/public/PublicSystemStatusBanner";
 import { QuickAnnouncementBanner } from "@/components/public/QuickAnnouncementBanner";
+import { SiteSearchDialog } from "@/components/public/SiteSearchDialog";
 
 const PURPLE = "#7c3aed";
 const PURPLE_DARK = "#5b21b6";
@@ -19,6 +20,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const dropdownTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -248,6 +250,7 @@ const Header = () => {
 
   return (
     <>
+      <SiteSearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
       <QuickAnnouncementBanner />
       <PublicSystemStatusBanner />
       
@@ -314,7 +317,13 @@ const Header = () => {
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button className="p-2 rounded-lg transition-colors" style={{ color: '#999999' }} aria-label="Recherche">
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+                style={{ color: '#999999' }}
+                aria-label={isFr ? "Recherche" : "Search"}
+              >
                 <Search className="w-[18px] h-[18px]" />
               </button>
               <Link
