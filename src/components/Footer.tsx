@@ -64,9 +64,9 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
         {/* Payment + Security — single row */}
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pb-3 mb-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{isFr ? 'Paiements acceptés:' : 'Accepted payments:'}</span>
-          {['VISA', 'Mastercard', 'Interac'].map(p => (
-            <span key={p} style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>{p}</span>
-          ))}
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: 700, background: '#1A1F71', padding: '2px 6px', borderRadius: 3 }}>VISA</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: 700, background: '#EB001B', padding: '2px 6px', borderRadius: 3 }}>MC</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{isFr ? 'Traité par PayPal — aucun compte requis' : 'Processed by PayPal — no account required'}</span>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>|</span>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>🔒 SSL 256-bit</span>
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>🛡 Cloudflare</span>

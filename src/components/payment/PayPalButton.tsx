@@ -41,6 +41,11 @@ declare global {
     paypal?: {
       Buttons: (config: unknown) => {
         render: (container: string | HTMLElement) => Promise<void>;
+        isEligible?: () => boolean;
+      };
+      FUNDING?: {
+        CARD: string;
+        PAYPAL: string;
       };
     };
   }
@@ -62,6 +67,7 @@ export const PayPalButton = ({
   const [isLoading, setIsLoading] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
   const containerId = `paypal-button-container-${invoiceId || orderId || "main"}`;
+  const cardContainerId = `paypal-card-container-${invoiceId || orderId || "main"}`;
 
   // IMPORTANT:
   // Plusieurs parties du site refetch en arrière-plan (bannières statut, sécurité, etc.).

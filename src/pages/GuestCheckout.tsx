@@ -117,7 +117,7 @@ const GuestCheckout = () => {
   const [kycSessionId, setKycSessionId] = useState<string | null>(null);
 
   // ── Payment ──
-  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "etransfer" | null>("paypal");
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
   const [etransferRef, setEtransferRef] = useState("");
@@ -1105,144 +1105,77 @@ const GuestCheckout = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {/* Payment method selection */}
-                    <div className="space-y-3">
-                      <button
-                        onClick={() => setPaymentMethod("paypal")}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                          paymentMethod === "paypal"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/30"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#0070ba] rounded-lg flex items-center justify-center">
-                              <span className="text-white font-bold text-xs">PP</span>
-                            </div>
-                            <div>
-                              <p className="font-semibold text-foreground">PayPal</p>
-                              <p className="text-xs text-muted-foreground">Paiement sécurisé — Carte de crédit ou débit via PayPal</p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary" className="text-xs">Recommandé</Badge>
-                        </div>
-                      </button>
+                    {/* ── Card-only payment (processed by PayPal, no account required) ── */}
+                    <div>
+                      <div className="text-[10px] tracking-[2px] uppercase text-muted-foreground mb-3">
+                        Méthode de paiement
+                      </div>
 
-                      <button
-                        onClick={() => setPaymentMethod("etransfer")}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                          paymentMethod === "etransfer"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/30"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-xs">ET</span>
+                      {/* Card brand badges */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-[11px] font-extrabold text-white px-2.5 py-1 rounded" style={{ background: '#1A1F71' }}>VISA</span>
+                        <span className="text-[11px] font-extrabold text-white px-2.5 py-1 rounded" style={{ background: '#EB001B' }}>MC</span>
+                        <span className="text-[11px] font-extrabold text-white px-2.5 py-1 rounded -ml-1" style={{ background: '#F79E1B' }}>●</span>
+                      </div>
+
+                      {/* Reassurance box */}
+                      <div className="rounded-xl border p-4 mb-4 flex items-start gap-3" style={{ background: '#F0F7FF', borderColor: '#BFDBFE' }}>
+                        <div className="text-xl shrink-0">💳</div>
+                        <div>
+                          <div className="text-sm font-bold mb-1" style={{ color: '#1E40AF' }}>
+                            Payez par carte de crédit ou débit — aucun compte PayPal requis
                           </div>
+                          <div className="text-[13px] leading-relaxed" style={{ color: '#3B82F6' }}>
+                            Notre système de paiement sécurisé accepte Visa et Mastercard directement.
+                            Vous n'avez pas besoin d'un compte PayPal pour compléter votre achat.
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Payment buttons (card first, then PayPal fallback) */}
+                      {!paypalCaptureId && (
+                        <div className="space-y-2">
+                          <PayPalButton
+                            amount={todayTotal}
+                            description={`Nivra — ${selectedServices.map(s => s.name).join(", ")}`}
+                            customer={{
+                              first_name: firstName,
+                              last_name: lastName,
+                              email,
+                              phone,
+                              address: {
+                                address_line_1: addressStreet,
+                                admin_area_2: addressCity,
+                                admin_area_1: addressProvince,
+                                postal_code: addressPostalCode.replace(/\s/g, ""),
+                                country_code: "CA",
+                              },
+                            }}
+                            onSuccess={(captureId) => {
+                              setPaypalCaptureId(captureId);
+                              setPaymentComplete(true);
+                              toast.success("Paiement confirmé !");
+                            }}
+                            onError={(err) => toast.error(`Erreur de paiement: ${err}`)}
+                            disabled={todayTotal <= 0}
+                          />
+                        </div>
+                      )}
+
+                      {!!paypalCaptureId && (
+                        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
                           <div>
-                            <p className="font-semibold text-foreground">Virement Interac</p>
-                            <p className="text-xs text-muted-foreground">Envoyez un virement à Support@nivra-telecom.ca</p>
+                            <p className="font-semibold text-emerald-800">Paiement confirmé</p>
+                            <p className="text-xs text-emerald-600">Réf: {paypalCaptureId}</p>
                           </div>
                         </div>
-                      </button>
+                      )}
+
+                      <div className="text-center text-xs text-muted-foreground mt-3">
+                        🔒 Paiement traité de façon sécurisée par PayPal · Vos informations bancaires ne sont jamais partagées
+                      </div>
                     </div>
-
-                    {/* PayPal */}
-                    {paymentMethod === "paypal" && !paypalCaptureId && (
-                      <div className="pt-2">
-                        <PayPalButton
-                          amount={todayTotal}
-                          description={`Nivra — ${selectedServices.map(s => s.name).join(", ")}`}
-                          customer={{
-                            first_name: firstName,
-                            last_name: lastName,
-                            email,
-                            phone,
-                            address: {
-                              address_line_1: addressStreet,
-                              admin_area_2: addressCity,
-                              admin_area_1: addressProvince,
-                              postal_code: addressPostalCode.replace(/\s/g, ""),
-                              country_code: "CA",
-                            },
-                          }}
-                          onSuccess={(captureId) => {
-                            setPaypalCaptureId(captureId);
-                            setPaymentComplete(true);
-                            toast.success("Paiement PayPal confirmé !");
-                          }}
-                          onError={(err) => toast.error(`Erreur PayPal: ${err}`)}
-                          disabled={todayTotal <= 0}
-                        />
-                      </div>
-                    )}
-
-                    {paymentMethod === "paypal" && !!paypalCaptureId && (
-                      <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                        <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                        <div>
-                          <p className="font-semibold text-emerald-800">Paiement PayPal confirmé</p>
-                          <p className="text-xs text-emerald-600">Réf: {paypalCaptureId}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* E-Transfer */}
-                    {paymentMethod === "etransfer" && (
-                      <div className="space-y-4 pt-2">
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                          <p className="text-sm font-medium text-amber-800 mb-3">Instructions de virement Interac</p>
-                          <div className="space-y-2 text-xs text-amber-700">
-                            <p>1. Envoyez <strong>{fmt(todayTotal)}</strong> par virement Interac à :</p>
-                            <p className="font-semibold text-amber-900 text-sm pl-4">Support@nivra-telecom.ca</p>
-                            <p>2. Question de sécurité :</p>
-                            <p className="font-semibold text-amber-900 pl-4">Quel est le nom complet du client</p>
-                            <p>3. Réponse :</p>
-                            <p className="font-semibold text-amber-900 pl-4">Votre prénom et nom de famille (tel que saisi dans le formulaire)</p>
-                          </div>
-                          <p className="text-[11px] text-amber-600 mt-3 border-t border-amber-200 pt-2">
-                            Assurez-vous que le nom utilisé comme réponse correspond exactement à celui inscrit dans vos informations client.
-                          </p>
-                        </div>
-                        <div>
-                          <Label>Numéro de confirmation Interac</Label>
-                          <Input
-                            placeholder="Ex: CA1234567890"
-                            value={etransferRef}
-                            onChange={e => setEtransferRef(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label>Nom de l'expéditeur</Label>
-                          <Input
-                            placeholder="Votre nom complet"
-                            value={etransferSender}
-                            onChange={e => setEtransferSender(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          className="w-full"
-                          disabled={etransferRef.length < 6 || etransferSender.length < 2}
-                          onClick={() => {
-                            if (etransferRef.length < 6) {
-                              toast.error("Le numéro de confirmation doit contenir au moins 6 caractères");
-                              return;
-                            }
-                            if (etransferSender.length < 2) {
-                              toast.error("Veuillez entrer le nom de l'expéditeur");
-                              return;
-                            }
-                            setPaymentComplete(true);
-                            toast.success("Référence Interac enregistrée — vérification en cours après soumission");
-                          }}
-                        >
-                          <Check className="w-4 h-4 mr-2" />
-                          Confirmer le virement
-                        </Button>
-                      </div>
-                    )}
 
                     <Separator />
 
