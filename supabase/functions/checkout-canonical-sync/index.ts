@@ -15,6 +15,7 @@ type CheckoutPayload = {
     phone?: string;
     date_of_birth?: string | null;
   };
+  client_language?: "fr" | "en";
   service_address?: {
     street?: string;
     city?: string;
@@ -423,7 +424,14 @@ serve(async (req) => {
           last_name: payload.customer.last_name || null,
           full_name: `${payload.customer.first_name || ""} ${payload.customer.last_name || ""}`.trim() || null,
           phone: payload.customer.phone || null,
+          preferred_language: payload.client_language === "fr" ? "fr" : "en",
         });
+      } else if (payload.client_language === "fr" || payload.client_language === "en") {
+        await admin
+          .from("profiles")
+          .update({ preferred_language: payload.client_language })
+          .eq("user_id", payload.customer.user_id)
+          .is("preferred_language", null);
       }
 
       const { data: afterProfile } = await admin
