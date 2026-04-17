@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const IMPERSONATION_PENDING_KEY = "nivra_impersonation_pending_v1";
+export const IMPERSONATION_TOKEN_KEY = "nivra_impersonation_token";
 
 interface StartArgs {
   clientId: string;
@@ -32,25 +33,11 @@ export function useImpersonation() {
       return;
     }
 
-    // 1) SYNCHRONOUS popup open while we still have the user gesture.
-    const win = window.open("about:blank", "_blank", "noopener,noreferrer");
-    if (!win) {
-      toast.error(
-        "Le navigateur a bloqué l'ouverture du portail. Autorisez les popups pour ce site puis réessayez.",
-      );
-      return;
-    }
-
-    try {
-      win.document.write(
-        `<!doctype html><html><head><title>Mode assistance — Nivra</title>
-         <meta name="color-scheme" content="dark light" />
-         <style>html,body{margin:0;height:100%;background:#0d0d1a;color:#ede9fe;font:14px system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center}</style>
-         </head><body>Préparation du mode assistance…</body></html>`,
-      );
-    } catch {
-      /* cross-origin: ignore */
-    }
+    // 1) SYNCHRONOUSLY open the real portal route while we still have the
+    //    user gesture. The tab itself then receives the token via URL and
+    //    localStorage handoff once the RPC returns.
+    const pendingUrl = `${window.location.origin}/portal?impersonation_pending=1`;
+    const win = window.open(pendingUrl, "_blank");
 
     const toastId = toast.loading(
       `Ouverture du portail de ${clientName || clientEmail || "client"}…`,
@@ -71,9 +58,10 @@ export function useImpersonation() {
       const expiresAt = (session as any)?.expires_at;
       if (!token) throw new Error("Session d'assistance invalide (token manquant)");
 
-      // 2) Persist the token to localStorage so the new tab can pick it up
-      //    even if it is opened with about:blank and the URL is later stripped.
+      // 2) Persist the token BEFORE redirecting so the newly-opened tab can
+      //    resolve the session even if URL navigation is delayed or stripped.
       try {
+        localStorage.setItem(IMPERSONATION_TOKEN_KEY, token);
         localStorage.setItem(
           IMPERSONATION_PENDING_KEY,
           JSON.stringify({ token, expiresAt, clientId, clientName, clientEmail, ts: Date.now() }),
@@ -84,11 +72,16 @@ export function useImpersonation() {
 
       const url = `${window.location.origin}/portal?impersonate=${encodeURIComponent(token)}`;
 
-      // 3) Navigate the already-open tab.
-      try {
-        win.location.replace(url);
-      } catch {
-        win.location.href = url;
+      // 3) Navigate the already-opened portal tab. If the popup was blocked,
+      //    fall back to current-tab navigation after the token exists.
+      if (win && !win.closed) {
+        try {
+          win.location.replace(url);
+        } catch {
+          win.location.href = url;
+        }
+      } else {
+        window.location.assign(url);
       }
 
       toast.success(`Mode assistance activé pour ${clientName || clientEmail || "client"}`, {
@@ -97,10 +90,12 @@ export function useImpersonation() {
       });
     } catch (err: any) {
       console.error("[Impersonation] start failed", err);
-      try {
-        win.close();
-      } catch {
-        /* ignore */
+      if (win && !win.closed) {
+        try {
+          win.close();
+        } catch {
+          /* ignore */
+        }
       }
       toast.error(err?.message || "Impossible de démarrer la session d'assistance", { id: toastId });
     }
