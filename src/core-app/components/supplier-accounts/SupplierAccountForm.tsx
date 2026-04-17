@@ -100,7 +100,7 @@ function ClientPicker({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-foreground truncate">
-            {selected.full_name ?? [selected.first_name, selected.last_name].filter(Boolean).join(" ") || "(sans nom)"}
+            {selected.full_name ?? ([selected.first_name, selected.last_name].filter(Boolean).join(" ") || "(sans nom)")}
           </div>
           <div className="text-xs text-muted-foreground truncate">
             {(selected.account_number || selected.client_number) && <>Compte #{selected.account_number ?? selected.client_number} · </>}
@@ -124,7 +124,7 @@ function ClientPicker({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-foreground truncate">
-            {selected.full_name ?? [selected.first_name, selected.last_name].filter(Boolean).join(" ") || "(sans nom)"}
+            {selected.full_name ?? ([selected.first_name, selected.last_name].filter(Boolean).join(" ") || "(sans nom)")}
           </div>
           <div className="text-xs text-muted-foreground truncate">
             {(selected.account_number || selected.client_number) && <>Compte #{selected.account_number ?? selected.client_number} · </>}
@@ -178,7 +178,7 @@ function ClientPicker({
                 }}
               >
                 <div className="font-medium text-foreground">
-                  {r.full_name ?? [r.first_name, r.last_name].filter(Boolean).join(" ") || "(sans nom)"}
+                  {r.full_name ?? ([r.first_name, r.last_name].filter(Boolean).join(" ") || "(sans nom)")}
                   {(r.account_number || r.client_number) && <span className="text-muted-foreground font-normal"> — #{r.account_number ?? r.client_number}</span>}
                 </div>
                 <div className="text-xs text-muted-foreground">{r.email}</div>
