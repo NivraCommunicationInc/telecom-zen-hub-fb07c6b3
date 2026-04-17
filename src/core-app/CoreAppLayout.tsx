@@ -12,7 +12,7 @@ import {
   FileText, CreditCard, RefreshCcw, Calendar, LogOut, ChevronLeft,
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
   Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
-  MonitorPlay,
+  MonitorPlay, Lock,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
   History, HardDrive, Ticket, Search, X, ChevronDown, Zap,
@@ -71,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Calendar, label: "Appointments", href: "/appointments" },
       { icon: MessageSquare, label: "Requests", href: "/requests" },
       { icon: Shield, label: "KYC", href: "/kyc" },
+      { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
   },
   {
