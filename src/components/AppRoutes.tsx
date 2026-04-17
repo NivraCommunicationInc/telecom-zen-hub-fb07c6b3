@@ -249,7 +249,7 @@ const AdminPromotions = lazy(() => import("@/pages/admin/AdminPromotions"));
 const AdminAccounts = lazy(() => import("@/pages/admin/AdminAccounts"));
 const AdminStreaming = lazy(() => import("@/pages/admin/AdminStreaming"));
 const AdminStreamingCatalog = lazy(() => import("@/pages/admin/AdminStreamingCatalog"));
-const AdminSystemStatus = lazy(() => import("@/pages/admin/AdminSystemStatus"));
+// AdminSystemStatus removed — redirected to /core/system-status
 const AdminSystemHealth = lazy(() => import("@/pages/admin/AdminSystemHealth"));
 const AdminInternalTickets = lazy(() => import("@/pages/admin/AdminInternalTickets"));
 const AdminEmailActivity = lazy(() => import("@/pages/admin/AdminEmailActivity"));
@@ -272,7 +272,7 @@ const AdminInvoiceDetail = lazy(() => import("@/pages/admin/AdminInvoiceDetail")
 const AdminPaymentsV2 = lazy(() => import("@/pages/admin/AdminPaymentsV2"));
 const AdminSite = lazy(() => import("@/pages/admin/AdminSite"));
 const AdminSecurityEvents = lazy(() => import("@/pages/admin/AdminSecurityEvents"));
-const AdminMaintenance = lazy(() => import("@/pages/admin/AdminMaintenance"));
+// AdminMaintenance removed — redirected to /core/maintenance
 const AdminSecurityGuardian = lazy(() => import("@/pages/admin/AdminSecurityGuardian"));
 const AdminContests = lazy(() => import("@/pages/admin/AdminContests"));
 const AdminWebForms = lazy(() => import("@/pages/admin/AdminWebForms"));
