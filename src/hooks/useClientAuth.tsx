@@ -354,10 +354,14 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
     : session;
   const isImpersonating = !!impersonation;
 
-  // While we're loading the real auth session AND a pending impersonation
-  // token exists, we should not appear "loading" forever — the banner provider
-  // resolves the token in parallel. Surface impersonation as ready immediately.
-  const effectiveIsLoading = isImpersonating ? false : isLoading;
+  // While a pending impersonation token is being validated, we surface
+  // `isLoading=true` so ClientProtectedRoute waits and does not redirect to
+  // /portal/auth. Once impersonation resolves we surface ready immediately.
+  const effectiveIsLoading = isImpersonating
+    ? false
+    : impersonationPending
+      ? true
+      : isLoading;
 
   return (
     <ClientAuthContext.Provider
