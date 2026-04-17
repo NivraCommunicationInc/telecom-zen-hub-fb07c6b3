@@ -13,6 +13,7 @@ import {
   AlertTriangle, Timer, Copy
 } from "lucide-react";
 import { toast } from "sonner";
+import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 
 interface Props {
   order: any;
@@ -120,6 +121,14 @@ export function CoreOrderHeader({ order, profile, account, appointment, incomple
               <Timer className={`h-3 w-3 ${sla.critical ? "animate-pulse" : ""}`} />
               {sla.label}
             </div>
+          )}
+          {(profile?.user_id || order.user_id) && (
+            <ImpersonateButton
+              variant="compact"
+              clientId={profile?.user_id || order.user_id}
+              clientEmail={clientEmail}
+              clientName={clientName}
+            />
           )}
           <button
             onClick={onRefresh}

@@ -495,105 +495,13 @@ const AppRoutes = () => {
       <Route path="/page/:slug" element={<MaintenanceGuard><PublicLayout><DynamicPage /></PublicLayout></MaintenanceGuard>} />
 
       {/* ============================================ */}
-      {/* ADMIN ROUTES - NO MaintenanceGuard (always accessible) */}
+      {/* LEGACY /admin PORTAL — DECOMMISSIONED          */}
+      {/* All admin functions are now in Nivra Core (/core).
+          We keep a single catch-all redirect so old bookmarks
+          and external email links don't 404.               */}
       {/* ============================================ */}
-      <Route path="/admin/login" element={<AuthProvider><AdminLogin /></AuthProvider>} />
-      <Route path="/admin/reset-password" element={<AuthProvider><AdminResetPassword /></AuthProvider>} />
-      <Route path="/admin/bootstrap" element={<AuthProvider><AdminBootstrap /></AuthProvider>} />
-
-      <Route path="/admin" element={<AdminProtectedOutlet />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="change-credentials" element={<AdminChangeCredentials />} />
-        <Route path="orders" element={<AdminOrders />} />
-        <Route path="orders/:id" element={<AdminOrderDetail />} />
-        <Route path="queues" element={<AdminQueues />} />
-        <Route path="clients" element={<AdminClients />} />
-        <Route path="services" element={<AdminServices />} />
-        <Route path="billing" element={<AdminBilling />} />
-        <Route path="requests" element={<AdminRequests />} />
-        <Route path="billing-playbook" element={<BillingV2Playbook />} />
-        <Route path="contracts" element={<AdminContracts />} />
-        <Route path="activity" element={<AdminActivityLogs />} />
-        <Route path="appointments" element={<AdminAppointments />} />
-        <Route path="careers" element={<AdminCareers />} />
-        <Route path="applications" element={<AdminApplications />} />
-        <Route path="tickets" element={<AdminTickets />} />
-        <Route path="channels" element={<AdminChannels />} />
-        <Route path="technicians" element={<AdminTechnicians />} />
-        <Route path="replacements" element={<AdminReplacements />} />
-        <Route path="cancellations" element={<AdminCancellations />} />
-        <Route path="employees" element={<AdminEmployees />} />
-        <Route path="promotions" element={<AdminPromotions />} />
-        <Route path="accounts" element={<AdminAccounts />} />
-        <Route path="accounts/:accountId" element={<AdminAccountProfile />} />
-        <Route path="recouvrement" element={<AdminRecouvrement />} />
-        <Route path="streaming" element={<AdminStreaming />} />
-        <Route path="streaming-catalog" element={<AdminStreamingCatalog />} />
-        <Route path="system-status" element={<Navigate to="/core/system-status" replace />} />
-        <Route path="internal-tickets" element={<AdminInternalTickets />} />
-        <Route path="email-activity" element={<AdminEmailActivity />} />
-        <Route path="email-deliverability" element={<AdminEmailDeliverability />} />
-        <Route path="account" element={<AdminAccount />} />
-        <Route path="users" element={<AdminUsers />} />
-        <Route path="users-access" element={<AdminUsersAccess />} />
-        <Route path="live-activity" element={<LiveActivityPage />} />
-        <Route path="audit-log" element={<AdminAuditLog />} />
-        <Route path="pdf-templates-v2" element={<AdminPDFTemplatesV2 />} />
-        <Route path="qa" element={<AdminQA />} />
-        <Route path="payment-disputes" element={<AdminPaymentDisputes />} />
-        <Route path="contested-invoices" element={<AdminContestedInvoices />} />
-        <Route path="contested-payments" element={<AdminContestedPayments />} />
-        <Route path="site" element={<AdminSite />} />
-        <Route path="security-events" element={<AdminSecurityEvents />} />
-        <Route path="maintenance" element={<Navigate to="/core/maintenance" replace />} />
-        <Route path="security-guardian" element={<AdminSecurityGuardian />} />
-        <Route path="concours" element={<AdminContests />} />
-        <Route path="formulaire-web" element={<AdminWebForms />} />
-        <Route path="telephony" element={<AdminTelephony />} />
-        <Route path="marketing" element={<AdminMarketing />} />
-        <Route path="communication-email" element={<AdminCommunicationEmail />} />
-        <Route path="communication-sms" element={<AdminCommunicationSMS />} />
-
-        {/* Admin Referral Program */}
-        <Route path="referrals" element={<AdminReferrals />} />
-        <Route path="referrals/influencers" element={<AdminReferralInfluencers />} />
-        <Route path="referrals/influencers/:id" element={<AdminReferralInfluencerDetail />} />
-        <Route path="referrals/codes" element={<AdminReferralCodes />} />
-        <Route path="referrals/attributions" element={<AdminReferralAttributions />} />
-        <Route path="referrals/parrainages" element={<Navigate to="/admin/referrals/attributions" replace />} />
-        <Route path="referrals/commissions" element={<AdminReferralCommissions />} />
-        <Route path="referrals/cashouts" element={<AdminReferralCashouts />} />
-        <Route path="referrals/settings" element={<AdminReferralSettings />} />
-        <Route path="referrals/terms" element={<AdminPartnerTerms />} />
-
-        {/* Document Requests */}
-        <Route path="document-requests" element={<AdminDocumentRequests />} />
-
-        {/* Notifications */}
-        <Route path="notifications-settings" element={<AdminNotificationsSettings />} />
-        <Route path="notifications" element={<AdminNotifications />} />
-
-        {/* Field Sales Admin - Redirect to POS */}
-        <Route path="field-sales" element={<Navigate to="/admin/pos" replace />} />
-        <Route path="pos" element={<AdminPOS />} />
-        <Route path="payments" element={<AdminPaymentsV2 />} />
-        <Route path="payments/legacy" element={<Navigate to="/admin/payments" replace />} />
-        <Route path="invoices" element={<AdminInvoices />} />
-        <Route path="invoices/:invoiceId" element={<AdminInvoiceDetail />} />
-        <Route path="work-queue" element={<AdminWorkQueue />} />
-        <Route path="subscriptions" element={<AdminSubscriptions />} />
-        <Route path="subscriptions/:subscriptionId" element={<AdminSubscriptionDetail />} />
-
-        {/* Identity Verification Admin */}
-        <Route path="identity-verification" element={<AdminIdentityVerification />} />
-        <Route path="kyc-verifications" element={<AdminKYCVerifications />} />
-
-        {/* System Audit - READ-ONLY */}
-        <Route path="system-audit" element={<AdminSystemAudit />} />
-        
-        {/* System Health - Carrier-grade monitoring */}
-        <Route path="system-health" element={<AdminSystemHealth />} />
-      </Route>
+      <Route path="/admin" element={<Navigate to="/core" replace />} />
+      <Route path="/admin/*" element={<Navigate to="/core" replace />} />
 
       {/* ============================================ */}
       {/* INFLUENCER PORTAL */}
@@ -700,9 +608,9 @@ const AppRoutes = () => {
       <Route path="/staff" element={<StaffLogin />} />
       <Route path="/staff/setup" element={<StaffOnboarding />} />
 
-      {/* Staff Admin: use the dedicated /admin portal (secret code + full features) */}
-      <Route path="/staff/admin" element={<Navigate to="/admin" replace />} />
-      <Route path="/staff/admin/*" element={<Navigate to="/admin" replace />} />
+      {/* Staff Admin redirects to Nivra Core (legacy /admin portal removed) */}
+      <Route path="/staff/admin" element={<Navigate to="/core" replace />} />
+      <Route path="/staff/admin/*" element={<Navigate to="/core" replace />} />
 
       {/* Staff Dashboard - redirect based on role */}
       <Route path="/staff/dashboard" element={
@@ -760,8 +668,8 @@ const AppRoutes = () => {
         </StaffLayout>
       } />
 
-      {/* Field Sales Portal - Redirect to Admin POS */}
-      <Route path="/field-sales/*" element={<Navigate to="/admin/pos" replace />} />
+      {/* Field Sales Portal - Redirect to Nivra Core POS */}
+      <Route path="/field-sales/*" element={<Navigate to="/core/pos" replace />} />
 
       {/* ============================================ */}
       {/* NIVRA CORE — Internal Operations App        */}

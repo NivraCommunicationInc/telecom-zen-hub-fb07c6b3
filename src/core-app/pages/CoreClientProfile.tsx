@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
 import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
+import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
@@ -285,6 +286,11 @@ const CoreClientProfile = () => {
           <button onClick={() => navigate(corePath("/appointments"))} className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-pink-500/20 text-[10px] font-medium text-pink-400 hover:bg-pink-500/10 min-w-[80px]">
             <Calendar className="h-4 w-4" /> RDV
           </button>
+          <ImpersonateButton
+            clientId={clientId!}
+            clientEmail={profile.email}
+            clientName={displayName}
+          />
         </div>
       </div>
 
