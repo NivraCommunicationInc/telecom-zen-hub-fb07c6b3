@@ -23,6 +23,7 @@ const PORTAL_LINK = "https://nivra-telecom.ca/portail";
 
 interface RequestBody {
   activation_request_id: string;
+  override_recipient?: string; // Test mode — redirect to this address
 }
 
 function buildHtml(firstName: string, wifiName: string): string {
@@ -168,22 +169,25 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     const email = profile?.email;
-    if (!email) throw new Error("Client email not found");
+    if (!email && !body.override_recipient) throw new Error("Client email not found");
     const firstName = profile?.first_name || (profile?.full_name ? profile.full_name.split(" ")[0] : "client");
+
+    const recipientEmail = body.override_recipient || email!;
+    const isTest = !!body.override_recipient;
 
     const html = buildHtml(firstName, ar.wifi_network_name || "Nivra-WiFi");
 
     const sendResp = await resend.emails.send({
       from: "Nivra Telecom <noreply@nivra-telecom.ca>",
-      to: [email],
-      bcc: BUSINESS_EMAILS,
+      to: [recipientEmail],
+      bcc: isTest ? [] : BUSINESS_EMAILS,
       replyTo: SUPPORT_EMAIL,
-      subject: "✅ Votre service Nivra est activé — Bienvenue!",
+      subject: isTest ? "[TEST] ✅ Votre service Nivra est activé — Bienvenue!" : "✅ Votre service Nivra est activé — Bienvenue!",
       html,
-      headers: { "X-Entity-Ref-ID": `activation-success-${ar.id}` },
+      headers: { "X-Entity-Ref-ID": `activation-success-${ar.id}${isTest ? '-test-' + Date.now() : ''}` },
     });
 
-    console.log(`[send-activation-success-email] Sent to ${email} for activation ${ar.id}`);
+    console.log(`[send-activation-success-email] Sent to ${recipientEmail} for activation ${ar.id}${isTest ? ' [TEST MODE]' : ''}`);
 
     return new Response(JSON.stringify({
       success: true, message_id: sendResp.data?.id, activation_request_id: ar.id,
