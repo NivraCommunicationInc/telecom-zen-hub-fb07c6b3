@@ -400,12 +400,15 @@ export type Database = {
           client_notes: string | null
           completed_at: string | null
           contact_phone: string
+          has_terminal: boolean | null
           id: string
+          light_color: string | null
           order_id: string | null
           rejection_reason: string | null
           started_at: string | null
           status: string
           submitted_at: string
+          terminal_connected: boolean | null
           updated_at: string
           wifi_network_name: string
           wifi_password_encrypted: string
@@ -419,12 +422,15 @@ export type Database = {
           client_notes?: string | null
           completed_at?: string | null
           contact_phone: string
+          has_terminal?: boolean | null
           id?: string
+          light_color?: string | null
           order_id?: string | null
           rejection_reason?: string | null
           started_at?: string | null
           status?: string
           submitted_at?: string
+          terminal_connected?: boolean | null
           updated_at?: string
           wifi_network_name: string
           wifi_password_encrypted: string
@@ -438,12 +444,15 @@ export type Database = {
           client_notes?: string | null
           completed_at?: string | null
           contact_phone?: string
+          has_terminal?: boolean | null
           id?: string
+          light_color?: string | null
           order_id?: string | null
           rejection_reason?: string | null
           started_at?: string | null
           status?: string
           submitted_at?: string
+          terminal_connected?: boolean | null
           updated_at?: string
           wifi_network_name?: string
           wifi_password_encrypted?: string
@@ -17560,16 +17569,30 @@ export type Database = {
           token: string
         }[]
       }
-      submit_activation_request: {
-        Args: {
-          p_client_notes?: string
-          p_contact_phone: string
-          p_order_id?: string
-          p_wifi_network_name: string
-          p_wifi_password: string
-        }
-        Returns: string
-      }
+      submit_activation_request:
+        | {
+            Args: {
+              p_client_notes?: string
+              p_contact_phone: string
+              p_order_id?: string
+              p_wifi_network_name: string
+              p_wifi_password: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_client_notes?: string
+              p_contact_phone: string
+              p_has_terminal?: boolean
+              p_light_color?: string
+              p_order_id?: string
+              p_terminal_connected?: boolean
+              p_wifi_network_name: string
+              p_wifi_password: string
+            }
+            Returns: string
+          }
       supersede_contract_version: {
         Args: { p_order_id: string }
         Returns: string
