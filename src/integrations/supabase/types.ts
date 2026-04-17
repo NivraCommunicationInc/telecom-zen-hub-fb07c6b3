@@ -7423,6 +7423,7 @@ export type Database = {
           consumed_at: string | null
           ended_at: string | null
           expires_at: string
+          first_validated_at: string | null
           id: string
           ip_address: string | null
           is_active: boolean
@@ -7437,6 +7438,7 @@ export type Database = {
           consumed_at?: string | null
           ended_at?: string | null
           expires_at?: string
+          first_validated_at?: string | null
           id?: string
           ip_address?: string | null
           is_active?: boolean
@@ -7451,6 +7453,7 @@ export type Database = {
           consumed_at?: string | null
           ended_at?: string | null
           expires_at?: string
+          first_validated_at?: string | null
           id?: string
           ip_address?: string | null
           is_active?: boolean
