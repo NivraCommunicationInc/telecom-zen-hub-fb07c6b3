@@ -75,6 +75,30 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [impersonation, setImpersonation] = useState<ImpersonationState | null>(() =>
+    readStoredImpersonation(),
+  );
+
+  // Keep impersonation state in sync with sessionStorage updates from the
+  // ImpersonationProvider (which is the canonical writer once a token is
+  // validated). We poll lightly because storage events don't fire in the same
+  // tab; the cost is negligible (one read every 1.5s).
+  useEffect(() => {
+    const tick = () => {
+      const next = readStoredImpersonation();
+      setImpersonation((prev) => {
+        if (!prev && !next) return prev;
+        if (prev && next && prev.token === next.token) return prev;
+        return next;
+      });
+    };
+    const t = setInterval(tick, 1500);
+    window.addEventListener("storage", tick);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("storage", tick);
+    };
+  }, []);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -258,14 +282,33 @@ export const ClientAuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  // ── EFFECTIVE IDENTITY ──────────────────────────────────────────────
+  // When an admin impersonation token is active, override `user`/`session`
+  // so portal pages (which all read `user.id`) automatically scope queries
+  // to the impersonated client. Admin remains authenticated under the hood
+  // via portalSupabase; admin RLS grants read access to client data.
+  const effectiveUser: User | null = impersonation
+    ? buildImpersonatedUser(impersonation)
+    : user;
+  const effectiveSession: Session | null = impersonation
+    ? buildImpersonatedSession(impersonation, buildImpersonatedUser(impersonation))
+    : session;
+  const isImpersonating = !!impersonation;
+
+  // While we're loading the real auth session AND a pending impersonation
+  // token exists, we should not appear "loading" forever — the banner provider
+  // resolves the token in parallel. Surface impersonation as ready immediately.
+  const effectiveIsLoading = isImpersonating ? false : isLoading;
+
   return (
     <ClientAuthContext.Provider
       value={{
-        user,
-        session,
-        role,
-        isLoading,
-        isAdmin: role === "admin",
+        user: effectiveUser,
+        session: effectiveSession,
+        role: isImpersonating ? "client" : role,
+        isLoading: effectiveIsLoading,
+        isAdmin: !isImpersonating && role === "admin",
+        isImpersonating,
         signIn,
         signUp,
         signOut,
