@@ -4310,6 +4310,71 @@ export type Database = {
         }
         Relationships: []
       }
+      defective_equipment_alerts: {
+        Row: {
+          account_id: string | null
+          acknowledged: boolean
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          catalog_name: string | null
+          category: string | null
+          created_at: string
+          email_sent: boolean
+          email_sent_at: string | null
+          equipment_id: string
+          id: string
+          notes: string | null
+          order_id: string | null
+          reported_by: string | null
+          reported_by_name: string | null
+          serial_number: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          catalog_name?: string | null
+          category?: string | null
+          created_at?: string
+          email_sent?: boolean
+          email_sent_at?: string | null
+          equipment_id: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          reported_by?: string | null
+          reported_by_name?: string | null
+          serial_number?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          catalog_name?: string | null
+          category?: string | null
+          created_at?: string
+          email_sent?: boolean
+          email_sent_at?: string | null
+          equipment_id?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          reported_by?: string | null
+          reported_by_name?: string | null
+          serial_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "defective_equipment_alerts_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direct_email_recipients: {
         Row: {
           client_id: string | null
