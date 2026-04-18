@@ -393,6 +393,14 @@ const OrdersPage = () => {
                           {age.label}
                         </span>
                       </td>
+                      <td className="px-3 py-2.5">
+                        {sla ? (
+                          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${sla.className}`}>
+                            <Timer className="h-2.5 w-2.5" />
+                            {sla.label}
+                          </span>
+                        ) : <span className="text-[hsl(220,10%,30%)]">—</span>}
+                      </td>
                       <td className="px-3 py-2.5 text-[hsl(220,10%,45%)] whitespace-nowrap">{format(new Date(o.created_at), "d MMM yyyy", { locale: fr })}</td>
                       <td className="px-3 py-2.5">
                         <Link to={corePath(`/orders/${o.id}`)}>
