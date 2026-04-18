@@ -1023,6 +1023,110 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
+  /* ── Record a manual payment (cash / cheque / virement / interac / autre) ──
+   * Creates a confirmed billing_payments row, recomputes invoice totals,
+   * and logs the activity. Used when no canonical pending payment exists. */
+  const recordManualPayment = async (params: {
+    amount: number;
+    method: "cash" | "cheque" | "virement" | "interac" | "autre";
+    reference?: string;
+    note?: string;
+  }) => {
+    try {
+      const targetInvoice = data?.invoice;
+      if (!targetInvoice?.id) {
+        toast.error("Aucune facture liée — impossible d'enregistrer un paiement");
+        return;
+      }
+      const amount = Number(params.amount);
+      if (!amount || amount <= 0) {
+        toast.error("Montant invalide");
+        return;
+      }
+
+      const methodMap: Record<typeof params.method, "interac" | "manual" | "paypal"> = {
+        cash: "manual",
+        cheque: "manual",
+        virement: "interac",
+        interac: "interac",
+        autre: "manual",
+      };
+      const billingMethod = methodMap[params.method];
+      const now = new Date().toISOString();
+      const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+
+      const { data: created, error: createErr } = await supabase
+        .from("billing_payments")
+        .insert({
+          payment_number: paymentNumber,
+          invoice_id: targetInvoice.id,
+          customer_id: targetInvoice.customer_id,
+          amount,
+          method: billingMethod as any,
+          status: "confirmed" as any,
+          reference: params.reference || null,
+          legacy_note: params.note || `Paiement manuel (${params.method})`,
+          confirmed_by: user?.id || null,
+          received_at: now,
+          source: "admin_manual",
+          environment: data?.order?.environment || "production",
+        })
+        .select("*")
+        .single();
+      if (createErr) throw createErr;
+
+      // Recalculate invoice totals from confirmed payments only
+      const { data: confirmedPayments } = await supabase
+        .from("billing_payments")
+        .select("amount")
+        .eq("invoice_id", targetInvoice.id)
+        .in("status", ["confirmed", "completed"]);
+
+      const totalPaid = (confirmedPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const invoiceTotal = Number(targetInvoice.total || 0);
+      const newBalanceDue = Math.max(0, Math.round((invoiceTotal - totalPaid) * 100) / 100);
+      const newAmountPaid = Math.round(totalPaid * 100) / 100;
+      const isFullyPaid = newBalanceDue <= 0.01;
+      const newStatus = isFullyPaid ? "paid" : (newAmountPaid > 0 ? "partially_paid" : "pending");
+
+      const { error: invErr } = await supabase
+        .from("billing_invoices")
+        .update({
+          amount_paid: newAmountPaid,
+          balance_due: newBalanceDue,
+          status: newStatus as any,
+          paid_at: isFullyPaid ? now : targetInvoice.paid_at,
+          payment_method: billingMethod as any,
+        })
+        .eq("id", targetInvoice.id);
+      if (invErr) throw invErr;
+
+      await updateOrder.mutateAsync({
+        payment_confirmed_at: isFullyPaid ? now : data?.order?.payment_confirmed_at,
+        payment_reference: params.reference || data?.order?.payment_reference,
+      });
+
+      await logActivity("payment_recorded_manual", "order", orderId, {
+        method: params.method,
+        amount,
+        reference: params.reference,
+        note: params.note,
+        payment_id: created?.id,
+        invoice_id: targetInvoice.id,
+        new_balance_due: newBalanceDue,
+        invoice_status: newStatus,
+      });
+
+      invalidateAll();
+      toast.success(`Paiement de ${amount.toFixed(2)} $ enregistré`);
+      return created;
+    } catch (err: any) {
+      console.error("[GUARDRAIL][ManualPayment] Failed:", err);
+      toast.error(`Erreur paiement manuel: ${err?.message || "Erreur inconnue"}`);
+      throw err;
+    }
+  };
+
   /* ── Update fulfillment type ── */
   const setFulfillmentType = async (type: string) => {
     try {
