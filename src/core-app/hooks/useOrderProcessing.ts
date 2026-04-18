@@ -1899,6 +1899,8 @@ export function useOrderProcessing(orderId: string | undefined) {
     submitPortIn,
     updatePortInStatus,
     cancelPortIn,
+    requestIdentityVerification,
+    requestKycResubmission,
     isUpdating: updateOrder.isPending,
   };
 }
