@@ -2,6 +2,7 @@
  * KycStep — KYC verification panel reading from identity_verification_sessions
  */
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, XCircle, FileSearch, RefreshCw, Eye, ShieldCheck, ShieldAlert, FileText, Percent, Camera, User } from "lucide-react";
 import { useState } from "react";
