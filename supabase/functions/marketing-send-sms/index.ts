@@ -48,7 +48,40 @@ Deno.serve(async (req) => {
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!isAdmin) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { to, message, conversation_id } = await req.json();
+    const { to, message, conversation_id, debug_test } = await req.json();
+
+    if (debug_test) {
+      const testPayload = {
+        content: "Test Nivra",
+        from: "+14385442233",
+        to: ["+14385403112"],
+      };
+
+      console.log(`[marketing-send-sms-${reqId}] debug test payload=${JSON.stringify(testPayload)}`);
+
+      const debugResponse = await fetch("https://api.openphone.com/v1/messages", {
+        method: "POST",
+        headers: {
+          Authorization: OPENPHONE_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(testPayload),
+      });
+
+      const debugText = await debugResponse.text();
+      console.log(`[marketing-send-sms-${reqId}] OpenPhone response status: ${debugResponse.status}`);
+      console.log(`[marketing-send-sms-${reqId}] OpenPhone response body: ${debugText}`);
+
+      return new Response(JSON.stringify({
+        debug: true,
+        status: debugResponse.status,
+        body: debugText,
+      }), {
+        status: debugResponse.ok ? 200 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!to || !message) return new Response(JSON.stringify({ error: "to and message required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Normalize recipient phone to E.164
