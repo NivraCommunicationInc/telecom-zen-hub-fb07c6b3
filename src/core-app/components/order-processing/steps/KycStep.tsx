@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -63,7 +64,8 @@ export function KycStep({ proc }: Props) {
     if (!emailValue) setEmailValue(profile?.email || order?.client_email || "");
   }, [profile?.email, order?.client_email]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Generate signed URLs for documents
+  // Generate signed URLs for documents (with public URL fallback)
+  const [urlErrors, setUrlErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     const paths: Array<[string, string]> = [];
@@ -73,13 +75,26 @@ export function KycStep({ proc }: Props) {
     if (paths.length === 0) return;
     (async () => {
       const next: Record<string, string> = {};
+      const errs: Record<string, string> = {};
       for (const [key, path] of paths) {
         try {
-          const { data } = await supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 600);
-          if (data?.signedUrl) next[key] = data.signedUrl;
-        } catch { /* ignore */ }
+          const { data, error } = await supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 600);
+          if (data?.signedUrl) {
+            next[key] = data.signedUrl;
+          } else if (error) {
+            // Fallback: try public URL (works if bucket is public)
+            const { data: pub } = supabase.storage.from(DOC_BUCKET).getPublicUrl(path);
+            if (pub?.publicUrl) next[key] = pub.publicUrl;
+            else errs[key] = error.message || "URL inaccessible";
+          }
+        } catch (e: any) {
+          errs[key] = e?.message || "Erreur de chargement";
+        }
       }
-      if (!cancelled) setSignedUrls(next);
+      if (!cancelled) {
+        setSignedUrls(next);
+        setUrlErrors(errs);
+      }
     })();
     return () => { cancelled = true; };
   }, [frontPath, backPath, selfiePath]);
@@ -217,6 +232,20 @@ export function KycStep({ proc }: Props) {
       <div>
         <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Vérification KYC</div>
 
+        {(rawStatus === "approved" || rawStatus === "rejected") && (
+          <StepCompletionCard
+            title={rawStatus === "approved" ? "Identité approuvée" : "Identité rejetée"}
+            by={kycSession?.reviewed_by ? `Agent ${String(kycSession.reviewed_by).slice(0, 8)}` : null}
+            at={kycSession?.reviewed_at}
+            details={[
+              { label: "Décision", value: rawStatus === "approved" ? "Approuvé" : "Rejeté" },
+              { label: "Raison", value: kycSession?.review_reason },
+              { label: "Type document", value: formatDocType(kycSession?.id_type || kycSession?.document_type) },
+              { label: "Tentatives", value: `${kycSession?.submission_attempts ?? 0} / ${kycSession?.max_attempts ?? 3}` },
+            ]}
+          />
+        )}
+
         {/* SECTION 1 — Status banner */}
         <div className={`rounded-lg border ${sc.cls} px-4 py-3 mb-4 flex items-center gap-3`}>
           <div className="h-10 w-10 rounded-full bg-black/30 flex items-center justify-center shrink-0">
@@ -255,9 +284,9 @@ export function KycStep({ proc }: Props) {
               {/* Left: photos */}
               <div className="space-y-3">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Photos soumises</p>
-                <DocImage label="Recto" url={signedUrls.front} icon={FileText} />
-                {backPath && <DocImage label="Verso" url={signedUrls.back} icon={FileText} />}
-                {selfiePath && <DocImage label="Selfie" url={signedUrls.selfie} icon={Camera} />}
+                <DocImage label="Recto" url={signedUrls.front} error={urlErrors.front} icon={FileText} />
+                {backPath && <DocImage label="Verso" url={signedUrls.back} error={urlErrors.back} icon={FileText} />}
+                {selfiePath && <DocImage label="Selfie" url={signedUrls.selfie} error={urlErrors.selfie} icon={Camera} />}
               </div>
 
               {/* Right: extracted + match */}
@@ -497,7 +526,7 @@ function InfoCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DocImage({ label, url, icon: Icon }: { label: string; url?: string; icon: any }) {
+function DocImage({ label, url, error, icon: Icon }: { label: string; url?: string; error?: string; icon: any }) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1">
@@ -509,8 +538,16 @@ function DocImage({ label, url, icon: Icon }: { label: string; url?: string; ico
             src={url}
             alt={label}
             className="rounded-lg border border-slate-700 w-full object-cover max-h-48 cursor-pointer hover:opacity-90 transition-opacity"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
           />
         </a>
+      ) : error ? (
+        <div className="rounded-lg border border-red-700/50 bg-red-950/30 w-full p-3 text-center">
+          <p className="text-[11px] text-red-300 font-medium">Image inaccessible</p>
+          <p className="text-[10px] text-red-300/70 mt-0.5 break-all">{error}</p>
+        </div>
       ) : (
         <div className="rounded-lg border border-slate-700 bg-[#0d1421] w-full h-32 flex items-center justify-center">
           <span className="text-[11px] text-slate-500">Chargement…</span>

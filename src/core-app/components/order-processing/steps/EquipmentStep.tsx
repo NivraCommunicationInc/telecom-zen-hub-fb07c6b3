@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -229,6 +230,18 @@ export function EquipmentStep({ proc }: Props) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Équipement</div>
+
+      {hasExistingAssignment && (
+        <StepCompletionCard
+          title={`${assignedItems!.length} équipement(s) assigné(s) à la commande`}
+          at={assignedItems![0]?.assigned_at}
+          details={assignedItems!.slice(0, 4).map((item) => ({
+            label: item.catalog_name,
+            value: item.serial_number || item.mac_address || item.imei || item.id.slice(0, 8),
+            mono: true,
+          }))}
+        />
+      )}
 
       {/* Metrics row */}
       {stockCounts && (

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { toMoney, toNonNegativeMoney } from "@/lib/pricing/money";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -80,6 +81,19 @@ export function PaymentInvoiceStep({ proc }: Props) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Étape 3 — Paiement & Facture</div>
+
+      {isPaid && (
+        <StepCompletionCard
+          title="Paiement reçu et facture acquittée"
+          at={invoice?.paid_at || order.payment_confirmed_at}
+          details={[
+            { label: "Montant payé", value: `${Number(amountPaid).toFixed(2)} $` },
+            { label: "Méthode", value: order.payment_method },
+            { label: "Référence", value: order.payment_reference, mono: true },
+            { label: "Facture", value: invoiceNumber, mono: true },
+          ]}
+        />
+      )}
 
       {/* Invoice card */}
       <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">

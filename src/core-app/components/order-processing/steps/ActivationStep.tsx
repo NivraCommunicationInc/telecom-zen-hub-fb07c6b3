@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Zap, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { MobileNumberSection } from "./MobileNumberSection";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -61,9 +62,16 @@ export function ActivationStep({ proc }: Props) {
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Activation / Provisionnement</div>
 
       {isActivated && (
-        <div className="bg-green-950/50 border border-green-700/50 text-green-300 rounded-lg px-3 py-2 text-sm mb-4 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> Service activé — abonnement créé
-        </div>
+        <StepCompletionCard
+          title="Service activé — abonnement créé"
+          at={order.updated_at}
+          details={[
+            { label: "Type de service", value: order.service_type },
+            { label: "N° de compte", value: account?.account_number, mono: true },
+            { label: "Cycle de facturation", value: account?.billing_cycle_day ? `${account.billing_cycle_day} du mois` : null },
+            { label: "Réf. fournisseur", value: order.confirmation_number, mono: true },
+          ]}
+        />
       )}
 
       {!invoicePaid && !isActivated && (
