@@ -181,6 +181,87 @@ export function PaymentInvoiceStep({ proc }: Props) {
         </div>
       </div>
 
+      {/* Manual payment form — appears when no pending payment exists or user toggles it */}
+      {!isPaid && showManualForm && (
+        <div className="bg-amber-950/30 border border-amber-700/50 rounded-xl overflow-hidden mb-4">
+          <div className="bg-amber-900/30 px-3 py-2 border-b border-amber-700/50 flex items-center justify-between">
+            <h4 className="text-[11px] font-medium text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Plus className="w-3 h-3" /> Enregistrer un paiement manuel
+            </h4>
+            <button
+              type="button"
+              onClick={() => setShowManualForm(false)}
+              className="text-[10px] text-amber-300/70 hover:text-amber-200 uppercase tracking-wider"
+            >
+              Fermer
+            </button>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-amber-200/80">
+              Aucun paiement en attente trouvé. Enregistrez un paiement reçu hors-ligne (comptant, chèque, virement, etc.).
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-amber-300/70 mb-1 block">Montant ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={manualAmount}
+                  onChange={(e) => setManualAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="h-9 text-sm bg-[#0d1421] border-amber-700/50 text-slate-100 rounded-lg"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-amber-300/70 mb-1 block">Méthode</Label>
+                <Select value={manualMethod} onValueChange={(v) => setManualMethod(v as any)}>
+                  <SelectTrigger className="h-9 text-sm bg-[#0d1421] border-amber-700/50 text-slate-100 rounded-lg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#111827] border-slate-700 text-slate-100">
+                    <SelectItem value="cash">Comptant</SelectItem>
+                    <SelectItem value="cheque">Chèque</SelectItem>
+                    <SelectItem value="virement">Virement bancaire</SelectItem>
+                    <SelectItem value="interac">Interac</SelectItem>
+                    <SelectItem value="autre">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-amber-300/70 mb-1 block">Référence (optionnel)</Label>
+                <Input
+                  value={manualReference}
+                  onChange={(e) => setManualReference(e.target.value)}
+                  placeholder="Numéro de chèque, transaction…"
+                  className="h-9 text-sm bg-[#0d1421] border-amber-700/50 text-slate-100 rounded-lg"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] uppercase tracking-wider text-amber-300/70 mb-1 block">Note (optionnel)</Label>
+                <Input
+                  value={manualNote}
+                  onChange={(e) => setManualNote(e.target.value)}
+                  placeholder="Note interne…"
+                  className="h-9 text-sm bg-[#0d1421] border-amber-700/50 text-slate-100 rounded-lg"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-1">
+              <Button
+                size="sm"
+                onClick={handleRecordManualPayment}
+                disabled={loading === "manual" || !manualAmount || parseFloat(manualAmount) <= 0}
+                className="text-sm bg-green-600 hover:bg-green-700 text-white"
+              >
+                {loading === "manual" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
+                Enregistrer paiement
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700/50">
         {!isPaid && (
@@ -198,6 +279,16 @@ export function PaymentInvoiceStep({ proc }: Props) {
           {loading === "partial" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CreditCard className="w-3 h-3 mr-1" />}
           Paiement partiel
         </Button>
+        {!isPaid && !showManualForm && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { setManualAmount(balanceDue.toFixed(2)); setShowManualForm(true); }}
+            className="text-sm bg-transparent border-amber-600/50 text-amber-300 hover:bg-amber-950/30"
+          >
+            <Plus className="w-3 h-3 mr-1" /> Paiement manuel
+          </Button>
+        )}
         <Button size="sm" onClick={handleMarkInvalid} disabled={loading === "invalid" || proc.isUpdating} className="text-sm bg-red-700 hover:bg-red-800 text-white">
           {loading === "invalid" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
           Invalider
