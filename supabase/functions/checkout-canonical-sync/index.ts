@@ -786,12 +786,14 @@ serve(async (req) => {
               net_line_sum: netLineSum,
               expected_taxable_base: expectedSubtotal,
               delta: lineDelta,
-              match: lineDelta < 0.02 ? "✅" : "⚠️ MISMATCH",
+              match: lineDelta < 0.01 ? "✅" : "⚠️ MISMATCH",
               lines_count: invoiceLines.length,
             });
 
-            // If mismatch, update invoice subtotal to match actual lines
-            if (lineDelta >= 0.02) {
+            // ★ FIX #2: Tightened threshold from 0.02 → 0.01 to catch all subtotal
+            // discrepancies. The actual line totals are the source of truth — taxes
+            // must be computed against them, not against pricing_snapshot.taxable_base.
+            if (lineDelta >= 0.01) {
               console.warn(`[checkout-canonical-sync] ⚠️ Correcting invoice subtotal from ${expectedSubtotal} to ${netLineSum} to match line totals`);
               const correctedTps = toMoney(netLineSum * 0.05);
               const correctedTvq = toMoney(netLineSum * 0.09975);
