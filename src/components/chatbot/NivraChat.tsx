@@ -42,6 +42,9 @@ const NivraChat = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [suggestedActions, setSuggestedActions] = useState<SuggestedAction[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [humanTakeover, setHumanTakeover] = useState(false);
+  const [agentName, setAgentName] = useState<string | null>(null);
+  const sessionPersistedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { language } = useLanguage();
@@ -96,6 +99,103 @@ const NivraChat = () => {
     }
   }, [isOpen]);
 
+  // Subscribe to admin replies and session status changes for this session
+  useEffect(() => {
+    if (!isOpen) return;
+    const channel = supabase
+      .channel(`live-chat-${sessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "live_chat_admin_replies",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload: any) => {
+          const r = payload.new;
+          setHumanTakeover(true);
+          setAgentName(r.admin_name || (fr ? "Agent Nivra" : "Nivra Agent"));
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: r.id,
+              role: "assistant",
+              content: r.message,
+              timestamp: new Date(r.created_at),
+            },
+          ]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "live_chat_sessions",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload: any) => {
+          const s = payload.new;
+          if (s.status === "human_takeover") {
+            setHumanTakeover(true);
+          } else if (s.status === "bot_active") {
+            setHumanTakeover(false);
+            setAgentName(null);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, sessionId, fr]);
+
+  const ensureSessionExists = useCallback(async () => {
+    if (sessionPersistedRef.current) return;
+    sessionPersistedRef.current = true;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const profile = session?.user
+        ? await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", session.user.id)
+            .maybeSingle()
+        : { data: null as any };
+      await supabase.from("live_chat_sessions").upsert(
+        {
+          session_id: sessionId,
+          status: "bot_active",
+          visitor_user_id: session?.user?.id ?? null,
+          visitor_name: profile.data?.full_name ?? null,
+          visitor_email: profile.data?.email ?? null,
+          current_page: typeof window !== "undefined" ? window.location.pathname : null,
+          language,
+          last_message_at: new Date().toISOString(),
+          last_visitor_message_at: new Date().toISOString(),
+          unread_for_admin: 1,
+        },
+        { onConflict: "session_id" }
+      );
+    } catch (e) {
+      console.warn("[NivraChat] session upsert failed", e);
+    }
+  }, [sessionId, language]);
+
+  const bumpSessionActivity = useCallback(async () => {
+    try {
+      await supabase
+        .from("live_chat_sessions")
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_visitor_message_at: new Date().toISOString(),
+          unread_for_admin: humanTakeover ? 1 : 0,
+        })
+        .eq("session_id", sessionId);
+    } catch {}
+  }, [sessionId, humanTakeover]);
+
   const getConversationHistory = useCallback(() => {
     return messages.slice(1).map(m => ({ role: m.role, content: m.content }));
   }, [messages]);
@@ -116,6 +216,15 @@ const NivraChat = () => {
     setIsLoading(true);
     setSuggestedActions([]);
 
+    // Persist session row + bump activity so admin can see this visitor live
+    await ensureSessionExists();
+    await bumpSessionActivity();
+
+    // If admin took over, don't call the bot — visitor message is already
+    // persisted into chatbot_logs by the chatbot-jonathan function (which
+    // returns immediately on takeover), but the admin must still see it.
+    // We log it here too as a safety net via chatbot-jonathan invocation
+    // (which short-circuits when status === 'human_takeover').
     try {
       const response = await supabase.functions.invoke("chatbot-jonathan", {
         body: {
@@ -128,6 +237,13 @@ const NivraChat = () => {
       });
 
       if (response.error) throw response.error;
+
+      // If the function reports human takeover, mark UI accordingly and skip the bot bubble
+      if (response.data?.humanTakeover) {
+        setHumanTakeover(true);
+        setIsLoading(false);
+        return;
+      }
 
       if (response.data.verifiedClientId && !verifiedClientId) {
         setVerifiedClientId(response.data.verifiedClientId);
@@ -250,11 +366,20 @@ const NivraChat = () => {
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold leading-tight">Nivra</p>
+                <p className="text-sm font-semibold leading-tight">
+                  {humanTakeover ? (agentName || (fr ? "Agent Nivra" : "Nivra Agent")) : "Nivra"}
+                </p>
                 <p className="text-[11px] text-primary-foreground/70 leading-tight">
-                  {fr ? "Support client • En ligne" : "Customer support • Online"}
+                  {humanTakeover
+                    ? (fr ? "Agent humain en ligne" : "Live human agent")
+                    : (fr ? "Support client • En ligne" : "Customer support • Online")}
                 </p>
               </div>
+              {humanTakeover && (
+                <span className="ml-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary-foreground/20 text-primary-foreground">
+                  LIVE
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-0.5">
               <button
