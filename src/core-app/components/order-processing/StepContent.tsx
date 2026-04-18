@@ -49,6 +49,6 @@ export function StepContent({ proc }: Props) {
     case "completion":
       return <CompletionStep proc={proc} />;
     default:
-      return <div className="text-gray-500 text-sm">Sélectionnez une étape.</div>;
+      return <div className="text-[#6b7a90] text-xs">Sélectionnez une étape.</div>;
   }
 }
