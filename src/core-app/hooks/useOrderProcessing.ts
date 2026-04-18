@@ -522,8 +522,27 @@ export function useOrderProcessing(orderId: string | undefined) {
         .update({ ...fields, updated_at: new Date().toISOString() })
         .eq("id", orderId!);
       if (error) throw error;
+      return fields;
     },
-    onSuccess: () => invalidateAll(),
+    onSuccess: (fields) => {
+      invalidateAll();
+      // ── order_modified email (append-only, non-blocking) ──
+      try {
+        const order = data?.order;
+        const profile = data?.profile;
+        if (order && profile && fields && typeof fields === "object") {
+          // Skip pure auto-bookkeeping updates that aren't real "modifications"
+          const noisyOnly = Object.keys(fields).every((k) =>
+            ["updated_at", "processed_at", "processed_by", "payment_confirmed_at"].includes(k)
+          );
+          if (!noisyOnly) {
+            enqueueOrderEmail(orderEmails.orderModified(order, profile, fields as any));
+          }
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] updateOrder hook error:", e?.message);
+      }
+    },
   });
 
   /* ── Change order status ── */
@@ -611,6 +630,17 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
 
     toast.success(`Statut mis à jour: ${newStatus}`);
+
+    // ── order_cancelled email (append-only) ──
+    try {
+      if (newStatus === "cancelled" && data?.order && data?.profile) {
+        await enqueueOrderEmail(
+          orderEmails.orderCancelled(data.order, data.profile, reason)
+        );
+      }
+    } catch (e: any) {
+      console.error("[orderEmails] order_cancelled enqueue error:", e?.message);
+    }
   };
 
   /* ── Confirm payment ── */
@@ -758,9 +788,37 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success("Paiement confirmé et synchronisé");
+
+      // ── payment_receipt email (append-only) ──
+      try {
+        if (data?.order && data?.profile && targetInvoice) {
+          await enqueueOrderEmail(
+            orderEmails.paymentReceipt(data.order, data.profile, {
+              amount: Number(existingPayment.amount || targetInvoice.total || 0),
+              invoice_number: targetInvoice.invoice_number || "",
+              invoice_id: targetInvoice.id,
+              reference: reference || existingPayment.reference || "",
+              payment_method: existingPayment.method || "",
+            })
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] payment_receipt enqueue error:", e?.message);
+      }
     } catch (err: any) {
       console.error("[OrderProcessing] confirmPayment failed:", err);
       toast.error(err?.message || "Erreur lors de la confirmation du paiement");
+
+      // ── payment_failed email (append-only) ──
+      try {
+        if (data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.paymentFailed(data.order, data.profile, err?.message)
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] payment_failed enqueue error:", e?.message);
+      }
       throw err;
     }
   };
@@ -857,6 +915,17 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.warning("Paiement marqué comme invalide — facture recalculée");
+
+      // ── payment_failed email (append-only) ──
+      try {
+        if (data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.paymentFailed(data.order, data.profile, reason)
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] payment_failed enqueue error:", e?.message);
+      }
     } catch (err: any) {
       console.error("[GUARDRAIL][PaymentInvalid] Failed:", err);
       toast.error(`Erreur invalidation paiement: ${err?.message || "Erreur inconnue"}`);
@@ -999,6 +1068,21 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
 
       toast.success("Expédition mise à jour");
+
+      // ── equipment_shipped email (append-only) ──
+      try {
+        if (fields.tracking_number && data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.equipmentShipped(data.order, data.profile, {
+              carrier: fields.carrier,
+              tracking_number: fields.tracking_number,
+              tracking_url: fields.tracking_url,
+            })
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] equipment_shipped enqueue error:", e?.message);
+      }
     } catch (err: any) {
       console.error("[GUARDRAIL][Shipping] Failed:", err);
       toast.error(`Erreur expédition: ${err?.message || "Erreur inconnue"}`);
@@ -1051,6 +1135,32 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
 
       toast.success("Technicien assigné");
+
+      // ── appointment_confirmed + reminders (append-only) ──
+      try {
+        const order = data?.order;
+        const profile = data?.profile;
+        const apt = data?.appointment;
+        if (order && profile) {
+          await enqueueOrderEmail(
+            orderEmails.appointmentConfirmed(order, profile, {
+              scheduled_at: apt?.scheduled_at,
+              service_address:
+                order.service_address || order.client_full_address || "",
+            })
+          );
+          if (apt?.scheduled_at) {
+            await enqueueOrderEmail(
+              orderEmails.appointmentReminder24h(order, profile, apt.scheduled_at)
+            );
+            await enqueueOrderEmail(
+              orderEmails.appointmentReminder2h(order, profile, apt.scheduled_at)
+            );
+          }
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] appointment_confirmed enqueue error:", e?.message);
+      }
     } catch (err: any) {
       console.error("[GUARDRAIL][Technician] Failed:", err);
       toast.error(`Erreur assignation technicien: ${err?.message || "Erreur inconnue"}`);
@@ -1142,6 +1252,17 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success("Contrat signé (admin)");
+
+      // ── contract_signed email (append-only) ──
+      try {
+        if (data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.contractSigned(data.order, data.profile, contractId)
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] contract_signed enqueue error:", e?.message);
+      }
     } catch (err: any) {
       console.error("[GUARDRAIL][Contract] Sign failed:", err);
       toast.error(`Erreur signature contrat: ${err?.message || "Erreur inconnue"}`);
@@ -1284,6 +1405,20 @@ export function useOrderProcessing(orderId: string | undefined) {
 
     invalidateAll();
     toast.success("Service activé — abonnement créé");
+
+    // ── service_activated + welcome_to_nivra emails (append-only) ──
+    try {
+      if (data?.order && data?.profile) {
+        await enqueueOrderEmail(
+          orderEmails.serviceActivated(data.order, data.profile)
+        );
+        await enqueueOrderEmail(
+          orderEmails.welcomeToNivra(data.order, data.profile)
+        );
+      }
+    } catch (e: any) {
+      console.error("[orderEmails] service_activated/welcome enqueue error:", e?.message);
+    }
   };
 
   /* ── Complete order ── */
