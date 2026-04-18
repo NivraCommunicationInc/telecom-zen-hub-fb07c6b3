@@ -170,6 +170,8 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
   if (!order) return steps;
   const mf = mobileFulfillment || (order as any)._mobileFulfillment || null;
   const simCompleted = mf?.activation_status === "active";
+
+  return steps.map((step) => {
     let status: StepStatus = "pending";
     switch (step.id) {
       case "client_info":
