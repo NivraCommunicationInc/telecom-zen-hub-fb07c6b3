@@ -316,6 +316,37 @@ export function ShippingTechnicianStep({ proc }: Props) {
         </div>
       )}
 
+      {contractGate.open && (
+        <div className="bg-amber-950/50 border border-amber-700/50 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-2 mb-2">
+            <Clock className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-200">Contrat non signé — expédition bloquée</p>
+              <p className="text-xs text-amber-300/80 mt-0.5">
+                Le client n'a pas encore signé. Vous pouvez forcer l'expédition avec une justification (auditée).
+              </p>
+            </div>
+          </div>
+          <Label className="text-[10px] uppercase tracking-wider text-amber-200/80">Justification pour forcer l'expédition</Label>
+          <Textarea
+            value={contractGate.reason}
+            onChange={(e) => setContractGate((g) => ({ ...g, reason: e.target.value }))}
+            placeholder="Raison de l'override…"
+            className="bg-[#0d1421] border-amber-700/40 text-slate-100 text-sm rounded-lg min-h-[60px] mt-1 mb-2"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={handleForceShip} disabled={contractGate.forcing || !contractGate.reason.trim()}
+              className="text-sm bg-red-700 hover:bg-red-800 text-white">
+              {contractGate.forcing ? "Expédition forcée…" : "Forcer l'expédition (override admin)"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setContractGate({ open: false, targetStatus: null, reason: "", forcing: false })}
+              disabled={contractGate.forcing} className="text-sm text-slate-300 hover:bg-slate-800">
+              Annuler
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Shipping card */}
       {showShippingPanel && (
         <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
