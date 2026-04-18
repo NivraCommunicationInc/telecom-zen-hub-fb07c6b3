@@ -1,6 +1,5 @@
 /**
  * CompletionStep — Step 10: Final verification checklist + complete order
- * All buttons are fully functional.
  */
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,15 +31,15 @@ export function CompletionStep({ proc }: Props) {
   const [finalStatus, setFinalStatus] = useState(order.status || "completed");
   const [loading, setLoading] = useState(false);
 
-  // Checklist items
-  const checks = [
-    { label: "Client vérifié", done: !!(order.client_first_name && order.client_last_name && order.client_email) },
-    { label: "Commande vérifiée", done: order.status !== "pending" },
-    { label: "Paiement vérifié", done: ["paid", "captured", "confirmed"].includes(order.payment_status || "") },
-    { label: "KYC vérifié", done: order.id_verification_status === "approved" || order.kyc_policy === "none" || order.kyc_policy === "skip" },
-    { label: "Fulfillment assigné", done: !!order.fulfillment_type },
-    { label: "Activation complétée", done: ["active", "activated", "completed"].includes(order.status || "") },
-    { label: "Documents envoyés", done: !!order.related_contract_id || !!order.confirmation_email_sent_at },
+  // each item now has a `tone`: completed/required/pending — for left border color
+  const checks: Array<{ label: string; done: boolean; tone: "done" | "required" | "pending" }> = [
+    { label: "Client vérifié", done: !!(order.client_first_name && order.client_last_name && order.client_email), tone: order.client_first_name && order.client_last_name && order.client_email ? "done" : "required" },
+    { label: "Commande vérifiée", done: order.status !== "pending", tone: order.status !== "pending" ? "done" : "pending" },
+    { label: "Paiement vérifié", done: ["paid", "captured", "confirmed"].includes(order.payment_status || ""), tone: ["paid", "captured", "confirmed"].includes(order.payment_status || "") ? "done" : "required" },
+    { label: "KYC vérifié", done: order.id_verification_status === "approved" || order.kyc_policy === "none" || order.kyc_policy === "skip", tone: (order.id_verification_status === "approved" || order.kyc_policy === "none" || order.kyc_policy === "skip") ? "done" : "required" },
+    { label: "Fulfillment assigné", done: !!order.fulfillment_type, tone: order.fulfillment_type ? "done" : "pending" },
+    { label: "Activation complétée", done: ["active", "activated", "completed"].includes(order.status || ""), tone: ["active", "activated", "completed"].includes(order.status || "") ? "done" : "pending" },
+    { label: "Documents envoyés", done: !!order.related_contract_id || !!order.confirmation_email_sent_at, tone: (order.related_contract_id || order.confirmation_email_sent_at) ? "done" : "pending" },
   ];
 
   const allDone = checks.every((c) => c.done);
@@ -49,83 +48,79 @@ export function CompletionStep({ proc }: Props) {
   const handleComplete = async () => {
     setLoading(true);
     try {
-      if (finalStatus === "completed") {
-        await proc.completeOrder();
-      } else {
-        await proc.changeStatus(finalStatus);
-      }
-    } finally {
-      setLoading(false);
-    }
+      if (finalStatus === "completed") await proc.completeOrder();
+      else await proc.changeStatus(finalStatus);
+    } finally { setLoading(false); }
   };
 
   return (
     <div>
-      <h3 className="text-base font-bold text-gray-900 mb-4">Complétion</h3>
+      <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Complétion</div>
 
       {/* Checklist */}
-      <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase">Vérification finale</h4>
-          <span className="text-xs text-gray-500">{completedCount}/{checks.length} complétés</span>
+      <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
+        <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50 flex items-center justify-between">
+          <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Vérification finale</h4>
+          <span className="text-[10px] text-slate-500">{completedCount}/{checks.length} complétés</span>
         </div>
-        <div className="space-y-2">
-          {checks.map((check, i) => (
-            <div key={i} className="flex items-center gap-2.5">
-              {check.done ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <Circle className="w-4 h-4 text-gray-300 shrink-0" />
-              )}
-              <span className={cn("text-sm", check.done ? "text-gray-900" : "text-gray-400")}>
-                {check.label}
-              </span>
-            </div>
-          ))}
+        <div className="p-4 space-y-2">
+          {checks.map((check, i) => {
+            const borderClass =
+              check.tone === "done" ? "border-l-green-500" :
+              check.tone === "required" ? "border-l-red-500" :
+              "border-l-slate-600";
+            return (
+              <div key={i} className={cn("flex items-center gap-2.5 pl-3 py-2 border-l-4 bg-[#0d1421] rounded", borderClass)}>
+                {check.done ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+                ) : (
+                  <Circle className={cn("w-4 h-4 shrink-0", check.tone === "required" ? "text-red-400" : "text-slate-500")} />
+                )}
+                <span className={cn("text-sm", check.done ? "text-slate-100" : check.tone === "required" ? "text-red-300" : "text-slate-400")}>
+                  {check.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Warnings */}
       {!allDone && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-800">Étapes incomplètes</p>
-              <p className="text-xs text-amber-600 mt-0.5">
-                Certaines vérifications ne sont pas complétées. Vous pouvez quand même changer le statut.
-              </p>
-            </div>
+        <div className="bg-amber-950/50 border border-amber-700/50 text-amber-300 rounded-lg px-3 py-2 text-sm mb-4 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Étapes incomplètes</p>
+            <p className="text-xs opacity-80 mt-0.5">Certaines vérifications ne sont pas complétées. Vous pouvez quand même changer le statut.</p>
           </div>
         </div>
       )}
 
-      {/* Status selection */}
-      <div className="mb-4">
-        <label className="text-xs text-gray-500 block mb-1.5">Statut final de la commande</label>
-        <Select value={finalStatus} onValueChange={setFinalStatus}>
-          <SelectTrigger className="w-full max-w-xs h-9 text-sm border-gray-300 text-gray-900">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ORDER_FINAL_STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
+        <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
+          <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Statut final</h4>
+        </div>
+        <div className="p-4">
+          <Select value={finalStatus} onValueChange={setFinalStatus}>
+            <SelectTrigger className="w-full max-w-xs h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rounded-lg">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ORDER_FINAL_STATUSES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Complete */}
-      <div className="flex gap-2 pt-4 border-t border-gray-100">
+      <div className="flex gap-2 pt-4 border-t border-slate-700/50">
         <Button
           size="sm"
           onClick={handleComplete}
           disabled={loading || proc.isUpdating}
           className={cn(
-            "text-xs h-9 px-6",
-            finalStatus === "completed"
-              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-              : "bg-gray-900 hover:bg-gray-800 text-white"
+            "text-sm px-6",
+            finalStatus === "completed" ? "bg-green-600 hover:bg-green-700 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"
           )}
         >
           {loading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />}

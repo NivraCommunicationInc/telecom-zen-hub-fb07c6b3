@@ -1,13 +1,11 @@
 /**
- * PaymentInvoiceStep — Step 3: Payment & Invoice (canonical source only)
- * NO client-side recalculation. Reads billing_invoices exclusively.
- * All buttons are fully functional.
+ * PaymentInvoiceStep — Step 3: Payment & Invoice
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, FileText, Send, CreditCard, Loader2, Eye } from "lucide-react";
+import { CheckCircle2, XCircle, Send, CreditCard, Loader2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
@@ -22,7 +20,6 @@ export function PaymentInvoiceStep({ proc }: Props) {
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
 
-  // Canonical values from billing_invoices (V2), fallback to order
   const invoiceNumber = invoice?.invoice_number || order.order_number;
   const subtotal = toNonNegativeMoney(invoice?.subtotal ?? order.subtotal ?? 0);
   const tps = toNonNegativeMoney(invoice?.tps_amount ?? order.tps_amount ?? 0);
@@ -36,39 +33,24 @@ export function PaymentInvoiceStep({ proc }: Props) {
 
   const handleConfirm = async () => {
     setLoading("confirm");
-    try {
-      await proc.confirmPayment(reference || undefined);
-    } finally {
-      setLoading(null);
-    }
+    try { await proc.confirmPayment(reference || undefined); } finally { setLoading(null); }
   };
 
   const handleMarkInvalid = async () => {
     setLoading("invalid");
-    try {
-      await proc.markPaymentInvalid();
-    } finally {
-      setLoading(null);
-    }
+    try { await proc.markPaymentInvalid(); } finally { setLoading(null); }
   };
 
   const handleMarkPartial = async () => {
     setLoading("partial");
-    try {
-      await proc.markPaymentPartial();
-    } finally {
-      setLoading(null);
-    }
+    try { await proc.markPaymentPartial(); } finally { setLoading(null); }
   };
 
   const handleViewInvoice = async () => {
     setLoading("view");
     try {
       const result = await generateOrderDocuments(order.id);
-      if (!result) {
-        toast.error("Données de facture introuvables");
-        return;
-      }
+      if (!result) { toast.error("Données de facture introuvables"); return; }
       if (result.invoice.blob) {
         setPdfBlob(result.invoice.blob);
         setPdfViewerOpen(true);
@@ -78,113 +60,111 @@ export function PaymentInvoiceStep({ proc }: Props) {
     } catch (err) {
       console.error("[Payment] View invoice error:", err);
       toast.error("Erreur lors de l'ouverture de la facture");
-    } finally {
-      setLoading(null);
-    }
+    } finally { setLoading(null); }
   };
 
   const handleSendToClient = async () => {
     setLoading("send");
     try {
-      await proc.sendClientNotification(
-        "invoice_sent",
-        `Facture ${invoiceNumber || ""} — Nivra`,
-        {
-          invoice_number: invoiceNumber || "",
-          total: total.toFixed(2),
-          balance_due: balanceDue.toFixed(2),
-        }
-      );
+      await proc.sendClientNotification("invoice_sent", `Facture ${invoiceNumber || ""} — Nivra`, {
+        invoice_number: invoiceNumber || "",
+        total: total.toFixed(2),
+        balance_due: balanceDue.toFixed(2),
+      });
     } catch (err) {
       console.error("[Payment] Send error:", err);
       toast.error("Erreur lors de l'envoi");
-    } finally {
-      setLoading(null);
-    }
+    } finally { setLoading(null); }
   };
 
   return (
     <div>
-      <h3 className="text-base font-bold text-gray-900 mb-4">Paiement & Facture</h3>
+      <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Étape 3 — Paiement & Facture</div>
 
-      {/* Invoice summary — read-only from canonical source */}
-      <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase">Facture {invoiceNumber || ""}</h4>
-          {isPaid && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+      {/* Invoice card */}
+      <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
+        <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50 flex items-center justify-between">
+          <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Facture {invoiceNumber || ""}</h4>
+          {isPaid ? (
+            <span className="bg-green-900/50 text-green-300 text-[10px] font-medium px-2 py-1 rounded-full inline-flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" /> Payé
             </span>
+          ) : (
+            <span className="bg-amber-900/50 text-amber-300 text-[10px] font-medium px-2 py-1 rounded-full">{paymentStatus}</span>
           )}
         </div>
-        <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between"><span className="text-gray-500">Sous-total</span><span className="text-gray-900 tabular-nums">{Number(subtotal).toFixed(2)} $</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">TPS (5%)</span><span className="text-gray-700 tabular-nums">{Number(tps).toFixed(2)} $</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">TVQ (9.975%)</span><span className="text-gray-700 tabular-nums">{Number(tvq).toFixed(2)} $</span></div>
-          <div className="flex justify-between border-t border-gray-200 pt-1.5 font-bold text-gray-900">
+        <div className="p-4 space-y-1.5 text-sm">
+          <div className="flex justify-between"><span className="text-slate-500">Sous-total</span><span className="text-slate-100 tabular-nums">{Number(subtotal).toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">TPS (5%)</span><span className="text-slate-300 tabular-nums">{Number(tps).toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">TVQ (9.975%)</span><span className="text-slate-300 tabular-nums">{Number(tvq).toFixed(2)} $</span></div>
+          <div className="flex justify-between border-t border-slate-700/50 pt-1.5 font-bold text-slate-100">
             <span>Total</span><span className="tabular-nums">{Number(total).toFixed(2)} $</span>
           </div>
-          <div className="flex justify-between"><span className="text-gray-500">Payé</span><span className="text-gray-700 tabular-nums">{Number(amountPaid).toFixed(2)} $</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Payé</span><span className="text-slate-300 tabular-nums">{Number(amountPaid).toFixed(2)} $</span></div>
           <div className="flex justify-between font-semibold">
-            <span className={balanceDue > 0 ? "text-red-600" : "text-emerald-600"}>Solde dû</span>
-            <span className={`tabular-nums ${balanceDue > 0 ? "text-red-600" : "text-emerald-600"}`}>{Number(balanceDue).toFixed(2)} $</span>
+            <span className={balanceDue > 0 ? "text-red-300" : "text-green-300"}>Solde dû</span>
+            <span className={`tabular-nums ${balanceDue > 0 ? "text-red-300" : "text-green-300"}`}>{Number(balanceDue).toFixed(2)} $</span>
           </div>
         </div>
       </div>
 
       {/* Payment info */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <Label className="text-xs text-gray-500">Méthode de paiement</Label>
-          <p className="text-sm font-medium text-gray-900 mt-1">{order.payment_method || "—"}</p>
+      <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
+        <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
+          <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Détails de paiement</h4>
         </div>
-        <div>
-          <Label className="text-xs text-gray-500">Statut</Label>
-          <p className="text-sm font-medium text-gray-900 mt-1">{paymentStatus}</p>
-        </div>
-        <div className="col-span-2">
-          <Label className="text-xs text-gray-500 mb-1">Référence de paiement</Label>
-          <Input
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            placeholder="Entrer la référence…"
-            className="h-9 text-sm border-gray-300 text-gray-900"
-          />
+        <div className="p-4 grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">Méthode</Label>
+            <p className="text-sm font-medium text-slate-100">{order.payment_method || "—"}</p>
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">Statut</Label>
+            <p className="text-sm font-medium text-slate-100">{paymentStatus}</p>
+          </div>
+          <div className="col-span-2">
+            <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">Référence de paiement</Label>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="Entrer la référence…"
+              className="h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rounded-lg"
+            />
+          </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
+      <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700/50">
         {!isPaid && (
-          <Button size="sm" onClick={handleConfirm} disabled={loading === "confirm" || proc.isUpdating || Number(balanceDue) <= 0} className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button size="sm" onClick={handleConfirm} disabled={loading === "confirm" || proc.isUpdating || Number(balanceDue) <= 0} className="text-sm bg-green-600 hover:bg-green-700 text-white">
             {loading === "confirm" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
             Confirmer paiement
           </Button>
         )}
         {isPaid && (
-          <div className="text-xs text-emerald-600 font-semibold flex items-center gap-1 px-2">
+          <div className="bg-green-950/50 border border-green-700/50 text-green-300 rounded-lg px-3 py-2 text-sm flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> Facture payée — aucune action requise
           </div>
         )}
-        <Button size="sm" variant="outline" onClick={handleMarkPartial} disabled={loading === "partial" || proc.isUpdating} className="text-xs h-8 border-gray-300 text-gray-700">
+        <Button size="sm" onClick={handleMarkPartial} disabled={loading === "partial" || proc.isUpdating} className="text-sm bg-orange-700 hover:bg-orange-800 text-white">
           {loading === "partial" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CreditCard className="w-3 h-3 mr-1" />}
           Paiement partiel
         </Button>
-        <Button size="sm" variant="outline" onClick={handleMarkInvalid} disabled={loading === "invalid" || proc.isUpdating} className="text-xs h-8 border-red-300 text-red-600 hover:bg-red-50">
+        <Button size="sm" onClick={handleMarkInvalid} disabled={loading === "invalid" || proc.isUpdating} className="text-sm bg-red-700 hover:bg-red-800 text-white">
           {loading === "invalid" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-          Invalider paiement
+          Invalider
         </Button>
-        <Button size="sm" variant="outline" onClick={handleViewInvoice} disabled={loading === "view"} className="text-xs h-8 border-gray-300 text-gray-700">
+        <Button size="sm" variant="outline" onClick={handleViewInvoice} disabled={loading === "view"} className="text-sm bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800">
           {loading === "view" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
           Voir facture
         </Button>
-        <Button size="sm" variant="outline" onClick={handleSendToClient} disabled={loading === "send"} className="text-xs h-8 border-gray-300 text-gray-700">
+        <Button size="sm" variant="outline" onClick={handleSendToClient} disabled={loading === "send"} className="text-sm bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800">
           {loading === "send" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
           Envoyer au client
         </Button>
       </div>
 
-      {/* PDF Viewer Dialog */}
       <PDFViewerDialog
         open={pdfViewerOpen}
         onOpenChange={setPdfViewerOpen}

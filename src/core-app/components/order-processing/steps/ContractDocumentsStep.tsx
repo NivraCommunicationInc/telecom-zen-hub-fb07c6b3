@@ -1,18 +1,14 @@
 /**
  * ContractDocumentsStep — Step 8: Contract & Documents
- * All buttons are fully functional: View, Send, Regenerate, Sign.
- * PHASE A: Click-to-sign signature link + status badge + resend.
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download, CheckCircle2, Clock, Copy, AlertTriangle } from "lucide-react";
+import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
-import { safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
-import { supabase } from "@/integrations/supabase/client";
 import { SignatureStatusBlock } from "./SignatureStatusBlock";
 
 interface Props { proc: any; }
@@ -38,10 +34,7 @@ export function ContractDocumentsStep({ proc }: Props) {
     setLoading(loadKey);
     try {
       const result = await generateOrderDocuments(order.id);
-      if (!result) {
-        toast.error("Données de document introuvables");
-        return;
-      }
+      if (!result) { toast.error("Données de document introuvables"); return; }
 
       let blob: Blob | null = null;
       let title = doc.type;
@@ -73,7 +66,6 @@ export function ContractDocumentsStep({ proc }: Props) {
 
       if (blob) {
         if (download) {
-          // Direct download
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -95,9 +87,7 @@ export function ContractDocumentsStep({ proc }: Props) {
     } catch (err) {
       console.error("[Documents] View/Download error:", err);
       toast.error("Erreur lors de l'ouverture du document");
-    } finally {
-      setLoading(null);
-    }
+    } finally { setLoading(null); }
   };
 
   const handleSend = async (doc: typeof documents[0]) => {
@@ -112,43 +102,30 @@ export function ContractDocumentsStep({ proc }: Props) {
     } catch (err) {
       console.error("[Documents] Send error:", err);
       toast.error("Erreur lors de l'envoi");
-    } finally {
-      setLoading(null);
-    }
+    } finally { setLoading(null); }
   };
 
   const handleRegenerate = async () => {
     setLoading("regenerate");
     try {
       const result = await generateOrderDocuments(order.id);
-      if (!result) {
-        toast.error("Données introuvables");
-        return;
-      }
+      if (!result) { toast.error("Données introuvables"); return; }
       toast.success("Documents régénérés avec succès");
       proc.refetch();
     } catch (err) {
       console.error("[Documents] Regenerate error:", err);
       toast.error("Erreur lors de la régénération");
-    } finally {
-      setLoading(null);
-    }
+    } finally { setLoading(null); }
   };
 
   const handleSignContract = async () => {
-    if (contracts.length === 0) {
-      toast.error("Aucun contrat à signer");
-      return;
-    }
+    if (contracts.length === 0) { toast.error("Aucun contrat à signer"); return; }
     setLoading("sign");
-    try {
-      await proc.signContract(contracts[0].id);
-    } catch (err) {
+    try { await proc.signContract(contracts[0].id); }
+    catch (err) {
       console.error("[Documents] Sign error:", err);
       toast.error("Erreur lors de la signature");
-    } finally {
-      setLoading(null);
-    }
+    } finally { setLoading(null); }
   };
 
   const handleSendAll = async () => {
@@ -166,123 +143,103 @@ export function ContractDocumentsStep({ proc }: Props) {
     } catch (err) {
       console.error("[Documents] Send all error:", err);
       toast.error("Erreur lors de l'envoi");
-    } finally {
-      setLoading(null);
-    }
+    } finally { setLoading(null); }
   };
 
   return (
     <div>
-      <h3 className="text-base font-bold text-gray-900 mb-4">Contrat & Documents</h3>
+      <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Contrat & Documents</div>
 
-      <div className="space-y-3">
+      <div className="space-y-2 mb-4">
         {documents.map((doc, i) => (
-          <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <div key={i} className="flex items-center justify-between p-3 bg-[#111827] rounded-lg border border-slate-700/50">
             <div className="flex items-center gap-3">
-              <FileText className="w-5 h-5 text-gray-400" />
+              <FileText className="w-5 h-5 text-slate-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">{doc.type}</p>
+                <p className="text-sm font-medium text-slate-100">{doc.type}</p>
                 {doc.available && doc.data?.created_at && (
-                  <p className="text-xs text-gray-500">
-                    {format(new Date(doc.data.created_at), "d MMM yyyy", { locale: fr })}
-                  </p>
+                  <p className="text-xs text-slate-500">{format(new Date(doc.data.created_at), "d MMM yyyy", { locale: fr })}</p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-1.5">
               {doc.available ? (
                 <>
-                  <span className="text-xs text-emerald-600 font-medium mr-2">Disponible</span>
+                  <span className="bg-green-900/50 text-green-300 text-[10px] font-medium px-2 py-1 rounded-full mr-2">Disponible</span>
                   <Button
-                    size="sm"
-                    variant="outline"
+                    size="sm" variant="outline"
                     onClick={() => handleViewOrDownload(doc, false)}
                     disabled={loading === doc.key}
-                    className="text-xs h-7 border-gray-300 text-gray-700"
+                    className="text-xs h-7 bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800"
                   >
-                    {loading === doc.key ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
-                    Voir
+                    {loading === doc.key ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Eye className="w-3 h-3 mr-1" />} Voir
                   </Button>
                   <Button
-                    size="sm"
-                    variant="outline"
+                    size="sm" variant="outline"
                     onClick={() => handleViewOrDownload(doc, true)}
                     disabled={loading === `dl-${doc.key}`}
-                    className="text-xs h-7 border-gray-300 text-gray-700"
+                    className="text-xs h-7 bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800"
                   >
-                    {loading === `dl-${doc.key}` ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Download className="w-3 h-3 mr-1" />}
-                    Télécharger
+                    {loading === `dl-${doc.key}` ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Download className="w-3 h-3 mr-1" />} Télécharger
                   </Button>
                   <Button
-                    size="sm"
-                    variant="outline"
+                    size="sm" variant="outline"
                     onClick={() => handleSend(doc)}
                     disabled={loading === `send-${doc.key}`}
-                    className="text-xs h-7 border-gray-300 text-gray-700"
+                    className="text-xs h-7 bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800"
                   >
-                    {loading === `send-${doc.key}` ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
-                    Envoyer
+                    {loading === `send-${doc.key}` ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />} Envoyer
                   </Button>
                 </>
               ) : (
-                <span className="text-xs text-gray-400">Non généré</span>
+                <span className="bg-slate-800 text-slate-400 text-[10px] font-medium px-2 py-1 rounded-full">Non généré</span>
               )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* ★ PHASE A — Signature status banner + link */}
+      {/* Signature status */}
       {contracts.length > 0 && <SignatureStatusBlock contract={contracts[0]} order={order} onRefresh={proc.refetch} />}
 
       {/* Contract details */}
       {contracts.length > 0 && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Dernier contrat</h4>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div><span className="text-gray-500">Statut:</span> <span className="font-medium text-gray-900">{contracts[0].status || "—"}</span></div>
-            <div><span className="text-gray-500">Version:</span> <span className="font-medium text-gray-900">v{contracts[0].version || 1}</span></div>
-            <div><span className="text-gray-500">Signé client:</span> <span className="font-medium text-gray-900">{contracts[0].client_signed_at ? "Oui" : "Non"}</span></div>
-            <div><span className="text-gray-500">Signé admin:</span> <span className="font-medium text-gray-900">{contracts[0].admin_signed_at ? "Oui" : "Non"}</span></div>
+        <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
+          <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
+            <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Dernier contrat</h4>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-2 text-sm">
+            <div><span className="text-slate-500">Statut:</span> <span className="font-medium text-slate-100 ml-1">{contracts[0].status || "—"}</span></div>
+            <div><span className="text-slate-500">Version:</span> <span className="font-medium text-slate-100 ml-1">v{contracts[0].version || 1}</span></div>
+            <div><span className="text-slate-500">Signé client:</span>
+              {contracts[0].client_signed_at
+                ? <span className="bg-blue-900/50 text-blue-300 text-[10px] font-medium px-2 py-1 rounded-full ml-2">Signé</span>
+                : <span className="text-slate-100 ml-1">Non</span>}
+            </div>
+            <div><span className="text-slate-500">Signé admin:</span>
+              {contracts[0].admin_signed_at
+                ? <span className="bg-blue-900/50 text-blue-300 text-[10px] font-medium px-2 py-1 rounded-full ml-2">Signé</span>
+                : <span className="text-slate-100 ml-1">Non</span>}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-100">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleRegenerate}
-          disabled={loading === "regenerate"}
-          className="text-xs h-8 border-gray-300 text-gray-700"
-        >
+      <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700/50">
+        <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={loading === "regenerate"} className="text-sm bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800">
           {loading === "regenerate" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
           Régénérer documents
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleSignContract}
-          disabled={loading === "sign" || contracts.length === 0}
-          className="text-xs h-8 border-gray-300 text-gray-700"
-        >
+        <Button size="sm" onClick={handleSignContract} disabled={loading === "sign" || contracts.length === 0} className="text-sm bg-blue-600 hover:bg-blue-700 text-white">
           {loading === "sign" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <PenTool className="w-3 h-3 mr-1" />}
           Signer contrat
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleSendAll}
-          disabled={loading === "sendAll"}
-          className="text-xs h-8 border-gray-300 text-gray-700"
-        >
+        <Button size="sm" onClick={handleSendAll} disabled={loading === "sendAll"} className="text-sm bg-blue-600 hover:bg-blue-700 text-white">
           {loading === "sendAll" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
           Envoyer tous au client
         </Button>
       </div>
 
-      {/* PDF Viewer Dialog */}
       <PDFViewerDialog
         open={pdfViewerOpen}
         onOpenChange={setPdfViewerOpen}
