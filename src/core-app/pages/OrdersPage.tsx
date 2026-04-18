@@ -1,7 +1,7 @@
 /**
- * OrdersPage — Nivra Core operations hub for orders.
- * Professional telecom operations console with priority indicators,
- * order age, revenue KPIs, and advanced filtering.
+ * OrdersPage — Nivra Core ops queue.
+ * Dark professional console with SLA KPIs, priority indicators,
+ * pill "Traiter" CTA per row, red left-border on overdue.
  */
 import { useState, useMemo } from "react";
 import { useAdminOrders } from "@/core-app/hooks/useAdminOrders";
@@ -22,7 +22,6 @@ import { fr } from "date-fns/locale";
 function getSlaBadge(deadline: string | null, status: string | null, orderStatus: string): {
   label: string; className: string; urgency: "ok" | "warning" | "overdue" | "done";
 } | null {
-  // Don't show SLA for terminal statuses
   if (["activated", "completed", "cancelled", "installation_completed", "delivered"].includes(orderStatus)) {
     return null;
   }
@@ -35,15 +34,15 @@ function getSlaBadge(deadline: string | null, status: string | null, orderStatus
   if (status === "overdue" || minsLeft < 0) {
     const overdue = Math.abs(minsLeft);
     const label = overdue >= 60 ? `DÉPASSÉ ${Math.floor(overdue / 60)}h` : `DÉPASSÉ ${overdue}min`;
-    return { label, className: "bg-red-500/15 text-red-400 border-red-500/30", urgency: "overdue" };
+    return { label, className: "bg-core-danger/15 text-core-danger border-core-danger/30", urgency: "overdue" };
   }
   if (minsLeft < 60 || status === "warning") {
-    return { label: `${minsLeft} min`, className: "bg-amber-500/15 text-amber-400 border-amber-500/30", urgency: "warning" };
+    return { label: `${minsLeft} min`, className: "bg-core-warning/15 text-core-warning border-core-warning/30", urgency: "warning" };
   }
   const hoursLeft = Math.floor(minsLeft / 60);
   const remainMins = minsLeft % 60;
   const label = hoursLeft > 0 ? `${hoursLeft}h${remainMins > 0 ? remainMins.toString().padStart(2, "0") : ""}` : `${minsLeft}min`;
-  return { label: `${label} restantes`, className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", urgency: "ok" };
+  return { label: `${label} restantes`, className: "bg-core-success/15 text-core-success border-core-success/30", urgency: "ok" };
 }
 
 const STATUS_FILTERS = [
@@ -60,14 +59,12 @@ const STATUS_FILTERS = [
   { label: "Cancelled", value: "cancelled" },
 ];
 
-type SortKey = "created_at" | "total_amount" | "status" | "order_number";
+type SortKey = "created_at" | "total_amount" | "status" | "order_number" | "sla";
 type SortDir = "asc" | "desc";
 
-/** Calculate order age and urgency level */
 function getOrderAge(createdAt: string): { label: string; urgency: "normal" | "warning" | "critical" } {
   const hours = differenceInHours(new Date(), new Date(createdAt));
   const days = differenceInDays(new Date(), new Date(createdAt));
-
   if (days >= 7) return { label: `${days}j`, urgency: "critical" };
   if (days >= 3) return { label: `${days}j`, urgency: "warning" };
   if (hours >= 24) return { label: `${days}j`, urgency: "normal" };
@@ -77,30 +74,22 @@ function getOrderAge(createdAt: string): { label: string; urgency: "normal" | "w
 function getPriorityIndicator(order: any): { level: "high" | "medium" | "low"; reasons: string[] } {
   const reasons: string[] = [];
   const hours = differenceInHours(new Date(), new Date(order.created_at));
-
   if (order.status === "on_hold") reasons.push("En attente");
   if (order.payment_status === "failed") reasons.push("Paiement échoué");
   if (order.risk_flags && order.risk_flags.length > 0) reasons.push("Risque");
   if (hours > 72 && !["completed", "cancelled", "activated"].includes(order.status)) reasons.push("SLA");
-
   if (reasons.length >= 2) return { level: "high", reasons };
   if (reasons.length === 1) return { level: "medium", reasons };
   return { level: "low", reasons: [] };
 }
 
-/** KYC badge config — null/not_required = no badge */
 function getKycBadge(status: string | null | undefined): { label: string; icon: string; className: string } | null {
   switch (status) {
-    case "pending":
-      return { label: "KYC Demandé", icon: "🟡", className: "bg-amber-500/15 text-amber-400 border-amber-500/25" };
-    case "completed":
-      return { label: "KYC Complété", icon: "🟠", className: "bg-orange-500/15 text-orange-400 border-orange-500/25" };
-    case "approved":
-      return { label: "KYC Approuvé", icon: "✅", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" };
-    case "rejected":
-      return { label: "KYC Rejeté", icon: "❌", className: "bg-red-500/15 text-red-400 border-red-500/25" };
-    default:
-      return null;
+    case "pending":   return { label: "KYC Demandé",  icon: "🟡", className: "bg-core-warning/15 text-core-warning border-core-warning/25" };
+    case "completed": return { label: "KYC Complété", icon: "🟠", className: "bg-orange-500/15 text-orange-400 border-orange-500/25" };
+    case "approved":  return { label: "KYC Approuvé", icon: "✅", className: "bg-core-success/15 text-core-success border-core-success/25" };
+    case "rejected":  return { label: "KYC Rejeté",   icon: "❌", className: "bg-core-danger/15 text-core-danger border-core-danger/25" };
+    default: return null;
   }
 }
 
@@ -110,16 +99,12 @@ const OrdersPage = () => {
   const { data: orders, isLoading, refetch } = useAdminOrders(envFilter);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("created_at");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("sla");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir(key === "sla" ? "asc" : "desc"); }
   };
 
   const filtered = useMemo(() => {
@@ -136,14 +121,20 @@ const OrdersPage = () => {
         (o.invoice_number?.toLowerCase().includes(q))
       );
     }
-    // Sort
     list = [...list].sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
-        case "created_at": cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break;
+        case "created_at":  cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break;
         case "total_amount": cmp = (a.total_amount ?? 0) - (b.total_amount ?? 0); break;
-        case "status": cmp = (a.status || "").localeCompare(b.status || ""); break;
+        case "status":       cmp = (a.status || "").localeCompare(b.status || ""); break;
         case "order_number": cmp = (a.order_number || "").localeCompare(b.order_number || ""); break;
+        case "sla": {
+          // SLA ascending = most urgent first (overdue, then nearest deadline)
+          const da = a.sla_deadline ? new Date(a.sla_deadline).getTime() : Number.POSITIVE_INFINITY;
+          const db = b.sla_deadline ? new Date(b.sla_deadline).getTime() : Number.POSITIVE_INFINITY;
+          cmp = da - db;
+          break;
+        }
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -188,37 +179,63 @@ const OrdersPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-white tracking-tight">Commandes</h1>
-          <p className="text-[12px] text-[hsl(220,10%,45%)] mt-0.5">
+          <h1 className="text-lg font-bold text-core-fg tracking-tight">Commandes</h1>
+          <p className="text-[12px] text-core-muted mt-0.5">
             Hub opérationnel · {counts.total} commande{counts.total !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
-          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-lg border border-[hsl(220,15%,18%)] bg-[hsl(220,20%,13%)] px-3 py-1.5 text-[11px] font-medium text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/30 transition-colors">
+          <button onClick={() => refetch()} className="inline-flex items-center gap-1.5 rounded-full border border-core-border bg-core-card px-3.5 py-1.5 text-[11px] font-medium text-core-muted hover:text-core-fg hover:border-core-accent/40 transition-colors">
             <RefreshCw className="h-3.5 w-3.5" /> Actualiser
           </button>
         </div>
       </div>
 
-      {/* KPI strip — 6 metrics */}
-      <div className="grid grid-cols-6 gap-3">
+      {/* PHASE C: SLA tracking strip — 3 PROMINENT KPIs (top of page) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
-          { label: "Total", value: counts.total, icon: ShoppingCart, color: "text-white", iconBg: "bg-[hsl(220,15%,18%)]" },
-          { label: "En attente", value: counts.pending, icon: Clock, color: "text-amber-400", iconBg: "bg-amber-500/10" },
-          { label: "En cours", value: counts.active, icon: Zap, color: "text-sky-400", iconBg: "bg-sky-500/10" },
-          { label: "On Hold", value: counts.onHold, icon: Pause, color: "text-red-400", iconBg: "bg-red-500/10" },
-          { label: "Complétées", value: counts.completed, icon: TrendingUp, color: "text-emerald-400", iconBg: "bg-emerald-500/10" },
-          { label: "Revenu total", value: isLoading ? "—" : counts.revenue.toLocaleString("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 0 }), icon: DollarSign, color: "text-emerald-400", iconBg: "bg-emerald-500/10", isString: true },
+          { label: "Dans les délais", value: counts.slaOnTime, icon: ShieldCheck, color: "text-core-success", iconBg: "bg-core-success/10", borderColor: "border-core-success/25", glow: "shadow-[0_0_24px_-12px_hsl(var(--core-success)/0.3)]" },
+          { label: "À risque (< 1h)", value: counts.slaWarning, icon: Clock, color: "text-core-warning", iconBg: "bg-core-warning/10", borderColor: "border-core-warning/30", glow: "shadow-[0_0_24px_-12px_hsl(var(--core-warning)/0.4)]" },
+          { label: "En retard (SLA)", value: counts.slaOverdue, icon: Timer, color: "text-core-danger", iconBg: "bg-core-danger/10", borderColor: "border-core-danger/40", glow: "shadow-[0_0_28px_-10px_hsl(var(--core-danger)/0.5)]" },
         ].map(k => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] p-3">
+            <div key={k.label} className={`rounded-xl border ${k.borderColor} bg-core-card ${k.glow} p-4`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`h-7 w-7 rounded-lg ${k.iconBg} flex items-center justify-center`}>
+                    <Icon className={`h-3.5 w-3.5 ${k.color}`} />
+                  </div>
+                  <p className="text-[11px] uppercase tracking-wider text-core-muted font-semibold">{k.label}</p>
+                </div>
+              </div>
+              <p className={`text-2xl font-bold tabular-nums ${k.color}`}>
+                {isLoading ? "—" : k.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Secondary KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        {[
+          { label: "Total", value: counts.total, icon: ShoppingCart, color: "text-core-fg", iconBg: "bg-core-border" },
+          { label: "En attente", value: counts.pending, icon: Clock, color: "text-core-warning", iconBg: "bg-core-warning/10" },
+          { label: "En cours", value: counts.active, icon: Zap, color: "text-core-accent", iconBg: "bg-core-accent/10" },
+          { label: "On Hold", value: counts.onHold, icon: Pause, color: "text-core-danger", iconBg: "bg-core-danger/10" },
+          { label: "Complétées", value: counts.completed, icon: TrendingUp, color: "text-core-success", iconBg: "bg-core-success/10" },
+          { label: "Revenu total", value: isLoading ? "—" : counts.revenue.toLocaleString("fr-CA", { style: "currency", currency: "CAD", minimumFractionDigits: 0 }), icon: DollarSign, color: "text-core-success", iconBg: "bg-core-success/10", isString: true },
+        ].map(k => {
+          const Icon = k.icon;
+          return (
+            <div key={k.label} className="rounded-lg border border-core-border bg-core-card p-3">
               <div className="flex items-center gap-2 mb-1.5">
                 <div className={`h-6 w-6 rounded-md ${k.iconBg} flex items-center justify-center`}>
                   <Icon className={`h-3 w-3 ${k.color}`} />
                 </div>
-                <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,40%)] font-medium">{k.label}</p>
+                <p className="text-[10px] uppercase tracking-wider text-core-muted font-medium">{k.label}</p>
               </div>
               <p className={`text-lg font-bold tabular-nums ${k.color}`}>
                 {isLoading ? "—" : (k as any).isString ? k.value : k.value}
@@ -228,61 +245,37 @@ const OrdersPage = () => {
         })}
       </div>
 
-      {/* PHASE C: SLA tracking strip — 3 KPIs */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Dans les délais", value: counts.slaOnTime, icon: ShieldCheck, color: "text-emerald-400", iconBg: "bg-emerald-500/10", borderColor: "border-emerald-500/20" },
-          { label: "À risque (< 1h)", value: counts.slaWarning, icon: Clock, color: "text-amber-400", iconBg: "bg-amber-500/10", borderColor: "border-amber-500/20" },
-          { label: "En retard (SLA)", value: counts.slaOverdue, icon: Timer, color: "text-red-400", iconBg: "bg-red-500/10", borderColor: "border-red-500/30" },
-        ].map(k => {
-          const Icon = k.icon;
-          return (
-            <div key={k.label} className={`rounded-lg border ${k.borderColor} bg-[hsl(220,20%,11%)] p-3`}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className={`h-6 w-6 rounded-md ${k.iconBg} flex items-center justify-center`}>
-                  <Icon className={`h-3 w-3 ${k.color}`} />
-                </div>
-                <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,40%)] font-medium">{k.label}</p>
-              </div>
-              <p className={`text-lg font-bold tabular-nums ${k.color}`}>
-                {isLoading ? "—" : k.value}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Alert bar if orders need attention */}
+      {/* Alert bar */}
       {!isLoading && counts.needsAttention > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-          <p className="text-[11px] text-amber-400 font-medium">
+        <div className="flex items-center gap-2 rounded-lg border border-core-warning/25 bg-core-warning/5 px-4 py-2">
+          <AlertTriangle className="h-3.5 w-3.5 text-core-warning shrink-0" />
+          <p className="text-[11px] text-core-warning font-medium">
             {counts.needsAttention} commande{counts.needsAttention > 1 ? "s" : ""} nécessite{counts.needsAttention > 1 ? "nt" : ""} une attention immédiate
           </p>
         </div>
       )}
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 flex items-center gap-2 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-3 py-2">
-          <Search className="h-4 w-4 text-[hsl(220,10%,40%)]" />
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+        <div className="flex-1 flex items-center gap-2 rounded-lg border border-core-border bg-core-card px-3 py-2">
+          <Search className="h-4 w-4 text-core-muted" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Rechercher par numéro, client, courriel, compte, facture…"
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-[hsl(220,10%,35%)] outline-none"
+            className="flex-1 bg-transparent text-xs text-core-fg placeholder:text-core-muted-soft outline-none"
           />
         </div>
-        <div className="flex items-center gap-0.5 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] px-1 py-1 overflow-x-auto">
+        <div className="flex items-center gap-0.5 rounded-lg border border-core-border bg-core-card px-1 py-1 overflow-x-auto">
           {STATUS_FILTERS.map(f => (
             <button
               key={f.value}
               onClick={() => setStatusFilter(f.value)}
-              className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors whitespace-nowrap ${
                 statusFilter === f.value
-                  ? "bg-emerald-600/20 text-emerald-400"
-                  : "text-[hsl(220,10%,45%)] hover:text-white"
+                  ? "bg-core-accent/20 text-core-accent"
+                  : "text-core-muted hover:text-core-fg"
               }`}
             >
               {f.label}
@@ -292,40 +285,38 @@ const OrdersPage = () => {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
+      <div className="rounded-xl border border-core-border bg-core-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-[hsl(220,15%,16%)]">
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap w-5">
-                  {/* Priority */}
-                </th>
+              <tr className="border-b border-core-border bg-core-bg/40">
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap w-5" />
                 <SortableHeader label="N° commande" sortKey="order_number" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Client</th>
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Service</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap">Client</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap">Service</th>
                 <SortableHeader label="Statut" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">KYC</th>
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Paiement</th>
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Facture</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap">KYC</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap">Paiement</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap">Facture</th>
                 <SortableHeader label="Montant" sortKey="total_amount" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Âge</th>
-                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">SLA</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap">Âge</th>
+                <SortableHeader label="SLA" sortKey="sla" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
                 <SortableHeader label="Date" sortKey="created_at" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
-                <th className="w-10" />
+                <th className="text-right px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-core-muted whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="border-b border-[hsl(220,15%,14%)]">
+                  <tr key={i} className="border-b border-core-border/50">
                     {Array.from({ length: 13 }).map((_, j) => (
-                      <td key={j} className="px-3 py-2.5"><div className="h-3.5 w-16 rounded bg-[hsl(220,15%,14%)] animate-pulse" /></td>
+                      <td key={j} className="px-3 py-3"><div className="h-3.5 w-16 rounded bg-core-border animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="text-center py-12 text-[hsl(220,10%,35%)]">
+                  <td colSpan={13} className="text-center py-12 text-core-muted">
                     <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
                     <p className="text-xs">{search || statusFilter ? "Aucune commande ne correspond aux filtres." : "Aucune commande trouvée."}</p>
                   </td>
@@ -341,71 +332,71 @@ const OrdersPage = () => {
                     <tr
                       key={o.id}
                       onClick={() => navigate(corePath(`/orders/${o.id}`))}
-                      className={`border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors group cursor-pointer ${
-                        isOverdue ? "border-l-2 border-l-red-500" : ""
+                      className={`border-b border-core-border/50 last:border-0 hover:bg-core-card-raised transition-colors group cursor-pointer ${
+                        isOverdue ? "border-l-[3px] border-l-core-danger" : "border-l-[3px] border-l-transparent"
                       }`}
                     >
-                      {/* Priority indicator */}
-                      <td className="px-2 py-2.5">
+                      <td className="px-2 py-3">
                         {priority.level === "high" ? (
-                          <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" title={priority.reasons.join(", ")} />
+                          <div className="h-2 w-2 rounded-full bg-core-danger animate-pulse" title={priority.reasons.join(", ")} />
                         ) : priority.level === "medium" ? (
-                          <div className="h-2 w-2 rounded-full bg-amber-500" title={priority.reasons.join(", ")} />
+                          <div className="h-2 w-2 rounded-full bg-core-warning" title={priority.reasons.join(", ")} />
                         ) : null}
                       </td>
-                      <td className="px-3 py-2.5">
-                        <span className="font-mono font-medium text-white">{o.order_number || o.id.slice(0, 8)}</span>
+                      <td className="px-3 py-3">
+                        <span className="font-mono font-semibold text-core-fg">{o.order_number || o.id.slice(0, 8)}</span>
                         {o.environment === 'test' && <span className="ml-1.5"><TestBadge /></span>}
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-3">
                         <div className="max-w-[160px]">
-                          <p className="text-white truncate">{o.client_full_name || "—"}</p>
-                          {o.account_number && <p className="text-[11px] text-[hsl(220,10%,40%)] font-mono">#{o.account_number}</p>}
+                          <p className="text-core-fg truncate">{o.client_full_name || "—"}</p>
+                          {o.account_number && <p className="text-[11px] text-core-muted font-mono">#{o.account_number}</p>}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-[hsl(220,10%,55%)]">{o.service_type || "—"}</td>
-                      <td className="px-3 py-2.5"><StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" /></td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-3 text-core-muted">{o.service_type || "—"}</td>
+                      <td className="px-3 py-3"><StatusBadge label={o.status} variant={statusToVariant(o.status)} size="sm" /></td>
+                      <td className="px-3 py-3">
                         {(() => {
                           const kyc = getKycBadge(o.kyc_status);
                           return kyc ? (
                             <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${kyc.className}`}>
                               <span>{kyc.icon}</span>{kyc.label}
                             </span>
-                          ) : <span className="text-[hsl(220,10%,30%)]">—</span>;
+                          ) : <span className="text-core-muted-soft">—</span>;
                         })()}
                       </td>
-                      <td className="px-3 py-2.5">
-                        {o.payment_status ? <StatusBadge label={o.payment_status} variant={statusToVariant(o.payment_status)} size="sm" /> : <span className="text-[hsl(220,10%,30%)]">—</span>}
+                      <td className="px-3 py-3">
+                        {o.payment_status ? <StatusBadge label={o.payment_status} variant={statusToVariant(o.payment_status)} size="sm" /> : <span className="text-core-muted-soft">—</span>}
                       </td>
-                      <td className="px-3 py-2.5">
-                        {o.invoice_number ? <span className="font-mono text-[11px] text-emerald-400">#{o.invoice_number}</span> : <span className="text-[hsl(220,10%,30%)]">—</span>}
+                      <td className="px-3 py-3">
+                        {o.invoice_number ? <span className="font-mono text-[11px] text-core-success">#{o.invoice_number}</span> : <span className="text-core-muted-soft">—</span>}
                       </td>
-                      <td className="px-3 py-2.5 tabular-nums text-[hsl(220,10%,70%)]">
+                      <td className="px-3 py-3 tabular-nums text-core-fg/80">
                         {o.total_amount != null ? o.total_amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" }) : "—"}
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-3">
                         <span className={`text-[11px] font-mono tabular-nums ${
-                          age.urgency === "critical" ? "text-red-400" :
-                          age.urgency === "warning" ? "text-amber-400" :
-                          "text-[hsl(220,10%,45%)]"
+                          age.urgency === "critical" ? "text-core-danger" :
+                          age.urgency === "warning" ? "text-core-warning" :
+                          "text-core-muted"
                         }`}>
                           {age.label}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-3">
                         {sla ? (
                           <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${sla.className}`}>
                             <Timer className="h-2.5 w-2.5" />
                             {sla.label}
                           </span>
-                        ) : <span className="text-[hsl(220,10%,30%)]">—</span>}
+                        ) : <span className="text-core-muted-soft">—</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-[hsl(220,10%,45%)] whitespace-nowrap">{format(new Date(o.created_at), "d MMM yyyy", { locale: fr })}</td>
-                      <td className="px-3 py-2.5">
-                        <Link to={corePath(`/orders/${o.id}`)}>
-                          <button className="h-7 w-7 flex items-center justify-center rounded-md border border-[hsl(220,15%,20%)] text-[hsl(220,10%,50%)] hover:text-white hover:border-emerald-500/40 transition-colors opacity-60 group-hover:opacity-100">
-                            <ArrowRight className="h-3.5 w-3.5" />
+                      <td className="px-3 py-3 text-core-muted whitespace-nowrap">{format(new Date(o.created_at), "d MMM yyyy", { locale: fr })}</td>
+                      <td className="px-3 py-3 text-right">
+                        <Link to={corePath(`/orders/${o.id}`)} onClick={(e) => e.stopPropagation()}>
+                          <button className="inline-flex items-center gap-1.5 rounded-full bg-core-accent/15 border border-core-accent/30 px-3 py-1.5 text-[11px] font-semibold text-core-accent hover:bg-core-accent hover:text-white transition-all">
+                            Traiter
+                            <ArrowRight className="h-3 w-3" />
                           </button>
                         </Link>
                       </td>
@@ -419,7 +410,7 @@ const OrdersPage = () => {
       </div>
 
       {!isLoading && filtered.length > 0 && (
-        <p className="text-[11px] text-[hsl(220,10%,30%)] text-center">
+        <p className="text-[11px] text-core-muted-soft text-center">
           {filtered.length} commande{filtered.length !== 1 ? "s" : ""} affichée{filtered.length !== 1 ? "s" : ""}
           {(search || statusFilter) && ` sur ${counts.total}`}
         </p>
@@ -438,7 +429,7 @@ function SortableHeader({ label, sortKey, currentSort, currentDir, onSort }: {
       <button
         onClick={() => onSort(sortKey)}
         className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
-          isActive ? "text-emerald-400" : "text-[hsl(220,10%,38%)] hover:text-[hsl(220,10%,55%)]"
+          isActive ? "text-core-accent" : "text-core-muted hover:text-core-fg"
         }`}
       >
         {label}
