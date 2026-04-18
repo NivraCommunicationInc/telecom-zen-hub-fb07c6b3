@@ -28,13 +28,23 @@ export function ActivationStep({ proc }: Props) {
   const [showOverride, setShowOverride] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [isForcing, setIsForcing] = useState(false);
+  const [showKycOverride, setShowKycOverride] = useState(false);
+  const [kycOverrideReason, setKycOverrideReason] = useState("");
+  const [isForcingKyc, setIsForcingKyc] = useState(false);
 
   const currentStatus = order.status || "";
   const isActivated = TERMINAL_STATES.includes(currentStatus);
   const isInIntake = INTAKE_STATES.includes(currentStatus);
   const isInOperational = OPERATIONAL_STATES.includes(currentStatus);
   const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoice?.status || "");
-  const canActivate = invoicePaid && !isActivated;
+
+  const kycStatus = String((order as any)?.kyc_status || "not_required").toLowerCase();
+  const kycPolicy = String((order as any)?.kyc_policy || "none").toLowerCase();
+  const kycRequired = kycPolicy !== "none" && kycPolicy !== "skip";
+  const kycOk = !kycRequired || kycStatus === "approved" || kycStatus === "not_required";
+  const kycBlocking = !kycOk && !isActivated;
+
+  const canActivate = invoicePaid && kycOk && !isActivated;
   const canForceActivate = !!invoice && !invoicePaid && !isActivated;
 
   const handleActivate = async () => {
