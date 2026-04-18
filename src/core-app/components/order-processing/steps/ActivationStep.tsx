@@ -1,12 +1,9 @@
-/**
- * ActivationStep — Step 7: Activation / Provisioning
- */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Zap, RefreshCw, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import { Zap, RefreshCw, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { MobileNumberSection } from "./MobileNumberSection";
 import { StepCompletionCard } from "../StepCompletionCard";
@@ -25,30 +22,22 @@ export function ActivationStep({ proc }: Props) {
   const [providerRef, setProviderRef] = useState("");
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
-  const [showOverride, setShowOverride] = useState(false);
+  const [showOverrideCard, setShowOverrideCard] = useState(false);
+  const [activationError, setActivationError] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
   const [isForcing, setIsForcing] = useState(false);
-  const [showKycOverride, setShowKycOverride] = useState(false);
-  const [kycOverrideReason, setKycOverrideReason] = useState("");
-  const [isForcingKyc, setIsForcingKyc] = useState(false);
 
   const currentStatus = order.status || "";
   const isActivated = TERMINAL_STATES.includes(currentStatus);
   const isInIntake = INTAKE_STATES.includes(currentStatus);
   const isInOperational = OPERATIONAL_STATES.includes(currentStatus);
   const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoice?.status || "");
-
-  const kycStatus = String((order as any)?.kyc_status || "not_required").toLowerCase();
-  const kycPolicy = String((order as any)?.kyc_policy || "none").toLowerCase();
-  const kycRequired = kycPolicy !== "none" && kycPolicy !== "skip";
-  const kycOk = !kycRequired || kycStatus === "approved" || kycStatus === "not_required";
-  const kycBlocking = !kycOk && !isActivated;
-
-  const canActivate = invoicePaid && kycOk && !isActivated;
-  const canForceActivate = !!invoice && !invoicePaid && !isActivated;
+  const canActivate = !isActivated;
 
   const handleActivate = async () => {
     if (!proc.activateService) { toast.error("Méthode d'activation non disponible"); return; }
+    setActivationError("");
+    setShowOverrideCard(false);
     setIsActivating(true);
     try {
       await proc.activateService({
@@ -57,7 +46,8 @@ export function ActivationStep({ proc }: Props) {
       });
     } catch (err: any) {
       console.error("[ActivationStep] Activation failed:", err);
-      toast.error(err?.message || "Erreur lors de l'activation");
+      setActivationError(err?.message || "Erreur lors de l'activation");
+      setShowOverrideCard(true);
     } finally { setIsActivating(false); }
   };
 
@@ -71,10 +61,13 @@ export function ActivationStep({ proc }: Props) {
         forceOverride: true,
         overrideReason: overrideReason.trim(),
       });
-      setShowOverride(false);
+      setShowOverrideCard(false);
+      setActivationError("");
       setOverrideReason("");
     } catch (err: any) {
       console.error("[ActivationStep] Force activation failed:", err);
+      setActivationError(err?.message || "Erreur lors de l'activation forcée");
+      setShowOverrideCard(true);
       toast.error(err?.message || "Erreur lors de l'activation forcée");
     } finally { setIsForcing(false); }
   };
@@ -82,25 +75,6 @@ export function ActivationStep({ proc }: Props) {
   const handleConfirmOrder = async () => {
     try { await proc.changeStatus("confirmed", "Passage en état opérationnel confirmé"); }
     catch (err: any) { toast.error(err?.message || "Erreur"); }
-  };
-
-  const handleForceKycActivate = async () => {
-    if (!kycOverrideReason.trim()) { toast.error("Justification obligatoire"); return; }
-    setIsForcingKyc(true);
-    try {
-      await proc.activateService({
-        providerRef: providerRef || undefined,
-        activationNotes: activationNotes || undefined,
-        forceOverride: true,
-        forceKycOverride: true,
-        overrideReason: kycOverrideReason.trim(),
-      });
-      setShowKycOverride(false);
-      setKycOverrideReason("");
-    } catch (err: any) {
-      console.error("[ActivationStep] Force KYC activation failed:", err);
-      toast.error(err?.message || "Erreur lors de l'activation forcée KYC");
-    } finally { setIsForcingKyc(false); }
   };
 
   const handleStartProcessing = async () => {
@@ -125,121 +99,48 @@ export function ActivationStep({ proc }: Props) {
         />
       )}
 
-      {canForceActivate && (
+      {showOverrideCard && !isActivated && (
         <div className="bg-amber-950/50 border border-amber-700/50 rounded-lg p-4 mb-4">
           <div className="flex items-start gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-200">Facture impayée — activation bloquée</p>
+              <p className="text-sm font-semibold text-amber-200">Activation bloquée</p>
               <p className="text-xs text-amber-300/80 mt-0.5">
-                Solde dû: <span className="font-mono">{Number(invoice.balance_due ?? invoice.total ?? 0).toFixed(2)} $</span>
-                {" · "}Facture {invoice.invoice_number || ""} ({invoice.status})
+                {activationError || "Un blocage empêche l'activation. Vous pouvez forcer l'activation avec une justification."}
               </p>
             </div>
           </div>
 
-          {!showOverride && (
-            <Button
-              size="sm"
-              onClick={() => setShowOverride(true)}
-              disabled={proc.isUpdating}
-              className="text-sm bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              Forcer l'activation (override admin)
-            </Button>
-          )}
-
-          {showOverride && (
-            <div className="mt-3 space-y-2">
-              <Label className="text-[10px] uppercase tracking-wider text-amber-200/80">
-                Justification (ex: paiement comptant à l'installation, B2B, promo)
-              </Label>
-              <Textarea
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="Raison de l'override…"
-                className="bg-[#0d1421] border-amber-700/40 text-slate-100 text-sm rounded-lg min-h-[60px]"
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleForceActivate}
-                  disabled={isForcing || proc.isUpdating || !overrideReason.trim()}
-                  className="text-sm bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  {isForcing ? "Activation…" : "Forcer l'activation"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setShowOverride(false); setOverrideReason(""); }}
-                  disabled={isForcing}
-                  className="text-sm text-slate-300 hover:bg-slate-800"
-                >
-                  Annuler
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {kycBlocking && (
-        <div className="bg-amber-950/50 border border-amber-700/50 rounded-lg p-4 mb-4">
-          <div className="flex items-start gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-200">KYC en attente — activation bloquée</p>
-              <p className="text-xs text-amber-300/80 mt-0.5">
-                Statut KYC: <span className="font-mono">{kycStatus}</span>
-                {" · "}Politique: <span className="font-mono">{kycPolicy}</span>
-              </p>
+          <div className="mt-3 space-y-2">
+            <Label className="text-[10px] uppercase tracking-wider text-amber-200/80">
+              Justification obligatoire
+            </Label>
+            <Textarea
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="Raison de l'override…"
+              className="bg-[#0d1421] border-amber-700/40 text-slate-100 text-sm rounded-lg min-h-[60px]"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={handleForceActivate}
+                disabled={isForcing || proc.isUpdating || !overrideReason.trim()}
+                className="text-sm bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {isForcing ? "Activation…" : "Forcer l'activation (admin override)"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { setShowOverrideCard(false); setActivationError(""); setOverrideReason(""); }}
+                disabled={isForcing}
+                className="text-sm text-slate-300 hover:bg-slate-800"
+              >
+                Annuler
+              </Button>
             </div>
           </div>
-
-          {!showKycOverride && (
-            <Button
-              size="sm"
-              onClick={() => setShowKycOverride(true)}
-              disabled={proc.isUpdating}
-              className="text-sm bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              Forcer l'activation (KYC en attente)
-            </Button>
-          )}
-
-          {showKycOverride && (
-            <div className="mt-3 space-y-2">
-              <Label className="text-[10px] uppercase tracking-wider text-amber-200/80">
-                Justification (ex: client connu, vérifié hors-ligne, B2B)
-              </Label>
-              <Textarea
-                value={kycOverrideReason}
-                onChange={(e) => setKycOverrideReason(e.target.value)}
-                placeholder="Raison de l'override KYC…"
-                className="bg-[#0d1421] border-amber-700/40 text-slate-100 text-sm rounded-lg min-h-[60px]"
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleForceKycActivate}
-                  disabled={isForcingKyc || proc.isUpdating || !kycOverrideReason.trim()}
-                  className="text-sm bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  {isForcingKyc ? "Activation…" : "Forcer l'activation"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setShowKycOverride(false); setKycOverrideReason(""); }}
-                  disabled={isForcingKyc}
-                  className="text-sm text-slate-300 hover:bg-slate-800"
-                >
-                  Annuler
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -257,7 +158,6 @@ export function ActivationStep({ proc }: Props) {
         </div>
       )}
 
-      {/* Service details */}
       <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
         <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
           <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Détails du service</h4>
@@ -293,33 +193,31 @@ export function ActivationStep({ proc }: Props) {
       )}
 
       {!isActivated && (
-        <>
-          <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
-            <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
-              <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Référence & notes</h4>
+        <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
+          <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
+            <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Référence & notes</h4>
+          </div>
+          <div className="p-4 space-y-4">
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">Référence fournisseur</Label>
+              <Input
+                value={providerRef}
+                onChange={(e) => setProviderRef(e.target.value)}
+                placeholder="Numéro de confirmation…"
+                className="h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rounded-lg font-mono"
+              />
             </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">Référence fournisseur</Label>
-                <Input
-                  value={providerRef}
-                  onChange={(e) => setProviderRef(e.target.value)}
-                  placeholder="Numéro de confirmation…"
-                  className="h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rounded-lg font-mono"
-                />
-              </div>
-              <div>
-                <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">Notes d'activation</Label>
-                <Textarea
-                  value={activationNotes}
-                  onChange={(e) => setActivationNotes(e.target.value)}
-                  placeholder="Notes techniques…"
-                  className="bg-[#0d1421] border-slate-700 text-slate-100 text-sm rounded-lg min-h-[56px]"
-                />
-              </div>
+            <div>
+              <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">Notes d'activation</Label>
+              <Textarea
+                value={activationNotes}
+                onChange={(e) => setActivationNotes(e.target.value)}
+                placeholder="Notes techniques…"
+                className="bg-[#0d1421] border-slate-700 text-slate-100 text-sm rounded-lg min-h-[56px]"
+              />
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {canActivate && (
@@ -349,7 +247,7 @@ export function ActivationStep({ proc }: Props) {
         <Button
           size="sm"
           onClick={handleActivate}
-          disabled={isActivating || proc.isUpdating || !canActivate}
+          disabled={isActivating || proc.isUpdating || isActivated}
           className="text-sm bg-green-600 hover:bg-green-700 text-white"
         >
           <Zap className="w-3 h-3 mr-1" />

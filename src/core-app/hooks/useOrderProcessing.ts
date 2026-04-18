@@ -1459,63 +1459,59 @@ export function useOrderProcessing(orderId: string | undefined) {
     providerRef?: string;
     activationNotes?: string;
     forceOverride?: boolean;
-    forceKycOverride?: boolean;
     overrideReason?: string;
   }) => {
-    // SYSTEMIC GUARD: Verify invoice is paid before allowing activation
     const invoice = data?.invoice;
     const order = data?.order;
     const forceOverride = !!opts?.forceOverride;
-    const forceKycOverride = !!opts?.forceKycOverride;
     const overrideReason = (opts?.overrideReason || "").trim();
 
-    if (!invoice) {
-      toast.error("Impossible d'activer : aucune facture liée à cette commande.");
-      return;
-    }
-    const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
-    const invoiceStatus = invoice.status;
-    const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") || balanceDue <= 0;
+    const balanceDue = Number(invoice?.balance_due ?? invoice?.total ?? 1);
+    const invoiceStatus = invoice?.status;
+    const invoicePaid = !!invoice && (["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") || balanceDue <= 0);
 
-    if (!invoicePaid) {
-      if (!forceOverride) {
-        toast.error(`Impossible d'activer : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
-        return;
-      }
-      if (!overrideReason) {
-        toast.error("Une justification est obligatoire pour forcer l'activation");
-        return;
-      }
-      await logActivity("activation_forced_unpaid", "order", orderId, {
-        invoice_id: invoice.id,
-        invoice_number: invoice.invoice_number,
-        balance_due: balanceDue,
-        override_reason: overrideReason,
-      });
-      toast.warning("Service activé sans paiement confirmé");
-    }
-
-    // SYSTEMIC GUARD: Verify KYC is approved (or not required) before allowing activation
     const kycStatus = String((order as any)?.kyc_status || "not_required").toLowerCase();
     const kycPolicy = String((order as any)?.kyc_policy || "none").toLowerCase();
     const kycRequired = kycPolicy !== "none" && kycPolicy !== "skip";
     const kycOk = !kycRequired || kycStatus === "approved" || kycStatus === "not_required";
 
+    const blockers: string[] = [];
+    if (!invoice) {
+      blockers.push("aucune facture liée à cette commande");
+    } else if (!invoicePaid) {
+      blockers.push(`la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $)`);
+    }
     if (!kycOk) {
-      if (!forceKycOverride) {
-        toast.error(`Impossible d'activer : kyc_status est ${kycStatus}. Vérification d'identité requise.`);
-        return;
+      blockers.push(`kyc_status est ${kycStatus}`);
+    }
+
+    if (blockers.length > 0) {
+      if (!forceOverride) {
+        const msg = `Impossible d'activer : ${blockers.join(" · ")}.`;
+        toast.error(msg);
+        throw new Error(msg);
       }
       if (!overrideReason) {
-        toast.error("Une justification est obligatoire pour forcer l'activation sans KYC");
-        return;
+        const msg = "Une justification est obligatoire pour forcer l'activation";
+        toast.error(msg);
+        throw new Error(msg);
       }
-      await logActivity("activation_forced_kyc_pending", "order", orderId, {
-        kyc_status: kycStatus,
-        kyc_policy: kycPolicy,
-        override_reason: overrideReason,
-      });
-      toast.warning("Service activé sans vérification KYC complétée");
+      await logActivity(
+        "activation_force_override",
+        "order",
+        orderId,
+        {
+          override_reason: overrideReason,
+          blockers,
+          invoice_id: invoice?.id ?? null,
+          invoice_number: invoice?.invoice_number ?? null,
+          balance_due: invoice ? balanceDue : null,
+          kyc_status: kycStatus,
+          kyc_policy: kycPolicy,
+        },
+        { reason: overrideReason }
+      );
+      toast.warning("Activation forcée — raison enregistrée");
     }
 
     // Step 1: Call canonical provisioning RPC (idempotent — safe to call multiple times)
