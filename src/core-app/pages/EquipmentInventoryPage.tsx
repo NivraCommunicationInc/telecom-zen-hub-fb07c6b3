@@ -503,6 +503,31 @@ export default function EquipmentInventoryPage() {
         />
       </div>
 
+      {/* ═══ DEFECTIVE ALERT BANNER ═══ */}
+      {(counts.defective || 0) > 0 && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[12px] font-semibold text-red-300">
+                {counts.defective} équipement(s) défectueux à traiter
+              </p>
+              <p className="text-[11px] text-red-200/80 mt-0.5">
+                Ces unités sont retirées du stock disponible et nécessitent une décision (réparation, remplacement ou perte).
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStatusFilter("defective")}
+            className="h-7 text-[11px] border-red-500/40 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+          >
+            Voir
+          </Button>
+        </div>
+      )}
+
       {/* ═══ TABLE ═══ */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
         <div className="overflow-x-auto">
