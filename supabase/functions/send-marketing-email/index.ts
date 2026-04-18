@@ -10,6 +10,8 @@ interface SendRequest {
   client_ids?: string[];
   test_email?: string;
   subject_override?: string;
+  preview_count?: boolean;       // returns recipient count only, no send
+  segment_filters?: Record<string, unknown>; // for preview without a campaign row
 }
 
 interface Client {
