@@ -11,6 +11,7 @@ import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHea
 import { CoreAccountSummary } from "@/core-app/components/order-detail/CoreAccountSummary";
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { CoreWorkflowNav } from "@/core-app/components/order-detail/CoreWorkflowNav";
+import { CoreWorkflowProgress } from "@/core-app/components/order-detail/CoreWorkflowProgress";
 import { CoreOrderFilePanel } from "@/core-app/components/order-detail/CoreOrderFilePanel";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
 import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
