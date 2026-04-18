@@ -128,6 +128,11 @@ const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"))
 const CoreEmailMarketingPage = lazy(() => import("@/core-app/pages/CoreEmailMarketingPage"));
 const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommunicationEmailPage"));
 const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
+// Marketing Hub
+const MarketingHubDashboard = lazy(() => import("@/core-app/pages/marketing/MarketingHubDashboard"));
+const MarketingConversationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingConversationsPage"));
+const MarketingAIConfigPage = lazy(() => import("@/core-app/pages/marketing/MarketingAIConfigPage"));
+const MarketingSMSCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSMSCampaignsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreCommissionWithdrawalsPage = lazy(() => import("@/core-app/pages/CoreCommissionWithdrawalsPage"));
