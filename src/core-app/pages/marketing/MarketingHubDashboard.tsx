@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, MessageSquare, Send, TrendingUp, AlertCircle, DollarSign, Tag, Activity, Bot } from "lucide-react";
 import { Link } from "react-router-dom";
-import { corePath } from "@/core-app/lib/corePaths";
 
 type Stats = {
   active_conversations_today: number;
@@ -77,9 +76,9 @@ export default function MarketingHubDashboard() {
           <p className="text-sm text-muted-foreground">Vue d'ensemble des conversations IA et campagnes SMS</p>
         </div>
         <div className="flex gap-2 text-sm">
-          <Link to={corePath("/marketing/conversations")} className="px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80">Conversations</Link>
-          <Link to={corePath("/marketing/ai-config")} className="px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80">Agent IA</Link>
-          <Link to={corePath("/marketing/sms-campaigns")} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Nouvelle campagne</Link>
+          <Link to="/marketing/conversations" className="px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80">Conversations</Link>
+          <Link to="/marketing/ai-config" className="px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80">Agent IA</Link>
+          <Link to="/marketing/sms-campaigns" className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Nouvelle campagne</Link>
         </div>
       </div>
 
@@ -113,7 +112,7 @@ export default function MarketingHubDashboard() {
         <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Statut système</CardTitle></CardHeader>
         <CardContent className="text-sm space-y-1">
           <div>OpenPhone webhook: <span className="text-emerald-600 font-medium">Actif</span></div>
-          <div>Agent IA: <Link to={corePath("/marketing/ai-config")} className="text-primary underline">Configurer</Link></div>
+          <div>Agent IA: <Link to="/marketing/ai-config" className="text-primary underline">Configurer</Link></div>
           <div>Modèle: Lovable AI · Gemini 2.5 Pro</div>
         </CardContent>
       </Card>
