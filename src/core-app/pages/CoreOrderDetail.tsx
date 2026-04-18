@@ -1,35 +1,32 @@
 /**
- * CoreOrderDetail — Order processing console (rebuilt visual layer).
+ * CoreOrderDetail — Order processing console.
  *
- * Layout (per spec):
- *   ┌──────────────────────────────────────────────────┐
- *   │ TOPBAR: #order — Client | Status | $ | SLA       │
- *   ├──────────────────────────────────────────────────┤
- *   │ HORIZONTAL STEP BAR (11 step pills, scrollable)  │
- *   ├────────────┬─────────────────────────────────────┤
- *   │ SIDEBAR    │ Quick info strip                    │
- *   │ Step list  │ + StepContent (active step)         │
- *   └────────────┴─────────────────────────────────────┘
- *   + KYC panel + Activity timeline below
+ * Layout matches the canonical HTML reference:
+ *   ┌──────────────────────────────────────────────────────┐
+ *   │ HEADER (#0f1623 dark) — id · client · pills · SLA    │
+ *   ├──────────────────────────────────────────────────────┤
+ *   │ STEP RAIL (#0b0f1a) — horizontal scrollable tabs     │
+ *   ├──────────────┬───────────────────────────────────────┤
+ *   │ SIDEBAR 200px│  CONTENT (StepContent)                │
+ *   │  · steps     │                                       │
+ *   │  · quick acts│                                       │
+ *   ├──────────────┴───────────────────────────────────────┤
+ *   │ ACTION BAR — client summary · primary CTA            │
+ *   └──────────────────────────────────────────────────────┘
  *
- * All hooks (useOrderProcessing), Supabase queries, step components,
- * StepContent routing, signature/contract/PayPal/billing logic preserved.
+ * Logic-level imports / state / mutations are unchanged.
  */
 import { useParams, Link } from "react-router-dom";
 import { useOrderProcessing, WorkflowStepId, WorkflowStep } from "@/core-app/hooks/useOrderProcessing";
 import { corePath } from "@/core-app/lib/corePaths";
 import { CoreActivityTimeline } from "@/core-app/components/order-detail/CoreActivityTimeline";
 import { CoreKycPanel } from "@/core-app/components/order-detail/CoreKycPanel";
+import { CoreOrderHeader } from "@/core-app/components/order-detail/CoreOrderHeader";
 import { CoreQuickActions } from "@/core-app/components/order-detail/CoreQuickActions";
 import { StepContent } from "@/core-app/components/order-processing/StepContent";
-import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
-import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 import {
-  ArrowLeft, Loader2, ShoppingCart, RefreshCw, Copy,
-  Timer, CheckCircle2, AlertTriangle, Circle,
+  ArrowLeft, Loader2, ShoppingCart,
 } from "lucide-react";
-import { differenceInMinutes } from "date-fns";
-import { toast } from "sonner";
 
 const CoreOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -37,9 +34,9 @@ const CoreOrderDetail = () => {
   if (!orderId) {
     return (
       <div className="py-20 text-center">
-        <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-muted-foreground text-xs">Commande introuvable</p>
-        <Link to={corePath("/orders")} className="text-primary text-xs mt-2 inline-block hover:opacity-80">
+        <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-[#6b7a90]" />
+        <p className="text-[#8b9ab0] text-xs">Commande introuvable</p>
+        <Link to={corePath("/orders")} className="text-[#64b5f6] text-xs mt-2 inline-block hover:opacity-80">
           ← Retour aux commandes
         </Link>
       </div>
@@ -54,21 +51,21 @@ function OrderConsole({ orderId }: { orderId: string }) {
 
   if (proc.isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-6 w-6 animate-spin text-core-accent" />
-        <span className="ml-3 text-xs text-core-muted">Chargement du dossier…</span>
+      <div className="flex items-center justify-center h-96 bg-[#0a0e16]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#3b82f6]" />
+        <span className="ml-3 text-xs text-[#8b9ab0]">Chargement du dossier…</span>
       </div>
     );
   }
 
   if (proc.error || !proc.order) {
     return (
-      <div className="rounded-lg border border-core-danger/25 bg-core-danger/5 p-8 text-center">
-        <p className="text-core-danger font-medium text-sm">Erreur de chargement</p>
-        <p className="text-xs text-core-muted mt-1">
+      <div className="rounded-lg border border-[#7f0000] bg-[#2d0a0a] p-8 text-center">
+        <p className="text-[#ef9a9a] font-medium text-sm">Erreur de chargement</p>
+        <p className="text-xs text-[#8b9ab0] mt-1">
           {proc.error instanceof Error ? proc.error.message : "Commande introuvable"}
         </p>
-        <Link to={corePath("/orders")} className="text-core-accent text-xs mt-3 inline-block hover:opacity-80">
+        <Link to={corePath("/orders")} className="text-[#64b5f6] text-xs mt-3 inline-block hover:opacity-80">
           ← Retour aux commandes
         </Link>
       </div>
@@ -85,159 +82,96 @@ function OrderConsole({ orderId }: { orderId: string }) {
     order.client_full_name ||
     "—";
   const clientEmail = order.client_email || profile?.email || "—";
+  const clientPhone = order.client_phone || profile?.phone || "";
   const orderNumber = order.order_number || `#${order.id.slice(0, 8)}`;
   const totalAmount = order.total_amount != null
     ? `${Number(order.total_amount).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`
     : "—";
-  const installationType =
-    order.installation_type ||
-    order.fulfillment_type ||
-    (order.requires_technician ? "Technicien" : "Auto-installation");
 
-  const slaInfo = computeSlaCountdown(order.sla_deadline, order.sla_status, order.status);
+  // Build header product-line summary (e.g. "GIGA + TV 25 choix · Terminal Nivra 4K · Router Born Wifi")
+  const lineItems: string[] = Array.isArray((order as any).items)
+    ? ((order as any).items as any[]).map((it) => it?.name || it?.label).filter(Boolean)
+    : [];
+  const productSummary = lineItems.length
+    ? lineItems.join(" · ")
+    : (order.service_type || "—");
 
   return (
-    <div className="space-y-3">
-      {/* ═══ BACK NAV ═══ */}
+    <div className="space-y-2">
+      {/* Back nav */}
       <Link
         to={corePath("/orders")}
-        className="inline-flex items-center gap-1.5 text-[11px] text-core-muted hover:text-core-fg transition-colors"
+        className="inline-flex items-center gap-1.5 text-[11px] text-[#6b7a90] hover:text-white transition-colors mb-1"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Commandes
       </Link>
 
-      {/* ═══ TOPBAR ═══ */}
-      <div className="rounded-xl border border-core-border bg-core-card p-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="h-10 w-10 rounded-lg bg-core-accent/15 border border-core-accent/30 flex items-center justify-center shrink-0">
-            <ShoppingCart className="h-4.5 w-4.5 text-core-accent" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-[15px] font-bold text-core-fg tracking-tight font-mono truncate">
-                {orderNumber}
-              </h1>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(order.order_number || order.id);
-                  toast.success("Copié");
-                }}
-                className="text-core-muted-soft hover:text-core-fg transition-colors"
-                title="Copier"
-              >
-                <Copy className="h-3 w-3" />
-              </button>
-              <span className="text-[13px] font-semibold text-core-fg">— {clientName}</span>
-            </div>
-            <p className="text-[11px] text-core-muted mt-0.5">
-              {order.service_type || "—"} · {clientEmail}
-            </p>
-          </div>
-        </div>
+      {/* Main shell — single dark container */}
+      <div className="rounded-lg border border-[#1e2535] bg-[#0a0e16] overflow-hidden shadow-2xl">
+        {/* HEADER */}
+        <CoreOrderHeader
+          order={order}
+          profile={profile}
+          account={account}
+          clientName={clientName}
+          clientEmail={clientEmail}
+          clientPhone={clientPhone}
+          productSummary={productSummary}
+          orderNumber={orderNumber}
+          totalAmount={totalAmount}
+          onRefresh={() => proc.refetch()}
+        />
 
-        <div className="flex items-center gap-2 ml-auto flex-wrap">
-          <StatusBadge label={order.status} variant={statusToVariant(order.status)} size="sm" />
-          {order.payment_status && (
-            <StatusBadge label={order.payment_status} variant={statusToVariant(order.payment_status)} size="sm" />
-          )}
-          <span className="inline-flex items-center gap-1 rounded-full bg-core-success/10 border border-core-success/25 px-2.5 py-1 text-[12px] font-semibold text-core-success tabular-nums">
-            {totalAmount}
-          </span>
-          {slaInfo && (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-mono font-semibold tabular-nums ${slaInfo.className}`}
-            >
-              <Timer className={`h-3 w-3 ${slaInfo.urgency === "overdue" ? "animate-pulse" : ""}`} />
-              {slaInfo.label}
-            </span>
-          )}
-          {(profile?.user_id || order.user_id) && (
-            <ImpersonateButton
-              variant="compact"
-              clientId={profile?.user_id || order.user_id}
-              clientEmail={clientEmail}
-              clientName={clientName}
-            />
-          )}
-          <button
-            onClick={() => proc.refetch()}
-            className="inline-flex items-center gap-1 rounded-full border border-core-border bg-core-card-raised px-2.5 py-1 text-[11px] text-core-muted hover:text-core-fg hover:border-core-accent/30 transition-colors"
-            title="Actualiser"
-          >
-            <RefreshCw className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-
-      {/* ═══ HORIZONTAL STEP BAR ═══ */}
-      <HorizontalStepBar
-        steps={proc.workflow}
-        activeStep={proc.activeStep}
-        onStepClick={(id) => proc.setActiveStep(id)}
-      />
-
-      {/* ═══ MAIN: SIDEBAR | RIGHT CONTENT ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-3">
-        {/* LEFT SIDEBAR */}
-        <SidebarStepList
+        {/* HORIZONTAL STEP RAIL */}
+        <HorizontalStepRail
           steps={proc.workflow}
           activeStep={proc.activeStep}
           onStepClick={(id) => proc.setActiveStep(id)}
         />
 
-        {/* RIGHT CONTENT AREA */}
-        <div className="space-y-3 min-w-0">
-          {/* Quick client info strip — always visible */}
-          <div
-            style={{
-              display: "flex",
-              gap: "16px",
-              padding: "12px",
-              background: "#111",
-              borderRadius: "8px",
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ color: "#666", fontSize: "11px" }}>
-              Client: <strong style={{ color: "white" }}>{clientName}</strong>
-            </span>
-            <span style={{ color: "#666", fontSize: "11px" }}>
-              Email: <strong style={{ color: "white" }}>{clientEmail}</strong>
-            </span>
-            <span style={{ color: "#666", fontSize: "11px" }}>
-              Commande: <strong style={{ color: "white" }}>#{order.order_number || order.id.slice(0, 8)}</strong>
-            </span>
-            <span style={{ color: "#666", fontSize: "11px" }}>
-              Montant: <strong style={{ color: "#10B981" }}>{totalAmount}</strong>
-            </span>
-            <span style={{ color: "#666", fontSize: "11px" }}>
-              Type: <strong style={{ color: "#a78bfa" }}>{installationType}</strong>
-            </span>
+        {/* BODY: SIDEBAR | CONTENT */}
+        <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] min-h-[560px]">
+          {/* SIDEBAR */}
+          <SidebarStepList
+            steps={proc.workflow}
+            activeStep={proc.activeStep}
+            onStepClick={(id) => proc.setActiveStep(id)}
+            proc={proc}
+          />
+
+          {/* CONTENT */}
+          <div className="bg-[#0a0e16] border-l border-[#1e2535] overflow-x-auto">
+            <div className="p-4">
+              <StepContent proc={proc} />
+            </div>
           </div>
+        </div>
 
-          {/* Quick Actions row (preserved) */}
-          <CoreQuickActions proc={proc} />
-
-          {/* Active step content — UNCHANGED routing */}
-          <div className="rounded-xl border border-core-border bg-core-card p-5 min-h-[520px]">
-            <StepContent proc={proc} />
+        {/* ACTION BAR — fixed bottom of console */}
+        <div className="px-4 py-2.5 border-t border-[#1e2535] bg-[#0f1623] flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3 text-[11px] text-[#8b9ab0] flex-wrap min-w-0">
+            <span>Client: <strong className="text-white">{clientName}</strong></span>
+            <span className="text-[#3a4456]">·</span>
+            <span>Compte: <strong className="text-white font-mono">{account?.account_number || "—"}</strong></span>
+            <span className="text-[#3a4456]">·</span>
+            <span>Total: <strong className="text-[#81c784]">{totalAmount}</strong></span>
           </div>
-
-          {/* KYC panel (preserved) */}
-          <CoreKycPanel order={proc.order} onRefresh={() => proc.refetch()} />
         </div>
       </div>
 
-      {/* ═══ BOTTOM: Activity Timeline ═══ */}
-      <CoreActivityTimeline logs={proc.activityLogs} onAddNote={proc.addNote} />
+      {/* KYC panel + Activity timeline (preserved, below the console) */}
+      <div className="space-y-3 mt-3">
+        <CoreKycPanel order={proc.order} onRefresh={() => proc.refetch()} />
+        <CoreActivityTimeline logs={proc.activityLogs} onAddNote={proc.addNote} />
+      </div>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════
- * HORIZONTAL STEP BAR — 11 step pills, scrollable
+ * HORIZONTAL STEP RAIL — dark scrollable tabs
  * ═══════════════════════════════════════════════════════ */
-function HorizontalStepBar({
+function HorizontalStepRail({
   steps,
   activeStep,
   onStepClick,
@@ -247,165 +181,104 @@ function HorizontalStepBar({
   onStepClick: (id: WorkflowStepId) => void;
 }) {
   return (
-    <div className="rounded-xl border border-core-border bg-core-card px-3 py-3">
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        {steps.map((step, idx) => {
-          const isActive = step.id === activeStep;
-          const isCompleted = step.status === "completed";
-          const isBlocked = step.status === "blocked";
+    <div className="flex overflow-x-auto bg-[#0b0f1a] border-b border-[#1e2535] scrollbar-thin">
+      {steps.map((step, idx) => {
+        const isActive = step.id === activeStep;
+        const isCompleted = step.status === "completed";
+        const isBlocked = step.status === "blocked";
 
-          let pillClass =
-            "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all whitespace-nowrap border ";
-          if (isActive) {
-            pillClass +=
-              "bg-core-accent text-white border-core-accent shadow-[0_0_18px_-4px_hsl(var(--core-accent)/0.6)]";
-          } else if (isCompleted) {
-            pillClass +=
-              "bg-core-success/10 text-core-success border-core-success/30 hover:bg-core-success/15";
-          } else if (isBlocked) {
-            pillClass +=
-              "bg-core-danger/10 text-core-danger border-core-danger/30 hover:bg-core-danger/15";
-          } else {
-            pillClass +=
-              "bg-core-card-raised text-core-muted border-core-border hover:text-core-fg hover:border-core-accent/30";
-          }
+        let cls =
+          "shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 text-[11px] cursor-pointer border-r border-[#1e2535] transition-colors whitespace-nowrap ";
+        if (isActive) {
+          cls += "bg-[#131929] text-white border-b-2 border-b-[#3b82f6]";
+        } else if (isCompleted) {
+          cls += "text-[#4caf50] hover:bg-[#131929] hover:text-[#a5d6a7]";
+        } else if (isBlocked) {
+          cls += "text-[#f59e0b] hover:bg-[#131929]";
+        } else {
+          cls += "text-[#6b7a90] hover:bg-[#131929] hover:text-[#c0c9d8]";
+        }
 
-          return (
-            <button key={step.id} onClick={() => onStepClick(step.id)} className={pillClass} title={step.label}>
-              {isCompleted && !isActive ? (
-                <CheckCircle2 className="h-3 w-3" />
-              ) : isBlocked && !isActive ? (
-                <AlertTriangle className="h-3 w-3" />
-              ) : (
-                <span className="inline-flex items-center justify-center h-4 w-4 rounded-full text-[10px] font-bold bg-black/20">
-                  {idx + 1}
-                </span>
-              )}
-              {step.label}
-            </button>
-          );
-        })}
-      </div>
+        return (
+          <button key={step.id} onClick={() => onStepClick(step.id)} className={cls} title={step.label}>
+            <span className="text-[10px] opacity-60 font-mono">{idx + 1}</span>
+            {step.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════
- * LEFT SIDEBAR — Step list with status dots
+ * SIDEBAR — vertical step list + quick actions
  * ═══════════════════════════════════════════════════════ */
 function SidebarStepList({
   steps,
   activeStep,
   onStepClick,
+  proc,
 }: {
   steps: WorkflowStep[];
   activeStep: WorkflowStepId;
   onStepClick: (id: WorkflowStepId) => void;
+  proc: any;
 }) {
-  const completedCount = steps.filter((s) => s.status === "completed").length;
-
   return (
-    <aside className="rounded-xl border border-core-border bg-core-card overflow-hidden self-start">
-      <div className="px-3.5 py-3 border-b border-core-border flex items-center justify-between">
-        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-core-muted">Étapes</h3>
-        <span className="text-[10px] font-mono text-core-accent tabular-nums">
-          {completedCount}/{steps.length}
-        </span>
+    <aside className="bg-[#0d121d] py-3 px-2">
+      <div className="text-[10px] font-semibold tracking-[0.07em] uppercase text-[#6b7a90] px-2 pb-1.5">
+        Navigation
       </div>
 
-      <nav className="p-1.5 space-y-0.5">
+      <nav className="space-y-0.5">
         {steps.map((step, idx) => {
           const isActive = step.id === activeStep;
           const isCompleted = step.status === "completed";
           const isBlocked = step.status === "blocked";
 
-          let rowClass =
-            "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all duration-150 border ";
+          let rowCls =
+            "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-[12px] transition-colors ";
           if (isActive) {
-            rowClass += "bg-core-accent/15 border-core-accent/30";
+            rowCls += "bg-[#0a0e16] text-white font-medium";
+          } else if (isCompleted) {
+            rowCls += "text-[#9eb0c5] hover:bg-[#0a0e16] hover:text-white";
+          } else if (isBlocked) {
+            rowCls += "text-[#f59e0b] hover:bg-[#0a0e16]";
           } else {
-            rowClass += "border-transparent hover:bg-core-card-raised hover:border-core-border";
+            rowCls += "text-[#7c8ba1] hover:bg-[#0a0e16] hover:text-[#c0c9d8]";
+          }
+
+          let iconCls =
+            "w-4 h-4 rounded-full border-[1.5px] flex items-center justify-center text-[9px] shrink-0 ";
+          if (isCompleted) {
+            iconCls += "bg-[#1b4a1b] border-[#2e7d32] text-[#81c784]";
+          } else if (isActive) {
+            iconCls += "bg-[#1565c0] border-[#1976d2] text-[#90caf9]";
+          } else if (isBlocked) {
+            iconCls += "bg-[#5a3500] border-[#f59e0b] text-[#ffd54f]";
+          } else {
+            iconCls += "border-[#2a3142] text-[#6b7a90]";
           }
 
           return (
-            <button key={step.id} onClick={() => onStepClick(step.id)} className={rowClass}>
-              <span className="shrink-0">
-                {isActive ? (
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-core-accent text-[10px] font-bold text-white">
-                    {idx + 1}
-                  </span>
-                ) : isCompleted ? (
-                  <CheckCircle2 className="w-[18px] h-[18px] text-core-success" />
-                ) : isBlocked ? (
-                  <AlertTriangle className="w-[18px] h-[18px] text-core-danger" />
-                ) : (
-                  <Circle className="w-[18px] h-[18px] text-core-muted-soft" />
-                )}
+            <button key={step.id} onClick={() => onStepClick(step.id)} className={rowCls}>
+              <span className={iconCls}>
+                {isCompleted ? "✓" : isBlocked ? "!" : idx + 1}
               </span>
-
-              <span
-                className={`text-[12px] truncate flex-1 ${
-                  isActive
-                    ? "text-core-accent font-semibold"
-                    : isCompleted
-                    ? "text-core-fg/80"
-                    : isBlocked
-                    ? "text-core-danger"
-                    : "text-core-muted"
-                }`}
-              >
-                {step.label}
-              </span>
-
-              {/* Status dot */}
-              <span
-                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                  isCompleted
-                    ? "bg-core-success"
-                    : isBlocked
-                    ? "bg-core-danger"
-                    : isActive
-                    ? "bg-core-accent"
-                    : "bg-core-border-strong"
-                }`}
-              />
+              <span className="truncate">{step.label}</span>
             </button>
           );
         })}
       </nav>
+
+      <div className="h-px bg-[#1e2535] my-3" />
+
+      <div className="text-[10px] font-semibold tracking-[0.07em] uppercase text-[#6b7a90] px-2 pb-1.5">
+        Actions rapides
+      </div>
+      <CoreQuickActions proc={proc} layout="sidebar" />
     </aside>
   );
-}
-
-/* ═══════════════════════════════════════════════════════
- * SLA helper
- * ═══════════════════════════════════════════════════════ */
-function computeSlaCountdown(
-  deadline: string | null | undefined,
-  status: string | null | undefined,
-  orderStatus: string,
-): { label: string; className: string; urgency: "ok" | "warning" | "overdue" } | null {
-  if (["activated", "completed", "cancelled", "installation_completed", "delivered"].includes(orderStatus)) {
-    return null;
-  }
-  if (!deadline) return null;
-
-  const minsLeft = differenceInMinutes(new Date(deadline), new Date());
-
-  if (status === "overdue" || minsLeft < 0) {
-    const overdue = Math.abs(minsLeft);
-    const label = overdue >= 60 ? `DÉPASSÉ ${Math.floor(overdue / 60)}h` : `DÉPASSÉ ${overdue}min`;
-    return { label, className: "bg-core-danger/15 text-core-danger border-core-danger/30", urgency: "overdue" };
-  }
-  if (minsLeft < 60 || status === "warning") {
-    return { label: `${minsLeft} min`, className: "bg-core-warning/15 text-core-warning border-core-warning/30", urgency: "warning" };
-  }
-  const hoursLeft = Math.floor(minsLeft / 60);
-  return {
-    label: `${hoursLeft}h restantes`,
-    className: "bg-core-success/15 text-core-success border-core-success/30",
-    urgency: "ok",
-  };
 }
 
 export default CoreOrderDetail;
