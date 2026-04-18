@@ -3725,9 +3725,13 @@ export type Database = {
           admin_signed_at: string | null
           admin_signer_id: string | null
           admin_signer_name: string | null
+          client_consent_accepted: boolean | null
           client_signature: string | null
           client_signature_type: string | null
           client_signed_at: string | null
+          client_signed_ip: string | null
+          client_signed_user_agent: string | null
+          client_signer_name: string | null
           contract_name: string
           contract_number: string | null
           contract_pdf_stored_at: string | null
@@ -3742,6 +3746,7 @@ export type Database = {
           pdf_hash: string | null
           sent_at: string | null
           sent_count: number | null
+          signature_method: string | null
           signature_token: string | null
           signature_token_expires_at: string | null
           signature_token_hash: string | null
@@ -3759,9 +3764,13 @@ export type Database = {
           admin_signed_at?: string | null
           admin_signer_id?: string | null
           admin_signer_name?: string | null
+          client_consent_accepted?: boolean | null
           client_signature?: string | null
           client_signature_type?: string | null
           client_signed_at?: string | null
+          client_signed_ip?: string | null
+          client_signed_user_agent?: string | null
+          client_signer_name?: string | null
           contract_name: string
           contract_number?: string | null
           contract_pdf_stored_at?: string | null
@@ -3776,6 +3785,7 @@ export type Database = {
           pdf_hash?: string | null
           sent_at?: string | null
           sent_count?: number | null
+          signature_method?: string | null
           signature_token?: string | null
           signature_token_expires_at?: string | null
           signature_token_hash?: string | null
@@ -3793,9 +3803,13 @@ export type Database = {
           admin_signed_at?: string | null
           admin_signer_id?: string | null
           admin_signer_name?: string | null
+          client_consent_accepted?: boolean | null
           client_signature?: string | null
           client_signature_type?: string | null
           client_signed_at?: string | null
+          client_signed_ip?: string | null
+          client_signed_user_agent?: string | null
+          client_signer_name?: string | null
           contract_name?: string
           contract_number?: string | null
           contract_pdf_stored_at?: string | null
@@ -3810,6 +3824,7 @@ export type Database = {
           pdf_hash?: string | null
           sent_at?: string | null
           sent_count?: number | null
+          signature_method?: string | null
           signature_token?: string | null
           signature_token_expires_at?: string | null
           signature_token_hash?: string | null
@@ -10242,6 +10257,8 @@ export type Database = {
           shipping_province: string | null
           sim_number: string | null
           sim_type: string | null
+          sla_deadline: string | null
+          sla_status: string | null
           snapshot_total: number | null
           status: string
           subtotal: number | null
@@ -10349,6 +10366,8 @@ export type Database = {
           shipping_province?: string | null
           sim_number?: string | null
           sim_type?: string | null
+          sla_deadline?: string | null
+          sla_status?: string | null
           snapshot_total?: number | null
           status?: string
           subtotal?: number | null
@@ -10456,6 +10475,8 @@ export type Database = {
           shipping_province?: string | null
           sim_number?: string | null
           sim_type?: string | null
+          sla_deadline?: string | null
+          sla_status?: string | null
           snapshot_total?: number | null
           status?: string
           subtotal?: number | null
@@ -17532,6 +17553,16 @@ export type Database = {
         }
         Returns: Json
       }
+      consume_contract_signature_token: {
+        Args: {
+          p_consent?: boolean
+          p_signer_ip: string
+          p_signer_name?: string
+          p_signer_user_agent: string
+          p_token: string
+        }
+        Returns: Json
+      }
       create_activity_log: {
         Args: {
           p_action: string
@@ -17658,6 +17689,7 @@ export type Database = {
         Args: { p_lookahead_days?: number }
         Returns: Json
       }
+      fn_update_orders_sla_status: { Args: never; Returns: Json }
       fn_validate_client_referral: {
         Args: {
           p_referral_code: string
@@ -17740,6 +17772,7 @@ export type Database = {
           total_debits: number
         }[]
       }
+      get_contract_for_signing: { Args: { p_token: string }; Returns: Json }
       get_entries_allocation_counts: {
         Args: { p_entry_ids: string[] }
         Returns: {
