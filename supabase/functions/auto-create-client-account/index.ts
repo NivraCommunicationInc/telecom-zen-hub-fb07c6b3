@@ -120,18 +120,34 @@ serve(async (req) => {
       }
     } else {
       // Update profile with any missing data
+      // ★ FIX #1/#10: Backfill DOB on profile UPDATE branch if missing.
+      // Previously DOB was only set on profile INSERT, causing 94% of orders to
+      // have NULL client_dob when the profile already existed.
+      const updatePayload: Record<string, unknown> = {
+        first_name: body.first_name,
+        last_name: body.last_name,
+        full_name: `${body.first_name} ${body.last_name}`.trim(),
+        phone: body.phone || undefined,
+        service_address: body.service_address || undefined,
+        service_city: body.service_city || undefined,
+        service_postal_code: body.service_postal_code || undefined,
+        updated_at: new Date().toISOString(),
+      };
+      if (body.date_of_birth) {
+        // Re-fetch to avoid overwriting an existing locked DOB
+        const { data: dobRow } = await supabase
+          .from("profiles")
+          .select("date_of_birth")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (!dobRow?.date_of_birth) {
+          updatePayload.date_of_birth = body.date_of_birth;
+          updatePayload.dob_locked = true;
+        }
+      }
       await supabase
         .from("profiles")
-        .update({
-          first_name: body.first_name,
-          last_name: body.last_name,
-          full_name: `${body.first_name} ${body.last_name}`.trim(),
-          phone: body.phone || undefined,
-          service_address: body.service_address || undefined,
-          service_city: body.service_city || undefined,
-          service_postal_code: body.service_postal_code || undefined,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("user_id", userId);
     }
 

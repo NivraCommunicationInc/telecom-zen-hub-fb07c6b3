@@ -425,13 +425,35 @@ serve(async (req) => {
           full_name: `${payload.customer.first_name || ""} ${payload.customer.last_name || ""}`.trim() || null,
           phone: payload.customer.phone || null,
           preferred_language: payload.client_language === "fr" ? "fr" : "en",
+          // ★ FIX #1/#10: Always persist DOB on initial profile creation
+          date_of_birth: payload.customer.date_of_birth || null,
+          dob_locked: payload.customer.date_of_birth ? true : false,
         });
-      } else if (payload.client_language === "fr" || payload.client_language === "en") {
-        await admin
-          .from("profiles")
-          .update({ preferred_language: payload.client_language })
-          .eq("user_id", payload.customer.user_id)
-          .is("preferred_language", null);
+      } else {
+        // ★ FIX #1/#10: Backfill DOB on existing profile if missing — without this,
+        // 94% of orders ended up with NULL client_dob and contracts had blank DOB.
+        const updatePatch: Record<string, unknown> = {};
+        if (payload.client_language === "fr" || payload.client_language === "en") {
+          updatePatch.preferred_language = payload.client_language;
+        }
+        if (payload.customer.date_of_birth) {
+          // Only set if profile is missing it — never overwrite a locked DOB
+          const { data: existingDob } = await admin
+            .from("profiles")
+            .select("date_of_birth")
+            .eq("user_id", payload.customer.user_id)
+            .maybeSingle();
+          if (!existingDob?.date_of_birth) {
+            updatePatch.date_of_birth = payload.customer.date_of_birth;
+            updatePatch.dob_locked = true;
+          }
+        }
+        if (Object.keys(updatePatch).length > 0) {
+          await admin
+            .from("profiles")
+            .update(updatePatch)
+            .eq("user_id", payload.customer.user_id);
+        }
       }
 
       const { data: afterProfile } = await admin
@@ -764,12 +786,14 @@ serve(async (req) => {
               net_line_sum: netLineSum,
               expected_taxable_base: expectedSubtotal,
               delta: lineDelta,
-              match: lineDelta < 0.02 ? "✅" : "⚠️ MISMATCH",
+              match: lineDelta < 0.01 ? "✅" : "⚠️ MISMATCH",
               lines_count: invoiceLines.length,
             });
 
-            // If mismatch, update invoice subtotal to match actual lines
-            if (lineDelta >= 0.02) {
+            // ★ FIX #2: Tightened threshold from 0.02 → 0.01 to catch all subtotal
+            // discrepancies. The actual line totals are the source of truth — taxes
+            // must be computed against them, not against pricing_snapshot.taxable_base.
+            if (lineDelta >= 0.01) {
               console.warn(`[checkout-canonical-sync] ⚠️ Correcting invoice subtotal from ${expectedSubtotal} to ${netLineSum} to match line totals`);
               const correctedTps = toMoney(netLineSum * 0.05);
               const correctedTvq = toMoney(netLineSum * 0.09975);
