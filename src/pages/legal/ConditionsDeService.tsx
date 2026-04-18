@@ -223,7 +223,6 @@ const ConditionsDeService = () => {
               <h2 className="text-2xl font-display font-bold text-foreground">Contact</h2>
               <ul className="list-none space-y-2">
                 <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
-                <li><strong>Téléphone :</strong> {COMPANY_CONTACT.supportPhoneDisplay}</li>
                 <li><strong>Adresse :</strong> {COMPANY_CONTACT.fullAddress}</li>
                 <li><strong>Heures :</strong> {COMPANY_CONTACT.supportHours}</li>
               </ul>

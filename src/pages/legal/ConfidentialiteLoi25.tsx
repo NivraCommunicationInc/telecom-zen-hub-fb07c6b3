@@ -163,7 +163,6 @@ const ConfidentialiteLoi25 = () => {
               </p>
               <ul className="list-none space-y-2">
                 <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
-                <li><strong>Téléphone :</strong> {COMPANY_CONTACT.supportPhoneDisplay}</li>
                 <li><strong>Adresse :</strong> {COMPANY_CONTACT.fullAddress}</li>
               </ul>
             </section>

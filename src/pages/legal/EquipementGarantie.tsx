@@ -104,7 +104,6 @@ const EquipementGarantie = () => {
               <h2 className="text-2xl font-display font-bold text-foreground">Contact support équipement</h2>
               <ul className="list-none space-y-2">
                 <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
-                <li><strong>Téléphone :</strong> {COMPANY_CONTACT.supportPhoneDisplay}</li>
                 <li><strong>Portail client :</strong> Section « Remplacement équipement »</li>
               </ul>
             </section>

@@ -300,14 +300,10 @@ export const ConfirmationSuccess = ({
         )}
       </div>
 
-      {/* Contact Support */}
+      {/* Contact Support — email only (no phone support at Nivra) */}
       <Card className="bg-muted/50 border-border">
         <CardContent className="py-4">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
-            <a href={getTelLink()} className="flex items-center gap-2 hover:text-foreground transition-colors">
-              <Phone className="w-4 h-4" />
-              {COMPANY_CONTACT.supportPhoneDisplay}
-            </a>
             <a href={getMailtoLink()} className="flex items-center gap-2 hover:text-foreground transition-colors">
               <Mail className="w-4 h-4" />
               {COMPANY_CONTACT.supportEmailDisplay}

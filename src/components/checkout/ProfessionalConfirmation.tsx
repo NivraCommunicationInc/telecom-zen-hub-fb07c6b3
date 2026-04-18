@@ -112,24 +112,22 @@ interface ProfessionalConfirmationProps {
   onAddToCalendar?: () => void;
 }
 
-// Inline contact info component using site_settings
+// Inline contact info component using site_settings — email & hours only.
+// Nivra does NOT provide phone support: courriel + clavardage uniquement.
 const ContactInfoInline = ({ isFrench }: { isFrench: boolean }) => {
   const { data: siteSettings } = useSiteSettings();
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
   const supportEmail = siteSettings?.support_email || COMPANY_CONTACT.supportEmailDisplay;
   const businessHours = siteSettings?.business_hours || COMPANY_CONTACT.supportHours;
-  const supportPhoneTel = supportPhone.replace(/[^+\d]/g, '');
-  
+
   return (
     <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-      <a href={`tel:+1${supportPhoneTel}`} className="flex items-center gap-2 hover:text-foreground transition-colors">
-        <Phone className="w-4 h-4" />
-        {supportPhone}
-      </a>
-      <span className="flex items-center gap-2">
+      <a
+        href={`mailto:${supportEmail.toLowerCase()}`}
+        className="flex items-center gap-2 hover:text-foreground transition-colors"
+      >
         <Mail className="w-4 h-4" />
         {supportEmail}
-      </span>
+      </a>
       <span className="flex items-center gap-2">
         <Clock className="w-4 h-4" />
         {businessHours}
