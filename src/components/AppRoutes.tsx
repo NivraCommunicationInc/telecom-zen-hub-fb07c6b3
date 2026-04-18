@@ -20,6 +20,8 @@ const FieldAppLayout = lazy(() => import("@/field-app/FieldAppLayout"));
 // RH Portal (lazy-loaded, fully isolated)
 const RhAppLayout = lazy(() => import("@/rh-app/RhAppLayout"));
 const RhProtectedRoute = lazy(() => import("@/rh-app/components/RhProtectedRoute"));
+const MarketingAppLayout = lazy(() => import("@/marketing-app/MarketingAppLayout"));
+const MarketingProtectedRoute = lazy(() => import("@/marketing-app/components/MarketingProtectedRoute"));
 const RhDashboard = lazy(() => import("@/rh-app/pages/RhDashboard"));
 const RhPayslips = lazy(() => import("@/rh-app/pages/RhPayslips"));
 const RhTaxDocuments = lazy(() => import("@/rh-app/pages/RhTaxDocuments"));
@@ -704,8 +706,20 @@ const AppRoutes = () => {
       {/* Core login removed — all access through /hub */}
       <Route path="/core/login" element={<Navigate to="/hub" replace />} />
 
-      {/* Top-level alias for Marketing Hub */}
-      <Route path="/marketing" element={<Navigate to="/core/marketing" replace />} />
+      {/* ============================================ */}
+      {/* MARKETING HUB — Dedicated Admin Portal       */}
+      {/* ============================================ */}
+      <Route path="/marketing" element={<Suspense fallback={<div className="min-h-screen bg-background" />}><MarketingProtectedRoute /></Suspense>}>
+        <Route element={<Suspense fallback={null}><MarketingAppLayout /></Suspense>}>
+          <Route index element={<Suspense fallback={null}><MarketingHubDashboard /></Suspense>} />
+          <Route path="conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
+          <Route path="ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
+          <Route path="sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
+          <Route path="live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
+          <Route path="email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
+        </Route>
+      </Route>
 
       {/* Protected: All /core/* routes behind auth gate */}
       <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense>}>
