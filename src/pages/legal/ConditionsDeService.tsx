@@ -82,6 +82,52 @@ const ConditionsDeService = () => {
               </ul>
             </section>
 
+            <section className="space-y-4 rounded-2xl p-6" style={{ background: '#EDE9FF', border: '1px solid #DDD6FE' }}>
+              <h2 className="text-2xl font-display font-bold" style={{ color: '#5B21B6' }}>
+                2.3. Garantie satisfait ou remboursé — 30 jours
+              </h2>
+              <p className="text-foreground">
+                Vous avez <strong>30 jours</strong> pour essayer le service Nivra Telecom sans risque.
+              </p>
+
+              <div>
+                <p className="font-semibold text-foreground mb-2">Ce qui est remboursé :</p>
+                <ul className="list-none pl-0 space-y-1.5">
+                  <li>✅ Frais d'équipement (borne WiFi, terminal TV)</li>
+                  <li>✅ Nivra paie les frais de retour (waybill fourni)</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-semibold text-foreground mb-2">Ce qui n'est pas remboursé :</p>
+                <ul className="list-none pl-0 space-y-1.5">
+                  <li>❌ Frais d'activation (10$)</li>
+                  <li>❌ Frais de livraison (20$)</li>
+                  <li>❌ Frais d'installation technicien (si applicable)</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-semibold text-foreground mb-2">Comment procéder :</p>
+                <ol className="list-decimal pl-6 space-y-1.5">
+                  <li>Contactez-nous à {COMPANY_CONTACT.supportEmailDisplay} dans les 30 jours suivant la réception</li>
+                  <li>Nous vous envoyons un waybill de retour gratuit par courriel</li>
+                  <li>Retournez l'équipement dans son emballage d'origine en bon état</li>
+                  <li>Remboursement effectué via votre méthode de paiement originale dans 3 à 5 jours ouvrables après réception</li>
+                </ol>
+              </div>
+
+              <p className="text-sm text-muted-foreground italic">
+                L'équipement doit être retourné en bon état, dans son emballage d'origine, avec tous les accessoires inclus.
+              </p>
+
+              <p className="text-sm">
+                <Link to="/garantie" className="text-primary font-semibold hover:underline">
+                  Voir tous les détails de la garantie →
+                </Link>
+              </p>
+            </section>
+
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">3. Litiges PayPal et Chargebacks</h2>
               <p>

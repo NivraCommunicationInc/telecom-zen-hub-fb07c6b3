@@ -115,14 +115,25 @@ export const CONTRACT_TERMS = {
     afterDeliveryCharge: "Service remains active until end of paid/prepaid period",
     beforeDeliveryCharge: "Equipment + delivery fees may apply",
     nonReturnFee: "Variable after Admin validation",
-    returnDays: 14,
+    returnDays: 30, // 30-day satisfaction guarantee window
     equipmentRemoval: "Service channels, equipment, and bindings must be removed from the client profile automatically",
     recordPersistence: "All invoices, contracts, and order logs must persist and never disappear from Admin records",
   },
-  
+
+  // 30-Day Satisfaction Guarantee (Money-Back)
+  satisfactionGuarantee: {
+    enabled: true,
+    days: 30,
+    refundable: ["Equipment fees (WiFi router, TV terminal)"],
+    nonRefundable: ["Activation fee ($10)", "Delivery fee ($20)", "Technician installation fee (if applicable)"],
+    nivraPaysReturnShipping: true,
+    refundProcessingDays: "3 to 5 business days after equipment receipt",
+    requirement: "Equipment must be returned in good condition, in original packaging, with all accessories included.",
+  },
+
   warranty: {
     duration: "1 year",
-    doaDays: 14, // DOA exchange window
+    doaDays: 30, // Aligned with satisfaction guarantee window
     coverage: "Manufacturing defects only",
     exclusions: ["Client-caused damage", "Loss or theft", "Liquid damage", "Physical impact", "Unauthorized modifications"],
   },

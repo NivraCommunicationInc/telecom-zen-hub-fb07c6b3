@@ -1089,6 +1089,31 @@ const GuestCheckout = () => {
                         <span className="text-[11px] font-extrabold text-white px-2.5 py-1 rounded -ml-1" style={{ background: '#F79E1B' }}>●</span>
                       </div>
 
+                      {/* Reassurance box — first month free + 30-day guarantee */}
+                      <div
+                        className="rounded-xl border p-4 mb-3"
+                        style={{ background: '#ECFDF5', borderColor: '#A7F3D0' }}
+                      >
+                        <ul className="space-y-1.5 text-[13px] leading-relaxed" style={{ color: '#065F46' }}>
+                          <li className="flex items-start gap-2">
+                            <span className="shrink-0">✅</span>
+                            <span>
+                              <strong>Premier mois 100% gratuit</strong> — vous ne payez que l'équipement aujourd'hui
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="shrink-0">🔄</span>
+                            <span>
+                              <strong>Satisfait ou remboursé</strong> — retournez l'équipement dans 30 jours si insatisfait
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="shrink-0">📦</span>
+                            <span>Nivra paie les frais de retour</span>
+                          </li>
+                        </ul>
+                      </div>
+
                       {/* Reassurance box */}
                       <div className="rounded-xl border p-4 mb-4 flex items-start gap-3" style={{ background: '#F0F7FF', borderColor: '#BFDBFE' }}>
                         <div className="text-xl shrink-0">💳</div>

@@ -31,9 +31,39 @@ const Hero = () => {
               <span style={{ color: '#7C3AED' }}>{t('xhero.titleAccent')}</span>
             </h1>
 
-            <p className="mb-8 max-w-[480px]" style={{ color: '#555555', fontSize: 17, lineHeight: 1.7 }}>
+            <p className="mb-5 max-w-[480px]" style={{ color: '#555555', fontSize: 17, lineHeight: 1.7 }}>
               {t('xhero.subtitle')}
             </p>
+
+            {/* Promo badges — first month free + 30-day guarantee */}
+            <div className="flex flex-wrap gap-2 mb-7">
+              <span
+                className="inline-flex items-center gap-1.5 font-semibold"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#7C3AED',
+                  border: '1.5px solid #7C3AED',
+                  borderRadius: 999,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                }}
+              >
+                🎁 {isFr ? 'Premier mois GRATUIT' : 'First month FREE'}
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5 font-semibold"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#10B981',
+                  border: '1.5px solid #10B981',
+                  borderRadius: 999,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                }}
+              >
+                🔄 {isFr ? 'Satisfait ou remboursé 30 jours' : '30-day money-back'}
+              </span>
+            </div>
 
             <div className="mb-8 flex items-baseline gap-1">
               {isLoading || internetPrice === null ? (

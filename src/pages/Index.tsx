@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import SEOHead, { SEO_DATA } from "@/components/SEOHead";
 import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 import HomeStatusBanner from "@/components/HomeStatusBanner";
+import LaunchOfferPopup from "@/components/marketing/LaunchOfferPopup";
 
 const StatsBanner = lazy(() => import("@/components/marketing/StatsBanner"));
 
@@ -41,6 +42,7 @@ const Index = () => {
         <FinalCTA />
       </main>
       <Footer />
+      <LaunchOfferPopup />
     </div>
   );
 };
