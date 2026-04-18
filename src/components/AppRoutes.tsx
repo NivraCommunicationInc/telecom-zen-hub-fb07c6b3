@@ -209,6 +209,7 @@ const E2eInstallTest = lazy(() => import("@/pages/E2eInstallTest"));
 const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
 const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
+const SignContract = lazy(() => import("@/pages/SignContract"));
 const APropos = lazy(() => import("@/pages/APropos"));
 const Aide = lazy(() => import("@/pages/Aide"));
 const Support = lazy(() => import("@/pages/Support"));
@@ -511,6 +512,9 @@ const AppRoutes = () => {
 
       {/* Manual KYC verification — secure token link sent by admin */}
       <Route path="/verification/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><KycVerificationPage /></Suspense>} />
+
+      {/* Public click-to-sign contract page — no login required */}
+      <Route path="/sign/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><SignContract /></Suspense>} />
       
       {/* Public Quote View (no login required) */}
       <Route path="/quote" element={<MaintenanceGuard><Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><PublicQuotePage /></Suspense></MaintenanceGuard>} />
