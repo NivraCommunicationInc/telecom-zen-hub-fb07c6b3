@@ -208,6 +208,7 @@ const DevLogin = lazy(() => import("@/pages/DevLogin"));
 const E2eInstallTest = lazy(() => import("@/pages/E2eInstallTest"));
 const VerifyIdentity = lazy(() => import("@/pages/VerifyIdentity"));
 const NotAuthorized = lazy(() => import("@/pages/NotAuthorized"));
+const Unsubscribe = lazy(() => import("@/pages/Unsubscribe"));
 const APropos = lazy(() => import("@/pages/APropos"));
 const Aide = lazy(() => import("@/pages/Aide"));
 const Support = lazy(() => import("@/pages/Support"));
@@ -484,6 +485,9 @@ const AppRoutes = () => {
       <Route path="/politique-de-confidentialite" element={<MaintenanceGuard><PublicLayout><PolitiqueConfidentialite /></PublicLayout></MaintenanceGuard>} />
       <Route path="/frais-possibles" element={<MaintenanceGuard><PublicLayout><FraisPossibles /></PublicLayout></MaintenanceGuard>} />
       <Route path="/refund-policy" element={<MaintenanceGuard><PublicLayout><RefundPolicy /></PublicLayout></MaintenanceGuard>} />
+
+      {/* Public unsubscribe — no layout, no auth, no maintenance gate (must always be reachable for compliance) */}
+      <Route path="/unsubscribe" element={<Unsubscribe />} />
       <Route path="/garantie" element={<MaintenanceGuard><PublicLayout><Garantie30Jours /></PublicLayout></MaintenanceGuard>} />
       <Route path="/guarantee" element={<MaintenanceGuard><PublicLayout><Garantie30Jours /></PublicLayout></MaintenanceGuard>} />
       <Route path="/privacy-policy" element={<MaintenanceGuard><PublicLayout><PrivacyPolicyPage /></PublicLayout></MaintenanceGuard>} />
