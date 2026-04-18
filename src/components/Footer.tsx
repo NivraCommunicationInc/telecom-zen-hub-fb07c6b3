@@ -26,22 +26,21 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
   };
 
   const services = [
-    { label: isFr ? "Internet résidentiel" : "Residential Internet", to: "/internet" },
-    { label: isFr ? "Télévision" : "Television", to: "/television" },
-    { label: isFr ? "Forfaits et prix" : "Plans & Pricing", to: "/forfaits" },
+    { label: isFr ? "Internet haute vitesse" : "High-speed Internet", to: "/internet" },
+    { label: isFr ? "Télévision" : "Television", to: "/tv" },
+    { label: isFr ? "Comparer les forfaits" : "Compare Plans", to: "/compare" },
+    { label: isFr ? "Nos équipements" : "Our Equipment", to: "/frais-possibles" },
+    { label: isFr ? "Frais et tarifs" : "Fees & Pricing", to: "/frais-possibles" },
+    { label: isFr ? "Commander" : "Order Now", to: "/commander" },
     { label: isFr ? "Garantie 30 jours" : "30-day Guarantee", to: "/garantie" },
-    { label: isFr ? "Zone de couverture" : "Coverage Area", to: "/couverture" },
-    { label: isFr ? "Commander maintenant" : "Order Now", to: "/commander" },
-    { label: isFr ? "Programme de parrainage" : "Referral Program", to: "/parrainage" },
   ];
 
   const support = [
     { label: isFr ? "Centre de support" : "Support Center", to: "/support" },
-    { label: isFr ? "Guide installation WiFi" : "WiFi Setup Guide", to: "/support" },
-    { label: isFr ? "Guide Terminal TV" : "TV Terminal Guide", to: "/support" },
-    { label: isFr ? "Activation des services" : "Service Activation", to: "/portail/activation" },
-    { label: isFr ? "Dépannage" : "Troubleshooting", to: "/support" },
-    { label: isFr ? "Reset équipement" : "Equipment Reset", to: "/support" },
+    { label: isFr ? "FAQ" : "FAQ", to: "/faq" },
+    { label: isFr ? "Installation WiFi" : "WiFi Setup", to: "/support" },
+    { label: isFr ? "Terminal Nivra TV" : "Nivra TV Terminal", to: "/support" },
+    { label: isFr ? "Suivre ma commande" : "Track Order", to: "/track-order" },
     { label: isFr ? "Nous contacter" : "Contact Us", to: "/contact" },
   ];
 
@@ -170,7 +169,7 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
 
           {/* Column 2 — Services */}
           <div>
-            <h3 style={headingStyle}>Services</h3>
+            <h3 style={headingStyle}>{isFr ? "Nos services" : "Our Services"}</h3>
             <div style={{ display: "flex", flexDirection: "column" }}>
               {services.map((link) => (
                 <Link
@@ -339,30 +338,23 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
               {isFr ? "Tous droits réservés" : "All rights reserved"} · Québec, Canada
             </p>
             <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-              <Link
-                to="/conditions-de-service"
-                style={{ color: "#555", fontSize: 12, textDecoration: "none" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-              >
-                {isFr ? "Conditions d'utilisation" : "Terms of Use"}
-              </Link>
-              <Link
-                to="/privacy-policy"
-                style={{ color: "#555", fontSize: 12, textDecoration: "none" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-              >
-                {isFr ? "Politique de confidentialité" : "Privacy Policy"}
-              </Link>
-              <Link
-                to="/garantie"
-                style={{ color: "#555", fontSize: 12, textDecoration: "none" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
-              >
-                {isFr ? "Garantie 30 jours" : "30-day Guarantee"}
-              </Link>
+              {[
+                { label: isFr ? "Conditions d'utilisation" : "Terms of Use", to: "/conditions-de-service" },
+                { label: isFr ? "Politique de confidentialité" : "Privacy Policy", to: "/politique-de-confidentialite" },
+                { label: isFr ? "Garantie 30 jours" : "30-day Guarantee", to: "/garantie" },
+                { label: "Loi 25", to: "/confidentialite-loi25" },
+                { label: isFr ? "Frais possibles" : "Possible Fees", to: "/frais-possibles" },
+              ].map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  style={{ color: "#555", fontSize: 12, textDecoration: "none" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#555")}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
