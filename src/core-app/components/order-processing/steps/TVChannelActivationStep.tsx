@@ -119,7 +119,7 @@ export function TVChannelActivationStep({ proc }: Props) {
     (async () => {
       const { data, error } = await supabase
         .from("tv_channels")
-        .select("id, name, category, monthly_price")
+        .select("id, name, category, price")
         .eq("is_active", true)
         .order("category")
         .order("name");
