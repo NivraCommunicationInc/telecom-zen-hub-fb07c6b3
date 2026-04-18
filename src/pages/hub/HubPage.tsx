@@ -2,7 +2,7 @@
  * HubPage — Secure Internal Access Hub — Portal Selection (Public).
  */
 import { useNavigate } from "react-router-dom";
-import { Terminal, Briefcase, MapPin, Shield, ChevronRight, UserCheck } from "lucide-react";
+import { Terminal, Briefcase, MapPin, Shield, ChevronRight, UserCheck, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useInternalTheme } from "@/hooks/useInternalTheme";
 import InternalThemeToggle from "@/components/internal/InternalThemeToggle";
@@ -46,6 +46,14 @@ const PORTALS: PortalOption[] = [
     label: "Nivra RH",
     description: "Dossier employé — Fiches de paie, documents fiscaux, horaires, lettres d'emploi.",
     icon: UserCheck,
+    iconColor: "text-foreground",
+    iconBg: "bg-secondary",
+  },
+  {
+    id: "marketing",
+    label: "Marketing Hub",
+    description: "CRM · Campagnes SMS/Email · Agent IA · Live Chat — Réservé aux administrateurs.",
+    icon: Megaphone,
     iconColor: "text-foreground",
     iconBg: "bg-secondary",
   },
