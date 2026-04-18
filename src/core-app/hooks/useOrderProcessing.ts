@@ -31,16 +31,18 @@ async function enqueueOrderEmail(row: Record<string, any> | null | undefined) {
 }
 
 /** Map order payment_method values to valid billing_payment_method enum values.
- *  PHASE 1: No fallback — null/unknown throws an explicit error. */
+ *  Falls back to 'manual' for null/unknown values so admin operations don't crash. */
 function mapToBillingMethod(method?: string | null): "interac" | "manual" | "paypal" {
   if (!method) {
-    throw new Error("Méthode de paiement manquante sur la commande — aucun fallback autorisé");
+    console.warn("[mapToBillingMethod] payment_method missing — falling back to 'manual'");
+    return "manual";
   }
   const m = method.toLowerCase();
   if (m === "paypal") return "paypal";
   if (m === "manual") return "manual";
   if (m === "interac" || m === "etransfer" || m === "e_transfer" || m === "virement") return "interac";
-  throw new Error(`Méthode de paiement non reconnue: "${method}" — aucun fallback autorisé`);
+  console.warn(`[mapToBillingMethod] Unrecognized payment_method "${method}" — falling back to 'manual'`);
+  return "manual";
 }
 
 /* ─── Types ─── */
