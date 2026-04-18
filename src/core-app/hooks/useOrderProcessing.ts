@@ -516,7 +516,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   });
 
   const data = orderQuery.data;
-  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection) : [];
+  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection, data.mobileFulfillment) : [];
 
   /* ── Invalidate everything ── */
   const invalidateAll = () => {
