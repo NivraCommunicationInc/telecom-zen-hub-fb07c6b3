@@ -188,6 +188,24 @@ body {
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 15%;
     --sidebar-ring: 263 84% 58%;
+
+    /* ═══ Nivra Core Ops Console — Dark Surface Tokens ═══
+       Used by Core order processing pages (OrdersPage, CoreOrderDetail).
+       All colors HSL. Background #0A0A12, cards #0D0D1A, borders #1E1E2E,
+       accent purple #7C3AED. */
+    --core-bg:           240 22% 6%;     /* #0A0A12 page background */
+    --core-card:         240 22% 8%;     /* #0D0D1A card surface */
+    --core-card-raised:  240 18% 10%;    /* slightly raised card */
+    --core-border:       240 16% 15%;    /* #1E1E2E hairline border */
+    --core-border-strong: 240 14% 22%;   /* stronger divider */
+    --core-muted:        240 8% 45%;     /* muted text */
+    --core-muted-soft:   240 8% 32%;     /* softer muted text */
+    --core-fg:           0 0% 98%;       /* primary text */
+    --core-accent:       263 84% 58%;    /* #7C3AED purple accent */
+    --core-accent-soft:  263 60% 70%;    /* hover/secondary purple */
+    --core-success:      160 84% 39%;    /* #10B981 green */
+    --core-warning:      38 92% 50%;     /* #F59E0B amber */
+    --core-danger:       0 84% 60%;      /* #EF4444 red */
   }
 
   .dark {
