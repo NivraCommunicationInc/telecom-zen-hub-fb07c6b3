@@ -10,6 +10,8 @@ interface SendRequest {
   client_ids?: string[];
   test_email?: string;
   subject_override?: string;
+  preview_count?: boolean;       // returns recipient count only, no send
+  segment_filters?: Record<string, unknown>; // for preview without a campaign row
 }
 
 interface Client {
@@ -37,12 +39,13 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { campaign_id, automation_rule_id, template_id, client_ids, test_email, subject_override: reqSubjectOverride }: SendRequest = await req.json();
+    const body: SendRequest = await req.json();
+    const { campaign_id, automation_rule_id, template_id, client_ids, test_email, subject_override: reqSubjectOverride, preview_count } = body;
 
     // Get template and campaign/automation info
     let template: { id: string; subject: string; html_content: string; variables: string[] } | null = null;
     let subjectOverride: string | null = reqSubjectOverride || null;
-    let segmentFilters: Record<string, unknown> = {};
+    let segmentFilters: Record<string, unknown> = body.segment_filters || {};
 
     if (campaign_id) {
       const { data: campaign, error } = await supabase
@@ -94,7 +97,7 @@ serve(async (req) => {
       template = templateData;
     }
 
-    if (!template) {
+    if (!template && !preview_count) {
       throw new Error("No template found");
     }
 
@@ -144,7 +147,17 @@ serve(async (req) => {
         query = query.lte("created_at", segmentFilters.created_before);
       }
 
-      const { data } = await query.limit(1000);
+      // City filter (case-insensitive)
+      if (segmentFilters.city && typeof segmentFilters.city === "string" && segmentFilters.city.trim()) {
+        query = query.ilike("service_city", `%${segmentFilters.city.trim()}%`);
+      }
+
+      // Language filter — fr | en | both (both = no filter)
+      if (segmentFilters.language === "fr" || segmentFilters.language === "en") {
+        query = query.eq("preferred_language", segmentFilters.language);
+      }
+
+      const { data } = await query.limit(5000);
       clients = data || [];
 
       // Filter by service if needed (requires join with service_instances)
@@ -177,6 +190,14 @@ serve(async (req) => {
 
     const optedOutClients = new Set(preferences?.map(p => p.client_id) || []);
     clients = clients.filter(c => !optedOutClients.has(c.id));
+
+    // Preview-only mode: return count without sending
+    if (preview_count) {
+      return new Response(
+        JSON.stringify({ success: true, preview: true, total_recipients: clients.length }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Update recipient count
     if (campaign_id) {
