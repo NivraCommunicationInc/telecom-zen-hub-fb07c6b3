@@ -259,13 +259,14 @@ const MarketingEmailCampaignsPage = () => {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([loadCampaigns(), loadUnsubs(), loadTemplates()]);
+      await Promise.all([loadCampaigns(), loadUnsubs(), loadTemplates(), loadOpensTimeline()]);
       setLoading(false);
     })();
     const ch = supabase
       .channel("marketing-email-hub")
       .on("postgres_changes", { event: "*", schema: "public", table: "email_campaigns" }, loadCampaigns)
       .on("postgres_changes", { event: "*", schema: "public", table: "email_unsubscribes" }, loadUnsubs)
+      .on("postgres_changes", { event: "*", schema: "public", table: "email_sends" }, loadOpensTimeline)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
