@@ -545,6 +545,9 @@ async function processReminders(
     { days: 0, label: "J0", template: "payment_due_today" },
   ];
 
+  // P0 GAP #1 — J+3 suspension warning (overdue 3 days, 2 days before J+5 suspension)
+  await processSuspensionWarningJ3(supabase, stats, today);
+
   for (const offset of reminderOffsets) {
     const targetDate = addDays(today, offset.days);
 
