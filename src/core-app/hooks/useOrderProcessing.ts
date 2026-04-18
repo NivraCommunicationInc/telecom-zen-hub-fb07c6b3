@@ -1773,6 +1773,101 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
+  /* ── KYC: Approve identity verification ──
+   * Uses the `admin-review-verification` edge function (service role) which:
+   *  - Updates identity_verification_sessions (status, reviewed_at/by, reason)
+   *  - Updates linked orders (id_verification_status, id_verified_at)
+   *  - Logs identity_verification_events
+   * We additionally enqueue the branded "kyc_approved" client email and an
+   * activity_log entry tied to the order.
+   */
+  const approveKyc = async (opts?: { reason?: string }) => {
+    try {
+      const order = data?.order;
+      const profile = data?.profile;
+      const session = data?.kycSession;
+      if (!order) throw new Error("Commande introuvable");
+      if (!session?.id) throw new Error("Aucune session KYC associée à cette commande");
+
+      const reason = (opts?.reason || "").trim() || "Approuvé par agent — documents conformes";
+
+      const { data: result, error } = await supabase.functions.invoke("admin-review-verification", {
+        body: {
+          session_id: session.id,
+          decision: "approved",
+          reason,
+          idempotency_key: `kyc_approve_${session.id}_${Date.now()}`,
+        },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      // Enqueue branded approval email (separate from the edge function's event log)
+      await enqueueOrderEmail(orderEmails.kycApproved(order, profile));
+
+      // Order-scoped activity log entry
+      await logActivity("kyc_approved", "order", orderId, {
+        session_id: session.id,
+        reason,
+      });
+
+      invalidateAll();
+      toast.success("KYC approuvé — identité vérifiée");
+      return result;
+    } catch (err: any) {
+      console.error("[KYC] approveKyc failed:", err);
+      toast.error(`Erreur d'approbation: ${err?.message || "Erreur inconnue"}`);
+      throw err;
+    }
+  };
+
+  /* ── KYC: Reject identity verification ──
+   * Uses `admin-review-verification` with decision='rejected'. A non-empty
+   * reason is required (validated client-side and re-validated by the edge fn).
+   */
+  const rejectKyc = async (opts: { reason: string }) => {
+    try {
+      const reason = (opts?.reason || "").trim();
+      if (!reason) {
+        throw new Error("Une raison est obligatoire pour rejeter un document");
+      }
+
+      const order = data?.order;
+      const profile = data?.profile;
+      const session = data?.kycSession;
+      if (!order) throw new Error("Commande introuvable");
+      if (!session?.id) throw new Error("Aucune session KYC associée à cette commande");
+
+      const { data: result, error } = await supabase.functions.invoke("admin-review-verification", {
+        body: {
+          session_id: session.id,
+          decision: "rejected",
+          reason,
+          idempotency_key: `kyc_reject_${session.id}_${Date.now()}`,
+        },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      // Enqueue branded rejection email with reason
+      await enqueueOrderEmail(orderEmails.kycRejected(order, profile, reason));
+
+      // Order-scoped activity log entry
+      await logActivity("kyc_rejected", "order", orderId, {
+        session_id: session.id,
+        reason,
+      });
+
+      invalidateAll();
+      toast.warning("KYC rejeté — client notifié");
+      return result;
+    } catch (err: any) {
+      console.error("[KYC] rejectKyc failed:", err);
+      toast.error(err?.message || "Erreur de rejet");
+      throw err;
+    }
+  };
+
   return {
     // Data
     order: data?.order,
@@ -1826,6 +1921,8 @@ export function useOrderProcessing(orderId: string | undefined) {
     cancelPortIn,
     requestIdentityVerification,
     requestKycResubmission,
+    approveKyc,
+    rejectKyc,
     isUpdating: updateOrder.isPending,
   };
 }

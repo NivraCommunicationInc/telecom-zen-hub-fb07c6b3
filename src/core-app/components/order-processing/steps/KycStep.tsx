@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   CheckCircle2, XCircle, FileSearch, RefreshCw, ShieldCheck, ShieldAlert,
-  FileText, Camera, User, Mail, Copy, Check, Clock, History,
+  FileText, Camera, User, Mail, Copy, Check, Clock, History, Loader2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -39,6 +39,9 @@ export function KycStep({ proc }: Props) {
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [linkCopied, setLinkCopied] = useState(false);
   const [sendingLink, setSendingLink] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
 
   const sessionId = kycSession?.id;
   const rawStatus = (kycSession?.status || "unknown") as string;
@@ -88,6 +91,7 @@ export function KycStep({ proc }: Props) {
   const hasRequestLinkFn = typeof proc.requestIdentityVerification === "function";
 
   const handleApprove = async () => {
+    setApproving(true);
     try {
       if (hasApproveFn) {
         await proc.approveKyc({ reason: reviewNote });
@@ -102,11 +106,14 @@ export function KycStep({ proc }: Props) {
           id_verified_at: new Date().toISOString(),
           id_verification_notes: reviewNote || undefined,
         });
+        toast.success("KYC approuvé");
       }
-      toast.success("KYC approuvé");
       setReviewNote("");
     } catch (e: any) {
-      toast.error(e?.message || "Échec de l'approbation");
+      // approveKyc already toasts on error
+      if (!hasApproveFn) toast.error(e?.message || "Échec de l'approbation");
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -115,6 +122,7 @@ export function KycStep({ proc }: Props) {
       toast.error("Une raison est requise pour rejeter");
       return;
     }
+    setRejecting(true);
     try {
       if (hasRejectFn) {
         await proc.rejectKyc({ reason: reviewNote });
@@ -128,15 +136,18 @@ export function KycStep({ proc }: Props) {
           id_verification_status: "rejected",
           id_verification_notes: reviewNote,
         });
+        toast.warning("KYC rejeté");
       }
-      toast.warning("KYC rejeté");
       setReviewNote("");
     } catch (e: any) {
-      toast.error(e?.message || "Échec du rejet");
+      if (!hasRejectFn) toast.error(e?.message || "Échec du rejet");
+    } finally {
+      setRejecting(false);
     }
   };
 
   const handleResubmit = async () => {
+    setResubmitting(true);
     try {
       if (hasResubmitFn) {
         await proc.requestKycResubmission({ reason: reviewNote });
@@ -150,10 +161,12 @@ export function KycStep({ proc }: Props) {
           id_verification_status: "pending_docs",
           id_verification_notes: reviewNote || "Documents additionnels requis",
         });
+        toast.info("Resoumission demandée");
       }
-      toast.info("Resoumission demandée");
     } catch (e: any) {
-      toast.error(e?.message || "Échec de la demande");
+      if (!hasResubmitFn) toast.error(e?.message || "Échec de la demande");
+    } finally {
+      setResubmitting(false);
     }
   };
 
@@ -314,51 +327,62 @@ export function KycStep({ proc }: Props) {
           />
         </div>
 
-        {/* SECTION 4 — Review actions (only when submitted) */}
-        {(rawStatus === "submitted" || rawStatus === "manual_review") && (
+        {/* SECTION 4 — Review actions (submitted, manual_review, OR created — agent can act anytime) */}
+        {(rawStatus === "submitted" || rawStatus === "manual_review" || rawStatus === "created") && (
           <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">
             <div className="bg-[#0d1421] px-3 py-2 border-b border-slate-700/50">
               <h4 className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Révision administrative</h4>
             </div>
             <div className="p-4">
-              <Label className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 block">
-                Raison / note de révision
-              </Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-[10px] uppercase tracking-wider text-slate-500 block">
+                  Raison / note de révision
+                </Label>
+                <span className="text-[10px] text-slate-500 tabular-nums">
+                  {reviewNote.length} car.
+                </span>
+              </div>
               <Textarea
                 value={reviewNote}
                 onChange={(e) => setReviewNote(e.target.value)}
-                placeholder="Justification de la décision (requise pour rejeter)…"
+                placeholder="Justification de la décision (requise pour rejeter, optionnelle pour approuver)…"
                 className="bg-[#0d1421] border-slate-700 text-slate-100 text-sm rounded-lg min-h-[56px] mb-3"
               />
               <div className="flex flex-wrap gap-2">
                 <ActionButton
-                  available={hasApproveFn || true /* fallback supported */}
+                  available={true}
                   onClick={handleApprove}
-                  disabled={proc.isUpdating}
+                  disabled={proc.isUpdating || approving}
                   className="bg-green-600 hover:bg-green-700 text-white"
-                  icon={CheckCircle2}
+                  icon={approving ? Loader2 : CheckCircle2}
+                  iconSpin={approving}
                 >
-                  Approuver
+                  {approving ? "Approbation…" : "Approuver"}
                 </ActionButton>
                 <ActionButton
-                  available={hasRejectFn || true}
+                  available={true}
                   onClick={handleReject}
-                  disabled={proc.isUpdating || !reviewNote.trim()}
+                  disabled={proc.isUpdating || rejecting || !reviewNote.trim()}
                   className="bg-red-700 hover:bg-red-800 text-white"
-                  icon={XCircle}
+                  icon={rejecting ? Loader2 : XCircle}
+                  iconSpin={rejecting}
                 >
-                  Rejeter
+                  {rejecting ? "Rejet…" : "Rejeter"}
                 </ActionButton>
                 <ActionButton
-                  available={hasResubmitFn || true}
+                  available={true}
                   onClick={handleResubmit}
-                  disabled={proc.isUpdating}
+                  disabled={proc.isUpdating || resubmitting}
                   ghost
-                  icon={RefreshCw}
+                  icon={resubmitting ? Loader2 : RefreshCw}
+                  iconSpin={resubmitting}
                 >
-                  Demander resoumission
+                  {resubmitting ? "Envoi…" : "Demander resoumission"}
                 </ActionButton>
               </div>
+              <p className="text-xs italic text-slate-500 mt-3">
+                Approuver enverra un email de confirmation au client. Rejeter enverra un email avec la raison.
+              </p>
             </div>
           </div>
         )}
@@ -514,7 +538,7 @@ function MatchBadge({ label, value }: { label: string; value: any }) {
 }
 
 function ActionButton({
-  available, onClick, disabled, className, ghost, icon: Icon, children, unavailableReason,
+  available, onClick, disabled, className, ghost, icon: Icon, iconSpin, children, unavailableReason,
 }: {
   available: boolean;
   onClick: () => void;
@@ -522,6 +546,7 @@ function ActionButton({
   className?: string;
   ghost?: boolean;
   icon?: any;
+  iconSpin?: boolean;
   children: React.ReactNode;
   unavailableReason?: string;
 }) {
@@ -533,7 +558,7 @@ function ActionButton({
       disabled={disabled || !available}
       className={`text-sm ${ghost ? baseGhost : className || ""}`}
     >
-      {Icon && <Icon className="w-3 h-3 mr-1" />} {children}
+      {Icon && <Icon className={`w-3 h-3 mr-1 ${iconSpin ? "animate-spin" : ""}`} />} {children}
     </Button>
   );
   if (!available) {
