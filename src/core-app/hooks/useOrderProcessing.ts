@@ -510,6 +510,25 @@ export function useOrderProcessing(orderId: string | undefined) {
   const changeStatus = async (newStatus: string, reason?: string) => {
     const oldStatus = data?.order?.status;
 
+    // ★ PHASE A GATE — block shipping/in_transit if contract not yet signed by client
+    const shippingStates = ["shipped", "in_transit", "out_for_delivery"];
+    if (shippingStates.includes(newStatus)) {
+      const { data: contract } = await supabase
+        .from("contracts")
+        .select("client_signed_at, status")
+        .eq("order_id", orderId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!contract || !contract.client_signed_at) {
+        const msg =
+          "Impossible d'expédier — Le client n'a pas encore signé son contrat. Renvoyez le lien de signature avant de continuer.";
+        toast.error(msg);
+        throw new Error(`CONTRACT_NOT_SIGNED: ${msg}`);
+      }
+    }
+
     // Use safe transition for completion states from intake states
     const intakeStates = ["submitted", "pending_admin_review", "received"];
     const completionStates = ["completed", "activated", "fulfilled", "delivered", "installation_completed"];
