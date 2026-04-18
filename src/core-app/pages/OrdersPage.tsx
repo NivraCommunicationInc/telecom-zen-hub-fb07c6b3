@@ -309,6 +309,7 @@ const OrdersPage = () => {
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Facture</th>
                 <SortableHeader label="Montant" sortKey="total_amount" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Âge</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">SLA</th>
                 <SortableHeader label="Date" sortKey="created_at" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
                 <th className="w-10" />
               </tr>
@@ -317,14 +318,14 @@ const OrdersPage = () => {
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-[hsl(220,15%,14%)]">
-                    {Array.from({ length: 12 }).map((_, j) => (
+                    {Array.from({ length: 13 }).map((_, j) => (
                       <td key={j} className="px-3 py-2.5"><div className="h-3.5 w-16 rounded bg-[hsl(220,15%,14%)] animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-[hsl(220,10%,35%)]">
+                  <td colSpan={13} className="text-center py-12 text-[hsl(220,10%,35%)]">
                     <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
                     <p className="text-xs">{search || statusFilter ? "Aucune commande ne correspond aux filtres." : "Aucune commande trouvée."}</p>
                   </td>
@@ -333,9 +334,17 @@ const OrdersPage = () => {
                 filtered.map(o => {
                   const priority = getPriorityIndicator(o);
                   const age = getOrderAge(o.created_at);
+                  const sla = getSlaBadge(o.sla_deadline, o.sla_status, o.status);
+                  const isOverdue = sla?.urgency === "overdue";
 
                   return (
-                    <tr key={o.id} onClick={() => navigate(corePath(`/orders/${o.id}`))} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors group cursor-pointer">
+                    <tr
+                      key={o.id}
+                      onClick={() => navigate(corePath(`/orders/${o.id}`))}
+                      className={`border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors group cursor-pointer ${
+                        isOverdue ? "border-l-2 border-l-red-500" : ""
+                      }`}
+                    >
                       {/* Priority indicator */}
                       <td className="px-2 py-2.5">
                         {priority.level === "high" ? (
