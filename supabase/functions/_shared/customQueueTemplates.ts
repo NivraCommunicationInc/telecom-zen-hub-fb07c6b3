@@ -627,6 +627,105 @@ export function renderQueueTemplate(
         }),
       };
     }
+
+    // ─── P2: Chargeback / dispute admin alert ───
+    case "admin_alert_chargeback": {
+      const amount = money(v.amount);
+      const orderId = v.order_id ? String(v.order_id) : "";
+      const orderLink = orderId ? `${APP_URL}/core/orders/${orderId}` : `${APP_URL}/admin/recouvrement`;
+      return {
+        subject: `🚨 Chargeback détecté — ${esc(v.client_full_name || clientName)} — ${amount}`,
+        html: shell({
+          title: "Alerte critique: Chargeback PayPal",
+          preheader: `Litige PayPal ouvert — action requise dans 10 jours.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">🚨 Chargeback détecté</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Un litige PayPal a été ouvert par un client. Le service a été suspendu automatiquement.
+            </p>
+            ${rowsTable([
+              ["Client", esc(v.client_full_name || clientName)],
+              ["Courriel", esc(v.client_email || "—")],
+              ["Montant contesté", amount],
+              ["Transaction PayPal", esc(v.paypal_transaction_id || "—")],
+              ["ID Litige PayPal", esc(v.paypal_dispute_id || "—")],
+              ["Type d'événement", esc(v.event_type || "—")],
+              ["Date", fmtDate(v.dispute_timestamp)],
+            ])}
+            <p style="margin:16px 0; color:#DC2626; font-size:14px; line-height:1.6; font-weight:600;">
+              ⏰ Action requise: Connectez-vous à PayPal pour répondre au litige dans les <strong>10 jours</strong>.
+            </p>
+            <p style="margin:16px 0; color:#4A4A4A; font-size:13px; line-height:1.6;">
+              Lien PayPal: <a href="https://www.paypal.com/disputes" style="color:#0066CC;">paypal.com/disputes</a>
+            </p>
+          `,
+          ctaUrl: orderLink,
+          ctaLabel: orderId ? "Ouvrir le dossier dans Core" : "Voir Recouvrement",
+        }),
+      };
+    }
+
+    // ─── P1: Service reactivated after late payment + $15 fee ───
+    case "service_reactivated": {
+      const fee = money(v.reactivation_fee ?? 15);
+      const reactivationInvoice = esc(v.reactivation_invoice_number || "—");
+      return {
+        subject: `✓ Service réactivé — frais de réactivation 15$ ajoutés`,
+        html: shell({
+          title: "Service réactivé",
+          preheader: `Bienvenue de retour, ${clientName}.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Service réactivé</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, votre paiement a été reçu et votre service Nivra est maintenant <strong>réactivé</strong>.
+            </p>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Conformément à nos conditions, des frais de réactivation de <strong>${fee}</strong> (taxes en sus) ont été ajoutés sur une facture séparée.
+            </p>
+            ${rowsTable([
+              ["Facture de frais de réactivation", reactivationInvoice],
+              ["Montant", fee],
+              ["Échéance", fmtDate(v.fee_due_date)],
+            ])}
+            <p style="margin:16px 0; color:#6B7280; font-size:13px; line-height:1.6;">
+              Merci de régler ces frais dans les 7 jours pour éviter une nouvelle suspension.
+            </p>
+          `,
+          ctaUrl: `${APP_URL}/portail/facturation`,
+          ctaLabel: "Voir mes factures",
+        }),
+      };
+    }
+
+    // ─── P2: Loi 25 anonymization admin notification ───
+    case "admin_alert_anonymization": {
+      const count = String(v.anonymized_count ?? 0);
+      return {
+        subject: `📋 ${count} compte${Number(count) > 1 ? "s" : ""} anonymisé${Number(count) > 1 ? "s" : ""} — Conformité Loi 25`,
+        html: shell({
+          title: "Conformité Loi 25 — Anonymisation automatique",
+          preheader: `Rapport quotidien de conservation des données.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📋 Anonymisation Loi 25</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Le système a anonymisé <strong>${count}</strong> compte${Number(count) > 1 ? "s" : ""} qui étaient annulés depuis plus de 90 jours.
+              Les données personnelles (PII) ont été supprimées conformément à la Loi 25 du Québec et à la LPRPDE.
+            </p>
+            ${rowsTable([
+              ["Comptes anonymisés", count],
+              ["Date du rapport", fmtDate(v.report_date)],
+              ["Données conservées", "Numéro de compte, historique de facturation (montants)"],
+              ["Données supprimées", "Nom, courriel, téléphone, adresse, date de naissance, documents KYC"],
+            ])}
+            <p style="margin:16px 0; color:#6B7280; font-size:13px; line-height:1.6;">
+              Détails complets dans la table data_retention_log.
+            </p>
+          `,
+          ctaUrl: `${APP_URL}/admin/recouvrement`,
+          ctaLabel: "Voir le journal",
+        }),
+      };
+    }
   }
 
   return null;
