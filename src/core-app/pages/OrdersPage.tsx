@@ -13,10 +13,38 @@ import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvi
 import {
   Search, ArrowRight, ShoppingCart, RefreshCw,
   Clock, AlertTriangle, TrendingUp, Pause,
-  ArrowUpDown, ChevronUp, ChevronDown, Zap, DollarSign, ShieldCheck
+  ArrowUpDown, ChevronUp, ChevronDown, Zap, DollarSign, ShieldCheck, Timer
 } from "lucide-react";
-import { format, differenceInHours, differenceInDays } from "date-fns";
+import { format, differenceInHours, differenceInDays, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
+
+/** PHASE C: SLA badge config based on deadline + status */
+function getSlaBadge(deadline: string | null, status: string | null, orderStatus: string): {
+  label: string; className: string; urgency: "ok" | "warning" | "overdue" | "done";
+} | null {
+  // Don't show SLA for terminal statuses
+  if (["activated", "completed", "cancelled", "installation_completed", "delivered"].includes(orderStatus)) {
+    return null;
+  }
+  if (!deadline) return null;
+
+  const now = new Date();
+  const dl = new Date(deadline);
+  const minsLeft = differenceInMinutes(dl, now);
+
+  if (status === "overdue" || minsLeft < 0) {
+    const overdue = Math.abs(minsLeft);
+    const label = overdue >= 60 ? `DÉPASSÉ ${Math.floor(overdue / 60)}h` : `DÉPASSÉ ${overdue}min`;
+    return { label, className: "bg-red-500/15 text-red-400 border-red-500/30", urgency: "overdue" };
+  }
+  if (minsLeft < 60 || status === "warning") {
+    return { label: `${minsLeft} min`, className: "bg-amber-500/15 text-amber-400 border-amber-500/30", urgency: "warning" };
+  }
+  const hoursLeft = Math.floor(minsLeft / 60);
+  const remainMins = minsLeft % 60;
+  const label = hoursLeft > 0 ? `${hoursLeft}h${remainMins > 0 ? remainMins.toString().padStart(2, "0") : ""}` : `${minsLeft}min`;
+  return { label: `${label} restantes`, className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", urgency: "ok" };
+}
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
