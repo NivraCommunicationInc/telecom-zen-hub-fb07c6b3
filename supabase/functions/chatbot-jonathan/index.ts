@@ -980,6 +980,37 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
+    // ── Live chat takeover check ──
+    // If an admin has taken over this session, the bot must NOT auto-respond.
+    // Persist the visitor message so it appears in the live chat queue, then return
+    // a sentinel response that the chatbot widget will display admin replies via realtime.
+    try {
+      const { data: lcSession } = await supabaseAdmin
+        .from("live_chat_sessions")
+        .select("status")
+        .eq("session_id", sessionId)
+        .maybeSingle();
+      if (lcSession?.status === "human_takeover") {
+        await supabaseAdmin.from("chatbot_logs").insert({
+          session_id: sessionId,
+          user_id: null,
+          is_authenticated: false,
+          user_message: message.slice(0, 2000),
+          bot_response: "",
+          message_length: message.length,
+          response_length: 0,
+          intent_detected: "human_takeover",
+          actions_taken: [],
+        });
+        return new Response(
+          JSON.stringify({ response: "", humanTakeover: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (e) {
+      console.warn("[chatbot] live_chat takeover check failed (non-fatal)", e);
+    }
+
     // Authentication
     let authenticatedUserId: string | null = null;
     let isAuthenticated = false;
