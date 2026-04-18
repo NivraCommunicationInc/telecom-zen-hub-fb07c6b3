@@ -554,7 +554,14 @@ export default function EquipmentInventoryPage() {
                   <tr
                     key={item.id}
                     onClick={() => setSelected(item)}
-                    className="hover:bg-[hsl(220,15%,13%)] cursor-pointer transition-colors"
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      item.status === "defective"
+                        ? "bg-red-500/10 hover:bg-red-500/15"
+                        : item.status === "lost"
+                        ? "bg-red-500/5 hover:bg-red-500/10"
+                        : "hover:bg-[hsl(220,15%,13%)]"
+                    )}
                   >
                     <td className="px-3 py-2.5 text-foreground font-medium max-w-[160px] truncate">{item.catalog_name}</td>
                     <td className="px-3 py-2.5 text-muted-foreground">{categoryLabel(item.category)}</td>
