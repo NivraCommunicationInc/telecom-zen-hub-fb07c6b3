@@ -89,9 +89,29 @@ export function PortInStep({ proc }: Props) {
     try { await proc.cancelPortIn(); } finally { setBusy(false); }
   };
 
-  const handleReschedule = () => {
-    setRequestedDate(""); setTimeSlot("asap");
-    toast.info("Replanifiez la date puis cliquez 'Soumettre demande port-in'");
+  const handleReschedule = async () => {
+    if (!requestedDate) {
+      toast.error("Sélectionnez une nouvelle date avant de replanifier");
+      return;
+    }
+    setBusy(true);
+    try {
+      // Persist new requested date + slot via port-in update + bump status to "in_progress"
+      await proc.submitPortIn({
+        number: number.trim() || (mf.port_in_number || ""),
+        current_operator: carrier,
+        account_number: accountNumber.trim() || (mf.port_in_account_number || ""),
+        pin: pin.trim() || null,
+        requested_date: requestedDate,
+        time_slot: timeSlot,
+      });
+      toast.success("Port-in replanifié");
+    } catch (err: any) {
+      console.error("[PortIn] Reschedule failed:", err);
+      toast.error(err?.message || "Erreur lors de la replanification");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const attempts = Array.isArray((mf as any).portin_attempts) ? (mf as any).portin_attempts : [];

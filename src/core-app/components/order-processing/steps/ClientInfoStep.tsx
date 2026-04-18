@@ -29,8 +29,15 @@ export function ClientInfoStep({ proc }: Props) {
   };
 
   const handleFlagFraud = async () => {
-    await proc.changeStatus("fraud", "Flagged as potential fraud by admin");
-    toast.warning("Commande marquée comme fraude potentielle");
+    try {
+      // Use addNote + status change → "cancelled" with reason logs to audit trail
+      await proc.addNote("⚠ Signalée comme fraude potentielle par l'agent");
+      await proc.updateOrder({ payment_status: "failed", internal_notes: `${order.internal_notes || ""}\n[FRAUD FLAG] ${new Date().toISOString()}` });
+      toast.warning("Commande marquée comme fraude potentielle");
+    } catch (err: any) {
+      console.error("[ClientInfo] Flag fraud failed:", err);
+      toast.error(err?.message || "Erreur lors du signalement");
+    }
   };
 
   return (
