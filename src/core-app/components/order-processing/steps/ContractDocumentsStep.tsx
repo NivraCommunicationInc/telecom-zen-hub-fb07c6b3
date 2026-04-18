@@ -13,6 +13,7 @@ import { generateOrderDocuments } from "@/lib/pdf";
 import { safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { SignatureStatusBlock } from "./SignatureStatusBlock";
 
 interface Props { proc: any; }
 

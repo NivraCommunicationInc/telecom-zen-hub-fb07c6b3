@@ -13,10 +13,38 @@ import { CoreEnvironmentToggle, TestBadge } from "@/core-app/components/CoreEnvi
 import {
   Search, ArrowRight, ShoppingCart, RefreshCw,
   Clock, AlertTriangle, TrendingUp, Pause,
-  ArrowUpDown, ChevronUp, ChevronDown, Zap, DollarSign, ShieldCheck
+  ArrowUpDown, ChevronUp, ChevronDown, Zap, DollarSign, ShieldCheck, Timer
 } from "lucide-react";
-import { format, differenceInHours, differenceInDays } from "date-fns";
+import { format, differenceInHours, differenceInDays, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
+
+/** PHASE C: SLA badge config based on deadline + status */
+function getSlaBadge(deadline: string | null, status: string | null, orderStatus: string): {
+  label: string; className: string; urgency: "ok" | "warning" | "overdue" | "done";
+} | null {
+  // Don't show SLA for terminal statuses
+  if (["activated", "completed", "cancelled", "installation_completed", "delivered"].includes(orderStatus)) {
+    return null;
+  }
+  if (!deadline) return null;
+
+  const now = new Date();
+  const dl = new Date(deadline);
+  const minsLeft = differenceInMinutes(dl, now);
+
+  if (status === "overdue" || minsLeft < 0) {
+    const overdue = Math.abs(minsLeft);
+    const label = overdue >= 60 ? `DÉPASSÉ ${Math.floor(overdue / 60)}h` : `DÉPASSÉ ${overdue}min`;
+    return { label, className: "bg-red-500/15 text-red-400 border-red-500/30", urgency: "overdue" };
+  }
+  if (minsLeft < 60 || status === "warning") {
+    return { label: `${minsLeft} min`, className: "bg-amber-500/15 text-amber-400 border-amber-500/30", urgency: "warning" };
+  }
+  const hoursLeft = Math.floor(minsLeft / 60);
+  const remainMins = minsLeft % 60;
+  const label = hoursLeft > 0 ? `${hoursLeft}h${remainMins > 0 ? remainMins.toString().padStart(2, "0") : ""}` : `${minsLeft}min`;
+  return { label: `${label} restantes`, className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", urgency: "ok" };
+}
 
 const STATUS_FILTERS = [
   { label: "Tous", value: "" },
@@ -123,8 +151,11 @@ const OrdersPage = () => {
   }, [orders, search, statusFilter, sortKey, sortDir]);
 
   const counts = useMemo(() => {
-    if (!orders) return { total: 0, pending: 0, active: 0, completed: 0, onHold: 0, revenue: 0, needsAttention: 0 };
+    if (!orders) return { total: 0, pending: 0, active: 0, completed: 0, onHold: 0, revenue: 0, needsAttention: 0, slaOnTime: 0, slaWarning: 0, slaOverdue: 0 };
     const active = orders.filter(o => !["pending", "completed", "cancelled", "activated"].includes(o.status));
+    const terminal = ["activated", "completed", "cancelled", "installation_completed", "delivered"];
+    const slaTracked = orders.filter(o => o.sla_deadline && !terminal.includes(o.status));
+    const now = Date.now();
     return {
       total: orders.length,
       pending: orders.filter(o => o.status === "pending").length,
@@ -135,6 +166,19 @@ const OrdersPage = () => {
       needsAttention: orders.filter(o => {
         const p = getPriorityIndicator(o);
         return p.level === "high" || p.level === "medium";
+      }).length,
+      slaOnTime: slaTracked.filter(o => {
+        const dl = new Date(o.sla_deadline!).getTime();
+        return o.sla_status !== "overdue" && dl - now > 60 * 60 * 1000;
+      }).length,
+      slaWarning: slaTracked.filter(o => {
+        const dl = new Date(o.sla_deadline!).getTime();
+        const minsLeft = (dl - now) / 60000;
+        return o.sla_status === "warning" || (minsLeft >= 0 && minsLeft < 60);
+      }).length,
+      slaOverdue: slaTracked.filter(o => {
+        const dl = new Date(o.sla_deadline!).getTime();
+        return o.sla_status === "overdue" || dl < now;
       }).length,
     };
   }, [orders]);
@@ -178,6 +222,30 @@ const OrdersPage = () => {
               </div>
               <p className={`text-lg font-bold tabular-nums ${k.color}`}>
                 {isLoading ? "—" : (k as any).isString ? k.value : k.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* PHASE C: SLA tracking strip — 3 KPIs */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Dans les délais", value: counts.slaOnTime, icon: ShieldCheck, color: "text-emerald-400", iconBg: "bg-emerald-500/10", borderColor: "border-emerald-500/20" },
+          { label: "À risque (< 1h)", value: counts.slaWarning, icon: Clock, color: "text-amber-400", iconBg: "bg-amber-500/10", borderColor: "border-amber-500/20" },
+          { label: "En retard (SLA)", value: counts.slaOverdue, icon: Timer, color: "text-red-400", iconBg: "bg-red-500/10", borderColor: "border-red-500/30" },
+        ].map(k => {
+          const Icon = k.icon;
+          return (
+            <div key={k.label} className={`rounded-lg border ${k.borderColor} bg-[hsl(220,20%,11%)] p-3`}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className={`h-6 w-6 rounded-md ${k.iconBg} flex items-center justify-center`}>
+                  <Icon className={`h-3 w-3 ${k.color}`} />
+                </div>
+                <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,40%)] font-medium">{k.label}</p>
+              </div>
+              <p className={`text-lg font-bold tabular-nums ${k.color}`}>
+                {isLoading ? "—" : k.value}
               </p>
             </div>
           );
@@ -241,6 +309,7 @@ const OrdersPage = () => {
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Facture</th>
                 <SortableHeader label="Montant" sortKey="total_amount" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
                 <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">Âge</th>
+                <th className="text-left px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(220,10%,38%)] whitespace-nowrap">SLA</th>
                 <SortableHeader label="Date" sortKey="created_at" currentSort={sortKey} currentDir={sortDir} onSort={toggleSort} />
                 <th className="w-10" />
               </tr>
@@ -249,14 +318,14 @@ const OrdersPage = () => {
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-[hsl(220,15%,14%)]">
-                    {Array.from({ length: 12 }).map((_, j) => (
+                    {Array.from({ length: 13 }).map((_, j) => (
                       <td key={j} className="px-3 py-2.5"><div className="h-3.5 w-16 rounded bg-[hsl(220,15%,14%)] animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-[hsl(220,10%,35%)]">
+                  <td colSpan={13} className="text-center py-12 text-[hsl(220,10%,35%)]">
                     <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
                     <p className="text-xs">{search || statusFilter ? "Aucune commande ne correspond aux filtres." : "Aucune commande trouvée."}</p>
                   </td>
@@ -265,9 +334,17 @@ const OrdersPage = () => {
                 filtered.map(o => {
                   const priority = getPriorityIndicator(o);
                   const age = getOrderAge(o.created_at);
+                  const sla = getSlaBadge(o.sla_deadline, o.sla_status, o.status);
+                  const isOverdue = sla?.urgency === "overdue";
 
                   return (
-                    <tr key={o.id} onClick={() => navigate(corePath(`/orders/${o.id}`))} className="border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors group cursor-pointer">
+                    <tr
+                      key={o.id}
+                      onClick={() => navigate(corePath(`/orders/${o.id}`))}
+                      className={`border-b border-[hsl(220,15%,14%)] last:border-0 hover:bg-[hsl(220,20%,13%)] transition-colors group cursor-pointer ${
+                        isOverdue ? "border-l-2 border-l-red-500" : ""
+                      }`}
+                    >
                       {/* Priority indicator */}
                       <td className="px-2 py-2.5">
                         {priority.level === "high" ? (
@@ -315,6 +392,14 @@ const OrdersPage = () => {
                         }`}>
                           {age.label}
                         </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {sla ? (
+                          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${sla.className}`}>
+                            <Timer className="h-2.5 w-2.5" />
+                            {sla.label}
+                          </span>
+                        ) : <span className="text-[hsl(220,10%,30%)]">—</span>}
                       </td>
                       <td className="px-3 py-2.5 text-[hsl(220,10%,45%)] whitespace-nowrap">{format(new Date(o.created_at), "d MMM yyyy", { locale: fr })}</td>
                       <td className="px-3 py-2.5">
