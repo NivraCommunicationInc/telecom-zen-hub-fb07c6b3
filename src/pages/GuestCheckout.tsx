@@ -451,8 +451,15 @@ const GuestCheckout = () => {
       const paymentMethodValue = paymentMethod === "paypal" ? "paypal" : "etransfer";
 
       // Step 4: Submit checkout
+      // ★ FIX #8 — Persist guest language preference at checkout.
+      const guestLanguage: "fr" | "en" =
+        (typeof window !== "undefined" && window.localStorage?.getItem("nivra-language") === "en")
+          ? "en"
+          : "fr";
+
       const checkoutPayload: NivraFullCheckoutPayload = {
         client_request_id: clientRequestIdRef.current,
+        client_language: guestLanguage,
         customer: {
           user_id: userId,
           first_name: firstName.trim(),
