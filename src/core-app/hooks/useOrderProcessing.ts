@@ -2066,6 +2066,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     confirmPayment,
     markPaymentInvalid,
     markPaymentPartial,
+    recordManualPayment,
     setFulfillmentType,
     updateFulfillmentDetails,
     assignEquipment,
