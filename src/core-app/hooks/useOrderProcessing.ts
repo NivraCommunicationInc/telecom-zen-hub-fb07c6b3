@@ -1487,7 +1487,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   };
 
   /* ── Complete order ── */
-  const completeOrder = async () => {
+  const completeOrder = async (opts?: { forceOverride?: boolean; overrideReason?: string }) => {
     try {
       // GUARD: Already completed
       if (data?.order?.status === "completed") {
@@ -1503,9 +1503,26 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
       const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
       const invoiceStatus = invoice.status;
-      if (!["paid", "partially_paid"].includes(invoiceStatus || "") && balanceDue > 0) {
-        toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
-        return;
+      const invoicePaid = ["paid", "partially_paid"].includes(invoiceStatus || "") || balanceDue <= 0;
+      const forceOverride = !!opts?.forceOverride;
+      const overrideReason = (opts?.overrideReason || "").trim();
+
+      if (!invoicePaid) {
+        if (!forceOverride) {
+          toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+          return;
+        }
+        if (!overrideReason) {
+          toast.error("Une justification est obligatoire pour forcer la complétion");
+          return;
+        }
+        await logActivity("completion_forced_unpaid", "order", orderId, {
+          invoice_id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          balance_due: balanceDue,
+          override_reason: overrideReason,
+        });
+        toast.warning("Commande complétée sans paiement confirmé");
       }
 
       await changeStatus("completed");
