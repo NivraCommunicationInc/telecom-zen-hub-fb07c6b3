@@ -99,11 +99,12 @@ const NivraChat = () => {
     }
   }, [isOpen]);
 
-  // Subscribe to admin replies and session status changes for this session
+  // Subscribe to admin replies and session status changes for this session.
+  // Stays active even when the widget is minimised so the visitor never misses
+  // an admin reply (the unread badge updates and the message appears on reopen).
   useEffect(() => {
-    if (!isOpen) return;
     const channel = supabase
-      .channel(`live-chat-${sessionId}`)
+      .channel(`admin-replies-${sessionId}`)
       .on(
         "postgres_changes",
         {
@@ -125,6 +126,7 @@ const NivraChat = () => {
               timestamp: new Date(r.created_at),
             },
           ]);
+          if (!isOpen) setUnreadCount((prev) => prev + 1);
         }
       )
       .on(
@@ -145,11 +147,15 @@ const NivraChat = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[NivraChat] admin-reply channel status:", status);
+      });
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, sessionId, fr]);
+    // isOpen intentionally excluded — keep channel alive while widget is closed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, fr]);
 
   const ensureSessionExists = useCallback(async () => {
     if (sessionPersistedRef.current) return;
