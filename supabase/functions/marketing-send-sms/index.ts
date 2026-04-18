@@ -187,11 +187,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    const firstPn = pnJson?.data?.[0];
-    // OpenPhone /v1/messages accepts EITHER the phoneNumberId (PN…) OR the E.164 number as `from`.
-    // Use the E.164 number for clarity and to match user expectation.
-    const fromNumber = firstPn?.phoneNumber || firstPn?.number || null;
-    const fromId = firstPn?.id || null;
+    // Pick a number that can actually send SMS to Canada.
+    // Prefer numbers where messaging.CA === "unrestricted" (typically local 10DLC),
+    // skipping toll-free numbers which are usually restricted until TFN verification.
+    const allPns: any[] = Array.isArray(pnJson?.data) ? pnJson.data : [];
+    const smsCapable = allPns.find(
+      (p) => p?.restrictions?.messaging?.CA === "unrestricted",
+    );
+    const chosenPn = smsCapable || allPns[0];
+    const fromNumber = chosenPn?.phoneNumber || chosenPn?.number || null;
+    const fromId = chosenPn?.id || null;
+    console.log(
+      `[marketing-send-sms-${reqId}] chosen number=${fromNumber} id=${fromId} sms_ca=${chosenPn?.restrictions?.messaging?.CA}`,
+    );
     console.log(
       `[marketing-send-sms-${reqId}] from candidate phoneNumber=${fromNumber} id=${fromId}`,
     );
