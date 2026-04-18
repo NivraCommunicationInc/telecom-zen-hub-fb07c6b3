@@ -1083,6 +1083,8 @@ const AdminClients = () => {
                       {Number(selectedClient.balance).toFixed(2)}$
                     </Badge>
                   )}
+                  {/* P0 GAP #8 — Red badge if client has overdue invoice */}
+                  <OverdueClientBadge clientUserId={selectedClient?.user_id} />
                 </div>
               </div>
             </div>
