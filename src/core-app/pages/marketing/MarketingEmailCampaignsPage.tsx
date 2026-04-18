@@ -26,8 +26,9 @@ import {
   FileText, Ban, BarChart3, Sparkles, Plus, RotateCcw, TestTube2, Save,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, subDays, startOfDay } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MKPage, MKCard, MKCardHeader, MKStat } from "./_marketing-ui";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
