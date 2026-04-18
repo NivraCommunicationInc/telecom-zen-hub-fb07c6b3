@@ -128,6 +128,11 @@ const CoreContestsPage = lazy(() => import("@/core-app/pages/CoreContestsPage"))
 const CoreEmailMarketingPage = lazy(() => import("@/core-app/pages/CoreEmailMarketingPage"));
 const CoreCommunicationEmailPage = lazy(() => import("@/core-app/pages/CoreCommunicationEmailPage"));
 const CoreCommunicationSMSPage = lazy(() => import("@/core-app/pages/CoreCommunicationSMSPage"));
+// Marketing Hub
+const MarketingHubDashboard = lazy(() => import("@/core-app/pages/marketing/MarketingHubDashboard"));
+const MarketingConversationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingConversationsPage"));
+const MarketingAIConfigPage = lazy(() => import("@/core-app/pages/marketing/MarketingAIConfigPage"));
+const MarketingSMSCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSMSCampaignsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreCommissionWithdrawalsPage = lazy(() => import("@/core-app/pages/CoreCommissionWithdrawalsPage"));
@@ -696,6 +701,9 @@ const AppRoutes = () => {
       {/* Core login removed — all access through /hub */}
       <Route path="/core/login" element={<Navigate to="/hub" replace />} />
 
+      {/* Top-level alias for Marketing Hub */}
+      <Route path="/marketing" element={<Navigate to="/core/marketing" replace />} />
+
       {/* Protected: All /core/* routes behind auth gate */}
       <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense>}>
         <Route element={<CoreAppLayout />}>
@@ -746,6 +754,10 @@ const AppRoutes = () => {
           <Route path="streaming" element={<Suspense fallback={null}><CoreStreamingPage /></Suspense>} />
           <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />
           {/* Marketing */}
+          <Route path="marketing" element={<Suspense fallback={null}><MarketingHubDashboard /></Suspense>} />
+          <Route path="marketing/conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
+          <Route path="marketing/ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
+          <Route path="marketing/sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
           <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
           <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />
