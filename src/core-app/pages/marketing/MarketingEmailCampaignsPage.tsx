@@ -834,6 +834,25 @@ const MarketingEmailCampaignsPage = () => {
           </div>
 
           <MKCard>
+            <MKCardHeader title="Ouvertures & clics — 30 derniers jours" />
+            <div className="p-4" style={{ height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={opensTimeline}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" />
+                  <XAxis dataKey="date" stroke="#888" fontSize={11} />
+                  <YAxis stroke="#888" fontSize={11} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#0D0D1A", border: "1px solid #1E1E2E", borderRadius: 8, color: "#fff", fontSize: 12 }}
+                    labelStyle={{ color: "#888" }}
+                  />
+                  <Line type="monotone" dataKey="opens" stroke="#10B981" strokeWidth={2} dot={false} name="Ouvertures" />
+                  <Line type="monotone" dataKey="clicks" stroke="#F59E0B" strokeWidth={2} dot={false} name="Clics" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </MKCard>
+
+          <MKCard>
             <MKCardHeader title="Performance par campagne" />
             <div className="p-2">
               {campaigns.length === 0 ? (
