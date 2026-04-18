@@ -538,7 +538,7 @@ function MatchBadge({ label, value }: { label: string; value: any }) {
 }
 
 function ActionButton({
-  available, onClick, disabled, className, ghost, icon: Icon, children, unavailableReason,
+  available, onClick, disabled, className, ghost, icon: Icon, iconSpin, children, unavailableReason,
 }: {
   available: boolean;
   onClick: () => void;
@@ -546,6 +546,7 @@ function ActionButton({
   className?: string;
   ghost?: boolean;
   icon?: any;
+  iconSpin?: boolean;
   children: React.ReactNode;
   unavailableReason?: string;
 }) {
@@ -557,7 +558,7 @@ function ActionButton({
       disabled={disabled || !available}
       className={`text-sm ${ghost ? baseGhost : className || ""}`}
     >
-      {Icon && <Icon className="w-3 h-3 mr-1" />} {children}
+      {Icon && <Icon className={`w-3 h-3 mr-1 ${iconSpin ? "animate-spin" : ""}`} />} {children}
     </Button>
   );
   if (!available) {
