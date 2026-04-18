@@ -130,11 +130,15 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Marketing",
     icon: Megaphone,
     items: [
+      { icon: LayoutDashboard, label: "Marketing Hub", href: "/marketing" },
+      { icon: MessageSquare, label: "Conversations IA", href: "/marketing/conversations" },
+      { icon: Zap, label: "Agent IA Config", href: "/marketing/ai-config" },
+      { icon: Send, label: "Campagnes SMS", href: "/marketing/sms-campaigns" },
       { icon: Tag, label: "Promotions", href: "/promotions" },
-      { icon: Trophy, label: "Contests", href: "/contests" },
-      { icon: Send, label: "Email", href: "/communication-email" },
+      { icon: Trophy, label: "Concours", href: "/contests" },
       { icon: Megaphone, label: "Email Marketing", href: "/email-marketing" },
-      { icon: MessageSquare, label: "SMS", href: "/communication-sms" },
+      { icon: Send, label: "Email Comm.", href: "/communication-email" },
+      { icon: MessageSquare, label: "SMS Comm.", href: "/communication-sms" },
     ],
   },
   {

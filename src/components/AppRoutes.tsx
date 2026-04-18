@@ -701,6 +701,9 @@ const AppRoutes = () => {
       {/* Core login removed — all access through /hub */}
       <Route path="/core/login" element={<Navigate to="/hub" replace />} />
 
+      {/* Top-level alias for Marketing Hub */}
+      <Route path="/marketing" element={<Navigate to="/core/marketing" replace />} />
+
       {/* Protected: All /core/* routes behind auth gate */}
       <Route path="/core" element={<Suspense fallback={<div className="min-h-screen bg-[hsl(220,20%,8%)]" />}><CoreProtectedRoute /></Suspense>}>
         <Route element={<CoreAppLayout />}>
