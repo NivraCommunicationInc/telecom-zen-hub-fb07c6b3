@@ -847,6 +847,122 @@ serve(async (req) => {
       errors.push(`invoice_lines_critical: ${err?.message || String(err)}`);
     }
 
+    // ★ FIX #3 — Equipment line details fallback.
+    // If the client did not send equipment[] (or sent it empty), reconstruct
+    // equipment_line_details on the order from billing_invoice_lines so contracts,
+    // emails, and admin views always have the data.
+    if (accountId && (!payload.equipment || payload.equipment.length === 0)) {
+      try {
+        const { data: eqLines } = await admin
+          .from("billing_invoice_lines")
+          .select("description, quantity, unit_price, line_total")
+          .eq("invoice_id", response.invoice_id)
+          .eq("line_type", "equipment");
+
+        if (eqLines && eqLines.length > 0) {
+          const reconstructed = eqLines.map((l: any) => ({
+            sku: null,
+            name: l.description,
+            quantity: Number(l.quantity || 1),
+            unit_price: toMoney(l.unit_price),
+            line_total: toMoney(l.line_total),
+          }));
+          await admin
+            .from("orders")
+            .update({ equipment_line_details: reconstructed })
+            .eq("id", response.order_id)
+            .or("equipment_line_details.is.null,equipment_line_details.eq.[]");
+          results.equipment_reconstructed = reconstructed.length;
+        }
+      } catch (err: any) {
+        errors.push(`equipment_fallback: ${err?.message || String(err)}`);
+      }
+    }
+
+    // ★ FIX #4 (code-side) — Promo code backstop.
+    // Ensures promo_code + promo_discount_amount are persisted even if the order row
+    // was created via the fallback path (Nivra Core unavailable).
+    if (snapshotPromoCode && response.order_id) {
+      try {
+        await admin
+          .from("orders")
+          .update({
+            promo_code: snapshotPromoCode,
+            promo_discount_amount: snapshotPromoDiscount,
+          })
+          .eq("id", response.order_id)
+          .is("promo_code", null);
+      } catch (err: any) {
+        errors.push(`promo_backstop: ${err?.message || String(err)}`);
+      }
+    }
+
+    // ★ FIX #7 — Populate order_items from invoice lines.
+    // Maps service / equipment / fee invoice lines into the structured order_items
+    // table so downstream views (admin, fulfillment, work engine) have per-item data.
+    if (accountId) {
+      try {
+        const { count: existingItemsCount } = await admin
+          .from("order_items")
+          .select("id", { count: "exact", head: true })
+          .eq("order_id", response.order_id);
+
+        if (!existingItemsCount || existingItemsCount === 0) {
+          const { data: allLines } = await admin
+            .from("billing_invoice_lines")
+            .select("description, quantity, unit_price, line_total, line_type")
+            .eq("invoice_id", response.invoice_id);
+
+          if (allLines && allLines.length > 0) {
+            // service_type enum: internet, tv, mobile, streaming, security, addon, equipment, fee
+            const inferServiceType = (desc: string, lineType: string): string => {
+              if (lineType === "equipment") return "equipment";
+              if (lineType === "fee") return "fee";
+              if (lineType === "discount") return "fee";
+              const d = (desc || "").toLowerCase();
+              if (d.includes("internet") || d.includes("fibre") || d.includes("fiber")) return "internet";
+              if (d.includes("télé") || d.includes("tv") || d.includes("chaîne") || d.includes("channel")) return "tv";
+              if (d.includes("mobile") || d.includes("cellulaire")) return "mobile";
+              if (d.includes("netflix") || d.includes("disney") || d.includes("spotify") || d.includes("streaming")) return "streaming";
+              if (d.includes("sécurité") || d.includes("alarme") || d.includes("security")) return "security";
+              return "addon";
+            };
+
+            const itemsToInsert = allLines
+              .filter((l: any) => l.line_type !== "discount")
+              .map((l: any, idx: number) => ({
+                order_id: response.order_id,
+                item_number: idx + 1,
+                service_type: inferServiceType(l.description, l.line_type),
+                plan_name: l.description,
+                description: l.description,
+                unit_price: toMoney(l.unit_price),
+                quantity: Number(l.quantity || 1),
+                line_total: toMoney(l.line_total),
+                is_recurring: l.line_type === "service",
+                status: "pending",
+              }));
+
+            if (itemsToInsert.length > 0) {
+              const { error: itemsError } = await admin
+                .from("order_items")
+                .insert(itemsToInsert);
+              if (itemsError) {
+                console.warn("[checkout-canonical-sync] order_items insert failed:", itemsError);
+                errors.push(`order_items: ${itemsError.message}`);
+              } else {
+                results.order_items_created = itemsToInsert.length;
+              }
+            }
+          }
+        } else {
+          results.order_items_existing = existingItemsCount;
+        }
+      } catch (err: any) {
+        errors.push(`order_items: ${err?.message || String(err)}`);
+      }
+    }
+
     // 6) Payment
     if (customerId) {
       try {
