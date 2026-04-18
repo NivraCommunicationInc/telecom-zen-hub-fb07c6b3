@@ -1704,8 +1704,13 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
-  /* ── KYC: Request identity verification (create session + send link) ── */
-  const requestIdentityVerification = async (opts?: { email?: string }) => {
+  /* ── KYC: Request identity verification ──
+   * Delegates to the `send-kyc-request` edge function which uses the service
+   * role to: create a kyc_requests row, set orders.kyc_status='pending',
+   * send the branded email, and log the activity.
+   * This bypasses RLS on identity_verification_sessions / kyc_requests.
+   */
+  const requestIdentityVerification = async (opts?: { email?: string; notes?: string }) => {
     try {
       const order = data?.order;
       const profile = data?.profile;
@@ -1714,73 +1719,19 @@ export function useOrderProcessing(orderId: string | undefined) {
       const recipientEmail = opts?.email || order.client_email || profile?.email;
       if (!recipientEmail) throw new Error("Aucun courriel client disponible");
 
-      // 1. Look up an existing non-terminal session
-      const { data: existing, error: lookupError } = await supabase
-        .from("identity_verification_sessions")
-        .select("*")
-        .eq("order_id", orderId)
-        .not("status", "in", "(approved,rejected)")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (lookupError) throw lookupError;
-
-      let session = existing;
-
-      // 2. Create one if none exists
-      if (!session) {
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: created, error: insertError } = await supabase
-          .from("identity_verification_sessions")
-          .insert({
-            order_id: orderId,
-            user_id: order.user_id,
-            order_number: order.order_number,
-            status: "created",
-            expires_at: expiresAt,
-            max_attempts: 3,
-            checkout_type: "agent_initiated",
-          })
-          .select("*")
-          .single();
-        if (insertError) throw insertError;
-        session = created;
-      }
-
-      // 3. Enqueue KYC document required email
-      try {
-        if (profile) {
-          const emailRow = orderEmails.kycDocumentRequired(order, profile);
-          if (emailRow) {
-            // Inject the verification token / link via metadata so the template can pick it up
-            (emailRow as any).metadata = {
-              ...((emailRow as any).metadata || {}),
-              verification_token: session?.public_token || null,
-              verification_link: session?.public_token
-                ? `${window.location.origin}/verify-id/${session.public_token}`
-                : null,
-              session_id: session?.id || null,
-            };
-            await enqueueOrderEmail(emailRow);
-          }
-        }
-      } catch (e: any) {
-        console.error("[orderEmails] kyc_document_required enqueue error:", e?.message);
-      }
-
-      // 4. Activity log
-      await logActivity("kyc_verification_requested", "order", orderId, {
-        session_id: session?.id || null,
-        recipient_email: recipientEmail,
-        note: "Lien de vérification KYC envoyé au client",
+      const { data: result, error } = await supabase.functions.invoke("send-kyc-request", {
+        body: {
+          order_id: orderId,
+          notes: opts?.notes ?? null,
+        },
       });
 
-      // 5. Invalidate caches
-      invalidateAll();
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
 
-      // 6. Toast
+      invalidateAll();
       toast.success(`Lien de vérification envoyé à ${recipientEmail}`);
-      return session;
+      return result;
     } catch (err: any) {
       console.error("[KYC] requestIdentityVerification failed:", err);
       toast.error(`Erreur d'envoi: ${err?.message || "Erreur inconnue"}`);
@@ -1788,59 +1739,33 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
-  /* ── KYC: Request resubmission of an existing session ── */
+  /* ── KYC: Request resubmission of an existing session ──
+   * Re-issues a KYC request via the same edge function (service-role insert,
+   * email + activity log). The previous kyc_requests row remains in history.
+   */
   const requestKycResubmission = async (opts?: { reason?: string }) => {
     try {
       const order = data?.order;
-      const profile = data?.profile;
-      const session = data?.kycSession;
       if (!order) throw new Error("Commande introuvable");
-      if (!session?.id) throw new Error("Aucune session KYC active");
 
-      // 1. Reset session status + bump attempts
-      const { error: updErr } = await supabase
-        .from("identity_verification_sessions")
-        .update({
-          status: "created",
-          submission_attempts: (session.submission_attempts || 0) + 1,
-          review_reason: opts?.reason || session.review_reason || "Documents additionnels requis",
-        })
-        .eq("id", session.id);
-      if (updErr) throw updErr;
+      const { data: result, error } = await supabase.functions.invoke("send-kyc-request", {
+        body: {
+          order_id: orderId,
+          notes: opts?.reason || "Resoumission demandée par l'agent",
+        },
+      });
 
-      // 2. Enqueue email
-      try {
-        if (profile) {
-          const emailRow = orderEmails.kycDocumentRequired(order, profile);
-          if (emailRow) {
-            (emailRow as any).metadata = {
-              ...((emailRow as any).metadata || {}),
-              verification_token: session.public_token || null,
-              verification_link: session.public_token
-                ? `${window.location.origin}/verify-id/${session.public_token}`
-                : null,
-              session_id: session.id,
-              reason: opts?.reason || null,
-              is_resubmission: true,
-            };
-            await enqueueOrderEmail(emailRow);
-          }
-        }
-      } catch (e: any) {
-        console.error("[orderEmails] kyc resubmission enqueue error:", e?.message);
-      }
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
 
-      // 3. Activity log
+      // Extra activity log for the resubmission intent (edge fn logs 'kyc_requested')
       await logActivity("kyc_resubmission_requested", "order", orderId, {
-        session_id: session.id,
         reason: opts?.reason || null,
       });
 
-      // 4. Invalidate
       invalidateAll();
-
-      // 5. Toast
       toast.success("Demande de resoumission envoyée");
+      return result;
     } catch (err: any) {
       console.error("[KYC] requestKycResubmission failed:", err);
       toast.error(`Erreur: ${err?.message || "Erreur inconnue"}`);
