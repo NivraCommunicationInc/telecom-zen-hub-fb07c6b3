@@ -100,7 +100,7 @@ const FAQ = () => {
       questions: [
         {
           q: isFr ? 'Comment contacter le support de Nivra Telecom ?' : 'How do I contact Nivra Telecom support?',
-          a: isFr ? 'Notre support est disponible en français et en anglais, 7 jours sur 7 de 8h à 20h, par courriel à support@nivra-telecom.ca, par chat en direct sur notre site, ou par téléphone. Temps de réponse moyen : moins de 2 heures.' : 'Our support is available in French and English, 7 days a week from 8am to 8pm, by email at support@nivra-telecom.ca, live chat on our website, or by phone. Average response time: under 2 hours.',
+          a: isFr ? 'Notre support est disponible en français et en anglais, 7 jours sur 7 de 8h à 20h, par courriel à support@nivra-telecom.ca ou par chat en direct sur notre site. Temps de réponse moyen : moins de 2 heures.' : 'Our support is available in French and English, 7 days a week from 8am to 8pm, by email at support@nivra-telecom.ca or live chat on our website. Average response time: under 2 hours.',
         },
         {
           q: isFr ? 'Que faire si ma connexion Internet est lente ou coupée ?' : 'What should I do if my Internet is slow or down?',

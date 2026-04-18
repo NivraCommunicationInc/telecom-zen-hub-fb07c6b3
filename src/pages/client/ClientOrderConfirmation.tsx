@@ -1114,18 +1114,17 @@ END:VCALENDAR`;
           </CardContent>
         </Card>
 
-        {/* ===== CONTACT INFO FOOTER ===== */}
+        {/* ===== CONTACT INFO FOOTER (email only — no phone support) ===== */}
         <Card className="bg-card border">
           <CardContent className="py-4">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
-              <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`} className="flex items-center gap-2 hover:text-foreground transition-colors">
-                <Phone className="w-4 h-4" />
-                {supportPhone}
-              </a>
-              <span className="flex items-center gap-2">
+              <a
+                href={`mailto:${supportEmail.toLowerCase()}`}
+                className="flex items-center gap-2 hover:text-foreground transition-colors"
+              >
                 <Mail className="w-4 h-4" />
                 {supportEmail}
-              </span>
+              </a>
               <span className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
                 {businessHours}

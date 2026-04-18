@@ -180,7 +180,6 @@ const TermsOfUse = () => {
               </p>
               <ul className="list-none space-y-2">
                 <li><strong>Courriel :</strong> {COMPANY_CONTACT.supportEmailDisplay}</li>
-                <li><strong>Téléphone :</strong> {COMPANY_CONTACT.supportPhoneDisplay}</li>
               </ul>
             </section>
           </div>

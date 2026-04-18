@@ -122,18 +122,9 @@ const TOOLS = [
       }
     }
   },
-  {
-    type: "function",
-    function: {
-      name: "book_callback",
-      description: "Planifie un rappel téléphonique avec un agent Nivra",
-      parameters: {
-        type: "object",
-        properties: { name: { type: "string" }, phone: { type: "string" }, preferred_time: { type: "string" }, reason: { type: "string" } },
-        required: ["name", "phone"]
-      }
-    }
-  },
+  // NOTE: book_callback (rappel téléphonique) intentionally removed.
+  // Nivra ne fournit AUCUN support téléphonique — seul canal: support@nivra-telecom.ca
+  // (+ chat). Si le client veut un humain → submit_contact_form / handoff_to_agent.
   // --- AUTHENTICATED TOOLS ---
   {
     type: "function",
@@ -564,18 +555,8 @@ async function handleToolCall(
         return { result: fr ? `✅ Votre demande a été enregistrée! Un conseiller Nivra vous contactera très bientôt.` : `✅ Your request has been registered! A Nivra advisor will contact you soon.` };
       }
 
-      case "book_callback": {
-        const timeLabels: Record<string, string> = { morning: "matin (9h-12h)", afternoon: "après-midi (12h-17h)", evening: "soir (17h-20h)" };
-        const preferredLabel = timeLabels[args.preferred_time] || args.preferred_time || "dès que possible";
-        const { error } = await supabase.from("contact_requests").insert({
-          name: args.name, phone: args.phone,
-          subject: "Demande de rappel - Chatbot",
-          notes: `Rappel demandé: ${preferredLabel}\nRaison: ${args.reason || "Intéressé par les services Nivra"}`,
-          source: "chatbot_callback", status: "pending"
-        } as any);
-        if (error) throw error;
-        return { result: fr ? `📞 Parfait! Un conseiller vous rappellera au ${args.phone} (${preferredLabel}).` : `📞 Perfect! An advisor will call you back at ${args.phone} (${preferredLabel}).` };
-      }
+      // book_callback case removed — no phone support at Nivra.
+      // If the model still tries to call it, fall through to the unknown-tool branch.
 
       case "handoff_to_agent": {
         await supabase.from("contact_requests").insert({
@@ -584,8 +565,8 @@ async function handleToolCall(
           source: "chatbot_escalation", status: "pending"
         } as any);
         return { result: fr
-          ? `🤝 Je transfère votre dossier à un agent spécialisé.\n📧 support@nivra-telecom.ca\n📞 1-888-NIVRA`
-          : `🤝 Transferring to a specialized agent.\n📧 support@nivra-telecom.ca\n📞 1-888-NIVRA` };
+          ? `🤝 Je transfère votre dossier à un agent spécialisé. Contactez-nous par courriel: support@nivra-telecom.ca`
+          : `🤝 Transferring to a specialized agent. Contact us by email: support@nivra-telecom.ca` };
       }
 
       case "verify_client_identity": {

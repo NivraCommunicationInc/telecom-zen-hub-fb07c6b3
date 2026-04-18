@@ -1,0 +1,1 @@
+ALTER TABLE public.live_chat_admin_replies REPLICA IDENTITY FULL;

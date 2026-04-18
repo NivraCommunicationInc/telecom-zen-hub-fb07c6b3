@@ -1,4 +1,4 @@
-import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Phone, XCircle, Building2, User, Clock, Receipt, ChevronRight, Layers, Sparkles, Info } from "lucide-react";
+import { Smartphone, Wifi, Tv, Shield, Check, AlertCircle, ArrowRight, FileText, CreditCard, MapPin, Mail, XCircle, Building2, User, Clock, Receipt, ChevronRight, Layers, Sparkles, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,10 @@ const ServicesDetail = () => {
   const { language } = useLanguage();
   const isFrench = language === 'fr';
   const { data: siteSettings } = useSiteSettings();
-  
-  // Use site_settings as source of truth, COMPANY_CONTACT as fallback
-  const supportPhone = siteSettings?.support_phone || COMPANY_CONTACT.supportPhoneDisplay;
+
+  // No phone support — Nivra communicates by email + chat only.
+  // (siteSettings + supportPhone removed; siteSettings hook intentionally
+  // dropped from this section because nothing else here consumes it.)
 
   const services = [
     {
@@ -255,9 +256,9 @@ const ServicesDetail = () => {
                 {isFrench ? "Demander une soumission" : "Request a quote"}
               </Button>
               <Button variant="outline" size="lg" asChild>
-                <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
-                  <Phone className="w-4 h-4 mr-2" />
-                  {isFrench ? "Nous joindre" : "Contact us"}
+                <a href={`mailto:${COMPANY_CONTACT.supportEmail}`}>
+                  <Mail className="w-4 h-4 mr-2" />
+                  {isFrench ? "Nous écrire" : "Email us"}
                 </a>
               </Button>
             </div>
@@ -520,9 +521,9 @@ const ServicesDetail = () => {
                     </Link>
                   </Button>
                   <Button variant="outline" size="lg" className="gap-2" asChild>
-                    <a href={`tel:+1${supportPhone.replace(/[^+\d]/g, '')}`}>
-                      <Phone className="w-4 h-4" />
-                      {supportPhone}
+                    <a href={`mailto:${COMPANY_CONTACT.supportEmail}`}>
+                      <Mail className="w-4 h-4" />
+                      {COMPANY_CONTACT.supportEmailDisplay}
                     </a>
                   </Button>
                 </div>
