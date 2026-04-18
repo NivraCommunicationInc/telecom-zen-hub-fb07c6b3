@@ -9,6 +9,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOptionalAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { toast } from "sonner";
+import { orderEmails } from "@/core-app/lib/emails/orderEmails";
+
+/**
+ * Append-only email enqueue. NEVER throws — an email failure must not break
+ * any order mutation. Logs to console on failure.
+ */
+async function enqueueOrderEmail(row: Record<string, any> | null | undefined) {
+  if (!row || !row.to_email || !row.entity_id) return;
+  try {
+    const { error } = await supabase.from("email_queue").insert(row as any);
+    if (error) {
+      console.error("[orderEmails] enqueue failed:", error.message, {
+        template: row.template_key,
+        entity: row.entity_id,
+      });
+    }
+  } catch (err: any) {
+    console.error("[orderEmails] enqueue exception:", err?.message);
+  }
+}
 
 /** Map order payment_method values to valid billing_payment_method enum values.
  *  PHASE 1: No fallback — null/unknown throws an explicit error. */
