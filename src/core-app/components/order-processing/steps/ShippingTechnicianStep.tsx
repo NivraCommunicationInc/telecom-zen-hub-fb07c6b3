@@ -37,6 +37,12 @@ export function ShippingTechnicianStep({ proc }: Props) {
   const showShippingPanel = hasShipping || !showTechnicianPanel;
 
   const [loading, setLoading] = useState<string | null>(null);
+  const [contractGate, setContractGate] = useState<{
+    open: boolean;
+    targetStatus: "shipped" | "in_transit" | "out_for_delivery" | null;
+    reason: string;
+    forcing: boolean;
+  }>({ open: false, targetStatus: null, reason: "", forcing: false });
 
   const [shippingFields, setShippingFields] = useState({
     carrier: order.carrier || "",
@@ -64,6 +70,8 @@ export function ShippingTechnicianStep({ proc }: Props) {
 
   const selectedTechnician = technicians.find((t) => t.id === techFields.technician_id);
 
+  const isContractGateError = (err: any) => String(err?.message || "").startsWith("CONTRACT_NOT_SIGNED");
+
   const handleSaveShipping = async () => {
     setLoading("save");
     try { await proc.updateShipping({ ...shippingFields, shipped_at: new Date().toISOString() }); }
@@ -75,7 +83,29 @@ export function ShippingTechnicianStep({ proc }: Props) {
     try {
       await proc.updateShipping({ ...shippingFields, shipped_at: new Date().toISOString() });
       await proc.changeStatus("shipped");
+    } catch (err: any) {
+      if (isContractGateError(err)) {
+        setContractGate({ open: true, targetStatus: "shipped", reason: "", forcing: false });
+      }
     } finally { setLoading(null); }
+  };
+
+  const handleForceShip = async () => {
+    if (!contractGate.targetStatus || !contractGate.reason.trim()) {
+      toast.error("Justification obligatoire");
+      return;
+    }
+    setContractGate((g) => ({ ...g, forcing: true }));
+    try {
+      await proc.changeStatus(contractGate.targetStatus, {
+        forceOverride: true,
+        overrideReason: contractGate.reason.trim(),
+      });
+      setContractGate({ open: false, targetStatus: null, reason: "", forcing: false });
+    } catch (err: any) {
+      console.error("[ShippingTechnicianStep] Force ship failed:", err);
+      setContractGate((g) => ({ ...g, forcing: false }));
+    }
   };
 
   const handleMarkDelivered = async () => {
@@ -282,6 +312,37 @@ export function ShippingTechnicianStep({ proc }: Props) {
                 {loading === "install-fail" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null} Échec
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {contractGate.open && (
+        <div className="bg-amber-950/50 border border-amber-700/50 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-2 mb-2">
+            <Clock className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-200">Contrat non signé — expédition bloquée</p>
+              <p className="text-xs text-amber-300/80 mt-0.5">
+                Le client n'a pas encore signé. Vous pouvez forcer l'expédition avec une justification (auditée).
+              </p>
+            </div>
+          </div>
+          <Label className="text-[10px] uppercase tracking-wider text-amber-200/80">Justification pour forcer l'expédition</Label>
+          <Textarea
+            value={contractGate.reason}
+            onChange={(e) => setContractGate((g) => ({ ...g, reason: e.target.value }))}
+            placeholder="Raison de l'override…"
+            className="bg-[#0d1421] border-amber-700/40 text-slate-100 text-sm rounded-lg min-h-[60px] mt-1 mb-2"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={handleForceShip} disabled={contractGate.forcing || !contractGate.reason.trim()}
+              className="text-sm bg-red-700 hover:bg-red-800 text-white">
+              {contractGate.forcing ? "Expédition forcée…" : "Forcer l'expédition (override admin)"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setContractGate({ open: false, targetStatus: null, reason: "", forcing: false })}
+              disabled={contractGate.forcing} className="text-sm text-slate-300 hover:bg-slate-800">
+              Annuler
+            </Button>
           </div>
         </div>
       )}

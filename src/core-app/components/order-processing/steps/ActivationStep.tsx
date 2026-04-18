@@ -25,6 +25,9 @@ export function ActivationStep({ proc }: Props) {
   const [providerRef, setProviderRef] = useState("");
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
+  const [showOverride, setShowOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [isForcing, setIsForcing] = useState(false);
 
   const currentStatus = order.status || "";
   const isActivated = TERMINAL_STATES.includes(currentStatus);
@@ -32,6 +35,7 @@ export function ActivationStep({ proc }: Props) {
   const isInOperational = OPERATIONAL_STATES.includes(currentStatus);
   const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoice?.status || "");
   const canActivate = invoicePaid && !isActivated;
+  const canForceActivate = !!invoice && !invoicePaid && !isActivated;
 
   const handleActivate = async () => {
     if (!proc.activateService) { toast.error("Méthode d'activation non disponible"); return; }
@@ -45,6 +49,24 @@ export function ActivationStep({ proc }: Props) {
       console.error("[ActivationStep] Activation failed:", err);
       toast.error(err?.message || "Erreur lors de l'activation");
     } finally { setIsActivating(false); }
+  };
+
+  const handleForceActivate = async () => {
+    if (!overrideReason.trim()) { toast.error("Justification obligatoire"); return; }
+    setIsForcing(true);
+    try {
+      await proc.activateService({
+        providerRef: providerRef || undefined,
+        activationNotes: activationNotes || undefined,
+        forceOverride: true,
+        overrideReason: overrideReason.trim(),
+      });
+      setShowOverride(false);
+      setOverrideReason("");
+    } catch (err: any) {
+      console.error("[ActivationStep] Force activation failed:", err);
+      toast.error(err?.message || "Erreur lors de l'activation forcée");
+    } finally { setIsForcing(false); }
   };
 
   const handleConfirmOrder = async () => {
@@ -74,9 +96,68 @@ export function ActivationStep({ proc }: Props) {
         />
       )}
 
-      {!invoicePaid && !isActivated && (
+      {canForceActivate && (
+        <div className="bg-amber-950/50 border border-amber-700/50 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-200">Facture impayée — activation bloquée</p>
+              <p className="text-xs text-amber-300/80 mt-0.5">
+                Solde dû: <span className="font-mono">{Number(invoice.balance_due ?? invoice.total ?? 0).toFixed(2)} $</span>
+                {" · "}Facture {invoice.invoice_number || ""} ({invoice.status})
+              </p>
+            </div>
+          </div>
+
+          {!showOverride && (
+            <Button
+              size="sm"
+              onClick={() => setShowOverride(true)}
+              disabled={proc.isUpdating}
+              className="text-sm bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              Forcer l'activation (override admin)
+            </Button>
+          )}
+
+          {showOverride && (
+            <div className="mt-3 space-y-2">
+              <Label className="text-[10px] uppercase tracking-wider text-amber-200/80">
+                Justification (ex: paiement comptant à l'installation, B2B, promo)
+              </Label>
+              <Textarea
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="Raison de l'override…"
+                className="bg-[#0d1421] border-amber-700/40 text-slate-100 text-sm rounded-lg min-h-[60px]"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleForceActivate}
+                  disabled={isForcing || proc.isUpdating || !overrideReason.trim()}
+                  className="text-sm bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {isForcing ? "Activation…" : "Forcer l'activation"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => { setShowOverride(false); setOverrideReason(""); }}
+                  disabled={isForcing}
+                  className="text-sm text-slate-300 hover:bg-slate-800"
+                >
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!invoice && !isActivated && (
         <div className="bg-amber-950/50 border border-amber-700/50 text-amber-300 rounded-lg px-3 py-2 text-sm mb-4 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4" /> La facture doit être payée avant l'activation du service.
+          <AlertTriangle className="w-4 h-4" /> Aucune facture liée — création requise avant l'activation.
         </div>
       )}
 

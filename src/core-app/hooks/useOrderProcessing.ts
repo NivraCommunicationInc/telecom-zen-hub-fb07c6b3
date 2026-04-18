@@ -31,16 +31,18 @@ async function enqueueOrderEmail(row: Record<string, any> | null | undefined) {
 }
 
 /** Map order payment_method values to valid billing_payment_method enum values.
- *  PHASE 1: No fallback — null/unknown throws an explicit error. */
+ *  Falls back to 'manual' for null/unknown values so admin operations don't crash. */
 function mapToBillingMethod(method?: string | null): "interac" | "manual" | "paypal" {
   if (!method) {
-    throw new Error("Méthode de paiement manquante sur la commande — aucun fallback autorisé");
+    console.warn("[mapToBillingMethod] payment_method missing — falling back to 'manual'");
+    return "manual";
   }
   const m = method.toLowerCase();
   if (m === "paypal") return "paypal";
   if (m === "manual") return "manual";
   if (m === "interac" || m === "etransfer" || m === "e_transfer" || m === "virement") return "interac";
-  throw new Error(`Méthode de paiement non reconnue: "${method}" — aucun fallback autorisé`);
+  console.warn(`[mapToBillingMethod] Unrecognized payment_method "${method}" — falling back to 'manual'`);
+  return "manual";
 }
 
 /* ─── Types ─── */
@@ -567,9 +569,17 @@ export function useOrderProcessing(orderId: string | undefined) {
     },
   });
 
-  /* ── Change order status ── */
-  const changeStatus = async (newStatus: string, reason?: string) => {
+  /* ── Change order status ──
+   * Second arg accepts either a legacy string (reason) or an options object:
+   * { reason?, forceOverride?, overrideReason? }. Override is required to
+   * bypass the contract-signature gate on shipping transitions. */
+  type ChangeStatusOpts = { reason?: string; forceOverride?: boolean; overrideReason?: string };
+  const changeStatus = async (newStatus: string, opts?: string | ChangeStatusOpts) => {
     const oldStatus = data?.order?.status;
+    const normalized: ChangeStatusOpts = typeof opts === "string" ? { reason: opts } : (opts || {});
+    const reason = normalized.reason;
+    const forceOverride = !!normalized.forceOverride;
+    const overrideReason = (normalized.overrideReason || "").trim();
 
     // ★ PHASE A GATE — block shipping/in_transit if contract not yet signed by client
     const shippingStates = ["shipped", "in_transit", "out_for_delivery"];
@@ -583,10 +593,23 @@ export function useOrderProcessing(orderId: string | undefined) {
         .maybeSingle();
 
       if (!contract || !contract.client_signed_at) {
-        const msg =
-          "Impossible d'expédier — Le client n'a pas encore signé son contrat. Renvoyez le lien de signature avant de continuer.";
-        toast.error(msg);
-        throw new Error(`CONTRACT_NOT_SIGNED: ${msg}`);
+        if (!forceOverride) {
+          const msg =
+            "Impossible d'expédier — Le client n'a pas encore signé son contrat. Renvoyez le lien de signature avant de continuer.";
+          toast.error(msg);
+          throw new Error(`CONTRACT_NOT_SIGNED: ${msg}`);
+        }
+        if (!overrideReason) {
+          const msg = "Une justification est obligatoire pour forcer l'expédition";
+          toast.error(msg);
+          throw new Error(`OVERRIDE_REASON_REQUIRED: ${msg}`);
+        }
+        await logActivity("contract_gate_bypassed", "order", orderId, {
+          new_status: newStatus,
+          override_reason: overrideReason,
+          contract_signed: false,
+        });
+        toast.warning("Expédition forcée sans signature — raison enregistrée");
       }
     }
 
@@ -1000,6 +1023,110 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
+  /* ── Record a manual payment (cash / cheque / virement / interac / autre) ──
+   * Creates a confirmed billing_payments row, recomputes invoice totals,
+   * and logs the activity. Used when no canonical pending payment exists. */
+  const recordManualPayment = async (params: {
+    amount: number;
+    method: "cash" | "cheque" | "virement" | "interac" | "autre";
+    reference?: string;
+    note?: string;
+  }) => {
+    try {
+      const targetInvoice = data?.invoice;
+      if (!targetInvoice?.id) {
+        toast.error("Aucune facture liée — impossible d'enregistrer un paiement");
+        return;
+      }
+      const amount = Number(params.amount);
+      if (!amount || amount <= 0) {
+        toast.error("Montant invalide");
+        return;
+      }
+
+      const methodMap: Record<typeof params.method, "interac" | "manual" | "paypal"> = {
+        cash: "manual",
+        cheque: "manual",
+        virement: "interac",
+        interac: "interac",
+        autre: "manual",
+      };
+      const billingMethod = methodMap[params.method];
+      const now = new Date().toISOString();
+      const paymentNumber = `PAY-${Date.now().toString(36).toUpperCase()}`;
+
+      const { data: created, error: createErr } = await supabase
+        .from("billing_payments")
+        .insert({
+          payment_number: paymentNumber,
+          invoice_id: targetInvoice.id,
+          customer_id: targetInvoice.customer_id,
+          amount,
+          method: billingMethod as any,
+          status: "confirmed" as any,
+          reference: params.reference || null,
+          legacy_note: params.note || `Paiement manuel (${params.method})`,
+          confirmed_by: user?.id || null,
+          received_at: now,
+          source: "admin_manual",
+          environment: data?.order?.environment || "production",
+        })
+        .select("*")
+        .single();
+      if (createErr) throw createErr;
+
+      // Recalculate invoice totals from confirmed payments only
+      const { data: confirmedPayments } = await supabase
+        .from("billing_payments")
+        .select("amount")
+        .eq("invoice_id", targetInvoice.id)
+        .in("status", ["confirmed", "completed"]);
+
+      const totalPaid = (confirmedPayments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const invoiceTotal = Number(targetInvoice.total || 0);
+      const newBalanceDue = Math.max(0, Math.round((invoiceTotal - totalPaid) * 100) / 100);
+      const newAmountPaid = Math.round(totalPaid * 100) / 100;
+      const isFullyPaid = newBalanceDue <= 0.01;
+      const newStatus = isFullyPaid ? "paid" : (newAmountPaid > 0 ? "partially_paid" : "pending");
+
+      const { error: invErr } = await supabase
+        .from("billing_invoices")
+        .update({
+          amount_paid: newAmountPaid,
+          balance_due: newBalanceDue,
+          status: newStatus as any,
+          paid_at: isFullyPaid ? now : targetInvoice.paid_at,
+          payment_method: billingMethod as any,
+        })
+        .eq("id", targetInvoice.id);
+      if (invErr) throw invErr;
+
+      await updateOrder.mutateAsync({
+        payment_confirmed_at: isFullyPaid ? now : data?.order?.payment_confirmed_at,
+        payment_reference: params.reference || data?.order?.payment_reference,
+      });
+
+      await logActivity("payment_recorded_manual", "order", orderId, {
+        method: params.method,
+        amount,
+        reference: params.reference,
+        note: params.note,
+        payment_id: created?.id,
+        invoice_id: targetInvoice.id,
+        new_balance_due: newBalanceDue,
+        invoice_status: newStatus,
+      });
+
+      invalidateAll();
+      toast.success(`Paiement de ${amount.toFixed(2)} $ enregistré`);
+      return created;
+    } catch (err: any) {
+      console.error("[GUARDRAIL][ManualPayment] Failed:", err);
+      toast.error(`Erreur paiement manuel: ${err?.message || "Erreur inconnue"}`);
+      throw err;
+    }
+  };
+
   /* ── Update fulfillment type ── */
   const setFulfillmentType = async (type: string) => {
     try {
@@ -1331,18 +1458,38 @@ export function useOrderProcessing(orderId: string | undefined) {
   const activateService = async (opts?: {
     providerRef?: string;
     activationNotes?: string;
+    forceOverride?: boolean;
+    overrideReason?: string;
   }) => {
     // SYSTEMIC GUARD: Verify invoice is paid before allowing activation
     const invoice = data?.invoice;
+    const forceOverride = !!opts?.forceOverride;
+    const overrideReason = (opts?.overrideReason || "").trim();
+
     if (!invoice) {
       toast.error("Impossible d'activer : aucune facture liée à cette commande.");
       return;
     }
     const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
     const invoiceStatus = invoice.status;
-    if (!["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") && balanceDue > 0) {
-      toast.error(`Impossible d'activer : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
-      return;
+    const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") || balanceDue <= 0;
+
+    if (!invoicePaid) {
+      if (!forceOverride) {
+        toast.error(`Impossible d'activer : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+        return;
+      }
+      if (!overrideReason) {
+        toast.error("Une justification est obligatoire pour forcer l'activation");
+        return;
+      }
+      await logActivity("activation_forced_unpaid", "order", orderId, {
+        invoice_id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        balance_due: balanceDue,
+        override_reason: overrideReason,
+      });
+      toast.warning("Service activé sans paiement confirmé");
     }
 
     // Step 1: Call canonical provisioning RPC (idempotent — safe to call multiple times)
@@ -1444,7 +1591,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   };
 
   /* ── Complete order ── */
-  const completeOrder = async () => {
+  const completeOrder = async (opts?: { forceOverride?: boolean; overrideReason?: string }) => {
     try {
       // GUARD: Already completed
       if (data?.order?.status === "completed") {
@@ -1460,9 +1607,26 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
       const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
       const invoiceStatus = invoice.status;
-      if (!["paid", "partially_paid"].includes(invoiceStatus || "") && balanceDue > 0) {
-        toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
-        return;
+      const invoicePaid = ["paid", "partially_paid"].includes(invoiceStatus || "") || balanceDue <= 0;
+      const forceOverride = !!opts?.forceOverride;
+      const overrideReason = (opts?.overrideReason || "").trim();
+
+      if (!invoicePaid) {
+        if (!forceOverride) {
+          toast.error(`Impossible de compléter : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+          return;
+        }
+        if (!overrideReason) {
+          toast.error("Une justification est obligatoire pour forcer la complétion");
+          return;
+        }
+        await logActivity("completion_forced_unpaid", "order", orderId, {
+          invoice_id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          balance_due: balanceDue,
+          override_reason: overrideReason,
+        });
+        toast.warning("Commande complétée sans paiement confirmé");
       }
 
       await changeStatus("completed");
@@ -1902,6 +2066,7 @@ export function useOrderProcessing(orderId: string | undefined) {
     confirmPayment,
     markPaymentInvalid,
     markPaymentPartial,
+    recordManualPayment,
     setFulfillmentType,
     updateFulfillmentDetails,
     assignEquipment,
