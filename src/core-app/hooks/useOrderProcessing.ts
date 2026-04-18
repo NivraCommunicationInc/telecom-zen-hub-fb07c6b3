@@ -1497,7 +1497,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         throw new Error(msg);
       }
       await logActivity(
-        "activation_force_override",
+        "activation_master_override",
         "order",
         orderId,
         {
@@ -1511,7 +1511,7 @@ export function useOrderProcessing(orderId: string | undefined) {
         },
         { reason: overrideReason }
       );
-      toast.warning("Activation forcée — raison enregistrée");
+      toast.warning(`Activation forcée — raison: ${overrideReason}`);
     }
 
     // Step 1: Call canonical provisioning RPC (idempotent — safe to call multiple times)
