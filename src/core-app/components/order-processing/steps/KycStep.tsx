@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   CheckCircle2, XCircle, FileSearch, RefreshCw, ShieldCheck, ShieldAlert,
-  FileText, Camera, User, Mail, Copy, Check, Clock, History,
+  FileText, Camera, User, Mail, Copy, Check, Clock, History, Loader2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
