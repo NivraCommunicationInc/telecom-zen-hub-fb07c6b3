@@ -449,6 +449,133 @@ export function renderQueueTemplate(
       };
     }
 
+    // ─── J+3: Suspension warning (P0 GAP #1) ───
+    case "invoice_suspension_warning": {
+      const invoiceNum = esc(v.invoice_number || "—");
+      const total = money(v.total ?? v.amount);
+      const suspensionDate = fmtDate(v.suspension_date);
+      return {
+        subject: `⚠️ Votre service sera suspendu dans 2 jours (#${invoiceNum})`,
+        html: shell({
+          title: "Avertissement de suspension imminente",
+          preheader: `Service suspendu dans 2 jours si non payé.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">⚠️ Suspension dans 2 jours</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, votre facture de <strong>${total}</strong> est en souffrance depuis 3 jours.
+              Si le paiement n'est pas reçu dans les 2 prochains jours, votre service sera <strong>suspendu automatiquement</strong> le ${suspensionDate}.
+            </p>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Payez maintenant pour éviter l'interruption de votre service.
+            </p>
+            ${rowsTable([
+              ["Facture", String(invoiceNum)],
+              ["Montant dû", total],
+              ["Suspension prévue", suspensionDate],
+            ])}
+          `,
+          ctaUrl: String(v.payment_link || `${APP_URL}/portail/facturation`),
+          ctaLabel: "Payer maintenant",
+        }),
+      };
+    }
+
+    // ─── ADMIN ALERT: Suspension at J+5 ───
+    case "admin_alert_suspended": {
+      const invoiceNum = esc(v.invoice_number || "—");
+      const total = money(v.total ?? v.amount);
+      return {
+        subject: `🔴 Service suspendu — ${esc(v.client_full_name || clientName)}`,
+        html: shell({
+          title: "Alerte: Service suspendu",
+          preheader: `Compte ${esc(v.account_number || "")} suspendu (J+5).`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#DC2626; font-size:22px;">🔴 Service suspendu (J+5)</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Le service du client <strong>${esc(v.client_full_name || clientName)}</strong> vient d'être suspendu automatiquement après 5 jours de non-paiement.
+            </p>
+            ${rowsTable([
+              ["Client", esc(v.client_full_name || clientName)],
+              ["Courriel", esc(v.client_email || "—")],
+              ["Compte", esc(v.account_number || "—")],
+              ["Facture", String(invoiceNum)],
+              ["Montant", total],
+              ["Échéance", fmtDate(v.due_date)],
+            ])}
+            <p style="margin:16px 0; color:#6B7280; font-size:13px;">
+              Fenêtre de réactivation jusqu'au <strong>${fmtDate(v.void_date)}</strong> (J+10).
+            </p>
+          `,
+          ctaUrl: `${APP_URL}/admin/recouvrement`,
+          ctaLabel: "Voir le compte",
+        }),
+      };
+    }
+
+    // ─── ADMIN ALERT: Cancellation at J+10 ───
+    case "admin_alert_cancelled": {
+      const invoiceNum = esc(v.invoice_number || "—");
+      const total = money(v.total ?? v.amount);
+      return {
+        subject: `⚫ Abonnement annulé — ${esc(v.client_full_name || clientName)}`,
+        html: shell({
+          title: "Alerte: Abonnement annulé",
+          preheader: `Compte ${esc(v.account_number || "")} annulé (J+10).`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#1A1A1A; font-size:22px;">⚫ Abonnement annulé (J+10)</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              L'abonnement du client <strong>${esc(v.client_full_name || clientName)}</strong> a été annulé automatiquement.
+              La facture a été marquée comme nulle (aucune dette).
+            </p>
+            ${rowsTable([
+              ["Client", esc(v.client_full_name || clientName)],
+              ["Courriel", esc(v.client_email || "—")],
+              ["Compte", esc(v.account_number || "—")],
+              ["Facture annulée", String(invoiceNum)],
+              ["Montant initial", total],
+              ["Échéance dépassée", fmtDate(v.due_date)],
+            ])}
+          `,
+          ctaUrl: `${APP_URL}/admin/recouvrement`,
+          ctaLabel: "Voir le dossier",
+        }),
+      };
+    }
+
+    // ─── ADMIN DAILY DIGEST 8h AM ───
+    case "admin_overdue_daily_digest": {
+      const total = String(v.total_overdue_count ?? 0);
+      const warningCount = String(v.warning_count ?? 0);
+      const urgentCount = String(v.urgent_count ?? 0);
+      const suspendedCount = String(v.suspended_count ?? 0);
+      const totalAmount = money(v.total_amount_overdue);
+      const reportDate = fmtDate(v.report_date);
+      return {
+        subject: `📊 Rapport souffrance — ${total} compte${Number(total) > 1 ? "s" : ""} en retard`,
+        html: shell({
+          title: "Rapport quotidien — Comptes en souffrance",
+          preheader: `${total} compte(s) en retard ce matin.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📊 Rapport quotidien — Souffrance</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Rapport au <strong>${reportDate}</strong>. ${total} compte${Number(total) > 1 ? "s" : ""} en retard de paiement.
+            </p>
+            ${rowsTable([
+              ["⚠️ Avertissement (J0–J+2)", warningCount],
+              ["🟠 Urgent (J+3–J+4)", urgentCount],
+              ["🔴 Suspendus (J+5+)", suspendedCount],
+              ["Total à recouvrer", totalAmount],
+            ])}
+            <p style="margin:16px 0; color:#6B7280; font-size:13px;">
+              Consultez la section Recouvrement dans Nivra Core pour le détail.
+            </p>
+          `,
+          ctaUrl: `${APP_URL}/admin/recouvrement`,
+          ctaLabel: "Ouvrir Recouvrement",
+        }),
+      };
+    }
+
     // ─── B2: Service suspended (J+5) ───
     case "service_suspended": {
       const invoiceNum = esc(v.invoice_number || "—");
