@@ -151,8 +151,11 @@ const OrdersPage = () => {
   }, [orders, search, statusFilter, sortKey, sortDir]);
 
   const counts = useMemo(() => {
-    if (!orders) return { total: 0, pending: 0, active: 0, completed: 0, onHold: 0, revenue: 0, needsAttention: 0 };
+    if (!orders) return { total: 0, pending: 0, active: 0, completed: 0, onHold: 0, revenue: 0, needsAttention: 0, slaOnTime: 0, slaWarning: 0, slaOverdue: 0 };
     const active = orders.filter(o => !["pending", "completed", "cancelled", "activated"].includes(o.status));
+    const terminal = ["activated", "completed", "cancelled", "installation_completed", "delivered"];
+    const slaTracked = orders.filter(o => o.sla_deadline && !terminal.includes(o.status));
+    const now = Date.now();
     return {
       total: orders.length,
       pending: orders.filter(o => o.status === "pending").length,
@@ -163,6 +166,19 @@ const OrdersPage = () => {
       needsAttention: orders.filter(o => {
         const p = getPriorityIndicator(o);
         return p.level === "high" || p.level === "medium";
+      }).length,
+      slaOnTime: slaTracked.filter(o => {
+        const dl = new Date(o.sla_deadline!).getTime();
+        return o.sla_status !== "overdue" && dl - now > 60 * 60 * 1000;
+      }).length,
+      slaWarning: slaTracked.filter(o => {
+        const dl = new Date(o.sla_deadline!).getTime();
+        const minsLeft = (dl - now) / 60000;
+        return o.sla_status === "warning" || (minsLeft >= 0 && minsLeft < 60);
+      }).length,
+      slaOverdue: slaTracked.filter(o => {
+        const dl = new Date(o.sla_deadline!).getTime();
+        return o.sla_status === "overdue" || dl < now;
       }).length,
     };
   }, [orders]);
