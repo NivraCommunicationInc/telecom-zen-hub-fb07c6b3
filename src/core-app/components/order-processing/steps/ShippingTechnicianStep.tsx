@@ -49,6 +49,23 @@ export function ShippingTechnicianStep({ proc }: Props) {
     completionNotes: "",
   });
 
+  // ─── Fetch active technicians for dropdown ───
+  const { data: technicians = [], isLoading: techLoading } = useQuery({
+    queryKey: ["active-technicians"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("id, full_name, phone, status, specializations")
+        .eq("status", "active")
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      return (data || []) as TechnicianOption[];
+    },
+    staleTime: 60_000,
+  });
+
+  const selectedTechnician = technicians.find((t) => t.id === techFields.technician_id);
+
   const handleSaveShipping = async () => {
     setLoading("save");
     try {
