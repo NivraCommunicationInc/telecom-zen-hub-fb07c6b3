@@ -133,6 +133,9 @@ const MarketingHubDashboard = lazy(() => import("@/core-app/pages/marketing/Mark
 const MarketingConversationsPage = lazy(() => import("@/core-app/pages/marketing/MarketingConversationsPage"));
 const MarketingAIConfigPage = lazy(() => import("@/core-app/pages/marketing/MarketingAIConfigPage"));
 const MarketingSMSCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSMSCampaignsPage"));
+const MarketingLiveChatPage = lazy(() => import("@/core-app/pages/marketing/MarketingLiveChatPage"));
+const MarketingEmailCampaignsPage = lazy(() => import("@/core-app/pages/marketing/MarketingEmailCampaignsPage"));
+const MarketingSettingsPage = lazy(() => import("@/core-app/pages/marketing/MarketingSettingsPage"));
 // Field Management
 const CoreFieldAgentsPage = lazy(() => import("@/core-app/pages/CoreFieldAgentsPage"));
 const CoreCommissionWithdrawalsPage = lazy(() => import("@/core-app/pages/CoreCommissionWithdrawalsPage"));
@@ -758,6 +761,9 @@ const AppRoutes = () => {
           <Route path="marketing/conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
           <Route path="marketing/ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
           <Route path="marketing/sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
+          <Route path="marketing/live-chat" element={<Suspense fallback={null}><MarketingLiveChatPage /></Suspense>} />
+          <Route path="marketing/email-campaigns" element={<Suspense fallback={null}><MarketingEmailCampaignsPage /></Suspense>} />
+          <Route path="marketing/settings" element={<Suspense fallback={null}><MarketingSettingsPage /></Suspense>} />
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
           <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
           <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />

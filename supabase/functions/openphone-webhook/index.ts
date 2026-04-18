@@ -185,7 +185,49 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const payload: OpenPhoneEvent = await req.json();
+    const rawBody = await req.text();
+    let payload: any;
+    try { payload = JSON.parse(rawBody); } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Test connection (called from Marketing Settings page) ──
+    if (payload?.__test_connection) {
+      const apiKey = Deno.env.get("OPENPHONE_API_KEY");
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "OPENPHONE_API_KEY non configurée dans les secrets" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      try {
+        const resp = await fetch("https://api.openphone.com/v1/phone-numbers", {
+          method: "GET",
+          headers: { Authorization: apiKey, "Content-Type": "application/json" },
+        });
+        if (!resp.ok) {
+          const err = await resp.text();
+          return new Response(
+            JSON.stringify({ ok: false, error: `OpenPhone ${resp.status}: ${err.slice(0, 200)}` }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const json = await resp.json();
+        const count = Array.isArray(json?.data) ? json.data.length : 0;
+        return new Response(
+          JSON.stringify({ ok: true, message: `Connexion OK — ${count} numéro(s) accessible(s)` }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } catch (e: any) {
+        return new Response(
+          JSON.stringify({ ok: false, error: e?.message || "Erreur réseau" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     console.log("OpenPhone webhook:", payload.type);
     const data = payload.data?.object;
     if (!data) {
