@@ -284,9 +284,9 @@ export function KycStep({ proc }: Props) {
               {/* Left: photos */}
               <div className="space-y-3">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Photos soumises</p>
-                <DocImage label="Recto" url={signedUrls.front} icon={FileText} />
-                {backPath && <DocImage label="Verso" url={signedUrls.back} icon={FileText} />}
-                {selfiePath && <DocImage label="Selfie" url={signedUrls.selfie} icon={Camera} />}
+                <DocImage label="Recto" url={signedUrls.front} error={urlErrors.front} icon={FileText} />
+                {backPath && <DocImage label="Verso" url={signedUrls.back} error={urlErrors.back} icon={FileText} />}
+                {selfiePath && <DocImage label="Selfie" url={signedUrls.selfie} error={urlErrors.selfie} icon={Camera} />}
               </div>
 
               {/* Right: extracted + match */}
@@ -526,7 +526,7 @@ function InfoCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DocImage({ label, url, icon: Icon }: { label: string; url?: string; icon: any }) {
+function DocImage({ label, url, error, icon: Icon }: { label: string; url?: string; error?: string; icon: any }) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1">
@@ -538,8 +538,16 @@ function DocImage({ label, url, icon: Icon }: { label: string; url?: string; ico
             src={url}
             alt={label}
             className="rounded-lg border border-slate-700 w-full object-cover max-h-48 cursor-pointer hover:opacity-90 transition-opacity"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
           />
         </a>
+      ) : error ? (
+        <div className="rounded-lg border border-red-700/50 bg-red-950/30 w-full p-3 text-center">
+          <p className="text-[11px] text-red-300 font-medium">Image inaccessible</p>
+          <p className="text-[10px] text-red-300/70 mt-0.5 break-all">{error}</p>
+        </div>
       ) : (
         <div className="rounded-lg border border-slate-700 bg-[#0d1421] w-full h-32 flex items-center justify-center">
           <span className="text-[11px] text-slate-500">Chargement…</span>
