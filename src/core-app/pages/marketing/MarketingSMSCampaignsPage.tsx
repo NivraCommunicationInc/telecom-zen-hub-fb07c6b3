@@ -1,6 +1,11 @@
 /**
  * MarketingSMSCampaignsPage — CSV import + SMS broadcast (Nivra dark theme).
- * Backend logic preserved: sms_campaigns table + marketing-send-sms edge function.
+ * Backend: sms_campaigns + marketing-send-sms edge function.
+ *
+ * Failure handling:
+ * - Pre-validates phone format (E.164) and Quebec/Canada area code → skipped, not "failed"
+ * - Edge function returns structured { reason } for grouping
+ * - Grouped summary + CSV export + retry of carrier failures
  */
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Upload, Send, Users, MessageSquare, AlertTriangle, FileSpreadsheet } from "lucide-react";
+import { Loader2, Upload, Send, Users, MessageSquare, AlertTriangle, FileSpreadsheet, RefreshCw, Download } from "lucide-react";
 import { toast } from "sonner";
 import { MKPage, MKCard, MKCardHeader } from "./_marketing-ui";
 import { cn } from "@/lib/utils";
@@ -25,6 +30,51 @@ type Campaign = {
   created_at: string;
 };
 
+// Quebec + nearby Canadian area codes (fallback list — accept all Canadian if number is valid)
+const QC_AREA_CODES = new Set([
+  "514", "438", "450", "579", "819", "873", "418", "367", "581",
+  // Other CA codes we still allow to send to
+  "416", "647", "437", "905", "289", "365", "613", "343", "705", "249", "807",
+  "204", "431", "306", "639", "403", "587", "780", "825", "236", "604", "778", "672", "250",
+  "902", "782", "506", "709", "867",
+]);
+
+type SkipReason = "format_invalid" | "out_of_zone";
+type FailReason = "no_credits" | "auth_error" | "rate_limited" | "invalid_recipient" | "carrier_blocked" | "openphone_server_error" | "openphone_error" | "network_error";
+
+const REASON_LABELS: Record<SkipReason | FailReason, string> = {
+  format_invalid: "Format invalide",
+  out_of_zone: "Hors zone Canada",
+  no_credits: "Crédits OpenPhone épuisés",
+  auth_error: "Authentification OpenPhone",
+  rate_limited: "Limite de débit atteinte",
+  invalid_recipient: "Numéro refusé par OpenPhone",
+  carrier_blocked: "Bloqué par le transporteur",
+  openphone_server_error: "Erreur serveur OpenPhone",
+  openphone_error: "Erreur OpenPhone",
+  network_error: "Erreur réseau",
+};
+
+function normalizeE164(raw: string): { e164: string | null; reason?: SkipReason } {
+  if (!raw) return { e164: null, reason: "format_invalid" };
+  const trimmed = String(raw).trim();
+  let digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("+")) {
+    if (digits.length < 10) return { e164: null, reason: "format_invalid" };
+    return { e164: `+${digits}` };
+  }
+  if (digits.length === 10) return { e164: `+1${digits}` };
+  if (digits.length === 11 && digits.startsWith("1")) return { e164: `+${digits}` };
+  return { e164: null, reason: "format_invalid" };
+}
+
+function isCanadianAreaCode(e164: string): boolean {
+  // +1XXX...
+  if (!e164.startsWith("+1") || e164.length < 5) return false;
+  const ac = e164.substring(2, 5);
+  return QC_AREA_CODES.has(ac);
+}
+
 function parseCSV(text: string): string[] {
   return text
     .split(/[\n,;]/)
@@ -34,6 +84,13 @@ function parseCSV(text: string): string[] {
     .filter(Boolean);
 }
 
+type ResultEntry = {
+  phone: string;
+  status: "sent" | "skipped" | "failed";
+  reason?: SkipReason | FailReason;
+  providerMessage?: string | null;
+};
+
 export default function MarketingSMSCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,9 +98,11 @@ export default function MarketingSMSCampaignsPage() {
   const [recipients, setRecipients] = useState<string[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0, failed: 0 });
+  const [progress, setProgress] = useState({ done: 0, total: 0, failed: 0, skipped: 0 });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [results, setResults] = useState<ResultEntry[]>([]);
+  const [lastMessage, setLastMessage] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -76,10 +135,70 @@ export default function MarketingSMSCampaignsPage() {
     if (f) await handleFile(f);
   };
 
+  /**
+   * Core send loop. Accepts a list of phones + message and produces a results array.
+   * Used by both the initial send and the retry-failed action.
+   */
+  const runSend = async (phones: string[], msg: string): Promise<ResultEntry[]> => {
+    const out: ResultEntry[] = [];
+    let sent = 0, failed = 0, skipped = 0;
+    setProgress({ done: 0, total: phones.length, failed: 0, skipped: 0 });
+
+    for (const raw of phones) {
+      // 1) Local format check — skip, don't count as failure
+      const { e164, reason: fmtReason } = normalizeE164(raw);
+      if (!e164) {
+        skipped++;
+        out.push({ phone: raw, status: "skipped", reason: fmtReason });
+        setProgress({ done: out.length, total: phones.length, failed, skipped });
+        continue;
+      }
+      // 2) Out-of-zone check
+      if (!isCanadianAreaCode(e164)) {
+        skipped++;
+        out.push({ phone: e164, status: "skipped", reason: "out_of_zone" });
+        setProgress({ done: out.length, total: phones.length, failed, skipped });
+        continue;
+      }
+      // 3) Send via edge function
+      try {
+        const { data, error } = await supabase.functions.invoke("marketing-send-sms", {
+          body: { to: e164, message: msg },
+        });
+        const payload = (data as any) || {};
+        if (error) {
+          failed++;
+          out.push({ phone: e164, status: "failed", reason: "network_error", providerMessage: error.message });
+        } else if (payload.success === false) {
+          failed++;
+          out.push({
+            phone: e164,
+            status: "failed",
+            reason: (payload.reason as FailReason) || "openphone_error",
+            providerMessage: payload.provider_message || null,
+          });
+        } else if (payload.success === true || payload.message_id) {
+          sent++;
+          out.push({ phone: e164, status: "sent" });
+        } else {
+          failed++;
+          out.push({ phone: e164, status: "failed", reason: "openphone_error" });
+        }
+      } catch (e) {
+        failed++;
+        out.push({ phone: e164, status: "failed", reason: "network_error", providerMessage: (e as Error).message });
+      }
+      setProgress({ done: out.length, total: phones.length, failed, skipped });
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    return out;
+  };
+
   const send = async () => {
     setConfirmOpen(false);
     setSending(true);
-    setProgress({ done: 0, total: recipients.length, failed: 0 });
+    setResults([]);
+    setLastMessage(message);
 
     const { data: { user } } = await supabase.auth.getUser();
     const { data: campaign } = await supabase.from("sms_campaigns").insert({
@@ -87,15 +206,9 @@ export default function MarketingSMSCampaignsPage() {
       sent_by_email: user?.email || null,
     }).select().single();
 
-    let sent = 0, failed = 0;
-    for (const to of recipients) {
-      try {
-        const { data, error } = await supabase.functions.invoke("marketing-send-sms", { body: { to, message } });
-        if (error || (data as any)?.error) failed++; else sent++;
-      } catch { failed++; }
-      setProgress({ done: sent + failed, total: recipients.length, failed });
-      await new Promise((r) => setTimeout(r, 350));
-    }
+    const out = await runSend(recipients, message);
+    const sent = out.filter((r) => r.status === "sent").length;
+    const failed = out.filter((r) => r.status === "failed").length;
 
     if (campaign?.id) {
       await supabase.from("sms_campaigns").update({
@@ -103,12 +216,58 @@ export default function MarketingSMSCampaignsPage() {
       }).eq("id", campaign.id);
     }
 
+    setResults(out);
     setSending(false);
-    toast.success(`Campagne terminée: ${sent} envoyés, ${failed} échecs`);
+    toast.success(`Campagne terminée: ${sent} envoyés, ${failed} échecs, ${out.length - sent - failed} ignorés`);
     setMessage(""); setRecipients([]); setFileName(null);
     if (fileRef.current) fileRef.current.value = "";
     load();
   };
+
+  const retryFailed = async () => {
+    const phones = results.filter((r) => r.status === "failed").map((r) => r.phone);
+    if (!phones.length) return;
+    setSending(true);
+    const out = await runSend(phones, lastMessage);
+    // Merge: replace failed entries with new results
+    const merged = [...results.filter((r) => r.status !== "failed"), ...out];
+    setResults(merged);
+    setSending(false);
+    const newSent = out.filter((r) => r.status === "sent").length;
+    toast.success(`Réessai: ${newSent}/${phones.length} envoyés`);
+  };
+
+  const exportFailedCSV = () => {
+    const failed = results.filter((r) => r.status === "failed" || r.status === "skipped");
+    if (!failed.length) {
+      toast.info("Aucun échec à exporter");
+      return;
+    }
+    const rows = [
+      ["phone", "status", "reason", "provider_message"],
+      ...failed.map((r) => [r.phone, r.status, r.reason || "", r.providerMessage || ""]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sms-echecs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Group results by reason for the summary
+  const summary = (() => {
+    const sent = results.filter((r) => r.status === "sent").length;
+    const groups: Record<string, number> = {};
+    for (const r of results) {
+      if (r.status === "sent") continue;
+      const key = r.reason || "openphone_error";
+      groups[key] = (groups[key] || 0) + 1;
+    }
+    return { sent, total: results.length, groups };
+  })();
 
   const charCount = message.length;
   const charColor = charCount > 160 ? "#EF4444" : charCount > 140 ? "#F59E0B" : "#888";
@@ -191,11 +350,60 @@ export default function MarketingSMSCampaignsPage() {
                     }}
                   />
                 </div>
-                {progress.failed > 0 && (
-                  <div className="text-xs text-[#EF4444] inline-flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" /> {progress.failed} échecs
+                {(progress.failed > 0 || progress.skipped > 0) && (
+                  <div className="text-xs text-[#888] inline-flex items-center gap-3">
+                    {progress.failed > 0 && (
+                      <span className="text-[#EF4444] inline-flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> {progress.failed} échecs
+                      </span>
+                    )}
+                    {progress.skipped > 0 && (
+                      <span className="text-[#F59E0B]">⊘ {progress.skipped} ignorés</span>
+                    )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Grouped result summary */}
+            {!sending && results.length > 0 && (
+              <div className="rounded-[10px] border border-[#1E1E2E] p-4 space-y-3">
+                <div className="text-sm font-semibold text-white">Résultats de la campagne</div>
+                <div className="text-xs text-[#10B981]">✅ {summary.sent} envoyés avec succès</div>
+                {Object.keys(summary.groups).length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-xs text-[#EF4444]">
+                      ❌ {summary.total - summary.sent} non envoyés:
+                    </div>
+                    <ul className="text-xs text-[#CCC] pl-4 space-y-0.5">
+                      {Object.entries(summary.groups)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([reason, count]) => (
+                          <li key={reason}>
+                            <span className="tabular-nums font-medium">{count}</span>{" "}
+                            {REASON_LABELS[reason as FailReason | SkipReason] || reason}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    onClick={retryFailed}
+                    disabled={!results.some((r) => r.status === "failed")}
+                    className="rounded-[10px] text-white border-0 h-9 text-xs"
+                    style={{ background: "#7C3AED" }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1.5" /> Réessayer les échecs
+                  </Button>
+                  <Button
+                    onClick={exportFailedCSV}
+                    variant="outline"
+                    className="rounded-[10px] border-[#1E1E2E] bg-transparent text-white hover:bg-[#1E1E2E] h-9 text-xs"
+                  >
+                    <Download className="h-3 w-3 mr-1.5" /> Exporter CSV
+                  </Button>
+                </div>
               </div>
             )}
 
