@@ -1,16 +1,18 @@
 /**
  * ContractDocumentsStep — Step 8: Contract & Documents
  * All buttons are fully functional: View, Send, Regenerate, Sign.
+ * PHASE A: Click-to-sign signature link + status badge + resend.
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download } from "lucide-react";
+import { FileText, Send, RefreshCw, PenTool, Eye, Loader2, Download, CheckCircle2, Clock, Copy, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
 import { safePDFOpen } from "@/lib/pdfUtils";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props { proc: any; }
 
@@ -228,6 +230,9 @@ export function ContractDocumentsStep({ proc }: Props) {
           </div>
         ))}
       </div>
+
+      {/* ★ PHASE A — Signature status banner + link */}
+      {contracts.length > 0 && <SignatureStatusBlock contract={contracts[0]} order={order} onRefresh={proc.refetch} />}
 
       {/* Contract details */}
       {contracts.length > 0 && (
