@@ -247,8 +247,29 @@ Deno.serve(async (req) => {
       }`,
     );
 
+    // Helper: classify OpenPhone error into a stable reason code for the UI
+    const classifyReason = (status: number, body: any): string => {
+      const code = String(body?.code || "");
+      const title = String(body?.title || "").toLowerCase();
+      const msg = String(body?.message || "").toLowerCase();
+      if (status === 402 || code === "0200402" || /credit/.test(title) || /credit/.test(msg)) {
+        return "no_credits";
+      }
+      if (status === 401 || status === 403) return "auth_error";
+      if (status === 429) return "rate_limited";
+      if (/invalid.*(phone|number|recipient|to)/.test(msg)) return "invalid_recipient";
+      if (/restrict|block|carrier|spam|unverified|toll/.test(msg) || /restrict|block/.test(title)) {
+        return "carrier_blocked";
+      }
+      if (status >= 500) return "openphone_server_error";
+      return "openphone_error";
+    };
+
     if (!sendRes.ok) {
       // If `from` as E.164 failed, retry with phoneNumberId (some endpoints require this)
+      let finalStatus = sendRes.status;
+      let finalBody: any = sendJson || sendText;
+
       if (fromId && fromNumber && fromValue === fromNumber) {
         console.log(
           `[marketing-send-sms-${reqId}] retry with from=phoneNumberId ${fromId}`,
@@ -277,7 +298,6 @@ Deno.serve(async (req) => {
           }`,
         );
         if (retryRes.ok) {
-          // success on retry — fall through with retryJson
           return await finishSuccess(
             admin,
             retryJson,
@@ -288,29 +308,21 @@ Deno.serve(async (req) => {
             corsHeaders,
           );
         }
-        return new Response(
-          JSON.stringify({
-            error: "OpenPhone send failed",
-            status: retryRes.status,
-            attempts: {
-              primary: sendJson || sendText,
-              retry: retryJson || retryText,
-            },
-          }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
+        finalStatus = retryRes.status;
+        finalBody = retryJson || retryText;
       }
+
+      const reason = classifyReason(finalStatus, finalBody);
+      // Return 200 with structured error so the campaign loop can aggregate cleanly
       return new Response(
         JSON.stringify({
-          error: "OpenPhone send failed",
-          status: sendRes.status,
-          details: sendJson || sendText,
+          success: false,
+          reason,
+          provider_status: finalStatus,
+          provider_message: (finalBody && (finalBody.message || finalBody.title)) || null,
         }),
         {
-          status: 500,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
