@@ -217,8 +217,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // OpenPhone requires `from` to be a valid OpenPhone-owned number/ID. Prefer phoneNumberId for safety.
-    const fromValue = fromId || fromNumber;
+    // Prefer the actual E.164 number — OpenPhone accepts both, but the E.164 form
+    // makes the intended sender explicit and avoids ID/account mismatches.
+    const fromValue = fromNumber || fromId;
 
     const sendBody = { content: message, from: fromValue, to: [normalizedTo] };
     console.log(
