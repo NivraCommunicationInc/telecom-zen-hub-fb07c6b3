@@ -91,6 +91,7 @@ export function KycStep({ proc }: Props) {
   const hasRequestLinkFn = typeof proc.requestIdentityVerification === "function";
 
   const handleApprove = async () => {
+    setApproving(true);
     try {
       if (hasApproveFn) {
         await proc.approveKyc({ reason: reviewNote });
@@ -105,11 +106,14 @@ export function KycStep({ proc }: Props) {
           id_verified_at: new Date().toISOString(),
           id_verification_notes: reviewNote || undefined,
         });
+        toast.success("KYC approuvé");
       }
-      toast.success("KYC approuvé");
       setReviewNote("");
     } catch (e: any) {
-      toast.error(e?.message || "Échec de l'approbation");
+      // approveKyc already toasts on error
+      if (!hasApproveFn) toast.error(e?.message || "Échec de l'approbation");
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -118,6 +122,7 @@ export function KycStep({ proc }: Props) {
       toast.error("Une raison est requise pour rejeter");
       return;
     }
+    setRejecting(true);
     try {
       if (hasRejectFn) {
         await proc.rejectKyc({ reason: reviewNote });
@@ -131,15 +136,18 @@ export function KycStep({ proc }: Props) {
           id_verification_status: "rejected",
           id_verification_notes: reviewNote,
         });
+        toast.warning("KYC rejeté");
       }
-      toast.warning("KYC rejeté");
       setReviewNote("");
     } catch (e: any) {
-      toast.error(e?.message || "Échec du rejet");
+      if (!hasRejectFn) toast.error(e?.message || "Échec du rejet");
+    } finally {
+      setRejecting(false);
     }
   };
 
   const handleResubmit = async () => {
+    setResubmitting(true);
     try {
       if (hasResubmitFn) {
         await proc.requestKycResubmission({ reason: reviewNote });
@@ -153,10 +161,12 @@ export function KycStep({ proc }: Props) {
           id_verification_status: "pending_docs",
           id_verification_notes: reviewNote || "Documents additionnels requis",
         });
+        toast.info("Resoumission demandée");
       }
-      toast.info("Resoumission demandée");
     } catch (e: any) {
-      toast.error(e?.message || "Échec de la demande");
+      if (!hasResubmitFn) toast.error(e?.message || "Échec de la demande");
+    } finally {
+      setResubmitting(false);
     }
   };
 
