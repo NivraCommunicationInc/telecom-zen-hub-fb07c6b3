@@ -726,7 +726,116 @@ export function renderQueueTemplate(
         }),
       };
     }
+
+    // ─── PHASE A: Click-to-sign — initial signature request ───
+    case "contract_signature_request": {
+      const signatureUrl = String(v.signature_url || `${APP_URL}/sign`);
+      const orderNum = esc(v.order_number || "—");
+      const planName = esc(v.plan_name || v.service_type || "Service Nivra");
+      return {
+        subject: `Votre contrat Nivra Telecom est prêt à signer`,
+        html: shell({
+          title: "Contrat prêt à signer",
+          preheader: "Signez en ligne pour que votre équipement soit expédié.",
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">Votre contrat est prêt</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Bonjour ${esc(clientName)}, votre contrat de service Nivra Telecom est prêt à signer électroniquement.
+              Cliquez sur le bouton ci-dessous pour le consulter et le signer en quelques secondes — c'est l'étape finale
+              avant que votre équipement soit expédié.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNum)],
+              ["Forfait", String(planName)],
+              ["Mensualité", money(v.monthly_price ?? v.amount)],
+            ])}
+            <p style="margin:16px 0; color:#6B7280; font-size:13px; line-height:1.6;">
+              Sans engagement · Annulation possible à tout moment · Garantie 30 jours satisfait ou remboursé
+            </p>
+            <p style="margin:16px 0 0; color:#6B7280; font-size:12px;">
+              Le lien expire dans 30 jours. Si le bouton ne fonctionne pas, copiez ce lien :<br>
+              <a href="${esc(signatureUrl)}" style="color:#0066CC; word-break:break-all;">${esc(signatureUrl)}</a>
+            </p>
+          `,
+          ctaUrl: signatureUrl,
+          ctaLabel: "Signer mon contrat",
+        }),
+      };
+    }
+
+    // ─── PHASE A: Confirmation sent to client after signing ───
+    case "contract_signed_confirmation": {
+      const orderNum = esc(v.order_number || "—");
+      const signedAt = fmtDate(v.signed_at);
+      return {
+        subject: `Contrat signé — Votre équipement sera expédié sous peu`,
+        html: shell({
+          title: "Contrat signé",
+          preheader: `Merci ${clientName}, nous préparons votre commande.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#16A34A; font-size:22px;">✓ Contrat signé avec succès</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Merci ${esc(clientName)} ! Nous avons bien enregistré votre signature électronique.
+              Votre commande va maintenant passer en préparation et votre équipement sera expédié sous peu.
+            </p>
+            ${rowsTable([
+              ["Numéro de commande", String(orderNum)],
+              ["Date de signature", signedAt],
+              ["Méthode", "Signature électronique (click-to-sign)"],
+            ])}
+            <p style="margin:16px 0; color:#4A4A4A; font-size:14px; line-height:1.6;">
+              <strong>Prochaines étapes :</strong>
+            </p>
+            <ol style="margin:0 0 16px 20px; color:#4A4A4A; font-size:14px; line-height:1.7;">
+              <li>Notre équipe prépare votre commande</li>
+              <li>Vous recevrez un courriel avec le numéro de suivi dès l'expédition</li>
+              <li>À la livraison, suivez le guide d'installation joint</li>
+            </ol>
+            <p style="margin:16px 0 0; color:#6B7280; font-size:13px;">
+              Une copie signée du contrat est disponible dans votre espace client.
+            </p>
+          `,
+          ctaUrl: `${APP_URL}/portail`,
+          ctaLabel: "Accéder à mon espace client",
+        }),
+      };
+    }
+
+    // ─── PHASE A: Admin alert when client signs ───
+    case "contract_signed_admin_alert": {
+      const orderNum = esc(v.order_number || "—");
+      const orderId = v.order_id ? String(v.order_id) : "";
+      const orderLink = orderId
+        ? `${APP_URL}/core/orders/${orderId}`
+        : `${APP_URL}/core/orders`;
+      return {
+        subject: `Contrat signé — ${esc(v.client_full_name || clientName)} — Commande ${orderNum}`,
+        html: shell({
+          title: "Nouveau contrat signé",
+          preheader: `Action recommandée : préparer l'expédition.`,
+          bodyHtml: `
+            <h2 style="margin:0 0 16px; color:#0066CC; font-size:22px;">📝 Contrat client signé</h2>
+            <p style="margin:0 0 16px; color:#4A4A4A; font-size:15px; line-height:1.6;">
+              Le client a signé électroniquement son contrat. La commande peut maintenant être expédiée.
+            </p>
+            ${rowsTable([
+              ["Client", esc(v.client_full_name || clientName)],
+              ["Numéro de commande", String(orderNum)],
+              ["Signé le", fmtDate(v.signed_at)],
+              ["Adresse IP", esc(v.ip || "—")],
+              ["Méthode", "click_to_sign"],
+            ])}
+            <p style="margin:16px 0 0; color:#6B7280; font-size:13px;">
+              ✅ Le verrou d'expédition (gate) est levé. La commande peut passer au statut « expédié ».
+            </p>
+          `,
+          ctaUrl: orderLink,
+          ctaLabel: "Ouvrir la commande dans Core",
+        }),
+      };
+    }
   }
 
   return null;
 }
+
