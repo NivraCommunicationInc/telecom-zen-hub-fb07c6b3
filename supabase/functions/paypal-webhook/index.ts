@@ -754,7 +754,7 @@ serve(async (req) => {
                 idempotency_key: `dispute_admin_alert_${disputeId}_${adminEmail}`,
                 to_email: adminEmail,
                 from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-                subject: `🚨 Chargeback détecté — ${clientFullName} — ${Number(payment.amount || 0).toFixed(2)}$`,
+                subject: `Alerte: litige PayPal — ${clientFullName}`,
                 template_key: "admin_alert_chargeback",
                 template_vars: {
                   client_full_name: clientFullName,

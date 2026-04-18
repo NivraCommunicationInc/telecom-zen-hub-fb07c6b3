@@ -258,6 +258,7 @@ Deno.serve(async (req) => {
             text: payload.text,
             reply_to: typeof payload.reply_to === 'string' ? payload.reply_to : undefined,
             attachments: Array.isArray(payload.attachments) ? payload.attachments : undefined,
+            headers: payload.headers && typeof payload.headers === 'object' ? payload.headers as Record<string, string> : undefined,
             purpose: payload.purpose,
             label: payload.label,
             idempotency_key: payload.idempotency_key,
