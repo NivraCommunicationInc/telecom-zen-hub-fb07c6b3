@@ -1459,11 +1459,14 @@ export function useOrderProcessing(orderId: string | undefined) {
     providerRef?: string;
     activationNotes?: string;
     forceOverride?: boolean;
+    forceKycOverride?: boolean;
     overrideReason?: string;
   }) => {
     // SYSTEMIC GUARD: Verify invoice is paid before allowing activation
     const invoice = data?.invoice;
+    const order = data?.order;
     const forceOverride = !!opts?.forceOverride;
+    const forceKycOverride = !!opts?.forceKycOverride;
     const overrideReason = (opts?.overrideReason || "").trim();
 
     if (!invoice) {
@@ -1490,6 +1493,29 @@ export function useOrderProcessing(orderId: string | undefined) {
         override_reason: overrideReason,
       });
       toast.warning("Service activé sans paiement confirmé");
+    }
+
+    // SYSTEMIC GUARD: Verify KYC is approved (or not required) before allowing activation
+    const kycStatus = String((order as any)?.kyc_status || "not_required").toLowerCase();
+    const kycPolicy = String((order as any)?.kyc_policy || "none").toLowerCase();
+    const kycRequired = kycPolicy !== "none" && kycPolicy !== "skip";
+    const kycOk = !kycRequired || kycStatus === "approved" || kycStatus === "not_required";
+
+    if (!kycOk) {
+      if (!forceKycOverride) {
+        toast.error(`Impossible d'activer : kyc_status est ${kycStatus}. Vérification d'identité requise.`);
+        return;
+      }
+      if (!overrideReason) {
+        toast.error("Une justification est obligatoire pour forcer l'activation sans KYC");
+        return;
+      }
+      await logActivity("activation_forced_kyc_pending", "order", orderId, {
+        kyc_status: kycStatus,
+        kyc_policy: kycPolicy,
+        override_reason: overrideReason,
+      });
+      toast.warning("Service activé sans vérification KYC complétée");
     }
 
     // Step 1: Call canonical provisioning RPC (idempotent — safe to call multiple times)
