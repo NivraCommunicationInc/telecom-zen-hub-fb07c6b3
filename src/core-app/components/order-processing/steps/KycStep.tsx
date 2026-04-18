@@ -64,7 +64,8 @@ export function KycStep({ proc }: Props) {
     if (!emailValue) setEmailValue(profile?.email || order?.client_email || "");
   }, [profile?.email, order?.client_email]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Generate signed URLs for documents
+  // Generate signed URLs for documents (with public URL fallback)
+  const [urlErrors, setUrlErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     const paths: Array<[string, string]> = [];
@@ -74,13 +75,26 @@ export function KycStep({ proc }: Props) {
     if (paths.length === 0) return;
     (async () => {
       const next: Record<string, string> = {};
+      const errs: Record<string, string> = {};
       for (const [key, path] of paths) {
         try {
-          const { data } = await supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 600);
-          if (data?.signedUrl) next[key] = data.signedUrl;
-        } catch { /* ignore */ }
+          const { data, error } = await supabase.storage.from(DOC_BUCKET).createSignedUrl(path, 600);
+          if (data?.signedUrl) {
+            next[key] = data.signedUrl;
+          } else if (error) {
+            // Fallback: try public URL (works if bucket is public)
+            const { data: pub } = supabase.storage.from(DOC_BUCKET).getPublicUrl(path);
+            if (pub?.publicUrl) next[key] = pub.publicUrl;
+            else errs[key] = error.message || "URL inaccessible";
+          }
+        } catch (e: any) {
+          errs[key] = e?.message || "Erreur de chargement";
+        }
       }
-      if (!cancelled) setSignedUrls(next);
+      if (!cancelled) {
+        setSignedUrls(next);
+        setUrlErrors(errs);
+      }
     })();
     return () => { cancelled = true; };
   }, [frontPath, backPath, selfiePath]);
