@@ -163,7 +163,7 @@ function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: a
     );
   }
 
-  return computeStepStatuses(base, order, channelSelection);
+  return computeStepStatuses(base, order, channelSelection, mobileFulfillment);
 }
 
 function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any, mobileFulfillment?: any): WorkflowStep[] {
