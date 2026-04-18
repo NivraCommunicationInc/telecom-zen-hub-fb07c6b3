@@ -1,21 +1,18 @@
 /**
- * MarketingEmailCampaignsPage — Marketing-focused email campaign management.
- * Uses existing email_campaigns + email_sends tables; sends via send-marketing-email.
+ * MarketingEmailCampaignsPage — Bilingual marketing emails (Nivra dark theme).
+ * Backend logic preserved: email_campaigns + email_templates + send-marketing-email.
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Send, Loader2, Mail, Eye, MousePointer, AlertTriangle } from "lucide-react";
+import { Plus, Send, Loader2, Mail, Eye, MousePointer, AlertTriangle, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { MKPage, MKCard, MKCardHeader } from "./_marketing-ui";
 
 interface Campaign {
   id: string;
@@ -48,12 +45,12 @@ const CORPORATE_TEMPLATE = (subject: string, bodyHtml: string) => `
 const MarketingEmailCampaignsPage = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
   const [audience, setAudience] = useState("all");
+  const [lang, setLang] = useState<"fr" | "en">("fr");
   const [subjectFr, setSubjectFr] = useState("");
   const [subjectEn, setSubjectEn] = useState("");
   const [bodyFr, setBodyFr] = useState("");
@@ -78,33 +75,27 @@ const MarketingEmailCampaignsPage = () => {
       .channel("marketing-email-campaigns")
       .on("postgres_changes", { event: "*", schema: "public", table: "email_campaigns" }, () => load())
       .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const reset = () => {
     setName(""); setAudience("all");
-    setSubjectFr(""); setSubjectEn("");
-    setBodyFr(""); setBodyEn("");
+    setSubjectFr(""); setSubjectEn(""); setBodyFr(""); setBodyEn("");
     setScheduleNow("now"); setScheduledAt("");
   };
 
   const handleCreate = async () => {
     if (!name.trim() || !subjectFr.trim() || !bodyFr.trim()) {
-      toast.error("Nom, sujet (FR) et corps (FR) sont requis");
-      return;
+      toast.error("Nom, sujet (FR) et corps (FR) sont requis"); return;
     }
     setCreating(true);
     try {
-      // Build bilingual HTML wrapped in corporate template
       const html = CORPORATE_TEMPLATE(
         subjectFr,
         `<div lang="fr">${bodyFr.replace(/\n/g, "<br/>")}</div>` +
           (bodyEn ? `<hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb;"/><div lang="en">${bodyEn.replace(/\n/g, "<br/>")}</div>` : "")
       );
 
-      // Create a one-off email_template
       const { data: tpl, error: tplError } = await supabase
         .from("email_templates")
         .insert({
@@ -114,11 +105,9 @@ const MarketingEmailCampaignsPage = () => {
           variables: ["client_name", "client_email", "unsubscribe_link"],
           category: "marketing",
         })
-        .select()
-        .single();
+        .select().single();
       if (tplError) throw tplError;
 
-      // Map audience -> segment_filters
       const segment_filters: Record<string, any> = {};
       if (audience === "active") segment_filters.status = ["active"];
       else if (audience === "cancelled") segment_filters.status = ["cancelled"];
@@ -127,16 +116,12 @@ const MarketingEmailCampaignsPage = () => {
       const { data: campaign, error: cErr } = await supabase
         .from("email_campaigns")
         .insert({
-          name,
-          template_id: tpl.id,
-          subject_override: subjectFr,
-          type: "manual",
-          status: isScheduled ? "scheduled" : "draft",
+          name, template_id: tpl.id, subject_override: subjectFr,
+          type: "manual", status: isScheduled ? "scheduled" : "draft",
           segment_filters,
           scheduled_at: isScheduled ? new Date(scheduledAt).toISOString() : null,
         })
-        .select()
-        .single();
+        .select().single();
       if (cErr) throw cErr;
 
       if (!isScheduled) {
@@ -148,10 +133,7 @@ const MarketingEmailCampaignsPage = () => {
       } else {
         toast.success("Campagne planifiée");
       }
-
-      setOpen(false);
-      reset();
-      load();
+      reset(); load();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
     } finally {
@@ -159,115 +141,152 @@ const MarketingEmailCampaignsPage = () => {
     }
   };
 
-  const statusColor = (s: string) =>
-    s === "sent" ? "default" : s === "sending" ? "secondary" : s === "scheduled" ? "outline" : "secondary";
+  const subj = lang === "fr" ? subjectFr : subjectEn;
+  const body = lang === "fr" ? bodyFr : bodyEn;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Campagnes Email</h1>
-          <p className="text-sm text-muted-foreground">
-            Campagnes marketing — utilise l'infrastructure email existante
-          </p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" /> Nouvelle campagne</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Créer une campagne email</DialogTitle>
-              <DialogDescription>Bilingue FR/EN — design corporate Nivra</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Nom de la campagne</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Promo printemps 2026" />
-              </div>
-              <div>
-                <Label>Audience cible</Label>
-                <Select value={audience} onValueChange={setAudience}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les clients</SelectItem>
-                    <SelectItem value="active">Clients actifs</SelectItem>
-                    <SelectItem value="cancelled">Clients annulés</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+    <MKPage title="Campagnes Email" subtitle="Marketing — design corporate Nivra · template existant">
+      <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
+        {/* Composer */}
+        <MKCard>
+          <MKCardHeader title="Nouvelle campagne" />
+          <div className="p-5 space-y-4">
+            <div>
+              <label className="text-[10px] uppercase tracking-[2px] text-[#888] mb-1.5 block">
+                Nom de la campagne
+              </label>
+              <Input
+                value={name} onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Promo printemps 2026"
+                className="bg-[#1E1E2E] border-[#1E1E2E] text-white placeholder:text-[#888] rounded-[10px]"
+              />
+            </div>
 
-              <Tabs defaultValue="fr">
-                <TabsList className="w-full">
-                  <TabsTrigger value="fr" className="flex-1">🇫🇷 Français</TabsTrigger>
-                  <TabsTrigger value="en" className="flex-1">🇬🇧 English</TabsTrigger>
-                </TabsList>
-                <TabsContent value="fr" className="space-y-3">
-                  <div>
-                    <Label>Sujet (FR)</Label>
-                    <Input value={subjectFr} onChange={(e) => setSubjectFr(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>Corps (FR)</Label>
-                    <Textarea rows={8} value={bodyFr} onChange={(e) => setBodyFr(e.target.value)} placeholder="Bonjour {{client_name}}, ..." />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Variables: {`{{client_name}}, {{client_email}}, {{unsubscribe_link}}`}
-                    </p>
-                  </div>
-                </TabsContent>
-                <TabsContent value="en" className="space-y-3">
-                  <div>
-                    <Label>Subject (EN)</Label>
-                    <Input value={subjectEn} onChange={(e) => setSubjectEn(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>Body (EN)</Label>
-                    <Textarea rows={8} value={bodyEn} onChange={(e) => setBodyEn(e.target.value)} placeholder="Hello {{client_name}}, ..." />
-                  </div>
-                </TabsContent>
-              </Tabs>
+            <div>
+              <label className="text-[10px] uppercase tracking-[2px] text-[#888] mb-1.5 block">
+                Audience cible
+              </label>
+              <Select value={audience} onValueChange={setAudience}>
+                <SelectTrigger className="bg-[#1E1E2E] border-[#1E1E2E] text-white rounded-[10px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0D0D1A] border-[#1E1E2E] text-white">
+                  <SelectItem value="all">Tous les clients</SelectItem>
+                  <SelectItem value="active">Clients actifs</SelectItem>
+                  <SelectItem value="cancelled">Clients annulés</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div>
-                <Label>Planification</Label>
-                <Select value={scheduleNow} onValueChange={setScheduleNow}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="now">Envoyer maintenant</SelectItem>
-                    <SelectItem value="later">Planifier</SelectItem>
-                  </SelectContent>
-                </Select>
-                {scheduleNow === "later" && (
+            <Tabs value={lang} onValueChange={(v) => setLang(v as "fr" | "en")}>
+              <TabsList className="w-full bg-[#1E1E2E] rounded-[10px] h-9">
+                <TabsTrigger value="fr" className="flex-1 data-[state=active]:bg-[#7C3AED] data-[state=active]:text-white text-[#888] rounded-md">🇫🇷 Français</TabsTrigger>
+                <TabsTrigger value="en" className="flex-1 data-[state=active]:bg-[#7C3AED] data-[state=active]:text-white text-[#888] rounded-md">🇬🇧 English</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="fr" className="space-y-3 mt-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-[2px] text-[#888] mb-1.5 block">Sujet</label>
                   <Input
-                    type="datetime-local"
-                    className="mt-2"
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
+                    value={subjectFr} onChange={(e) => setSubjectFr(e.target.value)}
+                    className="bg-[#1E1E2E] border-[#1E1E2E] text-white rounded-[10px]"
                   />
-                )}
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-[2px] text-[#888] mb-1.5 block">Corps</label>
+                  <Textarea
+                    rows={8} value={bodyFr} onChange={(e) => setBodyFr(e.target.value)}
+                    placeholder="Bonjour {{client_name}}, ..."
+                    className="bg-[#1E1E2E] border-[#1E1E2E] text-white placeholder:text-[#888] rounded-[10px] resize-none"
+                  />
+                  <p className="text-[10px] text-[#888] mt-1">
+                    Variables : {`{{client_name}}, {{client_email}}, {{unsubscribe_link}}`}
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="en" className="space-y-3 mt-3">
+                <div>
+                  <label className="text-[10px] uppercase tracking-[2px] text-[#888] mb-1.5 block">Subject</label>
+                  <Input
+                    value={subjectEn} onChange={(e) => setSubjectEn(e.target.value)}
+                    className="bg-[#1E1E2E] border-[#1E1E2E] text-white rounded-[10px]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-[2px] text-[#888] mb-1.5 block">Body</label>
+                  <Textarea
+                    rows={8} value={bodyEn} onChange={(e) => setBodyEn(e.target.value)}
+                    placeholder="Hello {{client_name}}, ..."
+                    className="bg-[#1E1E2E] border-[#1E1E2E] text-white placeholder:text-[#888] rounded-[10px] resize-none"
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-[2px] text-[#888] mb-1.5 block">Planification</label>
+              <Select value={scheduleNow} onValueChange={setScheduleNow}>
+                <SelectTrigger className="bg-[#1E1E2E] border-[#1E1E2E] text-white rounded-[10px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0D0D1A] border-[#1E1E2E] text-white">
+                  <SelectItem value="now">Envoyer maintenant</SelectItem>
+                  <SelectItem value="later">Planifier plus tard</SelectItem>
+                </SelectContent>
+              </Select>
+              {scheduleNow === "later" && (
+                <Input
+                  type="datetime-local"
+                  className="mt-2 bg-[#1E1E2E] border-[#1E1E2E] text-white rounded-[10px]"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                />
+              )}
+            </div>
+
+            <Button
+              onClick={handleCreate} disabled={creating}
+              className="w-full rounded-[10px] text-white border-0 h-11 font-semibold"
+              style={{ background: "#7C3AED" }}
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> :
+                scheduleNow === "now" ? <Send className="h-4 w-4 mr-2" /> : <Calendar className="h-4 w-4 mr-2" />}
+              {scheduleNow === "now" ? "Envoyer la campagne" : "Planifier la campagne"}
+            </Button>
+          </div>
+        </MKCard>
+
+        {/* Live preview */}
+        <MKCard>
+          <MKCardHeader title="Aperçu corporate · #0066CC" />
+          <div className="p-5">
+            <div className="rounded-[10px] overflow-hidden border border-[#1E1E2E] bg-[#f4f6fa]">
+              <div style={{ background: "#0066CC", color: "white", padding: "20px", textAlign: "center", fontSize: 18, fontWeight: 700, fontFamily: "Arial, sans-serif" }}>
+                Nivra Télécom
+              </div>
+              <div style={{ background: "white", color: "#1a1a1a", padding: 24, fontFamily: "Arial, sans-serif", fontSize: 14, lineHeight: 1.6, minHeight: 220 }}>
+                {subj && <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: "#0066CC" }}>{subj}</div>}
+                <div style={{ whiteSpace: "pre-wrap" }}>{body || <span style={{ color: "#9ca3af" }}>(votre message apparaîtra ici)</span>}</div>
+              </div>
+              <div style={{ background: "#f4f6fa", padding: 12, textAlign: "center", color: "#6b7280", fontSize: 11, fontFamily: "Arial, sans-serif" }}>
+                © {new Date().getFullYear()} Nivra Télécom · <span style={{ color: "#0066CC" }}>Se désabonner</span>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)} disabled={creating}>Annuler</Button>
-              <Button onClick={handleCreate} disabled={creating}>
-                {creating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
-                {scheduleNow === "now" ? "Envoyer" : "Planifier"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </MKCard>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Toutes les campagnes</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* History */}
+      <MKCard>
+        <MKCardHeader title={`Historique · ${campaigns.length}`} />
+        <div className="p-2">
           {loading ? (
-            <div className="text-center py-8"><Loader2 className="h-5 w-5 animate-spin inline" /></div>
+            <div className="text-center py-12 text-[#888]"><Loader2 className="h-5 w-5 animate-spin inline" /></div>
           ) : campaigns.length === 0 ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">
+            <div className="text-center py-12 text-sm text-[#888]">
               <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              Aucune campagne
+              Aucune campagne envoyée
             </div>
           ) : (
             <div className="space-y-2">
@@ -275,41 +294,32 @@ const MarketingEmailCampaignsPage = () => {
                 const openRate = c.total_sent > 0 ? Math.round((c.total_opened / c.total_sent) * 100) : 0;
                 const clickRate = c.total_sent > 0 ? Math.round((c.total_clicked / c.total_sent) * 100) : 0;
                 return (
-                  <div key={c.id} className="border rounded-lg p-4 hover:bg-muted/30 transition">
+                  <div key={c.id} className="rounded-[10px] border border-[#1E1E2E] bg-[#0D0D1A] p-4 hover:border-[#7C3AED66] transition">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium truncate">{c.name}</h3>
-                          <Badge variant={statusColor(c.status) as any}>{c.status}</Badge>
+                          <h3 className="font-semibold text-white truncate">{c.name}</h3>
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider"
+                            style={
+                              c.status === "sent" || c.status === "completed"
+                                ? { background: "#10B98122", color: "#10B981" }
+                                : c.status === "sending"
+                                  ? { background: "#F59E0B22", color: "#F59E0B" }
+                                  : { background: "#7C3AED22", color: "#7C3AED" }
+                            }
+                          >
+                            {c.status}
+                          </span>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate mt-1">{c.subject_override}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(c.created_at), "PPp")}
-                        </p>
+                        <p className="text-sm text-[#888] truncate mt-1">{c.subject_override}</p>
+                        <p className="text-[11px] text-[#888] mt-1">{format(new Date(c.created_at), "PPp")}</p>
                       </div>
-                      <div className="grid grid-cols-4 gap-3 text-center text-xs">
-                        <div>
-                          <div className="font-semibold">{c.total_sent}</div>
-                          <div className="text-muted-foreground">Envoyés</div>
-                        </div>
-                        <div>
-                          <div className="font-semibold flex items-center justify-center gap-1">
-                            <Eye className="h-3 w-3" />{openRate}%
-                          </div>
-                          <div className="text-muted-foreground">Ouverts</div>
-                        </div>
-                        <div>
-                          <div className="font-semibold flex items-center justify-center gap-1">
-                            <MousePointer className="h-3 w-3" />{clickRate}%
-                          </div>
-                          <div className="text-muted-foreground">Cliqués</div>
-                        </div>
-                        <div>
-                          <div className="font-semibold flex items-center justify-center gap-1 text-destructive">
-                            <AlertTriangle className="h-3 w-3" />{c.total_bounced}
-                          </div>
-                          <div className="text-muted-foreground">Rebonds</div>
-                        </div>
+                      <div className="grid grid-cols-4 gap-3 text-center">
+                        <Stat label="Envoyés" value={c.total_sent} icon={Send} color="#888" />
+                        <Stat label="Ouverts" value={`${openRate}%`} icon={Eye} color="#10B981" />
+                        <Stat label="Cliqués" value={`${clickRate}%`} icon={MousePointer} color="#7C3AED" />
+                        <Stat label="Rebonds" value={c.total_bounced} icon={AlertTriangle} color="#EF4444" />
                       </div>
                     </div>
                   </div>
@@ -317,10 +327,22 @@ const MarketingEmailCampaignsPage = () => {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </MKCard>
+    </MKPage>
   );
 };
+
+function Stat({ label, value, icon: Icon, color }: { label: string; value: any; icon: any; color: string }) {
+  return (
+    <div className="text-center">
+      <div className="text-sm font-bold text-white inline-flex items-center justify-center gap-1 tabular-nums">
+        <Icon className="h-3 w-3" style={{ color }} />
+        {value}
+      </div>
+      <div className="text-[10px] text-[#888] uppercase tracking-wider mt-0.5">{label}</div>
+    </div>
+  );
+}
 
 export default MarketingEmailCampaignsPage;

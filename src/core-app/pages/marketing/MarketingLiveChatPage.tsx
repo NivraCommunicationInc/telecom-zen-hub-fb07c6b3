@@ -1,18 +1,18 @@
 /**
- * MarketingLiveChatPage — Live chat management for the public site chatbot.
- * Shows all active chatbot sessions in real time, with takeover controls.
+ * MarketingLiveChatPage — Live chat admin (Nivra dark theme).
+ * Backend logic preserved: live_chat_sessions + chatbot_logs + live_chat_admin_replies.
  */
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, Send, Bot, User, Clock, Loader2 } from "lucide-react";
+import { MessageCircle, Send, Bot, User, Clock, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { MKPage, MKCard, MKCardHeader } from "./_marketing-ui";
+import { cn } from "@/lib/utils";
 
 interface ChatSession {
   session_id: string;
@@ -83,7 +83,6 @@ const MarketingLiveChatPage = () => {
     merged.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
     setMessages(merged);
 
-    // Reset unread counter
     await supabase
       .from("live_chat_sessions")
       .update({ unread_for_admin: 0 })
@@ -102,15 +101,11 @@ const MarketingLiveChatPage = () => {
         if (selectedId && payload.new?.session_id === selectedId) loadMessages(selectedId);
       })
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
-  useEffect(() => {
-    if (selectedId) loadMessages(selectedId);
-  }, [selectedId]);
+  useEffect(() => { if (selectedId) loadMessages(selectedId); }, [selectedId]);
 
   const selected = useMemo(() => sessions.find((s) => s.session_id === selectedId) ?? null, [sessions, selectedId]);
 
@@ -120,14 +115,9 @@ const MarketingLiveChatPage = () => {
     if (!user) return;
     const { error } = await supabase
       .from("live_chat_sessions")
-      .update({
-        status: "human_takeover",
-        taken_over_by: user.id,
-        taken_over_at: new Date().toISOString(),
-      })
+      .update({ status: "human_takeover", taken_over_by: user.id, taken_over_at: new Date().toISOString() })
       .eq("session_id", selected.session_id);
-    if (error) toast.error(error.message);
-    else toast.success("Vous avez pris la relève");
+    if (error) toast.error(error.message); else toast.success("Vous avez pris la relève");
   };
 
   const handleGiveBack = async () => {
@@ -136,23 +126,16 @@ const MarketingLiveChatPage = () => {
       .from("live_chat_sessions")
       .update({ status: "bot_active", taken_over_by: null, taken_over_at: null })
       .eq("session_id", selected.session_id);
-    if (error) toast.error(error.message);
-    else toast.success("Conversation rendue au chatbot");
+    if (error) toast.error(error.message); else toast.success("Conversation rendue au bot");
   };
 
   const handleSendReply = async () => {
     if (!selected || !reply.trim()) return;
     setSending(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setSending(false);
-      return;
-    }
+    if (!user) { setSending(false); return; }
     const { data: profile } = await supabase
-      .from("profiles")
-      .select("first_name, last_name")
-      .eq("id", user.id)
-      .maybeSingle();
+      .from("profiles").select("first_name, last_name").eq("id", user.id).maybeSingle();
     const adminName = profile
       ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || "Agent Nivra"
       : "Agent Nivra";
@@ -163,12 +146,10 @@ const MarketingLiveChatPage = () => {
       admin_name: adminName,
       message: reply.trim(),
     });
-    if (error) {
-      toast.error(error.message);
-    } else {
+    if (error) toast.error(error.message);
+    else {
       setReply("");
-      await supabase
-        .from("live_chat_sessions")
+      await supabase.from("live_chat_sessions")
         .update({ last_message_at: new Date().toISOString() })
         .eq("session_id", selected.session_id);
     }
@@ -182,175 +163,184 @@ const MarketingLiveChatPage = () => {
   }).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Live Chat</h1>
-          <p className="text-sm text-muted-foreground">
-            Conversations en cours sur le site web — temps réel
-          </p>
-        </div>
-        {waitingCount > 0 && (
-          <Badge variant="destructive" className="text-sm">
-            <Clock className="mr-1 h-3 w-3" /> {waitingCount} en attente &gt; 2 min
-          </Badge>
-        )}
-      </div>
-
+    <MKPage
+      title="Live Chat"
+      subtitle="Conversations en cours sur le site web — temps réel"
+      actions={
+        waitingCount > 0 ? (
+          <span
+            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-[10px] text-xs font-semibold text-white"
+            style={{ background: "#EF4444" }}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" /> {waitingCount} en attente &gt; 2 min
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-[10px] text-xs font-semibold text-white"
+            style={{ background: "#10B98122", color: "#10B981" }}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#10B981]" /> Tout est sous contrôle
+          </span>
+        )
+      }
+    >
       <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
         {/* Sessions list */}
-        <Card className="lg:h-[calc(100vh-200px)]">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <MessageCircle className="h-4 w-4" />
-              Sessions actives ({sessions.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[calc(100vh-280px)]">
-              {loading ? (
-                <div className="p-4 text-center"><Loader2 className="h-5 w-5 animate-spin inline" /></div>
-              ) : sessions.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  Aucune conversation active
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {sessions.map((s) => {
-                    const ageMin = s.last_visitor_message_at
-                      ? Math.floor((Date.now() - +new Date(s.last_visitor_message_at)) / 60_000)
-                      : 0;
-                    const isWaiting = s.status !== "human_takeover" && ageMin > 2;
-                    return (
-                      <button
-                        key={s.session_id}
-                        onClick={() => setSelectedId(s.session_id)}
-                        className={`w-full text-left p-3 hover:bg-muted/50 transition ${
-                          selectedId === s.session_id ? "bg-muted" : ""
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium truncate">
-                                {s.visitor_name || `Visiteur ${s.session_id.slice(0, 6)}`}
+        <MKCard className="lg:h-[calc(100vh-220px)] flex flex-col">
+          <MKCardHeader title={`Sessions actives · ${sessions.length}`} />
+          <ScrollArea className="flex-1">
+            {loading ? (
+              <div className="p-4 text-center text-[#888]"><Loader2 className="h-5 w-5 animate-spin inline" /></div>
+            ) : sessions.length === 0 ? (
+              <div className="p-8 text-center text-sm text-[#888]">
+                <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                Aucune conversation
+              </div>
+            ) : (
+              <div className="divide-y divide-[#1E1E2E]">
+                {sessions.map((s) => {
+                  const ageMin = s.last_visitor_message_at
+                    ? Math.floor((Date.now() - +new Date(s.last_visitor_message_at)) / 60_000) : 0;
+                  const isWaiting = s.status !== "human_takeover" && ageMin > 2;
+                  const isHuman = s.status === "human_takeover";
+                  const isSelected = selectedId === s.session_id;
+                  return (
+                    <button
+                      key={s.session_id}
+                      onClick={() => setSelectedId(s.session_id)}
+                      className={cn(
+                        "w-full text-left p-3 transition",
+                        isSelected ? "bg-[#1E1E2E]" : "hover:bg-[#1A1A28]",
+                        isWaiting && "border-l-2 border-l-[#EF4444]"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-white truncate">
+                              {s.visitor_name || `Visiteur ${s.session_id.slice(0, 6)}`}
+                            </span>
+                            {s.unread_for_admin > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 rounded-full text-white" style={{ background: "#EF4444" }}>
+                                {s.unread_for_admin}
                               </span>
-                              {s.unread_for_admin > 0 && (
-                                <Badge variant="destructive" className="h-4 px-1 text-[10px]">
-                                  {s.unread_for_admin}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant={s.status === "human_takeover" ? "default" : "secondary"} className="text-[10px]">
-                                {s.status === "human_takeover" ? "👤 Humain" : "🤖 Bot"}
-                              </Badge>
-                              {isWaiting && (
-                                <Badge variant="destructive" className="text-[10px]">
-                                  <Clock className="h-2.5 w-2.5 mr-0.5" /> {ageMin}min
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDistanceToNow(new Date(s.last_message_at), { addSuffix: true, locale: fr })}
-                            </p>
+                            )}
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Conversation view */}
-        <Card className="lg:h-[calc(100vh-200px)] flex flex-col">
-          {selected ? (
-            <>
-              <CardHeader className="pb-3 border-b">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">
-                      {selected.visitor_name || `Visiteur ${selected.session_id.slice(0, 8)}`}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Session : {selected.session_id.slice(0, 16)}…
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {selected.status !== "human_takeover" ? (
-                      <Button size="sm" onClick={handleTakeOver}>
-                        <User className="h-4 w-4 mr-1" /> Prendre la relève
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={handleGiveBack}>
-                        <Bot className="h-4 w-4 mr-1" /> Redonner au bot
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 p-0 flex flex-col">
-                <ScrollArea className="flex-1 p-4">
-                  <div className="space-y-3">
-                    {messages.map((m) => (
-                      <div
-                        key={m.id}
-                        className={`flex ${m.role === "visitor" ? "justify-start" : "justify-end"}`}
-                      >
-                        <div
-                          className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
-                            m.role === "visitor"
-                              ? "bg-muted"
-                              : m.role === "admin"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-secondary"
-                          }`}
-                        >
-                          <div className="text-[10px] opacity-70 mb-0.5">
-                            {m.role === "visitor"
-                              ? "Visiteur"
-                              : m.role === "admin"
-                              ? m.admin_name || "Agent Nivra"
-                              : "🤖 Bot"}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                              style={isHuman
+                                ? { background: "#7C3AED22", color: "#7C3AED" }
+                                : { background: "#1E1E2E", color: "#888" }}
+                            >
+                              {isHuman ? "👤 Humain" : "🤖 Bot"}
+                            </span>
+                            {isWaiting && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium inline-flex items-center gap-0.5"
+                                style={{ background: "#EF444422", color: "#EF4444" }}>
+                                <Clock className="h-2.5 w-2.5" /> {ageMin}min
+                              </span>
+                            )}
                           </div>
-                          <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                          {s.current_page && (
+                            <p className="text-[11px] text-[#888] mt-1 truncate">📍 {s.current_page}</p>
+                          )}
+                          <p className="text-[10px] text-[#888] mt-0.5">
+                            {formatDistanceToNow(new Date(s.last_message_at), { addSuffix: true, locale: fr })}
+                          </p>
                         </div>
                       </div>
-                    ))}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </MKCard>
+
+        {/* Conversation view */}
+        <MKCard className="lg:h-[calc(100vh-220px)] flex flex-col">
+          {selected ? (
+            <>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#1E1E2E]">
+                <div className="min-w-0">
+                  <div className="text-base font-semibold text-white truncate">
+                    {selected.visitor_name || `Visiteur ${selected.session_id.slice(0, 8)}`}
                   </div>
-                </ScrollArea>
-                {selected.status === "human_takeover" && (
-                  <div className="border-t p-3 flex gap-2">
-                    <Input
-                      placeholder="Réponse en tant que Agent Nivra…"
-                      value={reply}
-                      onChange={(e) => setReply(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendReply();
-                        }
-                      }}
-                      disabled={sending}
-                    />
-                    <Button onClick={handleSendReply} disabled={sending || !reply.trim()}>
-                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  <p className="text-[11px] text-[#888] mt-0.5 font-mono">
+                    {selected.session_id.slice(0, 24)}…
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {selected.status !== "human_takeover" ? (
+                    <Button size="sm" onClick={handleTakeOver}
+                      className="rounded-[10px] text-white border-0 hover:opacity-90"
+                      style={{ background: "#7C3AED" }}>
+                      <User className="h-4 w-4 mr-1" /> Prendre la relève
                     </Button>
-                  </div>
-                )}
-              </CardContent>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={handleGiveBack}
+                      className="rounded-[10px] border-[#1E1E2E] bg-transparent text-white hover:bg-[#1E1E2E]">
+                      <Bot className="h-4 w-4 mr-1" /> Redonner au bot
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-3">
+                  {messages.map((m) => (
+                    <div key={m.id} className={cn("flex", m.role === "visitor" ? "justify-start" : "justify-end")}>
+                      <div
+                        className="max-w-[75%] rounded-[10px] px-3.5 py-2.5 text-sm"
+                        style={
+                          m.role === "visitor"
+                            ? { background: "#1E1E2E", color: "white" }
+                            : m.role === "admin"
+                              ? { background: "#7C3AED", color: "white" }
+                              : { background: "#0D0D1A", color: "white", border: "1px solid #1E1E2E" }
+                        }
+                      >
+                        <div className="text-[10px] opacity-80 mb-1 uppercase tracking-wider font-semibold">
+                          {m.role === "visitor"
+                            ? "Visiteur"
+                            : m.role === "admin"
+                              ? `👤 ${m.admin_name || "Agent Nivra"}`
+                              : "🤖 Bot Nivra"}
+                        </div>
+                        <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              {selected.status === "human_takeover" && (
+                <div className="border-t border-[#1E1E2E] p-3 flex gap-2">
+                  <Input
+                    placeholder="Réponse en tant que Agent Nivra…"
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply(); }
+                    }}
+                    disabled={sending}
+                    className="bg-[#1E1E2E] border-[#1E1E2E] text-white placeholder:text-[#888] rounded-[10px]"
+                  />
+                  <Button onClick={handleSendReply} disabled={sending || !reply.trim()}
+                    className="rounded-[10px] text-white border-0"
+                    style={{ background: "#7C3AED" }}>
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+            <div className="flex-1 flex items-center justify-center text-sm text-[#888]">
               Sélectionnez une conversation pour la consulter
             </div>
           )}
-        </Card>
+        </MKCard>
       </div>
-    </div>
+    </MKPage>
   );
 };
 
