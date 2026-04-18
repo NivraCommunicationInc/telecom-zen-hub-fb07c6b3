@@ -13,6 +13,8 @@ import { ContractDocumentsStep } from "./steps/ContractDocumentsStep";
 import { ShippingTechnicianStep } from "./steps/ShippingTechnicianStep";
 import { CompletionStep } from "./steps/CompletionStep";
 import { TVChannelActivationStep } from "./steps/TVChannelActivationStep";
+import { SimEsimStep } from "./steps/SimEsimStep";
+import { PortInStep } from "./steps/PortInStep";
 
 interface Props {
   proc: any;
@@ -36,6 +38,10 @@ export function StepContent({ proc }: Props) {
       return <ActivationStep proc={proc} />;
     case "tv_channels":
       return <TVChannelActivationStep proc={proc} />;
+    case "sim_esim":
+      return <SimEsimStep proc={proc} />;
+    case "port_in":
+      return <PortInStep proc={proc} />;
     case "contracts":
       return <ContractDocumentsStep proc={proc} />;
     case "shipping":
