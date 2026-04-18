@@ -366,11 +366,20 @@ const NivraChat = () => {
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold leading-tight">Nivra</p>
+                <p className="text-sm font-semibold leading-tight">
+                  {humanTakeover ? (agentName || (fr ? "Agent Nivra" : "Nivra Agent")) : "Nivra"}
+                </p>
                 <p className="text-[11px] text-primary-foreground/70 leading-tight">
-                  {fr ? "Support client • En ligne" : "Customer support • Online"}
+                  {humanTakeover
+                    ? (fr ? "Agent humain en ligne" : "Live human agent")
+                    : (fr ? "Support client • En ligne" : "Customer support • Online")}
                 </p>
               </div>
+              {humanTakeover && (
+                <span className="ml-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary-foreground/20 text-primary-foreground">
+                  LIVE
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-0.5">
               <button
