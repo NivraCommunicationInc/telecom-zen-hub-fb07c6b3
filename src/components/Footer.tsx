@@ -71,13 +71,17 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
             {isFr ? 'Paiements acceptés' : 'Accepted payments'}
           </span>
           <div className="flex items-center gap-3 flex-wrap justify-center">
-            <div style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', display: 'flex', alignItems: 'center', height: 26 }}>
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg"
-                alt="Visa"
-                style={{ height: 14, width: 'auto', display: 'block' }}
-                loading="lazy"
-              />
+            <div style={{ background: '#1A1F71', borderRadius: 4, padding: '4px 10px', display: 'flex', alignItems: 'center', height: 26 }}>
+              <span style={{
+                color: 'white',
+                fontWeight: 800,
+                fontSize: 13,
+                fontFamily: 'Arial, sans-serif',
+                letterSpacing: 1,
+                lineHeight: 1,
+              }}>
+                VISA
+              </span>
             </div>
             <div style={{ background: '#fff', borderRadius: 4, padding: '3px 6px', display: 'flex', alignItems: 'center', height: 26 }}>
               <img
