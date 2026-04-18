@@ -191,6 +191,14 @@ serve(async (req) => {
     const optedOutClients = new Set(preferences?.map(p => p.client_id) || []);
     clients = clients.filter(c => !optedOutClients.has(c.id));
 
+    // Preview-only mode: return count without sending
+    if (preview_count) {
+      return new Response(
+        JSON.stringify({ success: true, preview: true, total_recipients: clients.length }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Update recipient count
     if (campaign_id) {
       await supabase
