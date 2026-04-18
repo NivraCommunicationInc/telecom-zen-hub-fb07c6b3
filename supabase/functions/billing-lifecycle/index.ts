@@ -676,7 +676,7 @@ async function processSuspensionWarningJ3(
       idempotency_key: eventKey,
       to_email: inv.customer.email,
       from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-      subject: `⚠️ Votre service sera suspendu dans 2 jours (#${inv.invoice_number})`,
+      subject: `Rappel: votre facture Nivra (#${inv.invoice_number})`,
       template_key: "invoice_suspension_warning",
       template_vars: {
         client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,

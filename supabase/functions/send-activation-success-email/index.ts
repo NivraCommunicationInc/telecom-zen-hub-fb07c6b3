@@ -190,7 +190,7 @@ serve(async (req: Request) => {
       to: [recipientEmail],
       bcc: isTest ? [] : BUSINESS_EMAILS,
       reply_to: SUPPORT_EMAIL,
-      subject: `${isTest ? "[TEST] " : ""}${clientLang === "fr" ? "✅ Votre service Nivra est activé — Bienvenue!" : "✅ Your Nivra service is now active — Welcome!"}`,
+      subject: `${isTest ? "[TEST] " : ""}${clientLang === "fr" ? "Votre service Internet est maintenant actif" : "Your Nivra Internet service is now active"}`,
       html,
       headers: { "X-Entity-Ref-ID": `activation-success-${ar.id}${isTest ? '-test-' + Date.now() : ''}` },
     });

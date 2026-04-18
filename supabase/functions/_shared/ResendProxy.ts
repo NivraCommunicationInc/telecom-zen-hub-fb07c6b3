@@ -65,8 +65,77 @@ export interface EnqueueResult {
 
 const SENDER_DOMAIN = "notify.nivra-telecom.ca";
 const FROM_DOMAIN = "nivra-telecom.ca";
-const DEFAULT_FROM = `Nivra Telecom <noreply@${FROM_DOMAIN}>`;
+const SUPPORT_EMAIL = "support@nivra-telecom.ca";
+// Anti-spam: canonical sender used for ALL client-facing emails.
+// Internal admin alerts may opt-out by passing fromEmail starting with "Nivra Admin"
+// or "Nivra Activations" — those are kept as-is for inbox filtering.
+const CANONICAL_FROM = `Nivra Telecom <${SUPPORT_EMAIL}>`;
+const DEFAULT_FROM = CANONICAL_FROM;
 const PGMQ_QUEUE = "transactional_emails";
+
+// Anti-spam mailer headers injected on every send.
+const MAILER_HEADERS: Record<string, string> = {
+  "X-Mailer": "Nivra Telecom Mailer v2",
+  "List-Unsubscribe": `<mailto:${SUPPORT_EMAIL}?subject=unsubscribe>`,
+  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+};
+
+// Admin-alert From prefixes that are preserved (not rewritten to support@).
+const ADMIN_FROM_PREFIXES = ["Nivra Admin", "Nivra Activations", "Nivra Billing"];
+
+function isAdminAlertFrom(from: string | undefined | null): boolean {
+  if (!from) return false;
+  return ADMIN_FROM_PREFIXES.some((p) => from.trim().startsWith(p));
+}
+
+/**
+ * Anti-spam subject sanitizer.
+ *  - strip surrounding whitespace
+ *  - collapse "!!" / "!!!" to single "."
+ *  - if the subject is mostly UPPERCASE, convert to sentence case
+ *  - keep at most ONE emoji (first one wins)
+ *  - cap at 60 chars (preserve word boundary)
+ */
+function sanitizeSubject(raw: string): string {
+  if (!raw) return "Notification Nivra Telecom";
+  let s = String(raw).trim();
+
+  // Replace runs of ! with a single period (avoid "!!!" spam triggers)
+  s = s.replace(/!{2,}/g, ".").replace(/!/g, "");
+
+  // Detect emoji (basic ranges) and keep only the first
+  const emojiRegex = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]/gu;
+  const emojis = s.match(emojiRegex) || [];
+  if (emojis.length > 1) {
+    let kept = false;
+    s = s.replace(emojiRegex, (m) => {
+      if (!kept) { kept = true; return m; }
+      return "";
+    });
+  }
+
+  // Collapse double spaces left by emoji removal
+  s = s.replace(/\s{2,}/g, " ").trim();
+
+  // ALL CAPS detection — if >=60% of letters are uppercase, sentence-case it
+  const letters = s.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  if (letters.length >= 6) {
+    const upper = letters.replace(/[^A-ZÀ-Þ]/g, "").length;
+    if (upper / letters.length >= 0.6) {
+      s = s.toLowerCase();
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+    }
+  }
+
+  // Cap at 60 chars on word boundary
+  if (s.length > 60) {
+    const cut = s.slice(0, 60);
+    const lastSpace = cut.lastIndexOf(" ");
+    s = (lastSpace > 30 ? cut.slice(0, lastSpace) : cut).trim();
+  }
+
+  return s || "Notification Nivra Telecom";
+}
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -182,9 +251,18 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
 
     // Resolve HTML content
     const html = params.html || params.templateVars?._html || "";
-    const subject = params.subject || params.templateVars?._subject || "Notification Nivra Telecom";
-    const fromEmail = params.fromEmail || params.templateVars?._from_email || DEFAULT_FROM;
+    const rawSubject = params.subject || params.templateVars?._subject || "Notification Nivra Telecom";
+    const subject = sanitizeSubject(rawSubject);
+
+    // Anti-spam: force canonical From for client-facing emails.
+    // Preserve admin alert From so internal mail filters keep working.
+    const requestedFrom = params.fromEmail || params.templateVars?._from_email;
+    const fromEmail = isAdminAlertFrom(requestedFrom)
+      ? (requestedFrom as string)
+      : CANONICAL_FROM;
+
     const text = params.text || params.templateVars?._text || htmlToPlainText(html);
+    const replyTo = params.replyTo || SUPPORT_EMAIL;
 
     if (!html) {
       console.error(`[enqueueEmail] No HTML content for template: ${params.templateKey}`);
@@ -197,6 +275,12 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
     // Generate message ID for deduplication in process-email-queue
     const messageId = generateMessageId();
 
+    // Per-recipient List-Unsubscribe (mailto + token-based) anti-spam headers
+    const headers: Record<string, string> = {
+      ...MAILER_HEADERS,
+      "List-Unsubscribe": `<mailto:${SUPPORT_EMAIL}?subject=unsubscribe-${unsubscribeToken}>`,
+    };
+
     // Build pgmq payload matching what process-email-queue expects
     const pgmqPayload = {
       to: params.to,
@@ -206,8 +290,9 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
       subject,
       html,
       text,
-      reply_to: params.replyTo,
+      reply_to: replyTo,
       attachments: params.attachments,
+      headers,
       purpose: "transactional",
       label: params.templateKey || "custom_html",
       idempotency_key: eventKey,

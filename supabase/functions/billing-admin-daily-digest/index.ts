@@ -92,7 +92,7 @@ serve(async (req) => {
         idempotency_key: eventKey,
         to_email: recipient,
         from_email: "Nivra Telecom <support@nivra-telecom.ca>",
-        subject: `📊 Rapport souffrance — ${list.length} compte${list.length > 1 ? "s" : ""} en retard`,
+        subject: `Rapport quotidien — ${list.length} compte${list.length > 1 ? "s" : ""} en retard`,
         template_key: "admin_overdue_daily_digest",
         template_vars: {
           report_date: today,

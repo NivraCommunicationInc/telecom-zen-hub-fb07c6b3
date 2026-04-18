@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: "Nivra Telecom <support@nivra-telecom.ca>",
             to: RECIPIENTS,
-            subject: `⚠️ Nivra Daily Backup FAILED - ${today}`,
+            subject: `Nivra Daily Backup FAILED - ${today}`,
             html: `
               <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #dc2626;">⚠️ Daily Backup Failed</h2>

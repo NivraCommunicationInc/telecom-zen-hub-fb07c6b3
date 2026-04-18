@@ -1206,7 +1206,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
 
   // TECHNICIAN EN ROUTE
   technician_en_route: {
-    subject: "Nivra — Technicien en route! (#{{order_number}})",
+    subject: "Nivra — Technicien en route (#{{order_number}})",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('info', '🚗', 'Technicien en route', 'Technician on the way',
@@ -2074,7 +2074,7 @@ export const emailTemplates: Record<string, { subject: string; getHtml: (vars: R
   },
 
   paypal_subscription_activated: {
-    subject: "Nivra — Paiement automatique activé ✅ / Automatic payments activated",
+    subject: "Nivra — Paiement automatique activé / Automatic payments activated",
     getHtml: (vars, config) => wrapEmail(`
       ${greeting(vars.client_name)}
       ${statusBadge('success', '✅', 'Paiement automatique activé', 'Automatic payments activated',

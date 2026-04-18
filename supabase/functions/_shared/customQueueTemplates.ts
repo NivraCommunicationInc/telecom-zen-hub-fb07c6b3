@@ -455,7 +455,7 @@ export function renderQueueTemplate(
       const total = money(v.total ?? v.amount);
       const suspensionDate = fmtDate(v.suspension_date);
       return {
-        subject: `⚠️ Votre service sera suspendu dans 2 jours (#${invoiceNum})`,
+        subject: `Rappel: votre service Nivra (#${invoiceNum})`,
         html: shell({
           title: "Avertissement de suspension imminente",
           preheader: `Service suspendu dans 2 jours si non payé.`,
@@ -485,7 +485,7 @@ export function renderQueueTemplate(
       const invoiceNum = esc(v.invoice_number || "—");
       const total = money(v.total ?? v.amount);
       return {
-        subject: `🔴 Service suspendu — ${esc(v.client_full_name || clientName)}`,
+        subject: `Mise à jour de compte — ${esc(v.client_full_name || clientName)}`,
         html: shell({
           title: "Alerte: Service suspendu",
           preheader: `Compte ${esc(v.account_number || "")} suspendu (J+5).`,
@@ -551,7 +551,7 @@ export function renderQueueTemplate(
       const totalAmount = money(v.total_amount_overdue);
       const reportDate = fmtDate(v.report_date);
       return {
-        subject: `📊 Rapport souffrance — ${total} compte${Number(total) > 1 ? "s" : ""} en retard`,
+        subject: `Rapport quotidien — ${total} compte${Number(total) > 1 ? "s" : ""} en retard`,
         html: shell({
           title: "Rapport quotidien — Comptes en souffrance",
           preheader: `${total} compte(s) en retard ce matin.`,
@@ -634,7 +634,7 @@ export function renderQueueTemplate(
       const orderId = v.order_id ? String(v.order_id) : "";
       const orderLink = orderId ? `${APP_URL}/core/orders/${orderId}` : `${APP_URL}/admin/recouvrement`;
       return {
-        subject: `🚨 Chargeback détecté — ${esc(v.client_full_name || clientName)} — ${amount}`,
+        subject: `Alerte: litige PayPal — ${esc(v.client_full_name || clientName)}`,
         html: shell({
           title: "Alerte critique: Chargeback PayPal",
           preheader: `Litige PayPal ouvert — action requise dans 10 jours.`,

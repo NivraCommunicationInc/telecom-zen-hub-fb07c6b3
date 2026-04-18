@@ -335,7 +335,7 @@ serve(async (req: Request) => {
       to: [recipientEmail],
       bcc: isTest ? [] : BUSINESS_EMAILS,
       reply_to: SUPPORT_EMAIL,
-      subject: `${isTest ? "[TEST] " : ""}${clientLang === "fr" ? "📦 Votre équipement Nivra est en route — Guide d'installation inclus" : "📦 Your Nivra equipment is on its way — Installation guide included"}`,
+      subject: `${isTest ? "[TEST] " : ""}${clientLang === "fr" ? "Votre équipement Nivra est expédié" : "Your Nivra equipment is on its way"}`,
       html,
       attachments,
       headers: { "X-Entity-Ref-ID": `auto-install-${order.id}${isTest ? '-test-' + Date.now() : ''}` },
@@ -350,7 +350,7 @@ serve(async (req: Request) => {
       await resend.emails.send({
         from: "Nivra Telecom <noreply@nivra-telecom.ca>",
         to: BUSINESS_EMAILS,
-        subject: `📦 Auto-installation — ${fullName} — Équipement expédié`,
+        subject: `Auto-installation — ${fullName} — équipement expédié`,
         html: notifHtml,
         headers: { "X-Entity-Ref-ID": `auto-install-notif-${order.id}` },
       });
