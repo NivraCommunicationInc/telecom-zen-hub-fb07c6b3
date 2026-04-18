@@ -279,6 +279,16 @@ export function PaymentInvoiceStep({ proc }: Props) {
           {loading === "partial" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CreditCard className="w-3 h-3 mr-1" />}
           Paiement partiel
         </Button>
+        {!isPaid && !showManualForm && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { setManualAmount(balanceDue.toFixed(2)); setShowManualForm(true); }}
+            className="text-sm bg-transparent border-amber-600/50 text-amber-300 hover:bg-amber-950/30"
+          >
+            <Plus className="w-3 h-3 mr-1" /> Paiement manuel
+          </Button>
+        )}
         <Button size="sm" onClick={handleMarkInvalid} disabled={loading === "invalid" || proc.isUpdating} className="text-sm bg-red-700 hover:bg-red-800 text-white">
           {loading === "invalid" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
           Invalider
