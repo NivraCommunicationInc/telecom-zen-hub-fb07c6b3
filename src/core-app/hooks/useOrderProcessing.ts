@@ -53,6 +53,8 @@ export type WorkflowStepId =
   | "equipment"
   | "activation"
   | "tv_channels"
+  | "sim_esim"
+  | "port_in"
   | "contracts"
   | "shipping"
   | "completion";
@@ -113,6 +115,8 @@ function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
 
   if (serviceType.includes("mobile")) {
     base.push(
+      { id: "sim_esim", label: "SIM / eSIM", status: "pending" },
+      { id: "port_in", label: "Port-in numéro", status: "pending" },
       { id: "activation", label: "Activation / SIM", status: "pending" },
       { id: "equipment", label: "Équipement", status: "pending" },
       { id: "contracts", label: "Contrat & Documents", status: "pending" },
@@ -129,6 +133,13 @@ function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
     // Add TV channel step for TV/combo orders
     if (serviceType.includes("tv") || serviceType.includes("combo") || serviceType.includes("bundle")) {
       base.push({ id: "tv_channels", label: "Chaînes TV", status: "pending" });
+    }
+    // Add SIM + port-in for bundles that include mobile
+    if (serviceType.includes("bundle") || serviceType.includes("combo")) {
+      base.push(
+        { id: "sim_esim", label: "SIM / eSIM", status: "pending" },
+        { id: "port_in", label: "Port-in numéro", status: "pending" },
+      );
     }
     base.push(
       { id: "contracts", label: "Contrat & Documents", status: "pending" },
@@ -155,10 +166,10 @@ function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
   return computeStepStatuses(base, order, channelSelection);
 }
 
-function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any): WorkflowStep[] {
+function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any, mobileFulfillment?: any): WorkflowStep[] {
   if (!order) return steps;
-
-  return steps.map((step) => {
+  const mf = mobileFulfillment || (order as any)._mobileFulfillment || null;
+  const simCompleted = mf?.activation_status === "active";
     let status: StepStatus = "pending";
     switch (step.id) {
       case "client_info":
