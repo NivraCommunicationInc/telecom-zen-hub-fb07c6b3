@@ -127,7 +127,7 @@ serve(async (req: Request) => {
           if (logErr) console.warn("[sign-contract-public] activity_logs insert failed:", logErr.message);
         });
 
-        // 2. Email confirmation to client + admin
+        // 2. Email confirmation to client + admin via canonical email_queue
         if (payload.order_id) {
           const { data: order } = await supabase
             .from("orders")
@@ -146,37 +146,41 @@ serve(async (req: Request) => {
           const clientEmail = order?.client_email || profile?.email || null;
           const clientName = profile?.full_name || signerName || "Client";
 
-          // Client confirmation
+          // Client confirmation — queued via canonical pipeline
           if (clientEmail) {
-            await supabase.functions.invoke("send-transactional-email", {
-              body: {
-                templateName: "contract-signed-confirmation",
-                recipientEmail: clientEmail,
-                idempotencyKey: `contract-signed-${payload.contract_id}`,
-                templateData: {
-                  name: clientName,
-                  orderNumber: order?.order_number || "",
-                  signedAt: payload.signed_at,
-                },
-              },
-            }).catch((e) => console.warn("[sign-contract-public] client email failed:", e?.message));
+            await supabase.from("email_queue").insert({
+              to_email: clientEmail,
+              template_type: "contract_signed_confirmation",
+              template_data: {
+                client_name: clientName,
+                order_number: order?.order_number || "",
+                signed_at: payload.signed_at,
+              } as any,
+              priority: "normal",
+              status: "queued",
+            } as any).then(({ error: e }) => {
+              if (e) console.warn("[sign-contract-public] client email enqueue failed:", e.message);
+            });
           }
 
-          // Admin/support notification (best effort, never block)
-          await supabase.functions.invoke("send-transactional-email", {
-            body: {
-              templateName: "contract-signed-admin-alert",
-              recipientEmail: "support@nivra-telecom.ca",
-              idempotencyKey: `contract-signed-admin-${payload.contract_id}`,
-              templateData: {
-                clientName,
-                orderNumber: order?.order_number || "",
-                contractId: payload.contract_id,
-                signedAt: payload.signed_at,
-                ip: clientIp,
-              },
-            },
-          }).catch((e) => console.warn("[sign-contract-public] admin email failed:", e?.message));
+          // Admin notification
+          await supabase.from("email_queue").insert({
+            to_email: "support@nivra-telecom.ca",
+            template_type: "contract_signed_admin_alert",
+            template_data: {
+              client_full_name: clientName,
+              client_name: clientName,
+              order_id: payload.order_id,
+              order_number: order?.order_number || "",
+              contract_id: payload.contract_id,
+              signed_at: payload.signed_at,
+              ip: clientIp,
+            } as any,
+            priority: "high",
+            status: "queued",
+          } as any).then(({ error: e }) => {
+            if (e) console.warn("[sign-contract-public] admin email enqueue failed:", e.message);
+          });
         }
       } catch (notifyErr: any) {
         console.warn("[sign-contract-public] notification error (non-blocking):", notifyErr?.message);
