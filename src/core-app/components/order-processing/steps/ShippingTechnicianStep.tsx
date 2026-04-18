@@ -37,6 +37,12 @@ export function ShippingTechnicianStep({ proc }: Props) {
   const showShippingPanel = hasShipping || !showTechnicianPanel;
 
   const [loading, setLoading] = useState<string | null>(null);
+  const [contractGate, setContractGate] = useState<{
+    open: boolean;
+    targetStatus: "shipped" | "in_transit" | "out_for_delivery" | null;
+    reason: string;
+    forcing: boolean;
+  }>({ open: false, targetStatus: null, reason: "", forcing: false });
 
   const [shippingFields, setShippingFields] = useState({
     carrier: order.carrier || "",
@@ -64,6 +70,8 @@ export function ShippingTechnicianStep({ proc }: Props) {
 
   const selectedTechnician = technicians.find((t) => t.id === techFields.technician_id);
 
+  const isContractGateError = (err: any) => String(err?.message || "").startsWith("CONTRACT_NOT_SIGNED");
+
   const handleSaveShipping = async () => {
     setLoading("save");
     try { await proc.updateShipping({ ...shippingFields, shipped_at: new Date().toISOString() }); }
@@ -75,7 +83,29 @@ export function ShippingTechnicianStep({ proc }: Props) {
     try {
       await proc.updateShipping({ ...shippingFields, shipped_at: new Date().toISOString() });
       await proc.changeStatus("shipped");
+    } catch (err: any) {
+      if (isContractGateError(err)) {
+        setContractGate({ open: true, targetStatus: "shipped", reason: "", forcing: false });
+      }
     } finally { setLoading(null); }
+  };
+
+  const handleForceShip = async () => {
+    if (!contractGate.targetStatus || !contractGate.reason.trim()) {
+      toast.error("Justification obligatoire");
+      return;
+    }
+    setContractGate((g) => ({ ...g, forcing: true }));
+    try {
+      await proc.changeStatus(contractGate.targetStatus, {
+        forceOverride: true,
+        overrideReason: contractGate.reason.trim(),
+      });
+      setContractGate({ open: false, targetStatus: null, reason: "", forcing: false });
+    } catch (err: any) {
+      console.error("[ShippingTechnicianStep] Force ship failed:", err);
+      setContractGate((g) => ({ ...g, forcing: false }));
+    }
   };
 
   const handleMarkDelivered = async () => {
