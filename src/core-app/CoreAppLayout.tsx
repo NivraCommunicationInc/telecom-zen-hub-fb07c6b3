@@ -11,7 +11,7 @@ import {
   LayoutDashboard, ListTodo, ShoppingCart, Users, UserCircle,
   FileText, CreditCard, RefreshCcw, Calendar, LogOut, ChevronLeft,
   ChevronRight, Terminal, Receipt, Package, Shield, Settings, Tv,
-  Boxes, Headphones, Tag, Activity, Radio, MessageSquare, Upload,
+  Boxes, Headphones, Tag, Activity, Radio, MessageSquare, MessageCircle, Upload,
   MonitorPlay, Lock, Wifi,
   DollarSign, AlertTriangle, Gavel, Film, Megaphone, Trophy, Send, Gift,
   Handshake, Briefcase, UserPlus, Bell, Wrench, Mail, ExternalLink,
