@@ -96,6 +96,21 @@ const PrivacyPolicy = () => {
             </section>
 
             <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">7.1. Conservation des données (Loi 25 / LPRPDE)</h2>
+              <ul className="list-disc pl-6 space-y-2">
+                <li><strong>Clients actifs :</strong> données conservées pendant toute la durée du service.</li>
+                <li><strong>Clients inactifs :</strong> données personnelles anonymisées automatiquement <strong>90 jours après l'annulation</strong> du compte.</li>
+                <li><strong>Données de facturation :</strong> conservées 7 ans (obligations fiscales fédérales et provinciales du Québec).</li>
+                <li><strong>Documents KYC (pièces d'identité) :</strong> supprimés lors de l'anonymisation (90 jours après annulation).</li>
+                <li>Conformément à la <strong>Loi 25 du Québec</strong> et à la <strong>LPRPDE</strong> fédérale.</li>
+              </ul>
+              <p>
+                Chaque anonymisation est journalisée dans notre registre de conservation des données. 
+                Vous pouvez demander un rapport de vos données conservées à tout moment via {COMPANY_CONTACT.supportEmailDisplay}.
+              </p>
+            </section>
+
+            <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">8. Contact</h2>
               <p>
                 Pour toute question concernant cette politique de confidentialité ou pour exercer vos droits, 
