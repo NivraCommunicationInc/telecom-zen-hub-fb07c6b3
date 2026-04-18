@@ -349,7 +349,10 @@ function replaceVariables(content: string, variables: Record<string, string>): s
   return result;
 }
 
-async function sendEmail(_apiKey: string, params: { to: string; subject: string; html: string }) {
+async function sendEmail(
+  _apiKey: string,
+  params: { to: string; subject: string; html: string; unsubscribeUrl?: string },
+) {
   const result = await enqueueEmail({
     to: params.to,
     templateKey: "custom_html",
