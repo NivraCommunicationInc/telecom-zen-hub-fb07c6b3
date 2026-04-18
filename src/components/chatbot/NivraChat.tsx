@@ -42,6 +42,9 @@ const NivraChat = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [suggestedActions, setSuggestedActions] = useState<SuggestedAction[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [humanTakeover, setHumanTakeover] = useState(false);
+  const [agentName, setAgentName] = useState<string | null>(null);
+  const sessionPersistedRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { language } = useLanguage();
