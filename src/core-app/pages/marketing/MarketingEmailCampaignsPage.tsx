@@ -26,8 +26,9 @@ import {
   FileText, Ban, BarChart3, Sparkles, Plus, RotateCcw, TestTube2, Save,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, subDays, startOfDay } from "date-fns";
 import { fr as frLocale } from "date-fns/locale";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MKPage, MKCard, MKCardHeader, MKStat } from "./_marketing-ui";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -178,6 +179,7 @@ const MarketingEmailCampaignsPage = () => {
   const [unsubs, setUnsubs] = useState<Unsubscribe[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [opensTimeline, setOpensTimeline] = useState<{ date: string; opens: number; clicks: number }[]>([]);
 
   // Builder state
   const [name, setName] = useState("");
@@ -228,16 +230,43 @@ const MarketingEmailCampaignsPage = () => {
     setTemplates((data ?? []) as Template[]);
   };
 
+  const loadOpensTimeline = async () => {
+    const since = subDays(new Date(), 30).toISOString();
+    const [opensRes, clicksRes] = await Promise.all([
+      supabase.from("email_sends").select("opened_at").gte("opened_at", since).not("opened_at", "is", null).limit(5000),
+      supabase.from("email_sends").select("clicked_at").gte("clicked_at", since).not("clicked_at", "is", null).limit(5000),
+    ]);
+    const buckets = new Map<string, { opens: number; clicks: number }>();
+    for (let i = 29; i >= 0; i--) {
+      const key = format(startOfDay(subDays(new Date(), i)), "yyyy-MM-dd");
+      buckets.set(key, { opens: 0, clicks: 0 });
+    }
+    (opensRes.data ?? []).forEach((r: any) => {
+      const k = format(startOfDay(new Date(r.opened_at)), "yyyy-MM-dd");
+      const b = buckets.get(k); if (b) b.opens += 1;
+    });
+    (clicksRes.data ?? []).forEach((r: any) => {
+      const k = format(startOfDay(new Date(r.clicked_at)), "yyyy-MM-dd");
+      const b = buckets.get(k); if (b) b.clicks += 1;
+    });
+    setOpensTimeline(Array.from(buckets.entries()).map(([date, v]) => ({
+      date: format(new Date(date), "d MMM", { locale: frLocale }),
+      opens: v.opens,
+      clicks: v.clicks,
+    })));
+  };
+
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([loadCampaigns(), loadUnsubs(), loadTemplates()]);
+      await Promise.all([loadCampaigns(), loadUnsubs(), loadTemplates(), loadOpensTimeline()]);
       setLoading(false);
     })();
     const ch = supabase
       .channel("marketing-email-hub")
       .on("postgres_changes", { event: "*", schema: "public", table: "email_campaigns" }, loadCampaigns)
       .on("postgres_changes", { event: "*", schema: "public", table: "email_unsubscribes" }, loadUnsubs)
+      .on("postgres_changes", { event: "*", schema: "public", table: "email_sends" }, loadOpensTimeline)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
@@ -803,6 +832,25 @@ const MarketingEmailCampaignsPage = () => {
             <MKStat label="Taux de clic" value={`${stats.clickRate}%`} icon={MousePointer} accent="#F59E0B" />
             <MKStat label="Désabonnés actifs" value={stats.activeUnsubs} icon={Ban} accent="#EF4444" />
           </div>
+
+          <MKCard>
+            <MKCardHeader title="Ouvertures & clics — 30 derniers jours" />
+            <div className="p-4" style={{ height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={opensTimeline}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" />
+                  <XAxis dataKey="date" stroke="#888" fontSize={11} />
+                  <YAxis stroke="#888" fontSize={11} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#0D0D1A", border: "1px solid #1E1E2E", borderRadius: 8, color: "#fff", fontSize: 12 }}
+                    labelStyle={{ color: "#888" }}
+                  />
+                  <Line type="monotone" dataKey="opens" stroke="#10B981" strokeWidth={2} dot={false} name="Ouvertures" />
+                  <Line type="monotone" dataKey="clicks" stroke="#F59E0B" strokeWidth={2} dot={false} name="Clics" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </MKCard>
 
           <MKCard>
             <MKCardHeader title="Performance par campagne" />

@@ -2,6 +2,29 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
+import { generateUnsubscribeToken } from "../_shared/unsubscribeToken.ts";
+
+const FUNCTIONS_BASE = `${Deno.env.get("SUPABASE_URL")!}/functions/v1`;
+const PUBLIC_SITE = Deno.env.get("PUBLIC_SITE_URL") ?? "https://nivra-telecom.ca";
+
+/** Inject tracking pixel + rewrite <a href> through track-email-click. */
+function injectTracking(html: string, campaignId: string | null, sendId: string): string {
+  const cidQ = campaignId ? `cid=${encodeURIComponent(campaignId)}&` : "";
+  const rewritten = html.replace(
+    /href\s*=\s*"([^"]+)"/gi,
+    (full, url: string) => {
+      if (/^(mailto:|tel:|#|javascript:)/i.test(url)) return full;
+      if (url.includes("/email-unsubscribe") || url.includes("/unsubscribe?token=")) return full;
+      if (url.includes("/track-email-click")) return full;
+      const wrapped = `${FUNCTIONS_BASE}/track-email-click?${cidQ}rid=${encodeURIComponent(sendId)}&url=${encodeURIComponent(url)}`;
+      return `href="${wrapped}"`;
+    },
+  );
+  const pixel = `<img src="${FUNCTIONS_BASE}/track-email-open?${cidQ}rid=${encodeURIComponent(sendId)}" width="1" height="1" alt="" style="display:none;border:0;width:1px;height:1px" />`;
+  return rewritten.includes("</body>")
+    ? rewritten.replace("</body>", `${pixel}</body>`)
+    : `${rewritten}${pixel}`;
+}
 
 interface SendRequest {
   campaign_id?: string;
@@ -213,26 +236,34 @@ serve(async (req) => {
     const portalUrl = supabaseUrl.replace(".supabase.co", "").replace("https://", "https://");
 
     for (const client of clients) {
+      // Pre-generate sendId so it can be embedded in tracking pixel + click links
+      const sendId = crypto.randomUUID();
+      const unsubToken = await generateUnsubscribeToken(client.email);
+      const unsubLink = `${PUBLIC_SITE}/unsubscribe?token=${unsubToken}`;
+
       try {
         const variables = {
           client_name: `${client.first_name} ${client.last_name}`.trim() || "Client",
           client_email: client.email,
           client_phone: client.phone || "",
-          portal_link: `${portalUrl}/portal`,
-          unsubscribe_link: `${portalUrl}/unsubscribe?email=${encodeURIComponent(client.email)}`
+          portal_link: `${PUBLIC_SITE}/portal`,
+          unsubscribe_link: unsubLink,
         };
 
-        const html = replaceVariables(template.html_content, variables);
+        const renderedHtml = replaceVariables(template.html_content, variables);
         const subject = replaceVariables(subjectOverride || template.subject, variables);
+        const html = injectTracking(renderedHtml, campaign_id ?? null, sendId);
 
         const result = await sendEmail(resendApiKey, {
           to: client.email,
           subject,
-          html
+          html,
+          unsubscribeUrl: unsubLink,
         });
 
-        // Log the send
+        // Log with the same id we used in tracking links
         await supabase.from("email_sends").insert({
+          id: sendId,
           campaign_id,
           automation_rule_id,
           template_id: template.id,
@@ -242,18 +273,18 @@ serve(async (req) => {
           subject,
           resend_id: result.id,
           status: "sent",
-          sent_at: new Date().toISOString()
+          sent_at: new Date().toISOString(),
         });
 
         sentCount++;
 
         // Rate limiting: 10 emails per second
-        await new Promise(resolve => setTimeout(resolve, 100));
-
+        await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (error) {
         console.error(`Failed to send to ${client.email}:`, error);
-        
+
         await supabase.from("email_sends").insert({
+          id: sendId,
           campaign_id,
           automation_rule_id,
           template_id: template.id,
@@ -263,7 +294,7 @@ serve(async (req) => {
           subject: subjectOverride || template.subject,
           status: "failed",
           error_message: (error as Error).message,
-          failed_at: new Date().toISOString()
+          failed_at: new Date().toISOString(),
         });
 
         failedCount++;
@@ -318,7 +349,10 @@ function replaceVariables(content: string, variables: Record<string, string>): s
   return result;
 }
 
-async function sendEmail(_apiKey: string, params: { to: string; subject: string; html: string }) {
+async function sendEmail(
+  _apiKey: string,
+  params: { to: string; subject: string; html: string; unsubscribeUrl?: string },
+) {
   const result = await enqueueEmail({
     to: params.to,
     templateKey: "custom_html",

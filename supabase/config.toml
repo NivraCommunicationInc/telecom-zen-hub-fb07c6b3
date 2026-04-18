@@ -245,3 +245,12 @@ verify_jwt = true
 
 [functions.retry-subscription-activation]
 verify_jwt = false
+
+[functions.email-unsubscribe]
+verify_jwt = false
+
+[functions.track-email-open]
+verify_jwt = false
+
+[functions.track-email-click]
+verify_jwt = false
