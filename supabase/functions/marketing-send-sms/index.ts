@@ -187,11 +187,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    const firstPn = pnJson?.data?.[0];
-    // OpenPhone /v1/messages accepts EITHER the phoneNumberId (PN…) OR the E.164 number as `from`.
-    // Use the E.164 number for clarity and to match user expectation.
-    const fromNumber = firstPn?.phoneNumber || firstPn?.number || null;
-    const fromId = firstPn?.id || null;
+    // Pick a number that can actually send SMS to Canada.
+    // Prefer numbers where messaging.CA === "unrestricted" (typically local 10DLC),
+    // skipping toll-free numbers which are usually restricted until TFN verification.
+    const allPns: any[] = Array.isArray(pnJson?.data) ? pnJson.data : [];
+    const smsCapable = allPns.find(
+      (p) => p?.restrictions?.messaging?.CA === "unrestricted",
+    );
+    const chosenPn = smsCapable || allPns[0];
+    const fromNumber = chosenPn?.phoneNumber || chosenPn?.number || null;
+    const fromId = chosenPn?.id || null;
+    console.log(
+      `[marketing-send-sms-${reqId}] chosen number=${fromNumber} id=${fromId} sms_ca=${chosenPn?.restrictions?.messaging?.CA}`,
+    );
     console.log(
       `[marketing-send-sms-${reqId}] from candidate phoneNumber=${fromNumber} id=${fromId}`,
     );
@@ -209,8 +217,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // OpenPhone requires `from` to be a valid OpenPhone-owned number/ID. Prefer phoneNumberId for safety.
-    const fromValue = fromId || fromNumber;
+    // Prefer the actual E.164 number — OpenPhone accepts both, but the E.164 form
+    // makes the intended sender explicit and avoids ID/account mismatches.
+    const fromValue = fromNumber || fromId;
 
     const sendBody = { content: message, from: fromValue, to: [normalizedTo] };
     console.log(
@@ -239,14 +248,14 @@ Deno.serve(async (req) => {
     );
 
     if (!sendRes.ok) {
-      // If `from` as ID failed, retry with E.164 number (some accounts require this)
-      if (fromId && fromNumber && fromValue === fromId) {
+      // If `from` as E.164 failed, retry with phoneNumberId (some endpoints require this)
+      if (fromId && fromNumber && fromValue === fromNumber) {
         console.log(
-          `[marketing-send-sms-${reqId}] retry with from=E.164 ${fromNumber}`,
+          `[marketing-send-sms-${reqId}] retry with from=phoneNumberId ${fromId}`,
         );
         const retryBody = {
           content: message,
-          from: fromNumber,
+          from: fromId,
           to: [normalizedTo],
         };
         const retryRes = await fetch("https://api.openphone.com/v1/messages", {
