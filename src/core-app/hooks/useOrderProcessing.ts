@@ -1354,18 +1354,38 @@ export function useOrderProcessing(orderId: string | undefined) {
   const activateService = async (opts?: {
     providerRef?: string;
     activationNotes?: string;
+    forceOverride?: boolean;
+    overrideReason?: string;
   }) => {
     // SYSTEMIC GUARD: Verify invoice is paid before allowing activation
     const invoice = data?.invoice;
+    const forceOverride = !!opts?.forceOverride;
+    const overrideReason = (opts?.overrideReason || "").trim();
+
     if (!invoice) {
       toast.error("Impossible d'activer : aucune facture liée à cette commande.");
       return;
     }
     const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 1);
     const invoiceStatus = invoice.status;
-    if (!["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") && balanceDue > 0) {
-      toast.error(`Impossible d'activer : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
-      return;
+    const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoiceStatus || "") || balanceDue <= 0;
+
+    if (!invoicePaid) {
+      if (!forceOverride) {
+        toast.error(`Impossible d'activer : la facture ${invoice.invoice_number || ""} n'est pas payée (solde: ${balanceDue.toFixed(2)} $).`);
+        return;
+      }
+      if (!overrideReason) {
+        toast.error("Une justification est obligatoire pour forcer l'activation");
+        return;
+      }
+      await logActivity("activation_forced_unpaid", "order", orderId, {
+        invoice_id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        balance_due: balanceDue,
+        override_reason: overrideReason,
+      });
+      toast.warning("Service activé sans paiement confirmé");
     }
 
     // Step 1: Call canonical provisioning RPC (idempotent — safe to call multiple times)
