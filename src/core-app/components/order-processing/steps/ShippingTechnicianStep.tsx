@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface TechnicianOption {
   id: string;
@@ -157,6 +158,29 @@ export function ShippingTechnicianStep({ proc }: Props) {
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">
         {showTechnicianPanel && showShippingPanel ? "Technicien & Expédition" : showTechnicianPanel ? "Technicien & Installation" : "Expédition"}
       </div>
+
+      {appointment?.status === "completed" && (
+        <StepCompletionCard
+          title="Installation complétée par le technicien"
+          at={appointment.scheduled_at}
+          details={[
+            { label: "Technicien", value: appointment.technician_id ? String(appointment.technician_id).slice(0, 8) : null, mono: true },
+            { label: "Rendez-vous", value: appointment.scheduled_at ? fmtDateTime(appointment.scheduled_at) : null },
+            { label: "Adresse", value: appointment.service_address },
+            { label: "Méthode", value: appointment.installation_method },
+          ]}
+        />
+      )}
+      {order.shipped_at && order.tracking_number && (
+        <StepCompletionCard
+          title="Commande expédiée au client"
+          at={order.shipped_at}
+          details={[
+            { label: "Transporteur", value: order.carrier },
+            { label: "N° de suivi", value: order.tracking_number, mono: true },
+          ]}
+        />
+      )}
 
       {/* Technician/Installation card */}
       {showTechnicianPanel && (

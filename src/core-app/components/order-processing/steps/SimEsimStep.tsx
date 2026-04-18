@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CreditCard, Smartphone, CheckCircle2, XCircle, Search, AlertCircle, QrCode, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -97,6 +98,19 @@ export function SimEsimStep({ proc }: Props) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">SIM / eSIM</div>
+
+      {(simActive || esimActive) && (
+        <StepCompletionCard
+          title={esimActive ? "eSIM activée" : "SIM physique activée"}
+          at={mf.activated_at || mf.updated_at}
+          details={[
+            { label: "ICCID", value: mf.sim_iccid, mono: true },
+            { label: "Numéro", value: mf.assigned_number, mono: true },
+            { label: "Opérateur", value: mf.sim_carrier },
+            { label: "Type", value: mf.sim_type },
+          ]}
+        />
+      )}
 
       {/* Info alert */}
       <div className="bg-blue-950/50 border border-blue-700/50 text-blue-300 rounded-lg px-3 py-2 text-sm mb-4 flex items-start gap-2">

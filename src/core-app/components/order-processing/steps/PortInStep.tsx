@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -98,6 +99,18 @@ export function PortInStep({ proc }: Props) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Port-in numéro</div>
+
+      {mf.port_in_status === "completed" && (
+        <StepCompletionCard
+          title="Numéro transféré avec succès"
+          at={mf.port_in_completed_at || mf.updated_at}
+          details={[
+            { label: "Numéro transféré", value: mf.port_in_number || portIn.phone_number, mono: true },
+            { label: "Ancien opérateur", value: mf.port_in_carrier || portIn.carrier },
+            { label: "Compte source", value: mf.port_in_account_number || portIn.account_number, mono: true },
+          ]}
+        />
+      )}
 
       {/* Pipeline */}
       <div className="bg-[#111827] border border-slate-700/50 rounded-xl overflow-hidden mb-4">

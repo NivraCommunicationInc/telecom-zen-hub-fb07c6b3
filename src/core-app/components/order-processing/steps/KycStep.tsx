@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -216,6 +217,20 @@ export function KycStep({ proc }: Props) {
     <TooltipProvider>
       <div>
         <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Vérification KYC</div>
+
+        {(rawStatus === "approved" || rawStatus === "rejected") && (
+          <StepCompletionCard
+            title={rawStatus === "approved" ? "Identité approuvée" : "Identité rejetée"}
+            by={kycSession?.reviewed_by ? `Agent ${String(kycSession.reviewed_by).slice(0, 8)}` : null}
+            at={kycSession?.reviewed_at}
+            details={[
+              { label: "Décision", value: rawStatus === "approved" ? "Approuvé" : "Rejeté" },
+              { label: "Raison", value: kycSession?.review_reason },
+              { label: "Type document", value: formatDocType(kycSession?.id_type || kycSession?.document_type) },
+              { label: "Tentatives", value: `${kycSession?.submission_attempts ?? 0} / ${kycSession?.max_attempts ?? 3}` },
+            ]}
+          />
+        )}
 
         {/* SECTION 1 — Status banner */}
         <div className={`rounded-lg border ${sc.cls} px-4 py-3 mb-4 flex items-center gap-3`}>

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { generateOrderDocuments } from "@/lib/pdf";
 import PDFViewerDialog from "@/components/PDFViewerDialog";
 import { SignatureStatusBlock } from "./SignatureStatusBlock";
+import { StepCompletionCard } from "../StepCompletionCard";
 
 interface Props { proc: any; }
 
@@ -149,6 +150,19 @@ export function ContractDocumentsStep({ proc }: Props) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">Contrat & Documents</div>
+
+      {contracts.length > 0 && (contracts[0].client_signed_at || contracts[0].admin_signed_at) && (
+        <StepCompletionCard
+          title="Contrat généré et signé"
+          at={contracts[0].client_signed_at || contracts[0].admin_signed_at}
+          details={[
+            { label: "Statut", value: contracts[0].status },
+            { label: "Version", value: contracts[0].version ? `v${contracts[0].version}` : null },
+            { label: "Signé client", value: contracts[0].client_signed_at ? "Oui" : "Non" },
+            { label: "Signé admin", value: contracts[0].admin_signed_at ? "Oui" : "Non" },
+          ]}
+        />
+      )}
 
       <div className="space-y-2 mb-4">
         {documents.map((doc, i) => (
