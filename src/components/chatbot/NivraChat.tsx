@@ -216,6 +216,15 @@ const NivraChat = () => {
     setIsLoading(true);
     setSuggestedActions([]);
 
+    // Persist session row + bump activity so admin can see this visitor live
+    await ensureSessionExists();
+    await bumpSessionActivity();
+
+    // If admin took over, don't call the bot — visitor message is already
+    // persisted into chatbot_logs by the chatbot-jonathan function (which
+    // returns immediately on takeover), but the admin must still see it.
+    // We log it here too as a safety net via chatbot-jonathan invocation
+    // (which short-circuits when status === 'human_takeover').
     try {
       const response = await supabase.functions.invoke("chatbot-jonathan", {
         body: {
@@ -228,6 +237,13 @@ const NivraChat = () => {
       });
 
       if (response.error) throw response.error;
+
+      // If the function reports human takeover, mark UI accordingly and skip the bot bubble
+      if (response.data?.humanTakeover) {
+        setHumanTakeover(true);
+        setIsLoading(false);
+        return;
+      }
 
       if (response.data.verifiedClientId && !verifiedClientId) {
         setVerifiedClientId(response.data.verifiedClientId);
