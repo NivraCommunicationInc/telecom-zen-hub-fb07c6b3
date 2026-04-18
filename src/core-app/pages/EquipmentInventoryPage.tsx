@@ -269,10 +269,54 @@ export default function EquipmentInventoryPage() {
         actor_name: "Admin",
         details: note ? { note } : null,
       } as any);
+
+      // ─── DEFECTIVE: log alert + notify admins ───
+      if (toStatus === "defective" && item.status !== "defective") {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: alert } = await supabase
+          .from("defective_equipment_alerts")
+          .insert({
+            equipment_id: item.id,
+            serial_number: item.serial_number,
+            catalog_name: item.catalog_name,
+            category: item.category,
+            account_id: item.account_id,
+            order_id: item.order_id,
+            reported_by: user?.id || null,
+            notes: note || null,
+          } as any)
+          .select("id")
+          .single();
+
+        // Fire-and-forget admin email
+        try {
+          await supabase.functions.invoke("notify-admin-alert", {
+            body: {
+              alert_type: "equipment_defective",
+              title: `Équipement défectueux: ${item.catalog_name}`,
+              summary: `Un équipement a été marqué défectueux.\nProduit: ${item.catalog_name}\nN° série: ${item.serial_number || "—"}\nSKU: ${item.sku || "—"}\nCatégorie: ${item.category}${item.order_id ? `\nCommande liée: ${item.order_id}` : ""}${note ? `\nNote: ${note}` : ""}`,
+              entity_type: "equipment",
+              entity_id: item.id,
+              entity_number: item.serial_number || item.sku || item.id.slice(0, 8),
+              admin_path: "/core/equipment",
+              priority: "high",
+            },
+          });
+          if (alert?.id) {
+            await supabase
+              .from("defective_equipment_alerts")
+              .update({ email_sent: true, email_sent_at: new Date().toISOString() } as any)
+              .eq("id", alert.id);
+          }
+        } catch (e) {
+          console.warn("[Defective alert] email dispatch failed (non-blocking):", e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["equipment-audit"] });
+      queryClient.invalidateQueries({ queryKey: ["defective-alerts-unacked"] });
       toast.success("Statut mis à jour");
       setStatusChangeItem(null);
       setNewStatus("");
