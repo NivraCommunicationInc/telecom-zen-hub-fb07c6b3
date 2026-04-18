@@ -53,6 +53,8 @@ export type WorkflowStepId =
   | "equipment"
   | "activation"
   | "tv_channels"
+  | "sim_esim"
+  | "port_in"
   | "contracts"
   | "shipping"
   | "completion";
@@ -97,7 +99,7 @@ function computeInstallationEstimate(order: any, appointment: any): {
 }
 
 /* ─── Dynamic workflow per order type ─── */
-function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
+function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: any): WorkflowStep[] {
   const serviceType = (order?.service_type || "").toLowerCase();
   const hasKyc = order?.kyc_policy !== "none" && order?.kyc_policy !== "skip";
 
@@ -113,6 +115,8 @@ function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
 
   if (serviceType.includes("mobile")) {
     base.push(
+      { id: "sim_esim", label: "SIM / eSIM", status: "pending" },
+      { id: "port_in", label: "Port-in numéro", status: "pending" },
       { id: "activation", label: "Activation / SIM", status: "pending" },
       { id: "equipment", label: "Équipement", status: "pending" },
       { id: "contracts", label: "Contrat & Documents", status: "pending" },
@@ -129,6 +133,13 @@ function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
     // Add TV channel step for TV/combo orders
     if (serviceType.includes("tv") || serviceType.includes("combo") || serviceType.includes("bundle")) {
       base.push({ id: "tv_channels", label: "Chaînes TV", status: "pending" });
+    }
+    // Add SIM + port-in for bundles that include mobile
+    if (serviceType.includes("bundle") || serviceType.includes("combo")) {
+      base.push(
+        { id: "sim_esim", label: "SIM / eSIM", status: "pending" },
+        { id: "port_in", label: "Port-in numéro", status: "pending" },
+      );
     }
     base.push(
       { id: "contracts", label: "Contrat & Documents", status: "pending" },
@@ -152,11 +163,13 @@ function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
     );
   }
 
-  return computeStepStatuses(base, order, channelSelection);
+  return computeStepStatuses(base, order, channelSelection, mobileFulfillment);
 }
 
-function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any): WorkflowStep[] {
+function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection?: any, mobileFulfillment?: any): WorkflowStep[] {
   if (!order) return steps;
+  const mf = mobileFulfillment || (order as any)._mobileFulfillment || null;
+  const simCompleted = mf?.activation_status === "active";
 
   return steps.map((step) => {
     let status: StepStatus = "pending";
@@ -217,6 +230,15 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
       case "shipping":
         if (order.tracking_number || order.shipped_at || order.technician_id || order.status === "delivered") status = "completed";
         break;
+      case "sim_esim":
+        if (simCompleted) status = "completed";
+        break;
+      case "port_in": {
+        const portStatus = mf?.port_in_status;
+        if (portStatus === "completed") status = "completed";
+        else if (!simCompleted) status = "blocked";
+        break;
+      }
       case "completion":
         if (order.status === "completed") status = "completed";
         break;
@@ -494,7 +516,7 @@ export function useOrderProcessing(orderId: string | undefined) {
   });
 
   const data = orderQuery.data;
-  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection) : [];
+  const workflow = data?.order ? buildWorkflow(data.order, data.channelSelection, data.mobileFulfillment) : [];
 
   /* ── Invalidate everything ── */
   const invalidateAll = () => {
@@ -1472,6 +1494,216 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
+  /* ── SIM / eSIM / Port-in mutations ── */
+  const upsertMobileFulfillment = async (patch: Record<string, any>) => {
+    const order = data?.order;
+    if (!order?.id || !order?.user_id) {
+      throw new Error("Commande introuvable pour la mise à jour mobile");
+    }
+    const existing = data?.mobileFulfillment;
+    if (existing?.id) {
+      const { error } = await supabase
+        .from("mobile_fulfillment")
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from("mobile_fulfillment")
+        .insert({
+          order_id: order.id,
+          user_id: order.user_id,
+          ...patch,
+        });
+      if (error) throw error;
+    }
+  };
+
+  const activateSim = async (opts: {
+    iccid: string;
+    imei?: string | null;
+    phone_number: string;
+    sim_type: string;
+    operator: string;
+    plan: string;
+  }) => {
+    try {
+      await upsertMobileFulfillment({
+        sim_iccid: opts.iccid,
+        sim_type: opts.sim_type,
+        sim_carrier: opts.operator,
+        assigned_number: opts.phone_number,
+        number_assigned_at: new Date().toISOString(),
+        number_assigned_by: user?.id || null,
+        activation_status: "active",
+        activated_at: new Date().toISOString(),
+      });
+      await logActivity("sim_activated", "order", orderId, {
+        iccid: opts.iccid, operator: opts.operator, plan: opts.plan,
+      });
+      invalidateAll();
+      toast.success("SIM activée");
+      try {
+        if (data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.simActivated(data.order, data.profile, {
+              phone_number: opts.phone_number,
+              sim_number: opts.iccid,
+            })
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] sim_activated enqueue error:", e?.message);
+      }
+    } catch (err: any) {
+      console.error("[SIM] Activation failed:", err);
+      toast.error(`Erreur activation SIM: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
+
+  const deactivateSim = async () => {
+    try {
+      await upsertMobileFulfillment({ activation_status: "deactivated" });
+      await logActivity("sim_deactivated", "order", orderId, {});
+      invalidateAll();
+      toast.success("SIM désactivée");
+    } catch (err: any) {
+      console.error("[SIM] Deactivation failed:", err);
+      toast.error(`Erreur désactivation SIM: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
+
+  const activateEsim = async (opts: { eid: string; profile_type: string }) => {
+    try {
+      await upsertMobileFulfillment({
+        sim_type: "esim",
+        sim_iccid: opts.eid,
+        activation_status: "active",
+        activated_at: new Date().toISOString(),
+      });
+      await logActivity("esim_activated", "order", orderId, {
+        eid: opts.eid, profile_type: opts.profile_type,
+      });
+      invalidateAll();
+      toast.success("eSIM activée — QR code généré");
+      try {
+        if (data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.esimReady(data.order, data.profile, {
+              activation_code: opts.eid,
+            })
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] esim_ready enqueue error:", e?.message);
+      }
+    } catch (err: any) {
+      console.error("[eSIM] Activation failed:", err);
+      toast.error(`Erreur activation eSIM: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
+
+  const resendEsimQr = async () => {
+    try {
+      if (data?.order && data?.profile) {
+        await enqueueOrderEmail(
+          orderEmails.esimReady(data.order, data.profile, {
+            activation_code: data?.mobileFulfillment?.sim_iccid || "",
+          })
+        );
+      }
+      await logActivity("esim_qr_resent", "order", orderId, {});
+      toast.success("QR code envoyé au client");
+    } catch (err: any) {
+      console.error("[eSIM] QR resend failed:", err);
+      toast.error(`Erreur envoi QR: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
+
+  const submitPortIn = async (opts: {
+    number: string;
+    current_operator: string;
+    account_number: string;
+    pin?: string | null;
+    requested_date?: string | null;
+    time_slot?: string | null;
+  }) => {
+    try {
+      await upsertMobileFulfillment({
+        port_in_requested: true,
+        port_in_number: opts.number,
+        port_in_carrier: opts.current_operator,
+        port_in_account_number: opts.account_number,
+        port_in_status: "initiated",
+        port_in_submitted_at: new Date().toISOString(),
+      });
+      await logActivity("portin_submitted", "order", orderId, {
+        number: opts.number,
+        current_operator: opts.current_operator,
+        requested_date: opts.requested_date,
+        time_slot: opts.time_slot,
+      });
+      invalidateAll();
+      toast.success("Demande de port-in soumise");
+      try {
+        if (data?.order && data?.profile) {
+          await enqueueOrderEmail(
+            orderEmails.portinInitiated(data.order, data.profile, {
+              number_to_port: opts.number,
+              current_carrier: opts.current_operator,
+            })
+          );
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] portin_initiated enqueue error:", e?.message);
+      }
+    } catch (err: any) {
+      console.error("[PortIn] Submit failed:", err);
+      toast.error(`Erreur soumission port-in: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
+
+  const updatePortInStatus = async (status: string) => {
+    try {
+      const patch: Record<string, any> = { port_in_status: status };
+      if (status === "completed") patch.port_in_completed_at = new Date().toISOString();
+      await upsertMobileFulfillment(patch);
+      await logActivity("portin_status_changed", "order", orderId, { new_status: status });
+      invalidateAll();
+      toast.success(`Statut port-in: ${status}`);
+      try {
+        if (data?.order && data?.profile) {
+          if (status === "completed") {
+            await enqueueOrderEmail(
+              orderEmails.portinCompleted(data.order, data.profile, data?.mobileFulfillment?.port_in_number)
+            );
+          } else if (status === "failed") {
+            await enqueueOrderEmail(
+              orderEmails.portinFailed(data.order, data.profile, "Échec du transfert")
+            );
+          }
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] portin status enqueue error:", e?.message);
+      }
+    } catch (err: any) {
+      console.error("[PortIn] Status update failed:", err);
+      toast.error(`Erreur mise à jour statut: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
+
+  const cancelPortIn = async () => {
+    try {
+      await upsertMobileFulfillment({ port_in_status: "cancelled" });
+      await logActivity("portin_cancelled", "order", orderId, {});
+      invalidateAll();
+      toast.success("Port-in annulé");
+    } catch (err: any) {
+      console.error("[PortIn] Cancel failed:", err);
+      toast.error(`Erreur annulation port-in: ${err?.message || "Erreur inconnue"}`);
+    }
+  };
+
   return {
     // Data
     order: data?.order,
@@ -1516,6 +1748,13 @@ export function useOrderProcessing(orderId: string | undefined) {
     completeOrder,
     signContract,
     sendClientNotification,
+    activateSim,
+    deactivateSim,
+    activateEsim,
+    resendEsimQr,
+    submitPortIn,
+    updatePortInStatus,
+    cancelPortIn,
     isUpdating: updateOrder.isPending,
   };
 }
