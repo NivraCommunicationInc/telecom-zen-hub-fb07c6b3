@@ -95,6 +95,13 @@ function OrderConsole({ orderId }: { orderId: string }) {
       {/* ═══ QUICK INFO (DOB, service address, equipment, appointment, promo, discount) ═══ */}
       <CoreOrderQuickInfo proc={proc} />
 
+      {/* ═══ HORIZONTAL PROGRESS BAR (top of workflow) ═══ */}
+      <CoreWorkflowProgress
+        steps={proc.workflow}
+        activeStep={proc.activeStep}
+        onStepClick={(id: WorkflowStepId) => proc.setActiveStep(id)}
+      />
+
       {/* ═══ MAIN LAYOUT: Workflow | Steps | Order File ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_300px] gap-3">
         {/* LEFT: Workflow Navigation */}
@@ -104,7 +111,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
           onStepClick={(id: WorkflowStepId) => proc.setActiveStep(id)}
         />
 
-        <div className="rounded-lg border border-border bg-card p-5 min-h-[520px]">
+        <div className="rounded-xl border border-core-border bg-core-card p-5 min-h-[520px]">
           <StepContent proc={proc} />
         </div>
 
