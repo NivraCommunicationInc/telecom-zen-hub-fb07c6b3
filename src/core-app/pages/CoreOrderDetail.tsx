@@ -162,7 +162,7 @@ function OrderConsole({ orderId }: { orderId: string }) {
       {/* KYC panel + Activity timeline (preserved, below the console) */}
       <div className="space-y-3 mt-3">
         <CoreKycPanel order={proc.order} onRefresh={() => proc.refetch()} />
-        <CoreActivityTimeline logs={proc.activityLogs} onAddNote={proc.addNote} />
+        <CoreActivityTimeline logs={proc.activityLogs} onAddNote={proc.addNote} orderId={proc.order?.id} />
       </div>
     </div>
   );
