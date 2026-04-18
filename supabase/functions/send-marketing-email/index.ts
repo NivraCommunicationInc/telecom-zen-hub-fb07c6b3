@@ -97,7 +97,7 @@ serve(async (req) => {
       template = templateData;
     }
 
-    if (!template) {
+    if (!template && !preview_count) {
       throw new Error("No template found");
     }
 
