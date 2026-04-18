@@ -482,6 +482,9 @@ serve(async (req) => {
     }
 
     // 1) Billing customer
+    // ★ FIX #5: strengthened lookup. Previously a non-23505 error on insert (or a race
+    // where the row exists under a different user_id but matching email) cascaded into
+    // customerId=null → invoice never created. We now check by email as a second pass.
     let customerId: string | null = null;
     try {
       const { data: existingCustomer } = await admin
@@ -507,14 +510,33 @@ serve(async (req) => {
           .single();
 
         if (customerInsertError && customerInsertError.code === "23505") {
+          // Duplicate — refetch by user_id OR email
           const { data: refetched } = await admin
             .from("billing_customers")
             .select("id")
             .eq("user_id", payload.customer.user_id)
             .maybeSingle();
           customerId = refetched?.id || null;
+
+          if (!customerId && payload.customer.email) {
+            const { data: byEmail } = await admin
+              .from("billing_customers")
+              .select("id")
+              .eq("email", payload.customer.email.trim().toLowerCase())
+              .maybeSingle();
+            customerId = byEmail?.id || null;
+          }
         } else if (customerInsertError) {
-          throw customerInsertError;
+          // Non-duplicate error — try email lookup before giving up
+          if (payload.customer.email) {
+            const { data: byEmail } = await admin
+              .from("billing_customers")
+              .select("id")
+              .eq("email", payload.customer.email.trim().toLowerCase())
+              .maybeSingle();
+            customerId = byEmail?.id || null;
+          }
+          if (!customerId) throw customerInsertError;
         } else {
           customerId = createdCustomer?.id || null;
         }
