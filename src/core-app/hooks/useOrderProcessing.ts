@@ -1748,6 +1748,13 @@ export function useOrderProcessing(orderId: string | undefined) {
     completeOrder,
     signContract,
     sendClientNotification,
+    activateSim,
+    deactivateSim,
+    activateEsim,
+    resendEsimQr,
+    submitPortIn,
+    updatePortInStatus,
+    cancelPortIn,
     isUpdating: updateOrder.isPending,
   };
 }
