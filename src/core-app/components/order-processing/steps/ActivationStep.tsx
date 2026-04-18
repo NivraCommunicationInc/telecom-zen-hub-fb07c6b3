@@ -25,6 +25,9 @@ export function ActivationStep({ proc }: Props) {
   const [providerRef, setProviderRef] = useState("");
   const [activationNotes, setActivationNotes] = useState("");
   const [isActivating, setIsActivating] = useState(false);
+  const [showOverride, setShowOverride] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [isForcing, setIsForcing] = useState(false);
 
   const currentStatus = order.status || "";
   const isActivated = TERMINAL_STATES.includes(currentStatus);
@@ -32,6 +35,7 @@ export function ActivationStep({ proc }: Props) {
   const isInOperational = OPERATIONAL_STATES.includes(currentStatus);
   const invoicePaid = ["paid", "partially_paid", "paid_by_promo"].includes(invoice?.status || "");
   const canActivate = invoicePaid && !isActivated;
+  const canForceActivate = !!invoice && !invoicePaid && !isActivated;
 
   const handleActivate = async () => {
     if (!proc.activateService) { toast.error("Méthode d'activation non disponible"); return; }
@@ -45,6 +49,24 @@ export function ActivationStep({ proc }: Props) {
       console.error("[ActivationStep] Activation failed:", err);
       toast.error(err?.message || "Erreur lors de l'activation");
     } finally { setIsActivating(false); }
+  };
+
+  const handleForceActivate = async () => {
+    if (!overrideReason.trim()) { toast.error("Justification obligatoire"); return; }
+    setIsForcing(true);
+    try {
+      await proc.activateService({
+        providerRef: providerRef || undefined,
+        activationNotes: activationNotes || undefined,
+        forceOverride: true,
+        overrideReason: overrideReason.trim(),
+      });
+      setShowOverride(false);
+      setOverrideReason("");
+    } catch (err: any) {
+      console.error("[ActivationStep] Force activation failed:", err);
+      toast.error(err?.message || "Erreur lors de l'activation forcée");
+    } finally { setIsForcing(false); }
   };
 
   const handleConfirmOrder = async () => {
