@@ -531,6 +531,119 @@ async function processLegacyRenewals(
 }
 
 // ========================================
+// ADMIN ALERTS — P0 GAP #8
+// Sends alert emails to admin recipients (suspension, cancellation)
+// ========================================
+const ADMIN_ALERT_RECIPIENTS = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
+
+async function queueAdminAlert(
+  supabase: ReturnType<typeof createClient>,
+  templateKey: "admin_alert_suspended" | "admin_alert_cancelled",
+  vars: Record<string, unknown>,
+  uniqueKey: string,
+) {
+  for (const recipient of ADMIN_ALERT_RECIPIENTS) {
+    const eventKey = `${uniqueKey}_${recipient}`;
+    try {
+      const { data: existing } = await supabase
+        .from("email_queue")
+        .select("id")
+        .or(`event_key.eq.${eventKey},idempotency_key.eq.${eventKey}`)
+        .maybeSingle();
+      if (existing) continue;
+
+      await supabase.from("email_queue").insert({
+        event_key: eventKey,
+        idempotency_key: eventKey,
+        to_email: recipient,
+        from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+        subject:
+          templateKey === "admin_alert_suspended"
+            ? `🔴 Service suspendu — ${vars.client_full_name || "Client"}`
+            : `⚫ Abonnement annulé — ${vars.client_full_name || "Client"}`,
+        template_key: templateKey,
+        template_vars: vars,
+        status: "queued",
+        attempts: 0,
+        max_attempts: 3,
+      });
+    } catch (e) {
+      console.error(`[lifecycle] queueAdminAlert error (${recipient}):`, e);
+    }
+  }
+}
+
+// ========================================
+// P0 GAP #1 — J+3 suspension warning email
+// Sent 3 days after due_date when invoice is still overdue (2 days before J+5 suspension)
+// ========================================
+async function processSuspensionWarningJ3(
+  supabase: ReturnType<typeof createClient>,
+  stats: RunStats,
+  today: string,
+) {
+  const targetDueDate = addDays(today, -3); // due_date was 3 days ago
+
+  const { data: invoices, error } = await supabase
+    .from("billing_invoices")
+    .select(
+      "id, invoice_number, total, due_date, customer:billing_customers(id, email, first_name, last_name)",
+    )
+    .eq("status", "overdue")
+    .eq("due_date", targetDueDate);
+
+  if (error) {
+    stats.errors.push(`J+3 warning query error: ${error.message}`);
+    stats.errors_count++;
+    return;
+  }
+
+  console.log(`[lifecycle] Found ${invoices?.length || 0} invoices at J+3 needing suspension warning`);
+
+  for (const inv of invoices || []) {
+    if (!inv.customer?.email) continue;
+
+    const eventKey = `billing_warning_j3_${inv.id}`;
+    const { data: existing } = await supabase
+      .from("email_queue")
+      .select("id")
+      .or(`event_key.eq.${eventKey},idempotency_key.eq.${eventKey}`)
+      .maybeSingle();
+    if (existing) continue;
+
+    const suspensionDate = addDays(inv.due_date as string, 5);
+    const { error: queueErr } = await supabase.from("email_queue").insert({
+      event_key: eventKey,
+      idempotency_key: eventKey,
+      to_email: inv.customer.email,
+      from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+      subject: `⚠️ Votre service sera suspendu dans 2 jours (#${inv.invoice_number})`,
+      template_key: "invoice_suspension_warning",
+      template_vars: {
+        client_name: `${inv.customer.first_name} ${inv.customer.last_name}`,
+        invoice_number: inv.invoice_number,
+        total: (inv.total as number)?.toFixed(2),
+        amount: (inv.total as number)?.toFixed(2),
+        due_date: inv.due_date,
+        suspension_date: suspensionDate,
+        payment_link: "https://nivra-telecom.ca/portail/facturation",
+      },
+      status: "queued",
+      attempts: 0,
+      max_attempts: 3,
+    });
+
+    if (queueErr) {
+      stats.errors.push(`J+3 warning queue error ${inv.invoice_number}: ${queueErr.message}`);
+      stats.errors_count++;
+    } else {
+      stats.reminders_queued++;
+      console.log(`[lifecycle] Queued J+3 suspension warning for ${inv.invoice_number} → ${inv.customer.email}`);
+    }
+  }
+}
+
+// ========================================
 // STEP 3 — Queue payment reminder emails at J-7, J-3, J-1, J0
 // ========================================
 async function processReminders(
