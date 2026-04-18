@@ -144,7 +144,17 @@ serve(async (req) => {
         query = query.lte("created_at", segmentFilters.created_before);
       }
 
-      const { data } = await query.limit(1000);
+      // City filter (case-insensitive)
+      if (segmentFilters.city && typeof segmentFilters.city === "string" && segmentFilters.city.trim()) {
+        query = query.ilike("service_city", `%${segmentFilters.city.trim()}%`);
+      }
+
+      // Language filter — fr | en | both (both = no filter)
+      if (segmentFilters.language === "fr" || segmentFilters.language === "en") {
+        query = query.eq("preferred_language", segmentFilters.language);
+      }
+
+      const { data } = await query.limit(5000);
       clients = data || [];
 
       // Filter by service if needed (requires join with service_instances)
