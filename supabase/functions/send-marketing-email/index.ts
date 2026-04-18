@@ -2,6 +2,29 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
+import { generateUnsubscribeToken } from "../_shared/unsubscribeToken.ts";
+
+const FUNCTIONS_BASE = `${Deno.env.get("SUPABASE_URL")!}/functions/v1`;
+const PUBLIC_SITE = Deno.env.get("PUBLIC_SITE_URL") ?? "https://nivra-telecom.ca";
+
+/** Inject tracking pixel + rewrite <a href> through track-email-click. */
+function injectTracking(html: string, campaignId: string | null, sendId: string): string {
+  const cidQ = campaignId ? `cid=${encodeURIComponent(campaignId)}&` : "";
+  const rewritten = html.replace(
+    /href\s*=\s*"([^"]+)"/gi,
+    (full, url: string) => {
+      if (/^(mailto:|tel:|#|javascript:)/i.test(url)) return full;
+      if (url.includes("/email-unsubscribe") || url.includes("/unsubscribe?token=")) return full;
+      if (url.includes("/track-email-click")) return full;
+      const wrapped = `${FUNCTIONS_BASE}/track-email-click?${cidQ}rid=${encodeURIComponent(sendId)}&url=${encodeURIComponent(url)}`;
+      return `href="${wrapped}"`;
+    },
+  );
+  const pixel = `<img src="${FUNCTIONS_BASE}/track-email-open?${cidQ}rid=${encodeURIComponent(sendId)}" width="1" height="1" alt="" style="display:none;border:0;width:1px;height:1px" />`;
+  return rewritten.includes("</body>")
+    ? rewritten.replace("</body>", `${pixel}</body>`)
+    : `${rewritten}${pixel}`;
+}
 
 interface SendRequest {
   campaign_id?: string;
