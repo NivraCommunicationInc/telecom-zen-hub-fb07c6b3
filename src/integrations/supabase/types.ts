@@ -8980,6 +8980,54 @@ export type Database = {
         }
         Relationships: []
       }
+      live_chat_messages: {
+        Row: {
+          admin_name: string | null
+          admin_seen_at: string | null
+          admin_user_id: string | null
+          attachment_name: string | null
+          attachment_path: string | null
+          attachment_size: number | null
+          attachment_type: string | null
+          attachment_url: string | null
+          content: string | null
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+        }
+        Insert: {
+          admin_name?: string | null
+          admin_seen_at?: string | null
+          admin_user_id?: string | null
+          attachment_name?: string | null
+          attachment_path?: string | null
+          attachment_size?: number | null
+          attachment_type?: string | null
+          attachment_url?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+        }
+        Update: {
+          admin_name?: string | null
+          admin_seen_at?: string | null
+          admin_user_id?: string | null
+          attachment_name?: string | null
+          attachment_path?: string | null
+          attachment_size?: number | null
+          attachment_type?: string | null
+          attachment_url?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
       live_chat_sessions: {
         Row: {
           created_at: string | null
@@ -17720,6 +17768,7 @@ export type Database = {
         Returns: boolean
       }
       is_influencer: { Args: { _user_id: string }; Returns: boolean }
+      is_marketing_staff: { Args: { _uid: string }; Returns: boolean }
       is_new_customer: {
         Args: { p_current_order_id: string; p_user_id: string }
         Returns: boolean
