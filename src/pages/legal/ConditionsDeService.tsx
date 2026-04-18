@@ -37,14 +37,15 @@ const ConditionsDeService = () => {
             <section className="space-y-4">
               <h2 className="text-2xl font-display font-bold text-foreground">2. Nature des services (Prépayé)</h2>
               <p>
-                Tous les services Nivra (Internet, TV, Mobile, Streaming+) sont facturés à l'avance par cycle de service.
+                Tous les services Nivra (Internet, TV, Mobile, Streaming+) sont facturés à l'avance par cycle de service mensuel.
               </p>
               <ul className="list-disc pl-6 space-y-2">
+                <li><strong>Cycle mensuel</strong> ancré sur la date d'activation du service.</li>
+                <li>Facture générée automatiquement <strong>3 jours avant l'échéance</strong> (J-3).</li>
                 <li>Le renouvellement s'effectue uniquement si le paiement est reçu et confirmé AVANT le Bill Cycle.</li>
-                <li>Si le paiement n'est pas confirmé au Bill Cycle (J0), le service devient Expiré (non-renouvelé).</li>
-                <li><strong>Aucun intérêt ni frais de réactivation</strong> ne s'applique pour un non-renouvellement prépayé normal.</li>
+                <li>Si le paiement n'est pas confirmé au Bill Cycle (J0), le service devient en souffrance.</li>
+                <li><strong>Aucun intérêt ni frais de réactivation</strong> ne s'applique pour un non-renouvellement prépayé normal avant J+5.</li>
                 <li>Après 90 jours sans renouvellement, le numéro de téléphone peut devenir irrécupérable (nouveau numéro requis).</li>
-                <li>Aucun intérêt ni frais de réactivation ne s'applique simplement parce qu'un e-Transfer est « En vérification ».</li>
                 <li>Vous pouvez annuler à tout moment — le service reste actif jusqu'à la fin de la période payée.</li>
                 <li>Le cycle en cours n'est pas remboursable, sauf obligation légale ou erreur de facturation confirmée.</li>
                 <li>Aucun financement d'appareil n'est proposé dans le cadre de cet accord.</li>
@@ -52,14 +53,46 @@ const ConditionsDeService = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-display font-bold text-foreground">3. Contestation bancaire / Chargeback</h2>
+              <h2 className="text-2xl font-display font-bold text-foreground">2.1. Calendrier de facturation et rappels</h2>
+              <p>Notre système de rappels automatiques est conforme aux directives CRTC :</p>
+              <ul className="list-disc pl-6 space-y-2">
+                <li><strong>J-7 :</strong> Premier rappel — votre facture arrive bientôt.</li>
+                <li><strong>J-3 :</strong> Rappel — facture due dans 3 jours.</li>
+                <li><strong>J-1 :</strong> Dernier rappel — facture due demain.</li>
+                <li><strong>J0 :</strong> Date d'échéance — facture en souffrance si non payée.</li>
+                <li><strong>J+3 :</strong> Avertissement de suspension imminente.</li>
+                <li><strong>J+5 :</strong> Suspension automatique du service.</li>
+                <li><strong>J+10 :</strong> Annulation automatique de l'abonnement (facture annulée, aucune dette).</li>
+              </ul>
               <p>
-                <strong>Pénalités applicables UNIQUEMENT en cas de contestation bancaire ou chargeback :</strong>
+                <strong>Frais de réactivation :</strong> Si vous payez votre facture en souffrance entre J+5 et J+10 (service suspendu), 
+                des frais de réactivation de <strong>15$ + taxes</strong> sont automatiquement ajoutés sur une facture séparée. 
+                Ces frais ne s'appliquent pas avant J+5 ni aux nouvelles activations ou renouvellements normaux.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">2.2. Résiliation et conservation des données</h2>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>Résiliation possible à tout moment, sans frais.</li>
+                <li>Le service reste actif jusqu'à la fin du cycle déjà payé.</li>
+                <li>Données client conservées 90 jours après l'annulation.</li>
+                <li><strong>Anonymisation automatique</strong> de toutes les données personnelles (PII) après 90 jours, conformément à la Loi 25 (Québec).</li>
+                <li>Données de facturation conservées 7 ans (obligations fiscales fédérales et provinciales).</li>
+              </ul>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-display font-bold text-foreground">3. Litiges PayPal et Chargebacks</h2>
+              <p>
+                <strong>Politique applicable UNIQUEMENT en cas de contestation bancaire ou chargeback PayPal :</strong>
               </p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>En cas de contestation bancaire ou chargeback, le service peut être suspendu pendant l'enquête.</li>
+                <li>Tout litige PayPal entraîne la <strong>suspension immédiate et automatique</strong> du service pendant l'enquête.</li>
                 <li>Si la contestation est confirmée contre le client OU si Nivra est débité : un intérêt de <strong>{CONTRACT_TERMS.disputeChargeback.interestRate}% par mois</strong> s'applique sur les montants dus jusqu'au paiement complet.</li>
-                <li>Après paiement complet et résolution, des frais de réactivation de <strong>{CONTRACT_TERMS.disputeChargeback.reactivationFee}$</strong> peuvent s'appliquer.</li>
+                <li>Après paiement complet et résolution du litige, des frais de réactivation de <strong>{CONTRACT_TERMS.disputeChargeback.reactivationFee}$</strong> peuvent s'appliquer.</li>
+                <li>Aucune dette n'est portée à votre dossier de crédit (service prépayé).</li>
+                <li>Aucune agence de recouvrement n'est mandatée (service prépayé — service coupé = fin).</li>
               </ul>
             </section>
 
