@@ -1704,6 +1704,150 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
+  /* ── KYC: Request identity verification (create session + send link) ── */
+  const requestIdentityVerification = async (opts?: { email?: string }) => {
+    try {
+      const order = data?.order;
+      const profile = data?.profile;
+      if (!order) throw new Error("Commande introuvable");
+
+      const recipientEmail = opts?.email || order.client_email || profile?.email;
+      if (!recipientEmail) throw new Error("Aucun courriel client disponible");
+
+      // 1. Look up an existing non-terminal session
+      const { data: existing, error: lookupError } = await supabase
+        .from("identity_verification_sessions")
+        .select("*")
+        .eq("order_id", orderId)
+        .not("status", "in", "(approved,rejected)")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      let session = existing;
+
+      // 2. Create one if none exists
+      if (!session) {
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: created, error: insertError } = await supabase
+          .from("identity_verification_sessions")
+          .insert({
+            order_id: orderId,
+            user_id: order.user_id,
+            order_number: order.order_number,
+            status: "created",
+            expires_at: expiresAt,
+            max_attempts: 3,
+            checkout_type: "agent_initiated",
+          })
+          .select("*")
+          .single();
+        if (insertError) throw insertError;
+        session = created;
+      }
+
+      // 3. Enqueue KYC document required email
+      try {
+        if (profile) {
+          const emailRow = orderEmails.kycDocumentRequired(order, profile);
+          if (emailRow) {
+            // Inject the verification token / link via metadata so the template can pick it up
+            (emailRow as any).metadata = {
+              ...((emailRow as any).metadata || {}),
+              verification_token: session?.public_token || null,
+              verification_link: session?.public_token
+                ? `${window.location.origin}/verify-id/${session.public_token}`
+                : null,
+              session_id: session?.id || null,
+            };
+            await enqueueOrderEmail(emailRow);
+          }
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] kyc_document_required enqueue error:", e?.message);
+      }
+
+      // 4. Activity log
+      await logActivity("kyc_verification_requested", "order", orderId, {
+        session_id: session?.id || null,
+        recipient_email: recipientEmail,
+        note: "Lien de vérification KYC envoyé au client",
+      });
+
+      // 5. Invalidate caches
+      invalidateAll();
+
+      // 6. Toast
+      toast.success(`Lien de vérification envoyé à ${recipientEmail}`);
+      return session;
+    } catch (err: any) {
+      console.error("[KYC] requestIdentityVerification failed:", err);
+      toast.error(`Erreur d'envoi: ${err?.message || "Erreur inconnue"}`);
+      throw err;
+    }
+  };
+
+  /* ── KYC: Request resubmission of an existing session ── */
+  const requestKycResubmission = async (opts?: { reason?: string }) => {
+    try {
+      const order = data?.order;
+      const profile = data?.profile;
+      const session = data?.kycSession;
+      if (!order) throw new Error("Commande introuvable");
+      if (!session?.id) throw new Error("Aucune session KYC active");
+
+      // 1. Reset session status + bump attempts
+      const { error: updErr } = await supabase
+        .from("identity_verification_sessions")
+        .update({
+          status: "created",
+          submission_attempts: (session.submission_attempts || 0) + 1,
+          review_reason: opts?.reason || session.review_reason || "Documents additionnels requis",
+        })
+        .eq("id", session.id);
+      if (updErr) throw updErr;
+
+      // 2. Enqueue email
+      try {
+        if (profile) {
+          const emailRow = orderEmails.kycDocumentRequired(order, profile);
+          if (emailRow) {
+            (emailRow as any).metadata = {
+              ...((emailRow as any).metadata || {}),
+              verification_token: session.public_token || null,
+              verification_link: session.public_token
+                ? `${window.location.origin}/verify-id/${session.public_token}`
+                : null,
+              session_id: session.id,
+              reason: opts?.reason || null,
+              is_resubmission: true,
+            };
+            await enqueueOrderEmail(emailRow);
+          }
+        }
+      } catch (e: any) {
+        console.error("[orderEmails] kyc resubmission enqueue error:", e?.message);
+      }
+
+      // 3. Activity log
+      await logActivity("kyc_resubmission_requested", "order", orderId, {
+        session_id: session.id,
+        reason: opts?.reason || null,
+      });
+
+      // 4. Invalidate
+      invalidateAll();
+
+      // 5. Toast
+      toast.success("Demande de resoumission envoyée");
+    } catch (err: any) {
+      console.error("[KYC] requestKycResubmission failed:", err);
+      toast.error(`Erreur: ${err?.message || "Erreur inconnue"}`);
+      throw err;
+    }
+  };
+
   return {
     // Data
     order: data?.order,
