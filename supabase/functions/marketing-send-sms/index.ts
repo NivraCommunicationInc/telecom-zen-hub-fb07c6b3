@@ -152,17 +152,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const OPENPHONE_API_KEY = Deno.env.get("OPENPHONE_API_KEY");
-    if (!OPENPHONE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "OPENPHONE_API_KEY not set" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     // Fetch OpenPhone numbers
     const pnRes = await fetch("https://api.openphone.com/v1/phone-numbers", {
       headers: {
