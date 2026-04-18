@@ -20,6 +20,11 @@ export function PaymentInvoiceStep({ proc }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualAmount, setManualAmount] = useState<string>("");
+  const [manualMethod, setManualMethod] = useState<"cash" | "cheque" | "virement" | "interac" | "autre">("cash");
+  const [manualReference, setManualReference] = useState("");
+  const [manualNote, setManualNote] = useState("");
 
   const invoiceNumber = invoice?.invoice_number || order.order_number;
   const subtotal = toNonNegativeMoney(invoice?.subtotal ?? order.subtotal ?? 0);
@@ -34,7 +39,34 @@ export function PaymentInvoiceStep({ proc }: Props) {
 
   const handleConfirm = async () => {
     setLoading("confirm");
-    try { await proc.confirmPayment(reference || undefined); } finally { setLoading(null); }
+    try {
+      await proc.confirmPayment(reference || undefined);
+    } catch (err: any) {
+      // If no pending payment exists → open the manual payment form inline
+      if (String(err?.message || "").includes("Aucun paiement en attente")) {
+        setManualAmount(balanceDue.toFixed(2));
+        setShowManualForm(true);
+      }
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRecordManualPayment = async () => {
+    const amt = parseFloat(manualAmount);
+    if (!amt || amt <= 0) { toast.error("Montant invalide"); return; }
+    setLoading("manual");
+    try {
+      await proc.recordManualPayment({
+        amount: amt,
+        method: manualMethod,
+        reference: manualReference || undefined,
+        note: manualNote || undefined,
+      });
+      setShowManualForm(false);
+      setManualReference("");
+      setManualNote("");
+    } finally { setLoading(null); }
   };
 
   const handleMarkInvalid = async () => {
