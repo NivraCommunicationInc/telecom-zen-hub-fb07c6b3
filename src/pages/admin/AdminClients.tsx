@@ -60,6 +60,7 @@ import ClientCommunicationsPanel from "@/components/admin/ClientCommunicationsPa
 import { ClientsTable } from "@/components/admin/ClientsTable";
 import { ClientSearchBar, type SearchFilter } from "@/components/admin/ClientSearchBar";
 import QAOrphanedPaymentsPanel from "@/components/admin/QAOrphanedPaymentsPanel";
+import { OverdueClientBadge } from "@/components/admin/OverdueClientBadge";
 
 // Public website plans mapping (must match exactly)
 const publicPlans = {
@@ -1083,6 +1084,8 @@ const AdminClients = () => {
                       {Number(selectedClient.balance).toFixed(2)}$
                     </Badge>
                   )}
+                  {/* P0 GAP #8 — Red badge if client has overdue invoice */}
+                  <OverdueClientBadge clientUserId={selectedClient?.user_id} />
                 </div>
               </div>
             </div>

@@ -16,6 +16,7 @@ import { LiveActivityWidget } from "@/components/admin/live-activity/LiveActivit
 import { PageHeader } from "@/components/admin/ui/PageHeader";
 import { StatCard } from "@/components/admin/ui/StatCard";
 import { SectionCard } from "@/components/admin/ui/SectionCard";
+import { OverdueAccountsCard } from "@/components/admin/OverdueAccountsCard";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -151,6 +152,9 @@ const AdminDashboard = () => {
         </div>
 
         <PendingTVOrdersNotification />
+
+        {/* P0 GAP #8 — Comptes en souffrance (real-time) */}
+        <OverdueAccountsCard />
 
         {/* Quick actions + Activity side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
