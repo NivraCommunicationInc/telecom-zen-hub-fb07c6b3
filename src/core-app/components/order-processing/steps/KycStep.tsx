@@ -39,6 +39,9 @@ export function KycStep({ proc }: Props) {
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [linkCopied, setLinkCopied] = useState(false);
   const [sendingLink, setSendingLink] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
 
   const sessionId = kycSession?.id;
   const rawStatus = (kycSession?.status || "unknown") as string;

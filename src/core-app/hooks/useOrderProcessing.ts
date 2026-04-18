@@ -1921,6 +1921,8 @@ export function useOrderProcessing(orderId: string | undefined) {
     cancelPortIn,
     requestIdentityVerification,
     requestKycResubmission,
+    approveKyc,
+    rejectKyc,
     isUpdating: updateOrder.isPending,
   };
 }
