@@ -569,9 +569,17 @@ export function useOrderProcessing(orderId: string | undefined) {
     },
   });
 
-  /* ── Change order status ── */
-  const changeStatus = async (newStatus: string, reason?: string) => {
+  /* ── Change order status ──
+   * Second arg accepts either a legacy string (reason) or an options object:
+   * { reason?, forceOverride?, overrideReason? }. Override is required to
+   * bypass the contract-signature gate on shipping transitions. */
+  type ChangeStatusOpts = { reason?: string; forceOverride?: boolean; overrideReason?: string };
+  const changeStatus = async (newStatus: string, opts?: string | ChangeStatusOpts) => {
     const oldStatus = data?.order?.status;
+    const normalized: ChangeStatusOpts = typeof opts === "string" ? { reason: opts } : (opts || {});
+    const reason = normalized.reason;
+    const forceOverride = !!normalized.forceOverride;
+    const overrideReason = (normalized.overrideReason || "").trim();
 
     // ★ PHASE A GATE — block shipping/in_transit if contract not yet signed by client
     const shippingStates = ["shipped", "in_transit", "out_for_delivery"];
@@ -585,10 +593,23 @@ export function useOrderProcessing(orderId: string | undefined) {
         .maybeSingle();
 
       if (!contract || !contract.client_signed_at) {
-        const msg =
-          "Impossible d'expédier — Le client n'a pas encore signé son contrat. Renvoyez le lien de signature avant de continuer.";
-        toast.error(msg);
-        throw new Error(`CONTRACT_NOT_SIGNED: ${msg}`);
+        if (!forceOverride) {
+          const msg =
+            "Impossible d'expédier — Le client n'a pas encore signé son contrat. Renvoyez le lien de signature avant de continuer.";
+          toast.error(msg);
+          throw new Error(`CONTRACT_NOT_SIGNED: ${msg}`);
+        }
+        if (!overrideReason) {
+          const msg = "Une justification est obligatoire pour forcer l'expédition";
+          toast.error(msg);
+          throw new Error(`OVERRIDE_REASON_REQUIRED: ${msg}`);
+        }
+        await logActivity("contract_gate_bypassed", "order", orderId, {
+          new_status: newStatus,
+          override_reason: overrideReason,
+          contract_signed: false,
+        });
+        toast.warning("Expédition forcée sans signature — raison enregistrée");
       }
     }
 
