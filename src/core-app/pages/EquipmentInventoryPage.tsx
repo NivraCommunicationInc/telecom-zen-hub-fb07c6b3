@@ -269,10 +269,54 @@ export default function EquipmentInventoryPage() {
         actor_name: "Admin",
         details: note ? { note } : null,
       } as any);
+
+      // ─── DEFECTIVE: log alert + notify admins ───
+      if (toStatus === "defective" && item.status !== "defective") {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: alert } = await supabase
+          .from("defective_equipment_alerts")
+          .insert({
+            equipment_id: item.id,
+            serial_number: item.serial_number,
+            catalog_name: item.catalog_name,
+            category: item.category,
+            account_id: item.account_id,
+            order_id: item.order_id,
+            reported_by: user?.id || null,
+            notes: note || null,
+          } as any)
+          .select("id")
+          .single();
+
+        // Fire-and-forget admin email
+        try {
+          await supabase.functions.invoke("notify-admin-alert", {
+            body: {
+              alert_type: "equipment_defective",
+              title: `Équipement défectueux: ${item.catalog_name}`,
+              summary: `Un équipement a été marqué défectueux.\nProduit: ${item.catalog_name}\nN° série: ${item.serial_number || "—"}\nSKU: ${item.sku || "—"}\nCatégorie: ${item.category}${item.order_id ? `\nCommande liée: ${item.order_id}` : ""}${note ? `\nNote: ${note}` : ""}`,
+              entity_type: "equipment",
+              entity_id: item.id,
+              entity_number: item.serial_number || item.sku || item.id.slice(0, 8),
+              admin_path: "/core/equipment",
+              priority: "high",
+            },
+          });
+          if (alert?.id) {
+            await supabase
+              .from("defective_equipment_alerts")
+              .update({ email_sent: true, email_sent_at: new Date().toISOString() } as any)
+              .eq("id", alert.id);
+          }
+        } catch (e) {
+          console.warn("[Defective alert] email dispatch failed (non-blocking):", e);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["equipment-audit"] });
+      queryClient.invalidateQueries({ queryKey: ["defective-alerts-unacked"] });
       toast.success("Statut mis à jour");
       setStatusChangeItem(null);
       setNewStatus("");
@@ -459,6 +503,31 @@ export default function EquipmentInventoryPage() {
         />
       </div>
 
+      {/* ═══ DEFECTIVE ALERT BANNER ═══ */}
+      {(counts.defective || 0) > 0 && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[12px] font-semibold text-red-300">
+                {counts.defective} équipement(s) défectueux à traiter
+              </p>
+              <p className="text-[11px] text-red-200/80 mt-0.5">
+                Ces unités sont retirées du stock disponible et nécessitent une décision (réparation, remplacement ou perte).
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStatusFilter("defective")}
+            className="h-7 text-[11px] border-red-500/40 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+          >
+            Voir
+          </Button>
+        </div>
+      )}
+
       {/* ═══ TABLE ═══ */}
       <div className="rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,20%,11%)] overflow-hidden">
         <div className="overflow-x-auto">
@@ -485,7 +554,14 @@ export default function EquipmentInventoryPage() {
                   <tr
                     key={item.id}
                     onClick={() => setSelected(item)}
-                    className="hover:bg-[hsl(220,15%,13%)] cursor-pointer transition-colors"
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      item.status === "defective"
+                        ? "bg-red-500/10 hover:bg-red-500/15"
+                        : item.status === "lost"
+                        ? "bg-red-500/5 hover:bg-red-500/10"
+                        : "hover:bg-[hsl(220,15%,13%)]"
+                    )}
                   >
                     <td className="px-3 py-2.5 text-foreground font-medium max-w-[160px] truncate">{item.catalog_name}</td>
                     <td className="px-3 py-2.5 text-muted-foreground">{categoryLabel(item.category)}</td>

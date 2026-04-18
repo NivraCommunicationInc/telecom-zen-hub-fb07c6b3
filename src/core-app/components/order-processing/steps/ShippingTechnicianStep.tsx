@@ -8,10 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2, Calendar, MapPin, Clock, User, ClipboardCheck } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+interface TechnicianOption {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  status: string;
+  specializations: string[] | null;
+}
 
 interface Props { proc: any; }
 
@@ -37,6 +48,23 @@ export function ShippingTechnicianStep({ proc }: Props) {
     installNotes: "",
     completionNotes: "",
   });
+
+  // ─── Fetch active technicians for dropdown ───
+  const { data: technicians = [], isLoading: techLoading } = useQuery({
+    queryKey: ["active-technicians"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("id, full_name, phone, status, specializations")
+        .eq("status", "active")
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      return (data || []) as TechnicianOption[];
+    },
+    staleTime: 60_000,
+  });
+
+  const selectedTechnician = technicians.find((t) => t.id === techFields.technician_id);
 
   const handleSaveShipping = async () => {
     setLoading("save");
@@ -258,8 +286,38 @@ export function ShippingTechnicianStep({ proc }: Props) {
           {/* Technician Assignment */}
           <div className="grid grid-cols-1 gap-3">
             <div>
-              <Label className="text-xs text-gray-500">ID Technicien</Label>
-              <Input value={techFields.technician_id} onChange={(e) => setTechFields({ ...techFields, technician_id: e.target.value })} placeholder="UUID du technicien" className="h-9 text-sm border-gray-300 text-gray-900 font-mono" />
+              <Label className="text-xs text-gray-500">Technicien</Label>
+              <Select
+                value={techFields.technician_id || undefined}
+                onValueChange={(v) => setTechFields({ ...techFields, technician_id: v })}
+                disabled={techLoading}
+              >
+                <SelectTrigger className="h-9 text-sm border-gray-300 text-gray-900">
+                  <SelectValue placeholder={techLoading ? "Chargement…" : technicians.length === 0 ? "Aucun technicien actif" : "Sélectionner un technicien"} />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  {technicians.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">{t.full_name}</span>
+                        {(t.phone || (t.specializations && t.specializations.length > 0)) && (
+                          <span className="text-[10px] text-gray-500">
+                            {t.phone || ""}
+                            {t.phone && t.specializations?.length ? " • " : ""}
+                            {t.specializations?.join(", ") || ""}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedTechnician && (
+                <p className="text-[10px] text-gray-500 mt-1 font-mono">ID: {selectedTechnician.id.slice(0, 8)}…</p>
+              )}
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {technicians.length} technicien(s) actif(s)
+              </p>
             </div>
             <div>
               <Label className="text-xs text-gray-500">Notes d'installation</Label>
