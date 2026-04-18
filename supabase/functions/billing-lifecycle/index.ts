@@ -160,6 +160,22 @@ async function processExpirations(
           }
         }
 
+        // P0 GAP #8 — Admin alert (J+10 cancellation)
+        await queueAdminAlert(
+          supabase,
+          "admin_alert_cancelled",
+          {
+            client_full_name: `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim(),
+            client_email: inv.customer?.email || "",
+            account_number: "—",
+            invoice_number: inv.invoice_number,
+            total: inv.total?.toFixed(2),
+            amount: inv.total?.toFixed(2),
+            due_date: inv.due_date,
+          },
+          `admin_cancelled_${inv.id}`,
+        );
+
         console.log(`[lifecycle] VOIDED invoice ${inv.invoice_number} at J+${daysPastDue} — reactivation window expired`);
         continue;
       }
