@@ -751,6 +751,10 @@ const AppRoutes = () => {
           <Route path="streaming" element={<Suspense fallback={null}><CoreStreamingPage /></Suspense>} />
           <Route path="contracts" element={<Suspense fallback={null}><CoreContractsPage /></Suspense>} />
           {/* Marketing */}
+          <Route path="marketing" element={<Suspense fallback={null}><MarketingHubDashboard /></Suspense>} />
+          <Route path="marketing/conversations" element={<Suspense fallback={null}><MarketingConversationsPage /></Suspense>} />
+          <Route path="marketing/ai-config" element={<Suspense fallback={null}><MarketingAIConfigPage /></Suspense>} />
+          <Route path="marketing/sms-campaigns" element={<Suspense fallback={null}><MarketingSMSCampaignsPage /></Suspense>} />
           <Route path="promotions" element={<Suspense fallback={null}><CorePromotionsPage /></Suspense>} />
           <Route path="contests" element={<Suspense fallback={null}><CoreContestsPage /></Suspense>} />
           <Route path="email-marketing" element={<Suspense fallback={null}><CoreEmailMarketingPage /></Suspense>} />
