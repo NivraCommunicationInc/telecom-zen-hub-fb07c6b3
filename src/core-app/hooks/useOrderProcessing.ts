@@ -99,7 +99,7 @@ function computeInstallationEstimate(order: any, appointment: any): {
 }
 
 /* ─── Dynamic workflow per order type ─── */
-function buildWorkflow(order: any, channelSelection?: any): WorkflowStep[] {
+function buildWorkflow(order: any, channelSelection?: any, mobileFulfillment?: any): WorkflowStep[] {
   const serviceType = (order?.service_type || "").toLowerCase();
   const hasKyc = order?.kyc_policy !== "none" && order?.kyc_policy !== "skip";
 
@@ -230,6 +230,15 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
       case "shipping":
         if (order.tracking_number || order.shipped_at || order.technician_id || order.status === "delivered") status = "completed";
         break;
+      case "sim_esim":
+        if (simCompleted) status = "completed";
+        break;
+      case "port_in": {
+        const portStatus = mf?.port_in_status;
+        if (portStatus === "completed") status = "completed";
+        else if (!simCompleted) status = "blocked";
+        break;
+      }
       case "completion":
         if (order.status === "completed") status = "completed";
         break;
