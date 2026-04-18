@@ -99,6 +99,103 @@ const NivraChat = () => {
     }
   }, [isOpen]);
 
+  // Subscribe to admin replies and session status changes for this session
+  useEffect(() => {
+    if (!isOpen) return;
+    const channel = supabase
+      .channel(`live-chat-${sessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "live_chat_admin_replies",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload: any) => {
+          const r = payload.new;
+          setHumanTakeover(true);
+          setAgentName(r.admin_name || (fr ? "Agent Nivra" : "Nivra Agent"));
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: r.id,
+              role: "assistant",
+              content: r.message,
+              timestamp: new Date(r.created_at),
+            },
+          ]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "live_chat_sessions",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload: any) => {
+          const s = payload.new;
+          if (s.status === "human_takeover") {
+            setHumanTakeover(true);
+          } else if (s.status === "bot_active") {
+            setHumanTakeover(false);
+            setAgentName(null);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, sessionId, fr]);
+
+  const ensureSessionExists = useCallback(async () => {
+    if (sessionPersistedRef.current) return;
+    sessionPersistedRef.current = true;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const profile = session?.user
+        ? await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("id", session.user.id)
+            .maybeSingle()
+        : { data: null as any };
+      await supabase.from("live_chat_sessions").upsert(
+        {
+          session_id: sessionId,
+          status: "bot_active",
+          visitor_user_id: session?.user?.id ?? null,
+          visitor_name: profile.data?.full_name ?? null,
+          visitor_email: profile.data?.email ?? null,
+          current_page: typeof window !== "undefined" ? window.location.pathname : null,
+          language,
+          last_message_at: new Date().toISOString(),
+          last_visitor_message_at: new Date().toISOString(),
+          unread_for_admin: 1,
+        },
+        { onConflict: "session_id" }
+      );
+    } catch (e) {
+      console.warn("[NivraChat] session upsert failed", e);
+    }
+  }, [sessionId, language]);
+
+  const bumpSessionActivity = useCallback(async () => {
+    try {
+      await supabase
+        .from("live_chat_sessions")
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_visitor_message_at: new Date().toISOString(),
+          unread_for_admin: humanTakeover ? 1 : 0,
+        })
+        .eq("session_id", sessionId);
+    } catch {}
+  }, [sessionId, humanTakeover]);
+
   const getConversationHistory = useCallback(() => {
     return messages.slice(1).map(m => ({ role: m.role, content: m.content }));
   }, [messages]);
