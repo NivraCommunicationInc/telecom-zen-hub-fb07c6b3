@@ -248,14 +248,14 @@ Deno.serve(async (req) => {
     );
 
     if (!sendRes.ok) {
-      // If `from` as ID failed, retry with E.164 number (some accounts require this)
-      if (fromId && fromNumber && fromValue === fromId) {
+      // If `from` as E.164 failed, retry with phoneNumberId (some endpoints require this)
+      if (fromId && fromNumber && fromValue === fromNumber) {
         console.log(
-          `[marketing-send-sms-${reqId}] retry with from=E.164 ${fromNumber}`,
+          `[marketing-send-sms-${reqId}] retry with from=phoneNumberId ${fromId}`,
         );
         const retryBody = {
           content: message,
-          from: fromNumber,
+          from: fromId,
           to: [normalizedTo],
         };
         const retryRes = await fetch("https://api.openphone.com/v1/messages", {
