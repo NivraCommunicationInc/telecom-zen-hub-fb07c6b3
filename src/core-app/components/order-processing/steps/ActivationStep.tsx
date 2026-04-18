@@ -84,6 +84,25 @@ export function ActivationStep({ proc }: Props) {
     catch (err: any) { toast.error(err?.message || "Erreur"); }
   };
 
+  const handleForceKycActivate = async () => {
+    if (!kycOverrideReason.trim()) { toast.error("Justification obligatoire"); return; }
+    setIsForcingKyc(true);
+    try {
+      await proc.activateService({
+        providerRef: providerRef || undefined,
+        activationNotes: activationNotes || undefined,
+        forceOverride: true,
+        forceKycOverride: true,
+        overrideReason: kycOverrideReason.trim(),
+      });
+      setShowKycOverride(false);
+      setKycOverrideReason("");
+    } catch (err: any) {
+      console.error("[ActivationStep] Force KYC activation failed:", err);
+      toast.error(err?.message || "Erreur lors de l'activation forcée KYC");
+    } finally { setIsForcingKyc(false); }
+  };
+
   const handleStartProcessing = async () => {
     try { await proc.changeStatus("processing", "Début du traitement"); }
     catch (err: any) { toast.error(err?.message || "Erreur"); }
