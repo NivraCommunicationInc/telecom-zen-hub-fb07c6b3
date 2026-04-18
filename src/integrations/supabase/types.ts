@@ -8953,6 +8953,84 @@ export type Database = {
         }
         Relationships: []
       }
+      live_chat_admin_replies: {
+        Row: {
+          admin_name: string | null
+          admin_user_id: string
+          created_at: string | null
+          id: string
+          message: string
+          session_id: string
+        }
+        Insert: {
+          admin_name?: string | null
+          admin_user_id: string
+          created_at?: string | null
+          id?: string
+          message: string
+          session_id: string
+        }
+        Update: {
+          admin_name?: string | null
+          admin_user_id?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
+      live_chat_sessions: {
+        Row: {
+          created_at: string | null
+          current_page: string | null
+          language: string | null
+          last_message_at: string | null
+          last_visitor_message_at: string | null
+          session_id: string
+          status: string
+          taken_over_at: string | null
+          taken_over_by: string | null
+          unread_for_admin: number | null
+          updated_at: string | null
+          visitor_email: string | null
+          visitor_name: string | null
+          visitor_user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_page?: string | null
+          language?: string | null
+          last_message_at?: string | null
+          last_visitor_message_at?: string | null
+          session_id: string
+          status?: string
+          taken_over_at?: string | null
+          taken_over_by?: string | null
+          unread_for_admin?: number | null
+          updated_at?: string | null
+          visitor_email?: string | null
+          visitor_name?: string | null
+          visitor_user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_page?: string | null
+          language?: string | null
+          last_message_at?: string | null
+          last_visitor_message_at?: string | null
+          session_id?: string
+          status?: string
+          taken_over_at?: string | null
+          taken_over_by?: string | null
+          unread_for_admin?: number | null
+          updated_at?: string | null
+          visitor_email?: string | null
+          visitor_name?: string | null
+          visitor_user_id?: string | null
+        }
+        Relationships: []
+      }
       marketing_ai_config: {
         Row: {
           created_at: string
@@ -9093,6 +9171,33 @@ export type Database = {
           sale_closed?: boolean
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      marketing_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          setting_key: string
+          setting_value: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
