@@ -262,8 +262,8 @@ export default function SignContract() {
 
   // ── Error states ──
   if (errorKind) {
-    let title = tr.errorTitle;
-    let body = tr.errorBody;
+    let title: string = tr.errorTitle;
+    let body: string = tr.errorBody;
     if (errorKind === "TOKEN_EXPIRED") {
       title = tr.expiredTitle;
       body = tr.expiredBody;
