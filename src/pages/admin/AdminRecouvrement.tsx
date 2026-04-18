@@ -188,6 +188,7 @@ const AdminRecouvrement = () => {
         a.status === 'suspended' || 
         a.status === 'overdue' || 
         a.status === 'expired' ||
+        a.status === 'cancelled' ||
         a.status === 'number_lost'
       );
     },

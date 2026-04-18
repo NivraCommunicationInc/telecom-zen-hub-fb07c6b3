@@ -743,6 +743,36 @@ serve(async (req) => {
               attempts: 0,
               max_attempts: 5,
             });
+
+            // P2 — CHARGEBACK ADMIN ALERT
+            // Send immediate alert to support@nivra-telecom.ca AND nivratelecom@gmail.com
+            const adminRecipients = ["support@nivra-telecom.ca", "nivratelecom@gmail.com"];
+            const clientFullName = `${customer.first_name} ${customer.last_name}`.trim();
+            for (const adminEmail of adminRecipients) {
+              await supabase.from("email_queue").insert({
+                event_key: `dispute_admin_alert_${disputeId}_${adminEmail}`,
+                idempotency_key: `dispute_admin_alert_${disputeId}_${adminEmail}`,
+                to_email: adminEmail,
+                from_email: "Nivra Telecom <support@nivra-telecom.ca>",
+                subject: `🚨 Chargeback détecté — ${clientFullName} — ${Number(payment.amount || 0).toFixed(2)}$`,
+                template_key: "admin_alert_chargeback",
+                template_vars: {
+                  client_full_name: clientFullName,
+                  client_email: customer.email,
+                  amount: Number(payment.amount || 0).toFixed(2),
+                  paypal_transaction_id: payment.provider_payment_id || disputeId,
+                  paypal_dispute_id: disputeId,
+                  event_type: event.event_type,
+                  dispute_timestamp: event.create_time || new Date().toISOString(),
+                  order_id: payment.invoice?.order_id || null,
+                  invoice_id: payment.invoice_id,
+                },
+                status: "queued",
+                priority: "urgent",
+                attempts: 0,
+                max_attempts: 5,
+              });
+            }
           }
         } else {
           await supabase.from("billing_system_alerts").insert({

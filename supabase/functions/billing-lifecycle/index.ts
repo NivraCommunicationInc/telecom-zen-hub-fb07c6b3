@@ -103,19 +103,45 @@ async function processExpirations(
       const daysPastDue = Math.floor((new Date(today).getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
 
       // J+10+: VOID the invoice (reactivation window closed)
+      // P1 GAP #3+#4: Set subscription AND account status to 'cancelled' (not 'expired'/'suspended')
       if (daysPastDue >= 10) {
-        if (sub.status === "active") {
-          await supabase
-            .from("billing_subscriptions")
-            .update({ status: "suspended", updated_at: new Date().toISOString() })
-            .eq("id", sub.id);
+        // Mark subscription as cancelled (final terminal state)
+        await supabase
+          .from("billing_subscriptions")
+          .update({
+            status: "cancelled",
+            auto_billing_enabled: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", sub.id);
+
+        // Mark related account as cancelled + stamp cancelled_at
+        try {
+          const { data: bcust } = await supabase
+            .from("billing_customers")
+            .select("user_id")
+            .eq("id", sub.customer_id)
+            .maybeSingle();
+          if (bcust?.user_id) {
+            await supabase
+              .from("accounts")
+              .update({
+                status: "cancelled",
+                cancelled_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("client_id", bcust.user_id)
+              .neq("status", "cancelled"); // idempotent
+          }
+        } catch (acctErr) {
+          console.error(`[lifecycle] account cancellation error:`, acctErr);
         }
 
         await supabase
           .from("billing_invoices")
           .update({
             status: "void",
-            notes: `[LIFECYCLE J+${daysPastDue}] Facture annulée — fenêtre de réactivation expirée (J+10). Aucune dette.`,
+            notes: `[LIFECYCLE J+${daysPastDue}] Abonnement annulé — fenêtre de réactivation expirée (J+10). Aucune dette.`,
           })
           .eq("id", inv.id);
 

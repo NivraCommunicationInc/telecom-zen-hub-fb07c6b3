@@ -40,6 +40,7 @@ export function SubscriptionSummary({ subs }: Props) {
   const due7 = active.filter(s => isDueSoon(s.cycle_end_date, 7));
   const due30 = active.filter(s => isDueSoon(s.cycle_end_date, 30));
   const expired = subs.filter(s => s.status === "expired");
+  const cancelled = subs.filter(s => s.status === "cancelled");
   const suspended = subs.filter(s => s.status === "suspended");
 
   // Category breakdown
@@ -88,8 +89,8 @@ export function SubscriptionSummary({ subs }: Props) {
 
       <SummaryBlock title="Services en difficulté" items={[
         { label: "Suspendus", value: suspended.length.toString(), color: "text-orange-400" },
-        { label: "Expirés", value: expired.length.toString(), color: "text-[#94A3B8]" },
-        { label: "Non renouvelés", value: expired.length.toString(), color: "text-red-400" },
+        { label: "Annulés (J+10)", value: cancelled.length.toString(), color: "text-red-400" },
+        { label: "Expirés (legacy)", value: expired.length.toString(), color: "text-[#94A3B8]" },
       ]} />
     </div>
   );

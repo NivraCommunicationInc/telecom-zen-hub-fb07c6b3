@@ -262,6 +262,7 @@ export type Database = {
           billing_cycle_timezone: string | null
           billing_postal_code: string | null
           billing_province: string | null
+          cancelled_at: string | null
           client_id: string
           created_at: string
           credit_class: string | null
@@ -290,6 +291,7 @@ export type Database = {
           billing_cycle_timezone?: string | null
           billing_postal_code?: string | null
           billing_province?: string | null
+          cancelled_at?: string | null
           client_id: string
           created_at?: string
           credit_class?: string | null
@@ -318,6 +320,7 @@ export type Database = {
           billing_cycle_timezone?: string | null
           billing_postal_code?: string | null
           billing_province?: string | null
+          cancelled_at?: string | null
           client_id?: string
           created_at?: string
           credit_class?: string | null
@@ -4262,6 +4265,48 @@ export type Database = {
           id?: string
           row_counts?: Json | null
           status?: string
+        }
+        Relationships: []
+      }
+      data_retention_log: {
+        Row: {
+          account_id: string | null
+          account_number: string | null
+          anonymized_at: string
+          cancelled_at: string | null
+          client_id: string
+          created_at: string
+          documents_deleted: number | null
+          fields_anonymized: Json
+          id: string
+          notes: string | null
+          triggered_by: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_number?: string | null
+          anonymized_at?: string
+          cancelled_at?: string | null
+          client_id: string
+          created_at?: string
+          documents_deleted?: number | null
+          fields_anonymized?: Json
+          id?: string
+          notes?: string | null
+          triggered_by?: string
+        }
+        Update: {
+          account_id?: string | null
+          account_number?: string | null
+          anonymized_at?: string
+          cancelled_at?: string | null
+          client_id?: string
+          created_at?: string
+          documents_deleted?: number | null
+          fields_anonymized?: Json
+          id?: string
+          notes?: string | null
+          triggered_by?: string
         }
         Relationships: []
       }
