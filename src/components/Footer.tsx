@@ -245,12 +245,11 @@ const Footer = forwardRef<HTMLElement>((_, ref) => {
                     justifyContent: "center",
                   }}
                 >
-                  <img
-                    src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg"
-                    alt="Mastercard"
-                    style={{ height: 14, width: "auto", display: "block" }}
-                    loading="lazy"
-                  />
+                  <svg width="32" height="20" viewBox="0 0 36 22" style={{ flexShrink: 0, display: "block" }} aria-label="Mastercard">
+                    <circle cx="14" cy="11" r="11" fill="#EB001B"/>
+                    <circle cx="22" cy="11" r="11" fill="#F79E1B"/>
+                    <path d="M18 4.8a11 11 0 0 1 0 12.4A11 11 0 0 1 18 4.8z" fill="#FF5F00"/>
+                  </svg>
                 </div>
                 <span style={{ color: "#666", fontSize: 12 }}>
                   {isFr ? "Mastercard accepté" : "Mastercard accepted"}
