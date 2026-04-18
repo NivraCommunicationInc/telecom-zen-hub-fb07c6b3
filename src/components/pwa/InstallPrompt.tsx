@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { X, Download, Share, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWA } from '@/hooks/usePWA';
 
 export function InstallPrompt() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWA();
+  const location = useLocation();
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
+  // Restrict install prompt to the client portal area only
+  const isPortalRoute = location.pathname.startsWith('/portal');
+
   useEffect(() => {
+    if (!isPortalRoute) {
+      setShowPrompt(false);
+      return;
+    }
+
     // Check if user has dismissed the prompt before
     const wasDismissed = localStorage.getItem('pwa-install-dismissed');
     const dismissedAt = wasDismissed ? parseInt(wasDismissed, 10) : 0;
@@ -20,7 +30,7 @@ export function InstallPrompt() {
       const timer = setTimeout(() => setShowPrompt(true), 3000);
       return () => clearTimeout(timer);
     }
-  }, [isInstalled, isInstallable, isIOS]);
+  }, [isInstalled, isInstallable, isIOS, isPortalRoute]);
 
   const handleInstall = async () => {
     const installed = await promptInstall();
