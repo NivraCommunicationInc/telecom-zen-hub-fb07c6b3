@@ -228,6 +228,30 @@ const OrdersPage = () => {
         })}
       </div>
 
+      {/* PHASE C: SLA tracking strip — 3 KPIs */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Dans les délais", value: counts.slaOnTime, icon: ShieldCheck, color: "text-emerald-400", iconBg: "bg-emerald-500/10", borderColor: "border-emerald-500/20" },
+          { label: "À risque (< 1h)", value: counts.slaWarning, icon: Clock, color: "text-amber-400", iconBg: "bg-amber-500/10", borderColor: "border-amber-500/20" },
+          { label: "En retard (SLA)", value: counts.slaOverdue, icon: Timer, color: "text-red-400", iconBg: "bg-red-500/10", borderColor: "border-red-500/30" },
+        ].map(k => {
+          const Icon = k.icon;
+          return (
+            <div key={k.label} className={`rounded-lg border ${k.borderColor} bg-[hsl(220,20%,11%)] p-3`}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className={`h-6 w-6 rounded-md ${k.iconBg} flex items-center justify-center`}>
+                  <Icon className={`h-3 w-3 ${k.color}`} />
+                </div>
+                <p className="text-[10px] uppercase tracking-wider text-[hsl(220,10%,40%)] font-medium">{k.label}</p>
+              </div>
+              <p className={`text-lg font-bold tabular-nums ${k.color}`}>
+                {isLoading ? "—" : k.value}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Alert bar if orders need attention */}
       {!isLoading && counts.needsAttention > 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2">
