@@ -243,7 +243,7 @@ export function ActivationStep({ proc }: Props) {
         </div>
       )}
 
-
+      {!invoice && !isActivated && (
         <div className="bg-amber-950/50 border border-amber-700/50 text-amber-300 rounded-lg px-3 py-2 text-sm mb-4 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4" /> Aucune facture liée — création requise avant l'activation.
         </div>
