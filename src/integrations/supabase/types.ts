@@ -8953,6 +8953,149 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_ai_config: {
+        Row: {
+          created_at: string
+          discount_rules: Json
+          id: string
+          is_enabled: boolean
+          model: string
+          system_prompt: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_rules?: Json
+          id?: string
+          is_enabled?: boolean
+          model?: string
+          system_prompt: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_rules?: Json
+          id?: string
+          is_enabled?: boolean
+          model?: string
+          system_prompt?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      marketing_ai_replies: {
+        Row: {
+          ai_response: string
+          completion_tokens: number | null
+          conversation_id: string
+          created_at: string
+          detected_language: string | null
+          error: string | null
+          id: string
+          inbound_message: string
+          model: string
+          openphone_message_id: string | null
+          prompt_tokens: number | null
+          sent_via_openphone: boolean
+        }
+        Insert: {
+          ai_response: string
+          completion_tokens?: number | null
+          conversation_id: string
+          created_at?: string
+          detected_language?: string | null
+          error?: string | null
+          id?: string
+          inbound_message: string
+          model?: string
+          openphone_message_id?: string | null
+          prompt_tokens?: number | null
+          sent_via_openphone?: boolean
+        }
+        Update: {
+          ai_response?: string
+          completion_tokens?: number | null
+          conversation_id?: string
+          created_at?: string
+          detected_language?: string | null
+          error?: string | null
+          id?: string
+          inbound_message?: string
+          model?: string
+          openphone_message_id?: string | null
+          prompt_tokens?: number | null
+          sent_via_openphone?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_ai_replies_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_conversations: {
+        Row: {
+          ai_enabled: boolean
+          client_id: string | null
+          client_name: string | null
+          created_at: string
+          detected_language: string
+          discount_accepted: boolean
+          discount_offered: string | null
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          message_count: number
+          phone_number: string
+          sale_amount: number | null
+          sale_closed: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_enabled?: boolean
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          detected_language?: string
+          discount_accepted?: boolean
+          discount_offered?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          message_count?: number
+          phone_number: string
+          sale_amount?: number | null
+          sale_closed?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_enabled?: boolean
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          detected_language?: string
+          discount_accepted?: boolean
+          discount_offered?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          message_count?: number
+          phone_number?: string
+          sale_amount?: number | null
+          sale_closed?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -15280,6 +15423,7 @@ export type Database = {
           direction: string
           duration_seconds: number | null
           id: string
+          marketing_conversation_id: string | null
           message_preview: string | null
           notes: string | null
           openphone_call_id: string | null
@@ -15299,6 +15443,7 @@ export type Database = {
           direction?: string
           duration_seconds?: number | null
           id?: string
+          marketing_conversation_id?: string | null
           message_preview?: string | null
           notes?: string | null
           openphone_call_id?: string | null
@@ -15318,6 +15463,7 @@ export type Database = {
           direction?: string
           duration_seconds?: number | null
           id?: string
+          marketing_conversation_id?: string | null
           message_preview?: string | null
           notes?: string | null
           openphone_call_id?: string | null
@@ -15326,7 +15472,15 @@ export type Database = {
           raw_payload?: Json | null
           status?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "telephony_logs_marketing_conversation_id_fkey"
+            columns: ["marketing_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_attachments: {
         Row: {
