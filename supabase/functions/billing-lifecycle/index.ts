@@ -250,6 +250,23 @@ async function processExpirations(
           }
         }
 
+        // P0 GAP #8 — Admin alert (J+5 suspension)
+        await queueAdminAlert(
+          supabase,
+          "admin_alert_suspended",
+          {
+            client_full_name: `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim(),
+            client_email: inv.customer?.email || "",
+            account_number: "—",
+            invoice_number: inv.invoice_number,
+            total: inv.total?.toFixed(2),
+            amount: inv.total?.toFixed(2),
+            due_date: inv.due_date,
+            void_date: addDays(inv.due_date, 10),
+          },
+          `admin_suspended_${inv.id}`,
+        );
+
         console.log(
           `[lifecycle] SUSPENDED subscription ${sub.id} (${sub.plan_name}), invoice ${inv.invoice_number} stays OVERDUE — reactivation until J+10`,
         );
