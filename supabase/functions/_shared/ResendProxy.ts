@@ -251,9 +251,18 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
 
     // Resolve HTML content
     const html = params.html || params.templateVars?._html || "";
-    const subject = params.subject || params.templateVars?._subject || "Notification Nivra Telecom";
-    const fromEmail = params.fromEmail || params.templateVars?._from_email || DEFAULT_FROM;
+    const rawSubject = params.subject || params.templateVars?._subject || "Notification Nivra Telecom";
+    const subject = sanitizeSubject(rawSubject);
+
+    // Anti-spam: force canonical From for client-facing emails.
+    // Preserve admin alert From so internal mail filters keep working.
+    const requestedFrom = params.fromEmail || params.templateVars?._from_email;
+    const fromEmail = isAdminAlertFrom(requestedFrom)
+      ? (requestedFrom as string)
+      : CANONICAL_FROM;
+
     const text = params.text || params.templateVars?._text || htmlToPlainText(html);
+    const replyTo = params.replyTo || SUPPORT_EMAIL;
 
     if (!html) {
       console.error(`[enqueueEmail] No HTML content for template: ${params.templateKey}`);
@@ -266,6 +275,12 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
     // Generate message ID for deduplication in process-email-queue
     const messageId = generateMessageId();
 
+    // Per-recipient List-Unsubscribe (mailto + token-based) anti-spam headers
+    const headers: Record<string, string> = {
+      ...MAILER_HEADERS,
+      "List-Unsubscribe": `<mailto:${SUPPORT_EMAIL}?subject=unsubscribe-${unsubscribeToken}>`,
+    };
+
     // Build pgmq payload matching what process-email-queue expects
     const pgmqPayload = {
       to: params.to,
@@ -275,8 +290,9 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
       subject,
       html,
       text,
-      reply_to: params.replyTo,
+      reply_to: replyTo,
       attachments: params.attachments,
+      headers,
       purpose: "transactional",
       label: params.templateKey || "custom_html",
       idempotency_key: eventKey,
