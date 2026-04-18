@@ -179,6 +179,7 @@ const MarketingEmailCampaignsPage = () => {
   const [unsubs, setUnsubs] = useState<Unsubscribe[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [opensTimeline, setOpensTimeline] = useState<{ date: string; opens: number; clicks: number }[]>([]);
 
   // Builder state
   const [name, setName] = useState("");
@@ -227,6 +228,32 @@ const MarketingEmailCampaignsPage = () => {
       .order("created_at", { ascending: false })
       .limit(50);
     setTemplates((data ?? []) as Template[]);
+  };
+
+  const loadOpensTimeline = async () => {
+    const since = subDays(new Date(), 30).toISOString();
+    const [opensRes, clicksRes] = await Promise.all([
+      supabase.from("email_sends").select("opened_at").gte("opened_at", since).not("opened_at", "is", null).limit(5000),
+      supabase.from("email_sends").select("clicked_at").gte("clicked_at", since).not("clicked_at", "is", null).limit(5000),
+    ]);
+    const buckets = new Map<string, { opens: number; clicks: number }>();
+    for (let i = 29; i >= 0; i--) {
+      const key = format(startOfDay(subDays(new Date(), i)), "yyyy-MM-dd");
+      buckets.set(key, { opens: 0, clicks: 0 });
+    }
+    (opensRes.data ?? []).forEach((r: any) => {
+      const k = format(startOfDay(new Date(r.opened_at)), "yyyy-MM-dd");
+      const b = buckets.get(k); if (b) b.opens += 1;
+    });
+    (clicksRes.data ?? []).forEach((r: any) => {
+      const k = format(startOfDay(new Date(r.clicked_at)), "yyyy-MM-dd");
+      const b = buckets.get(k); if (b) b.clicks += 1;
+    });
+    setOpensTimeline(Array.from(buckets.entries()).map(([date, v]) => ({
+      date: format(new Date(date), "d MMM", { locale: frLocale }),
+      opens: v.opens,
+      clicks: v.clicks,
+    })));
   };
 
   useEffect(() => {
