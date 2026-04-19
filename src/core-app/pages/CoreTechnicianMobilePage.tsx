@@ -107,20 +107,83 @@ export default function CoreTechnicianMobilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>("today");
 
-  /* ─── Resolve technician record from current auth user ─── */
+  /* ─── Manual technician selection (persisted) ─── */
+  const LS_KEY = "nivra.core.technician.selectedId";
+  const [selectedTechId, setSelectedTechId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(LS_KEY);
+  });
+
+  /* ─── Resolve technician record:
+   *    1. Try linked user_id match (if technicians.user_id is set)
+   *    2. Fall back to email match against auth user's email
+   *    3. Fall back to manual selection persisted in localStorage
+   */
   const technicianQuery = useQuery({
-    queryKey: ["technician-self", user?.id],
+    queryKey: ["technician-self", user?.id, user?.email, selectedTechId],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1) Try by user_id
+      const byUserId = await supabase
         .from("technicians")
         .select("id, user_id, full_name, email, phone, status, specializations, notes")
         .eq("user_id", user!.id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      if (byUserId.data) return byUserId.data;
+
+      // 2) Try by email
+      if (user?.email) {
+        const byEmail = await supabase
+          .from("technicians")
+          .select("id, user_id, full_name, email, phone, status, specializations, notes")
+          .eq("email", user.email)
+          .maybeSingle();
+        if (byEmail.data) return byEmail.data;
+      }
+
+      // 3) Fall back to manually-selected technician
+      if (selectedTechId) {
+        const bySelection = await supabase
+          .from("technicians")
+          .select("id, user_id, full_name, email, phone, status, specializations, notes")
+          .eq("id", selectedTechId)
+          .maybeSingle();
+        if (bySelection.data) return bySelection.data;
+      }
+
+      return null;
     },
   });
+
+  /* ─── Active technicians list (only loaded when no profile resolved) ─── */
+  const activeTechniciansQuery = useQuery({
+    queryKey: ["technicians-active-list"],
+    enabled: !!user?.id && !technicianQuery.isLoading && !technicianQuery.data,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("id, full_name, email, status")
+        .eq("status", "active")
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const handleSelectTechnician = (id: string) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LS_KEY, id);
+    }
+    setSelectedTechId(id);
+  };
+
+  const handleClearSelection = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(LS_KEY);
+    }
+    setSelectedTechId(null);
+    queryClient.invalidateQueries({ queryKey: ["technician-self"] });
+  };
 
   const technician = technicianQuery.data;
   const technicianId: string | null = technician?.id ?? null;
