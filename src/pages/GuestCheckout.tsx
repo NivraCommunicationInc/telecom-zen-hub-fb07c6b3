@@ -203,12 +203,13 @@ const GuestCheckout = () => {
   const isKycComplete = true;
 
   const ROUTER_PRICE = routerPrice ?? 100;
-  const SIM_PRICE = simPrice ?? 10;
+  const SIM_PRICE = simPrice ?? 25;
+  const ESIM_PRICE = SIM_PRICE; // Per nivra-telecom.ca/frais-possibles — eSIM and physical SIM both $25
 
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
-  // eSIM is delivered electronically — no physical card fee. Physical SIM keeps the SIM_PRICE.
-  const simFee = hasMobileService ? (simType === "esim" ? 0 : SIM_PRICE) : 0;
+  // Both physical SIM and eSIM are billed at SIM_PRICE ($25) per nivra-telecom.ca/frais-possibles.
+  const simFee = hasMobileService ? (simType === "esim" ? ESIM_PRICE : SIM_PRICE) : 0;
   const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
   const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 10);
   const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
@@ -493,7 +494,7 @@ const GuestCheckout = () => {
           ...(hasMobileService
             ? [
                 simType === "esim"
-                  ? { sku: "EQ-SIM-ESIM", name: "eSIM", quantity: 1, unit_price: 0 }
+                  ? { sku: "EQ-SIM-ESIM", name: "eSIM", quantity: 1, unit_price: ESIM_PRICE }
                   : { sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE },
               ]
             : []),
@@ -969,7 +970,7 @@ const GuestCheckout = () => {
                               {simType === "esim" ? "eSIM" : "Carte SIM physique"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {simType === "esim" ? "Livraison électronique — gratuite" : `${fmt(SIM_PRICE)}`}
+                              {simType === "esim" ? `${fmt(ESIM_PRICE)}` : `${fmt(SIM_PRICE)}`}
                             </p>
                           </div>
                           <Badge variant="secondary">1</Badge>
@@ -1031,7 +1032,7 @@ const GuestCheckout = () => {
                                 Pour les appareils compatibles — iPhone 14+, Pixel 6+, Samsung Galaxy S21+ et plus récents.
                               </p>
                             </div>
-                            <span className="text-sm font-bold text-foreground ml-3">Gratuit</span>
+                            <span className="text-sm font-bold text-foreground ml-3">{fmt(ESIM_PRICE)}</span>
                           </div>
                           {simType === "esim" && (
                             <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
