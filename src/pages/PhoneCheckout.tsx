@@ -285,6 +285,8 @@ export default function PhoneCheckout() {
         fraud_level: level,
         fraud_factors: factors,
         shipping_address: shippingAddress,
+        selected_color: selectedColor,
+        selected_storage: selectedStorage,
       });
 
       // 6. Send KYC request email (best-effort — never block checkout)
@@ -369,7 +371,7 @@ export default function PhoneCheckout() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold">{phone.brand} {phone.model}</h3>
-                  <p className="text-sm text-muted-foreground">{phone.storage} · {phone.color}</p>
+                  <p className="text-sm text-muted-foreground">{selectedStorage} · {selectedColor}</p>
                   <p className="text-xl font-bold mt-1">{phonePrice.toFixed(2)}$</p>
                 </div>
               </div>
