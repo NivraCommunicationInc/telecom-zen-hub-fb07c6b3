@@ -324,39 +324,60 @@ export default function HrPayrollPage() {
           </h1>
           <p className="text-xs text-muted-foreground">Périodes, fiches de paie, approbation et paiement</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" />Nouvelle période</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Créer une période de paie</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Nom de la période</Label>
-                <Input value={newPeriod.period_name} onChange={(e) => setNewPeriod(p => ({ ...p, period_name: e.target.value }))}
-                  placeholder="Paie Mars 2026 - 1ère quinzaine" className="h-8 text-xs" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Début</Label>
-                  <Input type="date" value={newPeriod.start_date}
-                    onChange={(e) => setNewPeriod(p => ({ ...p, start_date: e.target.value }))} className="h-8 text-xs" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Fin</Label>
-                  <Input type="date" value={newPeriod.end_date}
-                    onChange={(e) => setNewPeriod(p => ({ ...p, end_date: e.target.value }))} className="h-8 text-xs" />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button size="sm" disabled={!newPeriod.period_name || !newPeriod.start_date || !newPeriod.end_date || createPeriodMut.isPending}
-                onClick={() => createPeriodMut.mutate()}>
-                {createPeriodMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer"}
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
+            onClick={() => autoGenerateMut.mutate("first")} className="gap-1.5">
+            <Wand2 className="h-3.5 w-3.5" />Générer paie du 1er
+          </Button>
+          <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
+            onClick={() => autoGenerateMut.mutate("fifteenth")} className="gap-1.5">
+            <Wand2 className="h-3.5 w-3.5" />Générer paie du 15
+          </Button>
+          {selectedPeriod && (
+            <>
+              <Button size="sm" variant="outline" onClick={exportCSV} className="gap-1.5">
+                <Download className="h-3.5 w-3.5" />Export CSV
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <Button size="sm" variant="outline" disabled={notifyMut.isPending}
+                onClick={() => notifyMut.mutate()} className="gap-1.5">
+                <Send className="h-3.5 w-3.5" />Envoyer fiches
+              </Button>
+            </>
+          )}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" />Période manuelle</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Créer une période de paie</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nom de la période</Label>
+                  <Input value={newPeriod.period_name} onChange={(e) => setNewPeriod(p => ({ ...p, period_name: e.target.value }))}
+                    placeholder="Paie Mars 2026 - 1ère quinzaine" className="h-8 text-xs" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Début</Label>
+                    <Input type="date" value={newPeriod.start_date}
+                      onChange={(e) => setNewPeriod(p => ({ ...p, start_date: e.target.value }))} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Fin</Label>
+                    <Input type="date" value={newPeriod.end_date}
+                      onChange={(e) => setNewPeriod(p => ({ ...p, end_date: e.target.value }))} className="h-8 text-xs" />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button size="sm" disabled={!newPeriod.period_name || !newPeriod.start_date || !newPeriod.end_date || createPeriodMut.isPending}
+                  onClick={() => createPeriodMut.mutate()}>
+                  {createPeriodMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Periods list */}
