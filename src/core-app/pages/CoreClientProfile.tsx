@@ -556,6 +556,16 @@ const CoreClientProfile = () => {
           <p className="text-[11px] text-[hsl(220,10%,35%)] text-center py-4">Aucune activité enregistrée</p>
         )}
       </Section>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-4">
+          <ClientFullHistory
+            clientId={clientId!}
+            email={profile.email}
+            billingCustomerId={billingCustomer?.id}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* ═══ COMPTE FOURNISSEUR (admin only) ═══ */}
       <ClientSupplierAccountSection clientId={clientId} />
