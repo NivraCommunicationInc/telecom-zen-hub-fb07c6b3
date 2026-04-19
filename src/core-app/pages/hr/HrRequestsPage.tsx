@@ -283,8 +283,11 @@ export default function HrRequestsPage() {
         <p className="text-xs text-muted-foreground">{pendingTotal} demande(s) en attente</p>
       </div>
 
-      <Tabs defaultValue="withdrawals">
+      <Tabs defaultValue="leaves">
         <TabsList className="flex flex-wrap gap-1">
+          <TabsTrigger value="leaves" className="gap-1">
+            <Plane className="h-3 w-3" />Demandes de congé ({leavePending})
+          </TabsTrigger>
           <TabsTrigger value="withdrawals" className="gap-1">
             <DollarSign className="h-3 w-3" />Retraits ({withdrawals.length})
           </TabsTrigger>
@@ -298,6 +301,116 @@ export default function HrRequestsPage() {
             <Clock className="h-3 w-3" />Corrections punch ({punchCorrections.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* ============ LEAVE REQUESTS ============ */}
+        <TabsContent value="leaves" className="space-y-3 mt-3">
+          {/* Counters */}
+          <div className="grid grid-cols-3 gap-3">
+            <Card><CardContent className="p-3">
+              <p className="text-[10px] text-muted-foreground">En attente</p>
+              <p className="text-lg font-bold text-amber-600">{leavePending}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-3">
+              <p className="text-[10px] text-muted-foreground">Approuvées (mois)</p>
+              <p className="text-lg font-bold text-emerald-600">{leaveApprovedThisMonth}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-3">
+              <p className="text-[10px] text-muted-foreground">Refusées (mois)</p>
+              <p className="text-lg font-bold text-destructive">{leaveDeclinedThisMonth}</p>
+            </CardContent></Card>
+          </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Label className="text-xs">Statut:</Label>
+            <Select value={leaveFilterStatus} onValueChange={setLeaveFilterStatus}>
+              <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="approved">Approuvées</SelectItem>
+                <SelectItem value="declined">Refusées</SelectItem>
+              </SelectContent>
+            </Select>
+            <Label className="text-xs ml-2">Type:</Label>
+            <Select value={leaveFilterType} onValueChange={setLeaveFilterType}>
+              <SelectTrigger className="h-7 text-xs w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous types</SelectItem>
+                {Object.entries(LEAVE_TYPE_LABEL).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {loadLeave ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : filteredLeaves.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">Aucune demande pour ces filtres.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[10px]">Employé</TableHead>
+                      <TableHead className="text-[10px]">Type</TableHead>
+                      <TableHead className="text-[10px]">Dates</TableHead>
+                      <TableHead className="text-[10px]">J. ouvrables</TableHead>
+                      <TableHead className="text-[10px]">Raison</TableHead>
+                      <TableHead className="text-[10px]">Soumise</TableHead>
+                      <TableHead className="text-[10px]">Statut</TableHead>
+                      <TableHead className="text-[10px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredLeaves.map((r: any) => {
+                      const st = STATUS_BADGE[r.status] || { label: r.status, variant: "secondary" as const };
+                      const days = businessDays(r.start_date, r.end_date);
+                      const dateRange = r.start_date && r.end_date
+                        ? `${format(new Date(r.start_date), "d MMM", { locale: fr })} → ${format(new Date(r.end_date), "d MMM yyyy", { locale: fr })}`
+                        : "—";
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell className="text-xs">{empName(r)}</TableCell>
+                          <TableCell className="text-xs">
+                            <Badge variant="outline" className="text-[10px]">
+                              {LEAVE_TYPE_LABEL[r.request_type] || r.request_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-[10px]">{dateRange}</TableCell>
+                          <TableCell className="text-xs font-medium">{days || (r.hours_requested ? `${r.hours_requested}h` : "—")}</TableCell>
+                          <TableCell className="text-[10px] max-w-[180px] truncate">{r.reason || "—"}</TableCell>
+                          <TableCell className="text-[10px]">{format(new Date(r.created_at), "d MMM yyyy", { locale: fr })}</TableCell>
+                          <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
+                          <TableCell>
+                            {r.status === "pending" ? (
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                                  disabled={leaveDecisionMut.isPending}
+                                  onClick={() => leaveDecisionMut.mutate({ id: r.id, decision: "approved" })}>
+                                  <CheckCircle className="h-3 w-3" />Approuver
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive gap-1"
+                                  disabled={leaveDecisionMut.isPending}
+                                  onClick={() => setRefuseDialog({ id: r.id, employee: empName(r) })}>
+                                  <XCircle className="h-3 w-3" />Refuser
+                                </Button>
+                              </div>
+                            ) : r.review_note ? (
+                              <span className="text-[10px] text-muted-foreground italic">{r.review_note}</span>
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Withdrawals */}
         <TabsContent value="withdrawals">
