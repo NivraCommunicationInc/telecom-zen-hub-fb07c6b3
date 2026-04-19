@@ -71,7 +71,14 @@ export const ProfileSection = ({ data, acct, prof, clientName, isAdminCore }: an
 );
 
 /* ── Billing / Account ── */
-export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInvoices, totalPaid }: any) => (
+export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInvoices, totalPaid }: any) => {
+  const paypalSub = (data.subscriptions || []).find(
+    (s: any) => s.paypal_subscription_id && s.status === "active"
+  );
+  const isPreAuth = !!paypalSub;
+  const [chargeOpen, setChargeOpen] = (require("react") as typeof import("react")).useState(false);
+
+  return (
   <div className="space-y-3">
     {unpaidInvoices.length > 0 && (
       <Panel className="border-red-500/30">
@@ -88,6 +95,45 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
         </MiniTable>
       </Panel>
     )}
+
+    {/* Mode de paiement */}
+    <Panel>
+      <PanelHeader icon={Wallet} title="Mode de paiement" />
+      <div className="p-3 space-y-2">
+        {isPreAuth ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-medium text-emerald-400 border border-emerald-500/30">
+                <CheckCircle2 className="h-3 w-3" /> Pré-autorisé PayPal ✓
+              </span>
+              <span className="text-[10px] text-emerald-400/80 font-medium">Rabais 5$/mois actif</span>
+            </div>
+            <p className="text-[10px] text-core-text-label font-mono">
+              PayPal Sub: …{String(paypalSub.paypal_subscription_id).slice(-8)}
+            </p>
+            <button
+              onClick={() => setChargeOpen(true)}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-emerald-500 transition-colors"
+            >
+              <CreditCard className="h-3 w-3" /> Charger manuellement
+            </button>
+            <CorePayPalManualChargeDialog
+              open={chargeOpen}
+              onOpenChange={setChargeOpen}
+              paypalSubscriptionId={paypalSub.paypal_subscription_id}
+              billingSubscriptionId={paypalSub.id}
+              unpaidInvoices={unpaidInvoices}
+              accountId={acct.id}
+            />
+          </div>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-md bg-[hsl(220,15%,18%)] px-2 py-1 text-[11px] font-medium text-core-text-label border border-[hsl(220,15%,22%)]">
+            Paiement manuel
+          </span>
+        )}
+      </div>
+    </Panel>
+
     <Panel>
       <PanelHeader icon={Hash} title="Informations du compte" />
       <div className="py-1 divide-y divide-[hsl(220,15%,14%)]">
@@ -126,7 +172,8 @@ export const BillingSection = ({ acct, data, totalDue, monthlyRevenue, unpaidInv
       </Panel>
     </div>
   </div>
-);
+  );
+};
 
 /* ── Subscriptions ── */
 export const SubscriptionsSection = ({ data, customerId, onRefresh }: any) => (
