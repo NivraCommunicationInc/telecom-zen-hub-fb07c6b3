@@ -694,7 +694,7 @@ export function renderQueueTemplate(
           icon: "phone",
           greeting,
           bodyText: "Votre carte SIM est maintenant active. Voici vos informations.",
-          cardTitle: "Détails de votre ligne",
+          cardTitle: "Détails",
           cardRows: [
             ["Numéro", String(phone)],
             ["ICCID", String(iccid)],
@@ -702,7 +702,7 @@ export function renderQueueTemplate(
             ["Forfait", String(plan)],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Accéder à mon compte",
+          ctaPrimaryLabel: "Mon compte",
         }),
       };
     }
@@ -769,12 +769,11 @@ export function renderQueueTemplate(
           bodyText: "Bonne nouvelle — votre numéro est maintenant actif sur le réseau Nivra.",
           cardTitle: "Détails",
           cardRows: [
-            ["Numéro transféré", String(phone)],
-            ["Date", fmtDate(v.completed_at || new Date().toISOString())],
+            ["Numéro", String(phone)],
             ["Statut", "Actif"],
           ],
           ctaPrimaryUrl: portalUrl,
-          ctaPrimaryLabel: "Accéder à mon compte",
+          ctaPrimaryLabel: "Mon compte",
         }),
       };
     }
@@ -820,15 +819,13 @@ export function renderQueueTemplate(
           icon: "calendar",
           greeting,
           bodyText: "Votre installation est confirmée. Voici les détails.",
-          cardTitle: "Détails du rendez-vous",
+          cardTitle: "Détails",
           cardRows: [
             ["Date", date],
             ["Heure", String(time)],
             ["Technicien", String(tech)],
             ["Adresse", String(address)],
-            ["Durée estimée", "1 à 2 heures"],
           ],
-          helpHtml: `<strong style="color:#1a1a2e;">À noter :</strong> Assurez-vous d'être présent ou de désigner quelqu'un de 18 ans et plus.`,
         }),
       };
     }
@@ -847,13 +844,12 @@ export function renderQueueTemplate(
           icon: "calendar",
           greeting,
           bodyText: "Petit rappel — votre rendez-vous d'installation est demain.",
-          cardTitle: "Rappel rendez-vous",
+          cardTitle: "Détails",
           cardRows: [
             ["Date", date],
             ["Heure", String(time)],
             ["Technicien", String(tech)],
           ],
-          helpHtml: `<strong style="color:#1a1a2e;">Préparation :</strong> Préparez l'accès à votre local technique ou à votre boîte de connexion.`,
         }),
       };
     }
@@ -868,14 +864,13 @@ export function renderQueueTemplate(
           preheader: `Le technicien arrive bientôt.`,
           badge: "DANS 2 HEURES",
           heroTitle: "Votre technicien arrive bientôt",
-          heroSub: "Assurez-vous d'être disponible à l'adresse d'installation.",
           icon: "calendar",
           greeting,
           bodyText: "Notre technicien sera bientôt chez vous.",
           cardTitle: "Détails",
           cardRows: [
             ["Technicien", String(tech)],
-            ["Heure d'arrivée estimée", String(eta)],
+            ["Heure estimée", String(eta)],
           ],
         }),
       };
