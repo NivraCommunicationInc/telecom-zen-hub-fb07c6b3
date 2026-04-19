@@ -532,6 +532,8 @@ const GuestCheckout = () => {
         line_items: [],
         notes: notes || "",
         account_id: accountId,
+        // sim_type is passed as additional metadata for fulfillment routing (physical vs eSIM).
+        ...(hasMobileService ? { sim_type: simType } as any : {}),
         referral: appliedReferral ? {
           code: appliedReferral.code,
           type: appliedReferral.type,
