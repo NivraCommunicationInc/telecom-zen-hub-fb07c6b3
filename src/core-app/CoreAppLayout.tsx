@@ -71,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: Wifi, label: "Demandes WiFi", href: "/wifi-requests" },
       { icon: Calendar, label: "Appointments", href: "/appointments" },
       { icon: MessageSquare, label: "Requests", href: "/requests" },
+      { icon: Wrench, label: "Techniciens", href: "/technician" },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
   },
