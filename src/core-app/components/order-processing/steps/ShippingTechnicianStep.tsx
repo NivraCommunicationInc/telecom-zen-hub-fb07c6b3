@@ -187,8 +187,48 @@ export function ShippingTechnicianStep({ proc }: Props) {
     if (!techFields.technician_id) { toast.error("Veuillez sélectionner un technicien"); return; }
     setLoading("tech");
     try {
+      // 1. Update order with technician
       await proc.assignTechnician(techFields.technician_id);
+
+      // 2. Ensure an appointment row exists / is updated with technician + slot
+      const scheduledAt = appointment?.scheduled_at || newSlotIso || null;
+      if (appointment?.id) {
+        const { error: aptErr } = await supabase
+          .from("appointments")
+          .update({
+            technician_id: techFields.technician_id,
+            scheduled_at: scheduledAt || appointment.scheduled_at,
+            status: scheduledAt ? "confirmed" : appointment.status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", appointment.id);
+        if (aptErr) console.warn("[Technician][assign] appointment update:", aptErr.message);
+      } else if (scheduledAt) {
+        // No appointment yet — create one
+        const { error: insErr } = await supabase.from("appointments").insert({
+          order_id: order.id,
+          client_id: order.user_id,
+          technician_id: techFields.technician_id,
+          scheduled_at: scheduledAt,
+          title: "Installation",
+          service_address: order.service_address || order.client_full_address || "",
+          service_city: order.service_city || "",
+          service_postal_code: order.service_postal_code || "",
+          status: "confirmed",
+          environment: order.environment || "production",
+        } as any);
+        if (insErr) console.warn("[Technician][assign] appointment insert:", insErr.message);
+      }
+
+      // 3. Notes
       if (techFields.installNotes) await proc.addNote(`[Installation] ${techFields.installNotes}`);
+
+      // 4. Confirmation toast with technician name + slot
+      const techName = selectedTechnician?.full_name || "le technicien";
+      const when = scheduledAt ? new Date(scheduledAt).toLocaleString("fr-CA") : "(à planifier)";
+      toast.success(`${techName} assigné — ${when}`);
+
+      await queryClient.invalidateQueries({ queryKey: ["order-processing"] });
     } finally { setLoading(null); }
   };
 
