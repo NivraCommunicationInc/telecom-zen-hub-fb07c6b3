@@ -36,8 +36,35 @@ const STATUS_BADGE: Record<string, { label: string; variant: "default" | "second
   correction_requested: { label: "Correction", variant: "outline" },
 };
 
+const LEAVE_TYPE_LABEL: Record<string, string> = {
+  vacation: "Vacances",
+  sick: "Maladie",
+  personal: "Personnel",
+  parttime: "Temps partiel",
+  unpaid: "Sans solde",
+  other: "Autre",
+};
+
+function businessDays(start: string | null, end: string | null): number {
+  if (!start || !end) return 0;
+  const s = new Date(start), e = new Date(end);
+  if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return 0;
+  let count = 0;
+  const cur = new Date(s);
+  while (cur <= e) {
+    const d = cur.getDay();
+    if (d !== 0 && d !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
 export default function HrRequestsPage() {
   const qc = useQueryClient();
+  const [leaveFilterStatus, setLeaveFilterStatus] = useState<string>("pending");
+  const [leaveFilterType, setLeaveFilterType] = useState<string>("all");
+  const [refuseDialog, setRefuseDialog] = useState<{ id: string; employee: string } | null>(null);
+  const [refuseReason, setRefuseReason] = useState("");
 
   // Withdrawal requests
   const { data: withdrawals = [], isLoading: loadW } = useQuery({
