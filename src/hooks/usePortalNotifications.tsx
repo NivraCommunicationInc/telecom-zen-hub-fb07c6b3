@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { portalClient as portalSupabase } from "@/integrations/backend";
 import { useClientAuth } from "@/hooks/useClientAuth";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 export interface Notification {
   id: string;
@@ -120,8 +121,16 @@ export function usePortalNotifications() {
           table: "notifications",
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
+        (payload: any) => {
           queryClient.invalidateQueries({ queryKey: ["portal-notifications"] });
+          // Show a toast for the brand-new notification
+          const n = payload?.new;
+          if (n?.title) {
+            toast(n.title, {
+              description: n.message || undefined,
+              duration: 6000,
+            });
+          }
         }
       )
       .subscribe();
