@@ -183,17 +183,34 @@ export default function HrCommissionsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-commission-rules"] }),
   });
 
-  // ─── Current period commissions (this month from unified view) ───
+  // ─── Period selector (bi-monthly: 1-15 or 16-end) ───
+  const today = new Date();
+  const defaultHalf = today.getDate() <= 15 ? "first" : "second";
+  const [periodMonth, setPeriodMonth] = useState(today.getMonth() + 1);
+  const [periodYear, setPeriodYear] = useState(today.getFullYear());
+  const [periodHalf, setPeriodHalf] = useState<"first" | "second" | "full">(defaultHalf);
+
+  const periodRange = (() => {
+    const y = periodYear, m = periodMonth;
+    const startDay = periodHalf === "second" ? 16 : 1;
+    const endDay = periodHalf === "first" ? 15 : new Date(y, m, 0).getDate();
+    const start = new Date(Date.UTC(y, m - 1, startDay, 0, 0, 0));
+    const end = new Date(Date.UTC(y, m - 1, endDay, 23, 59, 59));
+    return { start: start.toISOString(), end: end.toISOString(),
+      label: `${String(startDay).padStart(2,"0")}–${String(endDay).padStart(2,"0")} ${format(new Date(y, m-1, 1), "MMMM yyyy", { locale: fr })}` };
+  })();
+
+  // ─── Current period commissions ───
   const { data: currentComm = [], isLoading: loadingComm } = useQuery({
-    queryKey: ["hr-current-period-commissions"],
+    queryKey: ["hr-current-period-commissions", periodRange.start, periodRange.end],
     queryFn: async () => {
-      const monthStart = startOfMonth(new Date()).toISOString();
       const { data, error } = await supabase
         .from("unified_commissions" as any)
         .select("*")
-        .gte("created_at", monthStart)
+        .gte("created_at", periodRange.start)
+        .lte("created_at", periodRange.end)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
       if (error) throw error;
       const list = (data as any[]) ?? [];
       const ids = [...new Set(list.map((c: any) => c.employee_id))];
@@ -203,13 +220,30 @@ export default function HrCommissionsPage() {
           .select("user_id, first_name, last_name, job_title")
           .in("user_id", ids);
         const map = Object.fromEntries((emps ?? []).map((e: any) => [e.user_id, e]));
-        return list.map((c: any) => ({ ...c, _emp: map[c.employee_id] ?? null }));
+        // Fetch service_type breakdown from orders for the same period
+        const { data: orderRows } = await supabase
+          .from("orders")
+          .select("user_id, created_by, service_type, total_amount, status, created_at")
+          .gte("created_at", periodRange.start)
+          .lte("created_at", periodRange.end)
+          .in("status", ["activated", "completed", "delivered", "shipped", "confirmed"]);
+        const breakdown = new Map<string, Record<string, number>>();
+        for (const o of (orderRows ?? []) as any[]) {
+          const key = o.created_by ?? o.user_id;
+          if (!key) continue;
+          const cur = breakdown.get(key) ?? { internet: 0, mobile: 0, tv: 0, bundle: 0, phone: 0 };
+          const svc = (o.service_type ?? "").toLowerCase();
+          const bucket = ["internet","mobile","tv","bundle","phone"].includes(svc) ? svc : null;
+          if (bucket) cur[bucket] += Number(o.total_amount || 0);
+          breakdown.set(key, cur);
+        }
+        return list.map((c: any) => ({ ...c, _emp: map[c.employee_id] ?? null, _svc: breakdown.get(c.employee_id) }));
       }
       return list;
     },
   });
 
-  // Aggregate per employee for current period table
+  // Aggregate per employee for current period table (with service breakdown)
   const aggregatedComm = (() => {
     const map = new Map<string, any>();
     for (const c of currentComm as any[]) {
@@ -217,6 +251,7 @@ export default function HrCommissionsPage() {
       const cur = map.get(key) ?? {
         employee_id: key,
         _emp: c._emp,
+        _svc: c._svc ?? { internet: 0, mobile: 0, tv: 0, bundle: 0, phone: 0 },
         sales_count: 0,
         sales_total: 0,
         commission_total: 0,
@@ -498,6 +533,42 @@ export default function HrCommissionsPage() {
 
         {/* ============ SECTION 2 — CURRENT PERIOD ============ */}
         <TabsContent value="period" className="space-y-3 mt-3">
+          {/* Period selector */}
+          <Card>
+            <CardContent className="p-3 flex flex-wrap items-end gap-3">
+              <div>
+                <Label className="text-[10px]">Mois</Label>
+                <Select value={String(periodMonth)} onValueChange={(v) => setPeriodMonth(Number(v))}>
+                  <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }).map((_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {format(new Date(2024, i, 1), "MMMM", { locale: fr })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[10px]">Année</Label>
+                <Input type="number" value={periodYear} onChange={(e) => setPeriodYear(Number(e.target.value))}
+                  className="h-7 text-xs w-24" />
+              </div>
+              <div>
+                <Label className="text-[10px]">Quinzaine</Label>
+                <Select value={periodHalf} onValueChange={(v: any) => setPeriodHalf(v)}>
+                  <SelectTrigger className="h-7 text-xs w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="first">1 – 15</SelectItem>
+                    <SelectItem value="second">16 – fin</SelectItem>
+                    <SelectItem value="full">Mois complet</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground ml-auto">Période : {periodRange.label}</p>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-4 gap-3">
             <Card><CardContent className="p-3">
               <p className="text-[10px] text-muted-foreground">Employés actifs</p>
@@ -511,18 +582,79 @@ export default function HrCommissionsPage() {
             </CardContent></Card>
             <Card><CardContent className="p-3">
               <p className="text-[10px] text-muted-foreground">À payer</p>
-              <p className="text-lg font-bold text-amber-600">
+              <p className="text-lg font-bold text-warning">
                 {fmt(aggregatedComm.reduce((s, a) => s + a.pending, 0))}
               </p>
             </CardContent></Card>
             <Card><CardContent className="p-3">
               <p className="text-[10px] text-muted-foreground">Payées</p>
-              <p className="text-lg font-bold text-emerald-600">
+              <p className="text-lg font-bold text-success">
                 {fmt(aggregatedComm.reduce((s, a) => s + a.paid, 0))}
               </p>
             </CardContent></Card>
           </div>
 
+          {/* Per-employee aggregate with service breakdown */}
+          <Card>
+            <CardHeader className="py-2"><CardTitle className="text-xs">Commissions par employé — {periodRange.label}</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {aggregatedComm.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">Aucun employé avec ventes pour cette période.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[10px]">Employé</TableHead>
+                      <TableHead className="text-[10px] text-right">Internet</TableHead>
+                      <TableHead className="text-[10px] text-right">Mobile</TableHead>
+                      <TableHead className="text-[10px] text-right">TV</TableHead>
+                      <TableHead className="text-[10px] text-right">Bundle</TableHead>
+                      <TableHead className="text-[10px] text-right">Téléphones</TableHead>
+                      <TableHead className="text-[10px] text-right">Total ventes</TableHead>
+                      <TableHead className="text-[10px] text-right">Commission</TableHead>
+                      <TableHead className="text-[10px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {aggregatedComm.map((a: any) => {
+                      const svc = a._svc ?? { internet: 0, mobile: 0, tv: 0, bundle: 0, phone: 0 };
+                      const empCommissionIds = a.commissions
+                        .filter((c: any) => ["pending", "pending_activation"].includes(c.status))
+                        .map((c: any) => c.id);
+                      return (
+                        <TableRow key={a.employee_id}>
+                          <TableCell className="text-xs font-medium">
+                            {a._emp ? `${a._emp.first_name} ${a._emp.last_name}` : a.employee_id.slice(0, 8)}
+                            {a._emp?.job_title && (
+                              <span className="block text-[10px] text-muted-foreground">{a._emp.job_title}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-right">{svc.internet ? fmt(svc.internet) : "—"}</TableCell>
+                          <TableCell className="text-xs text-right">{svc.mobile ? fmt(svc.mobile) : "—"}</TableCell>
+                          <TableCell className="text-xs text-right">{svc.tv ? fmt(svc.tv) : "—"}</TableCell>
+                          <TableCell className="text-xs text-right">{svc.bundle ? fmt(svc.bundle) : "—"}</TableCell>
+                          <TableCell className="text-xs text-right">{svc.phone ? fmt(svc.phone) : "—"}</TableCell>
+                          <TableCell className="text-xs text-right font-medium">{fmt(a.sales_total)}</TableCell>
+                          <TableCell className="text-xs text-right font-bold text-primary">{fmt(a.commission_total)}</TableCell>
+                          <TableCell>
+                            {empCommissionIds.length > 0 && (
+                              <Button size="sm" variant="outline" className="h-6 text-[10px]"
+                                disabled={bulkUpdateMut.isPending}
+                                onClick={() => bulkUpdateMut.mutate({ ids: empCommissionIds, status: "validated" })}>
+                                Valider {empCommissionIds.length}
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Detailed individual commission lines */}
           <div className="flex items-center gap-3 flex-wrap">
             <Input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher employé…" className="h-7 text-xs w-48" />
@@ -557,6 +689,7 @@ export default function HrCommissionsPage() {
           </div>
 
           <Card>
+            <CardHeader className="py-2"><CardTitle className="text-xs">Détail des commissions individuelles</CardTitle></CardHeader>
             <CardContent className="p-0">
               {loadingComm ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
