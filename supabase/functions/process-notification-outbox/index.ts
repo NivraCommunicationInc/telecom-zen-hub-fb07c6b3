@@ -1,10 +1,10 @@
 /**
- * Edge Function: process-notification-outbox
- * Processes queued notifications and sends emails via Resend.
- * Called by pg_cron or manually.
+ * process-notification-outbox — Drain queued notifications using
+ * the unified Violet Bold email shell.
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enqueueEmail } from "../_shared/ResendProxy.ts";
+import { violetShell, violetEsc } from "../_shared/violetEmailShell.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,7 +28,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Fetch queued notifications (batch of 50)
     const { data: notifications, error: fetchErr } = await supabase
       .from("notification_outbox")
       .select("*")
@@ -54,8 +53,8 @@ Deno.serve(async (req) => {
           templateKey: "custom_html",
           subject: notif.subject,
           html: htmlContent,
-          fromEmail: "Nivra Télécom <Support@nivra-telecom.ca>",
-          replyTo: "Support@nivra-telecom.ca",
+          fromEmail: "Nivra Telecom <support@nivra-telecom.ca>",
+          replyTo: "support@nivra-telecom.ca",
           messageType: notif.event_type || "notification",
           entityType: "notification_outbox",
           entityId: notif.id,
@@ -99,7 +98,6 @@ Deno.serve(async (req) => {
   }
 });
 
-/** Build HTML email from notification outbox entry */
 function buildEmailHtml(notif: {
   event_type: string;
   to_name?: string;
@@ -107,103 +105,91 @@ function buildEmailHtml(notif: {
   subject: string;
 }): string {
   const payload = notif.payload_json || {};
-  const name = (notif.to_name || payload.client_name || "") as string;
+  const name = (notif.to_name || (payload.client_name as string) || "") as string;
+  const greeting = name ? `Bonjour ${name},` : undefined;
 
-  const templates: Record<string, () => string> = {
-    KYC_DOC_UPLOADED: () => `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <div style="background:#2563eb;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
-          <h2 style="margin:0">Document KYC téléversé</h2>
-        </div>
-        <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
-          <p>Un client a téléversé un document pour sa vérification d'identité.</p>
-          <table style="width:100%;border-collapse:collapse;margin:16px 0">
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Dossier</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">${payload.case_number || "—"}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Client</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${payload.client_name || "—"} (${payload.client_email || ""})</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Type de document</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${payload.doc_type || "—"}</td></tr>
-            <tr><td style="padding:8px;color:#6b7280">Téléversé à</td><td style="padding:8px">${payload.uploaded_at || "—"}</td></tr>
-          </table>
-          <p style="text-align:center;margin:24px 0">
-            <a href="https://nivra-telecom.ca/admin/kyc-verifications" style="background:#2563eb;color:white;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Examiner le dossier</a>
-          </p>
-        </div>
-      </div>`,
+  const get = (k: string) => (payload[k] as string) || "—";
 
-    KYC_DOC_REQUESTED: () => `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <div style="background:#f97316;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
-          <h2 style="margin:0">Documents requis</h2>
-        </div>
-        <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
-          <p>Bonjour ${name},</p>
-          <p>Notre équipe a besoin de documents supplémentaires pour compléter votre vérification d'identité.</p>
-          <p><strong>Dossier :</strong> ${payload.case_number || "—"}</p>
-          ${payload.reason ? `<p><strong>Note :</strong> ${payload.reason}</p>` : ""}
-          <p style="text-align:center;margin:24px 0">
-            <a href="https://nivra-telecom.ca/portal/identity-verification" style="background:#f97316;color:white;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Téléverser mes documents</a>
-          </p>
-          <p style="color:#6b7280;font-size:12px">Si vous avez des questions, contactez notre support.</p>
-        </div>
-      </div>`,
+  switch (notif.event_type) {
+    case "KYC_DOC_UPLOADED":
+      return violetShell({
+        preheader: "Un client a téléversé un document d'identité.",
+        badge: "DOCUMENT REÇU",
+        heroTitle: "Document KYC téléversé",
+        bodyHtml: "Un client a téléversé un document pour sa vérification d'identité.",
+        cardTitle: "Détails",
+        cardRows: [
+          ["Dossier", get("case_number")],
+          ["Client", `${get("client_name")} (${get("client_email")})`],
+          ["Type", get("doc_type")],
+          ["Téléversé", get("uploaded_at")],
+        ],
+        ctaPrimaryUrl: "https://nivra-telecom.ca/admin/kyc-verifications",
+        ctaPrimaryLabel: "Examiner le dossier",
+      });
 
-    KYC_APPROVED: () => `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <div style="background:#059669;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
-          <h2 style="margin:0">Vérification approuvée</h2>
-        </div>
-        <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
-          <p>Bonjour ${name},</p>
-          <p>Votre vérification d'identité a été approuvée. Votre commande est maintenant en cours de traitement.</p>
-          <p style="color:#6b7280;font-size:12px">Dossier : ${payload.case_number || "—"}</p>
-        </div>
-      </div>`,
+    case "KYC_DOC_REQUESTED":
+      return violetShell({
+        preheader: "Documents supplémentaires requis pour votre vérification.",
+        badge: "ACTION REQUISE",
+        heroTitle: "Documents requis",
+        greeting,
+        bodyHtml: `Notre équipe a besoin de documents supplémentaires pour compléter votre vérification d'identité.${payload.reason ? `<br><br><strong>Note :</strong> ${violetEsc(payload.reason)}` : ""}`,
+        cardTitle: "Dossier",
+        cardRows: [["Dossier", get("case_number")]],
+        ctaPrimaryUrl: "https://nivra-telecom.ca/portal/identity-verification",
+        ctaPrimaryLabel: "Téléverser mes documents",
+        helpVariant: "warning",
+      });
 
-    KYC_REJECTED: () => `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <div style="background:#dc2626;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
-          <h2 style="margin:0">Vérification refusée</h2>
-        </div>
-        <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
-          <p>Bonjour ${name},</p>
-          <p>Votre vérification d'identité a été refusée.</p>
-          ${payload.reason ? `<p><strong>Raison :</strong> ${payload.reason}</p>` : ""}
-          <p>Si vous pensez qu'il s'agit d'une erreur, veuillez contacter notre support.</p>
-          <p style="color:#6b7280;font-size:12px">Dossier : ${payload.case_number || "—"}</p>
-        </div>
-      </div>`,
+    case "KYC_APPROVED":
+      return violetShell({
+        preheader: "Votre vérification a été approuvée.",
+        badge: "IDENTITÉ VÉRIFIÉE",
+        heroTitle: "Votre identité a été vérifiée",
+        greeting,
+        bodyHtml: "Votre vérification d'identité a été approuvée. Votre commande est maintenant en cours de traitement.",
+        cardTitle: "Détails",
+        cardRows: [["Dossier", get("case_number")], ["Statut", "Approuvé"]],
+      });
 
-    KYC_SUBMITTED: () => `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
-        <div style="background:#2563eb;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
-          <h2 style="margin:0">Nouvelle soumission KYC</h2>
-        </div>
-        <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
-          <p>Un client a soumis une vérification d'identité.</p>
-          <table style="width:100%;border-collapse:collapse;margin:16px 0">
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Dossier</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:bold">${payload.case_number || "—"}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Commande</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">${payload.order_number || "—"}</td></tr>
-            <tr><td style="padding:8px;color:#6b7280">Client</td><td style="padding:8px">${payload.client_name || "—"} (${payload.client_email || ""})</td></tr>
-          </table>
-          <p style="text-align:center;margin:24px 0">
-            <a href="https://nivra-telecom.ca/admin/kyc-verifications" style="background:#2563eb;color:white;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">Examiner le dossier</a>
-          </p>
-        </div>
-      </div>`,
-  };
+    case "KYC_REJECTED":
+      return violetShell({
+        preheader: "Votre vérification d'identité a été refusée.",
+        badge: "ACTION REQUISE",
+        heroTitle: "Document d'identité refusé",
+        greeting,
+        bodyHtml: `Votre vérification d'identité a été refusée.${payload.reason ? `<br><br><strong>Raison :</strong> ${violetEsc(payload.reason)}` : ""}`,
+        cardTitle: "Détails",
+        cardRows: [["Dossier", get("case_number")]],
+        ctaPrimaryUrl: "mailto:support@nivra-telecom.ca",
+        ctaPrimaryLabel: "Contacter le support",
+        helpVariant: "warning",
+      });
 
-  // Default fallback
-  const builder = templates[notif.event_type];
-  if (builder) return builder();
+    case "KYC_SUBMITTED":
+      return violetShell({
+        preheader: "Nouvelle soumission KYC à examiner.",
+        badge: "NOUVELLE SOUMISSION",
+        heroTitle: "Nouvelle soumission KYC",
+        bodyHtml: "Un client a soumis une vérification d'identité.",
+        cardTitle: "Détails",
+        cardRows: [
+          ["Dossier", get("case_number")],
+          ["Commande", get("order_number")],
+          ["Client", `${get("client_name")} (${get("client_email")})`],
+        ],
+        ctaPrimaryUrl: "https://nivra-telecom.ca/admin/kyc-verifications",
+        ctaPrimaryLabel: "Examiner le dossier",
+      });
 
-  return `
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
-      <div style="background:#374151;color:white;padding:16px 24px;border-radius:8px 8px 0 0">
-        <h2 style="margin:0">Notification Nivra</h2>
-      </div>
-      <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px">
-        <p>${name ? `Bonjour ${name},` : ""}</p>
-        <p>${notif.subject}</p>
-        <pre style="background:#f3f4f6;padding:12px;border-radius:4px;font-size:12px;overflow:auto">${JSON.stringify(payload, null, 2)}</pre>
-      </div>
-    </div>`;
+    default:
+      return violetShell({
+        preheader: notif.subject || "Notification Nivra Telecom",
+        badge: "NOTIFICATION",
+        heroTitle: notif.subject || "Notification Nivra",
+        greeting,
+        bodyHtml: notif.subject || "Vous avez une nouvelle notification.",
+      });
+  }
 }
