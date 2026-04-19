@@ -66,11 +66,31 @@ function getSlaInfo(createdAt: string, status: string) {
   }
   let tone: "red" | "amber" | "green" = "green";
   let severity = 0;
-  if (hours > 24) { tone = "red"; severity = 3; }
+  if (hours > SLA_BREACH_HOURS) { tone = "red"; severity = 3; }
   else if (hours > 12) { tone = "amber"; severity = 2; }
   else if (hours > 4) { tone = "amber"; severity = 1; }
   const label = formatDistanceToNowStrict(new Date(createdAt), { locale: fr, addSuffix: false });
   return { hours, label, tone, severity };
+}
+
+/* ── Translation helpers ── */
+function translateSla(value: string | null): string {
+  if (!value) return "—";
+  const v = value.toLowerCase();
+  if (v === "on_time" || v === "ontime") return "À jour";
+  if (v === "overdue" || v === "breached") return "En retard";
+  if (v === "urgent" || v === "at_risk") return "Urgent";
+  return value;
+}
+
+function translateKyc(value: string | null): string {
+  if (!value) return "—";
+  const v = value.toLowerCase();
+  if (v === "approved" || v === "verified") return "Approuvé";
+  if (v === "pending") return "En attente";
+  if (v === "rejected") return "Rejeté";
+  if (v === "not_required" || v === "none") return "Non requis";
+  return value;
 }
 
 /* ── Status badge ── */
