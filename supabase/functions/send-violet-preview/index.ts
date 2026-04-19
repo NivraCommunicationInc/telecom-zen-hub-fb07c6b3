@@ -1,5 +1,5 @@
-// One-shot preview sender for the PREMIUM Nivra email design
-// World-class telecom email inspired by Telus, Bell, Rogers, T-Mobile
+// One-shot preview sender — EDITORIAL PREMIUM design
+// Inspired by Apple, Linear, Stripe, Vercel — magazine-grade typography
 import { Resend } from "../_shared/ResendProxy.ts";
 
 const corsHeaders = {
@@ -15,284 +15,260 @@ const HTML = `<!DOCTYPE html>
 <meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
-<title>Nivra Telecom</title>
-<!--[if mso]>
-<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
-<![endif]-->
+<title>Nivra</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
-  @media only screen and (max-width:620px){
+  @media only screen and (max-width:640px){
     .container{width:100%!important;border-radius:0!important;}
-    .px{padding-left:24px!important;padding-right:24px!important;}
-    .hero-title{font-size:30px!important;line-height:1.15!important;}
-    .stat-num{font-size:22px!important;}
-    .hide-mobile{display:none!important;}
+    .px{padding-left:28px!important;padding-right:28px!important;}
+    .px-lg{padding-left:28px!important;padding-right:28px!important;}
+    .display{font-size:42px!important;line-height:1.02!important;letter-spacing:-1.6px!important;}
+    .eyebrow{font-size:11px!important;}
     .stack{display:block!important;width:100%!important;}
-    .stack td{display:block!important;width:100%!important;padding:0 0 16px 0!important;}
+    .stack-td{display:block!important;width:100%!important;padding:0 0 14px 0!important;border:0!important;}
+    .hide-mobile{display:none!important;}
+    .stat-grid td{padding:18px 14px!important;}
+    .big-num{font-size:32px!important;}
   }
-  a{color:#7c3aed;text-decoration:none;}
-  .btn-primary:hover{background:#6d28d9!important;}
+  a{color:#0a0a0a;text-decoration:none;}
+  .link-underline:hover{color:#7c3aed!important;}
+  .btn-dark:hover{background:#1a1a1a!important;}
 </style>
 </head>
-<body style="margin:0;padding:0;background:#eef0f4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;color:#0a0a23;">
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;color:#0a0a0a;">
 
-<!-- Preheader (hidden) -->
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#eef0f4;opacity:0;">
-Votre service GIGA Internet + TV 25 choix est maintenant actif. Compte #200711 · Prochaine facture 19 mai 2026.
+<!-- Preheader -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#f5f5f0;opacity:0;">
+Tout est en ligne. GIGA Internet + TV 25 choix · Compte 200711 · Prochaine facture le 19 mai.
 </div>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef0f4;">
-<tr><td align="center" style="padding:24px 12px 40px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f0;">
+<tr><td align="center" style="padding:32px 16px 48px;">
 
-<!-- ===== MAIN CONTAINER ===== -->
-<table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,0.04),0 12px 40px rgba(30,27,75,0.10);">
+<!-- ═══════════════════════════════════════════════ -->
+<!-- MAIN CARD                                       -->
+<!-- ═══════════════════════════════════════════════ -->
+<table role="presentation" class="container" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 1px 3px rgba(10,10,10,0.04),0 24px 48px -12px rgba(10,10,10,0.12);">
 
-<!-- ===== TOP ACCENT GRADIENT BAR ===== -->
-<tr><td style="height:4px;background:#7c3aed;background:linear-gradient(90deg,#7c3aed 0%,#a78bfa 50%,#7c3aed 100%);line-height:4px;font-size:0;">&nbsp;</td></tr>
-
-<!-- ===== HEADER (clean white, logo + utility) ===== -->
-<tr><td class="px" style="background:#ffffff;padding:22px 36px;border-bottom:1px solid #f1f1f5;">
+<!-- ─────────────── MASTHEAD ─────────────── -->
+<tr><td class="px-lg" style="padding:28px 48px 24px;background:#ffffff;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td align="left" style="vertical-align:middle;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="vertical-align:middle;padding-right:10px;">
-<div style="width:32px;height:32px;background:#7c3aed;border-radius:8px;text-align:center;line-height:32px;color:#ffffff;font-size:14px;font-weight:800;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;">N</div>
+<div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;font-size:20px;font-weight:800;color:#0a0a0a;letter-spacing:-0.8px;line-height:1;">
+nivra<span style="color:#7c3aed;">.</span>
+</div>
 </td>
-<td style="vertical-align:middle;">
-<div style="color:#0a0a23;font-size:17px;font-weight:700;letter-spacing:-0.3px;line-height:1;">Nivra</div>
-<div style="color:#6b7280;font-size:11px;font-weight:500;line-height:1.4;margin-top:2px;">Telecom · Québec</div>
-</td>
-</tr></table>
-</td>
-<td align="right" class="hide-mobile" style="vertical-align:middle;color:#6b7280;font-size:12px;font-weight:500;">
-Compte <span style="color:#0a0a23;font-weight:600;">#200711</span>
+<td align="right" style="vertical-align:middle;">
+<div style="font-size:11px;color:#737373;font-weight:500;letter-spacing:0.3px;text-transform:uppercase;">Édition&nbsp;Client</div>
 </td>
 </tr></table>
 </td></tr>
 
-<!-- ===== HERO SECTION ===== -->
-<tr><td class="px" style="padding:56px 36px 44px;background:#ffffff;">
-
-<!-- Status pill -->
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;"><tr><td>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:99px;"><tr>
-<td style="padding:6px 12px 6px 10px;vertical-align:middle;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="vertical-align:middle;padding-right:6px;line-height:1;">
-<div style="width:6px;height:6px;background:#10b981;border-radius:50%;"></div>
-</td>
-<td style="vertical-align:middle;color:#065f46;font-size:11px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;line-height:1;">
-Service actif
-</td>
-</tr></table>
-</td>
-</tr></table>
-</td></tr></table>
-
-<!-- Hero headline -->
-<h1 class="hero-title" style="margin:0 0 14px;font-size:36px;font-weight:800;color:#0a0a23;line-height:1.1;letter-spacing:-1.2px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;">
-Bonjour Oldo,<br><span style="color:#7c3aed;">votre service est actif.</span>
-</h1>
-
-<p style="margin:0 0 0;font-size:16px;color:#52525b;line-height:1.55;font-weight:400;">
-Tout est prêt. Votre forfait <strong style="color:#0a0a23;font-weight:600;">GIGA Internet + TV 25 choix</strong> a été activé avec succès le 18 avril 2026.
-</p>
-
+<!-- ─────────────── HAIRLINE ─────────────── -->
+<tr><td style="padding:0 48px;" class="px-lg">
+<div style="height:1px;background:#0a0a0a;line-height:1px;font-size:0;">&nbsp;</div>
 </td></tr>
 
-<!-- ===== STATS ROW (3 columns, telecom-style) ===== -->
-<tr><td class="px" style="padding:0 36px 32px;background:#ffffff;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafafe;border:1px solid #f1f1f5;border-radius:14px;">
+<!-- ─────────────── EDITORIAL META ─────────────── -->
+<tr><td class="px-lg" style="padding:32px 48px 0;background:#ffffff;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
 <tr>
-<td class="stack" width="33.33%" style="padding:22px 18px;text-align:center;border-right:1px solid #f1f1f5;vertical-align:top;">
-<div style="font-size:11px;color:#71717a;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">Vitesse</div>
-<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">1<span style="color:#7c3aed;">Gbps</span></div>
-<div style="font-size:11px;color:#71717a;font-weight:500;margin-top:4px;">téléchargement</div>
+<td style="font-size:11px;color:#7c3aed;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;padding-right:14px;">N°&nbsp;01</td>
+<td style="font-size:11px;color:#a3a3a3;font-weight:500;letter-spacing:1.4px;text-transform:uppercase;padding-right:14px;">·</td>
+<td style="font-size:11px;color:#525252;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;padding-right:14px;">Activation</td>
+<td style="font-size:11px;color:#a3a3a3;font-weight:500;letter-spacing:1.4px;text-transform:uppercase;padding-right:14px;">·</td>
+<td style="font-size:11px;color:#525252;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;">18&nbsp;Avr&nbsp;2026</td>
+</tr>
+</table>
+</td></tr>
+
+<!-- ─────────────── DISPLAY HEADLINE ─────────────── -->
+<tr><td class="px-lg" style="padding:24px 48px 12px;background:#ffffff;">
+<h1 class="display" style="margin:0;font-family:'SF Pro Display','Times New Roman',Georgia,serif;font-size:56px;font-weight:800;color:#0a0a0a;line-height:0.98;letter-spacing:-2.4px;">
+Tout est<br>
+<span style="font-style:italic;font-weight:600;color:#7c3aed;font-family:'New York','Times New Roman',Georgia,serif;">en ligne.</span>
+</h1>
+</td></tr>
+
+<!-- ─────────────── DECK / SUBTITLE ─────────────── -->
+<tr><td class="px-lg" style="padding:18px 48px 40px;background:#ffffff;">
+<p style="margin:0;max-width:480px;font-size:17px;color:#404040;line-height:1.5;font-weight:400;letter-spacing:-0.2px;">
+Bonjour Oldo. Votre forfait <strong style="color:#0a0a0a;font-weight:600;">GIGA Internet + TV 25 choix</strong> est désormais actif à votre adresse. Aucun contrat. Aucune surprise.
+</p>
+</td></tr>
+
+<!-- ─────────────── HERO STATEMENT (large quote-style) ─────────────── -->
+<tr><td class="px-lg" style="padding:0 48px 40px;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0a0a;border-radius:18px;overflow:hidden;">
+<tr><td style="padding:44px 40px;position:relative;">
+
+<div style="font-size:11px;color:#a78bfa;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:16px;">Votre service</div>
+
+<div class="big-num" style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,Helvetica,sans-serif;font-size:44px;color:#ffffff;font-weight:800;letter-spacing:-1.6px;line-height:1;margin-bottom:6px;">
+1&nbsp;Gbps<span style="color:#7c3aed;">.</span>
+</div>
+<div style="font-size:14px;color:#a3a3a3;font-weight:500;line-height:1.4;margin-bottom:32px;">
+Fibre symétrique · 25+ chaînes télé incluses
+</div>
+
+<!-- Inline stats row -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="stat-grid"><tr>
+<td class="stack-td" width="33%" style="vertical-align:top;border-right:1px solid #1f1f1f;padding-right:18px;">
+<div style="font-size:10px;color:#737373;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Engagement</div>
+<div style="font-size:18px;color:#ffffff;font-weight:700;letter-spacing:-0.4px;">Aucun</div>
 </td>
-<td class="stack" width="33.33%" style="padding:22px 18px;text-align:center;border-right:1px solid #f1f1f5;vertical-align:top;">
-<div style="font-size:11px;color:#71717a;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">Chaînes TV</div>
-<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">25<span style="color:#7c3aed;">+</span></div>
-<div style="font-size:11px;color:#71717a;font-weight:500;margin-top:4px;">au choix</div>
+<td class="stack-td" width="33%" style="vertical-align:top;border-right:1px solid #1f1f1f;padding:0 18px;">
+<div style="font-size:10px;color:#737373;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Installation</div>
+<div style="font-size:18px;color:#ffffff;font-weight:700;letter-spacing:-0.4px;">Complétée</div>
 </td>
-<td class="stack" width="33.33%" style="padding:22px 18px;text-align:center;vertical-align:top;">
-<div style="font-size:11px;color:#71717a;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px;">Engagement</div>
-<div class="stat-num" style="font-size:26px;color:#0a0a23;font-weight:800;line-height:1;letter-spacing:-0.8px;">0<span style="color:#7c3aed;">$</span></div>
-<div style="font-size:11px;color:#71717a;font-weight:500;margin-top:4px;">sans contrat</div>
+<td class="stack-td" width="33%" style="vertical-align:top;padding-left:18px;">
+<div style="font-size:10px;color:#737373;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Support</div>
+<div style="font-size:18px;color:#ffffff;font-weight:700;letter-spacing:-0.4px;">Québécois</div>
+</td>
+</tr></table>
+
+</td></tr>
+</table>
+</td></tr>
+
+<!-- ─────────────── SECTION DIVIDER ─────────────── -->
+<tr><td class="px-lg" style="padding:0 48px;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="font-size:10px;color:#a3a3a3;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;padding-bottom:18px;">— Récapitulatif</td>
+</tr></table>
+</td></tr>
+
+<!-- ─────────────── DETAILS LIST (editorial style) ─────────────── -->
+<tr><td class="px-lg" style="padding:0 48px 8px;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+
+<tr><td style="padding:18px 0;border-top:1px solid #f0f0f0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="font-size:14px;color:#737373;font-weight:500;letter-spacing:-0.1px;">Commande</td>
+<td align="right" style="font-size:15px;color:#0a0a0a;font-weight:600;font-family:'SF Mono','Menlo',Consolas,monospace;letter-spacing:-0.3px;">99999</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 0;border-top:1px solid #f0f0f0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="font-size:14px;color:#737373;font-weight:500;letter-spacing:-0.1px;">Compte client</td>
+<td align="right" style="font-size:15px;color:#0a0a0a;font-weight:600;font-family:'SF Mono','Menlo',Consolas,monospace;letter-spacing:-0.3px;">200711</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 0;border-top:1px solid #f0f0f0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="font-size:14px;color:#737373;font-weight:500;letter-spacing:-0.1px;">Forfait</td>
+<td align="right" style="font-size:15px;color:#0a0a0a;font-weight:600;letter-spacing:-0.2px;">GIGA + TV 25</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 0;border-top:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="font-size:14px;color:#737373;font-weight:500;letter-spacing:-0.1px;">Activation</td>
+<td align="right" style="font-size:15px;color:#0a0a0a;font-weight:600;letter-spacing:-0.2px;">18 avril 2026</td>
+</tr></table>
+</td></tr>
+
+</table>
+</td></tr>
+
+<!-- ─────────────── PROCHAINE FACTURE — bold editorial moment ─────────────── -->
+<tr><td class="px-lg" style="padding:36px 48px 8px;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td style="vertical-align:top;">
+<div style="font-size:10px;color:#7c3aed;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;margin-bottom:8px;">Prochaine facture</div>
+<div style="font-size:14px;color:#525252;font-weight:500;letter-spacing:-0.1px;">19&nbsp;mai&nbsp;2026 — taxes incluses</div>
+</td>
+<td align="right" style="vertical-align:top;">
+<div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,Helvetica,sans-serif;font-size:36px;color:#0a0a0a;font-weight:800;letter-spacing:-1.4px;line-height:0.95;">
+120<span style="color:#a3a3a3;font-weight:600;">,72&nbsp;$</span>
+</div>
 </td>
 </tr>
 </table>
 </td></tr>
 
-<!-- ===== ACCOUNT DETAILS CARD ===== -->
-<tr><td class="px" style="padding:0 36px 28px;background:#ffffff;">
-
-<div style="font-size:12px;color:#71717a;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin:0 0 14px;">
-Récapitulatif
-</div>
-
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #ececf3;border-radius:14px;border-collapse:separate;overflow:hidden;">
-
-<tr><td style="padding:16px 20px;border-bottom:1px solid #f4f4f8;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="font-size:13px;color:#71717a;font-weight:500;">Numéro de commande</td>
-<td align="right" style="font-size:14px;color:#0a0a23;font-weight:600;font-family:'SF Mono',Menlo,Consolas,monospace;">#99999</td>
-</tr></table>
-</td></tr>
-
-<tr><td style="padding:16px 20px;border-bottom:1px solid #f4f4f8;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="font-size:13px;color:#71717a;font-weight:500;">Compte client</td>
-<td align="right" style="font-size:14px;color:#0a0a23;font-weight:600;font-family:'SF Mono',Menlo,Consolas,monospace;">#200711</td>
-</tr></table>
-</td></tr>
-
-<tr><td style="padding:16px 20px;border-bottom:1px solid #f4f4f8;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="font-size:13px;color:#71717a;font-weight:500;">Forfait</td>
-<td align="right" style="font-size:14px;color:#0a0a23;font-weight:600;">GIGA + TV 25</td>
-</tr></table>
-</td></tr>
-
-<tr><td style="padding:16px 20px;border-bottom:1px solid #f4f4f8;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="font-size:13px;color:#71717a;font-weight:500;">Date d'activation</td>
-<td align="right" style="font-size:14px;color:#0a0a23;font-weight:600;">18 avril 2026</td>
-</tr></table>
-</td></tr>
-
-<!-- Highlighted next billing row -->
-<tr><td style="padding:18px 20px;background:linear-gradient(135deg,#faf9ff 0%,#f5f3ff 100%);">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td>
-<div style="font-size:11px;color:#7c3aed;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:3px;">Prochaine facture</div>
-<div style="font-size:13px;color:#52525b;font-weight:500;">19 mai 2026</div>
-</td>
-<td align="right">
-<div style="font-size:22px;color:#0a0a23;font-weight:800;letter-spacing:-0.6px;line-height:1;">120,72&nbsp;$</div>
-<div style="font-size:11px;color:#71717a;font-weight:500;margin-top:3px;">taxes incluses</div>
-</td>
-</tr></table>
-</td></tr>
-
-</table>
-
-</td></tr>
-
-<!-- ===== CTA SECTION ===== -->
-<tr><td class="px" align="center" style="padding:8px 36px 36px;background:#ffffff;">
+<!-- ─────────────── CTA ─────────────── -->
+<tr><td class="px-lg" style="padding:36px 48px 16px;background:#ffffff;">
 
 <!--[if mso]>
-<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://nivra-telecom.ca/mon-compte" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="50%" stroke="f" fillcolor="#7c3aed">
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://nivra-telecom.ca/mon-compte" style="height:54px;v-text-anchor:middle;width:100%;" arcsize="10%" stroke="f" fillcolor="#0a0a0a">
 <w:anchorlock/>
-<center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:bold;">Accéder à mon compte</center>
+<center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:bold;">Ouvrir mon espace client</center>
 </v:roundrect>
 <![endif]-->
 <!--[if !mso]><!-->
-<a href="https://nivra-telecom.ca/mon-compte" class="btn-primary" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;padding:16px 36px;border-radius:99px;font-weight:700;font-size:15px;letter-spacing:-0.2px;box-shadow:0 4px 14px rgba(124,58,237,0.32);transition:background 0.2s;">
-Accéder à mon compte →
+<a href="https://nivra-telecom.ca/mon-compte" class="btn-dark" style="display:block;background:#0a0a0a;color:#ffffff;text-decoration:none;padding:18px 24px;border-radius:14px;font-weight:600;font-size:15px;letter-spacing:-0.3px;text-align:center;">
+Ouvrir mon espace client&nbsp;&nbsp;→
 </a>
 <!--<![endif]-->
 
-<div style="margin-top:14px;font-size:12px;color:#a1a1aa;font-weight:500;">
-Gérez votre forfait, factures et paiements
-</div>
-
 </td></tr>
 
-<!-- ===== DIVIDER ===== -->
-<tr><td class="px" style="padding:0 36px;background:#ffffff;">
-<div style="height:1px;background:#f1f1f5;line-height:1px;font-size:0;">&nbsp;</div>
+<tr><td class="px-lg" align="center" style="padding:0 48px 48px;background:#ffffff;">
+<a href="https://nivra-telecom.ca/test-vitesse" class="link-underline" style="font-size:13px;color:#737373;font-weight:500;text-decoration:underline;text-underline-offset:3px;letter-spacing:-0.1px;">Tester ma vitesse Internet</a>
 </td></tr>
 
-<!-- ===== QUICK LINKS GRID ===== -->
-<tr><td class="px" style="padding:32px 36px 8px;background:#ffffff;">
+<!-- ─────────────── DARK FOOTER STORYTELLING ─────────────── -->
+<tr><td style="background:#0a0a0a;padding:48px 48px 40px;" class="px-lg">
 
-<div style="font-size:12px;color:#71717a;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin:0 0 16px;">
-Étapes suivantes
+<!-- Pull quote -->
+<div style="font-family:'New York','Times New Roman',Georgia,serif;font-size:24px;font-weight:500;font-style:italic;color:#ffffff;line-height:1.35;letter-spacing:-0.5px;margin-bottom:32px;max-width:440px;">
+"Une question ? Nous répondons en moins de deux heures, par des humains, en français."
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 <tr>
-<td class="stack" width="50%" style="padding:0 8px 12px 0;vertical-align:top;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafafe;border:1px solid #f1f1f5;border-radius:12px;"><tr>
-<td style="padding:18px;">
-<div style="width:36px;height:36px;background:#f5f3ff;border-radius:10px;text-align:center;line-height:36px;font-size:18px;margin-bottom:10px;">⚡</div>
-<div style="font-size:14px;color:#0a0a23;font-weight:700;margin-bottom:4px;letter-spacing:-0.2px;">Test de vitesse</div>
-<div style="font-size:12px;color:#71717a;font-weight:500;line-height:1.5;">Vérifiez votre débit Internet en quelques secondes.</div>
+<td style="vertical-align:middle;">
+<div style="font-size:11px;color:#737373;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Support</div>
+<a href="mailto:support@nivra-telecom.ca" style="font-size:15px;color:#ffffff;font-weight:600;text-decoration:none;letter-spacing:-0.2px;">support@nivra-telecom.ca</a>
 </td>
-</tr></table>
-</td>
-<td class="stack" width="50%" style="padding:0 0 12px 8px;vertical-align:top;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafafe;border:1px solid #f1f1f5;border-radius:12px;"><tr>
-<td style="padding:18px;">
-<div style="width:36px;height:36px;background:#f5f3ff;border-radius:10px;text-align:center;line-height:36px;font-size:18px;margin-bottom:10px;">📺</div>
-<div style="font-size:14px;color:#0a0a23;font-weight:700;margin-bottom:4px;letter-spacing:-0.2px;">Configurer la TV</div>
-<div style="font-size:12px;color:#71717a;font-weight:500;line-height:1.5;">Choisissez vos 25 chaînes préférées.</div>
-</td>
-</tr></table>
+<td align="right" class="hide-mobile" style="vertical-align:middle;">
+<a href="mailto:support@nivra-telecom.ca" style="display:inline-block;background:#ffffff;color:#0a0a0a;text-decoration:none;padding:11px 22px;border-radius:99px;font-weight:600;font-size:13px;letter-spacing:-0.1px;">
+Écrire&nbsp;&nbsp;→
+</a>
 </td>
 </tr>
 </table>
 
 </td></tr>
 
-<!-- ===== SUPPORT BANNER ===== -->
-<tr><td class="px" style="padding:24px 36px 36px;background:#ffffff;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0a0a23;border-radius:14px;">
-<tr><td style="padding:22px 24px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<!-- ─────────────── BOTTOM BAR ─────────────── -->
+<tr><td style="background:#0a0a0a;padding:0 48px 36px;" class="px-lg">
+<div style="height:1px;background:#1f1f1f;margin-bottom:24px;line-height:1px;font-size:0;">&nbsp;</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
 <td style="vertical-align:middle;">
-<div style="font-size:11px;color:#a78bfa;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:4px;">Support québécois</div>
-<div style="font-size:15px;color:#ffffff;font-weight:600;letter-spacing:-0.2px;line-height:1.4;">Une question ? On répond en moins de 2h.</div>
-</td>
-<td align="right" style="vertical-align:middle;" class="hide-mobile">
-<a href="mailto:support@nivra-telecom.ca" style="display:inline-block;background:#ffffff;color:#0a0a23;text-decoration:none;padding:10px 20px;border-radius:99px;font-weight:700;font-size:13px;letter-spacing:-0.1px;">
-Nous écrire
-</a>
-</td>
-</tr></table>
-</td></tr>
-</table>
-</td></tr>
-
-<!-- ===== FOOTER ===== -->
-<tr><td style="background:#fafafe;padding:32px 36px;border-top:1px solid #f1f1f5;">
-
-<!-- Logo + tagline -->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;"><tr>
-<td>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="vertical-align:middle;padding-right:8px;">
-<div style="width:24px;height:24px;background:#7c3aed;border-radius:6px;text-align:center;line-height:24px;color:#ffffff;font-size:11px;font-weight:800;">N</div>
-</td>
-<td style="vertical-align:middle;color:#0a0a23;font-size:14px;font-weight:700;letter-spacing:-0.2px;">
-Nivra Telecom
-</td>
-</tr></table>
-</td>
-</tr></table>
-
-<!-- Links -->
-<div style="font-size:12px;color:#71717a;line-height:2;margin-bottom:16px;">
-<a href="https://nivra-telecom.ca/mon-compte" style="color:#52525b;text-decoration:none;font-weight:500;">Mon compte</a>
-<span style="color:#d4d4d8;margin:0 10px;">·</span>
-<a href="https://nivra-telecom.ca/support" style="color:#52525b;text-decoration:none;font-weight:500;">Support</a>
-<span style="color:#d4d4d8;margin:0 10px;">·</span>
-<a href="https://nivra-telecom.ca/confidentialite" style="color:#52525b;text-decoration:none;font-weight:500;">Confidentialité</a>
-<span style="color:#d4d4d8;margin:0 10px;">·</span>
-<a href="https://nivra-telecom.ca/desabonner" style="color:#52525b;text-decoration:none;font-weight:500;">Désabonnement</a>
+<div style="font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,Helvetica,sans-serif;font-size:14px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">
+nivra<span style="color:#7c3aed;">.</span>
 </div>
+</td>
+<td align="right" style="vertical-align:middle;">
+<a href="https://nivra-telecom.ca/mon-compte" style="font-size:11px;color:#737373;text-decoration:none;font-weight:500;letter-spacing:0.2px;margin-left:14px;">Compte</a>
+<a href="https://nivra-telecom.ca/support" style="font-size:11px;color:#737373;text-decoration:none;font-weight:500;letter-spacing:0.2px;margin-left:14px;">Aide</a>
+<a href="https://nivra-telecom.ca/confidentialite" style="font-size:11px;color:#737373;text-decoration:none;font-weight:500;letter-spacing:0.2px;margin-left:14px;">Confidentialité</a>
+<a href="https://nivra-telecom.ca/desabonner" style="font-size:11px;color:#737373;text-decoration:none;font-weight:500;letter-spacing:0.2px;margin-left:14px;">Désabonnement</a>
+</td>
+</tr>
+</table>
 
-<!-- Legal -->
-<div style="font-size:11px;color:#a1a1aa;line-height:1.6;font-weight:400;">
-© 2026 Nivra Telecom inc. Tous droits réservés.<br>
-Vous recevez ce message car vous êtes client Nivra Telecom.<br>
-Montréal, Québec · Canada
+<div style="margin-top:24px;font-size:11px;color:#525252;line-height:1.6;font-weight:400;letter-spacing:0.1px;">
+© 2026 Nivra Telecom inc. — Montréal, Québec.<br>
+Vous recevez ce courriel parce que vous êtes client Nivra.
 </div>
 
 </td></tr>
 
 </table>
-<!-- ===== END MAIN CONTAINER ===== -->
+<!-- ═══════════════════════════════════════════════ -->
+
+<!-- Tiny outside caption -->
+<div style="margin-top:18px;font-size:11px;color:#a3a3a3;font-weight:500;letter-spacing:0.3px;">
+Édition envoyée à support@nivra-telecom.ca
+</div>
 
 </td></tr>
 </table>
@@ -310,9 +286,9 @@ Deno.serve(async (req) => {
 
     const resend = new Resend(apiKey);
     const result = await resend.emails.send({
-      from: "Nivra Telecom <support@nivra-telecom.ca>",
+      from: "Nivra <support@nivra-telecom.ca>",
       to: ["support@nivra-telecom.ca"],
-      subject: "Bonjour Oldo, votre service Nivra est actif ✓",
+      subject: "Tout est en ligne, Oldo.",
       html: HTML,
     });
 
