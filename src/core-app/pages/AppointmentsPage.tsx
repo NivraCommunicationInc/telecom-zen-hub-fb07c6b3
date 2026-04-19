@@ -11,7 +11,7 @@ import { corePath } from "@/core-app/lib/corePaths";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import {
   Calendar, Search, RefreshCw, ArrowRight,
-  MapPin, User, Clock, Wrench,
+  MapPin, User, Clock, Wrench, Settings,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -114,6 +114,12 @@ const AppointmentsPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <CoreEnvironmentToggle value={envFilter} onChange={setEnvFilter} />
+          <Link
+            to="/core/appointments/slots"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-emerald-300 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800/50 transition"
+          >
+            <Settings className="h-3 w-3" /> Gérer les créneaux
+          </Link>
           <button
             onClick={() => refetch()}
             className="p-1.5 rounded-md text-[hsl(220,10%,45%)] hover:text-white hover:bg-[hsl(220,15%,16%)] transition-colors"

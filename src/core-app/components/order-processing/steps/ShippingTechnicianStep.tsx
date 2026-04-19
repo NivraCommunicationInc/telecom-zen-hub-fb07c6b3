@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2, Calendar, MapPin, Clock, User, ClipboardCheck } from "lucide-react";
+import { Save, Truck, Wrench, Bell, CheckCircle2, Loader2, Calendar, MapPin, Clock, User, ClipboardCheck, CalendarClock, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StepCompletionCard } from "../StepCompletionCard";
+import { AppointmentSlotPicker } from "@/core-app/components/appointments/AppointmentSlotPicker";
 
 interface TechnicianOption {
   id: string;
@@ -43,6 +44,9 @@ export function ShippingTechnicianStep({ proc }: Props) {
     reason: string;
     forcing: boolean;
   }>({ open: false, targetStatus: null, reason: "", forcing: false });
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [newSlotIso, setNewSlotIso] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const [shippingFields, setShippingFields] = useState({
     carrier: order.carrier || "",
@@ -178,6 +182,44 @@ export function ShippingTechnicianStep({ proc }: Props) {
     } finally { setLoading(null); }
   };
 
+  const handleReschedule = async () => {
+    if (!appointment?.id || !newSlotIso) {
+      toast.error("Sélectionnez un nouveau créneau");
+      return;
+    }
+    setLoading("reschedule");
+    try {
+      const oldAt = appointment.scheduled_at;
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          scheduled_at: newSlotIso,
+          status: "rescheduled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", appointment.id);
+      if (error) throw error;
+
+      // Auto note on order
+      try {
+        await proc.addNote(
+          `[Rendez-vous replanifié] ${oldAt ? new Date(oldAt).toLocaleString("fr-CA") : "—"} → ${new Date(newSlotIso).toLocaleString("fr-CA")}`
+        );
+      } catch {}
+
+      toast.success("Rendez-vous replanifié");
+      setRescheduleOpen(false);
+      setNewSlotIso(null);
+      await queryClient.invalidateQueries({ queryKey: ["order-processing"] });
+      await queryClient.invalidateQueries({ queryKey: ["appointment-slot-availability"] });
+    } catch (err: any) {
+      console.error("[Reschedule] failed:", err);
+      toast.error(err?.message || "Replanification échouée");
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const fmtDateTime = (d: string | null | undefined) => {
     if (!d) return "—";
     try { return format(new Date(d), "d MMM yyyy HH:mm", { locale: fr }); } catch { return "—"; }
@@ -241,6 +283,44 @@ export function ShippingTechnicianStep({ proc }: Props) {
                 {appointment.technician_id && (
                   <div className="flex items-center gap-1.5 text-xs text-green-300">
                     <User className="h-3 w-3" /> Technicien: <span className="font-mono">{appointment.technician_id.slice(0, 8)}</span>
+                  </div>
+                )}
+                {appointment.status !== "completed" && appointment.status !== "cancelled" && (
+                  <div className="pt-2 mt-2 border-t border-slate-700/50">
+                    {!rescheduleOpen ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setRescheduleOpen(true); setNewSlotIso(null); }}
+                        className="h-7 text-xs text-amber-300 hover:bg-amber-950/40 hover:text-amber-200 px-2"
+                      >
+                        <CalendarClock className="h-3 w-3 mr-1" /> Replanifier le rendez-vous
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className={labelClass}>Nouveau créneau</Label>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => { setRescheduleOpen(false); setNewSlotIso(null); }}
+                            className="h-6 w-6 p-0 text-slate-400 hover:text-slate-200"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <AppointmentSlotPicker value={newSlotIso} onChange={setNewSlotIso} variant="core" />
+                        <Button
+                          size="sm"
+                          onClick={handleReschedule}
+                          disabled={!newSlotIso || loading === "reschedule"}
+                          className="w-full text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          {loading === "reschedule" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CalendarClock className="w-3 h-3 mr-1" />}
+                          Confirmer la replanification
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
