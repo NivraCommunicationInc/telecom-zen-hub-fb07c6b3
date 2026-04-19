@@ -3568,6 +3568,69 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_rules: {
+        Row: {
+          applies_to: string
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_until: string | null
+          employee_id: string | null
+          id: string
+          is_active: boolean
+          min_monthly: number | null
+          notes: string | null
+          percentage: number
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          applies_to?: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_until?: string | null
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          min_monthly?: number | null
+          notes?: string | null
+          percentage: number
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applies_to?: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_until?: string | null
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          min_monthly?: number | null
+          notes?: string | null
+          percentage?: number
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_rules_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       commission_withdrawal_requests: {
         Row: {
           admin_notes: string | null
@@ -7506,6 +7569,145 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          employee_id: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          notes: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          employee_id: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          employee_id?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          notes?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hr_documents_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hr_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      hr_requests: {
+        Row: {
+          created_at: string
+          employee_id: string
+          end_date: string | null
+          hours_requested: number | null
+          id: string
+          reason: string | null
+          request_type: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          end_date?: string | null
+          hours_requested?: number | null
+          id?: string
+          reason?: string | null
+          request_type: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          end_date?: string | null
+          hours_requested?: number | null
+          id?: string
+          reason?: string | null
+          request_type?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "hr_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       hub_login_audit: {
         Row: {
           created_at: string
@@ -8707,11 +8909,15 @@ export type Database = {
           cv_path: string | null
           email: string
           full_name: string
+          hired_employee_id: string | null
           id: string
           job_id: string | null
           message: string | null
           phone: string
           position: string
+          stage: string
+          stage_changed_at: string | null
+          stage_changed_by: string | null
           status: string
         }
         Insert: {
@@ -8720,11 +8926,15 @@ export type Database = {
           cv_path?: string | null
           email: string
           full_name: string
+          hired_employee_id?: string | null
           id?: string
           job_id?: string | null
           message?: string | null
           phone: string
           position: string
+          stage?: string
+          stage_changed_at?: string | null
+          stage_changed_by?: string | null
           status?: string
         }
         Update: {
@@ -8733,20 +8943,38 @@ export type Database = {
           cv_path?: string | null
           email?: string
           full_name?: string
+          hired_employee_id?: string | null
           id?: string
           job_id?: string | null
           message?: string | null
           phone?: string
           position?: string
+          stage?: string
+          stage_changed_at?: string | null
+          stage_changed_by?: string | null
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "job_applications_hired_employee_id_fkey"
+            columns: ["hired_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_records"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "job_applications_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_stage_changed_by_fkey"
+            columns: ["stage_changed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -8755,10 +8983,14 @@ export type Database = {
           created_at: string
           department: string
           description: string | null
+          expires_at: string | null
           id: string
           is_active: boolean | null
           location: string
+          posted_by: string | null
           requirements: string | null
+          salary_max: number | null
+          salary_min: number | null
           title: string
           type: string
           updated_at: string
@@ -8767,10 +8999,14 @@ export type Database = {
           created_at?: string
           department: string
           description?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
           location: string
+          posted_by?: string | null
           requirements?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
           title: string
           type?: string
           updated_at?: string
@@ -8779,15 +9015,27 @@ export type Database = {
           created_at?: string
           department?: string
           description?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean | null
           location?: string
+          posted_by?: string | null
           requirements?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
           title?: string
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "jobs_posted_by_fkey"
+            columns: ["posted_by"]
+            isOneToOne: false
+            referencedRelation: "employee_financial_summary"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       kyc_requested_documents: {
         Row: {
@@ -16161,7 +16409,11 @@ export type Database = {
           id: string
           notes: string | null
           punch_in: string
+          punch_in_lat: number | null
+          punch_in_lng: number | null
           punch_out: string | null
+          punch_out_lat: number | null
+          punch_out_lng: number | null
           status: string
           total_hours: number | null
           updated_at: string
@@ -16176,7 +16428,11 @@ export type Database = {
           id?: string
           notes?: string | null
           punch_in: string
+          punch_in_lat?: number | null
+          punch_in_lng?: number | null
           punch_out?: string | null
+          punch_out_lat?: number | null
+          punch_out_lng?: number | null
           status?: string
           total_hours?: number | null
           updated_at?: string
@@ -16191,7 +16447,11 @@ export type Database = {
           id?: string
           notes?: string | null
           punch_in?: string
+          punch_in_lat?: number | null
+          punch_in_lng?: number | null
           punch_out?: string | null
+          punch_out_lat?: number | null
+          punch_out_lng?: number | null
           status?: string
           total_hours?: number | null
           updated_at?: string
@@ -17667,6 +17927,24 @@ export type Database = {
           service_province: string | null
           source: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      unified_commissions: {
+        Row: {
+          amount: number | null
+          commission_rate: number | null
+          created_at: string | null
+          employee_id: string | null
+          id: string | null
+          notes: string | null
+          paid_at: string | null
+          reference_id: string | null
+          sale_amount: number | null
+          source: string | null
+          status: string | null
+          updated_at: string | null
+          validated_at: string | null
         }
         Relationships: []
       }
