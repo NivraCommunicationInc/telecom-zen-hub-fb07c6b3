@@ -424,6 +424,8 @@ export const employeeWelcome = (params: BaseParams & {
   hasEmployeePortal?: boolean;
   rhUrl?: string;
   employeeUrl?: string;
+  /** Magic link or invitation link to set password and access /rh */
+  setupLink?: string;
 }): { subject: string; html: string } => {
   const {
     employeeName,
@@ -434,6 +436,7 @@ export const employeeWelcome = (params: BaseParams & {
     hasEmployeePortal = false,
     rhUrl = 'https://nivra-telecom.ca/rh',
     employeeUrl = 'https://nivra-telecom.ca/employee',
+    setupLink,
     supportEmail,
   } = params;
 
@@ -465,11 +468,25 @@ export const employeeWelcome = (params: BaseParams & {
         </td></tr>
       </table>
 
+      ${setupLink ? `
+      ${alertBox('success', '🔐 Activez votre compte',
+        'Cliquez sur le bouton ci-dessous pour configurer votre mot de passe et accéder à votre portail RH immédiatement. Ce lien est personnel — ne le partagez avec personne.')}
+
+      <div style="text-align: center; margin-top: 24px; margin-bottom: 16px;">
+        ${button('Activer mon compte et configurer mon mot de passe →', setupLink, 'primary')}
+      </div>
+
+      <p style="color: ${colors.gray500}; font-size: 13px; text-align: center; margin: 0 0 24px 0;">
+        Ou copiez ce lien dans votre navigateur:<br>
+        <a href="${setupLink}" style="color: ${colors.primary}; word-break: break-all; font-size: 12px;">${setupLink}</a>
+      </p>
+      ` : `
       ${alertBox('info', 'Première connexion',
         'Vous recevrez sous peu un courriel séparé contenant un lien magique pour configurer votre compte (mot de passe, NIP, MFA si requis). Conservez cet email comme référence pour vos accès.')}
+      `}
 
       <div style="text-align: center; margin-top: 32px;">
-        ${button('Accéder à mon espace RH →', rhUrl, 'primary')}
+        ${button(setupLink ? 'Voir mon espace RH' : 'Accéder à mon espace RH →', rhUrl, setupLink ? 'secondary' : 'primary')}
       </div>
 
       ${hasEmployeePortal ? `

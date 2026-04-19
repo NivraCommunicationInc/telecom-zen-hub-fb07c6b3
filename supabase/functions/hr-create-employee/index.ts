@@ -276,15 +276,35 @@ Deno.serve(async (req) => {
       else console.log(`Role inserted ${primaryRole} for ${userId}`);
     }
 
-    // ── Step 5: Send invitation email (magic link) ──
-    const baseUrl = Deno.env.get("APP_BASE_URL") || "https://telecom-zen-hub.lovable.app";
-    const { error: inviteErr } = await adminClient.auth.admin.generateLink({
-      type: "magiclink",
+    // ── Step 5: Generate password setup link (auth invitation) ──
+    // Use type=invite so Supabase issues a real "set password" flow on the
+    // confirmation page. Capture the action_link and embed it in our branded
+    // welcome email so the employee can activate their account in one click.
+    const baseUrl = Deno.env.get("APP_BASE_URL") || "https://nivra-telecom.ca";
+    let setupLink: string | undefined;
+
+    const { data: linkData, error: inviteErr } = await adminClient.auth.admin.generateLink({
+      type: isNewAuthUser ? "invite" : "magiclink",
       email: body.work_email.trim().toLowerCase(),
       options: {
-        redirectTo: `${baseUrl}/hub`,
+        redirectTo: `${baseUrl}/rh`,
+        data: {
+          role: primaryRole,
+          employee_id: empRecord.id,
+          full_name: `${body.first_name} ${body.last_name}`,
+        },
       },
     });
+
+    if (inviteErr) {
+      console.error("Invitation generation error:", inviteErr);
+    } else {
+      // properties.action_link is the URL that triggers the password-setup flow
+      setupLink = (linkData as any)?.properties?.action_link
+        || (linkData as any)?.action_link
+        || undefined;
+      console.log(`Setup link generated for ${body.work_email}: ${setupLink ? 'OK' : 'MISSING'}`);
+    }
 
     const now = new Date().toISOString();
     await adminClient
@@ -292,11 +312,7 @@ Deno.serve(async (req) => {
       .update({ invitation_sent_at: now })
       .eq("id", empRecord.id);
 
-    if (inviteErr) {
-      console.error("Invitation generation error:", inviteErr);
-    }
-
-    // ── Step 5b: Send branded employee welcome email (BIENVENUE) ──
+    // ── Step 5b: Send branded employee welcome email (BIENVENUE) WITH setup link ──
     try {
       const hasEmployeePortal = (body.roles || []).some((r) =>
         ["admin", "employee", "supervisor", "sales", "kyc_agent", "billing_admin", "techops", "support"].includes(r)
@@ -311,6 +327,7 @@ Deno.serve(async (req) => {
         hasEmployeePortal,
         rhUrl: "https://nivra-telecom.ca/rh",
         employeeUrl: "https://nivra-telecom.ca/employee",
+        setupLink,                       // ← password-setup magic link embedded as primary CTA
         supportEmail: "support@nivra-telecom.ca",
       });
 
@@ -334,7 +351,7 @@ Deno.serve(async (req) => {
       }
     } catch (welcomeErr) {
       console.error("Employee welcome dispatch error:", welcomeErr);
-      // Non-blocking — magic link invite already sent above
+      // Non-blocking
     }
 
     // ── Step 6: Audit log ──

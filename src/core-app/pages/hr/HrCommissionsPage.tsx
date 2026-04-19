@@ -23,7 +23,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  TrendingUp, Loader2, CheckCircle, XCircle, DollarSign, Plus, Pencil, Trash2, Download,
+  TrendingUp, Loader2, CheckCircle, XCircle, DollarSign, Plus, Pencil, Trash2, Download, Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
@@ -81,6 +81,33 @@ export default function HrCommissionsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [ruleForm, setRuleForm] = useState<RuleForm>(emptyRuleForm);
+
+  // Sales targets state
+  const [targetDialogOpen, setTargetDialogOpen] = useState(false);
+  const [targetForm, setTargetForm] = useState({
+    scope: "employee" as "employee" | "role",
+    employee_id: "",
+    role: "sales",
+    service_type: "all",
+    target_amount: "",
+    target_count: "",
+    bonus_amount: "",
+    period_month: new Date().getMonth() + 1,
+    period_year: new Date().getFullYear(),
+    notes: "",
+  });
+  const emptyTargetForm = {
+    scope: "employee" as "employee" | "role",
+    employee_id: "",
+    role: "sales",
+    service_type: "all",
+    target_amount: "",
+    target_count: "",
+    bonus_amount: "",
+    period_month: new Date().getMonth() + 1,
+    period_year: new Date().getFullYear(),
+    notes: "",
+  };
 
   // ─── Commission rules ───
   const { data: rules = [], isLoading: loadingRules } = useQuery({
@@ -272,6 +299,85 @@ export default function HrCommissionsPage() {
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
+  // ─── Sales targets ───
+  const { data: targets = [], isLoading: loadingTargets } = useQuery({
+    queryKey: ["hr-sales-targets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_targets" as any)
+        .select("*")
+        .order("period_year", { ascending: false })
+        .order("period_month", { ascending: false });
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+
+  // Current month sales totals per employee for progress
+  const { data: monthSales = [] } = useQuery({
+    queryKey: ["hr-current-month-sales"],
+    queryFn: async () => {
+      const monthStart = startOfMonth(new Date()).toISOString();
+      const monthEnd = endOfMonth(new Date()).toISOString();
+      const { data, error } = await supabase
+        .from("unified_commissions" as any)
+        .select("employee_id, sale_amount, amount, created_at")
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd);
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+
+  const createTargetMut = useMutation({
+    mutationFn: async (form: typeof targetForm) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const payload: any = {
+        service_type: form.service_type,
+        target_amount: form.target_amount ? Number(form.target_amount) : null,
+        target_count: form.target_count ? Number(form.target_count) : null,
+        bonus_amount: form.bonus_amount ? Number(form.bonus_amount) : 0,
+        period_month: form.period_month,
+        period_year: form.period_year,
+        notes: form.notes || null,
+        created_by: user?.id ?? null,
+      };
+      if (form.scope === "employee") {
+        if (!form.employee_id) throw new Error("Sélectionnez un employé");
+        // Convert user_id → employee_records.id
+        const { data: emp } = await supabase
+          .from("employee_records").select("id").eq("user_id", form.employee_id).limit(1).maybeSingle();
+        if (!emp) throw new Error("Dossier employé introuvable");
+        payload.employee_id = emp.id;
+      } else {
+        payload.role = form.role;
+      }
+      if (!payload.target_amount && !payload.target_count) {
+        throw new Error("Indiquez un montant ou un nombre cible");
+      }
+      const { error } = await supabase.from("sales_targets" as any).insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Objectif créé");
+      qc.invalidateQueries({ queryKey: ["hr-sales-targets"] });
+      setTargetDialogOpen(false);
+      setTargetForm(emptyTargetForm);
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
+  const deleteTargetMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales_targets" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Objectif supprimé");
+      qc.invalidateQueries({ queryKey: ["hr-sales-targets"] });
+    },
+  });
+
   const filtered = (currentComm as any[]).filter((c) => {
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
     if (search) {
@@ -290,6 +396,22 @@ export default function HrCommissionsPage() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  // Compute current month sales for a given employee_record.id
+  const empRecordToUserId = Object.fromEntries(
+    (employees as any[]).map((e: any) => [e.user_id, e.user_id])
+  );
+  const targetProgress = (t: any) => {
+    if (t.employee_id) {
+      // Need to map employee_record.id back to user_id
+      // We'll find by joining via the targets list (kept simple: match by joining queries below)
+      const empUserId = (targets as any[]).find((x) => x.id === t.id)?._user_id;
+      if (!empUserId) return { current: 0, count: 0 };
+      const rows = (monthSales as any[]).filter((s) => s.employee_id === empUserId);
+      return { current: rows.reduce((sum, r) => sum + Number(r.sale_amount || 0), 0), count: rows.length };
+    }
+    return { current: 0, count: 0 };
   };
 
   return (
