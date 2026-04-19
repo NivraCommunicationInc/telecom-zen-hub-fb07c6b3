@@ -376,6 +376,36 @@ const ClientMyServices = () => {
     },
   });
 
+  // Direct streaming subscription via portal (no full new-order flow)
+  const subscribeStreamingMutation = useMutation({
+    mutationFn: async (vars: { streaming_service_id: string; plan_name: string }) => {
+      const { data, error } = await portalSupabase.functions.invoke("request-streaming-subscription", {
+        body: { streaming_service_id: vars.streaming_service_id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { ...data, plan_name: vars.plan_name };
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["client-billing-subscriptions-canonical"] });
+      queryClient.invalidateQueries({ queryKey: ["client-orders-in-progress"] });
+      logActivity("create", "streaming_subscription", data.subscription_id, {
+        plan_name: data.plan_name,
+      });
+      toast({
+        title: "Demande envoyée 🎬",
+        description: data.message || `${data.plan_name} en cours d'activation.`,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Impossible de souscrire",
+        description: err?.message || "Veuillez réessayer ou contacter le support.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForms = () => {
     setIssueType("");
     setIssueDescription("");
