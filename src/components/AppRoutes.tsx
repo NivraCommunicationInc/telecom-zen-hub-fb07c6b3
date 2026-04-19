@@ -355,6 +355,7 @@ const ClientNewOrder = lazy(() => import("@/pages/client/ClientNewOrder"));
 const ClientOrderConfirmation = lazy(() => import("@/pages/client/ClientOrderConfirmation"));
 const ClientChannels = lazy(() => import("@/pages/client/ClientChannels"));
 const ClientEquipmentReplacement = lazy(() => import("@/pages/client/ClientEquipmentReplacement"));
+const ClientEquipment = lazy(() => import("@/pages/client/ClientEquipment"));
 const ClientCancellations = lazy(() => import("@/pages/client/ClientCancellations"));
 const ClientAccessBlocked = lazy(() => import("@/pages/client/ClientAccessBlocked"));
 const ClientMonthlyInvoices = lazy(() => import("@/pages/client/ClientMonthlyInvoices"));
@@ -586,6 +587,7 @@ const AppRoutes = () => {
       <Route path="/portal/internet" element={<Navigate to="/portal/new-order" replace />} />
       <Route path="/portal/tv-order" element={<Navigate to="/portal/new-order" replace />} />
       <Route path="/portal/replacement" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientEquipmentReplacement /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
+      <Route path="/portal/equipment" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientEquipment /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/cancellations" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientCancellations /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/profile" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientProfile /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />
       <Route path="/portal/payments" element={<MaintenanceGuard><ClientAuthProvider><ClientProtectedRoute><ClientSecurityCheck><ClientPayments /></ClientSecurityCheck></ClientProtectedRoute></ClientAuthProvider></MaintenanceGuard>} />

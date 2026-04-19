@@ -58,6 +58,7 @@ const navGroups = [
     path: null,
     children: [
       { path: "/portal/services", label: "Mes services" },
+      { path: "/portal/equipment", label: "Mon équipement" },
       { path: "/portal/activation", label: "📶 Activation WiFi" },
       { path: "/portal/service-addresses", label: "Mes adresses" },
       { path: "/portal/orders", label: "Mes commandes" },
@@ -65,6 +66,7 @@ const navGroups = [
       { path: "/portal/channels", label: "Chaînes TV" },
       { path: "/portal/appointments", label: "Rendez-vous" },
       { path: "/portal/contracts", label: "Contrats" },
+      { path: "/portal/replacement", label: "Demande de remplacement" },
     ],
   },
   {
