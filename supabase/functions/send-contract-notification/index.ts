@@ -25,7 +25,7 @@ const handler = async (req: Request): Promise<Response> => {
         client_name: name || "Client",
         contract_name: contractName || "Contrat de service",
         contract_number: contractNumber || "",
-        portal_path: "/portal/contrats",
+        portal_path: "/portal/contracts",
       },
     });
 

@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
                 contractNumber,
                 contractId: newContract.id,
                 orderNumber: order.order_number || order.confirmation_number,
-                signatureUrl: `/client/contracts/${newContract.id}/sign`,
+                signatureUrl: "https://nivra-telecom.ca/portal/contracts",
               },
               priority: "normal",
               idempotency_key: idempotencyKey,

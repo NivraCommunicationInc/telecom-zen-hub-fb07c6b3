@@ -534,7 +534,7 @@ const emailTemplates: Record<string, { subject: string; getHtml: (vars: Record<s
       ${detailsCard([
         { label: "Nº contrat / Contract #", value: vars.contract_number || "N/A" },
       ])}
-    `, joinUrl(config.baseUrl, vars.portal_path || "/portal/contracts"), "Voir le contrat / View contract", config.supportEmail, config.supportPhone),
+    `, "https://nivra-telecom.ca/portal/contracts", "Voir le contrat / View contract", config.supportEmail, config.supportPhone),
   },
 
   contract_signed: {
