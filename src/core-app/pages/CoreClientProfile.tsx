@@ -17,12 +17,14 @@ import {
   Calendar, DollarSign, Wrench, TicketIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge, statusToVariant } from "@/core-app/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
 import { ClientNotesPanel } from "@/core-app/components/notes/ClientNotesPanel";
 import { ImpersonateButton } from "@/core-app/components/ImpersonateButton";
 import { ClientSupplierAccountSection } from "@/core-app/components/supplier-accounts/ClientSupplierAccountSection";
 import { ClientAdminNotesSection } from "@/core-app/components/admin-notes/ClientAdminNotesSection";
+import { ClientFullHistory } from "@/core-app/components/client-history/ClientFullHistory";
 
 // ── Section wrapper ──
 const Section = ({ title, icon: Icon, children, action }: { title: string; icon: any; children: React.ReactNode; action?: React.ReactNode }) => (
