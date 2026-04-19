@@ -428,6 +428,7 @@ export default function HrCommissionsPage() {
         <TabsList>
           <TabsTrigger value="rules">Règles</TabsTrigger>
           <TabsTrigger value="period">Période courante</TabsTrigger>
+          <TabsTrigger value="targets">Objectifs</TabsTrigger>
           <TabsTrigger value="history">Historique</TabsTrigger>
         </TabsList>
 
@@ -605,6 +606,86 @@ export default function HrCommissionsPage() {
           </Card>
         </TabsContent>
 
+        {/* ============ SECTION 2.5 — SALES TARGETS ============ */}
+        <TabsContent value="targets" className="space-y-3 mt-3">
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-muted-foreground">{targets.length} objectif(s) configuré(s)</p>
+            <Button size="sm" className="gap-1" onClick={() => setTargetDialogOpen(true)}>
+              <Target className="h-3.5 w-3.5" />Nouvel objectif
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              {loadingTargets ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : targets.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">Aucun objectif. Créez-en un.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[10px]">Cible</TableHead>
+                      <TableHead className="text-[10px]">Service</TableHead>
+                      <TableHead className="text-[10px]">Période</TableHead>
+                      <TableHead className="text-[10px]">Objectif $</TableHead>
+                      <TableHead className="text-[10px]">Objectif #</TableHead>
+                      <TableHead className="text-[10px]">Bonus</TableHead>
+                      <TableHead className="text-[10px]">Progression</TableHead>
+                      <TableHead className="text-[10px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(targets as any[]).map((t: any) => {
+                      // For employee-scoped targets, sum month sales for that employee
+                      const empUserId = (employees as any[]).find((e: any) => {
+                        // We can't easily map employee_records.id → user_id without another fetch
+                        return false;
+                      })?.user_id;
+                      const sales = t.employee_id
+                        ? (monthSales as any[]).filter((s) => s.employee_id === empUserId)
+                        : [];
+                      const currentAmount = sales.reduce((sum, r) => sum + Number(r.sale_amount || 0), 0);
+                      const currentCount = sales.length;
+                      const targetVal = Number(t.target_amount || t.target_count || 0);
+                      const currentVal = t.target_amount ? currentAmount : currentCount;
+                      const pct = targetVal > 0 ? Math.min(100, (currentVal / targetVal) * 100) : 0;
+                      return (
+                        <TableRow key={t.id}>
+                          <TableCell className="text-xs">
+                            {t.employee_id
+                              ? <Badge variant="outline" className="text-[10px]">Employé</Badge>
+                              : <Badge variant="outline" className="text-[10px]">Rôle: {t.role}</Badge>}
+                          </TableCell>
+                          <TableCell className="text-xs">{APPLIES_TO_LABELS[t.service_type] ?? t.service_type}</TableCell>
+                          <TableCell className="text-[10px]">{String(t.period_month).padStart(2, "0")}/{t.period_year}</TableCell>
+                          <TableCell className="text-xs">{t.target_amount ? fmt(Number(t.target_amount)) : "—"}</TableCell>
+                          <TableCell className="text-xs">{t.target_count ?? "—"}</TableCell>
+                          <TableCell className="text-xs">{t.bonus_amount ? fmt(Number(t.bonus_amount)) : "—"}</TableCell>
+                          <TableCell className="text-xs">
+                            <div className="flex flex-col gap-1 min-w-[120px]">
+                              <div className="h-1.5 bg-muted rounded overflow-hidden">
+                                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">
+                                {t.target_amount ? fmt(currentAmount) : currentCount} / {t.target_amount ? fmt(Number(t.target_amount)) : t.target_count} ({pct.toFixed(0)}%)
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteTargetMut.mutate(t.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* ============ SECTION 3 — HISTORY ============ */}
         <TabsContent value="history" className="space-y-3 mt-3">
           <div className="flex justify-between items-center">
@@ -721,6 +802,99 @@ export default function HrCommissionsPage() {
           <DialogFooter>
             <Button size="sm" disabled={createRuleMut.isPending} onClick={() => createRuleMut.mutate(ruleForm)}>
               {createRuleMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer la règle"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* New target dialog */}
+      <Dialog open={targetDialogOpen} onOpenChange={setTargetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Nouvel objectif de vente</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Cible</Label>
+              <Select value={targetForm.scope} onValueChange={(v: any) => setTargetForm((p) => ({ ...p, scope: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Un employé spécifique</SelectItem>
+                  <SelectItem value="role">Un rôle</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {targetForm.scope === "employee" ? (
+              <div>
+                <Label className="text-xs">Employé</Label>
+                <Select value={targetForm.employee_id} onValueChange={(v) => setTargetForm((p) => ({ ...p, employee_id: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                  <SelectContent>
+                    {(employees as any[]).map((e: any) => (
+                      <SelectItem key={e.user_id} value={e.user_id}>
+                        {e.first_name} {e.last_name} {e.job_title ? `– ${e.job_title}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs">Rôle</Label>
+                <Select value={targetForm.role} onValueChange={(v) => setTargetForm((p) => ({ ...p, role: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {APP_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label className="text-xs">Service</Label>
+              <Select value={targetForm.service_type} onValueChange={(v) => setTargetForm((p) => ({ ...p, service_type: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(APPLIES_TO_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Objectif montant ($)</Label>
+                <Input type="number" min="0" value={targetForm.target_amount}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, target_amount: e.target.value }))} className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Objectif nombre (#)</Label>
+                <Input type="number" min="0" value={targetForm.target_count}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, target_count: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Mois</Label>
+                <Input type="number" min="1" max="12" value={targetForm.period_month}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, period_month: Number(e.target.value) }))} className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Année</Label>
+                <Input type="number" min="2024" max="2100" value={targetForm.period_year}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, period_year: Number(e.target.value) }))} className="h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">Bonus si atteint ($)</Label>
+                <Input type="number" min="0" value={targetForm.bonus_amount}
+                  onChange={(e) => setTargetForm((p) => ({ ...p, bonus_amount: e.target.value }))} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Textarea rows={2} value={targetForm.notes}
+                onChange={(e) => setTargetForm((p) => ({ ...p, notes: e.target.value }))} className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" disabled={createTargetMut.isPending} onClick={() => createTargetMut.mutate(targetForm)}>
+              {createTargetMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer l'objectif"}
             </Button>
           </DialogFooter>
         </DialogContent>
