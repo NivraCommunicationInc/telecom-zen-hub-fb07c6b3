@@ -23,7 +23,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  TrendingUp, Loader2, CheckCircle, XCircle, DollarSign, Plus, Pencil, Trash2, Download,
+  TrendingUp, Loader2, CheckCircle, XCircle, DollarSign, Plus, Pencil, Trash2, Download, Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
