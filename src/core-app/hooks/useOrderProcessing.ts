@@ -286,6 +286,8 @@ const INVALIDATION_KEYS = [
   "client-billing-subscriptions-canonical",
   "client-billing-invoices-canonical",
   "client-billing-payments-canonical",
+  "billing-invoices",
+  "billing-payments",
   "ledger-history-v2",
   "ledger-balance",
   "service-addresses",
@@ -293,6 +295,9 @@ const INVALIDATION_KEYS = [
   "client-services-orders",
   "overdue-count-unified",
   "admin-activity-logs",
+  "client-internal-notes-shared",
+  "core-client-notes",
+  "account-360-notes",
 ];
 
 /* ─── Email queue helper ─── */

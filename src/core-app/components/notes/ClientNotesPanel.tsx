@@ -3,15 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  Check,
   ChevronDown,
   ChevronUp,
   Copy,
   Loader2,
-  Pencil,
   Plus,
-  Trash2,
-  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -44,11 +40,8 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingBody, setEditingBody] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // NOTE: Notes are immutable audit records. Edit/Delete intentionally removed.
 
   const notesQueryKey = useMemo(() => ["client-internal-notes-shared", clientId], [clientId]);
 
