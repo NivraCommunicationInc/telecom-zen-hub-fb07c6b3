@@ -21,6 +21,15 @@ interface CustomerInfo {
   };
 }
 
+export interface PayPalPayerAddress {
+  address_line_1?: string;
+  address_line_2?: string;
+  admin_area_2?: string; // city
+  admin_area_1?: string; // province/state
+  postal_code?: string;
+  country_code?: string;
+}
+
 interface PayPalButtonProps {
   amount: number;
   invoiceId?: string;
@@ -29,7 +38,7 @@ interface PayPalButtonProps {
   customer?: CustomerInfo;
   /** Payment number from Nivra Core — used to notify backend after capture */
   paymentNumber?: string;
-  onSuccess?: (captureId: string) => void;
+  onSuccess?: (captureId: string, payerAddress?: PayPalPayerAddress | null) => void;
   onError?: (error: string) => void;
   onCancel?: () => void;
   disabled?: boolean;
