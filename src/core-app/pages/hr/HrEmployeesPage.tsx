@@ -233,17 +233,35 @@ export default function HrEmployeesPage() {
                           : "—"}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(corePath(`/hr/employees/${emp.id}`));
-                          }}
-                        >
-                          <FolderOpen className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          {emp.status !== "active" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              title="Renvoyer l'invitation"
+                              disabled={resendingId === emp.id}
+                              onClick={(e) => handleResend(e, emp.id, emp.work_email)}
+                            >
+                              {resendingId === emp.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(corePath(`/hr/employees/${emp.id}`));
+                            }}
+                          >
+                            <FolderOpen className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
