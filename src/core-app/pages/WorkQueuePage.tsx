@@ -312,14 +312,17 @@ const WorkQueuePage = () => {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
           <FilterSelect label="Statut" value={statusFilter} onChange={setStatusFilter}
             options={["tous", "submitted", "pending", "in_progress", "activated", "completed", "cancelled"]} />
           <FilterSelect label="Type" value={typeFilter} onChange={setTypeFilter}
             options={["tous", "internet", "mobile", "tv", "bundle"]} />
           <FilterSelect label="SLA" value={slaFilter} onChange={setSlaFilter}
             options={["tous", "depasse", "urgent", "normal"]}
-            renderOption={(v) => v === "depasse" ? "dépassé (>24h)" : v === "urgent" ? "urgent (<4h)" : v === "normal" ? "normal" : v} />
+            renderOption={(v) => v === "depasse" ? `dépassé (>${SLA_BREACH_HOURS}h)` : v === "urgent" ? "urgent (<4h)" : v === "normal" ? "normal" : v} />
+          <FilterSelect label="KYC" value={kycFilter} onChange={setKycFilter}
+            options={["tous", "pending", "approved", "not_required", "rejected"]}
+            renderOption={(v) => v === "tous" ? "tous" : translateKyc(v)} />
           <FilterSelect label="Zone" value={zoneFilter} onChange={setZoneFilter}
             options={["tous", "Montréal", "Laval", "Longueuil", "Rive-Nord", "Rive-Sud", "Autre"]} />
         </div>
