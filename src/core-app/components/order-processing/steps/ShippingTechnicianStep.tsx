@@ -182,6 +182,44 @@ export function ShippingTechnicianStep({ proc }: Props) {
     } finally { setLoading(null); }
   };
 
+  const handleReschedule = async () => {
+    if (!appointment?.id || !newSlotIso) {
+      toast.error("Sélectionnez un nouveau créneau");
+      return;
+    }
+    setLoading("reschedule");
+    try {
+      const oldAt = appointment.scheduled_at;
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          scheduled_at: newSlotIso,
+          status: "rescheduled",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", appointment.id);
+      if (error) throw error;
+
+      // Auto note on order
+      try {
+        await proc.addNote(
+          `[Rendez-vous replanifié] ${oldAt ? new Date(oldAt).toLocaleString("fr-CA") : "—"} → ${new Date(newSlotIso).toLocaleString("fr-CA")}`
+        );
+      } catch {}
+
+      toast.success("Rendez-vous replanifié");
+      setRescheduleOpen(false);
+      setNewSlotIso(null);
+      await queryClient.invalidateQueries({ queryKey: ["order-processing"] });
+      await queryClient.invalidateQueries({ queryKey: ["appointment-slot-availability"] });
+    } catch (err: any) {
+      console.error("[Reschedule] failed:", err);
+      toast.error(err?.message || "Replanification échouée");
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const fmtDateTime = (d: string | null | undefined) => {
     if (!d) return "—";
     try { return format(new Date(d), "d MMM yyyy HH:mm", { locale: fr }); } catch { return "—"; }
