@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, FileText, Receipt, Mail, Clock,
   DollarSign, Bell, User, LogOut, ChevronLeft, ChevronRight,
-  Briefcase, Target,
+  Briefcase, Target, Inbox, Upload,
 } from "lucide-react";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -35,6 +35,7 @@ const navGroups = [
     label: "Documents",
     items: [
       { label: "Documents fiscaux", href: `${RH_BASE}/documents-fiscaux`, icon: FileText },
+      { label: "Mes documents RH", href: `${RH_BASE}/documents`, icon: Upload },
       { label: "Lettres d'emploi", href: `${RH_BASE}/lettres`, icon: Mail },
     ],
   },
@@ -42,6 +43,12 @@ const navGroups = [
     label: "Temps",
     items: [
       { label: "Horaire & Punch", href: `${RH_BASE}/horaire`, icon: Clock },
+    ],
+  },
+  {
+    label: "Demandes",
+    items: [
+      { label: "Mes demandes", href: `${RH_BASE}/demandes`, icon: Inbox },
     ],
   },
   {

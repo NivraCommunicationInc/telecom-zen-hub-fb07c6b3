@@ -20,7 +20,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DollarSign, Plus, CheckCircle, Eye, FileText, Loader2, Calendar,
+  DollarSign, Plus, CheckCircle, Eye, FileText, Loader2, Calendar, Download, Send, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -156,6 +156,117 @@ export default function HrPayrollPage() {
     onError: (e: Error) => toast.error("Erreur", { description: e.message }),
   });
 
+  // Phase 4 — Bi-monthly auto-generate (1st or 15th of current month)
+  const autoGenerateMut = useMutation({
+    mutationFn: async (which: "first" | "fifteenth") => {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      let start: Date, end: Date, label: string;
+      if (which === "first") {
+        // Period covers previous month's 16th → end of month
+        const prev = new Date(y, m - 1, 16);
+        const endPrev = new Date(y, m, 0); // last day of previous month
+        start = prev; end = endPrev;
+        label = `Paie ${format(now, "1 MMM yyyy", { locale: fr })} (16-${endPrev.getDate()} ${format(prev, "MMM", { locale: fr })})`;
+      } else {
+        // Period covers 1st → 15th of current month
+        start = new Date(y, m, 1); end = new Date(y, m, 15);
+        label = `Paie ${format(now, "15 MMM yyyy", { locale: fr })} (1-15 ${format(start, "MMM", { locale: fr })})`;
+      }
+      const startISO = start.toISOString().slice(0, 10);
+      const endISO = end.toISOString().slice(0, 10);
+
+      // Check if period already exists
+      const { data: existing } = await supabase.from("pay_periods")
+        .select("id").eq("start_date", startISO).eq("end_date", endISO).maybeSingle();
+      if (existing) throw new Error("Cette période existe déjà");
+
+      const { data: period, error: pErr } = await supabase.from("pay_periods").insert({
+        period_name: label, start_date: startISO, end_date: endISO, status: "draft",
+      }).select("id").single();
+      if (pErr) throw pErr;
+
+      // Build entries for active employees (hours from time_entries, base from employee_records)
+      const { data: emps } = await supabase
+        .from("employee_records")
+        .select("user_id, base_salary, hourly_rate, salary_type")
+        .eq("status", "active")
+        .not("user_id", "is", null);
+
+      let created = 0;
+      for (const emp of emps ?? []) {
+        if (!emp.user_id) continue;
+        // Aggregate hours
+        const { data: hrs } = await supabase
+          .from("time_entries")
+          .select("total_hours")
+          .eq("user_id", emp.user_id)
+          .gte("punch_in", `${startISO}T00:00:00Z`)
+          .lte("punch_in", `${endISO}T23:59:59Z`)
+          .not("total_hours", "is", null);
+        const totalHours = (hrs ?? []).reduce((s: number, e: any) => s + (Number(e.total_hours) || 0), 0);
+
+        // Aggregate commissions for the period
+        const { data: comms } = await supabase
+          .from("unified_commissions" as any)
+          .select("amount")
+          .eq("employee_id", emp.user_id)
+          .in("status", ["validated", "payable", "pending"])
+          .gte("created_at", `${startISO}T00:00:00Z`)
+          .lte("created_at", `${endISO}T23:59:59Z`);
+        const commTotal = ((comms as any[]) ?? []).reduce((s, c) => s + Number(c.amount || 0), 0);
+
+        const baseHalf = emp.salary_type === "hourly"
+          ? totalHours * Number(emp.hourly_rate || 0)
+          : Number(emp.base_salary || 0) / 24; // bi-monthly => 24 periods per year
+        const gross = baseHalf + commTotal;
+
+        const { error: eErr } = await supabase.from("payroll_entries").insert({
+          pay_period_id: period.id,
+          user_id: emp.user_id,
+          base_salary: Math.round(baseHalf * 100) / 100,
+          commission_total: Math.round(commTotal * 100) / 100,
+          bonus_total: 0,
+          hours_worked: Math.round(totalHours * 100) / 100,
+          overtime_hours: 0,
+          gross_pay: Math.round(gross * 100) / 100,
+          deductions_total: 0,
+          net_pay: Math.round(gross * 100) / 100,
+          status: "draft",
+        });
+        if (!eErr) created++;
+      }
+      return { periodId: period.id, created };
+    },
+    onSuccess: (r) => {
+      toast.success(`Période créée — ${r.created} fiche(s) générée(s)`);
+      qc.invalidateQueries({ queryKey: ["hr-pay-periods"] });
+      setSelectedPeriod(r.periodId);
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
+  // Phase 4 — Notify employees that their payslip is ready
+  const notifyMut = useMutation({
+    mutationFn: async () => {
+      const approved = entries.filter((e: any) => e.status === "approved" || e.status === "paid");
+      let sent = 0;
+      for (const e of approved as any[]) {
+        const { error } = await supabase.from("employee_notifications").insert({
+          user_id: e.user_id,
+          title: "Fiche de paie disponible",
+          body: `Votre fiche de paie pour ${e.pay_periods?.period_name || "la période en cours"} est disponible. Net: ${(e.net_pay || 0).toFixed(2)} $`,
+          notification_type: "payroll",
+        });
+        if (!error) sent++;
+      }
+      return sent;
+    },
+    onSuccess: (n) => toast.success(`${n} notification(s) envoyée(s) aux employés`),
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
   const fmt = (n: number) => `${n.toFixed(2)} $`;
   const filteredEntries = filterStatus === "all" ? entries : entries.filter((e: any) => e.status === filterStatus);
 
@@ -164,6 +275,39 @@ export default function HrPayrollPage() {
     acc[cl.payroll_entry_id].push(cl);
     return acc;
   }, {});
+
+  // CSV export
+  const exportCSV = () => {
+    if (entries.length === 0) {
+      toast.error("Aucune fiche à exporter");
+      return;
+    }
+    const cols = [
+      ["Numéro", "Employé", "Heures", "Base ($)", "Commission ($)", "Bonus ($)", "Déductions ($)", "Brut ($)", "Net ($)", "Statut"],
+    ];
+    const rows = entries.map((e: any) => [
+      e.payroll_number || "",
+      (e._profile?.full_name || e.user_id.slice(0, 8)),
+      e.hours_worked,
+      e.base_salary,
+      e.commission_total,
+      e.bonus_total,
+      e.deductions_total,
+      e.gross_pay,
+      e.net_pay,
+      e.status,
+    ]);
+    const csv = [...cols, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `paie_${selectedPeriod?.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exporté");
+  };
+
 
   // KPIs
   const totalGross = entries.reduce((s: number, e: any) => s + (e.gross_pay || 0), 0);
@@ -180,39 +324,60 @@ export default function HrPayrollPage() {
           </h1>
           <p className="text-xs text-muted-foreground">Périodes, fiches de paie, approbation et paiement</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" />Nouvelle période</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Créer une période de paie</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Nom de la période</Label>
-                <Input value={newPeriod.period_name} onChange={(e) => setNewPeriod(p => ({ ...p, period_name: e.target.value }))}
-                  placeholder="Paie Mars 2026 - 1ère quinzaine" className="h-8 text-xs" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Début</Label>
-                  <Input type="date" value={newPeriod.start_date}
-                    onChange={(e) => setNewPeriod(p => ({ ...p, start_date: e.target.value }))} className="h-8 text-xs" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Fin</Label>
-                  <Input type="date" value={newPeriod.end_date}
-                    onChange={(e) => setNewPeriod(p => ({ ...p, end_date: e.target.value }))} className="h-8 text-xs" />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button size="sm" disabled={!newPeriod.period_name || !newPeriod.start_date || !newPeriod.end_date || createPeriodMut.isPending}
-                onClick={() => createPeriodMut.mutate()}>
-                {createPeriodMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer"}
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
+            onClick={() => autoGenerateMut.mutate("first")} className="gap-1.5">
+            <Wand2 className="h-3.5 w-3.5" />Générer paie du 1er
+          </Button>
+          <Button size="sm" variant="outline" disabled={autoGenerateMut.isPending}
+            onClick={() => autoGenerateMut.mutate("fifteenth")} className="gap-1.5">
+            <Wand2 className="h-3.5 w-3.5" />Générer paie du 15
+          </Button>
+          {selectedPeriod && (
+            <>
+              <Button size="sm" variant="outline" onClick={exportCSV} className="gap-1.5">
+                <Download className="h-3.5 w-3.5" />Export CSV
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <Button size="sm" variant="outline" disabled={notifyMut.isPending}
+                onClick={() => notifyMut.mutate()} className="gap-1.5">
+                <Send className="h-3.5 w-3.5" />Envoyer fiches
+              </Button>
+            </>
+          )}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" />Période manuelle</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Créer une période de paie</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nom de la période</Label>
+                  <Input value={newPeriod.period_name} onChange={(e) => setNewPeriod(p => ({ ...p, period_name: e.target.value }))}
+                    placeholder="Paie Mars 2026 - 1ère quinzaine" className="h-8 text-xs" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Début</Label>
+                    <Input type="date" value={newPeriod.start_date}
+                      onChange={(e) => setNewPeriod(p => ({ ...p, start_date: e.target.value }))} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Fin</Label>
+                    <Input type="date" value={newPeriod.end_date}
+                      onChange={(e) => setNewPeriod(p => ({ ...p, end_date: e.target.value }))} className="h-8 text-xs" />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button size="sm" disabled={!newPeriod.period_name || !newPeriod.start_date || !newPeriod.end_date || createPeriodMut.isPending}
+                  onClick={() => createPeriodMut.mutate()}>
+                  {createPeriodMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Créer"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Periods list */}

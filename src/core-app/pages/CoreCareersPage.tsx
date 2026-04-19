@@ -1,37 +1,311 @@
-/** CoreCareersPage — Transferred from AdminCareers.tsx */
+/**
+ * CoreCareersPage — Recruitment module: list, create, edit, close job postings.
+ * Phase 8 rebuild — full CRUD with applications counts and pipeline link.
+ */
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Briefcase, Plus, Pencil, MapPin, Clock } from "lucide-react";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Briefcase, Plus, Pencil, MapPin, Clock, Users, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { corePath } from "@/core-app/lib/corePaths";
+
+type JobForm = {
+  title: string;
+  department: string;
+  location: string;
+  type: string;
+  description: string;
+  requirements: string;
+  salary_min: string;
+  salary_max: string;
+  expires_at: string;
+  is_active: boolean;
+};
+
+const EMPTY_FORM: JobForm = {
+  title: "", department: "", location: "", type: "full-time",
+  description: "", requirements: "", salary_min: "", salary_max: "",
+  expires_at: "", is_active: true,
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  "full-time": "Temps plein",
+  "part-time": "Temps partiel",
+  "field-agent": "Agent terrain",
+  "technician": "Technicien",
+  "internship": "Stage",
+};
 
 export default function CoreCareersPage() {
-  const queryClient = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ title: "", department: "", location: "", type: "full-time", description: "", is_active: true });
-  const { data: jobs = [] } = useQuery({ queryKey: ["core-careers"], queryFn: async () => { const { data } = await supabase.from("job_postings" as any).select("*").order("created_at", { ascending: false }); return (data as any[]) || []; } });
-  const createJob = useMutation({ mutationFn: async () => { await supabase.from("job_postings" as any).insert(form as any); }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["core-careers"] }); setShowCreate(false); toast.success("Poste créé"); } });
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [form, setForm] = useState<JobForm>(EMPTY_FORM);
+
+  const { data: jobs = [], isLoading } = useQuery({
+    queryKey: ["core-careers"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("jobs")
+        .select("*")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const { data: counts = {} } = useQuery({
+    queryKey: ["core-careers-app-counts", jobs.map((j: any) => j.id).join(",")],
+    enabled: jobs.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("job_applications")
+        .select("job_id")
+        .in("job_id", jobs.map((j: any) => j.id));
+      const map: Record<string, number> = {};
+      for (const a of data ?? []) {
+        map[a.job_id] = (map[a.job_id] ?? 0) + 1;
+      }
+      return map;
+    },
+  });
+
+  const saveJob = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        title: form.title,
+        department: form.department || null,
+        location: form.location || null,
+        type: form.type,
+        description: form.description || null,
+        requirements: form.requirements || null,
+        salary_min: form.salary_min ? Number(form.salary_min) : null,
+        salary_max: form.salary_max ? Number(form.salary_max) : null,
+        expires_at: form.expires_at || null,
+        is_active: form.is_active,
+      };
+      if (editing) {
+        const { error } = await supabase.from("jobs").update(payload).eq("id", editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("jobs").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success(editing ? "Poste mis à jour" : "Poste créé");
+      qc.invalidateQueries({ queryKey: ["core-careers"] });
+      setShowForm(false);
+      setEditing(null);
+      setForm(EMPTY_FORM);
+    },
+    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+  });
+
+  const closeJob = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("jobs").update({ is_active: false }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Poste fermé");
+      qc.invalidateQueries({ queryKey: ["core-careers"] });
+    },
+    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+  });
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setShowForm(true);
+  };
+  const openEdit = (j: any) => {
+    setEditing(j);
+    setForm({
+      title: j.title ?? "",
+      department: j.department ?? "",
+      location: j.location ?? "",
+      type: j.type ?? "full-time",
+      description: j.description ?? "",
+      requirements: j.requirements ?? "",
+      salary_min: j.salary_min?.toString() ?? "",
+      salary_max: j.salary_max?.toString() ?? "",
+      expires_at: j.expires_at ?? "",
+      is_active: j.is_active ?? true,
+    });
+    setShowForm(true);
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between"><div><h1 className="text-xl font-bold text-[hsl(var(--core-text-primary))]">Carrières</h1><p className="text-sm text-[hsl(var(--core-text-secondary))]">Gestion des offres d'emploi</p></div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"><Plus className="w-4 h-4" /> Nouveau poste</Button></div>
-      <div className="space-y-2">{jobs.length === 0 ? <div className="text-center py-12 text-[hsl(var(--core-text-label))]">Aucune offre d'emploi</div> : jobs.map((j: any) => (
-        <div key={j.id} className="p-4 rounded-lg border border-[hsl(220,15%,16%)] bg-[hsl(220,15%,11%)]">
-          <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-[hsl(var(--core-text-primary))]">{j.title}</h3><Badge className={j.is_active ? "bg-emerald-600/15 text-emerald-400 border-0" : "bg-[hsl(220,15%,16%)] text-[hsl(var(--core-text-label))] border-0"}>{j.is_active ? "Actif" : "Inactif"}</Badge></div>
-          <div className="flex items-center gap-3 mt-1 text-xs text-[hsl(var(--core-text-secondary))]"><span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{j.department || "—"}</span><span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{j.location || "—"}</span><span className="flex items-center gap-1"><Clock className="w-3 h-3" />{j.type}</span></div>
+    <div className="space-y-4 max-w-6xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-primary" />
+            Recrutement — Postes ouverts
+          </h1>
+          <p className="text-xs text-muted-foreground">{jobs.length} poste(s) au total</p>
         </div>
-      ))}</div>
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="bg-[hsl(220,15%,11%)] border-[hsl(220,15%,20%)] text-[hsl(var(--core-text-primary))]"><DialogHeader><DialogTitle>Nouveau poste</DialogTitle></DialogHeader>
-          <div className="space-y-3"><div><Label>Titre</Label><Input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} className="bg-[hsl(220,15%,14%)] border-[hsl(220,15%,20%)]" /></div><div className="grid grid-cols-2 gap-3"><div><Label>Département</Label><Input value={form.department} onChange={(e) => setForm({...form, department: e.target.value})} className="bg-[hsl(220,15%,14%)] border-[hsl(220,15%,20%)]" /></div><div><Label>Lieu</Label><Input value={form.location} onChange={(e) => setForm({...form, location: e.target.value})} className="bg-[hsl(220,15%,14%)] border-[hsl(220,15%,20%)]" /></div></div><div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} className="bg-[hsl(220,15%,14%)] border-[hsl(220,15%,20%)]" /></div></div>
-          <DialogFooter><Button variant="outline" onClick={() => setShowCreate(false)} className="border-[hsl(220,15%,20%)] bg-transparent">Annuler</Button><Button onClick={() => createJob.mutate()} className="bg-emerald-600 hover:bg-emerald-700 text-white">Créer</Button></DialogFooter></DialogContent>
+        <Button size="sm" onClick={openCreate} className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Nouveau poste
+        </Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : jobs.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">Aucune offre d'emploi.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-[10px]">Titre</TableHead>
+                  <TableHead className="text-[10px]">Département</TableHead>
+                  <TableHead className="text-[10px]">Type</TableHead>
+                  <TableHead className="text-[10px]">Lieu</TableHead>
+                  <TableHead className="text-[10px]">Publié</TableHead>
+                  <TableHead className="text-[10px]">Candidatures</TableHead>
+                  <TableHead className="text-[10px]">Statut</TableHead>
+                  <TableHead className="text-[10px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {jobs.map((j: any) => (
+                  <TableRow key={j.id}>
+                    <TableCell className="text-xs font-medium">{j.title}</TableCell>
+                    <TableCell className="text-xs">{j.department || "—"}</TableCell>
+                    <TableCell className="text-xs">{TYPE_LABEL[j.type] || j.type}</TableCell>
+                    <TableCell className="text-xs">
+                      {j.location ? (
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{j.location}</span>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-[10px]">
+                      {format(new Date(j.created_at), "d MMM yyyy", { locale: fr })}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Link to={corePath("/hr/applications")} className="text-primary hover:underline flex items-center gap-1">
+                        <Users className="h-3 w-3" />{counts[j.id] ?? 0}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={j.is_active ? "default" : "secondary"} className="text-[10px]">
+                        {j.is_active ? "Actif" : "Fermé"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => openEdit(j)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        {j.is_active && (
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive"
+                            disabled={closeJob.isPending}
+                            onClick={() => closeJob.mutate(j.id)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Modifier le poste" : "Nouveau poste"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Titre *</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-8 text-xs" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Département</Label>
+                <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Type</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full-time">Temps plein</SelectItem>
+                    <SelectItem value="part-time">Temps partiel</SelectItem>
+                    <SelectItem value="field-agent">Agent terrain</SelectItem>
+                    <SelectItem value="technician">Technicien</SelectItem>
+                    <SelectItem value="internship">Stage</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Lieu</Label>
+              <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="h-8 text-xs" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Salaire min ($)</Label>
+                <Input type="number" value={form.salary_min} onChange={(e) => setForm({ ...form, salary_min: e.target.value })} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Salaire max ($)</Label>
+                <Input type="number" value={form.salary_max} onChange={(e) => setForm({ ...form, salary_max: e.target.value })} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Expire le</Label>
+                <Input type="date" value={form.expires_at} onChange={(e) => setForm({ ...form, expires_at: e.target.value })} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Description</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Exigences</Label>
+              <Textarea value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} rows={3} className="text-xs" />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="active"
+                checked={form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+              />
+              <Label htmlFor="active" className="text-xs cursor-pointer">Actif (visible publiquement)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>Annuler</Button>
+            <Button size="sm" disabled={!form.title || saveJob.isPending} onClick={() => saveJob.mutate()}>
+              {saveJob.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (editing ? "Enregistrer" : "Créer")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );
