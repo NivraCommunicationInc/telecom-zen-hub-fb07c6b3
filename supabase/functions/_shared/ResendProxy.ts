@@ -326,8 +326,8 @@ export async function enqueueEmail(params: EnqueueEmailParams): Promise<EnqueueR
       status: "sent", // Mark as sent since it's now in pgmq
       attempts: 1,
       max_attempts: params.maxAttempts || 5,
-    }).then(({ error }) => {
-      if (error) console.warn("[enqueueEmail] email_queue tracking insert failed:", error.message);
+    }).then((result: { error?: { message?: string } | null }) => {
+      if (result.error) console.warn("[enqueueEmail] email_queue tracking insert failed:", result.error.message);
     });
 
     console.log(`[enqueueEmail] Queued to pgmq: id=${messageId} to=${params.to} template=${params.templateKey || "custom_html"}`);
