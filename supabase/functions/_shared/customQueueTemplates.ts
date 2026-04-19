@@ -377,13 +377,13 @@ export function renderQueueTemplate(
           icon: "check",
           greeting,
           bodyText: "Nous confirmons la réception de votre paiement.",
-          cardTitle: "Détails du paiement",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
+            ["Montant", amount],
             ["Méthode", String(method)],
             ["Référence", String(reference)],
             ["Date", fmtDate(v.payment_date || v.PAYMENT_DATE || new Date().toISOString())],
-            ["Montant payé", amount],
           ],
           ctaPrimaryUrl: invoiceUrl,
           ctaPrimaryLabel: "Voir ma facture",
@@ -487,7 +487,6 @@ export function renderQueueTemplate(
     case "payment_failed":
     case "paypal_charge_failed_retry": {
       const amount = money(v.amount ?? v.total ?? v.amount_due ?? v.AMOUNT);
-      const attempt = esc(v.attempt || v.attempt_number || "1");
       const paymentUrl = String(v.payment_url || `${portalUrl}/facturation`);
       return {
         subject: `Action requise — Paiement non traité`,
@@ -495,14 +494,12 @@ export function renderQueueTemplate(
           preheader: `Votre paiement n'a pas été traité.`,
           badge: "ACTION REQUISE",
           heroTitle: "Votre paiement n'a pas été traité",
-          heroSub: "Une action est requise pour maintenir votre service.",
           icon: "alert",
           greeting,
           bodyText: "Le traitement de votre paiement a échoué. Mettez à jour votre méthode de paiement pour éviter toute interruption.",
-          cardTitle: "Détails du paiement",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Tentative", String(attempt)],
             ["Montant dû", amount],
           ],
           ctaPrimaryUrl: paymentUrl,
@@ -613,7 +610,6 @@ export function renderQueueTemplate(
     case "identity_verification_requested": {
       const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
       const expires = fmtDate(v.expires_at || v.EXPIRES_AT);
-      const maxAttempts = esc(v.max_attempts || "3");
       return {
         subject: `Vérification d'identité requise — Commande ${orderNum}`,
         html: shell({
@@ -628,7 +624,6 @@ export function renderQueueTemplate(
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Expire le", expires],
-            ["Tentatives", `1 / ${String(maxAttempts)}`],
           ],
           ctaPrimaryUrl: verificationUrl,
           ctaPrimaryLabel: "Soumettre mes documents",
@@ -644,15 +639,15 @@ export function renderQueueTemplate(
           preheader: `Votre identité a été vérifiée avec succès.`,
           badge: "IDENTITÉ VÉRIFIÉE",
           heroTitle: "Votre identité a été vérifiée",
-          heroSub: "Votre dossier est complet. Votre service est en cours d'activation.",
+          heroSub: "Votre dossier est complet.",
           icon: "check",
           greeting,
           bodyText: "Merci d'avoir soumis vos documents. Tout est en ordre.",
-          cardTitle: "Vérification",
+          cardTitle: "Détails",
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
-            ["Vérifié le", fmtDate(v.verified_at || new Date().toISOString())],
             ["Statut", "Approuvé"],
+            ["Date", fmtDate(v.verified_at || new Date().toISOString())],
           ],
         }),
       };
@@ -662,14 +657,12 @@ export function renderQueueTemplate(
     case "identity_rejected": {
       const verificationUrl = String(v.verification_url || `${portalUrl}/kyc`);
       const reason = esc(v.reason || v.rejection_reason || "Document non valide");
-      const remaining = esc(v.attempts_remaining || v.remaining_attempts || "—");
       return {
         subject: `Action requise — Document d'identité refusé`,
         html: shell({
           preheader: `Votre document n'a pas pu être vérifié.`,
           badge: "ACTION REQUISE",
           heroTitle: "Document d'identité refusé",
-          heroSub: "Votre document n'a pas pu être vérifié.",
           icon: "alert",
           greeting,
           bodyText: "Veuillez soumettre un nouveau document pour finaliser votre vérification.",
@@ -677,10 +670,9 @@ export function renderQueueTemplate(
           cardRows: [
             ["Commande", `#${String(orderNum).replace(/^#/, "")}`],
             ["Raison", String(reason)],
-            ["Tentatives restantes", String(remaining)],
           ],
           ctaPrimaryUrl: verificationUrl,
-          ctaPrimaryLabel: "Resoumettre mon document",
+          ctaPrimaryLabel: "Resoumettre",
         }),
       };
     }
