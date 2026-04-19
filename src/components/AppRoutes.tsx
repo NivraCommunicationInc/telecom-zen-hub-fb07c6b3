@@ -198,6 +198,7 @@ const Index = lazy(() => import("@/pages/Index"));
 const About = lazy(() => import("@/pages/About"));
 const Careers = lazy(() => import("@/pages/Careers"));
 const JobApplication = lazy(() => import("@/pages/JobApplication"));
+const JobListings = lazy(() => import("@/pages/JobListings"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
@@ -481,6 +482,7 @@ const AppRoutes = () => {
       <Route path="/compare" element={<MaintenanceGuard><PublicLayout><ComparePlans /></PublicLayout></MaintenanceGuard>} />
       <Route path="/television-sur-mesure" element={<MaintenanceGuard><PublicLayout><TVConfigurator /></PublicLayout></MaintenanceGuard>} />
       <Route path="/careers" element={<MaintenanceGuard><PublicLayout><Careers /></PublicLayout></MaintenanceGuard>} />
+      <Route path="/emplois" element={<MaintenanceGuard><PublicLayout><JobListings /></PublicLayout></MaintenanceGuard>} />
       <Route path="/apply" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
       <Route path="/apply/:jobId" element={<MaintenanceGuard><PublicLayout><JobApplication /></PublicLayout></MaintenanceGuard>} />
       <Route path="/faq" element={<MaintenanceGuard><PublicLayout><FAQ /></PublicLayout></MaintenanceGuard>} />
