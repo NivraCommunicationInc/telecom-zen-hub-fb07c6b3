@@ -22,22 +22,48 @@ const EMPLOYMENT_LABELS: Record<string, string> = {
 };
 
 export default function CoreEmployee360() {
-  const { userId } = useParams<{ userId: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["employee-360-profile", userId],
-    enabled: !!userId,
+  // Primary fetch: employee_records (the row the list links to)
+  const { data: employee, isLoading } = useQuery({
+    queryKey: ["employee-360-record", id],
+    enabled: !!id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("employee_records")
         .select("*")
-        .eq("user_id", userId!)
+        .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
+
+  const userId = employee?.user_id ?? null;
+
+  // Secondary fetch: profiles (only if employee has a linked auth user)
+  const { data: profileExtra } = useQuery({
+    queryKey: ["employee-360-profile", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  // Merge employee_records (canonical) + profiles (extra fields like avatar)
+  const profile = employee
+    ? {
+        ...(profileExtra ?? {}),
+        ...employee,
+        full_name: `${employee.first_name ?? ""} ${employee.last_name ?? ""}`.trim(),
+      }
+    : null;
 
   const { data: roles } = useQuery({
     queryKey: ["employee-360-roles", userId],
