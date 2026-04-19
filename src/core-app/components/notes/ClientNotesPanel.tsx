@@ -2,17 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -44,11 +34,8 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingBody, setEditingBody] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // NOTE: Notes are immutable audit records. Edit/Delete intentionally removed.
 
   const notesQueryKey = useMemo(() => ["client-internal-notes-shared", clientId], [clientId]);
 
@@ -108,7 +95,10 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
         created_by_name: profile?.full_name || currentUser.email || "Agent",
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[ClientNotesPanel] insert failed:", error);
+        throw error;
+      }
     },
     onSuccess: async () => {
       setNoteText("");
@@ -121,67 +111,11 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!clientId || !editingId) throw new Error("Note introuvable");
-      if (!editingBody.trim()) throw new Error("La note est vide");
-
-      const { error } = await supabase
-        .from("client_internal_notes")
-        .update({ body: editingBody.trim() })
-        .eq("id", editingId)
-        .eq("client_id", clientId);
-
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      setEditingId(null);
-      setEditingBody("");
-      await refreshNotes();
-      toast.success("Note modifiée");
-    },
-    onError: (error: any) => {
-      toast.error(error?.message || "Impossible de modifier la note");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (noteId: string) => {
-      if (!clientId) throw new Error("Client manquant");
-
-      const { error } = await supabase
-        .from("client_internal_notes")
-        .delete()
-        .eq("id", noteId)
-        .eq("client_id", clientId);
-
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      setDeletingId(null);
-      await refreshNotes();
-      toast.success("Note supprimée");
-    },
-    onError: (error: any) => {
-      setDeletingId(null);
-      toast.error(error?.message || "Impossible de supprimer la note");
-    },
-  });
-
-  const startEdit = (note: ClientInternalNote) => {
-    setEditingId(note.id);
-    setEditingBody(note.body);
-    setExpandedIds((previous) => new Set(previous).add(note.id));
-  };
-
   const toggleExpand = (noteId: string) => {
     setExpandedIds((previous) => {
       const next = new Set(previous);
-      if (next.has(noteId)) {
-        next.delete(noteId);
-      } else {
-        next.add(noteId);
-      }
+      if (next.has(noteId)) next.delete(noteId);
+      else next.add(noteId);
       return next;
     });
   };
@@ -195,17 +129,9 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
     }
   };
 
-  const requestDelete = (noteId: string) => {
-    if (deletingId === noteId || deleteMutation.isPending) return;
-    if (!window.confirm("Supprimer cette note ?")) return;
-    setDeletingId(noteId);
-    deleteMutation.mutate(noteId);
-  };
-
   const scrollNotes = (direction: "top" | "bottom") => {
     const container = notesScrollRef.current;
     if (!container) return;
-
     container.scrollTo({
       top: direction === "top" ? 0 : container.scrollHeight,
       behavior: "smooth",
@@ -294,7 +220,6 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
             )}
           >
             {notes.map((note) => {
-              const isEditing = editingId === note.id;
               const isLong = note.body.length > LONG_NOTE_THRESHOLD || note.body.split("\n").length > 5;
               const isExpanded = expandedIds.has(note.id);
               const displayBody = isLong && !isExpanded ? `${note.body.slice(0, LONG_NOTE_THRESHOLD)}…` : note.body;
@@ -313,94 +238,33 @@ export function ClientNotesPanel({ clientId, compact = false, className, onMutat
                     </span>
                   </div>
 
-                  {isEditing ? (
-                    <div className="mt-2 space-y-2">
-                      <Textarea
-                        value={editingBody}
-                        onChange={(event) => setEditingBody(event.target.value)}
-                        rows={compact ? 3 : 4}
-                        className={cn(compact ? "text-[11px]" : "text-xs")}
-                      />
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditingBody("");
-                          }}
-                          className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-                        >
-                          <X className="h-3 w-3" />
-                          Annuler
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => updateMutation.mutate()}
-                          disabled={updateMutation.isPending || !editingBody.trim()}
-                          className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-                        >
-                          {updateMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                          Enregistrer
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p className={cn("mt-2 whitespace-pre-wrap text-foreground", compact ? "text-[10px]" : "text-[11px]")}>{displayBody}</p>
+                  <p className={cn("mt-2 whitespace-pre-wrap text-foreground", compact ? "text-[10px]" : "text-[11px]")}>{displayBody}</p>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyNote(note.body)}
-                          className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-                        >
-                          <Copy className="h-3 w-3" />
-                          Copier
-                        </Button>
+                  <div className="mt-2 flex flex-wrap items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyNote(note.body)}
+                      className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copier
+                    </Button>
 
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => startEdit(note)}
-                          className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-                        >
-                          <Pencil className="h-3 w-3" />
-                          Modifier
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => requestDelete(note.id)}
-                          disabled={deletingId === note.id}
-                          className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-                        >
-                          {deletingId === note.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                          Supprimer
-                        </Button>
-
-                        {isLong && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleExpand(note.id)}
-                            className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
-                          >
-                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                            {isExpanded ? "Réduire" : "Développer"}
-                          </Button>
-                        )}
-                      </div>
-                    </>
-                  )}
+                    {isLong && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleExpand(note.id)}
+                        className={cn(compact ? "h-6 px-2 text-[10px]" : "h-7 px-2 text-[11px]")}
+                      >
+                        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        {isExpanded ? "Réduire" : "Développer"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })}

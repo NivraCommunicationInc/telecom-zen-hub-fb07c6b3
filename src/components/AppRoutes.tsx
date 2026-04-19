@@ -515,10 +515,11 @@ const AppRoutes = () => {
       {/* Manual KYC verification — secure token link sent by admin */}
       <Route path="/verification/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><KycVerificationPage /></Suspense>} />
 
-      {/* Public click-to-sign contract page — no login required */}
-      {/* Public click-to-sign — accessible to clients without auth, no Core nav */}
+      {/* Public click-to-sign contract page — NO login required, NO Core/admin UI */}
+      {/* Canonical client-facing route (used in emails) */}
+      <Route path="/portal/signer/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><SignContract /></Suspense>} />
+      {/* Aliases — keep working for any links already in the wild */}
       <Route path="/signer/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><SignContract /></Suspense>} />
-      {/* Legacy alias — keep working for any links already in the wild */}
       <Route path="/sign/:token" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}><SignContract /></Suspense>} />
       
       {/* Public Quote View (no login required) */}
