@@ -91,7 +91,7 @@ export default function EmployeeAccountDetail() {
           .limit(100),
         supabase
           .from("billing_subscriptions")
-          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at, customer_id, order_id")
+          .select("id, plan_name, plan_price, status, cycle_start_date, cycle_end_date, next_renewal_at, customer_id, order_id, paypal_subscription_id")
           .in("environment", [...OPERATIONAL_ENVS])
           .order("created_at", { ascending: false })
           .limit(50),
@@ -346,6 +346,21 @@ export default function EmployeeAccountDetail() {
             <InfoRow label="Nom du compte" value={account.account_name ?? "—"} />
             <InfoRow label="Crédit" value={account.credit_class ?? "—"} />
             <InfoRow label="Créé le" value={format(new Date(account.created_at), "d MMM yyyy", { locale: fr })} />
+            <div className="flex justify-between items-center text-xs py-0.5">
+              <span className="text-muted-foreground">Mode de paiement</span>
+              {(() => {
+                const preAuthSub = subscriptions.find((s: any) => s.status === "active" && s.paypal_subscription_id);
+                return preAuthSub ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                    Pré-autorisé PayPal ✓
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-medium text-muted-foreground bg-muted">
+                    Paiement manuel
+                  </span>
+                );
+              })()}
+            </div>
             {account.billing_address && (
               <>
                 <div className="border-t border-border pt-1 mt-1" />
