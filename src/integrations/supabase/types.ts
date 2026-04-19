@@ -1033,6 +1033,69 @@ export type Database = {
           },
         ]
       }
+      appointment_blocked_dates: {
+        Row: {
+          blocked_date: string
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          blocked_date: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          blocked_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      appointment_slot_rules: {
+        Row: {
+          capacity: number
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          label: string | null
+          start_time: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          created_by?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          start_time: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          start_time?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           admin_id: string | null
@@ -17742,6 +17805,19 @@ export type Database = {
       }
       generate_ticket_number: { Args: never; Returns: string }
       generate_work_order_number: { Args: never; Returns: string }
+      get_appointment_slot_availability: {
+        Args: { p_date: string }
+        Returns: {
+          block_reason: string
+          bookings_count: number
+          capacity: number
+          end_time: string
+          is_blocked: boolean
+          remaining: number
+          rule_id: string
+          start_time: string
+        }[]
+      }
       get_automatic_email_identity: {
         Args: {
           p_entity_id?: string
