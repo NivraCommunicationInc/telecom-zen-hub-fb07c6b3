@@ -563,7 +563,9 @@ export function useOrderProcessing(orderId: string | undefined) {
       || "Client";
   };
 
-  /* ── Auto-note shortcut bound to this order's client ── */
+  /* ── Auto-note shortcut bound to this order's client ──
+   * Writes to BOTH client_internal_notes (client profile) and
+   * activity_logs (order timeline) so notes are visible everywhere. */
   const noteClient = (event: Parameters<typeof addClientAutoNote>[0]["event"], detail?: string, metadata?: Record<string, any>) => {
     const clientId = data?.order?.user_id;
     if (!clientId) return;
@@ -574,6 +576,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       metadata,
       actorId: user?.id || null,
       actorName: user?.email || null,
+      orderId: orderId || null,
     });
   };
 
@@ -1549,19 +1552,47 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
-  /* ── Add internal note ── */
+  /* ── Add internal note (manual, written by an agent) ──
+   * Writes to THREE surfaces so the note is visible everywhere:
+   *   1. orders.internal_notes  (legacy inline field)
+   *   2. activity_logs          (order timeline) — via logActivity('note_added')
+   *   3. client_internal_notes  (client profile) — note_type='admin'
+   */
   const addNote = async (note: string) => {
     try {
       if (!note?.trim()) {
         toast.error("Note vide — rien à ajouter");
         return;
       }
+      const trimmed = note.trim();
       const existing = data?.order?.internal_notes || "";
       const timestamp = new Date().toISOString();
-      const entry = `[${timestamp}] ${user?.email}: ${note}`;
+      const entry = `[${timestamp}] ${user?.email}: ${trimmed}`;
       const updated = existing ? `${existing}\n${entry}` : entry;
+
+      // 1. Inline note field on order
       await updateOrder.mutateAsync({ internal_notes: updated });
-      await logActivity("note_added", "order", orderId, { note });
+
+      // 2. Activity log — appears on the order timeline
+      await logActivity("note_added", "order", orderId, { note: trimmed });
+
+      // 3. Client profile note — fire-and-forget
+      const clientId = data?.order?.user_id;
+      if (clientId) {
+        try {
+          await supabase.from("client_internal_notes").insert({
+            client_id: clientId,
+            note_type: "admin",
+            body: `[Commande #${data?.order?.order_number || orderId?.slice(0, 8) || "—"}] ${trimmed}`,
+            created_by_user_id: user?.id || "00000000-0000-0000-0000-000000000000",
+            created_by_role: "admin",
+            created_by_name: user?.email || "Agent",
+          } as any);
+        } catch (e: any) {
+          console.warn("[addNote] client_internal_notes mirror failed:", e?.message);
+        }
+      }
+
       toast.success("Note ajoutée");
     } catch (err: any) {
       console.error("[GUARDRAIL][Note] Failed:", err);

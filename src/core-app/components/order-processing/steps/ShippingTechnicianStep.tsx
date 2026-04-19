@@ -30,12 +30,50 @@ const inputClass = "h-9 text-sm bg-[#0d1421] border-slate-700 text-slate-100 rou
 const labelClass = "text-[10px] uppercase tracking-wider text-slate-500 mb-1 block";
 
 export function ShippingTechnicianStep({ proc }: Props) {
-  const { order, appointment, installationEstimate } = proc;
-  const fulfillmentType = order.fulfillment_type || "shipping";
-  const hasShipping = fulfillmentType === "shipping" || fulfillmentType === "self_install" || order.tracking_number || order.carrier;
-  const hasAppointment = !!appointment;
-  const showTechnicianPanel = hasAppointment || fulfillmentType === "technician" || fulfillmentType === "installation";
-  const showShippingPanel = hasShipping || !showTechnicianPanel;
+  const { order, appointment, installationEstimate, items } = proc;
+
+  // ── INTELLIGENT FULFILLMENT ROUTING ──
+  // Determine what was ordered to show ONLY relevant sections.
+  const svcType = String(order?.service_type || "").toLowerCase();
+  const itemList: any[] = Array.isArray(items) ? items : [];
+  const itemTypes = itemList
+    .map((i) => String(i?.item_type || i?.product_type || i?.service_type || "").toLowerCase())
+    .filter(Boolean);
+  const itemNames = itemList
+    .map((i) => String(i?.product_name || i?.name || i?.description || "").toLowerCase())
+    .join(" ");
+
+  const hasInternet =
+    svcType.includes("internet") ||
+    itemTypes.some((t) => t.includes("internet")) ||
+    /\binternet\b/.test(itemNames);
+  const hasTv =
+    svcType.includes("tv") ||
+    svcType.includes("télé") ||
+    itemTypes.some((t) => t.includes("tv") || t.includes("television") || t.includes("télé")) ||
+    /\b(tv|télé|television)\b/.test(itemNames);
+  const hasMobile =
+    svcType.includes("mobile") ||
+    svcType.includes("sim") ||
+    itemTypes.some((t) => t.includes("mobile") || t.includes("sim") || t.includes("esim")) ||
+    /\b(mobile|sim|esim)\b/.test(itemNames);
+
+  const fulfillmentType = order.fulfillment_type || "";
+  const isSelfInstall = fulfillmentType === "self_install";
+
+  // Fulfillment rules:
+  //  • Internet only OR Internet+TV       → technician installation only
+  //  • Internet+TV+Mobile (full bundle)   → BOTH technician (internet/TV) + shipping (SIM)
+  //  • Mobile only                        → shipping only
+  //  • self_install explicit              → confirmation only (no panels)
+  const requiresTechnician = !isSelfInstall && (hasInternet || hasTv);
+  const requiresShipping = !isSelfInstall && (hasMobile || (!hasInternet && !hasTv));
+
+  // Show panel if rule applies OR data already exists for that fulfillment
+  const showTechnicianPanel =
+    !isSelfInstall && (requiresTechnician || !!appointment || fulfillmentType === "technician" || fulfillmentType === "installation");
+  const showShippingPanel =
+    !isSelfInstall && (requiresShipping || !!order.tracking_number || !!order.carrier || fulfillmentType === "shipping");
 
   const [loading, setLoading] = useState<string | null>(null);
   const [contractGate, setContractGate] = useState<{
@@ -149,8 +187,48 @@ export function ShippingTechnicianStep({ proc }: Props) {
     if (!techFields.technician_id) { toast.error("Veuillez sélectionner un technicien"); return; }
     setLoading("tech");
     try {
+      // 1. Update order with technician
       await proc.assignTechnician(techFields.technician_id);
+
+      // 2. Ensure an appointment row exists / is updated with technician + slot
+      const scheduledAt = appointment?.scheduled_at || newSlotIso || null;
+      if (appointment?.id) {
+        const { error: aptErr } = await supabase
+          .from("appointments")
+          .update({
+            technician_id: techFields.technician_id,
+            scheduled_at: scheduledAt || appointment.scheduled_at,
+            status: scheduledAt ? "confirmed" : appointment.status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", appointment.id);
+        if (aptErr) console.warn("[Technician][assign] appointment update:", aptErr.message);
+      } else if (scheduledAt) {
+        // No appointment yet — create one
+        const { error: insErr } = await supabase.from("appointments").insert({
+          order_id: order.id,
+          client_id: order.user_id,
+          technician_id: techFields.technician_id,
+          scheduled_at: scheduledAt,
+          title: "Installation",
+          service_address: order.service_address || order.client_full_address || "",
+          service_city: order.service_city || "",
+          service_postal_code: order.service_postal_code || "",
+          status: "confirmed",
+          environment: order.environment || "production",
+        } as any);
+        if (insErr) console.warn("[Technician][assign] appointment insert:", insErr.message);
+      }
+
+      // 3. Notes
       if (techFields.installNotes) await proc.addNote(`[Installation] ${techFields.installNotes}`);
+
+      // 4. Confirmation toast with technician name + slot
+      const techName = selectedTechnician?.full_name || "le technicien";
+      const when = scheduledAt ? new Date(scheduledAt).toLocaleString("fr-CA") : "(à planifier)";
+      toast.success(`${techName} assigné — ${when}`);
+
+      await queryClient.invalidateQueries({ queryKey: ["order-processing"] });
     } finally { setLoading(null); }
   };
 
@@ -228,8 +306,20 @@ export function ShippingTechnicianStep({ proc }: Props) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-        {showTechnicianPanel && showShippingPanel ? "Technicien & Expédition" : showTechnicianPanel ? "Technicien & Installation" : "Expédition"}
+        {isSelfInstall ? "Auto-installation" : showTechnicianPanel && showShippingPanel ? "Technicien & Expédition" : showTechnicianPanel ? "Technicien & Installation" : "Expédition"}
       </div>
+
+      {isSelfInstall && (
+        <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 mb-4 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-200">Auto-installation par le client</p>
+            <p className="text-xs text-emerald-300/80 mt-1">
+              Le client a explicitement choisi l'auto-installation. Aucune assignation de technicien ni expédition gérée n'est requise.
+            </p>
+          </div>
+        </div>
+      )}
 
       {appointment?.status === "completed" && (
         <StepCompletionCard
@@ -335,6 +425,18 @@ export function ShippingTechnicianStep({ proc }: Props) {
                 <p className="text-sm font-medium">{installationEstimate.label}</p>
                 {installationEstimate.wiringNeeded && (
                   <p className="text-xs mt-1 opacity-80">⚠ Prévoir du matériel de câblage supplémentaire</p>
+                )}
+              </div>
+            )}
+
+            {!appointment && showTechnicianPanel && (
+              <div className="bg-[#0d1421] rounded-lg border border-slate-700/50 p-3">
+                <Label className={labelClass}>Créneau d'installation</Label>
+                <AppointmentSlotPicker value={newSlotIso} onChange={setNewSlotIso} variant="core" />
+                {newSlotIso && (
+                  <p className="text-[10px] text-emerald-400 mt-1">
+                    Sélectionné : {new Date(newSlotIso).toLocaleString("fr-CA")}
+                  </p>
                 )}
               </div>
             )}

@@ -102,14 +102,21 @@ export interface AutoNoteParams {
   actorId?: string | null;
   /** Display name of actor (defaults to "Système") */
   actorName?: string | null;
+  /** Optional order id — when provided, also mirrored to activity_logs entity_type='order' so it shows in the order timeline */
+  orderId?: string | null;
 }
 
 /**
  * Write an automatic system note. Never throws.
  * Returns void to discourage await-chaining errors.
+ *
+ * Writes to TWO surfaces:
+ *  1. client_internal_notes — visible on the client profile (note_type='system')
+ *  2. activity_logs (entity_type='order' if orderId provided, else entity_type='client')
+ *     — visible on the order detail timeline
  */
 export function addClientAutoNote(params: AutoNoteParams): void {
-  const { clientId, event, detail, metadata, actorId, actorName } = params;
+  const { clientId, event, detail, metadata, actorId, actorName, orderId } = params;
   if (!clientId) return;
 
   const dedupKey = `${clientId}:${event}:${detail || ""}`;
@@ -130,6 +137,7 @@ export function addClientAutoNote(params: AutoNoteParams): void {
 
   // Fire-and-forget. We deliberately do NOT await.
   void (async () => {
+    // 1. Client-profile note
     try {
       await supabase.from("client_internal_notes").insert({
         client_id: clientId,
@@ -140,7 +148,22 @@ export function addClientAutoNote(params: AutoNoteParams): void {
         created_by_name: actorName || "Système",
       } as any);
     } catch (err: any) {
-      console.warn("[autoNote] insert failed:", err?.message, { event, clientId });
+      console.warn("[autoNote] client_internal_notes insert failed:", err?.message, { event, clientId });
+    }
+
+    // 2. Activity log mirror — so it appears on the order's timeline + audit trail
+    try {
+      await supabase.from("activity_logs").insert({
+        user_id: clientId,
+        action: event,
+        entity_type: orderId ? "order" : "client",
+        entity_id: orderId || clientId,
+        actor_role: "system_auto",
+        actor_name: actorName || "Système",
+        details: { note: body, ...(metadata || {}) } as any,
+      } as any);
+    } catch (err: any) {
+      console.warn("[autoNote] activity_logs insert failed:", err?.message, { event, clientId });
     }
   })();
 }
