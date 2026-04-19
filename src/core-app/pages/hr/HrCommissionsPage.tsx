@@ -243,7 +243,7 @@ export default function HrCommissionsPage() {
     },
   });
 
-  // Aggregate per employee for current period table
+  // Aggregate per employee for current period table (with service breakdown)
   const aggregatedComm = (() => {
     const map = new Map<string, any>();
     for (const c of currentComm as any[]) {
@@ -251,6 +251,7 @@ export default function HrCommissionsPage() {
       const cur = map.get(key) ?? {
         employee_id: key,
         _emp: c._emp,
+        _svc: c._svc ?? { internet: 0, mobile: 0, tv: 0, bundle: 0, phone: 0 },
         sales_count: 0,
         sales_total: 0,
         commission_total: 0,
