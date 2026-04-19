@@ -31,6 +31,8 @@ const RhCommissions = lazy(() => import("@/rh-app/pages/RhCommissions"));
 const RhNotifications = lazy(() => import("@/rh-app/pages/RhNotifications"));
 const RhProfile = lazy(() => import("@/rh-app/pages/RhProfile"));
 const RhObjectives = lazy(() => import("@/rh-app/pages/RhObjectives"));
+const RhRequests = lazy(() => import("@/rh-app/pages/RhRequests"));
+const RhDocuments = lazy(() => import("@/rh-app/pages/RhDocuments"));
 const FieldProtectedRoute = lazy(() => import("@/field-app/components/FieldProtectedRoute"));
 const FieldDashboard = lazy(() => import("@/field-app/pages/FieldDashboard"));
 const FieldLeads = lazy(() => import("@/field-app/pages/FieldLeads"));
@@ -953,6 +955,8 @@ const AppRoutes = () => {
           <Route path="notifications" element={<Suspense fallback={null}><RhNotifications /></Suspense>} />
           <Route path="profil" element={<Suspense fallback={null}><RhProfile /></Suspense>} />
           <Route path="objectifs" element={<Suspense fallback={null}><RhObjectives /></Suspense>} />
+          <Route path="demandes" element={<Suspense fallback={null}><RhRequests /></Suspense>} />
+          <Route path="documents" element={<Suspense fallback={null}><RhDocuments /></Suspense>} />
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
       </Route>
