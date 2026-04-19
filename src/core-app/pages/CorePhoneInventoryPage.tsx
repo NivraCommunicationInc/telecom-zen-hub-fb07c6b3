@@ -921,3 +921,61 @@ function PreviewCard({
     </div>
   );
 }
+
+function ColorTagInput({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  function addTag(raw: string) {
+    const tag = raw.trim();
+    if (!tag) return;
+    if (values.some((v) => v.toLowerCase() === tag.toLowerCase())) return;
+    onChange([...values, tag]);
+    setDraft("");
+  }
+  function removeTag(t: string) {
+    onChange(values.filter((v) => v !== t));
+  }
+  return (
+    <div className="rounded-md border border-input bg-background p-2 min-h-[44px]">
+      <div className="flex flex-wrap gap-2">
+        {values.map((v) => (
+          <span
+            key={v}
+            className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-foreground border border-primary/30 px-2.5 py-1 text-xs"
+          >
+            {v}
+            <button
+              type="button"
+              onClick={() => removeTag(v)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label={`Retirer ${v}`}
+            >
+              <XIcon className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              addTag(draft);
+            } else if (e.key === "Backspace" && draft === "" && values.length > 0) {
+              removeTag(values[values.length - 1]);
+            }
+          }}
+          onBlur={() => draft && addTag(draft)}
+          placeholder={values.length === 0 ? "Ex: Noir, Bleu, Rose..." : "Ajouter..."}
+          className="flex-1 min-w-[120px] bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+        />
+      </div>
+    </div>
+  );
+}
