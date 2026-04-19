@@ -53,8 +53,6 @@ type Phone = {
   available_storage: string[] | null;
 };
 
-type MobilePlan = { id: string; name: string; monthly_price: number };
-
 const SHIPPING_FEE = 15; // flat CAD shipping
 const TAX_RATE = 0.14975; // QC GST+QST combined approximation
 const CANADIAN_PROVINCES = ["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"];
