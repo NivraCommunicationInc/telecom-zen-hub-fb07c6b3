@@ -207,7 +207,8 @@ const GuestCheckout = () => {
 
   const subtotal = toMoney(selectedServices.reduce((sum, s) => sum + toMoney(s.price), 0));
   const routerFee = (hasInternetService || hasTVService) ? ROUTER_PRICE * Math.min(wifiRouterQty, 1) : 0;
-  const simFee = hasMobileService ? SIM_PRICE : 0;
+  // eSIM is delivered electronically — no physical card fee. Physical SIM keeps the SIM_PRICE.
+  const simFee = hasMobileService ? (simType === "esim" ? 0 : SIM_PRICE) : 0;
   const terminalFee = hasTVService ? (terminalPrice ?? 0) * Math.min(Math.max(tvTerminalQty, 1), 4) : 0;
   const activationFee = isStreamingOnlyOrder ? 0 : (canonicalFees.activationSingle || 10);
   const deliveryFee = isStreamingOnlyOrder ? 0 : (installationChoice === "auto" ? (canonicalFees.deliverySelfInstall || 20) : 0);
@@ -489,7 +490,13 @@ const GuestCheckout = () => {
         equipment: [
           ...((hasInternetService || hasTVService) ? [{ sku: "EQ-ROUTER", name: "Routeur Nivra Born WiFi 6", quantity: 1, unit_price: ROUTER_PRICE }] : []),
           ...(hasTVService ? [{ sku: "EQ-TERMINAL-TV", name: "Terminal TV", quantity: Math.min(Math.max(tvTerminalQty, 1), 4), unit_price: terminalPrice ?? 0 }] : []),
-          ...(hasMobileService ? [{ sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE }] : []),
+          ...(hasMobileService
+            ? [
+                simType === "esim"
+                  ? { sku: "EQ-SIM-ESIM", name: "eSIM", quantity: 1, unit_price: 0 }
+                  : { sku: "EQ-SIM-PHY", name: "Carte SIM physique", quantity: 1, unit_price: SIM_PRICE },
+              ]
+            : []),
         ],
         fees: [
           ...(activationFee > 0 ? [{ sku: "FEE-ACTIVATION-1", name: "Frais d'activation", amount: activationFee }] : []),
