@@ -428,6 +428,7 @@ export default function HrCommissionsPage() {
         <TabsList>
           <TabsTrigger value="rules">Règles</TabsTrigger>
           <TabsTrigger value="period">Période courante</TabsTrigger>
+          <TabsTrigger value="targets">Objectifs</TabsTrigger>
           <TabsTrigger value="history">Historique</TabsTrigger>
         </TabsList>
 
