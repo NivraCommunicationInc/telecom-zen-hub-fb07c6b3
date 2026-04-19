@@ -146,16 +146,7 @@ export default function PhoneCheckout() {
     })();
   }, [id]);
 
-  // Mobile plans — placeholder list (Core can manage these via existing services catalog)
-  useEffect(() => {
-    if (mode === "phone_plus_plan" && mobilePlans.length === 0) {
-      setMobilePlans([
-        { id: "mobile-basic", name: "Mobile Essentiel", monthly_price: 25 },
-        { id: "mobile-plus", name: "Mobile Plus", monthly_price: 40 },
-        { id: "mobile-illimite", name: "Mobile Illimité", monthly_price: 55 },
-      ]);
-    }
-  }, [mode, mobilePlans.length]);
+  // Mobile plans loaded from services_catalog via useMobilePlans hook (same source as MobilePlans.tsx)
 
   // -------- Totals (storage upcharge applied to base) --------
   const basePrice = Number(phone?.price_cad ?? 0);
@@ -398,11 +389,11 @@ export default function PhoneCheckout() {
               {mode === "phone_plus_plan" && (
                 <div>
                   <Label htmlFor="plan">{isFr ? "Forfait mobile" : "Mobile plan"}</Label>
-                  <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
-                    <SelectTrigger id="plan"><SelectValue placeholder={isFr ? "Choisir un forfait" : "Choose a plan"} /></SelectTrigger>
+                  <Select value={selectedPlanId} onValueChange={setSelectedPlanId} disabled={plansLoading}>
+                    <SelectTrigger id="plan"><SelectValue placeholder={plansLoading ? (isFr ? "Chargement..." : "Loading...") : (isFr ? "Choisir un forfait" : "Choose a plan")} /></SelectTrigger>
                     <SelectContent>
                       {mobilePlans.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name} — {Number(p.monthly_price).toFixed(2)}$/mo</SelectItem>
+                        <SelectItem key={p.id} value={p.id}>{p.name} — {Number(p.price).toFixed(2)}$/mo</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
