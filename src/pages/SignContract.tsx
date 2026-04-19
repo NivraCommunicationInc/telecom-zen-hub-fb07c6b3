@@ -1,5 +1,5 @@
 /**
- * SignContract — Public click-to-sign page (/sign/:token)
+ * SignContract — Public click-to-sign page (/signer/:token)
  *
  * - No login required
  * - Bilingual (FR/EN based on browser language, FR fallback)
