@@ -514,6 +514,14 @@ export default function PhoneCheckout() {
               </div>
               <div><Label htmlFor="pc">{isFr ? "Code postal" : "Postal code"} *</Label><Input id="pc" value={postalCode} onChange={(e) => setPostalCode(e.target.value.toUpperCase())} placeholder="H2X 1Y4" /></div>
               <div className="md:col-span-2 text-xs text-muted-foreground">{isFr ? "Pays : Canada" : "Country: Canada"}</div>
+              <Alert className="md:col-span-2 border-primary/30 bg-primary/5">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-xs">
+                  {isFr
+                    ? "L'adresse de livraison est aussi votre adresse de facturation PayPal. Assurez-vous qu'elles correspondent — sinon votre commande pourra être marquée pour vérification supplémentaire."
+                    : "Your shipping address is also used as your PayPal billing address. Make sure they match — otherwise your order may be flagged for additional review."}
+                </AlertDescription>
+              </Alert>
               {provinceError && (
                 <Alert variant="destructive" className="md:col-span-2">
                   <AlertTriangle className="w-4 h-4" />
@@ -565,6 +573,19 @@ export default function PhoneCheckout() {
                   <PayPalButton
                     amount={total}
                     description={`${phone.brand} ${phone.model} – ${phone.storage}`}
+                    customer={{
+                      first_name: firstName.trim(),
+                      last_name: lastName.trim(),
+                      email: email.trim(),
+                      phone: phoneNumber.trim(),
+                      address: {
+                        address_line_1: address.trim(),
+                        admin_area_2: city.trim(),
+                        admin_area_1: province,
+                        postal_code: postalCode.trim(),
+                        country_code: "CA",
+                      },
+                    }}
                     onSuccess={handlePaymentSuccess}
                     onError={(err) => {
                       console.error("[paypal]", err);
