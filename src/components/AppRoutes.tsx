@@ -181,6 +181,8 @@ const CoreStaffPage = lazy(() => import("@/core-app/pages/CoreStaffPage"));
 const CoreMyAccountPage = lazy(() => import("@/core-app/pages/CoreMyAccountPage"));
 const CoreSettingsPage = lazy(() => import("@/core-app/pages/CoreSettingsPage"));
 const CoreStockPage = lazy(() => import("@/core-app/pages/CoreStockPage"));
+const CorePhoneOrdersPage = lazy(() => import("@/core-app/pages/CorePhoneOrdersPage"));
+const CorePhoneInventoryPage = lazy(() => import("@/core-app/pages/CorePhoneInventoryPage"));
 const CoreQuotesPage = lazy(() => import("@/core-app/pages/CoreQuotesPage"));
 const CoreQuoteDetail = lazy(() => import("@/core-app/pages/CoreQuoteDetail"));
 const CoreCreateQuote = lazy(() => import("@/core-app/pages/CoreCreateQuote"));
@@ -855,6 +857,8 @@ const AppRoutes = () => {
           <Route path="my-account" element={<Suspense fallback={null}><CoreMyAccountPage /></Suspense>} />
           <Route path="settings" element={<Suspense fallback={null}><CoreSettingsPage /></Suspense>} />
           <Route path="stock" element={<Suspense fallback={null}><CoreStockPage /></Suspense>} />
+          <Route path="phones" element={<Suspense fallback={null}><CorePhoneOrdersPage /></Suspense>} />
+          <Route path="phones/inventory" element={<Suspense fallback={null}><CorePhoneInventoryPage /></Suspense>} />
           {/* Supplier Accounts (admin-only — RLS enforced server-side) */}
           <Route path="supplier-accounts" element={<Suspense fallback={null}><SupplierAccountsPage /></Suspense>} />
           <Route path="supplier-accounts/new" element={<Suspense fallback={null}><SupplierAccountNewPage /></Suspense>} />
