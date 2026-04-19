@@ -238,6 +238,7 @@ const ClientContracts = () => {
     openSignDialog(matchedContract);
   }, [contracts, openSignDialog, searchParams, setSearchParams, toast]);
 
+  const handleSign = () => {
     if (!typedSignature.trim()) {
       setSignatureError("Veuillez taper votre nom pour signer");
       return;
