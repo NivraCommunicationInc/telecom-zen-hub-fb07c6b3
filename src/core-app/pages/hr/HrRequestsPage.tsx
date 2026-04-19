@@ -590,6 +590,40 @@ export default function HrRequestsPage() {
           </CardContent></Card>
         </TabsContent>
       </Tabs>
+
+      {/* Refuse leave dialog */}
+      <Dialog open={!!refuseDialog} onOpenChange={(o) => { if (!o) { setRefuseDialog(null); setRefuseReason(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Refuser la demande</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Demande de <span className="font-medium text-foreground">{refuseDialog?.employee}</span>. Indiquez la raison du refus — elle sera transmise à l'employé.
+            </p>
+            <div>
+              <Label className="text-xs">Raison du refus *</Label>
+              <Textarea rows={3} value={refuseReason}
+                onChange={(e) => setRefuseReason(e.target.value)}
+                placeholder="Ex: période trop chargée, équipe réduite…" className="text-xs" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => { setRefuseDialog(null); setRefuseReason(""); }}>
+              Annuler
+            </Button>
+            <Button size="sm" variant="destructive"
+              disabled={!refuseReason.trim() || leaveDecisionMut.isPending}
+              onClick={() => refuseDialog && leaveDecisionMut.mutate({
+                id: refuseDialog.id,
+                decision: "declined",
+                reason: refuseReason.trim(),
+              })}>
+              {leaveDecisionMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refuser"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
