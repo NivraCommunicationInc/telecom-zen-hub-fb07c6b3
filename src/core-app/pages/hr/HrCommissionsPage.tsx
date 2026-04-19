@@ -183,17 +183,34 @@ export default function HrCommissionsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hr-commission-rules"] }),
   });
 
-  // ─── Current period commissions (this month from unified view) ───
+  // ─── Period selector (bi-monthly: 1-15 or 16-end) ───
+  const today = new Date();
+  const defaultHalf = today.getDate() <= 15 ? "first" : "second";
+  const [periodMonth, setPeriodMonth] = useState(today.getMonth() + 1);
+  const [periodYear, setPeriodYear] = useState(today.getFullYear());
+  const [periodHalf, setPeriodHalf] = useState<"first" | "second" | "full">(defaultHalf);
+
+  const periodRange = (() => {
+    const y = periodYear, m = periodMonth;
+    const startDay = periodHalf === "second" ? 16 : 1;
+    const endDay = periodHalf === "first" ? 15 : new Date(y, m, 0).getDate();
+    const start = new Date(Date.UTC(y, m - 1, startDay, 0, 0, 0));
+    const end = new Date(Date.UTC(y, m - 1, endDay, 23, 59, 59));
+    return { start: start.toISOString(), end: end.toISOString(),
+      label: `${String(startDay).padStart(2,"0")}–${String(endDay).padStart(2,"0")} ${format(new Date(y, m-1, 1), "MMMM yyyy", { locale: fr })}` };
+  })();
+
+  // ─── Current period commissions ───
   const { data: currentComm = [], isLoading: loadingComm } = useQuery({
-    queryKey: ["hr-current-period-commissions"],
+    queryKey: ["hr-current-period-commissions", periodRange.start, periodRange.end],
     queryFn: async () => {
-      const monthStart = startOfMonth(new Date()).toISOString();
       const { data, error } = await supabase
         .from("unified_commissions" as any)
         .select("*")
-        .gte("created_at", monthStart)
+        .gte("created_at", periodRange.start)
+        .lte("created_at", periodRange.end)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
       if (error) throw error;
       const list = (data as any[]) ?? [];
       const ids = [...new Set(list.map((c: any) => c.employee_id))];
@@ -203,7 +220,24 @@ export default function HrCommissionsPage() {
           .select("user_id, first_name, last_name, job_title")
           .in("user_id", ids);
         const map = Object.fromEntries((emps ?? []).map((e: any) => [e.user_id, e]));
-        return list.map((c: any) => ({ ...c, _emp: map[c.employee_id] ?? null }));
+        // Fetch service_type breakdown from orders for the same period
+        const { data: orderRows } = await supabase
+          .from("orders")
+          .select("user_id, created_by, service_type, total_amount, status, created_at")
+          .gte("created_at", periodRange.start)
+          .lte("created_at", periodRange.end)
+          .in("status", ["activated", "completed", "delivered", "shipped", "confirmed"]);
+        const breakdown = new Map<string, Record<string, number>>();
+        for (const o of (orderRows ?? []) as any[]) {
+          const key = o.created_by ?? o.user_id;
+          if (!key) continue;
+          const cur = breakdown.get(key) ?? { internet: 0, mobile: 0, tv: 0, bundle: 0, phone: 0 };
+          const svc = (o.service_type ?? "").toLowerCase();
+          const bucket = ["internet","mobile","tv","bundle","phone"].includes(svc) ? svc : null;
+          if (bucket) cur[bucket] += Number(o.total_amount || 0);
+          breakdown.set(key, cur);
+        }
+        return list.map((c: any) => ({ ...c, _emp: map[c.employee_id] ?? null, _svc: breakdown.get(c.employee_id) }));
       }
       return list;
     },
