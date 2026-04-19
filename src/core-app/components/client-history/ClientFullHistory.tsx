@@ -5,7 +5,7 @@
  */
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { corePath } from "@/core-app/lib/corePaths";
 import { format } from "date-fns";
@@ -222,21 +222,25 @@ export const ClientFullHistory = ({ clientId, email, billingCustomerId }: Props)
     queryFn: async () => {
       // Combine: logs where user_id = clientId OR entity_id in orderIds
       const promises: Promise<any>[] = [
-        supabase
-          .from("activity_logs")
-          .select("id, action, entity_type, entity_id, created_at, actor_name, actor_role, details, changed_field, old_value, new_value")
-          .eq("user_id", clientId)
-          .order("created_at", { ascending: false })
-          .limit(200),
-      ];
-      if (orderIds.length > 0) {
-        promises.push(
+        Promise.resolve(
           supabase
             .from("activity_logs")
             .select("id, action, entity_type, entity_id, created_at, actor_name, actor_role, details, changed_field, old_value, new_value")
-            .in("entity_id", orderIds)
+            .eq("user_id", clientId)
             .order("created_at", { ascending: false })
             .limit(200),
+        ),
+      ];
+      if (orderIds.length > 0) {
+        promises.push(
+          Promise.resolve(
+            supabase
+              .from("activity_logs")
+              .select("id, action, entity_type, entity_id, created_at, actor_name, actor_role, details, changed_field, old_value, new_value")
+              .in("entity_id", orderIds)
+              .order("created_at", { ascending: false })
+              .limit(200),
+          ),
         );
       }
       const results = await Promise.all(promises);
