@@ -9077,6 +9077,41 @@ export type Database = {
           },
         ]
       }
+      job_application_notes: {
+        Row: {
+          application_id: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          note: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          note: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_application_notes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_applications: {
         Row: {
           created_at: string
@@ -9086,10 +9121,12 @@ export type Database = {
           full_name: string
           hired_employee_id: string | null
           id: string
+          interview_date: string | null
           job_id: string | null
           message: string | null
           phone: string
           position: string
+          rejection_reason: string | null
           stage: string
           stage_changed_at: string | null
           stage_changed_by: string | null
@@ -9103,10 +9140,12 @@ export type Database = {
           full_name: string
           hired_employee_id?: string | null
           id?: string
+          interview_date?: string | null
           job_id?: string | null
           message?: string | null
           phone: string
           position: string
+          rejection_reason?: string | null
           stage?: string
           stage_changed_at?: string | null
           stage_changed_by?: string | null
@@ -9120,10 +9159,12 @@ export type Database = {
           full_name?: string
           hired_employee_id?: string | null
           id?: string
+          interview_date?: string | null
           job_id?: string | null
           message?: string | null
           phone?: string
           position?: string
+          rejection_reason?: string | null
           stage?: string
           stage_changed_at?: string | null
           stage_changed_by?: string | null
