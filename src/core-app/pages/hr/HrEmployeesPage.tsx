@@ -17,11 +17,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Search, Plus, FolderOpen, Users, Filter,
+  Search, Plus, FolderOpen, Users, Filter, Mail, Loader2,
 } from "lucide-react";
 import { corePath } from "@/core-app/lib/corePaths";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { supabase as sb } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending_invitation: { label: "Invitation en attente", variant: "outline" },
