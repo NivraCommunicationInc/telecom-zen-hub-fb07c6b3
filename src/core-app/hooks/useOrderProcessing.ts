@@ -742,9 +742,12 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
   };
 
-  /* ── Confirm payment ── */
-  /* PHASE 1 FIX: Updates EXISTING billing_payment instead of creating a duplicate.
-   * Preserves original provider/method. No RPC apply_payment_to_invoice here. */
+  /* ── Confirm payment ──
+   * BUG 1 fix: DB trigger fn_guard_billable_records_require_confirmed_order blocks
+   * billing writes when order.status NOT IN ('submitted','pending_admin_review',
+   * 'confirmed','completed','activated','delivered'). For agents to confirm
+   * payment on ANY order (e.g. provisioning_failed, fraud, on_hold), we
+   * auto-promote the order to 'confirmed' first as an admin override. */
   const confirmPayment = async (reference?: string) => {
     try {
       const targetInvoice = data?.invoice;
@@ -758,6 +761,26 @@ export function useOrderProcessing(orderId: string | undefined) {
       if (["paid", "paid_by_promo", "void", "cancelled"].includes(currentStatus) || currentBalanceDue <= 0) {
         toast.info("Cette facture est déjà réglée");
         return;
+      }
+
+      // ★ ADMIN OVERRIDE — bypass BILLING_GUARD_BLOCKED for any non-billable status
+      const BILLABLE_STATUSES = ["submitted", "pending_admin_review", "confirmed", "completed", "activated", "delivered"];
+      const orderStatus = String(data?.order?.status || "").toLowerCase();
+      if (orderStatus && !BILLABLE_STATUSES.includes(orderStatus)) {
+        console.warn(`[confirmPayment] Order status '${orderStatus}' is not billable — auto-promoting to 'confirmed' (admin override)`);
+        const { error: promoteErr } = await supabase
+          .from("orders")
+          .update({ status: "confirmed", updated_at: new Date().toISOString() })
+          .eq("id", orderId!);
+        if (promoteErr) {
+          console.error("[confirmPayment] Failed to override order status:", promoteErr);
+          throw new Error(`Impossible de débloquer la commande (${orderStatus}) pour confirmation de paiement: ${promoteErr.message}`);
+        }
+        await logActivity("status_override_for_payment", "order", orderId, {
+          from_status: orderStatus,
+          to_status: "confirmed",
+          reason: "Admin override to enable payment confirmation",
+        });
       }
 
       // Step 1: Find the EXISTING pending payment for this invoice

@@ -20,9 +20,9 @@ interface SignatureStatusBlockProps {
   onRefresh?: () => void;
 }
 
-// Public, client-facing signature page (NO Core/admin UI).
-// Lives at /signer/:token — outside the /core/* admin namespace.
-const SIGN_BASE_URL = "https://nivra-telecom.ca/signer";
+// Public client-facing signature page (lives on the client portal — NOT inside /core/*).
+// Route: /portal/signer/:token (also accessible via legacy aliases /signer/:token and /sign/:token).
+const SIGN_BASE_URL = "https://nivra-telecom.ca/portal/signer";
 
 function maskIp(ip?: string | null): string {
   if (!ip) return "—";
