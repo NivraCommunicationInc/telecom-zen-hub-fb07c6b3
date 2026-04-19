@@ -298,6 +298,14 @@ const CoreClientProfile = () => {
         </div>
       </div>
 
+      {/* ═══ TABS ═══ */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="bg-[hsl(220,20%,11%)] border border-[hsl(220,15%,16%)] h-9">
+          <TabsTrigger value="overview" className="text-[12px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Vue d'ensemble</TabsTrigger>
+          <TabsTrigger value="history" className="text-[12px] data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">Historique complet</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4 mt-4">
       {/* ═══ MAIN GRID ═══ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Identity */}
