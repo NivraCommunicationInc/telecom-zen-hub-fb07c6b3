@@ -75,6 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: FileX, label: "Résiliations", href: "/cancellations" },
       { icon: Smartphone, label: "Téléphones — Commandes", href: "/phones" },
       { icon: Smartphone, label: "Téléphones — Inventaire", href: "/phones/inventory" },
+      { icon: RotateCcw, label: "Retours RMA", href: "/returns" },
       { icon: Lock, label: "Comptes Fournisseur", href: "/supplier-accounts", adminOnly: true },
     ],
   },
