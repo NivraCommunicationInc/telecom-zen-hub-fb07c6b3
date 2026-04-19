@@ -118,7 +118,10 @@ Deno.serve(async (req) => {
 
       if (row.template_key === "custom_html") {
         resolved = resolveCustomHtml(row);
-      } else {
+      }
+      // Fallback: if custom_html had no inline html, OR for any other template_key,
+      // try the inlined template renderer.
+      if (!resolved || !resolved.html) {
         const tmpl = renderQueueTemplate(row.template_key, row.template_vars || {});
         if (tmpl) {
           resolved = { html: tmpl.html, subject: tmpl.subject, from: row.from_email || undefined };
