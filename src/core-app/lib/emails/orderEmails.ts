@@ -449,15 +449,29 @@ export function equipmentDelivered(order: AnyOrder, profile: AnyProfile) {
 /* ─── ACTIVATION ─── */
 
 // Maps to RESEND_TEMPLATES.service_activated → "service_activated_fr"
-export function serviceActivated(order: AnyOrder, profile: AnyProfile) {
+export function serviceActivated(order: AnyOrder, profile: AnyProfile, opts?: {
+  phone_number?: string | null;
+  iccid?: string | null;
+  carrier?: string | null;
+  plan?: string | null;
+}) {
   return buildBase({
     order, profile,
     template_key: "service_activated",
     message_type: "service_activated",
     subject: "Votre service Nivra est maintenant actif",
-    variables: { SERVICE_TYPE: order?.service_type || "" },
+    variables: {
+      SERVICE_TYPE: order?.service_type || "",
+      service_type: order?.service_type || "",
+      service: opts?.plan || order?.service_type || "",
+      phone_number: opts?.phone_number || "",
+      iccid: opts?.iccid || "",
+      carrier: opts?.carrier || "",
+      plan: opts?.plan || order?.service_type || "",
+    },
   });
 }
+
 
 // No dedicated welcome template — fallback. account_created exists but is signup-specific.
 export function welcomeToNivra(order: AnyOrder, profile: AnyProfile) {
