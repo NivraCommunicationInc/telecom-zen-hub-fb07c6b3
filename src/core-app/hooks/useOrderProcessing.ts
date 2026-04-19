@@ -252,9 +252,17 @@ function computeStepStatuses(steps: WorkflowStep[], order: any, channelSelection
         if (simCompleted) status = "completed";
         break;
       case "port_in": {
-        const portStatus = mf?.port_in_status;
-        if (portStatus === "completed") status = "completed";
-        else if (!simCompleted) status = "blocked";
+        // Port-in is optional — never block on absence.
+        // Only mark as blocked when explicitly failed or cancelled.
+        const portStatus = String(mf?.port_in_status || "").toLowerCase();
+        if (portStatus === "completed") {
+          status = "completed";
+        } else if (portStatus === "failed" || portStatus === "cancelled") {
+          status = "blocked";
+        } else {
+          // initiated / in_progress / confirmed / empty → pending (gray icon, no red triangle)
+          status = "pending";
+        }
         break;
       }
       case "completion":
