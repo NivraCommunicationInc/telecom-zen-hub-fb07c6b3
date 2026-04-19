@@ -102,6 +102,25 @@ const ISSUE_REASONS = [
 /* ─── Tabs ─── */
 type TabId = "today" | "history" | "profile" | "support";
 
+type TechnicianSelfRecord = {
+  id: string;
+  user_id: string | null;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  status: string | null;
+  specializations: string[] | null;
+  notes?: string | null;
+};
+
+type TechnicianPickerRecord = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  status: string | null;
+  user_id?: string | null;
+};
+
 export default function CoreTechnicianMobilePage() {
   const { user } = useOptionalAuth();
   const queryClient = useQueryClient();
@@ -123,35 +142,25 @@ export default function CoreTechnicianMobilePage() {
     queryKey: ["technician-self", user?.id, user?.email, selectedTechId],
     enabled: !!user?.id,
     queryFn: async () => {
-      // 1) Try by user_id
-      const byUserId = await supabase
-        .from("technicians")
-        .select("id, user_id, full_name, email, phone, status, specializations, notes")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (byUserId.data) return byUserId.data;
+      try {
+        const { data, error } = await (supabase.rpc as any)("get_technician_mobile_self", {
+          p_selected_id: selectedTechId,
+        });
 
-      // 2) Try by email
-      if (user?.email) {
-        const byEmail = await supabase
-          .from("technicians")
-          .select("id, user_id, full_name, email, phone, status, specializations, notes")
-          .eq("email", user.email)
-          .maybeSingle();
-        if (byEmail.data) return byEmail.data;
+        console.info("[TechnicianMobilePage] technician self RPC", {
+          selectedTechId,
+          data,
+          error,
+        });
+
+        if (error) throw error;
+
+        const row = Array.isArray(data) ? data[0] : data;
+        return (row ?? null) as TechnicianSelfRecord | null;
+      } catch (error) {
+        console.error("[TechnicianMobilePage] technician self lookup failed", error);
+        return null;
       }
-
-      // 3) Fall back to manually-selected technician
-      if (selectedTechId) {
-        const bySelection = await supabase
-          .from("technicians")
-          .select("id, user_id, full_name, email, phone, status, specializations, notes")
-          .eq("id", selectedTechId)
-          .maybeSingle();
-        if (bySelection.data) return bySelection.data;
-      }
-
-      return null;
     },
   });
 
@@ -160,13 +169,28 @@ export default function CoreTechnicianMobilePage() {
     queryKey: ["technicians-active-list"],
     enabled: !!user?.id && !technicianQuery.isLoading && !technicianQuery.data,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: rawData, error: rawError } = await supabase
         .from("technicians")
-        .select("id, full_name, email, status")
-        .eq("status", "active")
+        .select("id, full_name, email, status, user_id")
         .order("full_name", { ascending: true });
+
+      console.info("[TechnicianMobilePage] technicians raw query (no status filter)", {
+        data: rawData,
+        error: rawError,
+      });
+
+      const { data, error } = await (supabase.rpc as any)("list_active_technicians_for_mobile");
+
+      console.info("[TechnicianMobilePage] technicians picker RPC result", {
+        data,
+        error,
+      });
+
       if (error) throw error;
-      return data || [];
+
+      return ((data as TechnicianPickerRecord[] | null) || []).filter(
+        (tech) => (tech.status || "").toLowerCase() === "active"
+      );
     },
   });
 

@@ -17824,6 +17824,18 @@ export type Database = {
           other_reference_number: string
         }[]
       }
+      get_technician_mobile_self: {
+        Args: { p_selected_id?: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          specializations: string[]
+          status: string
+          user_id: string
+        }[]
+      }
       get_user_staff_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
@@ -17880,6 +17892,15 @@ export type Database = {
       lift_client_suspension: {
         Args: { p_client_id: string; p_require_pin_reset?: boolean }
         Returns: undefined
+      }
+      list_active_technicians_for_mobile: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          status: string
+        }[]
       }
       log_pdf_generation: {
         Args: {
