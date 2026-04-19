@@ -183,6 +183,9 @@ const GuestCheckout = () => {
   const [wifiRouterQty, setWifiRouterQty] = useState(1);
   const [tvTerminalQty, setTvTerminalQty] = useState(1);
 
+  // ── SIM type (physical | esim) — required only when a Mobile plan is in cart ──
+  const [simType, setSimType] = useState<"physical" | "esim">("physical");
+
   // ── Welcome discount ──
   const [welcomeDiscountDismissed, setWelcomeDiscountDismissed] = useState(false);
 
