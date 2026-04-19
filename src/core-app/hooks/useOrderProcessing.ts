@@ -1556,10 +1556,24 @@ export function useOrderProcessing(orderId: string | undefined) {
         const order = data?.order;
         const profile = data?.profile;
         const apt = data?.appointment;
+        // Fetch technician full_name so the email shows the real name
+        // instead of falling back to "À confirmer".
+        let technicianName: string | null = null;
+        try {
+          const { data: tech } = await supabase
+            .from("technicians")
+            .select("full_name")
+            .eq("id", technicianId)
+            .single();
+          technicianName = tech?.full_name ?? null;
+        } catch (techErr: any) {
+          console.warn("[orderEmails] technician lookup failed:", techErr?.message);
+        }
         if (order && profile) {
           await enqueueOrderEmail(
             orderEmails.appointmentConfirmed(order, profile, {
               scheduled_at: apt?.scheduled_at,
+              technician_name: technicianName || undefined,
               service_address:
                 order.service_address || order.client_full_address || "",
             })
