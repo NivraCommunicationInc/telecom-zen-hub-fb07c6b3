@@ -34,6 +34,7 @@ interface QueueOrder {
 }
 
 const TERMINAL_STATUSES = ["completed", "cancelled", "refunded"];
+const SLA_BREACH_HOURS = 72; // realistic telecom SLA threshold
 
 /* ── Zone classification ── */
 function getZone(city: string | null): string {
@@ -110,9 +111,10 @@ function StatusPill({ value, kind = "status" }: { value: string | null; kind?: "
     else if (v === "rejected") cls = "bg-red-500/10 text-red-400 border-red-500/20";
     else if (v === "none" || v === "not_required") cls = "bg-[hsl(220,15%,18%)] text-[hsl(220,10%,55%)] border-[hsl(220,15%,22%)]";
   }
+  const display = kind === "kyc" ? translateKyc(value) : kind === "sla" ? translateSla(value) : value;
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded border ${cls}`}>
-      {value}
+      {display}
     </span>
   );
 }
@@ -158,6 +160,7 @@ const WorkQueuePage = () => {
   const [typeFilter, setTypeFilter] = useState<string>("tous");
   const [slaFilter, setSlaFilter] = useState<string>("tous");
   const [zoneFilter, setZoneFilter] = useState<string>("tous");
+  const [kycFilter, setKycFilter] = useState<string>("tous");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -186,13 +189,13 @@ const WorkQueuePage = () => {
   // Stats
   const stats = useMemo(() => {
     const todayStart = startOfDay(new Date()).getTime();
-    const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
+    const cutoffBreach = Date.now() - SLA_BREACH_HOURS * 60 * 60 * 1000;
     let active = 0, slaBreached = 0, kycPending = 0, activatedToday = 0;
     for (const o of orders) {
       const isTerminal = TERMINAL_STATUSES.includes(o.status);
       if (!isTerminal) {
         active++;
-        if (new Date(o.created_at).getTime() < cutoff24h) slaBreached++;
+        if (new Date(o.created_at).getTime() < cutoffBreach) slaBreached++;
         if (o.kyc_status === "pending") kycPending++;
       }
       if ((o.status === "activated" || o.status === "completed") && new Date(o.created_at).getTime() >= todayStart) {
