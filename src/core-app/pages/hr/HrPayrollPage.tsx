@@ -566,6 +566,10 @@ export default function HrPayrollPage() {
                           <TableCell><Badge variant={st.variant} className="text-[10px]">{st.label}</Badge></TableCell>
                           <TableCell>
                             <div className="flex gap-1">
+                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                                onClick={() => generatePayslipPDF(e)}>
+                                <FileText className="h-3 w-3" />PDF
+                              </Button>
                               {(e.status === "draft" || e.status === "pending_approval") && (
                                 <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
                                   disabled={approveMut.isPending}
