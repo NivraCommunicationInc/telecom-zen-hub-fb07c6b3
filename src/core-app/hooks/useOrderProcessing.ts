@@ -10,6 +10,7 @@ import { useOptionalAuth } from "@/hooks/useAuth";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { toast } from "sonner";
 import { orderEmails } from "@/core-app/lib/emails/orderEmails";
+import { addClientAutoNote, fmtMoney } from "@/core-app/lib/clientAutoNotes";
 
 /**
  * Append-only email enqueue. NEVER throws — an email failure must not break
@@ -562,6 +563,20 @@ export function useOrderProcessing(orderId: string | undefined) {
       || "Client";
   };
 
+  /* ── Auto-note shortcut bound to this order's client ── */
+  const noteClient = (event: Parameters<typeof addClientAutoNote>[0]["event"], detail?: string, metadata?: Record<string, any>) => {
+    const clientId = data?.order?.user_id;
+    if (!clientId) return;
+    addClientAutoNote({
+      clientId,
+      event,
+      detail,
+      metadata,
+      actorId: user?.id || null,
+      actorName: user?.email || null,
+    });
+  };
+
   /* ── Update order fields ── */
   const updateOrder = useMutation({
     mutationFn: async (fields: Record<string, any>) => {
@@ -585,6 +600,8 @@ export function useOrderProcessing(orderId: string | undefined) {
           );
           if (!noisyOnly) {
             enqueueOrderEmail(orderEmails.orderModified(order, profile, fields as any));
+            const changedKeys = Object.keys(fields).filter((k) => k !== "updated_at");
+            noteClient("order_modified", `Champs: ${changedKeys.join(", ")}`, fields);
           }
         }
       } catch (e: any) {
@@ -699,6 +716,11 @@ export function useOrderProcessing(orderId: string | undefined) {
     }
 
     toast.success(`Statut mis à jour: ${newStatus}`);
+    noteClient("status_changed", `${oldStatus || "—"} → ${newStatus}${reason ? ` (${reason})` : ""}`, {
+      order_number: data?.order?.order_number,
+      old_status: oldStatus,
+      new_status: newStatus,
+    });
 
     // ── order_cancelled email (append-only) ──
     try {
@@ -857,6 +879,11 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success("Paiement confirmé et synchronisé");
+      noteClient("payment_confirmed", `${fmtMoney(Number(existingPayment.amount))} — Facture ${targetInvoice.invoice_number || ""} (commande #${data?.order?.order_number || ""})`, {
+        invoice_id: targetInvoice.id,
+        payment_id: existingPayment.id,
+        reference,
+      });
 
       // ── payment_receipt email (append-only) ──
       try {
@@ -984,6 +1011,11 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.warning("Paiement marqué comme invalide — facture recalculée");
+      noteClient("payment_invalid", `${fmtMoney(invalidatedAmount)} invalidé — Raison: ${reason || "non précisée"}`, {
+        invoice_id: targetInvoice.id,
+        amount: invalidatedAmount,
+        reason,
+      });
 
       // ── payment_failed email (append-only) ──
       try {
@@ -1041,6 +1073,9 @@ export function useOrderProcessing(orderId: string | undefined) {
       await logActivity("payment_partial", "order", orderId, { invoice_id: targetInvoice.id });
       invalidateAll();
       toast.info("Paiement marqué comme partiel — facture recalculée");
+      noteClient("payment_partial", `Facture ${targetInvoice.invoice_number || ""} marquée comme partiellement payée`, {
+        invoice_id: targetInvoice.id,
+      });
     } catch (err: any) {
       console.error("[GUARDRAIL][PaymentPartial] Failed:", err);
       toast.error(`Erreur paiement partiel: ${err?.message || "Erreur inconnue"}`);
@@ -1143,6 +1178,9 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success(`Paiement de ${amount.toFixed(2)} $ enregistré`);
+      noteClient("payment_recorded", `${fmtMoney(amount)} (${params.method})${params.reference ? ` — Réf: ${params.reference}` : ""}`, {
+        amount, method: params.method, reference: params.reference,
+      });
       return created;
     } catch (err: any) {
       console.error("[GUARDRAIL][ManualPayment] Failed:", err);
@@ -1165,6 +1203,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       });
       await logActivity("fulfillment_assigned", "order", orderId, { fulfillment_type: type });
       toast.success(`Mode de livraison: ${type}`);
+      noteClient("fulfillment_set", `Type: ${type}`);
     } catch (err: any) {
       console.error("[GUARDRAIL][Fulfillment] Failed:", err);
       toast.error(`Erreur fulfillment: ${err?.message || "Erreur inconnue"}`);
@@ -1200,6 +1239,12 @@ export function useOrderProcessing(orderId: string | undefined) {
       await updateOrder.mutateAsync(fields);
       await logActivity("equipment_assigned", "order", orderId, fields);
       console.info("[GUARDRAIL][Equipment] Assigned:", { orderId, fields: Object.keys(fields) });
+      const summary = [
+        fields.serial_number && `S/N: ${fields.serial_number}`,
+        fields.sim_number && `SIM: ${fields.sim_number}`,
+        fields.imei_number && `IMEI: ${fields.imei_number}`,
+      ].filter(Boolean).join(" · ") || "équipement";
+      noteClient("equipment_assigned", summary, fields);
       toast.success("Équipement assigné");
     } catch (err: any) {
       console.error("[GUARDRAIL][Equipment] Failed:", err);
@@ -1341,6 +1386,11 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       // 8. Success toast
       toast.success("Équipement remplacé avec succès");
+      noteClient("equipment_replaced", `Ancien S/N ${oldSerial}${newEquip?.serial_number ? ` → Nouveau S/N ${newEquip.serial_number}` : ""} — Raison: ${reason}`, {
+        old_serial: oldSerial,
+        new_serial: newEquip?.serial_number,
+        reason,
+      });
       return { old: oldEquip, new: newEquip };
     } catch (err: any) {
       console.error("[GUARDRAIL][Equipment] Replace failed:", err);
@@ -1393,6 +1443,9 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
 
       toast.success("Expédition mise à jour");
+      if (fields.tracking_number) {
+        noteClient("shipping_updated", `${fields.carrier || "Transporteur"} — Suivi ${fields.tracking_number}`, fields);
+      }
 
       // ── equipment_shipped email (append-only) ──
       try {
@@ -1460,6 +1513,10 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
 
       toast.success("Technicien assigné");
+      noteClient("technician_assigned", `Technicien ${technicianId.slice(0, 8)}${data?.appointment?.scheduled_at ? ` — installation ${new Date(data.appointment.scheduled_at).toLocaleString("fr-CA")}` : ""}`, {
+        technician_id: technicianId,
+        appointment_id: data?.appointment?.id,
+      });
 
       // ── appointment_confirmed + reminders (append-only) ──
       try {
@@ -1577,6 +1634,9 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success("Contrat signé (admin)");
+      noteClient("contract_signed_admin", `Contrat ${contractId.slice(0, 8)} signé par ${user?.email || "agent"}`, {
+        contract_id: contractId,
+      });
 
       // ── contract_signed email (append-only) ──
       try {
@@ -1772,6 +1832,11 @@ export function useOrderProcessing(orderId: string | undefined) {
 
     invalidateAll();
     toast.success("Service activé — abonnement créé");
+    noteClient("service_activated", `${data?.order?.service_type || "Service"} activé le ${new Date().toLocaleDateString("fr-CA")} (commande #${data?.order?.order_number || ""})`, {
+      service_type: data?.order?.service_type,
+      provider_ref: opts?.providerRef,
+      subscription_id: provPayload?.subscription_id,
+    });
 
     // ── service_activated + welcome_to_nivra emails (append-only) ──
     try {
@@ -1850,6 +1915,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
 
       toast.success("Commande complétée");
+      noteClient("order_completed", `Commande #${data?.order?.order_number || ""} marquée comme complétée`);
     } catch (err: any) {
       console.error("[GUARDRAIL][Complete] Failed:", err);
       toast.error(`Erreur complétion: ${err?.message || "Erreur inconnue"}`);
@@ -1905,6 +1971,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       });
       invalidateAll();
       toast.success("SIM activée");
+      noteClient("sim_activated", `Numéro ${opts.phone_number} — ICCID ${opts.iccid} (${opts.operator})`, opts);
       try {
         if (data?.order && data?.profile) {
           await enqueueOrderEmail(
@@ -1929,6 +1996,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       await logActivity("sim_deactivated", "order", orderId, {});
       invalidateAll();
       toast.success("SIM désactivée");
+      noteClient("sim_deactivated", "SIM désactivée par l'agent");
     } catch (err: any) {
       console.error("[SIM] Deactivation failed:", err);
       toast.error(`Erreur désactivation SIM: ${err?.message || "Erreur inconnue"}`);
@@ -1948,6 +2016,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       });
       invalidateAll();
       toast.success("eSIM activée — QR code généré");
+      noteClient("esim_activated", `EID ${opts.eid} — Profil ${opts.profile_type}`, opts);
       try {
         if (data?.order && data?.profile) {
           await enqueueOrderEmail(
@@ -2007,6 +2076,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       });
       invalidateAll();
       toast.success("Demande de port-in soumise");
+      noteClient("portin_submitted", `Numéro ${opts.number} — Opérateur ${opts.current_operator}`, opts);
       try {
         if (data?.order && data?.profile) {
           await enqueueOrderEmail(
@@ -2033,6 +2103,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       await logActivity("portin_status_changed", "order", orderId, { new_status: status });
       invalidateAll();
       toast.success(`Statut port-in: ${status}`);
+      noteClient("portin_status_changed", `Nouveau statut: ${status}`);
       try {
         if (data?.order && data?.profile) {
           if (status === "completed") {
@@ -2060,6 +2131,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       await logActivity("portin_cancelled", "order", orderId, {});
       invalidateAll();
       toast.success("Port-in annulé");
+      noteClient("portin_cancelled", "Port-in annulé");
     } catch (err: any) {
       console.error("[PortIn] Cancel failed:", err);
       toast.error(`Erreur annulation port-in: ${err?.message || "Erreur inconnue"}`);
@@ -2093,6 +2165,7 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success(`Lien de vérification envoyé à ${recipientEmail}`);
+      noteClient("kyc_requested", `Lien envoyé à ${recipientEmail}${opts?.notes ? ` — ${opts.notes}` : ""}`);
       return result;
     } catch (err: any) {
       console.error("[KYC] requestIdentityVerification failed:", err);
@@ -2127,6 +2200,7 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.success("Demande de resoumission envoyée");
+      noteClient("kyc_resubmission", opts?.reason || "Documents additionnels demandés");
       return result;
     } catch (err: any) {
       console.error("[KYC] requestKycResubmission failed:", err);
@@ -2197,6 +2271,7 @@ export function useOrderProcessing(orderId: string | undefined) {
       invalidateAll();
       await orderQuery.refetch();
       toast.success("KYC approuvé");
+      noteClient("kyc_approved", reason);
       return result ?? { success: true, order_id: order.id, kyc_status: "approved" };
     } catch (err: any) {
       console.error("[KYC] approveKyc failed:", err);
@@ -2244,6 +2319,7 @@ export function useOrderProcessing(orderId: string | undefined) {
 
       invalidateAll();
       toast.warning("KYC rejeté — client notifié");
+      noteClient("kyc_rejected", `Raison: ${reason}`);
       return result;
     } catch (err: any) {
       console.error("[KYC] rejectKyc failed:", err);
