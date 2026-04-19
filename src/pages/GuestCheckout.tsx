@@ -23,6 +23,7 @@ import { InstallationSection } from "@/components/checkout/InstallationSection";
 import { CheckoutEssentialTermsBase, isChecklistComplete, type ChecklistState } from "@/components/checkout/CheckoutEssentialTermsBase";
 
 import { PayPalButton } from "@/components/payment/PayPalButton";
+import { AutoPayPalOption } from "@/components/checkout/AutoPayPalOption";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,6 +122,13 @@ const GuestCheckout = () => {
   const [paypalCaptureId, setPaypalCaptureId] = useState("");
   const [etransferRef, setEtransferRef] = useState("");
   const [etransferSender, setEtransferSender] = useState("");
+
+  // ── PayPal pre-authorized (auto-billing) recurring payment opt-in ──
+  // When enabled, the order routes through billing-create-order-with-paypal-subscription
+  // and the client is redirected to PayPal to approve a recurring billing agreement.
+  // They get a $5/month discount on every future invoice.
+  const [enableAutoBilling, setEnableAutoBilling] = useState(false);
+  const AUTOPAY_DISCOUNT = 5;
 
   // ── Legal checklist (replaces simple termsAccepted) ──
   const [legalChecklist, setLegalChecklist] = useState<ChecklistState>({
