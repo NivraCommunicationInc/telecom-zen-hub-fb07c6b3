@@ -308,6 +308,73 @@ export default function HrPayrollPage() {
     toast.success("CSV exporté");
   };
 
+  // Generate printable payslip PDF (uses browser print)
+  const generatePayslipPDF = (entry: any) => {
+    const periodName = entry.pay_periods?.period_name || "Période";
+    const fullName = entry._profile?.full_name || entry.user_id.slice(0, 8);
+    const email = entry._profile?.email || "";
+    const html = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Fiche de paie - ${fullName}</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 40px; color: #1a1a1a; }
+  .header { border-bottom: 3px solid #0066CC; padding-bottom: 16px; margin-bottom: 24px; }
+  .header h1 { color: #0066CC; margin: 0 0 4px; font-size: 24px; }
+  .header p { margin: 0; color: #666; font-size: 12px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; font-size: 12px; }
+  .info-grid div { padding: 8px; background: #f5f5f5; border-radius: 4px; }
+  .info-grid strong { display: block; color: #0066CC; font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+  table th, table td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+  table th { background: #0066CC; color: white; font-weight: 600; }
+  .total-row { background: #f9f9f9; font-weight: bold; }
+  .net-row { background: #0066CC; color: white; font-weight: bold; font-size: 15px; }
+  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 10px; color: #888; text-align: center; }
+  @media print { body { padding: 20px; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Nivra Telecom</h1>
+    <p>Fiche de paie — ${periodName}</p>
+  </div>
+  <div class="info-grid">
+    <div><strong>Employé</strong>${fullName}</div>
+    <div><strong>Email</strong>${email}</div>
+    <div><strong>Numéro de fiche</strong>${entry.payroll_number || "—"}</div>
+    <div><strong>Période</strong>${periodName}</div>
+  </div>
+  <table>
+    <thead><tr><th>Description</th><th style="text-align:right">Montant</th></tr></thead>
+    <tbody>
+      <tr><td>Heures travaillées</td><td style="text-align:right">${entry.hours_worked || 0} h</td></tr>
+      <tr><td>Heures supplémentaires</td><td style="text-align:right">${entry.overtime_hours || 0} h</td></tr>
+      <tr><td>Salaire de base</td><td style="text-align:right">${(entry.base_salary || 0).toFixed(2)} $</td></tr>
+      <tr><td>Commissions</td><td style="text-align:right">${(entry.commission_total || 0).toFixed(2)} $</td></tr>
+      <tr><td>Bonus</td><td style="text-align:right">${(entry.bonus_total || 0).toFixed(2)} $</td></tr>
+      <tr class="total-row"><td>Salaire brut</td><td style="text-align:right">${(entry.gross_pay || 0).toFixed(2)} $</td></tr>
+      <tr><td>Déductions</td><td style="text-align:right">-${Math.abs(entry.deductions_total || 0).toFixed(2)} $</td></tr>
+      <tr class="net-row"><td>Salaire net</td><td style="text-align:right">${(entry.net_pay || 0).toFixed(2)} $</td></tr>
+    </tbody>
+  </table>
+  <div class="footer">
+    Document généré le ${format(new Date(), "d MMMM yyyy 'à' HH:mm", { locale: fr })} — Nivra Telecom inc.
+  </div>
+  <script>window.onload = () => { window.print(); };</script>
+</body>
+</html>`;
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) {
+      toast.error("Veuillez autoriser les fenêtres contextuelles");
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    toast.success("Fiche de paie générée");
+  };
 
   // KPIs
   const totalGross = entries.reduce((s: number, e: any) => s + (e.gross_pay || 0), 0);
