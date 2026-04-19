@@ -424,6 +424,8 @@ export const employeeWelcome = (params: BaseParams & {
   hasEmployeePortal?: boolean;
   rhUrl?: string;
   employeeUrl?: string;
+  /** Magic link or invitation link to set password and access /rh */
+  setupLink?: string;
 }): { subject: string; html: string } => {
   const {
     employeeName,
@@ -434,6 +436,7 @@ export const employeeWelcome = (params: BaseParams & {
     hasEmployeePortal = false,
     rhUrl = 'https://nivra-telecom.ca/rh',
     employeeUrl = 'https://nivra-telecom.ca/employee',
+    setupLink,
     supportEmail,
   } = params;
 
