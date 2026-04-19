@@ -824,6 +824,15 @@ export default function CoreTechnicianMobilePage() {
           </div>
         )}
       </div>
+      {selectedTechId && (
+        <Button
+          onClick={handleClearSelection}
+          variant="outline"
+          className="w-full h-11 border-slate-600 bg-transparent text-slate-200 hover:bg-slate-800"
+        >
+          Changer de technicien
+        </Button>
+      )}
     </div>
   );
 
