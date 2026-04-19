@@ -107,20 +107,83 @@ export default function CoreTechnicianMobilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>("today");
 
-  /* ─── Resolve technician record from current auth user ─── */
+  /* ─── Manual technician selection (persisted) ─── */
+  const LS_KEY = "nivra.core.technician.selectedId";
+  const [selectedTechId, setSelectedTechId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(LS_KEY);
+  });
+
+  /* ─── Resolve technician record:
+   *    1. Try linked user_id match (if technicians.user_id is set)
+   *    2. Fall back to email match against auth user's email
+   *    3. Fall back to manual selection persisted in localStorage
+   */
   const technicianQuery = useQuery({
-    queryKey: ["technician-self", user?.id],
+    queryKey: ["technician-self", user?.id, user?.email, selectedTechId],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1) Try by user_id
+      const byUserId = await supabase
         .from("technicians")
         .select("id, user_id, full_name, email, phone, status, specializations, notes")
         .eq("user_id", user!.id)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      if (byUserId.data) return byUserId.data;
+
+      // 2) Try by email
+      if (user?.email) {
+        const byEmail = await supabase
+          .from("technicians")
+          .select("id, user_id, full_name, email, phone, status, specializations, notes")
+          .eq("email", user.email)
+          .maybeSingle();
+        if (byEmail.data) return byEmail.data;
+      }
+
+      // 3) Fall back to manually-selected technician
+      if (selectedTechId) {
+        const bySelection = await supabase
+          .from("technicians")
+          .select("id, user_id, full_name, email, phone, status, specializations, notes")
+          .eq("id", selectedTechId)
+          .maybeSingle();
+        if (bySelection.data) return bySelection.data;
+      }
+
+      return null;
     },
   });
+
+  /* ─── Active technicians list (only loaded when no profile resolved) ─── */
+  const activeTechniciansQuery = useQuery({
+    queryKey: ["technicians-active-list"],
+    enabled: !!user?.id && !technicianQuery.isLoading && !technicianQuery.data,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("technicians")
+        .select("id, full_name, email, status")
+        .eq("status", "active")
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const handleSelectTechnician = (id: string) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LS_KEY, id);
+    }
+    setSelectedTechId(id);
+  };
+
+  const handleClearSelection = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(LS_KEY);
+    }
+    setSelectedTechId(null);
+    queryClient.invalidateQueries({ queryKey: ["technician-self"] });
+  };
 
   const technician = technicianQuery.data;
   const technicianId: string | null = technician?.id ?? null;
@@ -501,15 +564,57 @@ export default function CoreTechnicianMobilePage() {
   }
 
   if (!technician) {
+    const techs = activeTechniciansQuery.data || [];
     return (
       <MobileShell activeTab={activeTab} setActiveTab={setActiveTab}>
-        <div className="px-4 py-10 text-center">
-          <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-3" />
-          <h2 className="text-base font-semibold text-slate-100">Aucun profil technicien</h2>
-          <p className="text-xs text-slate-400 mt-2">
-            Votre compte n'est pas associé à une fiche technicien. Contactez un administrateur
-            pour obtenir l'accès.
-          </p>
+        <div className="px-4 py-8">
+          <div className="text-center mb-5">
+            <User className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+            <h2 className="text-base font-semibold text-slate-100">Identifiez-vous</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Sélectionnez votre fiche technicien pour accéder à vos interventions.
+            </p>
+          </div>
+
+          {activeTechniciansQuery.isLoading ? (
+            <div className="flex items-center justify-center py-10 text-slate-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Chargement…
+            </div>
+          ) : techs.length === 0 ? (
+            <div className="bg-[#111827] border border-slate-700 rounded-xl p-5 text-center">
+              <AlertTriangle className="w-7 h-7 text-amber-400 mx-auto mb-2" />
+              <p className="text-sm text-slate-200">Aucun technicien actif</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Contactez un administrateur pour créer votre fiche.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {techs.map((t: any) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleSelectTechnician(t.id)}
+                  className="w-full text-left bg-[#111827] border border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/60 rounded-xl p-4 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                      <User className="w-4 h-4 text-slate-200" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-slate-100 truncate">
+                        Je suis {t.full_name}
+                      </div>
+                      <div className="text-xs text-slate-400 truncate">{t.email}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+              <p className="text-[11px] text-slate-500 text-center pt-2">
+                Votre choix est mémorisé sur cet appareil.
+              </p>
+            </div>
+          )}
         </div>
       </MobileShell>
     );
@@ -719,6 +824,15 @@ export default function CoreTechnicianMobilePage() {
           </div>
         )}
       </div>
+      {selectedTechId && (
+        <Button
+          onClick={handleClearSelection}
+          variant="outline"
+          className="w-full h-11 border-slate-600 bg-transparent text-slate-200 hover:bg-slate-800"
+        >
+          Changer de technicien
+        </Button>
+      )}
     </div>
   );
 
