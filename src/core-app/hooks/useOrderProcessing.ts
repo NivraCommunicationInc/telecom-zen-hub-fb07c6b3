@@ -909,6 +909,8 @@ export function useOrderProcessing(orderId: string | undefined) {
       }
 
       invalidateAll();
+      // ★ BUG 2 fix: force immediate refetch so UI updates without waiting for stale-time
+      try { await orderQuery.refetch(); } catch (e: any) { console.warn("[confirmPayment] refetch failed:", e?.message); }
       toast.success("Paiement confirmé et synchronisé");
       noteClient("payment_confirmed", `${fmtMoney(Number(existingPayment.amount))} — Facture ${targetInvoice.invoice_number || ""} (commande #${data?.order?.order_number || ""})`, {
         invoice_id: targetInvoice.id,
