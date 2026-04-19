@@ -169,13 +169,16 @@ export default function PhoneCheckout() {
       ? (isFr ? "Sélectionnez un forfait mobile." : "Select a mobile plan.")
       : "";
 
+  // DOB only required when buying a phone + mobile plan AND (guest OR no DOB on profile yet)
+  const dobRequired = mode === "phone_plus_plan" && (!user || !dob);
+
   const formValid = useMemo(() => {
     return (
       !!firstName.trim() &&
       !!lastName.trim() &&
       !!email.trim() &&
       !!phoneNumber.trim() &&
-      !!dob &&
+      (!dobRequired || !!dob) &&
       !!address.trim() &&
       !!city.trim() &&
       !!province &&
@@ -184,7 +187,7 @@ export default function PhoneCheckout() {
       !planError &&
       acceptKyc
     );
-  }, [firstName, lastName, email, phoneNumber, dob, address, city, province, postalCode, provinceError, planError, acceptKyc]);
+  }, [firstName, lastName, email, phoneNumber, dob, dobRequired, address, city, province, postalCode, provinceError, planError, acceptKyc]);
 
   // -------- Payment success --------
   const handlePaymentSuccess = async (captureId: string) => {
