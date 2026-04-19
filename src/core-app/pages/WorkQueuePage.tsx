@@ -4,12 +4,13 @@
  * Routed at /core/work-queue.
  */
 import { useState, useMemo, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Search, RefreshCw, ArrowRight, Package, AlertTriangle, ShieldCheck,
-  Zap, Clock, X,
+  Zap, Clock, X, Mail, ExternalLink, CheckCircle2, Loader2,
 } from "lucide-react";
 import { format, formatDistanceToNowStrict, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
