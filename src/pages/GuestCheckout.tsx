@@ -975,7 +975,73 @@ const GuestCheckout = () => {
                   </Card>
                 )}
 
-                {/* Welcome Discount Banner */}
+                {/* SIM type selector — shown whenever a Mobile plan is in the cart */}
+                {hasMobileService && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Smartphone className="w-5 h-5 text-primary" />
+                        Quel type de SIM votre appareil utilise-t-il ?
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSimType("physical")}
+                          className={`text-left p-4 rounded-xl border-2 transition-all ${
+                            simType === "physical"
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border hover:border-primary/30 hover:shadow-sm"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground text-sm">SIM physique</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Pour la majorité des appareils — Android, iPhone 13 et versions antérieures.
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-foreground ml-3">{fmt(SIM_PRICE)}</span>
+                          </div>
+                          {simType === "physical" && (
+                            <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
+                              <Check className="w-3.5 h-3.5" /> Sélectionné
+                            </div>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSimType("esim")}
+                          className={`text-left p-4 rounded-xl border-2 transition-all ${
+                            simType === "esim"
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border hover:border-primary/30 hover:shadow-sm"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground text-sm">eSIM</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Pour les appareils compatibles — iPhone 14+, Pixel 6+, Samsung Galaxy S21+ et plus récents.
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-foreground ml-3">Gratuit</span>
+                          </div>
+                          {simType === "esim" && (
+                            <div className="mt-2 flex items-center gap-1 text-xs text-primary font-medium">
+                              <Check className="w-3.5 h-3.5" /> Sélectionné
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-3">
+                        Vérifiez la compatibilité dans les réglages de votre appareil avant de choisir l'eSIM.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
                 {!welcomeDiscountDismissed && !appliedPromo && normalizedPricing?.welcome_applied && (
                   <Card className="bg-emerald-500/10 border-emerald-500/30">
                     <CardContent className="py-4">
